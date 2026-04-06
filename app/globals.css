@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-page: #f0f2f5;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #f7f8fa;
+  --border: #e4e7eb;
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-kicker: #6b7280;
+  --color-win: #16a34a;
+  --color-win-bg: rgba(22, 163, 74, 0.1);
+  --color-win-border: rgba(22, 163, 74, 0.2);
+  --color-loss: #dc2626;
+  --color-loss-bg: rgba(220, 38, 38, 0.08);
+  --color-loss-border: rgba(220, 38, 38, 0.16);
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-danger: #dc2626;
+  --text-inverse: #ffffff;
+}
+
+.dark {
+  --bg-page: #0f1117;
+  --bg-surface: #1a1d27;
+  --bg-surface-alt: #14161f;
+  --border: #2a2d3a;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #6b7280;
+  --text-kicker: #4b5563;
+  --color-win: #16a34a;
+  --color-win-bg: rgba(22, 163, 74, 0.1);
+  --color-win-border: rgba(22, 163, 74, 0.2);
+  --color-loss: #dc2626;
+  --color-loss-bg: rgba(220, 38, 38, 0.08);
+  --color-loss-border: rgba(220, 38, 38, 0.16);
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-danger: #dc2626;
+  --text-inverse: #ffffff;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--bg-page);
+  color: var(--text-secondary);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  border-color: var(--border);
+}
+
+::selection {
+  background-color: var(--color-brand);
+  color: var(--text-inverse);
+}

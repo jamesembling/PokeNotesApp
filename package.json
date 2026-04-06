@@ -1,25 +1,26 @@
 {
-  "name": "pokenotesv2",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "poke-notes",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/jamesembling/PokeNotesApp.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "bugs": {
-    "url": "https://github.com/jamesembling/PokeNotesApp/issues"
-  },
-  "homepage": "https://github.com/jamesembling/PokeNotesApp#readme",
   "dependencies": {
+    "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
-    "dotenv": "^17.4.1"
+    "next": "14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "@types/react": "^18.3.28",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3"
   }
 }
