@@ -1,39 +1,19 @@
-import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/ui/Sidebar";
-import { createClient } from "@/lib/supabase/server";
-
-type ProfileRow = {
-  display_name: string;
-  email: string;
-};
+import { requireUser } from "@/lib/auth";
 
 export default async function AppLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const user = await requireUser();
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name,email")
-    .eq("id", user.id)
-    .single();
-
-  const typedProfile = profile as ProfileRow | null;
   const displayName =
-    typedProfile?.display_name ||
     user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
     user.email?.split("@")[0] ||
     "Trainer";
-  const email = typedProfile?.email || user.email || "";
+  const email = user.email || "";
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)]">

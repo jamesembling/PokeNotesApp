@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DeckListCard } from "@/components/ui/DeckListCard";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { requireUser } from "@/lib/auth";
 import { getDeckWithList } from "@/lib/db/decks";
-import { createClient } from "@/lib/supabase/server";
 
 type DeckListPageProps = {
   params: {
@@ -63,12 +63,8 @@ function sortParsedCards(cards: ParsedCard[]): ParsedCard[] {
 }
 
 export default async function DeckListPage({ params }: DeckListPageProps) {
-  const supabase = createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  const result = user ? await getDeckWithList(user.id, params.id, params.listId) : null;
+  const user = await requireUser();
+  const result = await getDeckWithList(user.id, params.id, params.listId);
 
   if (!result) {
     return (
