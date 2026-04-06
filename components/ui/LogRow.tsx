@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "@/components/ui/Badge";
+import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import type { BattleLogSummary } from "@/types/index";
 
 type LogRowProps = {
@@ -16,22 +16,16 @@ function formatLogDate(date: string) {
   }).format(new Date(`${date}T00:00:00`));
 }
 
-function SpriteImage({ slug, alt }: { slug: string; alt: string }) {
-  const src = `https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`;
+function formatGoOrder(goOrder: BattleLogSummary["goOrder"]) {
+  if (goOrder === "First") {
+    return "1st";
+  }
 
-  return (
-    <img
-      alt={alt}
-      className="h-8 w-8 object-contain"
-      height={32}
-      loading="lazy"
-      onError={(event) => {
-        event.currentTarget.style.display = "none";
-      }}
-      src={src}
-      width={32}
-    />
-  );
+  if (goOrder === "Second") {
+    return "2nd";
+  }
+
+  return null;
 }
 
 export function LogRow({ log }: LogRowProps) {
@@ -41,51 +35,39 @@ export function LogRow({ log }: LogRowProps) {
       : "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]";
 
   const selfSprites = log.selfDeckSprites.slice(0, 2);
-  const opponentSprite = log.opponentDeckSprites[0];
   const opponentDeckName = log.opponentDeckName || "Unknown Deck";
+  const goOrderLabel = formatGoOrder(log.goOrder);
+  const metadata = [formatLogDate(log.date), log.linkedDeckListName ? `List: ${log.linkedDeckListName}` : ""]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <Link
       className={[
-        "flex items-center gap-4 rounded-xl border p-4 transition hover:translate-y-[-1px]",
+        "grid w-full grid-cols-1 gap-3 rounded-[22px] border px-4 py-4 text-left transition hover:brightness-[0.98] sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:items-center sm:gap-3 sm:rounded-[24px] sm:px-4 lg:grid-cols-[5.5rem_minmax(0,1fr)_4rem_5.5rem] lg:gap-5 lg:px-6",
         rowClasses
       ].join(" ")}
       href={`/logs/${log.id}`}
     >
-      <div className="flex min-w-0 shrink-0 items-center gap-2">
-        {selfSprites.length > 0 ? (
-          selfSprites.map((slug, index) => (
-            <SpriteImage
-              alt={`${log.selfDeckName} sprite`}
-              key={`${log.id}-${slug}-${index}`}
-              slug={slug}
-            />
-          ))
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
-            -
-          </div>
-        )}
+      <div className="hidden min-w-0 items-center justify-start sm:flex">
+        <SpriteStrip className="-space-x-2 gap-0" size="md" sprites={selfSprites} />
       </div>
 
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+      <div className="min-w-0 text-left">
+        <p className="block whitespace-normal text-[1.08rem] font-semibold leading-[1.2] tracking-[-0.015em] text-[var(--text-primary)] sm:truncate">
           {log.result} vs {opponentDeckName}
         </p>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
-          {formatLogDate(log.date)} · Go {log.goOrder || "Unknown"}
+        <p className="mt-1 text-[0.94rem] leading-[1.25] text-[var(--text-muted)]">
+          {metadata}
         </p>
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
-        <Badge>{log.goOrder || "Unknown"}</Badge>
-        {opponentSprite ? (
-          <SpriteImage alt={`${opponentDeckName} sprite`} slug={opponentSprite} />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
-            -
-          </div>
-        )}
+      <div className="w-full text-left text-[0.95rem] font-semibold text-[var(--text-muted)] sm:text-center sm:text-[1rem]">
+        {goOrderLabel ?? ""}
+      </div>
+
+      <div className="hidden min-w-0 items-center justify-end sm:flex">
+        <SpriteStrip className="-space-x-2 gap-0" size="md" sprites={log.opponentDeckSprites} />
       </div>
     </Link>
   );

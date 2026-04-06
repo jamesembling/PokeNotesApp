@@ -170,7 +170,9 @@ export type BattleLogSummary = {
   opponentDeckSprites: string[]
   totalTurns: number
   linkedDeckId: string | undefined
+  linkedDeckListId: string | undefined
   importedAt: string
+  linkedDeckListName?: string
 }
 
 export type ParsedLogReview = {

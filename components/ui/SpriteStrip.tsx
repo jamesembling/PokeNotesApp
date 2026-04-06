@@ -4,24 +4,26 @@ type SpriteStripProps = {
   sprites: string[];
   size: "sm" | "md";
   maxVisible?: number;
+  className?: string;
 };
 
 const sizeClasses: Record<SpriteStripProps["size"], string> = {
-  sm: "h-8 w-8",
-  md: "h-12 w-12"
+  sm: "h-6 w-6",
+  md: "h-8 w-8"
 };
 
 const sizeValues: Record<SpriteStripProps["size"], number> = {
-  sm: 32,
-  md: 48
+  sm: 24,
+  md: 32
 };
 
-export function SpriteStrip({ sprites, size, maxVisible = 2 }: SpriteStripProps) {
+export function SpriteStrip({ sprites, size, maxVisible = 2, className }: SpriteStripProps) {
   const visibleSprites = sprites.slice(0, maxVisible);
+  const stripClassName = ["flex items-center gap-0.5", className].filter(Boolean).join(" ");
 
   if (visibleSprites.length === 0) {
     return (
-      <div className="flex items-center gap-2">
+      <div className={stripClassName}>
         <div
           className={[
             "flex items-center justify-center rounded-full bg-[var(--bg-surface-alt)] text-xs text-[var(--text-muted)]",
@@ -35,7 +37,7 @@ export function SpriteStrip({ sprites, size, maxVisible = 2 }: SpriteStripProps)
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={stripClassName}>
       {visibleSprites.map((slug, index) => {
         const src = `https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`;
 

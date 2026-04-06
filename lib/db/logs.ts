@@ -22,6 +22,7 @@ type LogsTableRow = {
   opponent_deck_sprites: string;
   total_turns: number;
   linked_deck_id: string | null;
+  linked_deck_list_id: string | null;
   imported_at: string;
 };
 
@@ -88,6 +89,7 @@ function mapLogSummary(row: LogsTableRow): BattleLogSummary {
     opponentDeckSprites: splitSprites(row.opponent_deck_sprites),
     totalTurns: row.total_turns,
     linkedDeckId: row.linked_deck_id ?? undefined,
+    linkedDeckListId: row.linked_deck_list_id ?? undefined,
     importedAt: row.imported_at
   };
 }
@@ -188,6 +190,7 @@ export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
         "opponent_deck_sprites",
         "total_turns",
         "linked_deck_id",
+        "linked_deck_list_id",
         "imported_at"
       ].join(",")
     )

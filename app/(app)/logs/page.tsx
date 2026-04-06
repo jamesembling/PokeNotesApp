@@ -17,6 +17,29 @@ type LogGroup = {
   losses: number;
 };
 
+function attachLinkedDeckListNames(
+  logs: BattleLogSummary[],
+  userDecks: Awaited<ReturnType<typeof getDecks>>
+) {
+  return logs.map((log) => {
+    if (!log.linkedDeckId || !log.linkedDeckListId) {
+      return log;
+    }
+
+    const deck = userDecks.find((candidate) => candidate.id === log.linkedDeckId);
+    const linkedDeckList = deck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
+
+    if (!linkedDeckList?.name) {
+      return log;
+    }
+
+    return {
+      ...log,
+      linkedDeckListName: linkedDeckList.name
+    };
+  });
+}
+
 function formatGroupDate(date: string) {
   return new Intl.DateTimeFormat("en-GB", {
     weekday: "short",
@@ -62,7 +85,7 @@ export default async function LogsPage() {
     getLogsPage(user.id),
     getDecks(user.id)
   ]);
-  const groups = groupLogsByDate(page.logs);
+  const groups = groupLogsByDate(attachLinkedDeckListNames(page.logs, userDecks));
 
   return (
     <>

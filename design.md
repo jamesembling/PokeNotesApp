@@ -205,10 +205,10 @@ Loss row: bg-[--color-loss-bg] border border-[--color-loss-border] rounded-xl
 ```
 
 Contents (left to right):
-- Self sprite strip (2 sprites, small)
-- `Win vs Ogerpon / Meganium` bold + `5 Apr 2026 · List: Bex List` muted below
-- `2nd` badge (go order) — centred
-- Opponent sprite (single, right-aligned)
+- Self sprite strip (2 sprites, medium)
+- `Win vs Ogerpon / Meganium` bold + `5 Apr 2026` muted below
+- `2nd` badge (go order, only when known) — centred
+- Opponent sprites (up to 2, right-aligned)
 
 Full-width tap target on mobile. Chevron on mobile only.
 
@@ -269,8 +269,8 @@ Poke Notes  /  Battle Logs  /  Log Detail
 Pokemon sprite images displayed inline. Used in log rows, deck cards, matchup cards.
 
 ```
-Size sm: 24×24px sprites, gap-1
-Size md: 32×32px sprites, gap-1.5
+Size sm: 24×24px sprites, gap-0.5
+Size md: 32×32px sprites, gap-0.5
 ```
 
 Always `object-contain`. Always `onerror` removes the image silently. Never shows broken image icons.
