@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
 import { linkDeckConservatively } from "@/lib/log-import/deck-linking";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
@@ -65,7 +66,8 @@ async function getImportContext() {
 }
 
 async function buildParsedLogReview(rawLog: string): Promise<ParsedLogReview> {
-  const trimmedRawLog = String(rawLog || "").trim();
+  const resolvedRawLog = await resolveBattleLogImportInput(rawLog);
+  const trimmedRawLog = String(resolvedRawLog || "").trim();
 
   if (!trimmedRawLog) {
     throw new ImportLogValidationError("EMPTY_INPUT", "Paste a PTCGL battle log before importing.");
@@ -195,8 +197,8 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
 }
 
 export async function importLogAction(formData: FormData): Promise<void> {
-  const rawLog = String(formData.get("rawLog") || "").trim();
-  const review = await buildParsedLogReview(rawLog);
+  const rawLogInput = String(formData.get("rawLog") || "").trim();
+  const review = await buildParsedLogReview(rawLogInput);
   const { user, supabase } = await getImportContext();
 
   const selectedDeckId = String(formData.get("linkedDeckId") || "").trim();
@@ -234,7 +236,7 @@ export async function importLogAction(formData: FormData): Promise<void> {
     linked_deck_id: selectedDeckId || review.suggestedLinkedDeckId || null,
     linked_deck_list_id: selectedDeckListId || null,
     reason: String(formData.get("reason") || review.reason).trim(),
-    raw_log: rawLog,
+    raw_log: review.rawLog,
     sections: sections.length > 0 ? sections : review.sections
   };
 
