@@ -154,9 +154,24 @@ export type BattleLog = {
   updatedAt: string
 }
 
-// Summary version used in list views — no sections or rawLog
-// Fetched efficiently without the heavy JSONB columns
-export type BattleLogSummary = Omit<BattleLog, "sections" | "rawLog">
+// Summary version used in list views — only the lightweight columns
+// needed for the logs index page.
+export type BattleLogSummary = {
+  id: string
+  date: string
+  result: Result
+  format: string
+  goOrder: GoOrder
+  selfPlayerName: string
+  selfDeckName: string
+  selfDeckSprites: string[]
+  opponentPlayerName: string
+  opponentDeckName: string
+  opponentDeckSprites: string[]
+  totalTurns: number
+  linkedDeckId: string | undefined
+  importedAt: string
+}
 
 
 // ============================================================

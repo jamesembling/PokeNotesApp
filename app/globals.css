@@ -21,6 +21,7 @@
   --color-brand-hover: #1d4ed8;
   --color-danger: #dc2626;
   --text-inverse: #ffffff;
+  --bg-overlay: rgba(17, 24, 39, 0.44);
 }
 
 .dark {
@@ -42,6 +43,7 @@
   --color-brand-hover: #1d4ed8;
   --color-danger: #dc2626;
   --text-inverse: #ffffff;
+  --bg-overlay: rgba(15, 17, 23, 0.6);
 }
 
 html {
