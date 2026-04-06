@@ -8,6 +8,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
 import { getDecks } from "@/lib/db/decks";
 import { getLogsPage, getLogSummaryStats } from "@/lib/db/logs";
+import { getPokemonOptions } from "@/lib/db/pokemon";
 import type { BattleLogSummary } from "@/types/index";
 
 type LogGroup = {
@@ -80,10 +81,11 @@ function groupLogsByDate(logs: BattleLogSummary[]): LogGroup[] {
 export default async function LogsPage() {
   const user = await requireUser();
 
-  const [stats, page, userDecks] = await Promise.all([
+  const [stats, page, userDecks, pokemonOptions] = await Promise.all([
     getLogSummaryStats(user.id),
     getLogsPage(user.id),
-    getDecks(user.id)
+    getDecks(user.id),
+    getPokemonOptions()
   ]);
   const groups = groupLogsByDate(attachLinkedDeckListNames(page.logs, userDecks));
 
@@ -96,7 +98,13 @@ export default async function LogsPage() {
         ]}
         title="Battle Logs"
         subtitle="Imported Pokemon TCG Live logs, grouped by day and ready for deeper review."
-        action={<ImportLogDialog userDecks={userDecks} userId={user.id} />}
+        action={
+          <ImportLogDialog
+            pokemonOptions={pokemonOptions}
+            userDecks={userDecks}
+            userId={user.id}
+          />
+        }
       />
 
       <Card>

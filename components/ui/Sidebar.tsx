@@ -8,7 +8,7 @@ import { ImportLogDialog } from "@/components/ui/ImportLogDialog";
 import { CloseIcon, MenuIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { createClient } from "@/lib/supabase/client";
-import type { DeckSummary } from "@/types/index";
+import type { DeckSummary, PokemonOption } from "@/types/index";
 
 type SidebarProfile = {
   displayName: string;
@@ -17,6 +17,7 @@ type SidebarProfile = {
 
 type SidebarProps = {
   profile: SidebarProfile;
+  pokemonOptions: PokemonOption[];
   userDecks: DeckSummary[];
   userId: string;
 };
@@ -50,7 +51,7 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-export function Sidebar({ profile, userDecks, userId }: SidebarProps) {
+export function Sidebar({ profile, pokemonOptions, userDecks, userId }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -218,7 +219,12 @@ export function Sidebar({ profile, userDecks, userId }: SidebarProps) {
             <div className="mt-8 flex flex-1 flex-col gap-8 overflow-y-auto">
               <div className="space-y-3">
                 <SectionLabel>QUICK ACTIONS</SectionLabel>
-                <ImportLogDialog className="w-full justify-center" userDecks={userDecks} userId={userId} />
+                <ImportLogDialog
+                  className="w-full justify-center"
+                  pokemonOptions={pokemonOptions}
+                  userDecks={userDecks}
+                  userId={userId}
+                />
               </div>
 
               <div className="space-y-3">

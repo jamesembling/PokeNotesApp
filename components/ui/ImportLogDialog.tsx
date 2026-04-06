@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
+import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
-import type { DeckList, DeckSummary, ParsedLogReview } from "@/types/index";
+import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/types/index";
 
 type ImportLogDialogProps = {
   className?: string;
+  pokemonOptions: PokemonOption[];
   userDecks: DeckSummary[];
   userId: string;
 };
@@ -28,38 +30,6 @@ const FORMAT_OPTIONS = [
   "SVI-BRS"
 ] as const;
 
-function prettifySlug(slug: string) {
-  return slug
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function SpriteThumb({ slug }: { slug: string }) {
-  if (!slug) {
-    return (
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
-        -
-      </div>
-    );
-  }
-
-  return (
-    <img
-      alt={prettifySlug(slug)}
-      className="h-12 w-12 shrink-0 object-contain"
-      height={48}
-      loading="lazy"
-      onError={(event) => {
-        event.currentTarget.style.display = "none";
-      }}
-      src={`https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`}
-      width={48}
-    />
-  );
-}
-
 function ResultChip({ children }: { children: string }) {
   return (
     <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)]">
@@ -78,39 +48,12 @@ function SaveButton() {
   );
 }
 
-function SpriteSlot({
-  onRemove,
-  slug
-}: {
-  onRemove: () => void;
-  slug: string | undefined;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3">
-      <SpriteThumb slug={slug ?? ""} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-          {slug ? prettifySlug(slug) : "No Pokemon selected"}
-        </p>
-        <p className="text-xs text-[var(--text-muted)]">
-          {slug ? "Auto-detected from the battle log" : "Phase 9 adds manual selection"}
-        </p>
-      </div>
-      {slug ? (
-        <button
-          aria-label={`Remove ${prettifySlug(slug)}`}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-sm font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
-          onClick={onRemove}
-          type="button"
-        >
-          ×
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-export function ImportLogDialog({ className, userDecks, userId }: ImportLogDialogProps) {
+export function ImportLogDialog({
+  className,
+  pokemonOptions,
+  userDecks,
+  userId
+}: ImportLogDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [stage, setStage] = useState<Stage>("raw");
   const [rawLog, setRawLog] = useState("");
@@ -133,6 +76,20 @@ export function ImportLogDialog({ className, userDecks, userId }: ImportLogDialo
   const availableDeckLists = selectedDeck?.deckLists ?? [];
   const resultLabel = review?.result === "Loss" ? "L" : "W";
 
+  function resetImportState() {
+    setStage("raw");
+    setRawLog("");
+    setParseError(null);
+    setReview(null);
+    setSelectedSelfSprites([]);
+    setSelectedOpponentSprites([]);
+    setSelectedDeckId("");
+    setSelectedDeckListId("");
+    setSelectedDate("");
+    setSelectedFormat("");
+    setIsPasting(false);
+  }
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -143,7 +100,7 @@ export function ImportLogDialog({ className, userDecks, userId }: ImportLogDialo
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsOpen(false);
+        closeDialog();
       }
     };
 
@@ -173,6 +130,7 @@ export function ImportLogDialog({ className, userDecks, userId }: ImportLogDialo
 
   function closeDialog() {
     setIsOpen(false);
+    resetImportState();
   }
 
   function moveToReviewStage(nextReview: ParsedLogReview) {
@@ -255,9 +213,6 @@ export function ImportLogDialog({ className, userDecks, userId }: ImportLogDialo
         <div className="flex flex-wrap gap-2.5">
           <Button onClick={closeDialog} type="button" variant="secondary">
             Close
-          </Button>
-          <Button onClick={() => setStage("raw")} type="button" variant="secondary">
-            Edit Raw Log
           </Button>
           <SaveButton />
         </div>
@@ -349,49 +304,21 @@ export function ImportLogDialog({ className, userDecks, userId }: ImportLogDialo
                   />
                 ))}
 
-                <section className="grid gap-3">
-                  <div className="grid gap-1">
-                    <p className="text-sm font-semibold text-[var(--text-muted)]">
-                      {review.selfPlayerName}&apos;s deck
-                    </p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      Detected: {review.selfDeckName}
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[0, 1].map((index) => (
-                      <SpriteSlot
-                        key={`self-slot-${index}`}
-                        onRemove={() =>
-                          setSelectedSelfSprites((current) => current.filter((_, item) => item !== index))
-                        }
-                        slug={selectedSelfSprites[index]}
-                      />
-                    ))}
-                  </div>
-                </section>
+                <BattleLogSpritePicker
+                  detectedLabel={review.selfDeckName}
+                  onChange={setSelectedSelfSprites}
+                  pokemonOptions={pokemonOptions}
+                  sprites={selectedSelfSprites}
+                  title={`${review.selfPlayerName}'s deck`}
+                />
 
-                <section className="grid gap-3">
-                  <div className="grid gap-1">
-                    <p className="text-sm font-semibold text-[var(--text-muted)]">Opponent&apos;s deck</p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      Detected: {review.opponentDeckName}
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[0, 1].map((index) => (
-                      <SpriteSlot
-                        key={`opponent-slot-${index}`}
-                        onRemove={() =>
-                          setSelectedOpponentSprites((current) =>
-                            current.filter((_, item) => item !== index)
-                          )
-                        }
-                        slug={selectedOpponentSprites[index]}
-                      />
-                    ))}
-                  </div>
-                </section>
+                <BattleLogSpritePicker
+                  detectedLabel={review.opponentDeckName}
+                  onChange={setSelectedOpponentSprites}
+                  pokemonOptions={pokemonOptions}
+                  sprites={selectedOpponentSprites}
+                  title={"Opponent's deck"}
+                />
 
                 <section className="grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2">
@@ -402,6 +329,9 @@ export function ImportLogDialog({ className, userDecks, userId }: ImportLogDialo
                       type="date"
                       value={selectedDate}
                     />
+                    <span aria-hidden="true" className="min-h-[20px] text-xs opacity-0">
+                      Placeholder
+                    </span>
                   </label>
 
                   <label className="grid gap-2">
@@ -417,7 +347,7 @@ export function ImportLogDialog({ className, userDecks, userId }: ImportLogDialo
                         </option>
                       ))}
                     </select>
-                    <span className="text-xs text-[var(--text-muted)]">
+                    <span className="min-h-[20px] text-xs text-[var(--text-muted)]">
                       Defaulting to Latest Legal Format
                     </span>
                   </label>

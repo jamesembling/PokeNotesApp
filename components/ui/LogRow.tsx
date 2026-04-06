@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import type { BattleLogSummary } from "@/types/index";
 
 type LogRowProps = {
@@ -35,7 +36,10 @@ export function LogRow({ log }: LogRowProps) {
       : "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]";
 
   const selfSprites = log.selfDeckSprites.slice(0, 2);
-  const opponentDeckName = log.opponentDeckName || "Unknown Deck";
+  const opponentDeckName = getBattleLogDeckDisplayName(
+    log.opponentDeckName,
+    log.opponentDeckSprites
+  );
   const goOrderLabel = formatGoOrder(log.goOrder);
   const metadata = [formatLogDate(log.date), log.linkedDeckListName ? `List: ${log.linkedDeckListName}` : ""]
     .filter(Boolean)

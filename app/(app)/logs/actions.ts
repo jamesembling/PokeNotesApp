@@ -252,3 +252,39 @@ export async function importLogAction(formData: FormData): Promise<void> {
   revalidatePath("/logs");
   redirect(`/logs/${record.id}`);
 }
+
+export async function updateLogAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const supabase = createClient();
+  const logId = String(formData.get("logId") || "").trim();
+
+  if (!logId) {
+    throw new Error("Missing battle log ID.");
+  }
+
+  const date = String(formData.get("date") || "").trim();
+  const format = String(formData.get("format") || "").trim();
+  const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
+  const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
+
+  const { error } = await supabase
+    .from("logs")
+    .update({
+      date,
+      format,
+      linked_deck_id: linkedDeckId || null,
+      linked_deck_list_id: linkedDeckListId || null,
+      self_deck_sprites: joinSprites(parseStringArray(formData.getAll("selfSprites"))),
+      opponent_deck_sprites: joinSprites(parseStringArray(formData.getAll("opponentSprites")))
+    })
+    .eq("user_id", user.id)
+    .eq("id", logId);
+
+  if (error) {
+    throw error;
+  }
+
+  revalidatePath("/logs");
+  revalidatePath(`/logs/${logId}`);
+  redirect(`/logs/${logId}`);
+}

@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { EditLogDialog } from "@/components/ui/EditLogDialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ResultBadge } from "@/components/ui/ResultBadge";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
+import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import { getDecks } from "@/lib/db/decks";
 import { getLogById } from "@/lib/db/logs";
+import { getPokemonOptions } from "@/lib/db/pokemon";
 import type { LogSection } from "@/types/index";
 
 type LogDetailPageProps = {
@@ -20,7 +24,11 @@ const backLinkClassName =
 export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const user = await requireUser();
 
-  const log = await getLogById(user.id, params.id);
+  const [log, userDecks, pokemonOptions] = await Promise.all([
+    getLogById(user.id, params.id),
+    getDecks(user.id),
+    getPokemonOptions()
+  ]);
 
   if (!log) {
     return (
@@ -58,7 +66,11 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
     );
   }
 
-  const opponentDeckName = log.opponentDeckName || "Unknown Deck";
+  const selfDeckName = getBattleLogDeckDisplayName(log.selfDeckName, log.selfDeckSprites);
+  const opponentDeckName = getBattleLogDeckDisplayName(
+    log.opponentDeckName,
+    log.opponentDeckSprites
+  );
   const coinFlipLabel =
     log.coinTossWon === true ? "Won" : log.coinTossWon === false ? "Lost" : "Unknown";
 
@@ -72,9 +84,12 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
         ]}
         title={`${log.result} vs ${opponentDeckName}`}
         action={
-          <Link className={backLinkClassName} href="/logs">
-            Back to Logs
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <EditLogDialog log={log} pokemonOptions={pokemonOptions} userDecks={userDecks} />
+            <Link className={backLinkClassName} href="/logs">
+              Back to Logs
+            </Link>
+          </div>
         }
       />
 
@@ -85,7 +100,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
               <SpriteStrip size="md" sprites={log.selfDeckSprites} />
               <div className="min-w-0">
                 <p className="truncate text-base font-semibold text-[var(--text-primary)]">
-                  {log.selfDeckName}
+                  {selfDeckName}
                 </p>
                 <p className="text-sm text-[var(--text-muted)]">You</p>
               </div>

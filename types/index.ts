@@ -314,6 +314,11 @@ export type PokemonCatalogEntry = {
   lastSyncedAt: string
 }
 
+export type PokemonOption = {
+  slug: string
+  label: string
+}
+
 // A single archetype entry from the archetype_catalog table
 export type ArchetypeCatalogEntry = {
   id: string                       // e.g. "dragapult-ex"
