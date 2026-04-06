@@ -1,11 +1,10 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
-type CardProps = {
+type CardProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
-  className?: string;
 };
 
-export function Card({ children, className }: CardProps) {
+export function Card({ children, className, ...props }: CardProps) {
   return (
     <div
       className={[
@@ -14,6 +13,7 @@ export function Card({ children, className }: CardProps) {
       ]
         .filter(Boolean)
         .join(" ")}
+      {...props}
     >
       {children}
     </div>

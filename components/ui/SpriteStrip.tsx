@@ -3,6 +3,7 @@
 type SpriteStripProps = {
   sprites: string[];
   size: "sm" | "md";
+  maxVisible?: number;
 };
 
 const sizeClasses: Record<SpriteStripProps["size"], string> = {
@@ -15,8 +16,8 @@ const sizeValues: Record<SpriteStripProps["size"], number> = {
   md: 48
 };
 
-export function SpriteStrip({ sprites, size }: SpriteStripProps) {
-  const visibleSprites = sprites.slice(0, 2);
+export function SpriteStrip({ sprites, size, maxVisible = 2 }: SpriteStripProps) {
+  const visibleSprites = sprites.slice(0, maxVisible);
 
   if (visibleSprites.length === 0) {
     return (
