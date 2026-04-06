@@ -95,7 +95,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
     );
   }
 
-  const { deck, deckList } = result;
+  const { deckName, deckList } = result;
   const sortedCards = sortParsedCards(deckList.parsedCards as ParsedCard[]);
 
   return (
@@ -104,7 +104,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
           { label: "Deck Strategy", href: "/decks" },
-          { label: deck.deckName, href: `/decks/${params.id}` },
+          { label: deckName, href: `/decks/${params.id}` },
           { label: deckList.name }
         ]}
         title={deckList.name}

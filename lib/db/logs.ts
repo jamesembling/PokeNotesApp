@@ -1,14 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { measureServerCall } from "@/lib/server/perf";
 import type { BattleLog, BattleLogSummary, LogSection, Result } from "@/types/index";
 
 type LogSummaryStats = {
   total: number;
   wins: number;
   losses: number;
-};
-
-type ResultCountRow = {
-  result: Result;
 };
 
 type LogsTableRow = {
@@ -132,30 +129,39 @@ function mapBattleLog(row: LogDetailTableRow): BattleLog {
 
 export async function getLogSummaryStats(userId: string): Promise<LogSummaryStats> {
   const supabase = createClient();
+  const [total, wins, losses] = await measureServerCall("db.logs.summaryStats", async () => {
+    const [{ count: totalCount, error: totalError }, { count: winsCount, error: winsError }, { count: lossesCount, error: lossesError }] =
+      await Promise.all([
+        supabase.from("logs").select("id", { count: "exact", head: true }).eq("user_id", userId),
+        supabase
+          .from("logs")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("result", "Win"),
+        supabase
+          .from("logs")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("result", "Loss")
+      ]);
 
-  const { data, error } = await supabase
-    .from("logs")
-    .select("result")
-    .eq("user_id", userId);
-
-  if (error) {
-    throw error;
-  }
-
-  const rows = ((data ?? []) as unknown) as ResultCountRow[];
-  let wins = 0;
-  let losses = 0;
-
-  rows.forEach((row) => {
-    if (row.result === "Win") {
-      wins += 1;
-    } else if (row.result === "Loss") {
-      losses += 1;
+    if (totalError) {
+      throw totalError;
     }
+
+    if (winsError) {
+      throw winsError;
+    }
+
+    if (lossesError) {
+      throw lossesError;
+    }
+
+    return [totalCount ?? 0, winsCount ?? 0, lossesCount ?? 0] as const;
   });
 
   return {
-    total: rows.length,
+    total,
     wins,
     losses
   };
@@ -194,7 +200,7 @@ export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
     query = query.lte("date", cursor);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await measureServerCall("db.logs.page", async () => await query);
 
   if (error) {
     throw error;
@@ -219,44 +225,46 @@ export async function getLogById(
 ): Promise<BattleLog | null> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("logs")
-    .select(
-      [
-        "id",
-        "user_id",
-        "date",
-        "result",
-        "format",
-        "go_order",
-        "self_player_name",
-        "self_deck_name",
-        "self_deck_slug",
-        "self_deck_sprites",
-        "opponent_player_name",
-        "opponent_deck_name",
-        "opponent_deck_slug",
-        "opponent_deck_sprites",
-        "total_turns",
-        "coin_toss_won",
-        "self_prizes_taken",
-        "opponent_prizes_taken",
-        "self_attack_damage",
-        "opponent_attack_damage",
-        "self_mulligans",
-        "opponent_mulligans",
-        "linked_deck_id",
-        "linked_deck_list_id",
-        "reason",
-        "sections",
-        "imported_at",
-        "created_at",
-        "updated_at"
-      ].join(",")
-    )
-    .eq("user_id", userId)
-    .eq("id", logId)
-    .maybeSingle();
+  const { data, error } = await measureServerCall("db.logs.byId", async () =>
+    await supabase
+      .from("logs")
+      .select(
+        [
+          "id",
+          "user_id",
+          "date",
+          "result",
+          "format",
+          "go_order",
+          "self_player_name",
+          "self_deck_name",
+          "self_deck_slug",
+          "self_deck_sprites",
+          "opponent_player_name",
+          "opponent_deck_name",
+          "opponent_deck_slug",
+          "opponent_deck_sprites",
+          "total_turns",
+          "coin_toss_won",
+          "self_prizes_taken",
+          "opponent_prizes_taken",
+          "self_attack_damage",
+          "opponent_attack_damage",
+          "self_mulligans",
+          "opponent_mulligans",
+          "linked_deck_id",
+          "linked_deck_list_id",
+          "reason",
+          "sections",
+          "imported_at",
+          "created_at",
+          "updated_at"
+        ].join(",")
+      )
+      .eq("user_id", userId)
+      .eq("id", logId)
+      .maybeSingle()
+  );
 
   if (error) {
     throw error;

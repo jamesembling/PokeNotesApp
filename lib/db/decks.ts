@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { measureServerCall } from "@/lib/server/perf";
 import type { Deck, DeckCard, DeckList, DeckSummary, GoPreference } from "@/types/index";
 
 type DeckSummaryRow = {
@@ -26,8 +27,11 @@ type DeckLogStats = {
   losses: number;
 };
 
-type ResultCountRow = {
-  result: "Win" | "Loss";
+type DeckListLookupRow = {
+  id: string;
+  user_id: string;
+  deck_name: string;
+  deck_lists: unknown;
 };
 
 function parsePokemonStage(value: unknown): DeckCard["stage"] {
@@ -160,22 +164,24 @@ function mapDeck(row: DeckRow): Deck {
 export async function getDecks(userId: string): Promise<DeckSummary[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("decks")
-    .select(
-      [
-        "id",
-        "user_id",
-        "deck_name",
-        "format",
-        "go_preference",
-        "deck_pokemon",
-        "created_at",
-        "updated_at"
-      ].join(",")
-    )
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
+  const { data, error } = await measureServerCall("db.decks.list", async () =>
+    await supabase
+      .from("decks")
+      .select(
+        [
+          "id",
+          "user_id",
+          "deck_name",
+          "format",
+          "go_preference",
+          "deck_pokemon",
+          "created_at",
+          "updated_at"
+        ].join(",")
+      )
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+  );
 
   if (error) {
     throw error;
@@ -188,12 +194,30 @@ export async function getDecks(userId: string): Promise<DeckSummary[]> {
 export async function getDeckById(userId: string, deckId: string): Promise<Deck | null> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("decks")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("id", deckId)
-    .maybeSingle();
+  const { data, error } = await measureServerCall("db.decks.byId", async () =>
+    await supabase
+      .from("decks")
+      .select(
+        [
+          "id",
+          "user_id",
+          "deck_name",
+          "format",
+          "go_preference",
+          "deck_pokemon",
+          "created_at",
+          "updated_at",
+          "core_strategy",
+          "general_notes",
+          "setup_goals",
+          "resource_plan",
+          "deck_lists"
+        ].join(",")
+      )
+      .eq("user_id", userId)
+      .eq("id", deckId)
+      .maybeSingle()
+  );
 
   if (error) {
     throw error;
@@ -210,20 +234,37 @@ export async function getDeckWithList(
   userId: string,
   deckId: string,
   listId: string
-): Promise<{ deck: Deck; deckList: DeckList } | null> {
-  const deck = await getDeckById(userId, deckId);
+): Promise<{ deckName: string; deckList: DeckList } | null> {
+  const supabase = createClient();
+  const { data, error } = await measureServerCall("db.decks.listById", async () =>
+    await supabase
+      .from("decks")
+      .select(["id", "user_id", "deck_name", "deck_lists"].join(","))
+      .eq("user_id", userId)
+      .eq("id", deckId)
+      .maybeSingle()
+  );
 
-  if (!deck) {
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
     return null;
   }
 
-  const deckList = deck.deckLists.find((entry) => entry.id === listId);
+  const row = (data as unknown) as DeckListLookupRow;
+  const deckLists = parseDeckLists(row.deck_lists);
+  const deckList = deckLists.find((entry) => entry.id === listId);
 
   if (!deckList) {
     return null;
   }
 
-  return { deck, deckList };
+  return {
+    deckName: row.deck_name,
+    deckList
+  };
 }
 
 export async function getDeckLogStats(
@@ -231,31 +272,42 @@ export async function getDeckLogStats(
   deckId: string
 ): Promise<DeckLogStats> {
   const supabase = createClient();
+  const [total, wins, losses] = await measureServerCall("db.decks.logStats", async () => {
+    const baseQuery = supabase.from("logs").select("id", { count: "exact", head: true });
+    const [{ count: totalCount, error: totalError }, { count: winsCount, error: winsError }, { count: lossesCount, error: lossesError }] =
+      await Promise.all([
+        baseQuery.eq("user_id", userId).eq("linked_deck_id", deckId),
+        supabase
+          .from("logs")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("linked_deck_id", deckId)
+          .eq("result", "Win"),
+        supabase
+          .from("logs")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("linked_deck_id", deckId)
+          .eq("result", "Loss")
+      ]);
 
-  const { data, error } = await supabase
-    .from("logs")
-    .select("result")
-    .eq("user_id", userId)
-    .eq("linked_deck_id", deckId);
-
-  if (error) {
-    throw error;
-  }
-
-  const rows = ((data ?? []) as unknown) as ResultCountRow[];
-  let wins = 0;
-  let losses = 0;
-
-  rows.forEach((row) => {
-    if (row.result === "Win") {
-      wins += 1;
-    } else if (row.result === "Loss") {
-      losses += 1;
+    if (totalError) {
+      throw totalError;
     }
+
+    if (winsError) {
+      throw winsError;
+    }
+
+    if (lossesError) {
+      throw lossesError;
+    }
+
+    return [totalCount ?? 0, winsCount ?? 0, lossesCount ?? 0] as const;
   });
 
   return {
-    total: rows.length,
+    total,
     wins,
     losses
   };
