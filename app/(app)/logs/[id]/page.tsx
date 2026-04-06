@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ResultBadge } from "@/components/ui/ResultBadge";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
+import { requireUser } from "@/lib/auth";
 import { getLogById } from "@/lib/db/logs";
-import { createClient } from "@/lib/supabase/server";
 import type { LogSection } from "@/types/index";
 
 type LogDetailPageProps = {
@@ -19,14 +18,7 @@ const backLinkClassName =
   "inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)]";
 
 export default async function LogDetailPage({ params }: LogDetailPageProps) {
-  const supabase = createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await requireUser();
 
   const log = await getLogById(user.id, params.id);
 

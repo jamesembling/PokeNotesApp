@@ -7,6 +7,10 @@ type LogSummaryStats = {
   losses: number;
 };
 
+type ResultCountRow = {
+  result: Result;
+};
+
 type LogsTableRow = {
   id: string;
   date: string;
@@ -129,36 +133,31 @@ function mapBattleLog(row: LogDetailTableRow): BattleLog {
 export async function getLogSummaryStats(userId: string): Promise<LogSummaryStats> {
   const supabase = createClient();
 
-  const [totalQuery, winsQuery, lossesQuery] = await Promise.all([
-    supabase.from("logs").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase
-      .from("logs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("result", "Win"),
-    supabase
-      .from("logs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("result", "Loss")
-  ]);
+  const { data, error } = await supabase
+    .from("logs")
+    .select("result")
+    .eq("user_id", userId);
 
-  if (totalQuery.error) {
-    throw totalQuery.error;
+  if (error) {
+    throw error;
   }
 
-  if (winsQuery.error) {
-    throw winsQuery.error;
-  }
+  const rows = ((data ?? []) as unknown) as ResultCountRow[];
+  let wins = 0;
+  let losses = 0;
 
-  if (lossesQuery.error) {
-    throw lossesQuery.error;
-  }
+  rows.forEach((row) => {
+    if (row.result === "Win") {
+      wins += 1;
+    } else if (row.result === "Loss") {
+      losses += 1;
+    }
+  });
 
   return {
-    total: totalQuery.count ?? 0,
-    wins: winsQuery.count ?? 0,
-    losses: lossesQuery.count ?? 0
+    total: rows.length,
+    wins,
+    losses
   };
 }
 

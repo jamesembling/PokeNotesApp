@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
+import { requireUser } from "@/lib/auth";
 import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
-import { createClient } from "@/lib/supabase/server";
 
 type DeckDetailPageProps = {
   params: {
@@ -42,14 +42,11 @@ function StrategySection({
 }
 
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
-  const supabase = createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const user = await requireUser();
 
   const [deck, stats] = await Promise.all([
-    user ? getDeckById(user.id, params.id) : Promise.resolve(null),
-    user ? getDeckLogStats(user.id, params.id) : Promise.resolve({ total: 0, wins: 0, losses: 0 })
+    getDeckById(user.id, params.id),
+    getDeckLogStats(user.id, params.id)
   ]);
 
   if (!deck) {

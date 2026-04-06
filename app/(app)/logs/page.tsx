@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -6,8 +5,8 @@ import { ImportLogButton } from "@/components/ui/ImportLogButton";
 import { LogRow } from "@/components/ui/LogRow";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { requireUser } from "@/lib/auth";
 import { getLogsPage, getLogSummaryStats } from "@/lib/db/logs";
-import { createClient } from "@/lib/supabase/server";
 import type { BattleLogSummary } from "@/types/index";
 
 type LogGroup = {
@@ -55,14 +54,7 @@ function groupLogsByDate(logs: BattleLogSummary[]): LogGroup[] {
 }
 
 export default async function LogsPage() {
-  const supabase = createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await requireUser();
 
   const [stats, page] = await Promise.all([
     getLogSummaryStats(user.id),

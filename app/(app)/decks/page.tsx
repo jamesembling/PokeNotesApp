@@ -2,16 +2,12 @@ import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { DeckCard } from "@/components/ui/DeckCard";
+import { requireUser } from "@/lib/auth";
 import { getDecks } from "@/lib/db/decks";
-import { createClient } from "@/lib/supabase/server";
 
 export default async function DecksPage() {
-  const supabase = createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  const decks = user ? await getDecks(user.id) : [];
+  const user = await requireUser();
+  const decks = await getDecks(user.id);
 
   return (
     <>
