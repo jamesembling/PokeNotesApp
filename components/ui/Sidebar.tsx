@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ImportLogButton } from "@/components/ui/ImportLogButton";
+import { CloseIcon, MenuIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
+import { useTheme } from "@/components/ui/ThemeProvider";
 import { createClient } from "@/lib/supabase/client";
 
 type SidebarProfile = {
@@ -49,34 +51,13 @@ export function Sidebar({ profile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { theme, toggleTheme } = useTheme();
 
   const initials = useMemo(() => getInitials(profile.displayName), [profile.displayName]);
 
   useEffect(() => {
-    const storedTheme = window.localStorage.getItem("poke-notes-theme");
-    const preferredTheme =
-      storedTheme === "dark" || storedTheme === "light"
-        ? storedTheme
-        : window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
-
-    setTheme(preferredTheme);
-    document.documentElement.classList.toggle("dark", preferredTheme === "dark");
-  }, []);
-
-  useEffect(() => {
     setDrawerOpen(false);
   }, [pathname]);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-
-    setTheme(nextTheme);
-    window.localStorage.setItem("poke-notes-theme", nextTheme);
-    document.documentElement.classList.toggle("dark", nextTheme === "dark");
-  };
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -146,10 +127,22 @@ export function Sidebar({ profile }: SidebarProps) {
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] text-xl leading-none text-[var(--color-loss)]">
               ●
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-lg font-bold text-[var(--text-primary)]">Poke Notes</p>
               <p className="text-sm text-[var(--text-muted)]">Pokemon TCG battle tracker</p>
             </div>
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? (
+                <SunIcon className="h-5 w-5" />
+              ) : (
+                <MoonIcon className="h-5 w-5" />
+              )}
+            </button>
           </div>
 
           <div className="mt-8 flex flex-1 flex-col gap-6">
@@ -167,20 +160,26 @@ export function Sidebar({ profile }: SidebarProps) {
 
       <div className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 min-[860px]:hidden">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-          <Button
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
             aria-expanded={drawerOpen}
             aria-label="Open navigation menu"
             onClick={() => setDrawerOpen(true)}
-            variant="ghost"
           >
-            Menu
-          </Button>
+            <MenuIcon />
+          </button>
           <p className="truncate text-center text-base font-semibold text-[var(--text-primary)]">
             Poke Notes
           </p>
-          <Button onClick={toggleTheme} variant="ghost">
-            {theme === "dark" ? "Light" : "Dark"}
-          </Button>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+          </button>
         </div>
       </div>
 
@@ -203,9 +202,14 @@ export function Sidebar({ profile }: SidebarProps) {
                   <p className="text-sm text-[var(--text-muted)]">Battle log tracker</p>
                 </div>
               </div>
-              <Button onClick={() => setDrawerOpen(false)} variant="ghost">
-                Close
-              </Button>
+              <button
+                type="button"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close navigation drawer"
+              >
+                <CloseIcon />
+              </button>
             </div>
 
             <div className="mt-8 flex flex-1 flex-col gap-8 overflow-y-auto">
