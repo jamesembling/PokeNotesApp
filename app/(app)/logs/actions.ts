@@ -169,6 +169,7 @@ export async function importLogAction(
       throw error;
     }
 
+    console.error("[importLogAction] error:", error);
     return mapValidationError(error, rawLog);
   }
 }
