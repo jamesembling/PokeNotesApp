@@ -54,7 +54,7 @@ type LogDetailTableRow = {
   linked_deck_id: string | null;
   linked_deck_list_id: string | null;
   reason: string;
-  raw_log: string;
+  raw_log?: string;
   sections: unknown;
   imported_at: string;
   created_at: string;
@@ -122,7 +122,7 @@ function mapBattleLog(row: LogDetailTableRow): BattleLog {
     linkedDeckId: row.linked_deck_id ?? undefined,
     linkedDeckListId: row.linked_deck_list_id ?? undefined,
     reason: row.reason,
-    rawLog: row.raw_log,
+    rawLog: row.raw_log ?? "",
     sections: parseSections(row.sections),
     importedAt: row.imported_at,
     createdAt: row.created_at,
@@ -248,7 +248,6 @@ export async function getLogById(
         "linked_deck_id",
         "linked_deck_list_id",
         "reason",
-        "raw_log",
         "sections",
         "imported_at",
         "created_at",

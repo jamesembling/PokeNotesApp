@@ -136,7 +136,12 @@ function LogSectionCard({ section }: { section: LogSection }) {
   const prizeEntries = Object.entries(section.prizesAfterTurn ?? {});
 
   return (
-    <Card>
+    <Card
+      style={{
+        contentVisibility: "auto",
+        containIntrinsicSize: "320px"
+      }}
+    >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-base font-semibold text-[var(--text-primary)]">

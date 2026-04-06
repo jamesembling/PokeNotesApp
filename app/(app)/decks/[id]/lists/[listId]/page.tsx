@@ -36,8 +36,7 @@ function buildCardImageUrls(set: string, number: string) {
   const formattedNumber = formatCardNumber(number);
 
   return {
-    imageUrl: `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${set}/${set}_${formattedNumber}_R_EN_SM.png`,
-    fallbackImageUrl: `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${set}/${set}_${formattedNumber}_EN_SM.png`
+    imageUrl: `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${set}/${set}_${formattedNumber}_R_EN_SM.png`
   };
 }
 
@@ -128,13 +127,12 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         ) : (
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
             {sortedCards.map((card, index) => {
-              const { imageUrl, fallbackImageUrl } = buildCardImageUrls(card.set, card.number);
+              const { imageUrl } = buildCardImageUrls(card.set, card.number);
 
               return (
                 <DeckListCard
                   cardUrl={buildCardUrl(card.set, card.number)}
                   count={card.count}
-                  fallbackImageUrl={fallbackImageUrl}
                   imageUrl={imageUrl}
                   key={`${card.set}-${card.number}-${index}`}
                   name={card.name}
