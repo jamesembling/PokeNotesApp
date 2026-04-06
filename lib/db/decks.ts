@@ -9,6 +9,7 @@ type DeckSummaryRow = {
   format: string;
   go_preference: GoPreference | null;
   deck_pokemon: unknown;
+  deck_lists: unknown;
   created_at: string;
   updated_at: string;
 };
@@ -145,6 +146,7 @@ function mapDeckSummary(row: DeckSummaryRow): DeckSummary {
     format: row.format,
     goPreference: row.go_preference ?? "",
     deckPokemon: parseStringArray(row.deck_pokemon),
+    deckLists: parseDeckLists(row.deck_lists),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -175,6 +177,7 @@ export async function getDecks(userId: string): Promise<DeckSummary[]> {
           "format",
           "go_preference",
           "deck_pokemon",
+          "deck_lists",
           "created_at",
           "updated_at"
         ].join(",")

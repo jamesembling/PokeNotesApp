@@ -1,175 +1,252 @@
 "use server";
 
-import { isRedirectError } from "next/dist/client/components/redirect";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { linkDeckConservatively } from "@/lib/log-import/deck-linking";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import { parseBattleLog } from "@/lib/log-import/parser";
-import { createClient } from "@/lib/supabase/server";
-import type { ImportLogRecord, ImportLogValidationErrorCode } from "@/lib/log-import/types";
 import { ImportLogValidationError } from "@/lib/log-import/types";
+import { createClient } from "@/lib/supabase/server";
+import type { ImportLogRecord } from "@/lib/log-import/types";
+import type { LogSection, ParsedLogReview, Result } from "@/types/index";
 
 type ProfileRow = {
   ptcgl_username: string;
 };
 
-export type ImportLogFormState = {
-  error?: string;
-  errorCode?: ImportLogValidationErrorCode;
-  rawLog: string;
-};
-
-const INITIAL_STATE: ImportLogFormState = {
-  rawLog: ""
-};
+type ParseLogActionResult = ParsedLogReview | { error: string };
 
 function buildImportDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
 function joinSprites(slugs: string[]) {
-  return Array.from(new Set(slugs)).join(",");
+  return Array.from(
+    new Set(
+      slugs
+        .map((slug) => String(slug || "").trim())
+        .filter(Boolean)
+    )
+  ).join(",");
 }
 
-function mapValidationError(error: unknown, rawLog: string): ImportLogFormState {
-  if (error instanceof ImportLogValidationError) {
-    return {
-      error: error.message,
-      errorCode: error.code,
-      rawLog
-    };
+async function getImportContext() {
+  const user = await requireUser();
+  const supabase = createClient();
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("ptcgl_username")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) {
+    throw profileError;
   }
 
+  const ptcglUsername = ((profile as ProfileRow | null)?.ptcgl_username ?? "").trim();
+  if (!ptcglUsername) {
+    throw new ImportLogValidationError(
+      "MISSING_PTCGL_USERNAME",
+      "Set your PTCGL username in your profile before importing battle logs."
+    );
+  }
+
+  const catalog = await loadIdentificationCatalog();
+
   return {
-    error: error instanceof Error ? error.message : "Unable to import this battle log right now.",
-    errorCode: "UNKNOWN_LOG",
-    rawLog
+    user,
+    supabase,
+    catalog,
+    ptcglUsername
   };
 }
 
-export async function importLogAction(
-  _previousState: ImportLogFormState = INITIAL_STATE,
-  formData: FormData
-): Promise<ImportLogFormState> {
-  const rawLog = String(formData.get("rawLog") || "").trim();
+async function buildParsedLogReview(rawLog: string): Promise<ParsedLogReview> {
+  const trimmedRawLog = String(rawLog || "").trim();
 
-  if (!rawLog) {
-    return {
-      error: "Paste a PTCGL battle log before importing.",
-      errorCode: "EMPTY_INPUT",
-      rawLog
-    };
+  if (!trimmedRawLog) {
+    throw new ImportLogValidationError("EMPTY_INPUT", "Paste a PTCGL battle log before importing.");
+  }
+
+  const { user, catalog, ptcglUsername } = await getImportContext();
+  const parsed = parseBattleLog({
+    rawLog: trimmedRawLog,
+    ptcglUsername,
+    catalog
+  });
+
+  const selfArchetype = identifyLikelyArchetype({
+    evidence: parsed.pokemonEvidence.self,
+    catalog
+  });
+  const opponentArchetype = identifyLikelyArchetype({
+    evidence: parsed.pokemonEvidence.opponent,
+    catalog
+  });
+
+  const selfSprites = selectDeckSprites({
+    archetype: selfArchetype,
+    evidence: parsed.pokemonEvidence.self,
+    catalog
+  });
+  const opponentSprites = selectDeckSprites({
+    archetype: opponentArchetype,
+    evidence: parsed.pokemonEvidence.opponent,
+    catalog
+  });
+
+  const selfDeckName = selfArchetype?.label ?? "Unknown Deck";
+  const selfDeckSlug = selfArchetype?.archetypeId ?? "";
+  const suggestedLinkedDeckId = await linkDeckConservatively({
+    userId: user.id,
+    identifiedDeckName: selfDeckName,
+    identifiedDeckSlug: selfDeckSlug,
+    identifiedSprites: selfSprites.slugs
+  });
+
+  return {
+    selfPlayerName: parsed.players.selfPlayerName,
+    opponentPlayerName: parsed.players.opponentPlayerName,
+    selfDeckName,
+    opponentDeckName: opponentArchetype?.label ?? "Unknown Deck",
+    selfSprites: selfSprites.slugs,
+    opponentSprites: opponentSprites.slugs,
+    selfDeckSlug,
+    opponentDeckSlug: opponentArchetype?.archetypeId ?? "",
+    date: buildImportDate(),
+    goOrder: parsed.stats.goOrder,
+    coinTossWon: parsed.stats.coinTossWon,
+    result: parsed.stats.result,
+    language: parsed.language,
+    rawLog: parsed.rawLog,
+    sections: parsed.sections,
+    totalTurns: parsed.stats.totalTurns,
+    selfPrizesTaken: parsed.stats.selfPrizesTaken,
+    opponentPrizesTaken: parsed.stats.opponentPrizesTaken,
+    selfAttackDamage: parsed.stats.selfAttackDamage,
+    opponentAttackDamage: parsed.stats.opponentAttackDamage,
+    selfMulligans: parsed.stats.selfMulligans,
+    opponentMulligans: parsed.stats.opponentMulligans,
+    reason: parsed.stats.reason,
+    suggestedLinkedDeckId: suggestedLinkedDeckId ?? undefined
+  };
+}
+
+function parseBoolean(value: FormDataEntryValue | null): boolean | null {
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return null;
+}
+
+function parseResult(value: FormDataEntryValue | null): Result {
+  return value === "Loss" ? "Loss" : "Win";
+}
+
+function parseGoOrder(value: FormDataEntryValue | null): "First" | "Second" | "" {
+  if (value === "First" || value === "Second") {
+    return value;
+  }
+
+  return "";
+}
+
+function parseStringArray(values: FormDataEntryValue[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function parseSections(value: FormDataEntryValue | null): LogSection[] {
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
   }
 
   try {
-    const user = await requireUser();
-    const supabase = createClient();
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("ptcgl_username")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError) {
-      throw profileError;
-    }
-
-    const ptcglUsername = ((profile as ProfileRow | null)?.ptcgl_username ?? "").trim();
-    if (!ptcglUsername) {
-      throw new ImportLogValidationError(
-        "MISSING_PTCGL_USERNAME",
-        "Set your PTCGL username in your profile before importing battle logs."
-      );
-    }
-
-    const catalog = await loadIdentificationCatalog();
-    const parsed = parseBattleLog({
-      rawLog,
-      ptcglUsername,
-      catalog
-    });
-
-    const selfArchetype = identifyLikelyArchetype({
-      evidence: parsed.pokemonEvidence.self,
-      catalog
-    });
-    const opponentArchetype = identifyLikelyArchetype({
-      evidence: parsed.pokemonEvidence.opponent,
-      catalog
-    });
-
-    const selfSprites = selectDeckSprites({
-      archetype: selfArchetype,
-      evidence: parsed.pokemonEvidence.self,
-      catalog
-    });
-    const opponentSprites = selectDeckSprites({
-      archetype: opponentArchetype,
-      evidence: parsed.pokemonEvidence.opponent,
-      catalog
-    });
-
-    const selfDeckName = selfArchetype?.label ?? "Unknown Deck";
-    const opponentDeckName = opponentArchetype?.label ?? "Unknown Deck";
-    const selfDeckSlug = selfArchetype?.archetypeId ?? "";
-    const opponentDeckSlug = opponentArchetype?.archetypeId ?? "";
-    const linkedDeckId = await linkDeckConservatively({
-      userId: user.id,
-      identifiedDeckName: selfDeckName,
-      identifiedDeckSlug: selfDeckSlug,
-      identifiedSprites: selfSprites.slugs
-    });
-
-    const record: ImportLogRecord = {
-      id: crypto.randomUUID(),
-      date: buildImportDate(),
-      result: parsed.stats.result,
-      format: "",
-      go_order: parsed.stats.goOrder,
-      self_player_name: parsed.players.selfPlayerName,
-      self_deck_name: selfDeckName,
-      self_deck_slug: selfDeckSlug,
-      self_deck_sprites: joinSprites(selfSprites.slugs),
-      opponent_player_name: parsed.players.opponentPlayerName,
-      opponent_deck_name: opponentDeckName,
-      opponent_deck_slug: opponentDeckSlug,
-      opponent_deck_sprites: joinSprites(opponentSprites.slugs),
-      total_turns: parsed.stats.totalTurns,
-      coin_toss_won: parsed.stats.coinTossWon,
-      self_prizes_taken: parsed.stats.selfPrizesTaken,
-      opponent_prizes_taken: parsed.stats.opponentPrizesTaken,
-      self_attack_damage: parsed.stats.selfAttackDamage,
-      opponent_attack_damage: parsed.stats.opponentAttackDamage,
-      self_mulligans: parsed.stats.selfMulligans,
-      opponent_mulligans: parsed.stats.opponentMulligans,
-      linked_deck_id: linkedDeckId,
-      linked_deck_list_id: null,
-      reason: parsed.stats.reason,
-      raw_log: parsed.rawLog,
-      sections: parsed.sections
-    };
-
-    const { error: insertError } = await supabase.from("logs").insert({
-      ...record,
-      user_id: user.id
-    });
-
-    if (insertError) {
-      throw insertError;
-    }
-
-    revalidatePath("/logs");
-    redirect(`/logs/${record.id}`);
-  } catch (error) {
-    if (isRedirectError(error)) {
-      throw error;
-    }
-
-    console.error("[importLogAction] error:", error);
-    return mapValidationError(error, rawLog);
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? (parsed as LogSection[]) : [];
+  } catch {
+    return [];
   }
+}
+
+export async function parseLogAction(formData: FormData): Promise<ParseLogActionResult> {
+  try {
+    const rawLog = String(formData.get("rawLog") || "");
+    return await buildParsedLogReview(rawLog);
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Unable to review this battle log right now."
+    };
+  }
+}
+
+export async function importLogAction(formData: FormData): Promise<void> {
+  const rawLog = String(formData.get("rawLog") || "").trim();
+  const review = await buildParsedLogReview(rawLog);
+  const { user, supabase } = await getImportContext();
+
+  const selectedDeckId = String(formData.get("linkedDeckId") || "").trim();
+  const selectedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
+  const sections = parseSections(formData.get("sections"));
+
+  const record: ImportLogRecord = {
+    id: crypto.randomUUID(),
+    date: String(formData.get("date") || review.date).trim() || review.date,
+    result: parseResult(formData.get("result")),
+    format: String(formData.get("format") || "").trim(),
+    go_order: parseGoOrder(formData.get("goOrder")) || review.goOrder,
+    self_player_name: String(formData.get("selfPlayerName") || review.selfPlayerName).trim(),
+    self_deck_name: String(formData.get("selfDeckName") || review.selfDeckName).trim(),
+    self_deck_slug: String(formData.get("selfDeckSlug") || review.selfDeckSlug).trim(),
+    self_deck_sprites: joinSprites(parseStringArray(formData.getAll("selfSprites"))),
+    opponent_player_name: String(
+      formData.get("opponentPlayerName") || review.opponentPlayerName
+    ).trim(),
+    opponent_deck_name: String(formData.get("opponentDeckName") || review.opponentDeckName).trim(),
+    opponent_deck_slug: String(
+      formData.get("opponentDeckSlug") || review.opponentDeckSlug
+    ).trim(),
+    opponent_deck_sprites: joinSprites(parseStringArray(formData.getAll("opponentSprites"))),
+    total_turns: Number(formData.get("totalTurns") || review.totalTurns) || 0,
+    coin_toss_won: parseBoolean(formData.get("coinTossWon")),
+    self_prizes_taken: Number(formData.get("selfPrizesTaken") || review.selfPrizesTaken) || 0,
+    opponent_prizes_taken:
+      Number(formData.get("opponentPrizesTaken") || review.opponentPrizesTaken) || 0,
+    self_attack_damage: Number(formData.get("selfAttackDamage") || review.selfAttackDamage) || 0,
+    opponent_attack_damage:
+      Number(formData.get("opponentAttackDamage") || review.opponentAttackDamage) || 0,
+    self_mulligans: Number(formData.get("selfMulligans") || review.selfMulligans) || 0,
+    opponent_mulligans: Number(formData.get("opponentMulligans") || review.opponentMulligans) || 0,
+    linked_deck_id: selectedDeckId || review.suggestedLinkedDeckId || null,
+    linked_deck_list_id: selectedDeckListId || null,
+    reason: String(formData.get("reason") || review.reason).trim(),
+    raw_log: rawLog,
+    sections: sections.length > 0 ? sections : review.sections
+  };
+
+  const { error: insertError } = await supabase.from("logs").insert({
+    ...record,
+    user_id: user.id
+  });
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  revalidatePath("/logs");
+  redirect(`/logs/${record.id}`);
 }

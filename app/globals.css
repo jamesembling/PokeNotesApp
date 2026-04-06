@@ -22,6 +22,7 @@
   --color-danger: #dc2626;
   --text-inverse: #ffffff;
   --bg-overlay: rgba(17, 24, 39, 0.44);
+  --shadow-lg: 0 24px 64px rgba(17, 24, 39, 0.18);
 }
 
 .dark {
@@ -44,6 +45,7 @@
   --color-danger: #dc2626;
   --text-inverse: #ffffff;
   --bg-overlay: rgba(15, 17, 23, 0.6);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.32);
 }
 
 html {

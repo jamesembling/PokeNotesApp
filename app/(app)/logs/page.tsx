@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { LogImportCard } from "@/components/logs/LogImportCard";
-import { ImportLogButton } from "@/components/ui/ImportLogButton";
+import { ImportLogDialog } from "@/components/ui/ImportLogDialog";
 import { LogRow } from "@/components/ui/LogRow";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
+import { getDecks } from "@/lib/db/decks";
 import { getLogsPage, getLogSummaryStats } from "@/lib/db/logs";
 import type { BattleLogSummary } from "@/types/index";
 
@@ -57,9 +57,10 @@ function groupLogsByDate(logs: BattleLogSummary[]): LogGroup[] {
 export default async function LogsPage() {
   const user = await requireUser();
 
-  const [stats, page] = await Promise.all([
+  const [stats, page, userDecks] = await Promise.all([
     getLogSummaryStats(user.id),
-    getLogsPage(user.id)
+    getLogsPage(user.id),
+    getDecks(user.id)
   ]);
   const groups = groupLogsByDate(page.logs);
 
@@ -72,7 +73,7 @@ export default async function LogsPage() {
         ]}
         title="Battle Logs"
         subtitle="Imported Pokemon TCG Live logs, grouped by day and ready for deeper review."
-        action={<ImportLogButton />}
+        action={<ImportLogDialog userDecks={userDecks} userId={user.id} />}
       />
 
       <Card>
@@ -96,9 +97,6 @@ export default async function LogsPage() {
           />
         </div>
       </Card>
-
-      <LogImportCard />
-
       <Card>
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-3">

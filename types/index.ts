@@ -173,6 +173,33 @@ export type BattleLogSummary = {
   importedAt: string
 }
 
+export type ParsedLogReview = {
+  selfPlayerName: string
+  opponentPlayerName: string
+  selfDeckName: string
+  opponentDeckName: string
+  selfSprites: string[]
+  opponentSprites: string[]
+  selfDeckSlug: string
+  opponentDeckSlug: string
+  date: string
+  goOrder: GoOrder
+  coinTossWon: boolean | null
+  result: Result
+  language: Language
+  rawLog: string
+  sections: LogSection[]
+  totalTurns: number
+  selfPrizesTaken: number
+  opponentPrizesTaken: number
+  selfAttackDamage: number
+  opponentAttackDamage: number
+  selfMulligans: number
+  opponentMulligans: number
+  reason: string
+  suggestedLinkedDeckId?: string
+}
+
 
 // ============================================================
 // DECK
@@ -235,6 +262,7 @@ export type DeckSummary = {
   format: string
   goPreference: GoPreference
   deckPokemon: string[]
+  deckLists: DeckList[]
   createdAt: string
   updatedAt: string
 }
