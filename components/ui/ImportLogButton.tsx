@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 
 type ImportLogButtonProps = {
@@ -8,13 +9,8 @@ type ImportLogButtonProps = {
 
 export function ImportLogButton({ className }: ImportLogButtonProps) {
   return (
-    <Button
-      className={className}
-      onClick={() => {
-        // Placeholder until log import flow lands.
-      }}
-    >
-      Import PTCGL Log
-    </Button>
+    <Link href="/logs#import-log">
+      <Button className={className}>Import PTCGL Log</Button>
+    </Link>
   );
 }

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { LogImportCard } from "@/components/logs/LogImportCard";
 import { ImportLogButton } from "@/components/ui/ImportLogButton";
 import { LogRow } from "@/components/ui/LogRow";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -95,6 +96,8 @@ export default async function LogsPage() {
           />
         </div>
       </Card>
+
+      <LogImportCard />
 
       <Card>
         <div className="flex flex-col gap-6">
