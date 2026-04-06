@@ -183,7 +183,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
 
                 <Link
                   className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
-                  href={`/decks/${deck.id}#deck-lists`}
+                  href={`/decks/${deck.id}/lists/${deckList.id}`}
                 >
                   View List
                 </Link>

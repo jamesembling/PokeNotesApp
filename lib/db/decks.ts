@@ -202,6 +202,26 @@ export async function getDeckById(userId: string, deckId: string): Promise<Deck 
   return mapDeck((data as unknown) as DeckRow);
 }
 
+export async function getDeckWithList(
+  userId: string,
+  deckId: string,
+  listId: string
+): Promise<{ deck: Deck; deckList: DeckList } | null> {
+  const deck = await getDeckById(userId, deckId);
+
+  if (!deck) {
+    return null;
+  }
+
+  const deckList = deck.deckLists.find((entry) => entry.id === listId);
+
+  if (!deckList) {
+    return null;
+  }
+
+  return { deck, deckList };
+}
+
 export async function getDeckLogStats(
   userId: string,
   deckId: string
