@@ -1,5 +1,6 @@
 "use server";
 
+import { isRedirectError } from "next/dist/client/components/redirect";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
@@ -164,6 +165,10 @@ export async function importLogAction(
     revalidatePath("/logs");
     redirect(`/logs/${record.id}`);
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     return mapValidationError(error, rawLog);
   }
 }
