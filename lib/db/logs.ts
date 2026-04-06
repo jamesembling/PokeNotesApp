@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { BattleLogSummary, Result } from "@/types/index";
+import type { BattleLog, BattleLogSummary, LogSection, Result } from "@/types/index";
 
 type LogSummaryStats = {
   total: number;
@@ -24,11 +24,52 @@ type LogsTableRow = {
   imported_at: string;
 };
 
+type LogDetailTableRow = {
+  id: string;
+  user_id: string;
+  date: string;
+  result: Result;
+  format: string;
+  go_order: "First" | "Second" | "";
+  self_player_name: string;
+  self_deck_name: string;
+  self_deck_slug: string;
+  self_deck_sprites: string;
+  opponent_player_name: string;
+  opponent_deck_name: string;
+  opponent_deck_slug: string;
+  opponent_deck_sprites: string;
+  total_turns: number;
+  coin_toss_won: boolean | null;
+  self_prizes_taken: number;
+  opponent_prizes_taken: number;
+  self_attack_damage: number;
+  opponent_attack_damage: number;
+  self_mulligans: number;
+  opponent_mulligans: number;
+  linked_deck_id: string | null;
+  linked_deck_list_id: string | null;
+  reason: string;
+  raw_log: string;
+  sections: unknown;
+  imported_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
 function splitSprites(value: string) {
   return value
     .split(",")
     .map((sprite) => sprite.trim())
     .filter(Boolean);
+}
+
+function parseSections(value: unknown): LogSection[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value as LogSection[];
 }
 
 function mapLogSummary(row: LogsTableRow): BattleLogSummary {
@@ -47,6 +88,41 @@ function mapLogSummary(row: LogsTableRow): BattleLogSummary {
     totalTurns: row.total_turns,
     linkedDeckId: row.linked_deck_id ?? undefined,
     importedAt: row.imported_at
+  };
+}
+
+function mapBattleLog(row: LogDetailTableRow): BattleLog {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    date: row.date,
+    result: row.result,
+    format: row.format,
+    goOrder: row.go_order,
+    selfPlayerName: row.self_player_name,
+    selfDeckName: row.self_deck_name,
+    selfDeckSlug: row.self_deck_slug,
+    selfDeckSprites: splitSprites(row.self_deck_sprites),
+    opponentPlayerName: row.opponent_player_name,
+    opponentDeckName: row.opponent_deck_name,
+    opponentDeckSlug: row.opponent_deck_slug,
+    opponentDeckSprites: splitSprites(row.opponent_deck_sprites),
+    totalTurns: row.total_turns,
+    coinTossWon: row.coin_toss_won,
+    selfPrizesTaken: row.self_prizes_taken,
+    opponentPrizesTaken: row.opponent_prizes_taken,
+    selfAttackDamage: row.self_attack_damage,
+    opponentAttackDamage: row.opponent_attack_damage,
+    selfMultigans: row.self_mulligans,
+    opponentMulligans: row.opponent_mulligans,
+    linkedDeckId: row.linked_deck_id ?? undefined,
+    linkedDeckListId: row.linked_deck_list_id ?? undefined,
+    reason: row.reason,
+    rawLog: row.raw_log,
+    sections: parseSections(row.sections),
+    importedAt: row.imported_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -136,4 +212,61 @@ export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
     hasMore,
     nextCursor
   };
+}
+
+export async function getLogById(
+  userId: string,
+  logId: string
+): Promise<BattleLog | null> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("logs")
+    .select(
+      [
+        "id",
+        "user_id",
+        "date",
+        "result",
+        "format",
+        "go_order",
+        "self_player_name",
+        "self_deck_name",
+        "self_deck_slug",
+        "self_deck_sprites",
+        "opponent_player_name",
+        "opponent_deck_name",
+        "opponent_deck_slug",
+        "opponent_deck_sprites",
+        "total_turns",
+        "coin_toss_won",
+        "self_prizes_taken",
+        "opponent_prizes_taken",
+        "self_attack_damage",
+        "opponent_attack_damage",
+        "self_mulligans",
+        "opponent_mulligans",
+        "linked_deck_id",
+        "linked_deck_list_id",
+        "reason",
+        "raw_log",
+        "sections",
+        "imported_at",
+        "created_at",
+        "updated_at"
+      ].join(",")
+    )
+    .eq("user_id", userId)
+    .eq("id", logId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapBattleLog((data as unknown) as LogDetailTableRow);
 }
