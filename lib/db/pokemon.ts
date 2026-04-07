@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { getCustomPokemonOptions } from "@/lib/pokemon-catalog/custom-forms";
 import { measureServerCall } from "@/lib/server/perf";
 import type { PokemonOption } from "@/types/index";
 
@@ -19,17 +18,10 @@ export async function getPokemonOptions(): Promise<PokemonOption[]> {
     throw error;
   }
 
-  const combined = [
-    ...((data ?? []) as PokemonOptionRow[])
-      .filter((row) => row.slug && row.label)
+  return ((data ?? []) as PokemonOptionRow[])
+    .filter((row) => row.slug && row.label)
     .map((row) => ({
       slug: row.slug,
       label: row.label
-    })),
-    ...getCustomPokemonOptions()
-  ];
-
-  return Array.from(new Map(combined.map((option) => [option.slug, option])).values()).sort(
-    (left, right) => left.label.localeCompare(right.label)
-  );
+    }));
 }

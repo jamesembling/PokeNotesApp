@@ -64,6 +64,11 @@ function updateSpritesAtIndex(currentSprites: string[], index: number, nextSlug:
     .slice(0, 2);
 }
 
+function swapSpritePositions(currentSprites: string[]) {
+  const [first = "", second = ""] = currentSprites;
+  return [second, first].filter(Boolean);
+}
+
 function SpriteSearchSlot({
   currentSlug,
   index,
@@ -207,11 +212,21 @@ export function BattleLogSpritePicker({
 }: BattleLogSpritePickerProps) {
   return (
     <section className="grid gap-3">
-      <div className="grid gap-1">
-        <p className="text-sm font-semibold text-[var(--text-muted)]">{title}</p>
-        {detectedLabel ? (
-          <p className="text-sm text-[var(--text-secondary)]">Detected: {detectedLabel}</p>
-        ) : null}
+      <div className="flex items-start justify-between gap-4">
+        <div className="grid gap-1">
+          <p className="text-sm font-semibold text-[var(--text-muted)]">{title}</p>
+          {detectedLabel ? (
+            <p className="text-sm text-[var(--text-secondary)]">Detected: {detectedLabel}</p>
+          ) : null}
+        </div>
+        <button
+          className="inline-flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+          onClick={() => onChange(swapSpritePositions(sprites))}
+          type="button"
+        >
+          ⇄
+          <span>Swap</span>
+        </button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {[0, 1].map((index) => {
