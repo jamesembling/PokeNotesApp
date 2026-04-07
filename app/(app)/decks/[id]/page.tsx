@@ -8,9 +8,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
-import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
+import { getDeckById } from "@/lib/db/decks";
+import { getAllLogsForDeck, getBattleLogSummaryStats } from "@/lib/db/logs";
 import { getPokemonOptions } from "@/lib/db/pokemon";
-import { getLogsForDeck } from "@/lib/db/logs";
+import type { BattleLogSummary } from "@/types/index";
 
 type DeckDetailPageProps = {
   params: {
@@ -45,6 +46,28 @@ function StrategySection({
   );
 }
 
+function attachLinkedDeckListNames(logs: BattleLogSummary[], deckId: string, deck: Awaited<ReturnType<typeof getDeckById>>) {
+  if (!deck) {
+    return logs;
+  }
+
+  return logs.map((log) => {
+    if (log.linkedDeckId !== deckId || !log.linkedDeckListId) {
+      return log;
+    }
+
+    const linkedDeckList = deck.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
+    if (!linkedDeckList?.name) {
+      return log;
+    }
+
+    return {
+      ...log,
+      linkedDeckListName: linkedDeckList.name
+    };
+  });
+}
+
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const user = await requireUser();
   const defaultCreatedBy =
@@ -53,9 +76,8 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     user.email?.split("@")[0] ||
     "Trainer";
 
-  const [deck, stats, pokemonOptions] = await Promise.all([
+  const [deck, pokemonOptions] = await Promise.all([
     getDeckById(user.id, params.id),
-    getDeckLogStats(user.id, params.id),
     getPokemonOptions()
   ]);
 
@@ -89,9 +111,14 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     );
   }
 
-  const relatedLogs = await getLogsForDeck(user.id, deck.id, [deck]);
-  const recentWins = relatedLogs.filter((log) => log.result === "Win").length;
-  const recentLosses = relatedLogs.filter((log) => log.result === "Loss").length;
+  const allRelatedLogs = attachLinkedDeckListNames(
+    await getAllLogsForDeck(user.id, deck.id, [deck]),
+    deck.id,
+    deck
+  );
+  const stats = getBattleLogSummaryStats(allRelatedLogs);
+  const relatedLogs = allRelatedLogs.slice(0, 5);
+  const recentStats = getBattleLogSummaryStats(relatedLogs);
 
   return (
     <>
@@ -238,9 +265,9 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Badge>{stats.total} logs</Badge>
-            <Badge>{stats.wins} wins</Badge>
-            <Badge>{stats.losses} losses</Badge>
+            <Badge>{relatedLogs.length} logs</Badge>
+            <Badge>{recentStats.wins} wins</Badge>
+            <Badge>{recentStats.losses} losses</Badge>
           </div>
         </div>
 
@@ -260,7 +287,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
               Showing the latest {relatedLogs.length} linked log
               {relatedLogs.length === 1 ? "" : "s"}.
               {stats.total > relatedLogs.length
-                ? ` ${recentWins}-${recentLosses} in this preview, ${stats.wins}-${stats.losses} overall.`
+                ? ` ${recentStats.wins}-${recentStats.losses} in this preview, ${stats.wins}-${stats.losses} overall.`
                 : ` ${stats.wins}-${stats.losses} overall.`}
             </p>
           </>

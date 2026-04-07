@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
-import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
+import { getDeckMatchScore } from "@/lib/log-import/deck-linking";
 import type { BattleLog, BattleLogSummary, DeckSummary, LogSection, Result } from "@/types/index";
 
 const DEFAULT_LOG_WINDOW_DAYS = 7;
@@ -396,6 +396,20 @@ export async function getLogsForDeck(
   decks: DeckSummary[],
   limit = 10
 ): Promise<BattleLogSummary[]> {
+  const logs = await getAllLogsForDeck(userId, deckId, decks);
+  return logs.slice(0, Math.max(1, limit));
+}
+
+export async function getAllLogsForDeck(
+  userId: string,
+  deckId: string,
+  decks: DeckSummary[]
+): Promise<BattleLogSummary[]> {
+  const deck = decks.find((candidate) => candidate.id === deckId);
+  if (!deck) {
+    return [];
+  }
+
   const supabase = createClient();
 
   const [explicitResult, unlinkedResult] = await Promise.all([
@@ -463,13 +477,19 @@ export async function getLogsForDeck(
   const inferredLogs = (((unlinkedResult.data ?? []) as unknown) as LogsTableRow[])
     .map(mapLogSummary)
     .filter((log) => {
-      const resolvedDeckId = resolveLinkedDeck(decks, {
-        linkedDeckId: log.linkedDeckId,
-        selfDeckName: log.selfDeckName,
-        selfDeckSprites: log.selfDeckSprites
-      });
+      const matchScore = getDeckMatchScore(
+        {
+          id: deck.id,
+          deckName: deck.deckName,
+          deckPokemon: deck.deckPokemon
+        },
+        {
+          deckName: log.selfDeckName,
+          sprites: log.selfDeckSprites
+        }
+      );
 
-      return resolvedDeckId === deckId;
+      return matchScore >= 120;
     });
 
   const merged = new Map<string, BattleLogSummary>();
@@ -477,5 +497,21 @@ export async function getLogsForDeck(
     merged.set(log.id, log);
   });
 
-  return sortLogsByBattleDate(Array.from(merged.values())).slice(0, Math.max(1, limit));
+  return sortLogsByBattleDate(Array.from(merged.values()));
+}
+
+export function getBattleLogSummaryStats(logs: BattleLogSummary[]): LogSummaryStats {
+  return logs.reduce(
+    (stats, log) => {
+      stats.total += 1;
+      if (log.result === "Win") {
+        stats.wins += 1;
+      } else if (log.result === "Loss") {
+        stats.losses += 1;
+      }
+
+      return stats;
+    },
+    { total: 0, wins: 0, losses: 0 }
+  );
 }
