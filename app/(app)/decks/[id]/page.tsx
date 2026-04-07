@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { LogRow } from "@/components/ui/LogRow";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
 import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
+import { getLogsForDeck } from "@/lib/db/logs";
 
 type DeckDetailPageProps = {
   params: {
@@ -78,6 +80,10 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       </>
     );
   }
+
+  const relatedLogs = await getLogsForDeck(user.id, deck.id, [deck]);
+  const recentWins = relatedLogs.filter((log) => log.result === "Win").length;
+  const recentLosses = relatedLogs.filter((log) => log.result === "Loss").length;
 
   return (
     <>
@@ -187,6 +193,47 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
               </div>
             ))}
           </div>
+        )}
+      </Card>
+
+      <Card className="space-y-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+              BATTLE LOGS
+            </p>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Recent battle logs linked to this strategy or matched to its archetype.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Badge>{stats.total} logs</Badge>
+            <Badge>{stats.wins} wins</Badge>
+            <Badge>{stats.losses} losses</Badge>
+          </div>
+        </div>
+
+        {relatedLogs.length === 0 ? (
+          <p className="text-sm text-[var(--text-secondary)]">
+            No linked battle logs yet for this deck.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-col gap-3">
+              {relatedLogs.map((log) => (
+                <LogRow key={log.id} log={log} />
+              ))}
+            </div>
+
+            <p className="text-sm text-[var(--text-muted)]">
+              Showing the latest {relatedLogs.length} linked log
+              {relatedLogs.length === 1 ? "" : "s"}.
+              {stats.total > relatedLogs.length
+                ? ` ${recentWins}-${recentLosses} in this preview, ${stats.wins}-${stats.losses} overall.`
+                : ` ${stats.wins}-${stats.losses} overall.`}
+            </p>
+          </>
         )}
       </Card>
     </>

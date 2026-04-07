@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
+import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 import { normalizeText } from "@/lib/log-import/normalization";
 import { measureServerCall } from "@/lib/server/perf";
 import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
@@ -31,6 +32,13 @@ type DeckLogStats = {
   total: number;
   wins: number;
   losses: number;
+};
+
+type UnlinkedLogStatsRow = {
+  id: string;
+  result: "Win" | "Loss";
+  self_deck_name: string;
+  self_deck_sprites: string;
 };
 
 type DeckListLookupRow = {
@@ -404,7 +412,7 @@ export async function getDeckLogStats(
   deckId: string
 ): Promise<DeckLogStats> {
   const supabase = createClient();
-  const [total, wins, losses] = await measureServerCall("db.decks.logStats", async () => {
+  const [total, wins, losses] = await measureServerCall("db.decks.logStats.explicit", async () => {
     const baseQuery = supabase.from("logs").select("id", { count: "exact", head: true });
     const [{ count: totalCount, error: totalError }, { count: winsCount, error: winsError }, { count: lossesCount, error: lossesError }] =
       await Promise.all([
@@ -438,9 +446,49 @@ export async function getDeckLogStats(
     return [totalCount ?? 0, winsCount ?? 0, lossesCount ?? 0] as const;
   });
 
+  const [decks, unlinkedLogsData] = await Promise.all([
+    getDecks(userId),
+    measureServerCall("db.decks.logStats.unlinked", async () =>
+      await supabase
+        .from("logs")
+        .select("id,result,self_deck_name,self_deck_sprites")
+        .eq("user_id", userId)
+        .is("linked_deck_id", null)
+    )
+  ]);
+
+  const { data: unlinkedRows, error: unlinkedError } = unlinkedLogsData;
+  if (unlinkedError) {
+    throw unlinkedError;
+  }
+
+  const inferredStats = (((unlinkedRows ?? []) as unknown) as UnlinkedLogStatsRow[]).reduce(
+    (stats, row) => {
+      const resolvedDeckId = resolveLinkedDeck(decks, {
+        selfDeckName: row.self_deck_name,
+        selfDeckSprites: parseStringArray(row.self_deck_sprites),
+        linkedDeckId: undefined
+      });
+
+      if (resolvedDeckId !== deckId) {
+        return stats;
+      }
+
+      stats.total += 1;
+      if (row.result === "Win") {
+        stats.wins += 1;
+      } else if (row.result === "Loss") {
+        stats.losses += 1;
+      }
+
+      return stats;
+    },
+    { total: 0, wins: 0, losses: 0 }
+  );
+
   return {
-    total,
-    wins,
-    losses
+    total: total + inferredStats.total,
+    wins: wins + inferredStats.wins,
+    losses: losses + inferredStats.losses
   };
 }

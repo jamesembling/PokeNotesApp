@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
-import type { BattleLog, BattleLogSummary, LogSection, Result } from "@/types/index";
+import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
+import type { BattleLog, BattleLogSummary, DeckSummary, LogSection, Result } from "@/types/index";
 
 const DEFAULT_LOG_WINDOW_DAYS = 7;
 
@@ -94,6 +95,16 @@ function mapLogSummary(row: LogsTableRow): BattleLogSummary {
     linkedDeckListId: row.linked_deck_list_id ?? undefined,
     importedAt: row.imported_at
   };
+}
+
+function sortLogsByBattleDate(logs: BattleLogSummary[]) {
+  return [...logs].sort((left, right) => {
+    if (left.date !== right.date) {
+      return right.date.localeCompare(left.date);
+    }
+
+    return right.importedAt.localeCompare(left.importedAt);
+  });
 }
 
 function mapBattleLog(row: LogDetailTableRow): BattleLog {
@@ -377,4 +388,94 @@ export async function getLogById(
   }
 
   return mapBattleLog((data as unknown) as LogDetailTableRow);
+}
+
+export async function getLogsForDeck(
+  userId: string,
+  deckId: string,
+  decks: DeckSummary[],
+  limit = 10
+): Promise<BattleLogSummary[]> {
+  const supabase = createClient();
+
+  const [explicitResult, unlinkedResult] = await Promise.all([
+    measureServerCall("db.logs.forDeck.explicit", async () =>
+      await supabase
+        .from("logs")
+        .select(
+          [
+            "id",
+            "date",
+            "result",
+            "format",
+            "go_order",
+            "self_player_name",
+            "self_deck_name",
+            "self_deck_sprites",
+            "opponent_player_name",
+            "opponent_deck_name",
+            "opponent_deck_sprites",
+            "total_turns",
+            "linked_deck_id",
+            "linked_deck_list_id",
+            "imported_at"
+          ].join(",")
+        )
+        .eq("user_id", userId)
+        .eq("linked_deck_id", deckId)
+    ),
+    measureServerCall("db.logs.forDeck.unlinked", async () =>
+      await supabase
+        .from("logs")
+        .select(
+          [
+            "id",
+            "date",
+            "result",
+            "format",
+            "go_order",
+            "self_player_name",
+            "self_deck_name",
+            "self_deck_sprites",
+            "opponent_player_name",
+            "opponent_deck_name",
+            "opponent_deck_sprites",
+            "total_turns",
+            "linked_deck_id",
+            "linked_deck_list_id",
+            "imported_at"
+          ].join(",")
+        )
+        .eq("user_id", userId)
+        .is("linked_deck_id", null)
+    )
+  ]);
+
+  if (explicitResult.error) {
+    throw explicitResult.error;
+  }
+
+  if (unlinkedResult.error) {
+    throw unlinkedResult.error;
+  }
+
+  const explicitLogs = (((explicitResult.data ?? []) as unknown) as LogsTableRow[]).map(mapLogSummary);
+  const inferredLogs = (((unlinkedResult.data ?? []) as unknown) as LogsTableRow[])
+    .map(mapLogSummary)
+    .filter((log) => {
+      const resolvedDeckId = resolveLinkedDeck(decks, {
+        linkedDeckId: log.linkedDeckId,
+        selfDeckName: log.selfDeckName,
+        selfDeckSprites: log.selfDeckSprites
+      });
+
+      return resolvedDeckId === deckId;
+    });
+
+  const merged = new Map<string, BattleLogSummary>();
+  [...explicitLogs, ...inferredLogs].forEach((log) => {
+    merged.set(log.id, log);
+  });
+
+  return sortLogsByBattleDate(Array.from(merged.values())).slice(0, Math.max(1, limit));
 }

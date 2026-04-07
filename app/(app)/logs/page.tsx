@@ -6,6 +6,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
 import { getDecks } from "@/lib/db/decks";
 import { getLogsWindow, getLogSummaryStats } from "@/lib/db/logs";
+import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 import { getPokemonOptions } from "@/lib/db/pokemon";
 import type { BattleLogSummary } from "@/types/index";
 
@@ -14,19 +15,35 @@ function attachLinkedDeckListNames(
   userDecks: Awaited<ReturnType<typeof getDecks>>
 ) {
   return logs.map((log) => {
-    if (!log.linkedDeckId || !log.linkedDeckListId) {
-      return log;
+    const resolvedLinkedDeckId =
+      log.linkedDeckId ??
+      resolveLinkedDeck(userDecks, {
+        linkedDeckId: log.linkedDeckId,
+        selfDeckName: log.selfDeckName,
+        selfDeckSprites: log.selfDeckSprites
+      }) ??
+      undefined;
+
+    if (!resolvedLinkedDeckId || !log.linkedDeckListId) {
+      return {
+        ...log,
+        linkedDeckId: resolvedLinkedDeckId
+      };
     }
 
-    const deck = userDecks.find((candidate) => candidate.id === log.linkedDeckId);
+    const deck = userDecks.find((candidate) => candidate.id === resolvedLinkedDeckId);
     const linkedDeckList = deck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
 
     if (!linkedDeckList?.name) {
-      return log;
+      return {
+        ...log,
+        linkedDeckId: resolvedLinkedDeckId
+      };
     }
 
     return {
       ...log,
+      linkedDeckId: resolvedLinkedDeckId,
       linkedDeckListName: linkedDeckList.name
     };
   });

@@ -441,11 +441,16 @@ export function LogsManager({
                   {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge>
-                  {group.wins}W-{group.losses}L
-                </Badge>
-                <ChevronIcon className="h-4 w-4 text-[var(--text-muted)] transition group-open:rotate-180" />
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <p className="text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
+                    {group.wins}-{group.losses}
+                  </p>
+                  <p className="mt-1 text-[0.95rem] leading-none text-[var(--text-muted)]">
+                    {group.logs.length} total
+                  </p>
+                </div>
+                <ChevronIcon className="mt-1 h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180" />
               </div>
             </summary>
 

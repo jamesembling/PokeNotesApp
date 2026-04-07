@@ -6,6 +6,7 @@ import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { getDecks } from "@/lib/db/decks";
 import { getLogById } from "@/lib/db/logs";
+import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 import { getPokemonOptions } from "@/lib/db/pokemon";
 
 type LogDetailPageProps = {
@@ -76,8 +77,14 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
     log.opponentDeckName,
     log.opponentDeckSprites
   );
-  const linkedDeck = log.linkedDeckId
-    ? userDecks.find((deck) => deck.id === log.linkedDeckId) ?? null
+  const resolvedLinkedDeckId =
+    resolveLinkedDeck(userDecks, {
+      linkedDeckId: log.linkedDeckId,
+      selfDeckName: log.selfDeckName,
+      selfDeckSprites: log.selfDeckSprites
+    }) ?? undefined;
+  const linkedDeck = resolvedLinkedDeckId
+    ? userDecks.find((deck) => deck.id === resolvedLinkedDeckId) ?? null
     : null;
   const linkedDeckList = linkedDeck?.deckLists.find(
     (deckList) => deckList.id === log.linkedDeckListId
