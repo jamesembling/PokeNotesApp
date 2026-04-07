@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
@@ -300,7 +301,7 @@ async function mapDeck(row: DeckRow): Promise<Deck> {
   };
 }
 
-export async function getDecks(userId: string): Promise<DeckSummary[]> {
+const getDecksUncached = async (userId: string): Promise<DeckSummary[]> => {
   const supabase = createClient();
 
   const { data, error } = await measureServerCall("db.decks.list", async () =>
@@ -329,9 +330,11 @@ export async function getDecks(userId: string): Promise<DeckSummary[]> {
 
   const rows = ((data ?? []) as unknown) as DeckSummaryRow[];
   return await Promise.all(rows.map((row) => mapDeckSummary(row)));
-}
+};
 
-export async function getDeckById(userId: string, deckId: string): Promise<Deck | null> {
+export const getDecks = cache(getDecksUncached);
+
+const getDeckByIdUncached = async (userId: string, deckId: string): Promise<Deck | null> => {
   const supabase = createClient();
 
   const { data, error } = await measureServerCall("db.decks.byId", async () =>
@@ -368,13 +371,15 @@ export async function getDeckById(userId: string, deckId: string): Promise<Deck 
   }
 
   return await mapDeck((data as unknown) as DeckRow);
-}
+};
 
-export async function getDeckWithList(
+export const getDeckById = cache(getDeckByIdUncached);
+
+const getDeckWithListUncached = async (
   userId: string,
   deckId: string,
   listId: string
-): Promise<{ deckName: string; deckList: DeckList } | null> {
+): Promise<{ deckName: string; deckList: DeckList } | null> => {
   const supabase = createClient();
   const { data, error } = await measureServerCall("db.decks.listById", async () =>
     await supabase
@@ -405,7 +410,9 @@ export async function getDeckWithList(
     deckName: row.deck_name,
     deckList
   };
-}
+};
+
+export const getDeckWithList = cache(getDeckWithListUncached);
 
 export async function getDeckLogStats(
   userId: string,

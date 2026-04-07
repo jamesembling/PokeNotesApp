@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
 import type { PokemonOption } from "@/types/index";
@@ -7,7 +8,7 @@ type PokemonOptionRow = {
   label: string;
 };
 
-export async function getPokemonOptions(): Promise<PokemonOption[]> {
+const getPokemonOptionsUncached = async (): Promise<PokemonOption[]> => {
   const supabase = createClient();
 
   const { data, error } = await measureServerCall("db.pokemon.options", async () =>
@@ -24,4 +25,6 @@ export async function getPokemonOptions(): Promise<PokemonOption[]> {
       slug: row.slug,
       label: row.label
     }));
-}
+};
+
+export const getPokemonOptions = cache(getPokemonOptionsUncached);
