@@ -64,19 +64,47 @@ function normalizeSearchValue(value: string) {
   return value.trim().toLowerCase();
 }
 
-function matchesSearch(option: PokemonOption, normalizedQuery: string) {
+function getSearchRank(option: PokemonOption, normalizedQuery: string) {
   if (!normalizedQuery) {
-    return false;
+    return null;
   }
 
   const normalizedLabel = option.label.toLowerCase();
   const normalizedSlug = option.slug.replace(/-/g, " ").toLowerCase();
+  const normalizedCompactSlug = option.slug.toLowerCase();
 
-  if (normalizedLabel.startsWith(normalizedQuery) || normalizedSlug.startsWith(normalizedQuery)) {
-    return true;
+  if (
+    normalizedLabel === normalizedQuery ||
+    normalizedSlug === normalizedQuery ||
+    normalizedCompactSlug === normalizedQuery
+  ) {
+    return 0;
   }
 
-  return normalizedLabel.split(/\s+/).some((part) => part.startsWith(normalizedQuery));
+  if (
+    normalizedLabel.startsWith(normalizedQuery) ||
+    normalizedSlug.startsWith(normalizedQuery) ||
+    normalizedCompactSlug.startsWith(normalizedQuery)
+  ) {
+    return 1;
+  }
+
+  if (
+    normalizedLabel.split(/\s+/).some((part) => part.startsWith(normalizedQuery)) ||
+    normalizedSlug.split(/\s+/).some((part) => part.startsWith(normalizedQuery))
+  ) {
+    return 2;
+  }
+
+  if (
+    normalizedLabel.includes(normalizedQuery) ||
+    normalizedSlug.includes(normalizedQuery) ||
+    normalizedCompactSlug.includes(normalizedQuery)
+  ) {
+    return 3;
+  }
+
+  return null;
 }
 
 function findBestSearchMatch(options: PokemonOption[], query: string) {
@@ -96,7 +124,9 @@ function findBestSearchMatch(options: PokemonOption[], query: string) {
     return exactMatch;
   }
 
-  const filteredOptions = options.filter((option) => matchesSearch(option, normalizedQuery));
+  const filteredOptions = options.filter(
+    (option) => getSearchRank(option, normalizedQuery) !== null
+  );
   return filteredOptions.length === 1 ? filteredOptions[0] : null;
 }
 
@@ -149,7 +179,23 @@ function SpriteSearchSlot({
       return [];
     }
 
-    return slotOptions.filter((option) => matchesSearch(option, normalizedQuery)).slice(0, 8);
+    return slotOptions
+      .map((option) => ({
+        option,
+        rank: getSearchRank(option, normalizedQuery)
+      }))
+      .filter(
+        (entry): entry is { option: PokemonOption; rank: number } => entry.rank !== null
+      )
+      .sort((left, right) => {
+        if (left.rank !== right.rank) {
+          return left.rank - right.rank;
+        }
+
+        return left.option.label.localeCompare(right.option.label);
+      })
+      .slice(0, 8)
+      .map((entry) => entry.option);
   }, [query, slotOptions]);
 
   function commitQuerySelection(preferredSlug?: string) {
@@ -213,62 +259,64 @@ function SpriteSearchSlot({
           ) : null}
         </div>
 
-        <input
-          className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-          onBlur={() => {
-            commitQuerySelection();
-            setIsOpen(false);
-          }}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setIsOpen(true);
-          }}
-          onFocus={() => setIsOpen(true)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              if (commitQuerySelection(filteredOptions[0]?.slug)) {
-                event.preventDefault();
-                return;
-              }
-            }
-
-            if (event.key === "Escape") {
+        <div className="relative mt-2">
+          <input
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+            onBlur={() => {
+              commitQuerySelection();
               setIsOpen(false);
-            }
-          }}
-          placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
-          spellCheck={false}
-          value={query}
-        />
+            }}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                if (commitQuerySelection(filteredOptions[0]?.slug)) {
+                  event.preventDefault();
+                  return;
+                }
+              }
 
-        {isOpen && normalizeSearchValue(query) ? (
-          <div className="mt-3 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]">
-            {filteredOptions.length > 0 ? (
-              <div className="max-h-64 overflow-y-auto py-2">
-                {filteredOptions.map((option) => (
-                  <button
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface-alt)]"
-                    key={option.slug}
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      commitQuerySelection(option.slug);
-                    }}
-                    type="button"
-                  >
-                    <SpriteThumb slug={option.slug} />
-                    <span className="min-w-0 truncate text-sm font-medium text-[var(--text-primary)]">
-                      {option.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="px-4 py-3 text-sm text-[var(--text-muted)]">
-                No Pokemon found for &quot;{query}&quot;
-              </div>
-            )}
-          </div>
-        ) : null}
+              if (event.key === "Escape") {
+                setIsOpen(false);
+              }
+            }}
+            placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
+            spellCheck={false}
+            value={query}
+          />
+
+          {isOpen && normalizeSearchValue(query) ? (
+            <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]">
+              {filteredOptions.length > 0 ? (
+                <div className="max-h-64 overflow-y-auto py-2">
+                  {filteredOptions.map((option) => (
+                    <button
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface-alt)]"
+                      key={option.slug}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        commitQuerySelection(option.slug);
+                      }}
+                      type="button"
+                    >
+                      <SpriteThumb slug={option.slug} />
+                      <span className="min-w-0 truncate text-sm font-medium text-[var(--text-primary)]">
+                        {option.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="px-4 py-3 text-sm text-[var(--text-muted)]">
+                  No Pokemon found for &quot;{query}&quot;
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );
