@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
@@ -16,6 +17,11 @@ type DeckListPageProps = {
 
 export default async function DeckListPage({ params }: DeckListPageProps) {
   const user = await requireUser();
+  const defaultCreatedBy =
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split("@")[0] ||
+    "Trainer";
   const result = await getDeckWithList(user.id, params.id, params.listId);
 
   if (!result) {
@@ -62,9 +68,19 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         ]}
         title={deckList.name}
         action={
-          <Link href={`/decks/${params.id}`}>
-            <Button variant="secondary">Back to Deck</Button>
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <DeckListEditorDialog
+              deckId={params.id}
+              deckList={deckList}
+              defaultCreatedBy={defaultCreatedBy}
+              defaultFormat={deckList.format}
+              triggerLabel="Edit List"
+              triggerVariant="secondary"
+            />
+            <Link href={`/decks/${params.id}`}>
+              <Button variant="secondary">Back to Deck</Button>
+            </Link>
+          </div>
         }
       />
 

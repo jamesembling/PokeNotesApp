@@ -1,13 +1,14 @@
-import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { DeckCard } from "@/components/ui/DeckCard";
+import { DeckEditorDialog } from "@/components/ui/DeckEditorDialog";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { getDecks } from "@/lib/db/decks";
+import { getPokemonOptions } from "@/lib/db/pokemon";
 
 export default async function DecksPage() {
   const user = await requireUser();
-  const decks = await getDecks(user.id);
+  const [decks, pokemonOptions] = await Promise.all([getDecks(user.id), getPokemonOptions()]);
 
   return (
     <>
@@ -15,7 +16,7 @@ export default async function DecksPage() {
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Deck Strategy" }]}
         title="Deck Strategy"
         subtitle="Your saved deck strategies and battle records."
-        action={<Button disabled>New Deck</Button>}
+        action={<DeckEditorDialog pokemonOptions={pokemonOptions} triggerLabel="New Deck" />}
       />
 
       {decks.length === 0 ? (

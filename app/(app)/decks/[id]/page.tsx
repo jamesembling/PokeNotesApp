@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { DeckEditorDialog } from "@/components/ui/DeckEditorDialog";
+import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { LogRow } from "@/components/ui/LogRow";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
 import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
+import { getPokemonOptions } from "@/lib/db/pokemon";
 import { getLogsForDeck } from "@/lib/db/logs";
 
 type DeckDetailPageProps = {
@@ -45,10 +47,16 @@ function StrategySection({
 
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const user = await requireUser();
+  const defaultCreatedBy =
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split("@")[0] ||
+    "Trainer";
 
-  const [deck, stats] = await Promise.all([
+  const [deck, stats, pokemonOptions] = await Promise.all([
     getDeckById(user.id, params.id),
-    getDeckLogStats(user.id, params.id)
+    getDeckLogStats(user.id, params.id),
+    getPokemonOptions()
   ]);
 
   if (!deck) {
@@ -96,7 +104,19 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         title={deck.deckName}
         action={
           <div className="flex flex-wrap items-center gap-3">
-            <Button disabled>Edit Deck</Button>
+            <DeckListEditorDialog
+              deckId={deck.id}
+              defaultCreatedBy={defaultCreatedBy}
+              defaultFormat={deck.format}
+              triggerLabel="Add Deck List"
+              triggerVariant="secondary"
+            />
+            <DeckEditorDialog
+              deck={deck}
+              pokemonOptions={pokemonOptions}
+              triggerLabel="Edit Deck"
+              triggerVariant="secondary"
+            />
             <Link
               className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
               href="/decks"
@@ -184,12 +204,22 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                   </p>
                 </div>
 
-                <Link
-                  className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
-                  href={`/decks/${deck.id}/lists/${deckList.id}`}
-                >
-                  View List
-                </Link>
+                <div className="flex flex-wrap items-center gap-3">
+                  <DeckListEditorDialog
+                    deckId={deck.id}
+                    deckList={deckList}
+                    defaultCreatedBy={defaultCreatedBy}
+                    defaultFormat={deck.format}
+                    triggerLabel="Edit List"
+                    triggerVariant="ghost"
+                  />
+                  <Link
+                    className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
+                    href={`/decks/${deck.id}/lists/${deckList.id}`}
+                  >
+                    View List
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
