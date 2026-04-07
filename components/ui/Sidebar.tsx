@@ -127,14 +127,18 @@ export function Sidebar({ profile, pokemonOptions, userDecks, userId }: SidebarP
     <>
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[var(--border)] bg-[var(--bg-surface)] min-[860px]:flex">
         <div className="flex w-full flex-col px-4 py-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] text-xl leading-none text-[var(--color-loss)]">
-              ●
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-lg font-bold text-[var(--text-primary)]">Poke Notes</p>
-              <p className="text-sm text-[var(--text-muted)]">Pokemon TCG battle tracker</p>
-            </div>
+          <div className="flex items-center justify-between gap-3">
+            <Link
+              aria-label="Go to Poke Notes home"
+              className="inline-flex items-center"
+              href="/logs"
+            >
+              <img
+                alt="Poke Notes"
+                className="h-12 w-12"
+                src="/pokeball-icon.svg"
+              />
+            </Link>
             <button
               type="button"
               className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
@@ -163,19 +167,29 @@ export function Sidebar({ profile, pokemonOptions, userDecks, userId }: SidebarP
       </aside>
 
       <div className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 min-[860px]:hidden">
-        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
-            aria-expanded={drawerOpen}
-            aria-label="Open navigation menu"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <MenuIcon />
-          </button>
-          <p className="truncate text-center text-base font-semibold text-[var(--text-primary)]">
-            Poke Notes
-          </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
+              aria-expanded={drawerOpen}
+              aria-label="Open navigation menu"
+              onClick={() => setDrawerOpen(true)}
+            >
+              <MenuIcon />
+            </button>
+            <Link
+              aria-label="Go to Poke Notes home"
+              className="inline-flex items-center"
+              href="/logs"
+            >
+              <img
+                alt="Poke Notes"
+                className="h-12 w-12"
+                src="/pokeball-icon.svg"
+              />
+            </Link>
+          </div>
           <button
             type="button"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
@@ -197,15 +211,17 @@ export function Sidebar({ profile, pokemonOptions, userDecks, userId }: SidebarP
           />
           <div className="relative flex h-full w-[min(20rem,86vw)] flex-col border-r border-[var(--border)] bg-[var(--bg-surface)] px-4 py-6 shadow-xl">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] text-xl leading-none text-[var(--color-loss)]">
-                  ●
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-[var(--text-primary)]">Poke Notes</p>
-                  <p className="text-sm text-[var(--text-muted)]">Battle log tracker</p>
-                </div>
-              </div>
+              <Link
+                aria-label="Go to Poke Notes home"
+                className="inline-flex items-center"
+                href="/logs"
+              >
+                <img
+                  alt="Poke Notes"
+                  className="h-12 w-12"
+                  src="/pokeball-icon.svg"
+                />
+              </Link>
               <button
                 type="button"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
