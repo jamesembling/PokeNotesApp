@@ -2,19 +2,21 @@
 
 type SpriteStripProps = {
   sprites: string[];
-  size: "sm" | "md";
+  size: "sm" | "md" | "lg";
   maxVisible?: number;
   className?: string;
 };
 
 const sizeClasses: Record<SpriteStripProps["size"], string> = {
   sm: "h-6 w-6",
-  md: "h-8 w-8"
+  md: "h-8 w-8",
+  lg: "h-9 w-9 sm:h-11 sm:w-11"
 };
 
 const sizeValues: Record<SpriteStripProps["size"], number> = {
   sm: 24,
-  md: 32
+  md: 32,
+  lg: 44
 };
 
 export function SpriteStrip({ sprites, size, maxVisible = 2, className }: SpriteStripProps) {

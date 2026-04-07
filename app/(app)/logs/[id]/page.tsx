@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
-import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
-import { EditLogDialog } from "@/components/ui/EditLogDialog";
+import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
@@ -94,22 +92,15 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
           { label: "Battle Logs", href: "/logs" },
           { label: opponentDeckName }
         ]}
-        title="Battle Log"
+        title=" "
       />
 
-      <BattleLogDetailView
-        actions={
-          <>
-            <EditLogDialog log={log} pokemonOptions={pokemonOptions} userDecks={userDecks} />
-            <CopyShareLinkButton logId={log.id} />
-            <Link className={backLinkClassName} href="/logs">
-              Back to Logs
-            </Link>
-          </>
-        }
+      <BattleLogDetailShell
         linkedStrategyLabel={linkedStrategyLabel}
         log={log}
+        pokemonOptions={pokemonOptions}
         timestampLabel={timestampLabel}
+        userDecks={userDecks}
       />
     </>
   );

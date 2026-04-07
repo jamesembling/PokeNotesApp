@@ -6,21 +6,12 @@ import { Button } from "@/components/ui/Button";
 
 type CopyShareLinkButtonProps = {
   logId: string;
+  onFeedbackChange?: (feedback: ShareFeedback | null) => void;
 };
 
-type ShareState =
-  | { tone: "idle"; text: string }
-  | { tone: "success"; text: string }
-  | { tone: "info"; text: string }
-  | { tone: "error"; text: string };
-
-const feedbackClassName: Record<Exclude<ShareState["tone"], "idle">, string> = {
-  success:
-    "rounded-2xl border border-[rgba(31,138,98,0.18)] bg-[rgba(31,138,98,0.12)] px-4 py-3 text-sm font-semibold text-[var(--color-win)]",
-  info:
-    "rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm font-semibold text-[var(--text-muted)]",
-  error:
-    "rounded-2xl border border-[rgba(213,87,75,0.16)] bg-[rgba(213,87,75,0.12)] px-4 py-3 text-sm font-semibold text-[var(--color-loss)]"
+export type ShareFeedback = {
+  tone: "success" | "info" | "error";
+  text: string;
 };
 
 async function copyTextToClipboard(text: string) {
@@ -37,12 +28,8 @@ async function copyTextToClipboard(text: string) {
   throw new Error("Clipboard access is unavailable in this browser.");
 }
 
-export function CopyShareLinkButton({ logId }: CopyShareLinkButtonProps) {
+export function CopyShareLinkButton({ logId, onFeedbackChange }: CopyShareLinkButtonProps) {
   const [isBusy, setIsBusy] = useState(false);
-  const [shareState, setShareState] = useState<ShareState>({
-    tone: "idle",
-    text: ""
-  });
 
   async function handleCopy() {
     setIsBusy(true);
@@ -51,7 +38,7 @@ export function CopyShareLinkButton({ logId }: CopyShareLinkButtonProps) {
       const { shareUrl } = await createLogShareAction(logId);
       const copyMethod = await copyTextToClipboard(shareUrl);
 
-      setShareState({
+      onFeedbackChange?.({
         tone: copyMethod === "prompt" ? "info" : "success",
         text:
           copyMethod === "prompt"
@@ -59,7 +46,7 @@ export function CopyShareLinkButton({ logId }: CopyShareLinkButtonProps) {
             : "Share link copied. Anyone with the link can open this battle log."
       });
     } catch (error) {
-      setShareState({
+      onFeedbackChange?.({
         tone: "error",
         text:
           error instanceof Error
@@ -72,13 +59,8 @@ export function CopyShareLinkButton({ logId }: CopyShareLinkButtonProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <Button disabled={isBusy} onClick={handleCopy} type="button" variant="secondary">
-        {isBusy ? "Creating Link..." : "Copy Share Link"}
-      </Button>
-      {shareState.tone !== "idle" ? (
-        <p className={feedbackClassName[shareState.tone]}>{shareState.text}</p>
-      ) : null}
-    </div>
+    <Button disabled={isBusy} onClick={handleCopy} type="button" variant="secondary">
+      {isBusy ? "Creating Link..." : "Copy Share Link"}
+    </Button>
   );
 }
