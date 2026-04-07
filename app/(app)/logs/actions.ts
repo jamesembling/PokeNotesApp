@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
@@ -10,6 +11,9 @@ import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
+import { getDecks } from "@/lib/db/decks";
+import { createLogShareSnapshot } from "@/lib/db/log-shares";
+import { getLogById } from "@/lib/db/logs";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportLogRecord } from "@/lib/log-import/types";
 import type { LogSection, ParsedLogReview, Result } from "@/types/index";
@@ -287,4 +291,48 @@ export async function updateLogAction(formData: FormData): Promise<void> {
   revalidatePath("/logs");
   revalidatePath(`/logs/${logId}`);
   redirect(`/logs/${logId}`);
+}
+
+export async function createLogShareAction(logId: string): Promise<{ shareUrl: string }> {
+  const user = await requireUser();
+  const normalizedLogId = String(logId || "").trim();
+
+  if (!normalizedLogId) {
+    throw new Error("Missing battle log ID.");
+  }
+
+  const [log, userDecks] = await Promise.all([
+    getLogById(user.id, normalizedLogId),
+    getDecks(user.id)
+  ]);
+
+  if (!log) {
+    throw new Error("Battle log not found.");
+  }
+
+  const linkedDeck = log.linkedDeckId
+    ? userDecks.find((deck) => deck.id === log.linkedDeckId) ?? null
+    : null;
+  const linkedDeckList = linkedDeck?.deckLists.find(
+    (deckList) => deckList.id === log.linkedDeckListId
+  );
+  const linkedStrategyLabel = linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
+  const sharedLog = {
+    ...log,
+    id: "shared-log",
+    userId: "",
+    linkedDeckId: undefined,
+    linkedDeckListId: undefined
+  };
+  const token = await createLogShareSnapshot({
+    ownerUserId: user.id,
+    log: sharedLog,
+    linkedStrategyLabel
+  });
+
+  const requestHeaders = headers();
+  const origin = requestHeaders.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const shareUrl = `${origin.replace(/\/$/, "")}/shared/${token}`;
+
+  return { shareUrl };
 }
