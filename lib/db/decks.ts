@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
 import { createClient } from "@/lib/supabase/server";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
@@ -107,6 +108,12 @@ function parseDeckList(value: unknown): DeckList | null {
         .map((card) => parseDeckCard(card))
         .filter((card): card is DeckCard => card !== null)
     : [];
+  const sortedCardsSource = candidate.sortedCards ?? candidate.sorted_cards;
+  const sortedCards = Array.isArray(sortedCardsSource)
+    ? sortedCardsSource
+        .map((card) => parseDeckCard(card))
+        .filter((card): card is DeckCard => card !== null)
+    : sortDeckListCardsLocally(parsedCards);
 
   const id = typeof candidate.id === "string" ? candidate.id : "";
   const name = typeof candidate.name === "string" ? candidate.name : "";
@@ -134,6 +141,7 @@ function parseDeckList(value: unknown): DeckList | null {
           ? candidate.raw_list
           : "",
     parsedCards,
+    sortedCards,
     createdAt:
       typeof candidate.createdAt === "string"
         ? candidate.createdAt

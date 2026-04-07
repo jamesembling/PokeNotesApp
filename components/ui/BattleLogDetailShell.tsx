@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
-import { EditLogDialog } from "@/components/ui/EditLogDialog";
-import type { BattleLog, DeckCard, DeckSummary, PokemonOption } from "@/types/index";
+import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
+import type { BattleLog, DeckCard, DeckSummary } from "@/types/index";
 
 type ShareTone = "success" | "info" | "error";
 
@@ -23,7 +23,6 @@ type BattleLogDetailShellProps = {
   linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel: string;
   log: BattleLog;
-  pokemonOptions: PokemonOption[];
   timestampLabel: string;
   userDecks: DeckSummary[];
 };
@@ -49,7 +48,6 @@ export function BattleLogDetailShell({
   linkedDeckListSortedCards,
   linkedStrategyLabel,
   log,
-  pokemonOptions,
   timestampLabel,
   userDecks
 }: BattleLogDetailShellProps) {
@@ -59,7 +57,7 @@ export function BattleLogDetailShell({
     <BattleLogDetailView
       actions={
         <>
-          <EditLogDialog log={log} pokemonOptions={pokemonOptions} userDecks={userDecks} />
+          <LazyEditLogButton log={log} userDecks={userDecks} />
           <CopyShareLinkButton logId={log.id} onFeedbackChange={setShareFeedback} />
           <Link className={backLinkClassName} href="/logs">
             Back to Logs

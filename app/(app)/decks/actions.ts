@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
+import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { parseDeckList, parseLines } from "@/lib/decks/deck-list-parse";
 import { getDefaultDeckFormat } from "@/lib/decks/formats";
 import { createClient } from "@/lib/supabase/server";
@@ -32,6 +34,22 @@ function getCurrentDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
     user.email?.split("@")[0] ||
     "Trainer"
   );
+}
+
+async function buildSortedDeckListCards(rawList: string) {
+  const parsedCards = parseDeckList(rawList);
+
+  try {
+    return {
+      parsedCards,
+      sortedCards: await sortDeckListCards(parsedCards)
+    };
+  } catch {
+    return {
+      parsedCards,
+      sortedCards: sortDeckListCardsLocally(parsedCards)
+    };
+  }
 }
 
 export async function createDeckAction(formData: FormData) {
@@ -144,6 +162,8 @@ export async function saveDeckListAction(formData: FormData) {
   }
 
   const timestamp = new Date().toISOString();
+  const { parsedCards, sortedCards } = await buildSortedDeckListCards(rawList);
+
   const nextDeckList = {
     id: deckListId || crypto.randomUUID(),
     name,
@@ -152,7 +172,8 @@ export async function saveDeckListAction(formData: FormData) {
     createdBy: String(formData.get("createdBy") || "").trim() || getCurrentDisplayName(user),
     notes: String(formData.get("notes") || "").trim(),
     rawList,
-    parsedCards: parseDeckList(rawList),
+    parsedCards,
+    sortedCards,
     createdAt:
       String(formData.get("createdAt") || "").trim() ||
       (deckListId

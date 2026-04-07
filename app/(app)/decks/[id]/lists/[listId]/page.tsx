@@ -5,7 +5,6 @@ import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
-import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { getDeckWithList } from "@/lib/db/decks";
 
 type DeckListPageProps = {
@@ -55,7 +54,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
   }
 
   const { deckName, deckList } = result;
-  const sortedCards = await sortDeckListCards(deckList.parsedCards);
+  const sortedCards = deckList.sortedCards;
 
   return (
     <>

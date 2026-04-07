@@ -3,11 +3,9 @@ import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
-import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { getDecks } from "@/lib/db/decks";
 import { getLogById } from "@/lib/db/logs";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
-import { getPokemonOptions } from "@/lib/db/pokemon";
 
 type LogDetailPageProps = {
   params: {
@@ -31,10 +29,9 @@ function formatImportedAt(value: string) {
 export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const user = await requireUser();
 
-  const [log, userDecks, pokemonOptions] = await Promise.all([
+  const [log, userDecks] = await Promise.all([
     getLogById(user.id, params.id),
-    getDecks(user.id),
-    getPokemonOptions()
+    getDecks(user.id)
   ]);
 
   if (!log) {
@@ -89,9 +86,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const linkedDeckList = linkedDeck?.deckLists.find(
     (deckList) => deckList.id === log.linkedDeckListId
   );
-  const linkedDeckListSortedCards = linkedDeckList
-    ? await sortDeckListCards(linkedDeckList.parsedCards)
-    : [];
+  const linkedDeckListSortedCards = linkedDeckList?.sortedCards ?? [];
   const linkedStrategyLabel = linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
   const timestampLabel = formatImportedAt(log.importedAt);
 
@@ -115,7 +110,6 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
         linkedDeckListSortedCards={linkedDeckListSortedCards}
         linkedStrategyLabel={linkedStrategyLabel}
         log={log}
-        pokemonOptions={pokemonOptions}
         timestampLabel={timestampLabel}
         userDecks={userDecks}
       />

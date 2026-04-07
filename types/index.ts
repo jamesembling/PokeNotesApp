@@ -230,6 +230,7 @@ export type DeckList = {
   notes: string
   rawList: string                 // The raw pasted text — source of truth
   parsedCards: DeckCard[]         // Pre-parsed at save time for fast display
+  sortedCards: DeckCard[]         // Pre-sorted once so pages do not re-run ordering work
   createdAt: string
   updatedAt: string
 }

@@ -16,6 +16,7 @@ import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import type { BattleLog, DeckList, DeckSummary, PokemonOption } from "@/types/index";
 
 type EditLogDialogProps = {
+  initialOpen?: boolean;
   log: BattleLog;
   pokemonOptions: PokemonOption[];
   trigger?: ReactElement<{ onClick?: () => void }>;
@@ -46,8 +47,14 @@ function SaveButton() {
   );
 }
 
-export function EditLogDialog({ log, pokemonOptions, trigger, userDecks }: EditLogDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function EditLogDialog({
+  initialOpen = false,
+  log,
+  pokemonOptions,
+  trigger,
+  userDecks
+}: EditLogDialogProps) {
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSelfSprites, setSelectedSelfSprites] = useState(log.selfDeckSprites.slice(0, 2));
   const [selectedOpponentSprites, setSelectedOpponentSprites] = useState(
     log.opponentDeckSprites.slice(0, 2)
