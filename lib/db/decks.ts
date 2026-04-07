@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
+import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
+import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
+import { normalizeText } from "@/lib/log-import/normalization";
 import { measureServerCall } from "@/lib/server/perf";
+import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
 import type { Deck, DeckCard, DeckList, DeckSummary, GoPreference } from "@/types/index";
 
 type DeckSummaryRow = {
@@ -145,23 +150,140 @@ function parseDeckLists(value: unknown): DeckList[] {
     .filter((entry): entry is DeckList => entry !== null);
 }
 
-function mapDeckSummary(row: DeckSummaryRow): DeckSummary {
+function buildPokemonLookupKeys(rawValue: string) {
+  const trimmedValue = String(rawValue || "").trim();
+  if (!trimmedValue) {
+    return [];
+  }
+
+  const withoutExSuffix = trimmedValue.replace(/\s+ex$/i, "").trim();
+  const keys = new Set<string>([
+    trimmedValue,
+    normalizeText(trimmedValue)
+  ]);
+
+  if (withoutExSuffix && withoutExSuffix !== trimmedValue) {
+    keys.add(withoutExSuffix);
+    keys.add(normalizeText(withoutExSuffix));
+  }
+
+  return Array.from(keys);
+}
+
+function resolvePokemonSlug(rawValue: string, slugIndex: Map<string, { slug: string }>) {
+  for (const key of buildPokemonLookupKeys(rawValue)) {
+    if (slugIndex.has(key)) {
+      return slugIndex.get(key)?.slug ?? "";
+    }
+  }
+
+  return "";
+}
+
+function buildDeckSpriteEvidence(
+  deckName: string,
+  deckLists: DeckList[],
+  slugIndex: Map<string, { slug: string }>
+): PlayerPokemonEvidence {
+  const lines: string[] = [];
+  const mentionCounts = new Map<string, number>();
+  const normalizedNames: string[] = [deckName];
+
+  deckLists.forEach((deckList) => {
+    deckList.parsedCards.forEach((card) => {
+      const slug = resolvePokemonSlug(card.name, slugIndex);
+      if (!slug) {
+        return;
+      }
+
+      lines.push(card.name);
+      normalizedNames.push(card.name);
+      mentionCounts.set(slug, (mentionCounts.get(slug) ?? 0) + Math.max(card.count, 1));
+    });
+  });
+
+  return {
+    lines,
+    normalizedText: normalizeText(normalizedNames.join(" ")),
+    mentionCounts
+  };
+}
+
+async function normalizeDeckPokemon(deckPokemon: string[]): Promise<string[]> {
+  if (deckPokemon.length === 0) {
+    return [];
+  }
+
+  const catalog = await loadIdentificationCatalog();
+  const slugIndex = new Map<string, { slug: string }>();
+  catalog.pokemon.bySlug.forEach((row, slug) => {
+    slugIndex.set(slug, { slug });
+  });
+  catalog.pokemon.normalizedNameToSlug.forEach((slug, normalizedName) => {
+    slugIndex.set(normalizedName, { slug });
+  });
+
+  return Array.from(
+    new Set(deckPokemon.map((entry) => resolvePokemonSlug(entry, slugIndex)).filter(Boolean))
+  );
+}
+
+async function deriveDeckPokemon(deckName: string, deckLists: DeckList[]): Promise<string[]> {
+  if (deckLists.length === 0) {
+    return [];
+  }
+
+  const catalog = await loadIdentificationCatalog();
+  const slugIndex = new Map<string, { slug: string }>();
+  catalog.pokemon.bySlug.forEach((row, slug) => {
+    slugIndex.set(slug, { slug });
+  });
+  catalog.pokemon.normalizedNameToSlug.forEach((slug, normalizedName) => {
+    slugIndex.set(normalizedName, { slug });
+  });
+  const evidence = buildDeckSpriteEvidence(deckName, deckLists, slugIndex);
+
+  if (evidence.mentionCounts.size === 0) {
+    return [];
+  }
+
+  const archetype = identifyLikelyArchetype({
+    evidence,
+    catalog
+  });
+
+  return selectDeckSprites({
+    archetype,
+    evidence,
+    catalog
+  }).slugs;
+}
+
+async function mapDeckSummary(row: DeckSummaryRow): Promise<DeckSummary> {
+  const deckLists = parseDeckLists(row.deck_lists);
+  const storedDeckPokemon = parseStringArray(row.deck_pokemon);
+  const normalizedStoredDeckPokemon = await normalizeDeckPokemon(storedDeckPokemon);
+  const deckPokemon =
+    normalizedStoredDeckPokemon.length > 0
+      ? normalizedStoredDeckPokemon
+      : await deriveDeckPokemon(row.deck_name, deckLists);
+
   return {
     id: row.id,
     userId: row.user_id,
     deckName: row.deck_name,
     format: row.format,
     goPreference: row.go_preference ?? "",
-    deckPokemon: parseStringArray(row.deck_pokemon),
-    deckLists: parseDeckLists(row.deck_lists),
+    deckPokemon,
+    deckLists,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
 }
 
-function mapDeck(row: DeckRow): Deck {
+async function mapDeck(row: DeckRow): Promise<Deck> {
   return {
-    ...mapDeckSummary(row),
+    ...(await mapDeckSummary(row)),
     coreStrategy: row.core_strategy ?? "",
     generalNotes: row.general_notes ?? "",
     setupGoals: parseStringArray(row.setup_goals),
@@ -198,7 +320,7 @@ export async function getDecks(userId: string): Promise<DeckSummary[]> {
   }
 
   const rows = ((data ?? []) as unknown) as DeckSummaryRow[];
-  return rows.map(mapDeckSummary);
+  return await Promise.all(rows.map((row) => mapDeckSummary(row)));
 }
 
 export async function getDeckById(userId: string, deckId: string): Promise<Deck | null> {
@@ -237,7 +359,7 @@ export async function getDeckById(userId: string, deckId: string): Promise<Deck 
     return null;
   }
 
-  return mapDeck((data as unknown) as DeckRow);
+  return await mapDeck((data as unknown) as DeckRow);
 }
 
 export async function getDeckWithList(

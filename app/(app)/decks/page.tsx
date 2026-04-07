@@ -23,7 +23,7 @@ export default async function DecksPage() {
           <p className="text-sm text-[var(--text-secondary)]">No decks saved yet.</p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {decks.map((deck) => (
             <DeckCard deck={deck} key={deck.id} />
           ))}
