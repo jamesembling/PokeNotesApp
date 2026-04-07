@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
 import { getDecks } from "@/lib/db/decks";
-import { getLogsPage, getLogSummaryStats } from "@/lib/db/logs";
+import { getLogsWindow, getLogSummaryStats } from "@/lib/db/logs";
 import { getPokemonOptions } from "@/lib/db/pokemon";
 import type { BattleLogSummary } from "@/types/index";
 
@@ -37,7 +37,7 @@ export default async function LogsPage() {
 
   const [stats, page, userDecks, pokemonOptions] = await Promise.all([
     getLogSummaryStats(user.id),
-    getLogsPage(user.id),
+    getLogsWindow(user.id),
     getDecks(user.id),
     getPokemonOptions()
   ]);
@@ -84,8 +84,11 @@ export default async function LogsPage() {
       </Card>
       <Card>
         <LogsManager
-          hasMore={page.hasMore}
-          logs={logs}
+          initialCanLoadMore={page.hasMore}
+          initialLogs={logs}
+          initialNextWindowEndDate={page.nextWindowEndDate}
+          initialWindowEndDate={page.windowEndDate}
+          initialWindowStartDate={page.windowStartDate}
           pokemonOptions={pokemonOptions}
           userDecks={userDecks}
         />

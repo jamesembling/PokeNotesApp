@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import {
   bulkAssignDeckListAction,
   deleteLogAction,
-  deleteLogsAction
+  deleteLogsAction,
+  loadMoreLogsAction
 } from "@/app/(app)/logs/actions";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EditLogDialog } from "@/components/ui/EditLogDialog";
-import { PencilIcon } from "@/components/ui/icons";
+import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
 import { LogRow } from "@/components/ui/LogRow";
 import type { BattleLog, BattleLogSummary, DeckSummary, PokemonOption } from "@/types/index";
 
@@ -22,8 +23,11 @@ type LogGroup = {
 };
 
 type LogsManagerProps = {
-  hasMore: boolean;
-  logs: BattleLogSummary[];
+  initialCanLoadMore: boolean;
+  initialLogs: BattleLogSummary[];
+  initialNextWindowEndDate: string;
+  initialWindowEndDate: string;
+  initialWindowStartDate: string;
   pokemonOptions: PokemonOption[];
   userDecks: DeckSummary[];
 };
@@ -103,31 +107,117 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
 }
 
-export function LogsManager({ hasMore, logs, pokemonOptions, userDecks }: LogsManagerProps) {
+function formatRangeDate(date: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(`${date}T00:00:00`));
+}
+
+function mergeLogs(current: BattleLogSummary[], incoming: BattleLogSummary[]) {
+  const merged = new Map<string, BattleLogSummary>();
+
+  current.forEach((log) => {
+    merged.set(log.id, log);
+  });
+
+  incoming.forEach((log) => {
+    merged.set(log.id, log);
+  });
+
+  return Array.from(merged.values()).sort((left, right) => {
+    if (left.date !== right.date) {
+      return right.date.localeCompare(left.date);
+    }
+
+    return right.importedAt.localeCompare(left.importedAt);
+  });
+}
+
+function attachLinkedDeckListNames(logs: BattleLogSummary[], userDecks: DeckSummary[]) {
+  return logs.map((log) => {
+    if (!log.linkedDeckId || !log.linkedDeckListId) {
+      return {
+        ...log,
+        linkedDeckListName: undefined
+      };
+    }
+
+    const deck = userDecks.find((candidate) => candidate.id === log.linkedDeckId);
+    const linkedDeckList = deck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
+
+    return {
+      ...log,
+      linkedDeckListName: linkedDeckList?.name
+    };
+  });
+}
+
+export function LogsManager({
+  initialCanLoadMore,
+  initialLogs,
+  initialNextWindowEndDate,
+  initialWindowEndDate,
+  initialWindowStartDate,
+  pokemonOptions,
+  userDecks
+}: LogsManagerProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isMutating, startMutationTransition] = useTransition();
+  const [isLoadingMore, startLoadMoreTransition] = useTransition();
   const [isManagementMode, setIsManagementMode] = useState(false);
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState("");
   const [selectedDeckListId, setSelectedDeckListId] = useState("");
+  const [visibleLogs, setVisibleLogs] = useState(initialLogs);
+  const [canLoadMore, setCanLoadMore] = useState(initialCanLoadMore);
+  const [nextWindowEndDate, setNextWindowEndDate] = useState(initialNextWindowEndDate);
+  const [windowStartDate, setWindowStartDate] = useState(initialWindowStartDate);
+  const [windowEndDate, setWindowEndDate] = useState(initialWindowEndDate);
+  const [loadMoreError, setLoadMoreError] = useState("");
 
-  const groups = useMemo(() => groupLogsByDate(logs), [logs]);
+  const groups = useMemo(() => groupLogsByDate(visibleLogs), [visibleLogs]);
   const selectedDeck = useMemo(
     () => userDecks.find((deck) => deck.id === selectedDeckId) ?? null,
     [selectedDeckId, userDecks]
   );
   const availableDeckLists = selectedDeck?.deckLists ?? [];
-  const allSelected = logs.length > 0 && selectedLogIds.length === logs.length;
+  const allSelected = visibleLogs.length > 0 && selectedLogIds.length === visibleLogs.length;
   const selectedCount = selectedLogIds.length;
   const canApplyDeckList =
-    selectedCount > 0 && Boolean(selectedDeckId) && Boolean(selectedDeckListId) && !isPending;
-  const canDeleteSelected = selectedCount > 0 && !isPending;
+    selectedCount > 0 && Boolean(selectedDeckId) && Boolean(selectedDeckListId) && !isMutating;
+  const canDeleteSelected = selectedCount > 0 && !isMutating;
+  const currentWindowSummary =
+    windowStartDate && windowEndDate
+      ? `${formatRangeDate(windowStartDate)} - ${formatRangeDate(windowEndDate)}`
+      : "";
+
+  useEffect(() => {
+    setVisibleLogs(initialLogs);
+    setCanLoadMore(initialCanLoadMore);
+    setNextWindowEndDate(initialNextWindowEndDate);
+    setWindowStartDate(initialWindowStartDate);
+    setWindowEndDate(initialWindowEndDate);
+    setLoadMoreError("");
+  }, [
+    initialCanLoadMore,
+    initialLogs,
+    initialNextWindowEndDate,
+    initialWindowEndDate,
+    initialWindowStartDate
+  ]);
 
   useEffect(() => {
     if (!isManagementMode && selectedLogIds.length > 0) {
       setSelectedLogIds([]);
     }
   }, [isManagementMode, selectedLogIds.length]);
+
+  useEffect(() => {
+    const validIds = new Set(visibleLogs.map((log) => log.id));
+    setSelectedLogIds((current) => current.filter((id) => validIds.has(id)));
+  }, [visibleLogs]);
 
   useEffect(() => {
     if (!selectedDeckId) {
@@ -148,16 +238,38 @@ export function LogsManager({ hasMore, logs, pokemonOptions, userDecks }: LogsMa
   }
 
   function toggleSelectAll() {
-    setSelectedLogIds(allSelected ? [] : logs.map((log) => log.id));
+    setSelectedLogIds(allSelected ? [] : visibleLogs.map((log) => log.id));
   }
 
   function runAsyncAction(work: () => Promise<void>) {
-    startTransition(async () => {
+    startMutationTransition(async () => {
       try {
         await work();
         router.refresh();
       } catch (error) {
         window.alert(getErrorMessage(error));
+      }
+    });
+  }
+
+  function handleLoadMore() {
+    if (isLoadingMore || !canLoadMore) {
+      return;
+    }
+
+    startLoadMoreTransition(async () => {
+      try {
+        setLoadMoreError("");
+        const result = await loadMoreLogsAction(nextWindowEndDate);
+        const nextLogs = attachLinkedDeckListNames(result.logs, userDecks);
+
+        setVisibleLogs((current) => mergeLogs(current, nextLogs));
+        setCanLoadMore(result.hasMore);
+        setNextWindowEndDate(result.nextWindowEndDate);
+        setWindowStartDate(result.windowStartDate);
+        setWindowEndDate((current) => current || result.windowEndDate);
+      } catch (error) {
+        setLoadMoreError(getErrorMessage(error));
       }
     });
   }
@@ -213,6 +325,11 @@ export function LogsManager({ hasMore, logs, pokemonOptions, userDecks }: LogsMa
           <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
             By Date
           </h2>
+          {canLoadMore && currentWindowSummary ? (
+            <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
+              Showing {currentWindowSummary}. Load more to include older logs.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-3">
@@ -227,7 +344,7 @@ export function LogsManager({ hasMore, logs, pokemonOptions, userDecks }: LogsMa
                 Delete Selected{selectedCount ? ` (${selectedCount})` : ""}
               </button>
 
-              {logs.length > 0 ? (
+              {visibleLogs.length > 0 ? (
                 <label className="inline-flex cursor-pointer items-center gap-3 text-sm font-medium text-[var(--text-muted)]">
                   <input
                     checked={allSelected}
@@ -241,7 +358,7 @@ export function LogsManager({ hasMore, logs, pokemonOptions, userDecks }: LogsMa
             </>
           ) : null}
 
-          {hasMore ? <Badge>More available</Badge> : null}
+          {canLoadMore ? <Badge>More available</Badge> : null}
 
           <Button
             className="gap-2"
@@ -297,7 +414,7 @@ export function LogsManager({ hasMore, logs, pokemonOptions, userDecks }: LogsMa
 
           <div className="flex items-end">
             <Button disabled={!canApplyDeckList} onClick={handleApplyDeckList}>
-              {isPending ? "Applying..." : "Apply to Selected"}
+              {isMutating ? "Applying..." : "Apply to Selected"}
             </Button>
           </div>
 
@@ -309,9 +426,13 @@ export function LogsManager({ hasMore, logs, pokemonOptions, userDecks }: LogsMa
       ) : null}
 
       {groups.length > 0 ? (
-        groups.map((group) => (
-          <section className="flex flex-col gap-3" key={group.date}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        groups.map((group, index) => (
+          <details
+            className="group border-b border-[var(--border)] py-1"
+            key={group.date}
+            open={index === 0}
+          >
+            <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden">
               <div>
                 <h3 className="text-base font-semibold text-[var(--text-primary)]">
                   {formatGroupDate(group.date)}
@@ -320,12 +441,15 @@ export function LogsManager({ hasMore, logs, pokemonOptions, userDecks }: LogsMa
                   {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
                 </p>
               </div>
-              <Badge>
-                {group.wins}W-{group.losses}L
-              </Badge>
-            </div>
+              <div className="flex items-center gap-3">
+                <Badge>
+                  {group.wins}W-{group.losses}L
+                </Badge>
+                <ChevronIcon className="h-4 w-4 text-[var(--text-muted)] transition group-open:rotate-180" />
+              </div>
+            </summary>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 pb-5">
               {group.logs.map((log) => (
                 <LogRow
                   editAction={
@@ -353,18 +477,25 @@ export function LogsManager({ hasMore, logs, pokemonOptions, userDecks }: LogsMa
                 />
               ))}
             </div>
-          </section>
+          </details>
         ))
       ) : (
         <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface-alt)] p-6 text-sm text-[var(--text-muted)]">
-          No battle logs yet. Import your first PTCGL log to start tracking results.
+          {canLoadMore
+            ? "No logs appear in the currently loaded 7-day window yet. Load more logs to keep going further back."
+            : "No battle logs yet. Import your first PTCGL log to start tracking results."}
         </div>
       )}
 
-      {hasMore ? (
-        <div className="flex justify-start">
-          <Button disabled variant="secondary">
-            More logs coming soon
+      {canLoadMore ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {loadMoreError ? (
+            <p className="text-sm font-medium text-[var(--color-loss-strong)]">{loadMoreError}</p>
+          ) : (
+            <span />
+          )}
+          <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="secondary">
+            {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}
           </Button>
         </div>
       ) : null}

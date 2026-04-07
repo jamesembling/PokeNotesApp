@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
 import type { BattleLog, BattleLogSummary, LogSection, Result } from "@/types/index";
 
+const DEFAULT_LOG_WINDOW_DAYS = 7;
+
 type LogSummaryStats = {
   total: number;
   wins: number;
@@ -129,6 +131,30 @@ function mapBattleLog(row: LogDetailTableRow): BattleLog {
   };
 }
 
+function normalizeWindowDays(value?: number) {
+  if (!Number.isFinite(value) || Number(value) <= 0) {
+    return DEFAULT_LOG_WINDOW_DAYS;
+  }
+
+  return Math.max(1, Math.floor(Number(value)));
+}
+
+function normalizeDateString(value?: string) {
+  const trimmed = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return new Date().toISOString().slice(0, 10);
+}
+
+function shiftDateString(date: string, dayOffset: number) {
+  const [year, month, day] = normalizeDateString(date).split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day));
+  shifted.setUTCDate(shifted.getUTCDate() + dayOffset);
+  return shifted.toISOString().slice(0, 10);
+}
+
 export async function getLogSummaryStats(userId: string): Promise<LogSummaryStats> {
   const supabase = createClient();
   const [total, wins, losses] = await measureServerCall("db.logs.summaryStats", async () => {
@@ -166,6 +192,79 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
     total,
     wins,
     losses
+  };
+}
+
+export async function getLogsWindow(
+  userId: string,
+  options?: {
+    windowDays?: number;
+    windowEndDate?: string;
+  }
+) {
+  const supabase = createClient();
+  const windowDays = normalizeWindowDays(options?.windowDays);
+  const windowEndDate = normalizeDateString(options?.windowEndDate);
+  const windowStartDate = shiftDateString(windowEndDate, -(windowDays - 1));
+
+  const { data, error } = await measureServerCall("db.logs.window", async () =>
+    await supabase
+      .from("logs")
+      .select(
+        [
+          "id",
+          "date",
+          "result",
+          "format",
+          "go_order",
+          "self_player_name",
+          "self_deck_name",
+          "self_deck_sprites",
+          "opponent_player_name",
+          "opponent_deck_name",
+          "opponent_deck_sprites",
+          "total_turns",
+          "linked_deck_id",
+          "linked_deck_list_id",
+          "imported_at"
+        ].join(",")
+      )
+      .eq("user_id", userId)
+      .gte("date", windowStartDate)
+      .lte("date", windowEndDate)
+      .order("date", { ascending: false })
+      .order("imported_at", { ascending: false })
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const { data: olderRows, error: olderError } = await measureServerCall(
+    "db.logs.window.hasOlder",
+    async () =>
+      await supabase
+        .from("logs")
+        .select("id")
+        .eq("user_id", userId)
+        .lt("date", windowStartDate)
+        .limit(1)
+  );
+
+  if (olderError) {
+    throw olderError;
+  }
+
+  const logs = (((data ?? []) as unknown) as LogsTableRow[]).map(mapLogSummary);
+  const hasOlder = (olderRows?.length ?? 0) > 0;
+
+  return {
+    logs,
+    hasMore: hasOlder,
+    windowDays,
+    windowStartDate,
+    windowEndDate,
+    nextWindowEndDate: hasOlder ? shiftDateString(windowStartDate, -1) : ""
   };
 }
 

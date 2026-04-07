@@ -14,7 +14,7 @@ import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { getDecks } from "@/lib/db/decks";
 import { createLogShareSnapshot } from "@/lib/db/log-shares";
-import { getLogById } from "@/lib/db/logs";
+import { getLogById, getLogsWindow } from "@/lib/db/logs";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportLogRecord } from "@/lib/log-import/types";
 import type { LogSection, ParsedLogReview, Result } from "@/types/index";
@@ -344,6 +344,13 @@ export async function bulkAssignDeckListAction(input: {
   }
 
   revalidatePath("/logs");
+}
+
+export async function loadMoreLogsAction(windowEndDate?: string) {
+  const user = await requireUser();
+  return getLogsWindow(user.id, {
+    windowEndDate
+  });
 }
 
 export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
