@@ -228,9 +228,13 @@ create table public.archetype_catalog (
   id                text primary key,        -- e.g. "dragapult-ex", "charizard-ex"
   label             text not null,           -- e.g. "Dragapult ex", "Charizard ex"
 
-  -- Array of Pokemon slug strings that identify this archetype
+  -- Curated Pokemon slug strings that represent this archetype in the UI
   -- e.g. ["dragapult", "dusknoir"]
   sprites           jsonb not null default '[]',
+
+  -- Additional Pokemon slug strings that should count as evidence during import
+  -- e.g. ["dragapult", "dusknoir", "drakloak", "dreepy"]
+  detection_sprites jsonb not null default '[]',
 
   -- Archetypes that cause false positive matches are excluded
   -- See known-edge-cases.md section 1.1
@@ -244,7 +248,9 @@ comment on table public.archetype_catalog is
 comment on column public.archetype_catalog.is_excluded is
   'When true, this archetype is skipped during log identification. See known-edge-cases.md 1.1.';
 comment on column public.archetype_catalog.sprites is
-  'Array of Pokemon slugs that characterise this archetype. Used for log identification scoring.';
+  'Curated Pokemon slugs that visually represent this archetype in the UI.';
+comment on column public.archetype_catalog.detection_sprites is
+  'Additional Pokemon slugs that should count as evidence when identifying this archetype from a battle log.';
 
 
 -- ============================================================

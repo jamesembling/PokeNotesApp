@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/types/index";
 
 type ImportLogDialogProps = {
@@ -75,6 +76,18 @@ export function ImportLogDialog({
 
   const availableDeckLists = selectedDeck?.deckLists ?? [];
   const resultLabel = review?.result === "Loss" ? "L" : "W";
+  const detectedSelfLabel = useMemo(
+    () =>
+      review ? getBattleLogDeckDisplayName(review.selfDeckName, selectedSelfSprites) : undefined,
+    [review, selectedSelfSprites]
+  );
+  const detectedOpponentLabel = useMemo(
+    () =>
+      review
+        ? getBattleLogDeckDisplayName(review.opponentDeckName, selectedOpponentSprites)
+        : undefined,
+    [review, selectedOpponentSprites]
+  );
 
   function resetImportState() {
     setStage("raw");
@@ -244,8 +257,16 @@ export function ImportLogDialog({
                 <input name="rawLog" type="hidden" value={rawLog} />
                 <input name="selfPlayerName" type="hidden" value={review.selfPlayerName} />
                 <input name="opponentPlayerName" type="hidden" value={review.opponentPlayerName} />
-                <input name="selfDeckName" type="hidden" value={review.selfDeckName} />
-                <input name="opponentDeckName" type="hidden" value={review.opponentDeckName} />
+                <input
+                  name="selfDeckName"
+                  type="hidden"
+                  value={detectedSelfLabel ?? review.selfDeckName}
+                />
+                <input
+                  name="opponentDeckName"
+                  type="hidden"
+                  value={detectedOpponentLabel ?? review.opponentDeckName}
+                />
                 <input name="selfDeckSlug" type="hidden" value={review.selfDeckSlug} />
                 <input name="opponentDeckSlug" type="hidden" value={review.opponentDeckSlug} />
                 <input name="date" type="hidden" value={selectedDate} />
@@ -305,7 +326,7 @@ export function ImportLogDialog({
                 ))}
 
                 <BattleLogSpritePicker
-                  detectedLabel={review.selfDeckName}
+                  detectedLabel={detectedSelfLabel}
                   onChange={setSelectedSelfSprites}
                   pokemonOptions={pokemonOptions}
                   sprites={selectedSelfSprites}
@@ -313,7 +334,7 @@ export function ImportLogDialog({
                 />
 
                 <BattleLogSpritePicker
-                  detectedLabel={review.opponentDeckName}
+                  detectedLabel={detectedOpponentLabel}
                   onChange={setSelectedOpponentSprites}
                   pokemonOptions={pokemonOptions}
                   sprites={selectedOpponentSprites}

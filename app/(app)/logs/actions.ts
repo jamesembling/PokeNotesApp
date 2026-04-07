@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
 import { linkDeckConservatively } from "@/lib/log-import/deck-linking";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
@@ -104,7 +105,7 @@ async function buildParsedLogReview(rawLog: string): Promise<ParsedLogReview> {
     catalog
   });
 
-  const selfDeckName = selfArchetype?.label ?? "Unknown Deck";
+  const selfDeckName = getBattleLogDeckDisplayName(selfArchetype?.label ?? "", selfSprites.slugs);
   const selfDeckSlug = selfArchetype?.archetypeId ?? "";
   const suggestedLinkedDeckId = await linkDeckConservatively({
     userId: user.id,
@@ -117,7 +118,10 @@ async function buildParsedLogReview(rawLog: string): Promise<ParsedLogReview> {
     selfPlayerName: parsed.players.selfPlayerName,
     opponentPlayerName: parsed.players.opponentPlayerName,
     selfDeckName,
-    opponentDeckName: opponentArchetype?.label ?? "Unknown Deck",
+    opponentDeckName: getBattleLogDeckDisplayName(
+      opponentArchetype?.label ?? "",
+      opponentSprites.slugs
+    ),
     selfSprites: selfSprites.slugs,
     opponentSprites: opponentSprites.slugs,
     selfDeckSlug,
@@ -291,6 +295,93 @@ export async function updateLogAction(formData: FormData): Promise<void> {
   revalidatePath("/logs");
   revalidatePath(`/logs/${logId}`);
   redirect(`/logs/${logId}`);
+}
+
+export async function bulkAssignDeckListAction(input: {
+  logIds: string[];
+  linkedDeckId: string;
+  linkedDeckListId: string;
+}): Promise<void> {
+  const user = await requireUser();
+  const supabase = createClient();
+  const logIds = Array.from(
+    new Set(
+      (input.logIds ?? [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+  const linkedDeckId = String(input.linkedDeckId || "").trim();
+  const linkedDeckListId = String(input.linkedDeckListId || "").trim();
+
+  if (!logIds.length) {
+    throw new Error("Select at least one battle log.");
+  }
+
+  if (!linkedDeckId || !linkedDeckListId) {
+    throw new Error("Choose both a deck strategy and deck list first.");
+  }
+
+  const userDecks = await getDecks(user.id);
+  const selectedDeck = userDecks.find((deck) => deck.id === linkedDeckId);
+  const selectedDeckList = selectedDeck?.deckLists.find((deckList) => deckList.id === linkedDeckListId);
+
+  if (!selectedDeck || !selectedDeckList) {
+    throw new Error("That deck list could not be found.");
+  }
+
+  const { error } = await supabase
+    .from("logs")
+    .update({
+      linked_deck_id: linkedDeckId,
+      linked_deck_list_id: linkedDeckListId
+    })
+    .eq("user_id", user.id)
+    .in("id", logIds);
+
+  if (error) {
+    throw error;
+  }
+
+  revalidatePath("/logs");
+}
+
+export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
+  const user = await requireUser();
+  const supabase = createClient();
+  const logIds = Array.from(
+    new Set(
+      (logIdsInput ?? [])
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  if (!logIds.length) {
+    throw new Error("Select at least one battle log.");
+  }
+
+  const { error } = await supabase
+    .from("logs")
+    .delete()
+    .eq("user_id", user.id)
+    .in("id", logIds);
+
+  if (error) {
+    throw error;
+  }
+
+  revalidatePath("/logs");
+}
+
+export async function deleteLogAction(logIdInput: string): Promise<void> {
+  const logId = String(logIdInput || "").trim();
+
+  if (!logId) {
+    throw new Error("Missing battle log ID.");
+  }
+
+  await deleteLogsAction([logId]);
 }
 
 export async function createLogShareAction(logId: string): Promise<{ shareUrl: string }> {

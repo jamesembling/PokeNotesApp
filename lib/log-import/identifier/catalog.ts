@@ -54,7 +54,12 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[]) {
     .map((row) => ({
       id: row.id,
       label: row.label,
-      sprites: parseStringArray(row.sprites)
+      sprites: parseStringArray(row.sprites),
+      detectionSprites: parseStringArray(row.detection_sprites)
+    }))
+    .map((row) => ({
+      ...row,
+      detectionSprites: row.detectionSprites.length > 0 ? row.detectionSprites : row.sprites
     }))
     .filter((row) => row.id && row.label && row.sprites.length > 0);
 
@@ -68,7 +73,7 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[]) {
     idsForLabel.push(row.id);
     normalizedLabelToIds.set(labelKey, idsForLabel);
 
-    row.sprites.forEach((sprite) => {
+    row.detectionSprites.forEach((sprite) => {
       const candidateIds = spriteToCandidateArchetypes.get(sprite) ?? [];
       candidateIds.push(row.id);
       spriteToCandidateArchetypes.set(sprite, candidateIds);
@@ -84,16 +89,31 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[]) {
 
 export const loadIdentificationCatalog = cache(async (): Promise<IdentificationCatalog> => {
   const supabase = createClient();
-  const [{ data: pokemonRows, error: pokemonError }, { data: archetypeRows, error: archetypeError }] =
-    await Promise.all([
-      supabase
-        .from("pokemon_catalog")
-        .select("slug,label,evolves_from,sprite_url,name_de,name_es,name_fr,name_it,name_pt_br"),
-      supabase
-        .from("archetype_catalog")
-        .select("id,label,sprites,is_excluded")
-        .eq("is_excluded", false)
-    ]);
+  const [{ data: pokemonRows, error: pokemonError }, archetypeResult] = await Promise.all([
+    supabase
+      .from("pokemon_catalog")
+      .select("slug,label,evolves_from,sprite_url,name_de,name_es,name_fr,name_it,name_pt_br"),
+    supabase
+      .from("archetype_catalog")
+      .select("id,label,sprites,detection_sprites,is_excluded")
+      .eq("is_excluded", false)
+  ]);
+
+  let archetypeRows = archetypeResult.data;
+  let archetypeError = archetypeResult.error;
+
+  if (archetypeError && /detection_sprites/i.test(archetypeError.message)) {
+    const fallbackResult = await supabase
+      .from("archetype_catalog")
+      .select("id,label,sprites,is_excluded")
+      .eq("is_excluded", false);
+
+    archetypeRows = (fallbackResult.data ?? []).map((row) => ({
+      ...row,
+      detection_sprites: row.sprites
+    }));
+    archetypeError = fallbackResult.error;
+  }
 
   if (pokemonError) {
     throw pokemonError;

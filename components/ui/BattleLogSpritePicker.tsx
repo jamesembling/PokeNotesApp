@@ -50,6 +50,21 @@ function normalizeSearchValue(value: string) {
   return value.trim().toLowerCase();
 }
 
+function matchesSearch(option: PokemonOption, normalizedQuery: string) {
+  if (!normalizedQuery) {
+    return false;
+  }
+
+  const normalizedLabel = option.label.toLowerCase();
+  const normalizedSlug = option.slug.replace(/-/g, " ").toLowerCase();
+
+  if (normalizedLabel.startsWith(normalizedQuery) || normalizedSlug.startsWith(normalizedQuery)) {
+    return true;
+  }
+
+  return normalizedLabel.split(/\s+/).some((part) => part.startsWith(normalizedQuery));
+}
+
 function updateSpritesAtIndex(currentSprites: string[], index: number, nextSlug: string) {
   const nextSprites = [...currentSprites];
 
@@ -99,15 +114,7 @@ function SpriteSearchSlot({
       return [];
     }
 
-    return slotOptions
-      .filter((option) => {
-        const normalizedLabel = option.label.toLowerCase();
-        return (
-          normalizedLabel.startsWith(normalizedQuery) ||
-          option.slug.replace(/-/g, " ").startsWith(normalizedQuery)
-        );
-      })
-      .slice(0, 8);
+    return slotOptions.filter((option) => matchesSearch(option, normalizedQuery)).slice(0, 8);
   }, [query, slotOptions]);
 
   useEffect(() => {
@@ -169,7 +176,7 @@ function SpriteSearchSlot({
         />
 
         {isOpen && normalizeSearchValue(query) ? (
-          <div className="absolute left-4 right-4 top-[calc(100%+0.5rem)] z-20 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]">
+          <div className="mt-3 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]">
             {filteredOptions.length > 0 ? (
               <div className="max-h-64 overflow-y-auto py-2">
                 {filteredOptions.map((option) => (

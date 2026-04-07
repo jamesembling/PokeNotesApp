@@ -54,6 +54,58 @@ function hasAmbiguousTopMatch(best: CandidateScore, runnerUp: CandidateScore | u
   );
 }
 
+function resolveUniqueAnchorCandidate(args: {
+  evidence: PlayerPokemonEvidence;
+  catalog: IdentificationCatalog;
+}) {
+  const rankedEvidence = Array.from(args.evidence.mentionCounts.entries()).sort((left, right) => {
+    if (right[1] !== left[1]) {
+      return right[1] - left[1];
+    }
+
+    return left[0].localeCompare(right[0]);
+  });
+
+  for (const [slug, count] of rankedEvidence) {
+    const directCandidateIds = args.catalog.archetypes.spriteToCandidateArchetypes.get(slug) ?? [];
+    const uniqueDirectCandidateIds = Array.from(new Set(directCandidateIds));
+
+    if (uniqueDirectCandidateIds.length === 1) {
+      const candidate = args.catalog.archetypes.byId.get(uniqueDirectCandidateIds[0]);
+      if (candidate) {
+        return {
+          archetypeId: candidate.id,
+          label: candidate.label,
+          sprites: candidate.sprites,
+          confidence: 12 + count
+        } satisfies NonNullable<ArchetypeIdentification>;
+      }
+    }
+
+    const ancestorCandidates = new Set<string>();
+    (args.catalog.pokemon.slugToAncestors.get(slug) ?? []).forEach((ancestorSlug) => {
+      (args.catalog.archetypes.spriteToCandidateArchetypes.get(ancestorSlug) ?? []).forEach((id) =>
+        ancestorCandidates.add(id)
+      );
+    });
+
+    if (ancestorCandidates.size === 1) {
+      const candidateId = Array.from(ancestorCandidates)[0];
+      const candidate = args.catalog.archetypes.byId.get(candidateId);
+      if (candidate) {
+        return {
+          archetypeId: candidate.id,
+          label: candidate.label,
+          sprites: candidate.sprites,
+          confidence: 8 + count
+        } satisfies NonNullable<ArchetypeIdentification>;
+      }
+    }
+  }
+
+  return null;
+}
+
 export function identifyLikelyArchetype(args: {
   evidence: PlayerPokemonEvidence;
   catalog: IdentificationCatalog;
@@ -83,11 +135,9 @@ export function identifyLikelyArchetype(args: {
     .filter(
       (
         candidate
-      ): candidate is {
-        id: string;
-        label: string;
-        sprites: string[];
-      } => Boolean(candidate)
+      ): candidate is NonNullable<
+        ReturnType<typeof args.catalog.archetypes.byId.get>
+      > => Boolean(candidate)
     )
     .map((candidate) => {
       const normalizedLabel = normalizeText(candidate.label);
@@ -138,7 +188,7 @@ export function identifyLikelyArchetype(args: {
 
   const best = scoredCandidates[0];
   if (!best || hasAmbiguousTopMatch(best, scoredCandidates[1])) {
-    return null;
+    return resolveUniqueAnchorCandidate(args);
   }
 
   return {

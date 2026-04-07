@@ -274,6 +274,7 @@ export type ArchetypeCatalogEntry = {
   id: string                       // e.g. "dragapult-ex"
   label: string                    // e.g. "Dragapult ex"
   sprites: string[]                // e.g. ["dragapult", "dusknoir"]
+  detectionSprites: string[]       // e.g. ["dragapult", "dusknoir", "drakloak", "dreepy"]
   isExcluded: boolean
   lastSyncedAt: string
 }

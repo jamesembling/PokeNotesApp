@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
+import { getArchetypeEnrichment } from "./lib/pokemon-catalog/archetype-enrichments.mjs";
 
 const REQUIRED_ENV_VARS = ["NEW_SUPABASE_URL", "NEW_SUPABASE_SERVICE_KEY"];
 
@@ -151,8 +152,9 @@ function parseArchetypeRows(html) {
   return { parsedEntries, skipped };
 }
 
-async function fetchDeckIndexHtml() {
-  const response = await fetch(LIMITLESS_DECKS_URL, {
+async function fetchDeckIndexHtml(page = 1) {
+  const url = page > 1 ? `${LIMITLESS_DECKS_URL}?page=${page}` : LIMITLESS_DECKS_URL;
+  const response = await fetch(url, {
     headers: {
       Accept: "text/html,application/xhtml+xml",
       "User-Agent": "PokeNotes Archetype Sync",
@@ -164,6 +166,15 @@ async function fetchDeckIndexHtml() {
   }
 
   return response.text();
+}
+
+function parseMaxPage(html) {
+  const matches = Array.from(html.matchAll(/\bdata-target="(\d+)"/g));
+  const pageNumbers = matches
+    .map((match) => Number(match[1]))
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  return Math.max(1, ...pageNumbers);
 }
 
 async function loadExistingExcludedIds(ids) {
@@ -195,13 +206,18 @@ async function loadExistingExcludedIds(ids) {
 function buildUpsertRows(entries, existingExcludedIds) {
   const lastSyncedAt = new Date().toISOString();
 
-  return entries.map((entry) => ({
-    id: entry.id,
-    label: entry.label,
-    sprites: entry.sprites,
-    is_excluded: entry.is_excluded || existingExcludedIds.has(entry.id),
-    last_synced_at: lastSyncedAt,
-  }));
+  return entries.map((entry) => {
+    const enrichment = getArchetypeEnrichment(entry.id);
+
+    return {
+      id: entry.id,
+      label: entry.label,
+      sprites: enrichment?.sprites ?? entry.sprites,
+      detection_sprites: enrichment?.detectionSprites ?? entry.sprites,
+      is_excluded: entry.is_excluded || existingExcludedIds.has(entry.id),
+      last_synced_at: lastSyncedAt,
+    };
+  });
 }
 
 async function upsertSingleRow(row) {
@@ -249,13 +265,47 @@ async function upsertBatch(rows) {
 
 async function main() {
   console.log("Fetching Limitless archetype index...");
-  const html = await fetchDeckIndexHtml();
+  const firstPageHtml = await fetchDeckIndexHtml(1);
+  const maxPage = parseMaxPage(firstPageHtml);
+  const pageHtmls = [firstPageHtml];
+
+  for (let page = 2; page <= maxPage; page += 1) {
+    console.log(`Fetching page ${page}/${maxPage}...`);
+    pageHtmls.push(await fetchDeckIndexHtml(page));
+  }
 
   console.log("Parsing archetype rows...");
-  const { parsedEntries, skipped } = parseArchetypeRows(html);
+  const parsedEntries = [];
+  const skipped = {
+    other: 0,
+    emptyId: 0,
+    noSprites: 0,
+    noAnchor: 0,
+    blankLabel: 0,
+  };
+  const seenIds = new Set();
+
+  for (const html of pageHtmls) {
+    const pageResult = parseArchetypeRows(html);
+    pageResult.parsedEntries.forEach((entry) => {
+      if (seenIds.has(entry.id)) {
+        return;
+      }
+
+      seenIds.add(entry.id);
+      parsedEntries.push(entry);
+    });
+
+    skipped.other += pageResult.skipped.other;
+    skipped.emptyId += pageResult.skipped.emptyId;
+    skipped.noSprites += pageResult.skipped.noSprites;
+    skipped.noAnchor += pageResult.skipped.noAnchor;
+    skipped.blankLabel += pageResult.skipped.blankLabel;
+  }
+
   const ids = parsedEntries.map((entry) => entry.id);
 
-  console.log(`Parsed ${parsedEntries.length} archetypes with sprites.`);
+  console.log(`Parsed ${parsedEntries.length} archetypes with sprites across ${maxPage} pages.`);
   console.log(
     `Skipped rows: other=${skipped.other}, emptyId=${skipped.emptyId}, noSprites=${skipped.noSprites}, blankLabel=${skipped.blankLabel}`,
   );

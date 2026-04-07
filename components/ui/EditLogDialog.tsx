@@ -1,15 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement
+} from "react";
 import { useFormStatus } from "react-dom";
 import { updateLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import type { BattleLog, DeckList, DeckSummary, PokemonOption } from "@/types/index";
 
 type EditLogDialogProps = {
   log: BattleLog;
   pokemonOptions: PokemonOption[];
+  trigger?: ReactElement<{ onClick?: () => void }>;
   userDecks: DeckSummary[];
 };
 
@@ -37,7 +46,7 @@ function SaveButton() {
   );
 }
 
-export function EditLogDialog({ log, pokemonOptions, userDecks }: EditLogDialogProps) {
+export function EditLogDialog({ log, pokemonOptions, trigger, userDecks }: EditLogDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedSelfSprites, setSelectedSelfSprites] = useState(log.selfDeckSprites.slice(0, 2));
   const [selectedOpponentSprites, setSelectedOpponentSprites] = useState(
@@ -51,6 +60,14 @@ export function EditLogDialog({ log, pokemonOptions, userDecks }: EditLogDialogP
   const selectedDeck = useMemo(
     () => userDecks.find((deck) => deck.id === selectedDeckId) ?? null,
     [selectedDeckId, userDecks]
+  );
+  const detectedSelfLabel = useMemo(
+    () => getBattleLogDeckDisplayName(log.selfDeckName, selectedSelfSprites),
+    [log.selfDeckName, selectedSelfSprites]
+  );
+  const detectedOpponentLabel = useMemo(
+    () => getBattleLogDeckDisplayName(log.opponentDeckName, selectedOpponentSprites),
+    [log.opponentDeckName, selectedOpponentSprites]
   );
   const formatOptions = FORMAT_OPTIONS.includes(selectedFormat as (typeof FORMAT_OPTIONS)[number])
     ? [...FORMAT_OPTIONS]
@@ -110,9 +127,16 @@ export function EditLogDialog({ log, pokemonOptions, userDecks }: EditLogDialogP
 
   return (
     <>
-      <Button onClick={() => setIsOpen(true)} variant="secondary">
-        Edit Log
-      </Button>
+      {isValidElement(trigger) ? (
+        cloneElement(trigger, {
+          ...trigger.props,
+          onClick: () => setIsOpen(true)
+        })
+      ) : (
+        <Button onClick={() => setIsOpen(true)} variant="secondary">
+          Edit Log
+        </Button>
+      )}
 
       {isOpen ? (
         <div
@@ -159,7 +183,7 @@ export function EditLogDialog({ log, pokemonOptions, userDecks }: EditLogDialogP
               ))}
 
               <BattleLogSpritePicker
-                detectedLabel={log.selfDeckName}
+                detectedLabel={detectedSelfLabel}
                 onChange={setSelectedSelfSprites}
                 pokemonOptions={pokemonOptions}
                 sprites={selectedSelfSprites}
@@ -167,7 +191,7 @@ export function EditLogDialog({ log, pokemonOptions, userDecks }: EditLogDialogP
               />
 
               <BattleLogSpritePicker
-                detectedLabel={log.opponentDeckName}
+                detectedLabel={detectedOpponentLabel}
                 onChange={setSelectedOpponentSprites}
                 pokemonOptions={pokemonOptions}
                 sprites={selectedOpponentSprites}
