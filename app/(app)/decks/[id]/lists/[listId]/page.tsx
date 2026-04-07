@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { DeckListCard } from "@/components/ui/DeckListCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
+import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { getDeckWithList } from "@/lib/db/decks";
 
 type DeckListPageProps = {
@@ -11,14 +12,6 @@ type DeckListPageProps = {
     id: string;
     listId: string;
   };
-};
-
-type ParsedCard = {
-  count: number;
-  name: string;
-  set: string;
-  number: string;
-  category: string;
 };
 
 function formatCardNumber(number: string): string {
@@ -42,23 +35,6 @@ function buildCardImageUrls(set: string, number: string) {
 
 function buildCardUrl(set: string, number: string) {
   return `https://limitlesstcg.com/cards/${set}/${number}`;
-}
-
-function sortParsedCards(cards: ParsedCard[]): ParsedCard[] {
-  const pokemon = cards
-    .filter((c) => c.category === "Pokemon")
-    .sort((a, b) => b.count - a.count);
-  const trainer = cards
-    .filter((c) => c.category === "Trainer")
-    .sort((a, b) => b.count - a.count);
-  const energy = cards
-    .filter((c) => c.category === "Energy")
-    .sort((a, b) => b.count - a.count);
-  const unknown = cards.filter(
-    (c) => c.category === "Unknown" || !["Pokemon", "Trainer", "Energy"].includes(c.category)
-  );
-
-  return [...pokemon, ...trainer, ...energy, ...unknown];
 }
 
 export default async function DeckListPage({ params }: DeckListPageProps) {
@@ -96,7 +72,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
   }
 
   const { deckName, deckList } = result;
-  const sortedCards = sortParsedCards(deckList.parsedCards as ParsedCard[]);
+  const sortedCards = await sortDeckListCards(deckList.parsedCards);
 
   return (
     <>

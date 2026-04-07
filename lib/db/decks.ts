@@ -69,6 +69,13 @@ function parseDeckCard(value: unknown): DeckCard | null {
     name,
     set,
     number,
+    category: typeof candidate.category === "string" ? candidate.category : undefined,
+    trainerType:
+      typeof candidate.trainerType === "string"
+        ? candidate.trainerType
+        : typeof candidate.type === "string"
+          ? candidate.type
+          : undefined,
     spriteUrl: typeof candidate.spriteUrl === "string" ? candidate.spriteUrl : undefined,
     stage: parsePokemonStage(candidate.stage)
   };

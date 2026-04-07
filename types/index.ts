@@ -213,6 +213,8 @@ export type DeckCard = {
   name: string                    // e.g. "Dragapult ex"
   set: string                     // e.g. "TWM"
   number: string                  // e.g. "130"
+  category?: string
+  trainerType?: string
   // Resolved at display time from pokemon_catalog
   spriteUrl?: string
   stage?: PokemonStage
