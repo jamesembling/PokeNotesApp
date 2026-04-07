@@ -3,6 +3,7 @@ import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { getDecks } from "@/lib/db/decks";
 import { getLogById } from "@/lib/db/logs";
 import { getPokemonOptions } from "@/lib/db/pokemon";
@@ -81,6 +82,9 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const linkedDeckList = linkedDeck?.deckLists.find(
     (deckList) => deckList.id === log.linkedDeckListId
   );
+  const linkedDeckListSortedCards = linkedDeckList
+    ? await sortDeckListCards(linkedDeckList.parsedCards)
+    : [];
   const linkedStrategyLabel = linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
   const timestampLabel = formatImportedAt(log.importedAt);
 
@@ -96,6 +100,12 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
       />
 
       <BattleLogDetailShell
+        linkedDeckId={linkedDeck?.id}
+        linkedDeckListFormat={linkedDeckList?.format}
+        linkedDeckListId={linkedDeckList?.id}
+        linkedDeckListName={linkedDeckList?.name}
+        linkedDeckListNotes={linkedDeckList?.notes}
+        linkedDeckListSortedCards={linkedDeckListSortedCards}
         linkedStrategyLabel={linkedStrategyLabel}
         log={log}
         pokemonOptions={pokemonOptions}

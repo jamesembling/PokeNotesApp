@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
+import { LinkedDeckListPanel } from "@/components/ui/LinkedDeckListPanel";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
-import type { BattleLog, LogSection } from "@/types/index";
+import type { BattleLog, DeckCard, LogSection } from "@/types/index";
 
 const SETUP_SECTION_LABELS = new Set(["setup"]);
 
@@ -329,6 +330,12 @@ function getSectionTurnNumbers(sections: LogSection[]) {
 
 type BattleLogDetailViewProps = {
   actions?: ReactNode;
+  linkedDeckId?: string;
+  linkedDeckListFormat?: string;
+  linkedDeckListId?: string;
+  linkedDeckListName?: string;
+  linkedDeckListNotes?: string;
+  linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel: string;
   log: BattleLog;
   notice?: ReactNode;
@@ -337,6 +344,12 @@ type BattleLogDetailViewProps = {
 
 export function BattleLogDetailView({
   actions,
+  linkedDeckId,
+  linkedDeckListFormat,
+  linkedDeckListId,
+  linkedDeckListName,
+  linkedDeckListNotes,
+  linkedDeckListSortedCards,
   linkedStrategyLabel,
   log,
   notice,
@@ -425,6 +438,17 @@ export function BattleLogDetailView({
           </div>
         </div>
       </Card>
+
+      {linkedDeckListId && linkedDeckListName ? (
+        <LinkedDeckListPanel
+          deckId={linkedDeckId}
+          deckListFormat={linkedDeckListFormat}
+          deckListId={linkedDeckListId}
+          deckListName={linkedDeckListName}
+          deckListNotes={linkedDeckListNotes}
+          sortedCards={linkedDeckListSortedCards ?? []}
+        />
+      ) : null}
 
       {sections.length > 0 ? (
         sections.map((section, index) => (

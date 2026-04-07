@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { DeckListCard } from "@/components/ui/DeckListCard";
+import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
@@ -13,29 +13,6 @@ type DeckListPageProps = {
     listId: string;
   };
 };
-
-function formatCardNumber(number: string): string {
-  const match = number.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
-
-  if (match) {
-    const [, prefix, digits, suffix] = match;
-    return `${prefix}${digits.padStart(3, "0")}${suffix}`;
-  }
-
-  return number;
-}
-
-function buildCardImageUrls(set: string, number: string) {
-  const formattedNumber = formatCardNumber(number);
-
-  return {
-    imageUrl: `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${set}/${set}_${formattedNumber}_R_EN_SM.png`
-  };
-}
-
-function buildCardUrl(set: string, number: string) {
-  return `https://limitlesstcg.com/cards/${set}/${number}`;
-}
 
 export default async function DeckListPage({ params }: DeckListPageProps) {
   const user = await requireUser();
@@ -101,21 +78,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
             No parsed cards are available for this deck list yet.
           </p>
         ) : (
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
-            {sortedCards.map((card, index) => {
-              const { imageUrl } = buildCardImageUrls(card.set, card.number);
-
-              return (
-                <DeckListCard
-                  cardUrl={buildCardUrl(card.set, card.number)}
-                  count={card.count}
-                  imageUrl={imageUrl}
-                  key={`${card.set}-${card.number}-${index}`}
-                  name={card.name}
-                />
-              );
-            })}
-          </div>
+          <DeckListVisualGrid cards={sortedCards} />
         )}
       </Card>
     </>

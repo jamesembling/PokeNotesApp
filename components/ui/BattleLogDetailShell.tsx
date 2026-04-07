@@ -5,7 +5,7 @@ import { useState } from "react";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
 import { EditLogDialog } from "@/components/ui/EditLogDialog";
-import type { BattleLog, DeckSummary, PokemonOption } from "@/types/index";
+import type { BattleLog, DeckCard, DeckSummary, PokemonOption } from "@/types/index";
 
 type ShareTone = "success" | "info" | "error";
 
@@ -15,6 +15,12 @@ type ShareFeedback = {
 };
 
 type BattleLogDetailShellProps = {
+  linkedDeckId?: string;
+  linkedDeckListFormat?: string;
+  linkedDeckListId?: string;
+  linkedDeckListName?: string;
+  linkedDeckListNotes?: string;
+  linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel: string;
   log: BattleLog;
   pokemonOptions: PokemonOption[];
@@ -35,6 +41,12 @@ const feedbackClassName: Record<ShareTone, string> = {
 };
 
 export function BattleLogDetailShell({
+  linkedDeckId,
+  linkedDeckListFormat,
+  linkedDeckListId,
+  linkedDeckListName,
+  linkedDeckListNotes,
+  linkedDeckListSortedCards,
   linkedStrategyLabel,
   log,
   pokemonOptions,
@@ -54,6 +66,12 @@ export function BattleLogDetailShell({
           </Link>
         </>
       }
+      linkedDeckId={linkedDeckId}
+      linkedDeckListFormat={linkedDeckListFormat}
+      linkedDeckListId={linkedDeckListId}
+      linkedDeckListName={linkedDeckListName}
+      linkedDeckListNotes={linkedDeckListNotes}
+      linkedDeckListSortedCards={linkedDeckListSortedCards}
       linkedStrategyLabel={linkedStrategyLabel}
       log={log}
       notice={
