@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
+import customPokemonForms from "./lib/pokemon-catalog/custom-forms.json" with { type: "json" };
 
 const REQUIRED_ENV_VARS = ["NEW_SUPABASE_URL", "NEW_SUPABASE_SERVICE_KEY"];
 
@@ -169,6 +170,23 @@ function buildCatalogRow(speciesPayload, evolutionStageMap) {
   };
 }
 
+function buildCustomCatalogRows() {
+  return customPokemonForms.map((form) => ({
+    slug: form.slug,
+    label: form.label,
+    national_dex: null,
+    stage: form.stage,
+    evolves_from: form.evolvesFrom,
+    sprite_url: `${LIMITLESS_CDN_BASE}/${form.slug}.png`,
+    name_de: null,
+    name_es: null,
+    name_fr: null,
+    name_it: null,
+    name_pt_br: null,
+    last_synced_at: new Date().toISOString(),
+  }));
+}
+
 async function upsertSingleRow(row) {
   const { error } = await supabase
     .from("pokemon_catalog")
@@ -263,6 +281,10 @@ async function main() {
       }
     }
   }
+
+  const customCatalogRows = buildCustomCatalogRows();
+  catalogRows.push(...customCatalogRows);
+  console.log(`Prepared ${customCatalogRows.length} custom Pokemon forms.`);
 
   console.log("");
   console.log("Pass 1: inserting Pokemon with evolves_from set to null...");

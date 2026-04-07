@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { buildPokemonNameVariants, normalizeText } from "@/lib/log-import/normalization";
+import { getCustomPokemonCatalogRows } from "@/lib/pokemon-catalog/custom-forms";
 import type {
   ArchetypeCatalogRow,
   IdentificationCatalog,
@@ -103,8 +104,17 @@ export const loadIdentificationCatalog = cache(async (): Promise<IdentificationC
     throw archetypeError;
   }
 
+  const mergedPokemonRows = Array.from(
+    new Map(
+      [...((pokemonRows ?? []) as PokemonCatalogRow[]), ...getCustomPokemonCatalogRows()].map((row) => [
+        row.slug,
+        row
+      ])
+    ).values()
+  );
+
   return {
-    pokemon: buildPokemonIndex((pokemonRows ?? []) as PokemonCatalogRow[]),
+    pokemon: buildPokemonIndex(mergedPokemonRows),
     archetypes: buildArchetypeIndex((archetypeRows ?? []) as ArchetypeCatalogRow[])
   };
 });
