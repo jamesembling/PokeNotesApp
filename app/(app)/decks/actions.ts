@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
@@ -74,7 +72,12 @@ async function buildSortedDeckListCards(rawList: string) {
   }
 }
 
-export async function createDeckAction(formData: FormData) {
+type SaveActionResult = {
+  ok: true;
+  redirectTo: string;
+};
+
+export async function createDeckAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
   const supabase = createClient();
   const deckId = crypto.randomUUID();
@@ -104,11 +107,13 @@ export async function createDeckAction(formData: FormData) {
     throw error;
   }
 
-  revalidatePath("/decks");
-  redirect(`/decks/${deckId}`);
+  return {
+    ok: true,
+    redirectTo: `/decks/${deckId}`
+  };
 }
 
-export async function updateDeckAction(formData: FormData) {
+export async function updateDeckAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
   const supabase = createClient();
   const deckId = String(formData.get("deckId") || "").trim();
@@ -144,12 +149,13 @@ export async function updateDeckAction(formData: FormData) {
     throw error;
   }
 
-  revalidatePath("/decks");
-  revalidatePath(`/decks/${deckId}`);
-  redirect(withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`)));
+  return {
+    ok: true,
+    redirectTo: withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`))
+  };
 }
 
-export async function saveDeckListAction(formData: FormData) {
+export async function saveDeckListAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
   const supabase = createClient();
   const deckId = String(formData.get("deckId") || "").trim();
@@ -239,8 +245,8 @@ export async function saveDeckListAction(formData: FormData) {
     throw updateError;
   }
 
-  revalidatePath("/decks");
-  revalidatePath(`/decks/${deckId}`);
-  revalidatePath(`/decks/${deckId}/lists/${nextDeckList.id}`);
-  redirect(withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`)));
+  return {
+    ok: true,
+    redirectTo: withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`))
+  };
 }

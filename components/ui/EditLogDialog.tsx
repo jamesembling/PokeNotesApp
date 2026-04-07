@@ -5,10 +5,11 @@ import {
   isValidElement,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactElement
 } from "react";
-import { useFormStatus } from "react-dom";
+import { usePathname, useRouter } from "next/navigation";
 import { updateLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +23,10 @@ type EditLogDialogProps = {
   trigger?: ReactElement<{ onClick?: () => void }>;
   userDecks: DeckSummary[];
 };
+
+type SaveState = "idle" | "saving" | "success";
+
+const SUCCESS_CLOSE_DELAY_MS = 650;
 
 const FORMAT_OPTIONS = [
   "SVI-ASC",
@@ -37,14 +42,37 @@ const FORMAT_OPTIONS = [
   "SVI-BRS"
 ] as const;
 
-function SaveButton() {
-  const { pending } = useFormStatus();
+function SaveButton({
+  onClick,
+  saveState
+}: {
+  onClick: () => void;
+  saveState: SaveState;
+}) {
+  const isSaving = saveState === "saving";
+  const isSuccess = saveState === "success";
 
   return (
-    <Button disabled={pending} type="submit">
-      {pending ? "Saving..." : "Save Changes"}
+    <Button
+      aria-disabled={isSaving || isSuccess}
+      className={
+        isSuccess
+          ? "w-[148px] shrink-0 whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)]"
+          : isSaving
+            ? "w-[148px] shrink-0 whitespace-nowrap pointer-events-none"
+            : "w-[148px] shrink-0 whitespace-nowrap"
+      }
+      disabled={isSaving}
+      onClick={onClick}
+      type="button"
+    >
+      {isSaving ? "Saving..." : isSuccess ? "Saved" : "Save Changes"}
     </Button>
   );
+}
+
+function normalizeRedirectPath(value: string) {
+  return value.split("?")[0] || value;
 }
 
 export function EditLogDialog({
@@ -54,6 +82,8 @@ export function EditLogDialog({
   trigger,
   userDecks
 }: EditLogDialogProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSelfSprites, setSelectedSelfSprites] = useState(log.selfDeckSprites.slice(0, 2));
   const [selectedOpponentSprites, setSelectedOpponentSprites] = useState(
@@ -63,6 +93,11 @@ export function EditLogDialog({
   const [selectedDeckListId, setSelectedDeckListId] = useState(log.linkedDeckListId ?? "");
   const [selectedDate, setSelectedDate] = useState(log.date);
   const [selectedFormat, setSelectedFormat] = useState(log.format);
+  const [saveError, setSaveError] = useState("");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const closeTimerRef = useRef<number | null>(null);
+  const navigationTimerRef = useRef<number | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const selectedDeck = useMemo(
     () => userDecks.find((deck) => deck.id === selectedDeckId) ?? null,
@@ -89,6 +124,8 @@ export function EditLogDialog({
     setSelectedDeckListId(log.linkedDeckListId ?? "");
     setSelectedDate(log.date);
     setSelectedFormat(log.format);
+    setSaveError("");
+    setSaveState("idle");
   }
 
   useEffect(() => {
@@ -127,9 +164,66 @@ export function EditLogDialog({
     }
   }, [availableDeckLists, selectedDeckId, selectedDeckListId]);
 
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+
+      if (navigationTimerRef.current !== null) {
+        window.clearTimeout(navigationTimerRef.current);
+      }
+    };
+  }, []);
+
+  function clearCloseTimer() {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }
+
+  function clearNavigationTimer() {
+    if (navigationTimerRef.current !== null) {
+      window.clearTimeout(navigationTimerRef.current);
+      navigationTimerRef.current = null;
+    }
+  }
+
   function closeDialog() {
+    clearCloseTimer();
+    clearNavigationTimer();
     setIsOpen(false);
     resetEditorState();
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setSaveError("");
+    setSaveState("saving");
+
+    try {
+      const result = await updateLogAction(formData);
+      setSaveState("success");
+
+      clearCloseTimer();
+      closeTimerRef.current = window.setTimeout(() => {
+        setIsOpen(false);
+        clearNavigationTimer();
+        navigationTimerRef.current = window.setTimeout(() => {
+          resetEditorState();
+
+          if (normalizeRedirectPath(result.redirectTo) === pathname) {
+            router.refresh();
+            return;
+          }
+
+          router.push(result.redirectTo);
+        }, 50);
+      }, SUCCESS_CLOSE_DELAY_MS);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Could not save this battle log.");
+      setSaveState("idle");
+    }
   }
 
   return (
@@ -137,10 +231,21 @@ export function EditLogDialog({
       {isValidElement(trigger) ? (
         cloneElement(trigger, {
           ...trigger.props,
-          onClick: () => setIsOpen(true)
+          onClick: () => {
+            setSaveError("");
+            setSaveState("idle");
+            setIsOpen(true);
+          }
         })
       ) : (
-        <Button onClick={() => setIsOpen(true)} variant="secondary">
+        <Button
+          onClick={() => {
+            setSaveError("");
+            setSaveState("idle");
+            setIsOpen(true);
+          }}
+          variant="secondary"
+        >
           Edit Log
         </Button>
       )}
@@ -156,26 +261,33 @@ export function EditLogDialog({
             className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-y-auto rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-lg)] lg:p-8"
             onClick={(event) => event.stopPropagation()}
           >
-            <form action={updateLogAction} className="flex flex-col gap-6">
-              <div className="mb-6 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
-                    Edit Battle Log
-                  </h2>
-                </div>
-                <div className="flex flex-wrap gap-2.5">
-                  <Button onClick={closeDialog} type="button" variant="secondary">
-                    Close
-                  </Button>
-                  <SaveButton />
-                </div>
+            <div className="mb-6 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                  Edit Battle Log
+                </h2>
               </div>
-
+              <div className="flex flex-wrap gap-2.5">
+                <Button onClick={closeDialog} type="button" variant="secondary">
+                  Close
+                </Button>
+                <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
+              </div>
+            </div>
+            <form
+              className="flex flex-col gap-6"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSubmit(new FormData(event.currentTarget));
+              }}
+              ref={formRef}
+            >
               <input name="logId" type="hidden" value={log.id} />
               <input name="date" type="hidden" value={selectedDate} />
               <input name="format" type="hidden" value={selectedFormat} />
               <input name="linkedDeckId" type="hidden" value={selectedDeckId} />
               <input name="linkedDeckListId" type="hidden" value={selectedDeckListId} />
+              <input name="redirectTo" type="hidden" value={pathname} />
 
               {selectedSelfSprites.map((slug, index) => (
                 <input key={`self-sprite-${slug}-${index}`} name="selfSprites" type="hidden" value={slug} />
@@ -188,6 +300,12 @@ export function EditLogDialog({
                   value={slug}
                 />
               ))}
+
+              {saveError ? (
+                <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
+                  {saveError}
+                </p>
+              ) : null}
 
               <BattleLogSpritePicker
                 detectedLabel={detectedSelfLabel}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { createDeckAction, updateDeckAction } from "@/app/(app)/decks/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
@@ -15,12 +15,37 @@ type DeckEditorDialogProps = {
   triggerVariant?: "primary" | "secondary" | "ghost";
 };
 
-function SaveButton({ isEditing }: { isEditing: boolean }) {
-  const { pending } = useFormStatus();
+type SaveState = "idle" | "saving" | "success";
+
+const SUCCESS_CLOSE_DELAY_MS = 650;
+
+function SaveButton({
+  isEditing,
+  onClick,
+  saveState
+}: {
+  isEditing: boolean;
+  onClick: () => void;
+  saveState: SaveState;
+}) {
+  const isSaving = saveState === "saving";
+  const isSuccess = saveState === "success";
 
   return (
-    <Button disabled={pending} type="submit">
-      {pending ? "Saving..." : isEditing ? "Save Deck" : "Create Deck"}
+    <Button
+      aria-disabled={isSaving || isSuccess}
+      className={
+        isSuccess
+          ? "w-[110px] shrink-0 pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)]"
+          : isSaving
+            ? "w-[110px] shrink-0 pointer-events-none"
+            : "w-[110px] shrink-0"
+      }
+      disabled={isSaving}
+      onClick={onClick}
+      type="button"
+    >
+      {isSaving ? "Saving..." : isSuccess ? "Saved" : isEditing ? "Save Deck" : "Create Deck"}
     </Button>
   );
 }
@@ -29,14 +54,25 @@ function parseSetupGoals(value: string[]) {
   return value.join("\n");
 }
 
+function normalizeRedirectPath(value: string) {
+  return value.split("?")[0] || value;
+}
+
 export function DeckEditorDialog({
   deck,
   pokemonOptions,
   triggerLabel,
   triggerVariant = "primary"
 }: DeckEditorDialogProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(deck?.deckPokemon ?? []);
+  const [saveError, setSaveError] = useState("");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const closeTimerRef = useRef<number | null>(null);
+  const navigationTimerRef = useRef<number | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const isEditing = Boolean(deck?.id);
 
   useEffect(() => {
@@ -60,14 +96,79 @@ export function DeckEditorDialog({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+
+      if (navigationTimerRef.current !== null) {
+        window.clearTimeout(navigationTimerRef.current);
+      }
+    };
+  }, []);
+
+  function clearCloseTimer() {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }
+
+  function clearNavigationTimer() {
+    if (navigationTimerRef.current !== null) {
+      window.clearTimeout(navigationTimerRef.current);
+      navigationTimerRef.current = null;
+    }
+  }
+
   function openDialog() {
+    clearCloseTimer();
+    clearNavigationTimer();
+    setSaveError("");
+    setSaveState("idle");
     setSelectedSprites(deck?.deckPokemon ?? []);
     setIsOpen(true);
   }
 
   function closeDialog() {
+    clearCloseTimer();
+    clearNavigationTimer();
     setIsOpen(false);
+    setSaveError("");
+    setSaveState("idle");
     setSelectedSprites(deck?.deckPokemon ?? []);
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setSaveError("");
+    setSaveState("saving");
+
+    try {
+      const result = await (isEditing ? updateDeckAction(formData) : createDeckAction(formData));
+      setSaveState("success");
+
+      clearCloseTimer();
+      closeTimerRef.current = window.setTimeout(() => {
+        setIsOpen(false);
+        clearNavigationTimer();
+        navigationTimerRef.current = window.setTimeout(() => {
+          setSaveError("");
+          setSaveState("idle");
+          setSelectedSprites(deck?.deckPokemon ?? []);
+
+          if (normalizeRedirectPath(result.redirectTo) === pathname) {
+            router.refresh();
+            return;
+          }
+
+          router.push(result.redirectTo);
+        }, 50);
+      }, SUCCESS_CLOSE_DELAY_MS);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Could not save this deck.");
+      setSaveState("idle");
+    }
   }
 
   return (
@@ -87,24 +188,31 @@ export function DeckEditorDialog({
             className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-y-auto rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-lg)] lg:p-8"
             onClick={(event) => event.stopPropagation()}
           >
-            <form
-              action={isEditing ? updateDeckAction : createDeckAction}
-              className="flex flex-col gap-6"
-            >
-              <div className="mb-2 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
-                    {isEditing ? "Edit Deck" : "New Deck"}
-                  </h2>
-                </div>
-                <div className="flex flex-wrap gap-2.5">
-                  <Button onClick={closeDialog} type="button" variant="secondary">
-                    Close
-                  </Button>
-                  <SaveButton isEditing={isEditing} />
-                </div>
+            <div className="mb-2 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                  {isEditing ? "Edit Deck" : "New Deck"}
+                </h2>
               </div>
-
+              <div className="flex flex-wrap gap-2.5">
+                <Button onClick={closeDialog} type="button" variant="secondary">
+                  Close
+                </Button>
+                <SaveButton
+                  isEditing={isEditing}
+                  onClick={() => formRef.current?.requestSubmit()}
+                  saveState={saveState}
+                />
+              </div>
+            </div>
+            <form
+              className="flex flex-col gap-6"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSubmit(new FormData(event.currentTarget));
+              }}
+              ref={formRef}
+            >
               {isEditing ? <input name="deckId" type="hidden" value={deck?.id ?? ""} /> : null}
               <input
                 name="redirectTo"
@@ -120,6 +228,12 @@ export function DeckEditorDialog({
               {selectedSprites.map((slug, index) => (
                 <input key={`${slug}-${index}`} name="deckPokemon" type="hidden" value={slug} />
               ))}
+
+              {saveError ? (
+                <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
+                  {saveError}
+                </p>
+              ) : null}
 
               <section className="grid gap-4 md:grid-cols-2">
                 <label className="grid gap-2">

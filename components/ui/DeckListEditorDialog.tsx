@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { saveDeckListAction } from "@/app/(app)/decks/actions";
 import { Button } from "@/components/ui/Button";
 import { summarizeDeckList } from "@/lib/decks/deck-list-parse";
@@ -17,12 +17,43 @@ type DeckListEditorDialogProps = {
   triggerVariant?: "primary" | "secondary" | "ghost";
 };
 
-function SaveButton({ isEditing }: { isEditing: boolean }) {
-  const { pending } = useFormStatus();
+type SaveState = "idle" | "saving" | "success";
+
+const SUCCESS_CLOSE_DELAY_MS = 650;
+
+function SaveButton({
+  isEditing,
+  onClick,
+  saveState
+}: {
+  isEditing: boolean;
+  onClick: () => void;
+  saveState: SaveState;
+}) {
+  const isSaving = saveState === "saving";
+  const isSuccess = saveState === "success";
 
   return (
-    <Button disabled={pending} type="submit">
-      {pending ? "Saving..." : isEditing ? "Save Deck List" : "Add Deck List"}
+    <Button
+      aria-disabled={isSaving || isSuccess}
+      className={
+        isSuccess
+          ? "w-[130px] shrink-0 pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)]"
+          : isSaving
+            ? "w-[130px] shrink-0 pointer-events-none"
+            : "w-[130px] shrink-0"
+      }
+      disabled={isSaving}
+      onClick={onClick}
+      type="button"
+    >
+      {isSaving
+        ? "Saving..."
+        : isSuccess
+          ? "Saved"
+          : isEditing
+            ? "Save Deck List"
+            : "Add Deck List"}
     </Button>
   );
 }
@@ -58,6 +89,10 @@ function getSummaryTone(rawList: string) {
   return summary.total === 60 ? "success" : "warning";
 }
 
+function normalizeRedirectPath(value: string) {
+  return value.split("?")[0] || value;
+}
+
 export function DeckListEditorDialog({
   deckId,
   deckList,
@@ -66,8 +101,15 @@ export function DeckListEditorDialog({
   triggerLabel,
   triggerVariant = "secondary"
 }: DeckListEditorDialogProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [rawList, setRawList] = useState(deckList?.rawList ?? "");
+  const [saveError, setSaveError] = useState("");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const closeTimerRef = useRef<number | null>(null);
+  const navigationTimerRef = useRef<number | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const isEditing = Boolean(deckList?.id);
 
   const summaryTone = useMemo(() => getSummaryTone(rawList), [rawList]);
@@ -93,14 +135,79 @@ export function DeckListEditorDialog({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+
+      if (navigationTimerRef.current !== null) {
+        window.clearTimeout(navigationTimerRef.current);
+      }
+    };
+  }, []);
+
+  function clearCloseTimer() {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }
+
+  function clearNavigationTimer() {
+    if (navigationTimerRef.current !== null) {
+      window.clearTimeout(navigationTimerRef.current);
+      navigationTimerRef.current = null;
+    }
+  }
+
   function openDialog() {
+    clearCloseTimer();
+    clearNavigationTimer();
+    setSaveError("");
+    setSaveState("idle");
     setRawList(deckList?.rawList ?? "");
     setIsOpen(true);
   }
 
   function closeDialog() {
+    clearCloseTimer();
+    clearNavigationTimer();
     setIsOpen(false);
+    setSaveError("");
+    setSaveState("idle");
     setRawList(deckList?.rawList ?? "");
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setSaveError("");
+    setSaveState("saving");
+
+    try {
+      const result = await saveDeckListAction(formData);
+      setSaveState("success");
+
+      clearCloseTimer();
+      closeTimerRef.current = window.setTimeout(() => {
+        setIsOpen(false);
+        clearNavigationTimer();
+        navigationTimerRef.current = window.setTimeout(() => {
+          setSaveError("");
+          setSaveState("idle");
+          setRawList(deckList?.rawList ?? "");
+
+          if (normalizeRedirectPath(result.redirectTo) === pathname) {
+            router.refresh();
+            return;
+          }
+
+          router.push(result.redirectTo);
+        }, 50);
+      }, SUCCESS_CLOSE_DELAY_MS);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Could not save this deck list.");
+      setSaveState("idle");
+    }
   }
 
   return (
@@ -120,25 +227,41 @@ export function DeckListEditorDialog({
             className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-y-auto rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-lg)] lg:p-8"
             onClick={(event) => event.stopPropagation()}
           >
-            <form action={saveDeckListAction} className="flex flex-col gap-6">
-              <div className="mb-2 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
-                    {isEditing ? "Edit Deck List" : "New Deck List"}
-                  </h2>
-                </div>
-                <div className="flex flex-wrap gap-2.5">
-                  <Button onClick={closeDialog} type="button" variant="secondary">
-                    Close
-                  </Button>
-                  <SaveButton isEditing={isEditing} />
-                </div>
+            <div className="mb-2 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                  {isEditing ? "Edit Deck List" : "New Deck List"}
+                </h2>
               </div>
-
+              <div className="flex flex-wrap gap-2.5">
+                <Button onClick={closeDialog} type="button" variant="secondary">
+                  Close
+                </Button>
+                <SaveButton
+                  isEditing={isEditing}
+                  onClick={() => formRef.current?.requestSubmit()}
+                  saveState={saveState}
+                />
+              </div>
+            </div>
+            <form
+              className="flex flex-col gap-6"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSubmit(new FormData(event.currentTarget));
+              }}
+              ref={formRef}
+            >
               <input name="deckId" type="hidden" value={deckId} />
               <input name="deckListId" type="hidden" value={deckList?.id ?? ""} />
               <input name="createdAt" type="hidden" value={deckList?.createdAt ?? ""} />
-              <input name="redirectTo" type="hidden" value={`/decks/${deckId}`} />
+              <input name="redirectTo" type="hidden" value={pathname} />
+
+              {saveError ? (
+                <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
+                  {saveError}
+                </p>
+              ) : null}
 
               <section className="grid gap-4 md:grid-cols-2">
                 <label className="grid gap-2">

@@ -12,6 +12,7 @@
   --text-muted: #6b7280;
   --text-kicker: #6b7280;
   --color-win: #16a34a;
+  --color-win-strong: #15803d;
   --color-win-bg: rgba(22, 163, 74, 0.1);
   --color-win-border: rgba(22, 163, 74, 0.2);
   --color-loss: #dc2626;
@@ -35,6 +36,7 @@
   --text-muted: #6b7280;
   --text-kicker: #4b5563;
   --color-win: #16a34a;
+  --color-win-strong: #22c55e;
   --color-win-bg: rgba(22, 163, 74, 0.1);
   --color-win-border: rgba(22, 163, 74, 0.2);
   --color-loss: #dc2626;

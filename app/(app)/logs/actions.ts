@@ -24,9 +24,17 @@ type ProfileRow = {
 };
 
 type ParseLogActionResult = ParsedLogReview | { error: string };
+type SaveActionResult = {
+  ok: true;
+  redirectTo: string;
+};
 
 function buildImportDate() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function getRedirectTarget(formData: FormData, fallbackPath: string) {
+  return String(formData.get("redirectTo") || "").trim() || fallbackPath;
 }
 
 function joinSprites(slugs: string[]) {
@@ -261,7 +269,7 @@ export async function importLogAction(formData: FormData): Promise<void> {
   redirect(`/logs/${record.id}`);
 }
 
-export async function updateLogAction(formData: FormData): Promise<void> {
+export async function updateLogAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
   const supabase = createClient();
   const logId = String(formData.get("logId") || "").trim();
@@ -292,9 +300,10 @@ export async function updateLogAction(formData: FormData): Promise<void> {
     throw error;
   }
 
-  revalidatePath("/logs");
-  revalidatePath(`/logs/${logId}`);
-  redirect(`/logs/${logId}`);
+  return {
+    ok: true,
+    redirectTo: getRedirectTarget(formData, `/logs/${logId}`)
+  };
 }
 
 export async function bulkAssignDeckListAction(input: {
