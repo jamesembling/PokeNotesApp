@@ -13,10 +13,23 @@ type BattleLogSpritePickerProps = {
 };
 
 function SpriteThumb({ slug }: { slug: string }) {
+  const [hasError, setHasError] = useState(false);
+
   if (!slug) {
     return (
       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
         -
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div
+        aria-label={prettifyPokemonSlug(slug)}
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--bg-surface)] px-1 text-center text-[10px] font-semibold leading-tight text-[var(--text-muted)]"
+      >
+        {prettifyPokemonSlug(slug)}
       </div>
     );
   }
@@ -29,6 +42,7 @@ function SpriteThumb({ slug }: { slug: string }) {
       loading="lazy"
       onError={(event) => {
         event.currentTarget.style.display = "none";
+        setHasError(true);
       }}
       src={`https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`}
       width={48}
@@ -63,6 +77,27 @@ function matchesSearch(option: PokemonOption, normalizedQuery: string) {
   }
 
   return normalizedLabel.split(/\s+/).some((part) => part.startsWith(normalizedQuery));
+}
+
+function findBestSearchMatch(options: PokemonOption[], query: string) {
+  const normalizedQuery = normalizeSearchValue(query);
+  if (!normalizedQuery) {
+    return null;
+  }
+
+  const exactMatch =
+    options.find((option) => normalizeSearchValue(option.label) === normalizedQuery) ??
+    options.find(
+      (option) => normalizeSearchValue(option.slug.replace(/-/g, " ")) === normalizedQuery
+    ) ??
+    options.find((option) => normalizeSearchValue(option.slug) === normalizedQuery);
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const filteredOptions = options.filter((option) => matchesSearch(option, normalizedQuery));
+  return filteredOptions.length === 1 ? filteredOptions[0] : null;
 }
 
 function updateSpritesAtIndex(currentSprites: string[], index: number, nextSlug: string) {
@@ -117,6 +152,21 @@ function SpriteSearchSlot({
     return slotOptions.filter((option) => matchesSearch(option, normalizedQuery)).slice(0, 8);
   }, [query, slotOptions]);
 
+  function commitQuerySelection(preferredSlug?: string) {
+    const nextOption =
+      (preferredSlug ? slotOptions.find((option) => option.slug === preferredSlug) : null) ??
+      findBestSearchMatch(slotOptions, query);
+
+    if (!nextOption) {
+      return false;
+    }
+
+    onChange(updateSpritesAtIndex(sprites, index, nextOption.slug));
+    setQuery("");
+    setIsOpen(false);
+    return true;
+  }
+
   useEffect(() => {
     if (!currentSlug) {
       return;
@@ -165,11 +215,27 @@ function SpriteSearchSlot({
 
         <input
           className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+          onBlur={() => {
+            commitQuerySelection();
+            setIsOpen(false);
+          }}
           onChange={(event) => {
             setQuery(event.target.value);
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              if (commitQuerySelection(filteredOptions[0]?.slug)) {
+                event.preventDefault();
+                return;
+              }
+            }
+
+            if (event.key === "Escape") {
+              setIsOpen(false);
+            }
+          }}
           placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
           spellCheck={false}
           value={query}
@@ -185,9 +251,7 @@ function SpriteSearchSlot({
                     key={option.slug}
                     onMouseDown={(event) => {
                       event.preventDefault();
-                      onChange(updateSpritesAtIndex(sprites, index, option.slug));
-                      setQuery("");
-                      setIsOpen(false);
+                      commitQuerySelection(option.slug);
                     }}
                     type="button"
                   >

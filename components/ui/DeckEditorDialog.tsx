@@ -111,6 +111,12 @@ export function DeckEditorDialog({
                 type="hidden"
                 value={isEditing && deck?.id ? `/decks/${deck.id}` : "/decks"}
               />
+              <input
+                name="deckPokemonJson"
+                readOnly
+                type="hidden"
+                value={JSON.stringify(selectedSprites)}
+              />
               {selectedSprites.map((slug, index) => (
                 <input key={`${slug}-${index}`} name="deckPokemon" type="hidden" value={slug} />
               ))}

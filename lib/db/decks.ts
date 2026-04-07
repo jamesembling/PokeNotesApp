@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
 import { createClient } from "@/lib/supabase/server";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
@@ -234,7 +233,18 @@ async function normalizeDeckPokemon(deckPokemon: string[]): Promise<string[]> {
   });
 
   return Array.from(
-    new Set(deckPokemon.map((entry) => resolvePokemonSlug(entry, slugIndex)).filter(Boolean))
+    new Set(
+      deckPokemon
+        .map((entry) => {
+          const trimmedEntry = String(entry || "").trim();
+          if (!trimmedEntry) {
+            return "";
+          }
+
+          return resolvePokemonSlug(trimmedEntry, slugIndex) || trimmedEntry;
+        })
+        .filter(Boolean)
+    )
   );
 }
 
@@ -302,7 +312,7 @@ async function mapDeck(row: DeckRow): Promise<Deck> {
   };
 }
 
-const getDecksUncached = async (userId: string): Promise<DeckSummary[]> => {
+export async function getDecks(userId: string): Promise<DeckSummary[]> {
   const supabase = createClient();
 
   const { data, error } = await measureServerCall("db.decks.list", async () =>
@@ -331,11 +341,9 @@ const getDecksUncached = async (userId: string): Promise<DeckSummary[]> => {
 
   const rows = ((data ?? []) as unknown) as DeckSummaryRow[];
   return await Promise.all(rows.map((row) => mapDeckSummary(row)));
-};
+}
 
-export const getDecks = cache(getDecksUncached);
-
-const getDeckByIdUncached = async (userId: string, deckId: string): Promise<Deck | null> => {
+export async function getDeckById(userId: string, deckId: string): Promise<Deck | null> {
   const supabase = createClient();
 
   const { data, error } = await measureServerCall("db.decks.byId", async () =>
@@ -372,15 +380,13 @@ const getDeckByIdUncached = async (userId: string, deckId: string): Promise<Deck
   }
 
   return await mapDeck((data as unknown) as DeckRow);
-};
+}
 
-export const getDeckById = cache(getDeckByIdUncached);
-
-const getDeckWithListUncached = async (
+export async function getDeckWithList(
   userId: string,
   deckId: string,
   listId: string
-): Promise<{ deckName: string; deckList: DeckList } | null> => {
+): Promise<{ deckName: string; deckList: DeckList } | null> {
   const supabase = createClient();
   const { data, error } = await measureServerCall("db.decks.listById", async () =>
     await supabase
@@ -411,9 +417,7 @@ const getDeckWithListUncached = async (
     deckName: row.deck_name,
     deckList
   };
-};
-
-export const getDeckWithList = cache(getDeckWithListUncached);
+}
 
 export async function getDeckLogStats(
   userId: string,

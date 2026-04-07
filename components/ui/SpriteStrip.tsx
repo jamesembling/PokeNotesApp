@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 type SpriteStripProps = {
   sprites: string[];
   size: "sm" | "md" | "lg";
@@ -18,6 +20,56 @@ const sizeValues: Record<SpriteStripProps["size"], number> = {
   md: 32,
   lg: 44
 };
+
+function prettifyPokemonSlug(slug: string) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function SpriteStripItem({
+  slug,
+  size
+}: {
+  slug: string;
+  size: SpriteStripProps["size"];
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div
+        aria-label={prettifyPokemonSlug(slug)}
+        className={[
+          "flex items-center justify-center rounded-full bg-[var(--bg-surface-alt)] px-1 text-center font-semibold leading-tight text-[var(--text-muted)]",
+          size === "lg" ? "text-[9px]" : "text-[8px]",
+          sizeClasses[size]
+        ].join(" ")}
+      >
+        {prettifyPokemonSlug(slug)}
+      </div>
+    );
+  }
+
+  const src = `https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`;
+
+  return (
+    <img
+      alt={prettifyPokemonSlug(slug)}
+      className={[sizeClasses[size], "object-contain"].join(" ")}
+      height={sizeValues[size]}
+      loading="lazy"
+      onError={(event) => {
+        event.currentTarget.style.display = "none";
+        setHasError(true);
+      }}
+      src={src}
+      width={sizeValues[size]}
+    />
+  );
+}
 
 export function SpriteStrip({ sprites, size, maxVisible = 2, className }: SpriteStripProps) {
   const visibleSprites = sprites.slice(0, maxVisible);
@@ -41,22 +93,8 @@ export function SpriteStrip({ sprites, size, maxVisible = 2, className }: Sprite
   return (
     <div className={stripClassName}>
       {visibleSprites.map((slug, index) => {
-        const src = `https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`;
-
         return (
-          <img
-            alt=""
-            aria-hidden="true"
-            className={[sizeClasses[size], "object-contain"].join(" ")}
-            height={sizeValues[size]}
-            key={`${slug}-${index}`}
-            loading="lazy"
-            onError={(event) => {
-              event.currentTarget.remove();
-            }}
-            src={src}
-            width={sizeValues[size]}
-          />
+          <SpriteStripItem key={`${slug}-${index}`} size={size} slug={slug} />
         );
       })}
     </div>

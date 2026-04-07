@@ -19,12 +19,34 @@ function normalizeSelectedSprites(values: FormDataEntryValue[]) {
   ).slice(0, 2);
 }
 
+function parseSelectedSprites(formData: FormData) {
+  const jsonValue = String(formData.get("deckPokemonJson") || "").trim();
+
+  if (jsonValue) {
+    try {
+      const parsed = JSON.parse(jsonValue);
+      if (Array.isArray(parsed)) {
+        return normalizeSelectedSprites(parsed.map((value) => String(value ?? "")));
+      }
+    } catch {
+      // Fall through to repeated field parsing.
+    }
+  }
+
+  return normalizeSelectedSprites(formData.getAll("deckPokemon"));
+}
+
 function parseGoPreference(value: FormDataEntryValue | null) {
   return value === "First" || value === "Second" ? value : "";
 }
 
 function getRedirectTarget(formData: FormData, fallbackPath: string) {
   return String(formData.get("redirectTo") || "").trim() || fallbackPath;
+}
+
+function withRefreshToken(path: string) {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}r=${Date.now()}`;
 }
 
 function getCurrentDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
@@ -62,13 +84,14 @@ export async function createDeckAction(formData: FormData) {
     throw new Error("Enter a deck name before saving.");
   }
 
+  const selectedSprites = parseSelectedSprites(formData);
   const payload = {
     id: deckId,
     user_id: user.id,
     deck_name: deckName,
     format: String(formData.get("format") || "").trim() || getDefaultDeckFormat(),
     go_preference: parseGoPreference(formData.get("goPreference")),
-    deck_pokemon: normalizeSelectedSprites(formData.getAll("deckPokemon")),
+    deck_pokemon: selectedSprites,
     core_strategy: String(formData.get("coreStrategy") || "").trim(),
     general_notes: String(formData.get("generalNotes") || "").trim(),
     setup_goals: parseLines(String(formData.get("setupGoals") || "")),
@@ -99,13 +122,15 @@ export async function updateDeckAction(formData: FormData) {
     throw new Error("Enter a deck name before saving.");
   }
 
+  const selectedSprites = parseSelectedSprites(formData);
+
   const { error } = await supabase
     .from("decks")
     .update({
       deck_name: deckName,
       format: String(formData.get("format") || "").trim() || getDefaultDeckFormat(),
       go_preference: parseGoPreference(formData.get("goPreference")),
-      deck_pokemon: normalizeSelectedSprites(formData.getAll("deckPokemon")),
+      deck_pokemon: selectedSprites,
       core_strategy: String(formData.get("coreStrategy") || "").trim(),
       general_notes: String(formData.get("generalNotes") || "").trim(),
       setup_goals: parseLines(String(formData.get("setupGoals") || "")),
@@ -121,7 +146,7 @@ export async function updateDeckAction(formData: FormData) {
 
   revalidatePath("/decks");
   revalidatePath(`/decks/${deckId}`);
-  redirect(getRedirectTarget(formData, `/decks/${deckId}`));
+  redirect(withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`)));
 }
 
 export async function saveDeckListAction(formData: FormData) {
@@ -217,5 +242,5 @@ export async function saveDeckListAction(formData: FormData) {
   revalidatePath("/decks");
   revalidatePath(`/decks/${deckId}`);
   revalidatePath(`/decks/${deckId}/lists/${nextDeckList.id}`);
-  redirect(getRedirectTarget(formData, `/decks/${deckId}`));
+  redirect(withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`)));
 }

@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { buildPokemonNameVariants, normalizeText } from "@/lib/log-import/normalization";
 import type {
@@ -87,7 +86,7 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[]) {
   };
 }
 
-export const loadIdentificationCatalog = cache(async (): Promise<IdentificationCatalog> => {
+export async function loadIdentificationCatalog(): Promise<IdentificationCatalog> {
   const supabase = createClient();
   const [{ data: pokemonRows, error: pokemonError }, archetypeResult] = await Promise.all([
     supabase
@@ -127,4 +126,4 @@ export const loadIdentificationCatalog = cache(async (): Promise<IdentificationC
     pokemon: buildPokemonIndex((pokemonRows ?? []) as PokemonCatalogRow[]),
     archetypes: buildArchetypeIndex((archetypeRows ?? []) as ArchetypeCatalogRow[])
   };
-});
+}
