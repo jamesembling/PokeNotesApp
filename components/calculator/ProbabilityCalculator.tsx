@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import styles from "@/components/calculator/ProbabilityCalculator.module.css";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
+import { StatCard } from "@/components/ui/StatCard";
 import {
   analyzeDecklist,
   buildReportPngBlob,
@@ -58,8 +60,10 @@ export function ProbabilityCalculator() {
 
   const showStatus = Boolean(statusMessage) || Boolean(analysis?.warnings.length) || Boolean(analysis);
   const statusClassName = [
-    styles.status,
-    analysis?.warnings.length || statusTone === "warn" ? styles.statusWarn : styles.statusInfo
+    "rounded-xl border p-4",
+    analysis?.warnings.length || statusTone === "warn"
+      ? "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
+      : "border-[var(--color-brand)]/15 bg-[var(--color-brand)]/5"
   ].join(" ");
 
   const setupCards = analysis?.setupRows ?? [];
@@ -147,169 +151,233 @@ export function ProbabilityCalculator() {
   }
 
   return (
-    <section className={styles.calculatorShell}>
-      <div className={styles.sectionCard}>
-        <div className={styles.layout}>
-          <div className={styles.sidebar}>
-            <label className={styles.deckLabel} htmlFor="calculator-deck-input">
-              Deck List
-            </label>
-            <textarea
-              className={styles.textarea}
-              id="calculator-deck-input"
-              onChange={(event) => setDeckInput(event.target.value)}
-              placeholder="paste your deck list here"
-              spellCheck={false}
-              value={deckInput}
-            />
+    <section className="grid gap-6">
+      <Card>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+                Deck Input
+              </p>
+              <div className="space-y-1">
+                <h2 className="text-xl font-bold text-[var(--text-primary)]">Paste a deck list</h2>
+                <p className="text-sm text-[var(--text-muted)]">
+                  Paste a Limitless-format list to calculate opening-hand and prizing probabilities.
+                </p>
+              </div>
+            </div>
 
-            <div className={styles.actions}>
-              <button className={styles.button} onClick={() => runCalculation(deckInput)} type="button">
-                Calculate
-              </button>
-              <button className={styles.button} onClick={handleSampleDeck} type="button">
-                Load Sample Deck
-              </button>
-              <button className={styles.button} onClick={handleClear} type="button">
-                Clear
-              </button>
-              <button
-                className={styles.button}
-                disabled={!analysis || isExporting}
-                onClick={handleExport}
-                type="button"
+            <div className="grid gap-2">
+              <label
+                className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]"
+                htmlFor="calculator-deck-input"
               >
+                Deck List
+              </label>
+              <textarea
+                className="min-h-[320px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm leading-6 text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                id="calculator-deck-input"
+                onChange={(event) => setDeckInput(event.target.value)}
+                placeholder="Paste your deck list here"
+                spellCheck={false}
+                value={deckInput}
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <Button onClick={() => runCalculation(deckInput)}>Calculate</Button>
+              <Button onClick={handleSampleDeck} variant="secondary">
+                Load Sample Deck
+              </Button>
+              <Button onClick={handleClear} variant="secondary">
+                Clear
+              </Button>
+              <Button disabled={!analysis || isExporting} onClick={handleExport} variant="secondary">
                 {isExporting ? "Generating..." : "Share PNG"}
-              </button>
+              </Button>
             </div>
 
-            <div className={styles.statusWrap}>
-              {showStatus ? (
-                <section className={statusClassName}>
-                  {analysis ? (
-                    <p className={styles.statusSummary}>
-                      Parsed {analysis.cards.length} unique cards: {analysis.totals.Pokemon} Pokemon,{" "}
-                      {analysis.totals.Trainer} Trainer, {analysis.totals.Energy} Energy,{" "}
-                      {analysis.totals.deck} cards total.
-                    </p>
-                  ) : null}
+            {showStatus ? (
+              <section className={statusClassName}>
+                {analysis ? (
+                  <p className="text-sm leading-6 text-[var(--text-primary)]">
+                    Parsed {analysis.cards.length} unique cards: {analysis.totals.Pokemon} Pokemon,{" "}
+                    {analysis.totals.Trainer} Trainer, {analysis.totals.Energy} Energy,{" "}
+                    {analysis.totals.deck} cards total.
+                  </p>
+                ) : null}
 
-                  {statusMessage ? <p className={styles.statusMessage}>{statusMessage}</p> : null}
+                {statusMessage ? (
+                  <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-primary)]">
+                    {statusMessage}
+                  </p>
+                ) : null}
 
-                  {analysis?.warnings.length ? (
-                    <ul className={styles.statusList}>
-                      {analysis.warnings.map((warning) => (
-                        <li key={warning}>{warning}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </section>
-              ) : (
-                <div className={styles.statusSpacer} />
-              )}
-            </div>
+                {analysis?.warnings.length ? (
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-[var(--color-loss)]">
+                    {analysis.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ) : null}
           </div>
 
-          <div className={styles.content}>
-            <section className={styles.inlineSection}>
-              <p className={styles.sectionEyebrow}>Deck Visual</p>
-              <h3 className={styles.sectionTitle}>60-Card Graphic</h3>
-              <div className={styles.sectionBody}>
-                {analysis ? (
-                  <DeckListVisualGrid cards={analysis.cards} />
-                ) : (
-                  <p className={styles.emptyCopy}>
-                    Card images will appear here after calculation.
-                  </p>
-                )}
+          <div className="grid gap-6 xl:border-l xl:border-[var(--border)] xl:pl-6">
+            <section className="grid gap-4">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+                  Deck Visual
+                </p>
+                <h2 className="text-xl font-bold text-[var(--text-primary)]">60-Card Graphic</h2>
               </div>
-            </section>
-
-            <section className={styles.inlineSection}>
-              <p className={styles.sectionEyebrow}>Opening Hand Risk</p>
-              <h3 className={styles.sectionTitle}>Mulligan Stats</h3>
-              <div className={styles.summaryGrid}>
-                <SummaryMetric label="Mulligan Rate" value={summary.mulligan} />
-                <SummaryMetric label="Starting With 1 Basic" value={summary.oneBasic} />
-                <SummaryMetric label="Starting With 2+ Basic" value={summary.twoBasics} />
-              </div>
-            </section>
-
-            <section className={styles.inlineSection}>
-              <div className={styles.streakHeader}>
-                <div>
-                  <p className={styles.sectionEyebrow}>Opening Hand Risk</p>
-                  <h3 className={styles.sectionTitle}>Mulligan Streak Calculator</h3>
-                  <p className={styles.sectionDescription}>
-                    {analysis
-                      ? "Odds of repeated no-Basic opening hands."
-                      : "Odds of repeated no-Basic opening hands will appear here after calculation."}
-                  </p>
-                </div>
-                <div className={styles.streakRisk}>
-                  <p className={styles.sectionEyebrow}>Single-Hand Risk</p>
-                  <p className={styles.riskValue}>{summary.singleHandRisk}</p>
-                </div>
-              </div>
-
               {analysis ? (
-                <>
-                  <p className={styles.metaLine}>
-                    Basics in deck: <strong>{analysis.basicPokemonCount}</strong> out of <strong>60</strong>{" "}
-                    cards.
-                  </p>
-                  <div className={styles.table}>
-                    <div className={styles.tableHeader}>
-                      <span>Streak</span>
-                      <span>Exact</span>
-                      <span>At Least</span>
-                    </div>
+                <DeckListVisualGrid cards={analysis.cards} />
+              ) : (
+                <p className="text-sm leading-6 text-[var(--text-muted)]">
+                  Card images will appear here after calculation.
+                </p>
+              )}
+            </section>
+
+            <section className="grid gap-4">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+                  Opening Hand Risk
+                </p>
+                <h2 className="text-xl font-bold text-[var(--text-primary)]">Mulligan Stats</h2>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <StatCard
+                  detail="Chance your opening hand has no Basic Pokemon."
+                  label="Mulligan Rate"
+                  value={summary.mulligan}
+                />
+                <StatCard
+                  detail="Chance your opening hand starts with exactly one Basic."
+                  label="Starting With 1 Basic"
+                  value={summary.oneBasic}
+                />
+                <StatCard
+                  detail="Chance your opening hand starts with two or more Basics."
+                  label="Starting With 2+ Basics"
+                  value={summary.twoBasics}
+                />
+              </div>
+            </section>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+          <div className="grid gap-4">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+                Opening Hand Risk
+              </p>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Mulligan Streak Calculator</h2>
+              <p className="text-sm text-[var(--text-muted)]">
+                {analysis
+                  ? "Odds of repeated no-Basic opening hands."
+                  : "Odds of repeated no-Basic opening hands will appear here after calculation."}
+              </p>
+            </div>
+
+            {analysis ? (
+              <>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Basics in deck: <strong>{analysis.basicPokemonCount}</strong> out of <strong>60</strong>{" "}
+                  cards.
+                </p>
+                <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]">
+                  <div className="grid grid-cols-3 gap-4 border-b border-[var(--border)] px-4 py-3 text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+                    <span>Streak</span>
+                    <span>Exact</span>
+                    <span>At Least</span>
+                  </div>
+                  <div className="divide-y divide-[var(--border)]">
                     {analysis.mulliganRows.map((row) => (
-                      <div className={styles.tableRow} key={row.streak}>
-                        <span className={styles.tableLead}>{row.streak}x</span>
+                      <div
+                        className="grid grid-cols-3 gap-4 px-4 py-3 text-sm text-[var(--text-secondary)]"
+                        key={row.streak}
+                      >
+                        <span className="font-semibold text-[var(--text-primary)]">{row.streak}x</span>
                         <span>{pct(row.exactThenPlayable)}</span>
                         <span>{pct(row.atLeast)}</span>
                       </div>
                     ))}
                   </div>
-                  <p className={styles.metaLine}>
-                    Exact means that many mulligans, then your next hand is playable.
-                  </p>
-                </>
-              ) : null}
-            </section>
+                </div>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Exact means that many mulligans, then your next hand is playable.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm leading-6 text-[var(--text-muted)]">
+                Calculate a deck list to populate mulligan streak probabilities.
+              </p>
+            )}
           </div>
-        </div>
 
-        <div className={styles.bottomPanel}>
-          <div className={styles.tabs} role="tablist" aria-label="Calculator views">
-            <button
-              aria-selected={activeTab === "setup"}
-              className={[styles.tabButton, activeTab === "setup" ? styles.tabButtonActive : ""]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => setActiveTab("setup")}
-              role="tab"
-              type="button"
+          <StatCard
+            detail="Single-hand chance of opening without a Basic Pokemon."
+            label="Single-Hand Risk"
+            value={summary.singleHandRisk}
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <div className="grid gap-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+                Card Odds
+              </p>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Setup and Prizing Detail</h2>
+            </div>
+
+            <div
+              aria-label="Calculator views"
+              className="inline-grid grid-cols-2 gap-1 rounded-full bg-[var(--bg-surface-alt)] p-1"
+              role="tablist"
             >
-              Setup
-            </button>
-            <button
-              aria-selected={activeTab === "prizing"}
-              className={[styles.tabButton, activeTab === "prizing" ? styles.tabButtonActive : ""]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => setActiveTab("prizing")}
-              role="tab"
-              type="button"
-            >
-              Prizing
-            </button>
+              <button
+                aria-selected={activeTab === "setup"}
+                className={[
+                  "rounded-full px-4 py-2 text-sm font-medium transition",
+                  activeTab === "setup"
+                    ? "bg-[var(--color-brand)] text-[var(--text-inverse)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"
+                ].join(" ")}
+                onClick={() => setActiveTab("setup")}
+                role="tab"
+                type="button"
+              >
+                Setup
+              </button>
+              <button
+                aria-selected={activeTab === "prizing"}
+                className={[
+                  "rounded-full px-4 py-2 text-sm font-medium transition",
+                  activeTab === "prizing"
+                    ? "bg-[var(--color-brand)] text-[var(--text-inverse)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"
+                ].join(" ")}
+                onClick={() => setActiveTab("prizing")}
+                role="tab"
+                type="button"
+              >
+                Prizing
+              </button>
+            </div>
           </div>
 
           {activeTab === "setup" ? (
             setupCards.length ? (
-              <div className={styles.cardGrid}>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {setupCards.map((row) => (
                   <ProbabilityCard
                     card={row.card}
@@ -322,10 +390,12 @@ export function ProbabilityCalculator() {
                 ))}
               </div>
             ) : (
-              <p className={styles.emptyCopy}>No Pokemon cards were parsed for setup probabilities.</p>
+              <p className="text-sm leading-6 text-[var(--text-muted)]">
+                No Pokemon cards were parsed for setup probabilities.
+              </p>
             )
           ) : prizingCards.length ? (
-            <div className={styles.cardGrid}>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {prizingCards.map((row) => (
                 <ProbabilityCard
                   card={row.card}
@@ -340,20 +410,13 @@ export function ProbabilityCalculator() {
               ))}
             </div>
           ) : (
-            <p className={styles.emptyCopy}>No cards were parsed for prizing probabilities.</p>
+            <p className="text-sm leading-6 text-[var(--text-muted)]">
+              No cards were parsed for prizing probabilities.
+            </p>
           )}
         </div>
-      </div>
+      </Card>
     </section>
-  );
-}
-
-function SummaryMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className={styles.summaryMetric}>
-      <p className={styles.metricLabel}>{label}</p>
-      <p className={styles.metricValue}>{value}</p>
-    </div>
   );
 }
 
@@ -365,12 +428,12 @@ function ProbabilityCard({
   stats: Array<{ label: string; value: string }>;
 }) {
   return (
-    <article className={styles.probabilityCard}>
-      <div className={styles.cardIdentity}>
+    <article className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4">
+      <div className="flex gap-3">
         {card.category === "Pokemon" ? (
           <img
             alt=""
-            className={styles.sprite}
+            className="h-10 w-10 shrink-0 object-contain"
             loading="lazy"
             onError={(event) => {
               event.currentTarget.style.display = "none";
@@ -379,36 +442,30 @@ function ProbabilityCard({
           />
         ) : null}
 
-        <div className={styles.cardText}>
-          <div className={styles.cardHeading}>
-            <h4 className={styles.cardName}>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-base font-semibold text-[var(--text-primary)]">
               {card.count}x {card.name}
             </h4>
-            {card.category === "Pokemon" && card.stage ? (
-              <span
-                className={[
-                  styles.tag,
-                  card.stage === "Basic"
-                    ? styles.tagBasic
-                    : card.stage === "Stage 1"
-                      ? styles.tagStageOne
-                      : styles.tagStageTwo
-                ].join(" ")}
-              >
-                {card.stage}
-              </span>
-            ) : (
-              <span className={styles.categoryTag}>{card.category}</span>
-            )}
+            <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)]">
+              {card.category === "Pokemon" && card.stage ? card.stage : card.category}
+            </span>
           </div>
         </div>
       </div>
 
-      <dl className={stats.length > 2 ? styles.detailGridWide : styles.detailGrid}>
+      <dl
+        className={[
+          "mt-4 grid gap-4",
+          stats.length > 2 ? "grid-cols-2 xl:grid-cols-4" : "grid-cols-2"
+        ].join(" ")}
+      >
         {stats.map((stat) => (
-          <div className={styles.detailItem} key={stat.label}>
-            <dt className={styles.detailLabel}>{stat.label}</dt>
-            <dd className={styles.detailValue}>{stat.value}</dd>
+          <div className="grid gap-1" key={stat.label}>
+            <dt className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+              {stat.label}
+            </dt>
+            <dd className="m-0 text-base font-semibold text-[var(--text-primary)]">{stat.value}</dd>
           </div>
         ))}
       </dl>
