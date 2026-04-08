@@ -18,6 +18,10 @@ import {
 } from "@/lib/probability-calculator";
 
 type TabId = "setup" | "prizing";
+type ComparisonMetric = {
+  label: string;
+  value: string;
+};
 
 const LEGACY_SAMPLE_DECKLIST = `Pokémon: 15
 3 Munkidori ASC 99
@@ -70,6 +74,37 @@ export function ProbabilityCalculator() {
 
   const setupCards = analysis?.setupRows ?? [];
   const prizingCards = analysis?.prizingRows ?? [];
+  const cardOrder = useMemo(() => {
+    return new Map(deckVisualCards.map((card, index) => [`${card.name}-${card.category}`, index]));
+  }, [deckVisualCards]);
+  const setupComparisonRows = useMemo(
+    () =>
+      [...setupCards].sort((left, right) => {
+        const leftOrder = cardOrder.get(`${left.card.name}-${left.card.category}`) ?? Number.MAX_SAFE_INTEGER;
+        const rightOrder = cardOrder.get(`${right.card.name}-${right.card.category}`) ?? Number.MAX_SAFE_INTEGER;
+
+        if (leftOrder !== rightOrder) {
+          return leftOrder - rightOrder;
+        }
+
+        return left.card.name.localeCompare(right.card.name);
+      }),
+    [cardOrder, setupCards]
+  );
+  const prizingComparisonRows = useMemo(
+    () =>
+      [...prizingCards].sort((left, right) => {
+        const leftOrder = cardOrder.get(`${left.card.name}-${left.card.category}`) ?? Number.MAX_SAFE_INTEGER;
+        const rightOrder = cardOrder.get(`${right.card.name}-${right.card.category}`) ?? Number.MAX_SAFE_INTEGER;
+
+        if (leftOrder !== rightOrder) {
+          return leftOrder - rightOrder;
+        }
+
+        return left.card.name.localeCompare(right.card.name);
+      }),
+    [cardOrder, prizingCards]
+  );
   const summary = useMemo(() => {
     if (!analysis) {
       return {
@@ -297,8 +332,7 @@ export function ProbabilityCalculator() {
       </Card>
 
       <Card>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
-          <div className="grid gap-4">
+        <div className="grid gap-4">
             <div className="space-y-1">
               <p className="ui-eyebrow">Opening Hand Risk</p>
               <h2 className="ui-section-title">Mulligan Streak Calculator</h2>
@@ -343,13 +377,6 @@ export function ProbabilityCalculator() {
                 Calculate a deck list to populate mulligan streak probabilities.
               </p>
             )}
-          </div>
-
-          <StatCard
-            detail="Single-hand chance of opening without a Basic Pokemon."
-            label="Single-Hand Risk"
-            value={summary.singleHandRisk}
-          />
         </div>
       </Card>
 
@@ -398,39 +425,39 @@ export function ProbabilityCalculator() {
           </div>
 
           {activeTab === "setup" ? (
-            setupCards.length ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {setupCards.map((row) => (
-                  <ProbabilityCard
-                    card={row.card}
-                    key={`${row.card.name}-${row.card.category}`}
-                    stats={[
-                      { label: "In Starting 7", value: pct(row.inStartingSeven) },
-                      { label: "Only Starter", value: pct(row.onlyStarter) }
-                    ]}
-                  />
-                ))}
-              </div>
+            setupComparisonRows.length ? (
+              <ProbabilityComparisonTable
+                columns={[
+                  { key: "primary", label: "Only Starter" },
+                  { key: "secondary", label: "In Starting 7" }
+                ]}
+                rows={setupComparisonRows.map((row) => ({
+                  card: row.card,
+                  key: `${row.card.name}-${row.card.category}`,
+                  metrics: [
+                    { label: "Only Starter", value: pct(row.onlyStarter) },
+                    { label: "In Starting 7", value: pct(row.inStartingSeven) }
+                  ]
+                }))}
+              />
             ) : (
               <p className="text-sm leading-6 text-[var(--text-muted)]">
                 No Pokemon cards were parsed for setup probabilities.
               </p>
             )
-          ) : prizingCards.length ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {prizingCards.map((row) => (
-                <ProbabilityCard
-                  card={row.card}
-                  key={`${row.card.name}-${row.card.category}`}
-                  stats={[
-                    { label: "None Prized", value: pct(row.nonePrized) },
-                    { label: "1 Prized", value: pct(row.onePrized) },
-                    { label: "2 Prized", value: pct(row.twoPrized) },
-                    { label: "3+ Prized", value: pct(row.threePlusPrized) }
-                  ]}
-                />
-              ))}
-            </div>
+          ) : prizingComparisonRows.length ? (
+            <ProbabilityCompactGrid
+              rows={prizingComparisonRows.map((row) => ({
+                card: row.card,
+                key: `${row.card.name}-${row.card.category}`,
+                metrics: [
+                  { label: "None Prized", value: pct(row.nonePrized) },
+                  { label: "1 Prized", value: pct(row.onePrized) },
+                  { label: "2 Prized", value: pct(row.twoPrized) },
+                  { label: "3+ Prized", value: pct(row.threePlusPrized) }
+                ]
+              }))}
+            />
           ) : (
             <p className="text-sm leading-6 text-[var(--text-muted)]">
               No cards were parsed for prizing probabilities.
@@ -442,52 +469,195 @@ export function ProbabilityCalculator() {
   );
 }
 
-function ProbabilityCard({
-  card,
-  stats
+function ProbabilityComparisonTable({
+  columns,
+  rows
 }: {
-  card: CalculatorCardGroup;
-  stats: Array<{ label: string; value: string }>;
+  columns: Array<{ key: string; label: string }>;
+  rows: Array<{ key: string; card: CalculatorCardGroup; metrics: ComparisonMetric[] }>;
 }) {
   return (
-    <article className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5">
-      <div className="flex gap-3">
-        {card.category === "Pokemon" ? (
-          <img
-            alt=""
-            className="h-10 w-10 shrink-0 object-contain"
-            loading="lazy"
-            onError={(event) => {
-              event.currentTarget.style.display = "none";
-            }}
-            src={getPokemonSpriteUrl(card.name)}
-          />
-        ) : null}
-
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h4 className="font-display text-[1.06rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
-              {card.count}x {card.name}
-            </h4>
-            <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)]">
-              {card.category === "Pokemon" && card.stage ? card.stage : card.category}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <dl className={["mt-4 grid gap-4", stats.length > 2 ? "grid-cols-2" : "grid-cols-2"].join(" ")}>
-        {stats.map((stat) => (
-          <div className="grid gap-1" key={stat.label}>
-            <dt className="ui-eyebrow">
-              {stat.label}
-            </dt>
-            <dd className="font-display m-0 text-[1.05rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
-              {stat.value}
-            </dd>
+    <div className="overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface-alt)]">
+      <div
+        className="hidden border-b border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3 lg:grid lg:items-center lg:gap-4"
+        style={{ gridTemplateColumns: `minmax(17rem, 1.6fr) repeat(${columns.length}, minmax(0, 1fr))` }}
+      >
+        <div className="ui-eyebrow">Card</div>
+        {columns.map((column) => (
+          <div className="ui-eyebrow text-right" key={column.key}>
+            {column.label}
           </div>
         ))}
-      </dl>
+      </div>
+
+      <div className="divide-y divide-[var(--border)]">
+        {rows.map((row) => (
+          <ProbabilityComparisonRow columns={columns} key={row.key} card={row.card} metrics={row.metrics} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProbabilityComparisonRow({
+  card,
+  columns,
+  metrics
+}: {
+  card: CalculatorCardGroup;
+  columns: Array<{ key: string; label: string }>;
+  metrics: ComparisonMetric[];
+}) {
+  return (
+    <article className="px-4 py-4 sm:px-5">
+      <div
+        className="grid gap-4 lg:items-center"
+        style={{ gridTemplateColumns: `minmax(0, 1fr)` }}
+      >
+        <div
+          className="hidden lg:grid lg:items-center lg:gap-4"
+          style={{ gridTemplateColumns: `minmax(17rem, 1.6fr) repeat(${columns.length}, minmax(0, 1fr))` }}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            {card.category === "Pokemon" ? (
+              <img
+                alt=""
+                className="h-10 w-10 shrink-0 object-contain"
+                loading="lazy"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+                src={getPokemonSpriteUrl(card.name)}
+              />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
+                {card.category.slice(0, 1)}
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="font-display text-[1.05rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                  {card.count}x {card.name}
+                </h4>
+                <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1 text-[0.72rem] font-semibold text-[var(--text-secondary)]">
+                  {card.category === "Pokemon" && card.stage ? card.stage : card.category}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {metrics.map((metric, index) => (
+            <div className="text-right" key={`${card.name}-${metric.label}-${index}`}>
+              <p className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                {metric.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-3 lg:hidden">
+          <div className="flex min-w-0 items-center gap-3">
+            {card.category === "Pokemon" ? (
+              <img
+                alt=""
+                className="h-10 w-10 shrink-0 object-contain"
+                loading="lazy"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+                src={getPokemonSpriteUrl(card.name)}
+              />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
+                {card.category.slice(0, 1)}
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="font-display text-[1.05rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                  {card.count}x {card.name}
+                </h4>
+                <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1 text-[0.72rem] font-semibold text-[var(--text-secondary)]">
+                  {card.category === "Pokemon" && card.stage ? card.stage : card.category}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <dl className={`grid gap-3 ${metrics.length > 2 ? "grid-cols-2" : "grid-cols-2"}`}>
+            {metrics.map((metric, index) => (
+              <div className="rounded-[16px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2.5" key={`${card.name}-${metric.label}-${index}`}>
+                <dt className="ui-eyebrow">{metric.label}</dt>
+                <dd className="mt-1 font-display text-[1.02rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                  {metric.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
     </article>
+  );
+}
+
+function ProbabilityCompactGrid({
+  rows
+}: {
+  rows: Array<{ key: string; card: CalculatorCardGroup; metrics: ComparisonMetric[] }>;
+}) {
+  return (
+    <div className="grid gap-3 xl:grid-cols-2">
+      {rows.map((row) => (
+        <article
+          className="rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-4"
+          key={row.key}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            {row.card.category === "Pokemon" ? (
+              <img
+                alt=""
+                className="h-10 w-10 shrink-0 object-contain"
+                loading="lazy"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+                src={getPokemonSpriteUrl(row.card.name)}
+              />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
+                {row.card.category.slice(0, 1)}
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="font-display text-[1rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                  {row.card.count}x {row.card.name}
+                </h4>
+                <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1 text-[0.72rem] font-semibold text-[var(--text-secondary)]">
+                  {row.card.category === "Pokemon" && row.card.stage ? row.card.stage : row.card.category}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <dl className="mt-4 grid grid-cols-4 gap-2">
+            {row.metrics.map((metric, index) => (
+              <div
+                className="rounded-[14px] border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-2 text-center"
+                key={`${row.card.name}-${metric.label}-${index}`}
+              >
+                <dt className="ui-eyebrow">{metric.label}</dt>
+                <dd className="mt-1 font-display text-[0.94rem] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
+                  {metric.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </article>
+      ))}
+    </div>
   );
 }
