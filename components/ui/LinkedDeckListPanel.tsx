@@ -41,12 +41,12 @@ export function LinkedDeckListPanel({
     <Card className="rounded-[24px] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="m-0 text-[1.2rem] font-bold tracking-[-0.03em] text-[var(--text-primary)]">
+          <h3 className="font-display m-0 text-[1.28rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
             Deck List
           </h3>
           {deckId ? (
             <Link
-              className="inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)]"
+              className="ui-control-text inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)]"
               href={`/decks/${deckId}`}
             >
               Jump to Deck
@@ -55,7 +55,7 @@ export function LinkedDeckListPanel({
         </div>
 
         <div className="min-w-0">
-          <h4 className="m-0 text-[1rem] font-semibold tracking-[-0.03em] text-[var(--text-muted)]">
+          <h4 className="font-display m-0 text-[1.08rem] font-medium tracking-[-0.025em] text-[var(--text-muted)]">
             {deckListName}
           </h4>
           {deckListNotes?.trim() ? (
@@ -71,7 +71,7 @@ export function LinkedDeckListPanel({
         </div>
 
         <details className="group pt-1">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-0 py-3 text-sm font-semibold text-[var(--color-brand)] [&::-webkit-details-marker]:hidden">
+          <summary className="ui-control-text flex cursor-pointer list-none items-center justify-between gap-4 px-0 py-3 text-[var(--color-brand)] [&::-webkit-details-marker]:hidden">
             <span>View Full Deck List</span>
             <span className="text-[var(--text-muted)]">
               <ChevronIcon />

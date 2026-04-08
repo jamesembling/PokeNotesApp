@@ -26,7 +26,7 @@ export function DeckCard({ deck }: DeckCardProps) {
 
         <div className="space-y-3">
           <div className="flex flex-wrap items-start gap-2">
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+            <h2 className="font-display text-[1.1rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
               {deck.deckName}
             </h2>
             <Badge>{deck.format}</Badge>

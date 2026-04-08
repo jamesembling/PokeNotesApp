@@ -1,9 +1,10 @@
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageWidth } from "@/components/ui/PageWidth";
 
 export default async function ProfilePage() {
   return (
-    <>
+    <PageWidth size="narrow">
       <PageHeader
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Profile" }]}
         title="Profile"
@@ -15,6 +16,6 @@ export default async function ProfilePage() {
           Profile editing and preferences will be connected here.
         </p>
       </Card>
-    </>
+    </PageWidth>
   );
 }

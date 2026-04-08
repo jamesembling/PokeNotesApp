@@ -58,7 +58,38 @@ body {
   min-height: 100vh;
   background-color: var(--bg-page);
   color: var(--text-secondary);
-  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
+  font-kerning: normal;
+}
+
+h1,
+h2,
+h3,
+[data-display="true"] {
+  font-family: var(--font-display), var(--font-body), system-ui, sans-serif;
+}
+
+.ui-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-kicker);
+}
+
+.ui-section-title {
+  font-family: var(--font-display), var(--font-body), system-ui, sans-serif;
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.ui-control-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
 }
 
 a {

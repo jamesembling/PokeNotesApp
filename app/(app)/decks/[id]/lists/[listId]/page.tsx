@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
 import { getDeckWithList } from "@/lib/db/decks";
 
@@ -25,7 +26,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
 
   if (!result) {
     return (
-      <>
+      <PageWidth size="standard">
         <PageHeader
           breadcrumb={[
             { label: "Poke Notes", href: "/" },
@@ -49,7 +50,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
             </Link>
           </div>
         </Card>
-      </>
+      </PageWidth>
     );
   }
 
@@ -57,7 +58,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
   const sortedCards = deckList.sortedCards;
 
   return (
-    <>
+    <PageWidth size="standard">
       <PageHeader
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
@@ -84,9 +85,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
       />
 
       <Card className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-          DECK LIST
-        </p>
+        <p className="ui-eyebrow">Deck List</p>
 
         {deckList.parsedCards.length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)]">
@@ -96,6 +95,6 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
           <DeckListVisualGrid cards={sortedCards} />
         )}
       </Card>
-    </>
+    </PageWidth>
   );
 }

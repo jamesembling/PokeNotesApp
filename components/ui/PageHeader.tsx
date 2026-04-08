@@ -47,7 +47,9 @@ export function PageHeader({
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)]">{title}</h1>
+          <h1 className="font-display text-[2rem] font-semibold tracking-[-0.04em] text-[var(--text-primary)] sm:text-4xl">
+            {title}
+          </h1>
           {subtitle ? (
             <p className="max-w-3xl text-sm text-[var(--text-muted)]">{subtitle}</p>
           ) : null}

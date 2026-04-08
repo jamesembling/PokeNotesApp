@@ -20,7 +20,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
           minHeight: "100vh",
           background: "#0f1117",
           color: "#f9fafb",
-          fontFamily: "Geist, system-ui, sans-serif"
+          fontFamily: "var(--font-body), system-ui, sans-serif"
         }}
       >
         <main
@@ -54,7 +54,16 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             >
               Fatal Error
             </p>
-            <h1 style={{ margin: "12px 0 8px", fontSize: "28px", lineHeight: 1.1 }}>
+            <h1
+              style={{
+                margin: "12px 0 8px",
+                fontSize: "32px",
+                lineHeight: 1.05,
+                fontFamily: "var(--font-display), var(--font-body), system-ui, sans-serif",
+                fontWeight: 600,
+                letterSpacing: "-0.04em"
+              }}
+            >
               The app failed before the normal layout could render.
             </h1>
             <p style={{ margin: 0, color: "#d1d5db", fontSize: "14px", lineHeight: 1.6 }}>

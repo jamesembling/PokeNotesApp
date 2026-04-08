@@ -156,11 +156,9 @@ export function ProbabilityCalculator() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
           <div className="grid gap-4">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-                Deck Input
-              </p>
+              <p className="ui-eyebrow">Deck Input</p>
               <div className="space-y-1">
-                <h2 className="text-xl font-bold text-[var(--text-primary)]">Paste a deck list</h2>
+                <h2 className="ui-section-title">Paste a deck list</h2>
                 <p className="text-sm text-[var(--text-muted)]">
                   Paste a Limitless-format list to calculate opening-hand and prizing probabilities.
                 </p>
@@ -169,7 +167,7 @@ export function ProbabilityCalculator() {
 
             <div className="grid gap-2">
               <label
-                className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]"
+                className="ui-eyebrow"
                 htmlFor="calculator-deck-input"
               >
                 Deck List
@@ -227,10 +225,8 @@ export function ProbabilityCalculator() {
           <div className="grid gap-6 xl:border-l xl:border-[var(--border)] xl:pl-6">
             <section className="grid gap-4">
               <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-                  Deck Visual
-                </p>
-                <h2 className="text-xl font-bold text-[var(--text-primary)]">60-Card Graphic</h2>
+                <p className="ui-eyebrow">Deck Visual</p>
+                <h2 className="ui-section-title">60-Card Graphic</h2>
               </div>
               {analysis ? (
                 <DeckListVisualGrid cards={analysis.cards} />
@@ -243,10 +239,8 @@ export function ProbabilityCalculator() {
 
             <section className="grid gap-4">
               <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-                  Opening Hand Risk
-                </p>
-                <h2 className="text-xl font-bold text-[var(--text-primary)]">Mulligan Stats</h2>
+                <p className="ui-eyebrow">Opening Hand Risk</p>
+                <h2 className="ui-section-title">Mulligan Stats</h2>
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <StatCard
@@ -274,10 +268,8 @@ export function ProbabilityCalculator() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="grid gap-4">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-                Opening Hand Risk
-              </p>
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">Mulligan Streak Calculator</h2>
+              <p className="ui-eyebrow">Opening Hand Risk</p>
+              <h2 className="ui-section-title">Mulligan Streak Calculator</h2>
               <p className="text-sm text-[var(--text-muted)]">
                 {analysis
                   ? "Odds of repeated no-Basic opening hands."
@@ -292,7 +284,7 @@ export function ProbabilityCalculator() {
                   cards.
                 </p>
                 <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]">
-                  <div className="grid grid-cols-3 gap-4 border-b border-[var(--border)] px-4 py-3 text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+                  <div className="ui-eyebrow grid grid-cols-3 gap-4 border-b border-[var(--border)] px-4 py-3">
                     <span>Streak</span>
                     <span>Exact</span>
                     <span>At Least</span>
@@ -333,10 +325,8 @@ export function ProbabilityCalculator() {
         <div className="grid gap-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-                Card Odds
-              </p>
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">Setup and Prizing Detail</h2>
+              <p className="ui-eyebrow">Card Odds</p>
+              <h2 className="ui-section-title">Setup and Prizing Detail</h2>
             </div>
 
             <div
@@ -347,7 +337,7 @@ export function ProbabilityCalculator() {
               <button
                 aria-selected={activeTab === "setup"}
                 className={[
-                  "rounded-full px-4 py-2 text-sm font-medium transition",
+                  "ui-control-text rounded-full px-4 py-2 transition",
                   activeTab === "setup"
                     ? "bg-[var(--color-brand)] text-[var(--text-inverse)]"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"
@@ -361,7 +351,7 @@ export function ProbabilityCalculator() {
               <button
                 aria-selected={activeTab === "prizing"}
                 className={[
-                  "rounded-full px-4 py-2 text-sm font-medium transition",
+                  "ui-control-text rounded-full px-4 py-2 transition",
                   activeTab === "prizing"
                     ? "bg-[var(--color-brand)] text-[var(--text-inverse)]"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"
@@ -444,7 +434,7 @@ function ProbabilityCard({
 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="text-base font-semibold text-[var(--text-primary)]">
+            <h4 className="font-display text-[1.06rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
               {card.count}x {card.name}
             </h4>
             <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)]">
@@ -462,10 +452,12 @@ function ProbabilityCard({
       >
         {stats.map((stat) => (
           <div className="grid gap-1" key={stat.label}>
-            <dt className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
+            <dt className="ui-eyebrow">
               {stat.label}
             </dt>
-            <dd className="m-0 text-base font-semibold text-[var(--text-primary)]">{stat.value}</dd>
+            <dd className="font-display m-0 text-[1.05rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+              {stat.value}
+            </dd>
           </div>
         ))}
       </dl>

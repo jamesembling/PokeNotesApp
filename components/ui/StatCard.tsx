@@ -22,7 +22,12 @@ export function StatCard({
       <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
         {label}
       </p>
-      <p className={["mt-2 text-3xl font-bold", valueClasses[valueColor]].join(" ")}>
+      <p
+        className={[
+          "font-display mt-2 text-3xl font-semibold tracking-[-0.04em] [font-variant-numeric:tabular-nums]",
+          valueClasses[valueColor]
+        ].join(" ")}
+      >
         {value}
       </p>
       {detail ? <p className="mt-1 text-xs text-[var(--text-muted)]">{detail}</p> : null}

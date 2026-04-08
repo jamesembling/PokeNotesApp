@@ -5,6 +5,7 @@ import { DeckEditorDialog } from "@/components/ui/DeckEditorDialog";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { LogRow } from "@/components/ui/LogRow";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
@@ -37,9 +38,7 @@ function StrategySection({
   return (
     <Card>
       <div className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-          {kicker}
-        </p>
+        <p className="ui-eyebrow">{kicker}</p>
         {children}
       </div>
     </Card>
@@ -83,7 +82,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
 
   if (!deck) {
     return (
-      <>
+      <PageWidth size="standard">
         <PageHeader
           breadcrumb={[
             { label: "Poke Notes", href: "/" },
@@ -107,7 +106,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
             </Link>
           </div>
         </Card>
-      </>
+      </PageWidth>
     );
   }
 
@@ -121,7 +120,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const recentStats = getBattleLogSummaryStats(relatedLogs);
 
   return (
-    <>
+    <PageWidth size="standard">
       <PageHeader
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
@@ -208,9 +207,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       ) : null}
 
       <Card className="space-y-4" id="deck-lists">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-          DECK LISTS
-        </p>
+        <p className="ui-eyebrow">Deck Lists</p>
 
         {deck.deckLists.length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)]">No deck lists saved.</p>
@@ -222,7 +219,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                 key={deckList.id}
               >
                 <div className="space-y-1">
-                  <p className="text-base font-semibold text-[var(--text-primary)]">
+                  <p className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
                     {deckList.name}
                   </p>
                   <p className="text-sm text-[var(--text-muted)]">
@@ -256,9 +253,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       <Card className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-              BATTLE LOGS
-            </p>
+            <p className="ui-eyebrow">Battle Logs</p>
             <p className="text-sm text-[var(--text-secondary)]">
               Recent battle logs linked to this strategy or matched to its archetype.
             </p>
@@ -293,6 +288,6 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           </>
         )}
       </Card>
-    </>
+    </PageWidth>
   );
 }

@@ -71,7 +71,7 @@ export function LogRow({
       </div>
 
       <div className="min-w-0 text-left">
-        <p className="block whitespace-normal text-[1.08rem] font-semibold leading-[1.2] tracking-[-0.015em] text-[var(--text-primary)] sm:truncate">
+        <p className="font-display block whitespace-normal text-[1.12rem] font-semibold leading-[1.15] tracking-[-0.03em] text-[var(--text-primary)] sm:truncate">
           {log.result} vs {opponentDeckName}
         </p>
         <p className="mt-1 text-[0.94rem] leading-[1.25] text-[var(--text-muted)]">

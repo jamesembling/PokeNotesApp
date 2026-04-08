@@ -319,10 +319,8 @@ export function LogsManager({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-            All Logs
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+          <p className="ui-eyebrow">All Logs</p>
+          <h2 className="ui-section-title mt-1 text-[1.7rem]">
             By Date
           </h2>
           {canLoadMore && currentWindowSummary ? (
@@ -336,7 +334,7 @@ export function LogsManager({
           {isManagementMode ? (
             <>
               <button
-                className="text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="ui-control-text text-[var(--text-muted)] transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!canDeleteSelected}
                 onClick={handleDeleteSelected}
                 type="button"
@@ -345,7 +343,7 @@ export function LogsManager({
               </button>
 
               {visibleLogs.length > 0 ? (
-                <label className="inline-flex cursor-pointer items-center gap-3 text-sm font-medium text-[var(--text-muted)]">
+                <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-[var(--text-muted)]">
                   <input
                     checked={allSelected}
                     className="h-5 w-5 cursor-pointer rounded border-[var(--border)] bg-[var(--bg-surface)]"
@@ -434,7 +432,7 @@ export function LogsManager({
           >
             <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden">
               <div>
-                <h3 className="text-base font-semibold text-[var(--text-primary)]">
+                <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
                   {formatGroupDate(group.date)}
                 </h3>
                 <p className="mt-1 text-sm text-[var(--text-muted)]">
@@ -443,7 +441,7 @@ export function LogsManager({
               </div>
               <div className="flex items-center gap-2">
                 <div className="text-right">
-                  <p className="text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
+                  <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
                     {group.wins}-{group.losses}
                   </p>
                   <p className="mt-1 text-[0.95rem] leading-none text-[var(--text-muted)]">

@@ -68,9 +68,9 @@ Define these as CSS variables and Tailwind theme extensions. Never hardcode colo
 
 ### Font Stack
 ```
-font-family: 'Geist', system-ui, -apple-system, sans-serif;
+font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
 ```
-Use Geist (from Vercel) — it's clean, slightly technical, and pairs well with data. Fallback to system-ui.
+Use IBM Plex Sans for body copy and interface chrome, with IBM Plex Sans Condensed for page titles and key numeric display moments. This keeps the app serious and analytical, but gives headings more intent than a default product sans. Fallback to system-ui.
 
 ### Scale
 

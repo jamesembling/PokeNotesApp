@@ -8,10 +8,8 @@ export default function NotFound() {
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <Card className="space-y-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-              Not Found
-            </p>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+            <p className="ui-eyebrow">Not Found</p>
+            <h1 className="font-display text-3xl font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
               That page does not exist in this workspace.
             </h1>
             <p className="text-sm text-[var(--text-secondary)]">

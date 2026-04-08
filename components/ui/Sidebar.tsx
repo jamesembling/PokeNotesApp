@@ -44,11 +44,7 @@ function getInitials(value: string) {
 }
 
 function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-      {children}
-    </p>
-  );
+  return <p className="ui-eyebrow">{children}</p>;
 }
 
 export function Sidebar({ profile, pokemonOptions, userDecks, userId }: SidebarProps) {

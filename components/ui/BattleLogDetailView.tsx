@@ -20,11 +20,7 @@ function formatGoOrder(goOrder: "First" | "Second" | "") {
 }
 
 function SectionKicker({ children }: { children: ReactNode }) {
-  return (
-    <p className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-[var(--text-kicker)]">
-      {children}
-    </p>
-  );
+  return <p className="ui-eyebrow">{children}</p>;
 }
 
 function SummaryChip({ children }: { children: ReactNode }) {
@@ -61,7 +57,12 @@ function HighlightPanel({
   return (
     <div className={["rounded-2xl border p-4 sm:p-5", toneClassName].join(" ")}>
       <SectionKicker>{kicker}</SectionKicker>
-      <p className={["mt-1.5 text-[1.05rem] font-bold tracking-[-0.03em]", valueClassName].join(" ")}>
+      <p
+        className={[
+          "font-display mt-1.5 text-[1.08rem] font-semibold tracking-[-0.03em]",
+          valueClassName
+        ].join(" ")}
+      >
         {value}
       </p>
     </div>
@@ -78,7 +79,7 @@ function DetailStat({
   return (
     <div className="grid min-h-[72px] grid-rows-[2.25rem_auto] rounded-[14px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2.5 shadow-[var(--shadow-sm)]">
       <SectionKicker>{label}</SectionKicker>
-      <p className="self-end text-[0.95rem] font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+      <p className="font-display self-end text-[0.98rem] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
         {value}
       </p>
     </div>
@@ -239,7 +240,7 @@ function LogSectionCard({
     >
       <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h3 className="m-0 text-[1.3rem] font-bold tracking-[-0.03em] text-[var(--text-primary)]">
+          <h3 className="font-display m-0 text-[1.34rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
             {effectivePlayer ? `${effectivePlayer}'s Turn` : section.title}
           </h3>
           {orderedPlayerNames.length > 0 ? (

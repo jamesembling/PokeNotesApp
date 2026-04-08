@@ -31,7 +31,7 @@ export default async function AppLayout({
       />
       <main className="min-[860px]:pl-64">
         <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <div className="mx-auto flex max-w-5xl flex-col gap-6">{children}</div>
+          <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6">{children}</div>
         </div>
       </main>
     </div>

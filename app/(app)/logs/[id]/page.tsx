@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import { getDecks } from "@/lib/db/decks";
@@ -36,7 +37,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
 
   if (!log) {
     return (
-      <>
+      <PageWidth size="standard">
         <PageHeader
           breadcrumb={[
             { label: "Poke Notes", href: "/" },
@@ -66,7 +67,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
             </div>
           </div>
         </div>
-      </>
+      </PageWidth>
     );
   }
 
@@ -91,7 +92,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const timestampLabel = formatImportedAt(log.importedAt);
 
   return (
-    <>
+    <PageWidth size="standard">
       <PageHeader
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
@@ -113,6 +114,6 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
         timestampLabel={timestampLabel}
         userDecks={userDecks}
       />
-    </>
+    </PageWidth>
   );
 }

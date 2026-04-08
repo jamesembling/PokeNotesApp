@@ -19,10 +19,8 @@ export default function AppError({ error, reset }: AppErrorProps) {
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <Card className="space-y-4">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-kicker)]">
-              App Error
-            </p>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+            <p className="ui-eyebrow">App Error</p>
+            <h1 className="font-display text-3xl font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
               Something went wrong while loading this page.
             </h1>
             <p className="text-sm text-[var(--text-secondary)]">
