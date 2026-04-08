@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { createDeckAction, updateDeckAction } from "@/app/(app)/decks/actions";
+import {
+  createDeckAction,
+  deleteDeckAction,
+  updateDeckAction
+} from "@/app/(app)/decks/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { DECK_FORMAT_OPTIONS, getDefaultDeckFormat } from "@/lib/decks/formats";
@@ -16,6 +20,7 @@ type DeckEditorDialogProps = {
 };
 
 type SaveState = "idle" | "saving" | "success";
+type DeleteState = "idle" | "deleting";
 
 const SUCCESS_CLOSE_DELAY_MS = 650;
 
@@ -68,8 +73,10 @@ export function DeckEditorDialog({
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(deck?.deckPokemon ?? []);
-  const [saveError, setSaveError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [deleteState, setDeleteState] = useState<DeleteState>("idle");
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -125,8 +132,10 @@ export function DeckEditorDialog({
   function openDialog() {
     clearCloseTimer();
     clearNavigationTimer();
-    setSaveError("");
+    setActionError("");
     setSaveState("idle");
+    setDeleteState("idle");
+    setShowDeleteConfirmation(false);
     setSelectedSprites(deck?.deckPokemon ?? []);
     setIsOpen(true);
   }
@@ -135,13 +144,16 @@ export function DeckEditorDialog({
     clearCloseTimer();
     clearNavigationTimer();
     setIsOpen(false);
-    setSaveError("");
+    setActionError("");
     setSaveState("idle");
+    setDeleteState("idle");
+    setShowDeleteConfirmation(false);
     setSelectedSprites(deck?.deckPokemon ?? []);
   }
 
   async function handleSubmit(formData: FormData) {
-    setSaveError("");
+    setActionError("");
+    setShowDeleteConfirmation(false);
     setSaveState("saving");
 
     try {
@@ -153,8 +165,10 @@ export function DeckEditorDialog({
         setIsOpen(false);
         clearNavigationTimer();
         navigationTimerRef.current = window.setTimeout(() => {
-          setSaveError("");
+          setActionError("");
           setSaveState("idle");
+          setDeleteState("idle");
+          setShowDeleteConfirmation(false);
           setSelectedSprites(deck?.deckPokemon ?? []);
 
           if (normalizeRedirectPath(result.redirectTo) === pathname) {
@@ -166,14 +180,37 @@ export function DeckEditorDialog({
         }, 50);
       }, SUCCESS_CLOSE_DELAY_MS);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Could not save this deck.");
+      setActionError(error instanceof Error ? error.message : "Could not save this deck.");
       setSaveState("idle");
     }
   }
 
+  async function handleDelete() {
+    if (!deck?.id) {
+      return;
+    }
+
+    setActionError("");
+    setDeleteState("deleting");
+
+    try {
+      const formData = new FormData();
+      formData.set("deckId", deck.id);
+      const result = await deleteDeckAction(formData);
+      closeDialog();
+      router.push(result.redirectTo);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not delete this deck.");
+      setDeleteState("idle");
+    }
+  }
+
+  const isDeleting = deleteState === "deleting";
+  const isBusy = saveState === "saving" || isDeleting;
+
   return (
     <>
-      <Button onClick={openDialog} variant={triggerVariant}>
+      <Button disabled={isDeleting} onClick={openDialog} variant={triggerVariant}>
         {triggerLabel}
       </Button>
 
@@ -198,6 +235,19 @@ export function DeckEditorDialog({
                 <Button onClick={closeDialog} type="button" variant="secondary">
                   Close
                 </Button>
+                {isEditing ? (
+                  <Button
+                    disabled={isBusy}
+                    onClick={() => {
+                      setActionError("");
+                      setShowDeleteConfirmation((currentValue) => !currentValue);
+                    }}
+                    type="button"
+                    variant="danger"
+                  >
+                    Delete Deck
+                  </Button>
+                ) : null}
                 <SaveButton
                   isEditing={isEditing}
                   onClick={() => formRef.current?.requestSubmit()}
@@ -205,6 +255,40 @@ export function DeckEditorDialog({
                 />
               </div>
             </div>
+            {isEditing && showDeleteConfirmation ? (
+              <section className="mb-5 rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-[var(--color-loss)]">
+                      Delete this deck strategy?
+                    </p>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Saved deck lists will be removed, and linked battle logs will stay in your
+                      account as unlinked records.
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2 sm:flex-nowrap">
+                    <Button
+                      disabled={isBusy}
+                      onClick={() => setShowDeleteConfirmation(false)}
+                      type="button"
+                      variant="secondary"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="whitespace-nowrap"
+                      disabled={isBusy}
+                      onClick={() => void handleDelete()}
+                      type="button"
+                      variant="danger"
+                    >
+                      {isDeleting ? "Deleting..." : "Confirm Delete"}
+                    </Button>
+                  </div>
+                </div>
+              </section>
+            ) : null}
             <form
               className="flex flex-col gap-6"
               onSubmit={(event) => {
@@ -229,9 +313,9 @@ export function DeckEditorDialog({
                 <input key={`${slug}-${index}`} name="deckPokemon" type="hidden" value={slug} />
               ))}
 
-              {saveError ? (
+              {actionError ? (
                 <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-                  {saveError}
+                  {actionError}
                 </p>
               ) : null}
 

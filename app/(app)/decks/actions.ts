@@ -155,6 +155,44 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
   };
 }
 
+export async function deleteDeckAction(formData: FormData): Promise<SaveActionResult> {
+  const user = await requireUser();
+  const supabase = createClient();
+  const deckId = String(formData.get("deckId") || "").trim();
+
+  if (!deckId) {
+    throw new Error("Deck id is required.");
+  }
+
+  const { error: unlinkLogsError } = await supabase
+    .from("logs")
+    .update({
+      linked_deck_id: null,
+      linked_deck_list_id: null
+    })
+    .eq("user_id", user.id)
+    .eq("linked_deck_id", deckId);
+
+  if (unlinkLogsError) {
+    throw unlinkLogsError;
+  }
+
+  const { error: deleteError } = await supabase
+    .from("decks")
+    .delete()
+    .eq("id", deckId)
+    .eq("user_id", user.id);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  return {
+    ok: true,
+    redirectTo: withRefreshToken("/decks")
+  };
+}
+
 export async function saveDeckListAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
   const supabase = createClient();
