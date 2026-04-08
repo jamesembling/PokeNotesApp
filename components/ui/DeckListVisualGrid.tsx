@@ -4,11 +4,20 @@ import type { DeckCard } from "@/types/index";
 
 type DeckListVisualGridProps = {
   cards: DeckCard[];
+  variant?: "standard" | "featured";
 };
 
-export function DeckListVisualGrid({ cards }: DeckListVisualGridProps) {
+const variantClasses: Record<NonNullable<DeckListVisualGridProps["variant"]>, string> = {
+  standard: "grid-cols-4 sm:grid-cols-6 lg:grid-cols-8",
+  featured: "grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6 2xl:grid-cols-7"
+};
+
+export function DeckListVisualGrid({
+  cards,
+  variant = "standard"
+}: DeckListVisualGridProps) {
   return (
-    <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12">
+    <div className={["grid gap-2", variantClasses[variant]].join(" ")}>
       {cards.map((card, index) => (
         <DeckListCard
           cardUrl={buildDeckListCardUrl(card.set, card.number)}

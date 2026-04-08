@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 type BadgeProps = {
   children: ReactNode;
+  className?: string;
   variant?: "default" | "win" | "loss";
 };
 
@@ -13,12 +14,13 @@ const variantClasses: Record<NonNullable<BadgeProps["variant"]>, string> = {
     "border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
 };
 
-export function Badge({ children, variant = "default" }: BadgeProps) {
+export function Badge({ children, className, variant = "default" }: BadgeProps) {
   return (
     <span
       className={[
         "inline-flex items-center rounded-full px-3 py-1 text-[0.72rem] font-semibold tracking-[0.04em]",
-        variantClasses[variant]
+        variantClasses[variant],
+        className
       ].join(" ")}
     >
       {children}

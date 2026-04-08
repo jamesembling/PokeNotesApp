@@ -192,6 +192,8 @@ export function LogsManager({
     windowStartDate && windowEndDate
       ? `${formatRangeDate(windowStartDate)} - ${formatRangeDate(windowEndDate)}`
       : "";
+  const totalWins = visibleLogs.reduce((sum, log) => sum + (log.result === "Win" ? 1 : 0), 0);
+  const totalLosses = visibleLogs.reduce((sum, log) => sum + (log.result === "Loss" ? 1 : 0), 0);
 
   useEffect(() => {
     setVisibleLogs(initialLogs);
@@ -317,57 +319,89 @@ export function LogsManager({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="ui-eyebrow">All Logs</p>
-          <h2 className="ui-section-title mt-1 text-[1.7rem]">
-            By Date
-          </h2>
-          {canLoadMore && currentWindowSummary ? (
-            <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
-              Showing {currentWindowSummary}. Load more to include older logs.
-            </p>
-          ) : null}
+      <section className="grid gap-4 rounded-[26px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)] xl:items-start">
+        <div className="space-y-4">
+          <div>
+            <p className="ui-eyebrow">All Logs</p>
+            <h2 className="ui-section-title mt-1 text-[1.7rem]">By Date</h2>
+            {currentWindowSummary ? (
+              <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
+                Showing {currentWindowSummary}
+                {canLoadMore ? ". Load more to include older logs." : "."}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[18px] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+              <p className="ui-eyebrow">Visible Logs</p>
+              <p className="font-display mt-2 text-[1.6rem] font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
+                {visibleLogs.length}
+              </p>
+            </div>
+            <div className="rounded-[18px] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+              <p className="ui-eyebrow">Visible Days</p>
+              <p className="font-display mt-2 text-[1.6rem] font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
+                {groups.length}
+              </p>
+            </div>
+            <div className="rounded-[18px] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+              <p className="ui-eyebrow">Record</p>
+              <p className="font-display mt-2 text-[1.6rem] font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
+                {totalWins}-{totalLosses}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {isManagementMode ? (
-            <>
-              <button
-                className="ui-control-text text-[var(--text-muted)] transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!canDeleteSelected}
-                onClick={handleDeleteSelected}
-                type="button"
-              >
-                Delete Selected{selectedCount ? ` (${selectedCount})` : ""}
-              </button>
+        <div className="grid gap-3 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="ui-eyebrow">Workspace Tools</p>
+            {canLoadMore ? <Badge>More available</Badge> : <Badge>Current window complete</Badge>}
+          </div>
 
-              {visibleLogs.length > 0 ? (
-                <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-[var(--text-muted)]">
-                  <input
-                    checked={allSelected}
-                    className="h-5 w-5 cursor-pointer rounded border-[var(--border)] bg-[var(--bg-surface)]"
-                    onChange={toggleSelectAll}
-                    type="checkbox"
-                  />
-                  <span>Select All</span>
-                </label>
-              ) : null}
-            </>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              className="gap-2"
+              onClick={() => setIsManagementMode((current) => !current)}
+              variant="secondary"
+            >
+              <PencilIcon className="h-4 w-4" />
+              {isManagementMode ? "Done Editing" : "Edit Logs"}
+            </Button>
 
-          {canLoadMore ? <Badge>More available</Badge> : null}
+            {isManagementMode ? (
+              <>
+                <button
+                  className="ui-control-text text-[var(--text-muted)] transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!canDeleteSelected}
+                  onClick={handleDeleteSelected}
+                  type="button"
+                >
+                  Delete Selected{selectedCount ? ` (${selectedCount})` : ""}
+                </button>
 
-          <Button
-            className="gap-2"
-            onClick={() => setIsManagementMode((current) => !current)}
-            variant="secondary"
-          >
-            <PencilIcon className="h-4 w-4" />
-            {isManagementMode ? "Done Editing" : "Edit Logs"}
-          </Button>
+                {visibleLogs.length > 0 ? (
+                  <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-[var(--text-muted)]">
+                    <input
+                      checked={allSelected}
+                      className="h-5 w-5 cursor-pointer rounded border-[var(--border)] bg-[var(--bg-surface)]"
+                      onChange={toggleSelectAll}
+                      type="checkbox"
+                    />
+                    <span>Select All</span>
+                  </label>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+
+          <p className="text-sm leading-6 text-[var(--text-muted)]">
+            Review grouped results, bulk-link saved deck lists, or switch into editing mode to
+            clean up imported logs.
+          </p>
         </div>
-      </div>
+      </section>
 
       {isManagementMode ? (
         <section className="grid gap-3 rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
@@ -426,18 +460,28 @@ export function LogsManager({
       {groups.length > 0 ? (
         groups.map((group, index) => (
           <details
-            className="group border-b border-[var(--border)] py-1"
+            className="group rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-1 shadow-[var(--shadow-sm)]"
             key={group.date}
             open={index === 0}
           >
-            <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden">
-              <div>
+            <summary className="grid cursor-pointer list-none gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center [&::-webkit-details-marker]:hidden">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                <div>
                 <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
                   {formatGroupDate(group.date)}
                 </h3>
                 <p className="mt-1 text-sm text-[var(--text-muted)]">
                   {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
                 </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Badge className="justify-center min-w-[6.25rem]" variant="win">
+                    {group.wins} wins
+                  </Badge>
+                  <Badge className="justify-center min-w-[6.25rem]" variant="loss">
+                    {group.losses} losses
+                  </Badge>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <div className="text-right">
@@ -452,7 +496,7 @@ export function LogsManager({
               </div>
             </summary>
 
-            <div className="flex flex-col gap-3 pb-5">
+            <div className="flex flex-col gap-3 border-t border-[var(--border)] pb-5 pt-4">
               {group.logs.map((log) => (
                 <LogRow
                   editAction={
@@ -495,7 +539,9 @@ export function LogsManager({
           {loadMoreError ? (
             <p className="text-sm font-medium text-[var(--color-loss-strong)]">{loadMoreError}</p>
           ) : (
-            <span />
+            <p className="text-sm text-[var(--text-muted)]">
+              Continue loading older windows to extend the visible log history.
+            </p>
           )}
           <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="secondary">
             {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}

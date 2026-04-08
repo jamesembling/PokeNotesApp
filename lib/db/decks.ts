@@ -1,4 +1,5 @@
 import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
+import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { createClient } from "@/lib/supabase/server";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
@@ -149,6 +150,22 @@ function parseDeckList(value: unknown): DeckList | null {
   };
 }
 
+async function resolveSortedDeckCards(parsedCards: DeckCard[], storedSortedCards: DeckCard[]) {
+  if (parsedCards.length === 0) {
+    return [];
+  }
+
+  try {
+    return await sortDeckListCards(parsedCards);
+  } catch {
+    if (storedSortedCards.length > 0) {
+      return storedSortedCards;
+    }
+
+    return sortDeckListCardsLocally(parsedCards);
+  }
+}
+
 function parseDeckLists(value: unknown): DeckList[] {
   if (!Array.isArray(value)) {
     return [];
@@ -280,7 +297,13 @@ async function deriveDeckPokemon(deckName: string, deckLists: DeckList[]): Promi
 }
 
 async function mapDeckSummary(row: DeckSummaryRow): Promise<DeckSummary> {
-  const deckLists = parseDeckLists(row.deck_lists);
+  const parsedDeckLists = parseDeckLists(row.deck_lists);
+  const deckLists = await Promise.all(
+    parsedDeckLists.map(async (deckList) => ({
+      ...deckList,
+      sortedCards: await resolveSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
+    }))
+  );
   const storedDeckPokemon = parseStringArray(row.deck_pokemon);
   const normalizedStoredDeckPokemon = await normalizeDeckPokemon(storedDeckPokemon);
   const deckPokemon =
@@ -302,13 +325,15 @@ async function mapDeckSummary(row: DeckSummaryRow): Promise<DeckSummary> {
 }
 
 async function mapDeck(row: DeckRow): Promise<Deck> {
+  const deckSummary = await mapDeckSummary(row);
+
   return {
-    ...(await mapDeckSummary(row)),
+    ...deckSummary,
     coreStrategy: row.core_strategy ?? "",
     generalNotes: row.general_notes ?? "",
     setupGoals: parseStringArray(row.setup_goals),
     resourcePlan: row.resource_plan ?? "",
-    deckLists: parseDeckLists(row.deck_lists)
+    deckLists: deckSummary.deckLists
   };
 }
 
@@ -406,7 +431,13 @@ export async function getDeckWithList(
   }
 
   const row = (data as unknown) as DeckListLookupRow;
-  const deckLists = parseDeckLists(row.deck_lists);
+  const parsedDeckLists = parseDeckLists(row.deck_lists);
+  const deckLists = await Promise.all(
+    parsedDeckLists.map(async (deckList) => ({
+      ...deckList,
+      sortedCards: await resolveSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
+    }))
+  );
   const deckList = deckLists.find((entry) => entry.id === listId);
 
   if (!deckList) {

@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { StatCard } from "@/components/ui/StatCard";
+import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import {
   analyzeDecklist,
   buildReportPngBlob,
@@ -53,6 +54,7 @@ Energy: 10
 export function ProbabilityCalculator() {
   const [deckInput, setDeckInput] = useState("");
   const [analysis, setAnalysis] = useState<CalculatorAnalysis | null>(null);
+  const [deckVisualCards, setDeckVisualCards] = useState<CalculatorAnalysis["cards"]>([]);
   const [activeTab, setActiveTab] = useState<TabId>("setup");
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"info" | "warn">("info");
@@ -86,9 +88,38 @@ export function ProbabilityCalculator() {
     };
   }, [analysis]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveDeckVisualCards() {
+      if (!analysis?.cards.length) {
+        setDeckVisualCards([]);
+        return;
+      }
+
+      try {
+        const sortedCards = await sortDeckListCards(analysis.cards);
+        if (!cancelled) {
+          setDeckVisualCards(sortedCards as CalculatorAnalysis["cards"]);
+        }
+      } catch {
+        if (!cancelled) {
+          setDeckVisualCards(analysis.cards);
+        }
+      }
+    }
+
+    void resolveDeckVisualCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [analysis]);
+
   function runCalculation(input: string) {
     const result = analyzeDecklist(input);
     setAnalysis(result);
+    setDeckVisualCards(result.cards);
     setActiveTab("setup");
     setStatusMessage("");
     setStatusTone("info");
@@ -102,6 +133,7 @@ export function ProbabilityCalculator() {
   function handleClear() {
     setDeckInput("");
     setAnalysis(null);
+    setDeckVisualCards([]);
     setActiveTab("setup");
     setStatusMessage("");
     setStatusTone("info");
@@ -225,20 +257,6 @@ export function ProbabilityCalculator() {
           <div className="grid gap-6 xl:border-l xl:border-[var(--border)] xl:pl-6">
             <section className="grid gap-4">
               <div className="space-y-1">
-                <p className="ui-eyebrow">Deck Visual</p>
-                <h2 className="ui-section-title">60-Card Graphic</h2>
-              </div>
-              {analysis ? (
-                <DeckListVisualGrid cards={analysis.cards} />
-              ) : (
-                <p className="text-sm leading-6 text-[var(--text-muted)]">
-                  Card images will appear here after calculation.
-                </p>
-              )}
-            </section>
-
-            <section className="grid gap-4">
-              <div className="space-y-1">
                 <p className="ui-eyebrow">Opening Hand Risk</p>
                 <h2 className="ui-section-title">Mulligan Stats</h2>
               </div>
@@ -259,6 +277,20 @@ export function ProbabilityCalculator() {
                   value={summary.twoBasics}
                 />
               </div>
+            </section>
+
+            <section className="grid gap-4">
+              <div className="space-y-1">
+                <p className="ui-eyebrow">Deck Visual</p>
+                <h2 className="ui-section-title">60-Card Graphic</h2>
+              </div>
+              {analysis ? (
+                <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
+              ) : (
+                <p className="text-sm leading-6 text-[var(--text-muted)]">
+                  Card images will appear here after calculation.
+                </p>
+              )}
             </section>
           </div>
         </div>
@@ -367,7 +399,7 @@ export function ProbabilityCalculator() {
 
           {activeTab === "setup" ? (
             setupCards.length ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {setupCards.map((row) => (
                   <ProbabilityCard
                     card={row.card}
@@ -385,7 +417,7 @@ export function ProbabilityCalculator() {
               </p>
             )
           ) : prizingCards.length ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {prizingCards.map((row) => (
                 <ProbabilityCard
                   card={row.card}
@@ -418,7 +450,7 @@ function ProbabilityCard({
   stats: Array<{ label: string; value: string }>;
 }) {
   return (
-    <article className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4">
+    <article className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5">
       <div className="flex gap-3">
         {card.category === "Pokemon" ? (
           <img
@@ -444,12 +476,7 @@ function ProbabilityCard({
         </div>
       </div>
 
-      <dl
-        className={[
-          "mt-4 grid gap-4",
-          stats.length > 2 ? "grid-cols-2 xl:grid-cols-4" : "grid-cols-2"
-        ].join(" ")}
-      >
+      <dl className={["mt-4 grid gap-4", stats.length > 2 ? "grid-cols-2" : "grid-cols-2"].join(" ")}>
         {stats.map((stat) => (
           <div className="grid gap-1" key={stat.label}>
             <dt className="ui-eyebrow">

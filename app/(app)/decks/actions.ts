@@ -1,7 +1,6 @@
 "use server";
 
 import { requireUser } from "@/lib/auth";
-import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { parseDeckList, parseLines } from "@/lib/decks/deck-list-parse";
 import { getDefaultDeckFormat } from "@/lib/decks/formats";
@@ -59,17 +58,10 @@ function getCurrentDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
 async function buildSortedDeckListCards(rawList: string) {
   const parsedCards = parseDeckList(rawList);
 
-  try {
-    return {
-      parsedCards,
-      sortedCards: await sortDeckListCards(parsedCards)
-    };
-  } catch {
-    return {
-      parsedCards,
-      sortedCards: sortDeckListCardsLocally(parsedCards)
-    };
-  }
+  return {
+    parsedCards,
+    sortedCards: await sortDeckListCards(parsedCards)
+  };
 }
 
 type SaveActionResult = {
@@ -231,7 +223,17 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
   }
 
   const timestamp = new Date().toISOString();
-  const { parsedCards, sortedCards } = await buildSortedDeckListCards(rawList);
+  let parsedCards;
+  let sortedCards;
+  try {
+    const sortedDeckListCards = await buildSortedDeckListCards(rawList);
+    parsedCards = sortedDeckListCards.parsedCards;
+    sortedCards = sortedDeckListCards.sortedCards;
+  } catch {
+    throw new Error(
+      "We couldn't apply the canonical deck ordering right now. Please try saving again in a moment."
+    );
+  }
 
   const nextDeckList = {
     id: deckListId || crypto.randomUUID(),
