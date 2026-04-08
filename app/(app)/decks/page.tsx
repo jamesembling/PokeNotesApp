@@ -14,6 +14,7 @@ export default async function DecksPage() {
     <>
       <PageHeader
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Deck Strategy" }]}
+        showDivider={false}
         title="Deck Strategy"
         subtitle="Your saved deck strategies and battle records."
         action={<DeckEditorDialog pokemonOptions={pokemonOptions} triggerLabel="New Deck" />}

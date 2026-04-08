@@ -18,19 +18,19 @@ export function StatCard({
   valueColor = "default"
 }: StatCardProps) {
   return (
-    <div className="rounded-xl bg-[var(--bg-surface-alt)] p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+    <div className="grid h-full grid-rows-[2rem_auto_1fr] rounded-xl bg-[var(--bg-surface-alt)] p-4">
+      <p className="text-xs font-medium uppercase leading-tight tracking-wide text-[var(--text-muted)]">
         {label}
       </p>
       <p
         className={[
-          "font-display mt-2 text-3xl font-semibold tracking-[-0.04em] [font-variant-numeric:tabular-nums]",
+          "font-display text-3xl font-semibold leading-none tracking-[-0.04em] [font-variant-numeric:tabular-nums]",
           valueClasses[valueColor]
         ].join(" ")}
       >
         {value}
       </p>
-      {detail ? <p className="mt-1 text-xs text-[var(--text-muted)]">{detail}</p> : null}
+      {detail ? <p className="mt-1 self-end text-xs text-[var(--text-muted)]">{detail}</p> : null}
     </div>
   );
 }

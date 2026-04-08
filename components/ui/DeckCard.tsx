@@ -26,7 +26,7 @@ export function DeckCard({ deck }: DeckCardProps) {
 
   return (
     <Link className="block h-full" href={`/decks/${deck.id}`}>
-      <Card className="flex h-full flex-col gap-5 transition hover:translate-y-[-1px] hover:border-[var(--color-brand)]">
+      <Card className="flex h-full flex-col gap-4 transition hover:translate-y-[-1px] hover:border-[var(--color-brand)]">
         <div className="flex items-start justify-between gap-4">
           <SpriteStrip size="sm" sprites={deck.deckPokemon} />
           <div className="shrink-0">
@@ -43,18 +43,18 @@ export function DeckCard({ deck }: DeckCardProps) {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 rounded-[18px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
-          <div className="space-y-1">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-[var(--border)] pt-4">
+          <div className="space-y-1 min-w-0">
             <p className="ui-eyebrow">Approach</p>
             <p className="text-sm font-medium text-[var(--text-primary)]">{strategySignals[0]}</p>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <p className="ui-eyebrow">Profile</p>
             <p className="text-sm font-medium text-[var(--text-primary)]">{strategySignals[1]}</p>
           </div>
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--border)] pt-4">
+        <div className="mt-auto flex items-center justify-between gap-3 pt-2">
           <div className="space-y-1">
             <p className="ui-eyebrow">Updated</p>
             <p className="text-sm text-[var(--text-muted)]">{formatUpdatedDate(deck.updatedAt)}</p>

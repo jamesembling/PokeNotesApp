@@ -8,11 +8,8 @@ import { StatCard } from "@/components/ui/StatCard";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import {
   analyzeDecklist,
-  buildReportPngBlob,
-  downloadBlob,
   getPokemonSpriteUrl,
   pct,
-  reportTimestamp,
   type CalculatorAnalysis,
   type CalculatorCardGroup
 } from "@/lib/probability-calculator";
@@ -62,11 +59,10 @@ export function ProbabilityCalculator() {
   const [activeTab, setActiveTab] = useState<TabId>("setup");
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"info" | "warn">("info");
-  const [isExporting, setIsExporting] = useState(false);
 
   const showStatus = Boolean(statusMessage) || Boolean(analysis?.warnings.length) || Boolean(analysis);
   const statusClassName = [
-    "rounded-xl border p-4",
+    "h-[9.5rem] overflow-y-auto rounded-xl border p-4",
     analysis?.warnings.length || statusTone === "warn"
       ? "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
       : "border-[var(--color-brand)]/15 bg-[var(--color-brand)]/5"
@@ -110,16 +106,14 @@ export function ProbabilityCalculator() {
       return {
         mulligan: "--",
         oneBasic: "--",
-        twoBasics: "--",
-        singleHandRisk: "--"
+        twoBasics: "--"
       };
     }
 
     return {
       mulligan: pct(analysis.mulliganProbability),
       oneBasic: pct(analysis.exactlyOneBasicProbability),
-      twoBasics: pct(analysis.twoOrMoreBasicsProbability),
-      singleHandRisk: pct(analysis.mulliganProbability)
+      twoBasics: pct(analysis.twoOrMoreBasicsProbability)
     };
   }, [analysis]);
 
@@ -174,54 +168,11 @@ export function ProbabilityCalculator() {
     setStatusTone("info");
   }
 
-  async function handleExport() {
-    if (!analysis || analysis.cards.length === 0) {
-      setStatusTone("warn");
-      setStatusMessage("Run Calculate first, then use Share PNG.");
-      return;
-    }
-
-    const filename = `deckprep-probability-report-${reportTimestamp(new Date())}.png`;
-    setIsExporting(true);
-    setStatusMessage("");
-    setStatusTone("info");
-
-    try {
-      const blob = await buildReportPngBlob(analysis);
-      const file = new File([blob], filename, { type: "image/png" });
-      const canNativeShareFile =
-        typeof navigator.share === "function" &&
-        (typeof navigator.canShare !== "function" || navigator.canShare({ files: [file] }));
-
-      if (canNativeShareFile) {
-        await navigator.share({
-          files: [file],
-          title: "Poke Notes Probability Report"
-        });
-      } else {
-        downloadBlob(blob, filename);
-      }
-
-      setStatusTone("info");
-      setStatusMessage(`Exported ${filename}.`);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return;
-      }
-
-      const message = error instanceof Error ? error.message : String(error);
-      setStatusTone("warn");
-      setStatusMessage(message);
-    } finally {
-      setIsExporting(false);
-    }
-  }
-
   return (
     <section className="grid gap-6">
       <Card>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-          <div className="grid gap-4">
+        <div className="grid gap-6 xl:items-start xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+          <div className="grid content-start gap-4">
             <div className="space-y-2">
               <p className="ui-eyebrow">Deck Input</p>
               <div className="space-y-1">
@@ -240,7 +191,7 @@ export function ProbabilityCalculator() {
                 Deck List
               </label>
               <textarea
-                className="min-h-[320px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm leading-6 text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                className="h-[320px] w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm leading-6 text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                 id="calculator-deck-input"
                 onChange={(event) => setDeckInput(event.target.value)}
                 placeholder="Paste your deck list here"
@@ -257,13 +208,11 @@ export function ProbabilityCalculator() {
               <Button onClick={handleClear} variant="secondary">
                 Clear
               </Button>
-              <Button disabled={!analysis || isExporting} onClick={handleExport} variant="secondary">
-                {isExporting ? "Generating..." : "Share PNG"}
-              </Button>
             </div>
 
-            {showStatus ? (
-              <section className={statusClassName}>
+            <section className={statusClassName}>
+              {showStatus ? (
+                <>
                 {analysis ? (
                   <p className="text-sm leading-6 text-[var(--text-primary)]">
                     Parsed {analysis.cards.length} unique cards: {analysis.totals.Pokemon} Pokemon,{" "}
@@ -285,17 +234,26 @@ export function ProbabilityCalculator() {
                     ))}
                   </ul>
                 ) : null}
-              </section>
-            ) : null}
+                </>
+              ) : (
+                <p className="text-sm leading-6 text-[var(--text-muted)]">
+                  Paste a deck list and click Calculate to review parsed counts, warnings, and setup stats.
+                </p>
+              )}
+            </section>
           </div>
 
-          <div className="grid gap-6 xl:border-l xl:border-[var(--border)] xl:pl-6">
+          <div className="grid gap-5 xl:border-l xl:border-[var(--border)] xl:pl-6">
             <section className="grid gap-4">
               <div className="space-y-1">
                 <p className="ui-eyebrow">Opening Hand Risk</p>
-                <h2 className="ui-section-title">Mulligan Stats</h2>
+                <h2 className="ui-section-title">Mulligan Stats and Deck Visual</h2>
+                <p className="text-sm text-[var(--text-muted)]">
+                  Review your opening-hand probabilities first, then scan the sorted 60-card visual below.
+                </p>
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
+
+              <div className="grid gap-3 sm:grid-cols-3">
                 <StatCard
                   detail="Chance your opening hand has no Basic Pokemon."
                   label="Mulligan Rate"
@@ -312,20 +270,25 @@ export function ProbabilityCalculator() {
                   value={summary.twoBasics}
                 />
               </div>
-            </section>
 
-            <section className="grid gap-4">
-              <div className="space-y-1">
-                <p className="ui-eyebrow">Deck Visual</p>
-                <h2 className="ui-section-title">60-Card Graphic</h2>
+              <div className="rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5">
+                <div className="space-y-1">
+                  <p className="ui-eyebrow">Deck Visual</p>
+                  <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+                    60-Card Graphic
+                  </h3>
+                </div>
+
+                <div className="mt-4">
+                  {analysis ? (
+                    <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
+                  ) : (
+                    <p className="text-sm leading-6 text-[var(--text-muted)]">
+                      Card images will appear here after calculation.
+                    </p>
+                  )}
+                </div>
               </div>
-              {analysis ? (
-                <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
-              ) : (
-                <p className="text-sm leading-6 text-[var(--text-muted)]">
-                  Card images will appear here after calculation.
-                </p>
-              )}
             </section>
           </div>
         </div>

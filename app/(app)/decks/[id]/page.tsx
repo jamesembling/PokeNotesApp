@@ -30,18 +30,31 @@ function formatDate(date: string) {
 
 function StrategySection({
   kicker,
-  children
+  children,
+  variant = "light"
 }: {
   kicker: string;
   children: React.ReactNode;
+  variant?: "hero" | "light";
 }) {
+  if (variant === "hero") {
+    return (
+      <Card>
+        <div className="space-y-4">
+          <p className="ui-eyebrow">{kicker}</p>
+          {children}
+        </div>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
-      <div className="space-y-4">
+    <section className="border-t border-[var(--border)] pt-6">
+      <div className="space-y-3">
         <p className="ui-eyebrow">{kicker}</p>
         {children}
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -173,7 +186,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       </Card>
 
       {deck.coreStrategy ? (
-        <StrategySection kicker="CORE STRATEGY">
+        <StrategySection kicker="CORE STRATEGY" variant="hero">
           <p className="whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
             {deck.coreStrategy}
           </p>

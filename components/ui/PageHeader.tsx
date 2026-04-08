@@ -11,13 +11,15 @@ type PageHeaderProps = {
   title: string;
   subtitle?: string;
   action?: ReactNode;
+  showDivider?: boolean;
 };
 
 export function PageHeader({
   breadcrumb,
   title,
   subtitle,
-  action
+  action,
+  showDivider = true
 }: PageHeaderProps) {
   return (
     <header className="flex flex-col gap-4">
@@ -58,7 +60,7 @@ export function PageHeader({
         {action ? <div className="sm:shrink-0">{action}</div> : null}
       </div>
 
-      <div className="border-b border-[var(--border)]" />
+      {showDivider ? <div className="border-b border-[var(--border)]" /> : null}
     </header>
   );
 }
