@@ -1,0 +1,42 @@
+{
+  "name": "impeccable-skills",
+  "version": "0.1.0",
+  "description": "Design fluency skills for Codex, packaged from the Impeccable multi-tool skill bundle.",
+  "author": {
+    "name": "Impeccable",
+    "email": "[TODO: author-email]",
+    "url": "https://impeccable.style"
+  },
+  "homepage": "https://impeccable.style",
+  "repository": "[TODO: repository-url]",
+  "license": "[TODO: license]",
+  "keywords": [
+    "design",
+    "ux",
+    "frontend",
+    "writing",
+    "skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Impeccable Skills",
+    "shortDescription": "Design and UX fluency skills for Codex",
+    "longDescription": "A Codex plugin packaging the Impeccable skill bundle, including design critique, typography, frontend design, polishing, clarification, and related workflow skills.",
+    "developerName": "Impeccable",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://impeccable.style",
+    "privacyPolicyURL": "[TODO: privacy-policy-url]",
+    "termsOfServiceURL": "[TODO: terms-of-service-url]",
+    "defaultPrompt": [
+      "Use i-frontend-design to improve this interface.",
+      "Review this screen with i-critique and suggest fixes.",
+      "Polish this copy and layout with the Impeccable skills."
+    ],
+    "brandColor": "#111111"
+  }
+}

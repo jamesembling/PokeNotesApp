@@ -1,0 +1,20 @@
+{
+  "name": "pokenotes-local",
+  "interface": {
+    "displayName": "PokeNotes Local Plugins"
+  },
+  "plugins": [
+    {
+      "name": "impeccable-skills",
+      "source": {
+        "source": "local",
+        "path": "./plugins/impeccable-skills"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
