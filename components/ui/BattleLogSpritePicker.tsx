@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { prettifyPokemonSlug } from "@/lib/battle-log/display";
 import type { PokemonOption } from "@/types/index";
@@ -35,15 +36,14 @@ function SpriteThumb({ slug }: { slug: string }) {
   }
 
   return (
-    <img
+    <Image
       alt={prettifyPokemonSlug(slug)}
       className="h-12 w-12 shrink-0 object-contain"
       height={48}
-      loading="lazy"
       onError={(event) => {
-        event.currentTarget.style.display = "none";
         setHasError(true);
       }}
+      sizes="48px"
       src={`https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`}
       width={48}
     />

@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 type DeckListCardProps = {
   name: string;
   count: number;
@@ -22,20 +24,20 @@ export function DeckListCard({
     >
       <div className="relative overflow-visible" style={{ aspectRatio: "0.715" }}>
         <div className="absolute inset-0 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
-        <img
+        <Image
           alt={name}
+          fill
           className="relative h-full w-full object-contain transition"
-          decoding="async"
-          loading="lazy"
+          sizes="(max-width: 640px) 22vw, (max-width: 1024px) 16vw, 120px"
           src={imageUrl}
           style={{
             filter: "drop-shadow(0 2.5px 3.5px rgba(15,23,42,0.34)) drop-shadow(0 0.75px 1.5px rgba(15,23,42,0.22))"
           }}
         />
-        <img
+        <Image
           alt={`${count} copies`}
-          decoding="async"
-          loading="lazy"
+          height={46}
+          sizes="46px"
           src={badgeImageUrl}
           style={{
             position: "absolute",
@@ -47,6 +49,7 @@ export function DeckListCard({
             zIndex: 1,
             pointerEvents: "none"
           }}
+          width={46}
         />
       </div>
     </a>

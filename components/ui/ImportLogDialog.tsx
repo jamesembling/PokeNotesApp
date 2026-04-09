@@ -10,9 +10,9 @@ import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/ty
 
 type ImportLogDialogProps = {
   className?: string;
+  initialOpen?: boolean;
   pokemonOptions: PokemonOption[];
   userDecks: DeckSummary[];
-  userId: string;
 };
 
 type Stage = "raw" | "review";
@@ -51,11 +51,11 @@ function SaveButton() {
 
 export function ImportLogDialog({
   className,
+  initialOpen = false,
   pokemonOptions,
-  userDecks,
-  userId
+  userDecks
 }: ImportLogDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [stage, setStage] = useState<Stage>("raw");
   const [rawLog, setRawLog] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
@@ -235,7 +235,7 @@ export function ImportLogDialog({
 
   return (
     <>
-      <Button className={className} data-user-id={userId} onClick={openDialog}>
+      <Button className={className} onClick={openDialog}>
         Import PTCGL Log
       </Button>
 

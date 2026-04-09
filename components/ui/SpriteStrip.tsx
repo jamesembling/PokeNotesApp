@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 type SpriteStripProps = {
@@ -56,15 +57,14 @@ function SpriteStripItem({
   const src = `https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`;
 
   return (
-    <img
+    <Image
       alt={prettifyPokemonSlug(slug)}
       className={[sizeClasses[size], "object-contain"].join(" ")}
       height={sizeValues[size]}
-      loading="lazy"
       onError={(event) => {
-        event.currentTarget.style.display = "none";
         setHasError(true);
       }}
+      sizes={`${sizeValues[size]}px`}
       src={src}
       width={sizeValues[size]}
     />

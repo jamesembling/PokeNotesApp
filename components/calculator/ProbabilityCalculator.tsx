@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -483,14 +484,17 @@ function ProbabilityComparisonRow({
         >
           <div className="flex min-w-0 items-center gap-3">
             {card.category === "Pokemon" ? (
-              <img
+              <Image
                 alt=""
+                aria-hidden="true"
                 className="h-10 w-10 shrink-0 object-contain"
-                loading="lazy"
+                height={40}
                 onError={(event) => {
                   event.currentTarget.style.display = "none";
                 }}
+                sizes="40px"
                 src={getPokemonSpriteUrl(card.name)}
+                width={40}
               />
             ) : (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
@@ -522,14 +526,17 @@ function ProbabilityComparisonRow({
         <div className="grid gap-3 lg:hidden">
           <div className="flex min-w-0 items-center gap-3">
             {card.category === "Pokemon" ? (
-              <img
+              <Image
                 alt=""
+                aria-hidden="true"
                 className="h-10 w-10 shrink-0 object-contain"
-                loading="lazy"
+                height={40}
                 onError={(event) => {
                   event.currentTarget.style.display = "none";
                 }}
+                sizes="40px"
                 src={getPokemonSpriteUrl(card.name)}
+                width={40}
               />
             ) : (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
@@ -579,14 +586,17 @@ function ProbabilityCompactGrid({
         >
           <div className="flex min-w-0 items-center gap-3">
             {row.card.category === "Pokemon" ? (
-              <img
+              <Image
                 alt=""
+                aria-hidden="true"
                 className="h-10 w-10 shrink-0 object-contain"
-                loading="lazy"
+                height={40}
                 onError={(event) => {
                   event.currentTarget.style.display = "none";
                 }}
+                sizes="40px"
                 src={getPokemonSpriteUrl(row.card.name)}
+                width={40}
               />
             ) : (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">

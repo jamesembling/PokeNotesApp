@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { logAuthDebug } from "@/lib/server/auth-debug";
 
 function getSupabaseEnv() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,6 +16,7 @@ function getSupabaseEnv() {
 export async function middleware(request: NextRequest) {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
 
+  const requestPath = request.nextUrl.pathname;
   let response = NextResponse.next({
     request: {
       headers: request.headers
@@ -26,7 +28,7 @@ export async function middleware(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
@@ -40,11 +42,35 @@ export async function middleware(request: NextRequest) {
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options as CookieOptions);
         });
+
+        if (headers) {
+          Object.entries(headers).forEach(([name, value]) => {
+            response.headers.set(name, value);
+          });
+        }
+
+        logAuthDebug("middleware.setAll", {
+          path: requestPath,
+          cookieNames: cookiesToSet.map(({ name }) => name)
+        });
       }
     }
   });
 
-  await supabase.auth.getClaims();
+  const { data, error } = await supabase.auth.getUser();
+
+  logAuthDebug("middleware.getUser", {
+    path: requestPath,
+    hasUser: Boolean(data.user),
+    error: error?.message ?? null,
+    requestCookieNames: request.cookies.getAll().map(({ name }) => name)
+  });
+
+  if (requestPath.startsWith("/auth/") || requestPath === "/login") {
+    response.headers.set("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0");
+    response.headers.set("Expires", "0");
+    response.headers.set("Pragma", "no-cache");
+  }
 
   return response;
 }

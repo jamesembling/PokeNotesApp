@@ -4,11 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { ImportLogDialog } from "@/components/ui/ImportLogDialog";
 import { CloseIcon, MenuIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
+import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { createClient } from "@/lib/supabase/client";
-import type { DeckSummary, PokemonOption } from "@/types/index";
 
 type SidebarProfile = {
   displayName: string;
@@ -17,9 +16,6 @@ type SidebarProfile = {
 
 type SidebarProps = {
   profile: SidebarProfile;
-  pokemonOptions: PokemonOption[];
-  userDecks: DeckSummary[];
-  userId: string;
 };
 
 const navItems = [
@@ -47,7 +43,7 @@ function SectionLabel({ children }: { children: string }) {
   return <p className="ui-eyebrow">{children}</p>;
 }
 
-export function Sidebar({ profile, pokemonOptions, userDecks, userId }: SidebarProps) {
+export function Sidebar({ profile }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -231,12 +227,7 @@ export function Sidebar({ profile, pokemonOptions, userDecks, userId }: SidebarP
             <div className="mt-8 flex flex-1 flex-col gap-8 overflow-y-auto">
               <div className="space-y-3">
                 <SectionLabel>QUICK ACTIONS</SectionLabel>
-                <ImportLogDialog
-                  className="w-full justify-center"
-                  pokemonOptions={pokemonOptions}
-                  userDecks={userDecks}
-                  userId={userId}
-                />
+                <LazyImportLogButton className="w-full justify-center" />
               </div>
 
               <div className="space-y-3">

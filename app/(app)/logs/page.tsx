@@ -73,7 +73,6 @@ export default async function LogsPage() {
           <ImportLogDialog
             pokemonOptions={pokemonOptions}
             userDecks={userDecks}
-            userId={user.id}
           />
         }
       />
