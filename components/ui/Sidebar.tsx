@@ -98,7 +98,10 @@ export function Sidebar({ profile }: SidebarProps) {
 
   const accountBlock = (
     <div className="border-t border-[var(--border)] pt-4">
-      <div className="flex items-center gap-3">
+      <Link
+        className="flex items-center gap-3 rounded-lg px-1 py-1 transition hover:bg-[var(--bg-surface-alt)]"
+        href="/profile"
+      >
         <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] text-sm font-semibold text-[var(--text-primary)]">
           {initials}
         </div>
@@ -108,7 +111,7 @@ export function Sidebar({ profile }: SidebarProps) {
           </p>
           <p className="truncate text-xs text-[var(--text-muted)]">{profile.email}</p>
         </div>
-      </div>
+      </Link>
       <Button className="mt-4 w-full justify-center" onClick={handleSignOut} variant="secondary">
         Sign Out
       </Button>

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
+import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { createClient } from "@/lib/supabase/server";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
@@ -42,6 +43,8 @@ type DeckListLookupRow = {
   deck_name: string;
   deck_lists: unknown;
 };
+
+const resolvedDeckSortCache = new Map<string, Promise<DeckCard[]>>();
 
 function parsePokemonStage(value: unknown): DeckCard["stage"] {
   return value === "Basic" || value === "Stage 1" || value === "Stage 2"
@@ -158,6 +161,54 @@ function parseDeckLists(value: unknown): DeckList[] {
   return value
     .map((entry) => parseDeckList(entry))
     .filter((entry): entry is DeckList => entry !== null);
+}
+
+function getDeckSortCacheKey(parsedCards: DeckCard[]) {
+  return JSON.stringify(
+    parsedCards.map((card) => ({
+      category: card.category ?? "",
+      count: card.count,
+      name: card.name,
+      number: card.number,
+      set: card.set,
+      stage: card.stage ?? "",
+      trainerType: card.trainerType ?? ""
+    }))
+  );
+}
+
+async function resolveSortedDeckCards(parsedCards: DeckCard[], storedSortedCards: DeckCard[]) {
+  if (parsedCards.length === 0) {
+    return [];
+  }
+
+  const cacheKey = getDeckSortCacheKey(parsedCards);
+  if (!resolvedDeckSortCache.has(cacheKey)) {
+    const request = sortDeckListCards(parsedCards)
+      .catch(() => {
+        if (storedSortedCards.length > 0) {
+          return storedSortedCards;
+        }
+
+        return sortDeckListCardsLocally(parsedCards);
+      })
+      .finally(() => {
+        resolvedDeckSortCache.delete(cacheKey);
+      });
+
+    resolvedDeckSortCache.set(cacheKey, request);
+  }
+
+  return resolvedDeckSortCache.get(cacheKey) ?? storedSortedCards;
+}
+
+async function hydrateDeckListsWithCanonicalSort(deckLists: DeckList[]) {
+  return await Promise.all(
+    deckLists.map(async (deckList) => ({
+      ...deckList,
+      sortedCards: await resolveSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
+    }))
+  );
 }
 
 function stripDeckListCards(deckList: DeckList): DeckList {
@@ -312,6 +363,7 @@ async function mapDeckSummary(row: DeckSummaryRow): Promise<DeckSummary> {
 
 async function mapDeck(row: DeckRow): Promise<Deck> {
   const deckSummary = await mapDeckSummary(row);
+  const hydratedDeckLists = await hydrateDeckListsWithCanonicalSort(parseDeckLists(row.deck_lists));
 
   return {
     ...deckSummary,
@@ -319,7 +371,7 @@ async function mapDeck(row: DeckRow): Promise<Deck> {
     generalNotes: row.general_notes ?? "",
     setupGoals: parseStringArray(row.setup_goals),
     resourcePlan: row.resource_plan ?? "",
-    deckLists: deckSummary.deckLists
+    deckLists: hydratedDeckLists
   };
 }
 
@@ -420,7 +472,7 @@ export async function getDeckWithList(
   }
 
   const row = (data as unknown) as DeckListLookupRow;
-  const deckLists = parseDeckLists(row.deck_lists);
+  const deckLists = await hydrateDeckListsWithCanonicalSort(parseDeckLists(row.deck_lists));
   const deckList = deckLists.find((entry) => entry.id === listId);
 
   if (!deckList) {
