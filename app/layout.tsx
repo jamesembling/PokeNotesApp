@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from "next/font/google";
+import { IBM_Plex_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import "./globals.css";
 
@@ -10,13 +10,6 @@ const bodyFont = IBM_Plex_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-body",
-  display: "swap"
-});
-
-const displayFont = IBM_Plex_Sans_Condensed({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-display",
   display: "swap"
 });
 
@@ -76,7 +69,7 @@ export default function RootLayout({
 
   return (
     <html
-      className={`${bodyFont.variable} ${displayFont.variable} ${initialTheme === "dark" ? "dark" : ""}`}
+      className={`${bodyFont.variable} ${initialTheme === "dark" ? "dark" : ""}`}
       lang="en"
       suppressHydrationWarning
     >

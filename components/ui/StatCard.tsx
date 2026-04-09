@@ -24,7 +24,7 @@ export function StatCard({
       </p>
       <p
         className={[
-          "font-display text-3xl font-semibold leading-none tracking-[-0.04em] [font-variant-numeric:tabular-nums]",
+          "text-3xl font-semibold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]",
           valueClasses[valueColor]
         ].join(" ")}
       >

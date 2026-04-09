@@ -70,7 +70,7 @@ Define these as CSS variables and Tailwind theme extensions. Never hardcode colo
 ```
 font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
 ```
-Use IBM Plex Sans for body copy and interface chrome, with IBM Plex Sans Condensed for page titles and key numeric display moments. This keeps the app serious and analytical, but gives headings more intent than a default product sans. Fallback to system-ui.
+Use IBM Plex Sans throughout the product for body copy, interface chrome, headings, and numeric display moments. The single-family system keeps the app serious and analytical without adding editorial styling that competes with the data. Fallback to system-ui.
 
 ### Scale
 
@@ -80,7 +80,7 @@ Use IBM Plex Sans for body copy and interface chrome, with IBM Plex Sans Condens
 | Section heading | `text-xl` (20px) | `font-bold` | `text-primary` | H2 |
 | Card heading | `text-base` (16px) | `font-semibold` | `text-primary` | H3 |
 | Kicker | `text-xs` (12px) | `font-semibold uppercase tracking-widest` | `text-kicker` | E.g. "OVERVIEW", "ALL LOGS" |
-| Body | `text-sm` (14px) | `font-normal` | `text-secondary` | Default prose |
+| Body | `text-base` (16px) | `font-normal` | `text-secondary` | Default prose |
 | Supporting / muted | `text-sm` (14px) | `font-normal` | `text-muted` | Subtitles, descriptions |
 | Stat value | `text-3xl` (30px) | `font-bold` | `text-primary` | Large numbers in stat cards |
 | Stat label | `text-xs` (12px) | `font-medium` | `text-muted` | Labels above stat values |
@@ -91,6 +91,7 @@ Use IBM Plex Sans for body copy and interface chrome, with IBM Plex Sans Condens
 - Kickers always uppercase, always tracked wide, never bold beyond semibold
 - Stat values always `text-3xl font-bold` — never vary this across pages
 - Muted text is never smaller than `text-xs`
+- Default body copy should stay at `text-base` for readability in dense app flows
 
 ---
 
@@ -165,7 +166,7 @@ Used at the top of every page. No exceptions.
 Renders:
 - Breadcrumb: `Poke Notes / Battle Logs` in `text-muted text-sm`
 - Title: `text-3xl font-bold text-primary`
-- Subtitle: `text-sm text-muted`
+- Subtitle: `text-base text-muted`
 - Divider line beneath
 - Optional right-aligned action button
 

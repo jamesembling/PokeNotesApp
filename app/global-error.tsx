@@ -59,7 +59,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 margin: "12px 0 8px",
                 fontSize: "32px",
                 lineHeight: 1.05,
-                fontFamily: "var(--font-display), var(--font-body), system-ui, sans-serif",
+                fontFamily: "var(--font-body), system-ui, -apple-system, sans-serif",
                 fontWeight: 600,
                 letterSpacing: "-0.04em"
               }}

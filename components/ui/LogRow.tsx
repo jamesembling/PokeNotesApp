@@ -65,14 +65,17 @@ function LogRowComponent({
   const content = (
     <>
       <div className="hidden min-w-0 items-center justify-start sm:flex">
-        <SpriteStrip className="-space-x-2 gap-0" size="md" sprites={selfSprites} />
+        <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={selfSprites} />
       </div>
 
       <div className="min-w-0 text-left">
-        <p className="font-display block whitespace-normal text-[1.12rem] font-semibold leading-[1.15] tracking-[-0.03em] text-[var(--text-primary)] sm:truncate">
+        <p className="block whitespace-normal text-[1.06rem] font-semibold leading-[1.25] tracking-[-0.015em] text-[var(--text-primary)] sm:truncate">
           {log.result} vs {opponentDeckName}
+          {log.opponentPlayerName ? (
+            <span className="font-normal"> ({log.opponentPlayerName})</span>
+          ) : null}
         </p>
-        <p className="mt-1 text-[0.94rem] leading-[1.25] text-[var(--text-muted)]">
+        <p className="mt-1 text-base leading-6 text-[var(--text-muted)]">
           {metadata}
         </p>
       </div>
@@ -82,7 +85,7 @@ function LogRowComponent({
       </div>
 
       <div className="hidden min-w-0 items-center justify-end sm:flex">
-        <SpriteStrip className="-space-x-2 gap-0" size="md" sprites={log.opponentDeckSprites} />
+        <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={log.opponentDeckSprites} />
       </div>
     </>
   );
