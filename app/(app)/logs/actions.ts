@@ -2,7 +2,6 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
@@ -217,7 +216,7 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
   }
 }
 
-export async function importLogAction(formData: FormData): Promise<void> {
+export async function importLogAction(formData: FormData): Promise<SaveActionResult> {
   const rawLogInput = String(formData.get("rawLog") || "").trim();
   const review = await buildParsedLogReview(rawLogInput);
   const { user, supabase } = await getImportContext();
@@ -271,7 +270,11 @@ export async function importLogAction(formData: FormData): Promise<void> {
   }
 
   revalidateWorkspaceViews();
-  redirect(`/logs/${record.id}`);
+
+  return {
+    ok: true,
+    redirectTo: `/logs/${record.id}`
+  };
 }
 
 export async function updateLogAction(formData: FormData): Promise<SaveActionResult> {

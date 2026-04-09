@@ -357,7 +357,7 @@ export function BattleLogSpritePicker({
           <span>Swap</span>
         </button>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         {[0, 1].map((index) => {
           const currentSlug = sprites[index] ?? "";
 
