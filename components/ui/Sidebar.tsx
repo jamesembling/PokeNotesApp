@@ -164,6 +164,9 @@ export function Sidebar({ profile }: SidebarProps) {
               <nav className="flex flex-col gap-1" aria-label="Primary">
                 {navItems.map((item) => renderNavLink(item.label, item.href))}
               </nav>
+              <div className="pt-3">
+                <LazyImportLogButton className="w-full justify-center" />
+              </div>
             </div>
           </div>
 

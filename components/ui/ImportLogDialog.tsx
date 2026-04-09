@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/types/index";
 
@@ -68,6 +69,7 @@ export function ImportLogDialog({
   const [selectedFormat, setSelectedFormat] = useState("");
   const [isPasting, setIsPasting] = useState(false);
   const [isParsing, startParseTransition] = useTransition();
+  const autoParseRequestIdRef = useRef(0);
 
   const selectedDeck = useMemo(
     () => userDecks.find((deck) => deck.id === selectedDeckId) ?? null,
@@ -76,6 +78,8 @@ export function ImportLogDialog({
 
   const availableDeckLists = selectedDeck?.deckLists ?? [];
   const resultLabel = review?.result === "Loss" ? "L" : "W";
+  const trimmedRawLog = rawLog.trim();
+  const isTrainingCourtUrl = isTrainingCourtLogUrl(trimmedRawLog);
   const detectedSelfLabel = useMemo(
     () =>
       review ? getBattleLogDeckDisplayName(review.selfDeckName, selectedSelfSprites) : undefined,
@@ -177,10 +181,17 @@ export function ImportLogDialog({
   }
 
   function handleReviewLog() {
+    const requestId = autoParseRequestIdRef.current + 1;
+    autoParseRequestIdRef.current = requestId;
+
     startParseTransition(async () => {
       const formData = new FormData();
       formData.set("rawLog", rawLog);
       const result = await parseLogAction(formData);
+
+      if (autoParseRequestIdRef.current !== requestId) {
+        return;
+      }
 
       if ("error" in result) {
         setParseError(result.error);
@@ -190,6 +201,42 @@ export function ImportLogDialog({
       moveToReviewStage(result);
     });
   }
+
+  useEffect(() => {
+    if (!isOpen || stage !== "raw") {
+      return;
+    }
+
+    if (!trimmedRawLog || isTrainingCourtUrl) {
+      return;
+    }
+
+    const requestId = autoParseRequestIdRef.current + 1;
+    autoParseRequestIdRef.current = requestId;
+
+    const timeoutId = window.setTimeout(() => {
+      startParseTransition(async () => {
+        const formData = new FormData();
+        formData.set("rawLog", trimmedRawLog);
+        const result = await parseLogAction(formData);
+
+        if (autoParseRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        if ("error" in result) {
+          setParseError(result.error);
+          return;
+        }
+
+        moveToReviewStage(result);
+      });
+    }, 500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isOpen, isTrainingCourtUrl, stage, startParseTransition, trimmedRawLog]);
 
   function renderHeader() {
     if (stage === "raw") {
@@ -204,13 +251,15 @@ export function ImportLogDialog({
             <Button onClick={closeDialog} type="button" variant="secondary">
               Close
             </Button>
-            <Button
-              disabled={isParsing || rawLog.trim().length === 0}
-              onClick={handleReviewLog}
-              type="button"
-            >
-              {isParsing ? "Reviewing..." : "Review Log"}
-            </Button>
+            {isTrainingCourtUrl ? (
+              <Button
+                disabled={isParsing || trimmedRawLog.length === 0}
+                onClick={handleReviewLog}
+                type="button"
+              >
+                {isParsing ? "Reviewing..." : "Import Training Court URL"}
+              </Button>
+            ) : null}
           </div>
         </div>
       );
@@ -456,9 +505,16 @@ export function ImportLogDialog({
                     {isPasting ? "Pasting..." : "Paste From Clipboard"}
                   </Button>
                   <p className="text-sm text-[var(--text-muted)]">
-                    Paste a PTCGL battle log or a Training Court log URL
+                    Paste a PTCGL battle log to auto-review, or enter a Training Court URL and use
+                    the button above.
                   </p>
                 </div>
+
+                {isParsing && !isTrainingCourtUrl ? (
+                  <p className="rounded-xl border border-[var(--color-brand)]/15 bg-[var(--color-brand)]/5 px-4 py-3 text-sm text-[var(--color-brand)]">
+                    Reviewing battle log…
+                  </p>
+                ) : null}
 
                 {parseError ? (
                   <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">

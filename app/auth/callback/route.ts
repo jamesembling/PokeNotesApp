@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { logAuthDebug } from "@/lib/server/auth-debug";
+import { syncCurrentProfileFromAuthUser } from "@/lib/db/profile";
 
 function getSupabaseEnv() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
   });
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   logAuthDebug("auth.callback.exchangeCodeForSession", {
     hasCode: true,
@@ -49,6 +50,10 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  if (data.user) {
+    await syncCurrentProfileFromAuthUser(data.user);
   }
 
   response.headers.set("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0");

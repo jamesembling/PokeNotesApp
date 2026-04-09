@@ -20,6 +20,11 @@ type UserCountRow = {
   user_id: string;
 };
 
+type DeckCountRow = {
+  user_id: string;
+  deck_lists: unknown;
+};
+
 type AdminUsersResult = {
   users: AdminUser[];
   roleUpdatesEnabled: boolean;
@@ -53,9 +58,32 @@ function mapCountRows(rows: UserCountRow[] | null) {
   return counts;
 }
 
+function mapDeckCounts(rows: DeckCountRow[] | null) {
+  const deckCounts = new Map<string, number>();
+  const deckListCounts = new Map<string, number>();
+
+  for (const row of rows ?? []) {
+    const userId = String(row.user_id || "").trim();
+    if (!userId) {
+      continue;
+    }
+
+    deckCounts.set(userId, (deckCounts.get(userId) ?? 0) + 1);
+    const deckLists = Array.isArray(row.deck_lists) ? row.deck_lists : [];
+    deckListCounts.set(userId, (deckListCounts.get(userId) ?? 0) + deckLists.length);
+  }
+
+  return {
+    deckCounts,
+    deckListCounts
+  };
+}
+
 function mapAdminUser(
   row: ProfileRow,
   deckCounts: Map<string, number>,
+  deckListCounts: Map<string, number>,
+  tournamentCounts: Map<string, number>,
   logCounts: Map<string, number>
 ): AdminUser {
   return {
@@ -69,6 +97,8 @@ function mapAdminUser(
     lastActiveAt: row.last_active_at ?? undefined,
     loginCount: Number.isFinite(row.login_count) ? row.login_count : 0,
     deckCount: deckCounts.get(row.id) ?? 0,
+    deckListCount: deckListCounts.get(row.id) ?? 0,
+    tournamentCount: tournamentCounts.get(row.id) ?? 0,
     logCount: logCounts.get(row.id) ?? 0
   };
 }
@@ -98,7 +128,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
 
   if (hasAdminSupabaseAccess()) {
     const supabase = createAdminClient();
-    const [profilesResult, decksResult, logsResult] = await Promise.all([
+    const [profilesResult, decksResult, tournamentsResult, logsResult] = await Promise.all([
       supabase
         .from("profiles")
         .select(
@@ -115,7 +145,8 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
             "created_at"
           ].join(",")
         ),
-      supabase.from("decks").select("user_id"),
+      supabase.from("decks").select("user_id,deck_lists"),
+      supabase.from("tournaments").select("user_id"),
       supabase.from("logs").select("user_id")
     ]);
 
@@ -127,14 +158,23 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
       throw decksResult.error;
     }
 
+    if (tournamentsResult.error) {
+      throw tournamentsResult.error;
+    }
+
     if (logsResult.error) {
       throw logsResult.error;
     }
 
-    const deckCounts = mapCountRows((decksResult.data as UserCountRow[] | null) ?? null);
+    const { deckCounts, deckListCounts } = mapDeckCounts(
+      (decksResult.data as DeckCountRow[] | null) ?? null
+    );
+    const tournamentCounts = mapCountRows(
+      (tournamentsResult.data as UserCountRow[] | null) ?? null
+    );
     const logCounts = mapCountRows((logsResult.data as UserCountRow[] | null) ?? null);
     const users = (((profilesResult.data ?? null) as unknown as ProfileRow[] | null) ?? []).map((row) =>
-      mapAdminUser(row, deckCounts, logCounts)
+      mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts)
     );
 
     return {
@@ -166,7 +206,13 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
   }
 
   const users = ((((data ?? null) as unknown) as ProfileRow[] | null) ?? []).map((row) =>
-    mapAdminUser(row, new Map<string, number>(), new Map<string, number>())
+    mapAdminUser(
+      row,
+      new Map<string, number>(),
+      new Map<string, number>(),
+      new Map<string, number>(),
+      new Map<string, number>()
+    )
   );
 
   return {
@@ -295,5 +341,11 @@ export async function updateAdminUserRole(userId: string, role: Role) {
     throw error;
   }
 
-  return mapAdminUser(data as unknown as ProfileRow, new Map<string, number>(), new Map<string, number>());
+  return mapAdminUser(
+    data as unknown as ProfileRow,
+    new Map<string, number>(),
+    new Map<string, number>(),
+    new Map<string, number>(),
+    new Map<string, number>()
+  );
 }

@@ -94,10 +94,6 @@ export default async function ProfilePage() {
                   {formatDateTime(profile.lastActiveAt)}
                 </dd>
               </div>
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-[var(--text-muted)]">Login Count</dt>
-                <dd className="text-right text-[var(--text-primary)]">{profile.loginCount}</dd>
-              </div>
             </dl>
           </Card>
         </div>

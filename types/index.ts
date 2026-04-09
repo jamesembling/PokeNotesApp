@@ -450,6 +450,8 @@ export type AdminUser = {
   lastActiveAt: string | undefined
   loginCount: number
   deckCount: number
+  deckListCount: number
+  tournamentCount: number
   logCount: number
 }
 

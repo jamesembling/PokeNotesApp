@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
 import type { AvatarColor, UserProfile } from "@/types/index";
 
@@ -27,6 +28,7 @@ type UpdateProfileInput = {
 };
 
 const DEFAULT_AVATAR_COLOR: AvatarColor = "red";
+const PROFILE_ACTIVITY_TOUCH_INTERVAL_MS = 15 * 60 * 1000;
 
 function normalizeAvatarColor(value: string): AvatarColor {
   switch (value) {
@@ -51,6 +53,41 @@ function getFallbackDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
     user.email?.split("@")[0] ||
     "Trainer"
   );
+}
+
+function getAuthUserDisplayName(user: Pick<User, "email" | "user_metadata">) {
+  const metadata = user.user_metadata ?? {};
+
+  return (
+    (typeof metadata.full_name === "string" ? metadata.full_name : "") ||
+    (typeof metadata.name === "string" ? metadata.name : "") ||
+    user.email?.split("@")[0] ||
+    "Trainer"
+  );
+}
+
+function getAuthUserFirstName(user: Pick<User, "user_metadata">) {
+  const metadata = user.user_metadata ?? {};
+  return typeof metadata.given_name === "string" ? metadata.given_name.trim() : "";
+}
+
+function getAuthUserLastName(user: Pick<User, "user_metadata">) {
+  const metadata = user.user_metadata ?? {};
+  return typeof metadata.family_name === "string" ? metadata.family_name.trim() : "";
+}
+
+function shouldRefreshLastActive(lastActiveAt: string | null | undefined) {
+  if (!lastActiveAt) {
+    return true;
+  }
+
+  const lastActiveTime = Date.parse(lastActiveAt);
+
+  if (Number.isNaN(lastActiveTime)) {
+    return true;
+  }
+
+  return Date.now() - lastActiveTime >= PROFILE_ACTIVITY_TOUCH_INTERVAL_MS;
 }
 
 function mapProfileRowToUserProfile(
@@ -80,10 +117,52 @@ function mapProfileRowToUserProfile(
   };
 }
 
+export async function syncCurrentProfileFromAuthUser(authUser: Pick<
+  User,
+  "id" | "email" | "created_at" | "last_sign_in_at" | "user_metadata"
+>) {
+  const supabase = createClient();
+  const { data: existingProfile, error: existingProfileError } = await supabase
+    .from("profiles")
+    .select("display_name,first_name,last_name,ptcgl_username,role,avatar_color")
+    .eq("id", authUser.id)
+    .maybeSingle();
+
+  if (existingProfileError) {
+    throw existingProfileError;
+  }
+
+  const fallbackDisplayName = getAuthUserDisplayName(authUser);
+  const firstName = String(existingProfile?.first_name || "").trim() || getAuthUserFirstName(authUser);
+  const lastName = String(existingProfile?.last_name || "").trim() || getAuthUserLastName(authUser);
+  const displayName =
+    String(existingProfile?.display_name || "").trim() ||
+    [firstName, lastName].filter(Boolean).join(" ").trim() ||
+    fallbackDisplayName;
+
+  const { error } = await supabase.from("profiles").upsert(
+    {
+      id: authUser.id,
+      display_name: displayName,
+      first_name: firstName,
+      last_name: lastName,
+      email: authUser.email || "",
+      auth_account_created_at: authUser.created_at || null,
+      last_login_at: authUser.last_sign_in_at || null,
+      last_active_at: new Date().toISOString()
+    },
+    { onConflict: "id" }
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function getCurrentProfile(): Promise<UserProfile> {
   const user = await requireUser();
   const supabase = createClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("profiles")
     .select(
       [
@@ -110,7 +189,67 @@ export async function getCurrentProfile(): Promise<UserProfile> {
     throw error;
   }
 
-  return mapProfileRowToUserProfile(user, ((data ?? null) as unknown as ProfileRow | null) ?? null);
+  let profileRow = ((data ?? null) as unknown as ProfileRow | null) ?? null;
+
+  if (!profileRow || !profileRow.last_login_at || !profileRow.auth_account_created_at) {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+
+    if (authError) {
+      throw authError;
+    }
+
+    if (authData.user) {
+      await syncCurrentProfileFromAuthUser(authData.user);
+
+      const refreshed = await supabase
+        .from("profiles")
+        .select(
+          [
+            "id",
+            "display_name",
+            "first_name",
+            "last_name",
+            "email",
+            "ptcgl_username",
+            "role",
+            "avatar_color",
+            "auth_account_created_at",
+            "last_login_at",
+            "last_active_at",
+            "login_count",
+            "created_at",
+            "updated_at"
+          ].join(",")
+        )
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (refreshed.error) {
+        throw refreshed.error;
+      }
+
+      profileRow = ((refreshed.data ?? null) as unknown as ProfileRow | null) ?? null;
+    }
+  }
+
+  if (profileRow && shouldRefreshLastActive(profileRow.last_active_at)) {
+    const nextLastActiveAt = new Date().toISOString();
+    const { error: activityError } = await supabase
+      .from("profiles")
+      .update({ last_active_at: nextLastActiveAt })
+      .eq("id", user.id);
+
+    if (activityError) {
+      throw activityError;
+    }
+
+    profileRow = {
+      ...profileRow,
+      last_active_at: nextLastActiveAt
+    };
+  }
+
+  return mapProfileRowToUserProfile(user, profileRow);
 }
 
 export async function updateCurrentProfile(input: UpdateProfileInput): Promise<UserProfile> {

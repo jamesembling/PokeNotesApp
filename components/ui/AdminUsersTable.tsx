@@ -119,12 +119,13 @@ export function AdminUsersTable({
                   <div className="space-y-1 text-sm text-[var(--text-secondary)]">
                     <p>Last active: {formatDateTime(user.lastActiveAt)}</p>
                     <p>Last login: {formatDateTime(user.lastLoginAt)}</p>
-                    <p>Logins: {user.loginCount}</p>
                   </div>
                 </td>
                 <td className="border-b border-[var(--border)] px-3 py-4">
                   <div className="space-y-1 text-sm text-[var(--text-secondary)]">
                     <p>Decks: {user.deckCount}</p>
+                    <p>Deck Lists: {user.deckListCount}</p>
+                    <p>Tournaments: {user.tournamentCount}</p>
                     <p>Logs: {user.logCount}</p>
                   </div>
                 </td>
