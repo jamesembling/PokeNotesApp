@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { prettifyPokemonSlug } from "@/lib/battle-log/display";
 import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
 import type { PokemonOption } from "@/types/index";
@@ -175,8 +176,10 @@ function SpriteSearchSlot({
   title: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditingMobile, setIsEditingMobile] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const slotOptions = useMemo(
     () => buildOptionsForSlot(currentSlug, sprites, pokemonOptions),
     [currentSlug, pokemonOptions, sprites]
@@ -208,6 +211,12 @@ function SpriteSearchSlot({
       .map((entry) => entry.option);
   }, [query, slotOptions]);
 
+  function closeMobileEditor() {
+    setQuery("");
+    setIsOpen(false);
+    setIsEditingMobile(false);
+  }
+
   function commitQuerySelection(preferredSlug?: string) {
     const nextOption =
       (preferredSlug ? slotOptions.find((option) => option.slug === preferredSlug) : null) ??
@@ -220,20 +229,31 @@ function SpriteSearchSlot({
     onChange(updateSpritesAtIndex(sprites, index, nextOption.slug));
     setQuery("");
     setIsOpen(false);
+    setIsEditingMobile(false);
     return true;
   }
 
   useEffect(() => {
-    if (!currentSlug) {
-      return;
-    }
-
     setQuery("");
   }, [currentSlug]);
 
   useEffect(() => {
+    if (!isEditingMobile) {
+      return;
+    }
+
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [isEditingMobile]);
+
+  useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
       if (!containerRef.current?.contains(event.target as Node)) {
+        if (isEditingMobile) {
+          closeMobileEditor();
+          return;
+        }
+
         setIsOpen(false);
       }
     }
@@ -242,91 +262,206 @@ function SpriteSearchSlot({
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
     };
-  }, []);
+  }, [isEditingMobile]);
 
   return (
     <div
-      className="relative flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3"
+      className="relative flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:items-start md:px-4 md:py-3"
       key={`${title}-${index}`}
       ref={containerRef}
     >
-      <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-              {currentSlug ? prettifyPokemonSlug(currentSlug) : "No Pokemon selected"}
-            </p>
-          </div>
+      <div className="flex min-w-0 flex-1 items-center gap-3 md:items-start">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:hidden">
+          <button
+            className="flex min-h-[68px] w-full min-w-0 items-center gap-3 text-left"
+            onClick={() => {
+              setIsEditingMobile(true);
+              setIsOpen(true);
+            }}
+            type="button"
+          >
+            {currentSlug ? (
+              <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
+            ) : (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
+                -
+              </div>
+            )}
+            <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-[var(--text-primary)]">
+              {currentSlug ? prettifyPokemonSlug(currentSlug) : "Select pokemon..."}
+            </span>
+            {!currentSlug ? (
+              <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] -rotate-90" />
+            ) : null}
+          </button>
           {currentSlug ? (
             <button
-              className="text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text-primary)]"
-              onClick={() => onChange(updateSpritesAtIndex(sprites, index, ""))}
+              aria-label={`Remove ${prettifyPokemonSlug(currentSlug)}`}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+              onClick={() => {
+                onChange(updateSpritesAtIndex(sprites, index, ""));
+                closeMobileEditor();
+              }}
               type="button"
             >
-              ×
+              <CloseIcon className="h-[18px] w-[18px]" />
             </button>
           ) : null}
         </div>
 
-        <div className="relative mt-2">
-          <input
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-            onBlur={() => {
-              commitQuerySelection();
-              setIsOpen(false);
-            }}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setIsOpen(true);
-            }}
-            onFocus={() => setIsOpen(true)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                if (commitQuerySelection(filteredOptions[0]?.slug)) {
-                  event.preventDefault();
-                  return;
-                }
-              }
-
-              if (event.key === "Escape") {
-                setIsOpen(false);
-              }
-            }}
-            placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
-            spellCheck={false}
-            value={query}
-          />
-
-          {isOpen && normalizeSearchValue(query) ? (
-            <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]">
-              {filteredOptions.length > 0 ? (
-                <div className="max-h-64 overflow-y-auto py-2">
-                  {filteredOptions.map((option) => (
-                    <button
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface-alt)]"
-                      key={option.slug}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        commitQuerySelection(option.slug);
-                      }}
-                      type="button"
-                    >
-                      <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
-                      <span className="min-w-0 truncate text-sm font-medium text-[var(--text-primary)]">
-                        {option.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="px-4 py-3 text-sm text-[var(--text-muted)]">
-                  No Pokemon found for &quot;{query}&quot;
-                </div>
-              )}
+        <div className="hidden min-w-0 flex-1 md:block">
+          <div className="flex items-start justify-between gap-2 md:gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-[0.95rem] font-medium text-[var(--text-primary)] md:text-sm">
+                {currentSlug ? prettifyPokemonSlug(currentSlug) : "No Pokemon selected"}
+              </p>
             </div>
-          ) : null}
+            {currentSlug ? (
+              <button
+                aria-label={`Remove ${prettifyPokemonSlug(currentSlug)}`}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] md:h-auto md:w-auto md:rounded-none"
+                onClick={() => {
+                  onChange(updateSpritesAtIndex(sprites, index, ""));
+                  closeMobileEditor();
+                }}
+                type="button"
+              >
+                <CloseIcon className="h-3.5 w-3.5 md:h-3 md:w-3" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="relative mt-2">
+            <input
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[0.95rem] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 md:text-sm"
+              onBlur={() => {
+                commitQuerySelection();
+                setIsOpen(false);
+              }}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setIsOpen(true);
+              }}
+              onFocus={() => setIsOpen(true)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  if (commitQuerySelection(filteredOptions[0]?.slug)) {
+                    event.preventDefault();
+                    return;
+                  }
+                }
+
+                if (event.key === "Escape") {
+                  setIsOpen(false);
+                }
+              }}
+              placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
+              ref={inputRef}
+              spellCheck={false}
+              value={query}
+            />
+
+            {isOpen && normalizeSearchValue(query) ? (
+              <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]">
+                {filteredOptions.length > 0 ? (
+                  <div className="max-h-64 overflow-y-auto py-2">
+                    {filteredOptions.map((option) => (
+                      <button
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface-alt)]"
+                        key={option.slug}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          commitQuerySelection(option.slug);
+                        }}
+                        type="button"
+                      >
+                        <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
+                        <span className="min-w-0 truncate text-sm font-medium text-[var(--text-primary)]">
+                          {option.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 text-sm text-[var(--text-muted)]">
+                    No Pokemon found for &quot;{query}&quot;
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
+
+        {isEditingMobile ? (
+          <div className="absolute inset-x-3 top-full z-30 mt-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] md:hidden">
+            <div className="flex items-center gap-2">
+              <input
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-[0.95rem] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                onBlur={() => {
+                  commitQuerySelection();
+                }}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setIsOpen(true);
+                }}
+                onFocus={() => setIsOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    if (commitQuerySelection(filteredOptions[0]?.slug)) {
+                      event.preventDefault();
+                      return;
+                    }
+                  }
+
+                  if (event.key === "Escape") {
+                    closeMobileEditor();
+                  }
+                }}
+                placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
+                ref={inputRef}
+                spellCheck={false}
+                value={query}
+              />
+              <button
+                aria-label="Close Pokemon search"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
+                onClick={closeMobileEditor}
+                type="button"
+              >
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+
+            {isOpen && normalizeSearchValue(query) ? (
+              <div className="mt-2 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)]">
+                {filteredOptions.length > 0 ? (
+                  <div className="max-h-64 overflow-y-auto py-2">
+                    {filteredOptions.map((option) => (
+                      <button
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface)]"
+                        key={option.slug}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          commitQuerySelection(option.slug);
+                        }}
+                        type="button"
+                      >
+                        <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
+                        <span className="min-w-0 truncate text-sm font-medium text-[var(--text-primary)]">
+                          {option.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 text-sm text-[var(--text-muted)]">
+                    No Pokemon found for &quot;{query}&quot;
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -341,15 +476,17 @@ export function BattleLogSpritePicker({
 }: BattleLogSpritePickerProps) {
   return (
     <section className="grid gap-3">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3 md:gap-4">
         <div className="grid gap-1">
-          <p className="text-sm font-semibold text-[var(--text-muted)]">{title}</p>
+          <p className="text-[0.95rem] font-semibold text-[var(--text-muted)] md:text-sm">{title}</p>
           {detectedLabel ? (
-            <p className="text-sm text-[var(--text-secondary)]">Detected: {detectedLabel}</p>
+            <p className="text-[0.95rem] leading-5 text-[var(--text-secondary)] md:text-sm">
+              Detected: {detectedLabel}
+            </p>
           ) : null}
         </div>
         <button
-          className="inline-flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+          className="inline-flex items-center gap-1 text-[0.9rem] font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] md:gap-2 md:text-sm"
           onClick={() => onChange(swapSpritePositions(sprites))}
           type="button"
         >

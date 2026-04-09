@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/types/index";
@@ -59,10 +60,10 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-[148px] shrink-0 whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)]"
+          ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)]"
           : isSaving
-            ? "w-[148px] shrink-0 whitespace-nowrap pointer-events-none"
-            : "w-[148px] shrink-0 whitespace-nowrap"
+            ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none"
+            : "w-full md:w-[148px] md:shrink-0 whitespace-nowrap"
       }
       disabled={isSaving}
       onClick={onClick}
@@ -376,13 +377,24 @@ export function ImportLogDialog({
     }
 
     return (
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+      <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <button
+          aria-label="Close review"
+          className="absolute right-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)] md:hidden"
+          onClick={closeDialog}
+          type="button"
+        >
+          <CloseIcon className="h-5 w-5" />
+        </button>
+        <div className="pr-12 text-center md:pr-0 md:text-left">
+          <h2 className="text-[1.3rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.55rem] md:text-[1.9rem]">
             Review Battle Log
           </h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--text-muted)] md:hidden">
+            Confirm the parsed result, then save it to your battle logs.
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2.5">
+        <div className="hidden flex-wrap gap-2.5 md:flex">
           <Button onClick={closeDialog} type="button" variant="secondary">
             Close
           </Button>
@@ -402,12 +414,12 @@ export function ImportLogDialog({
         ? createPortal(
             <div
               aria-modal="true"
-              className="fixed inset-0 z-50 bg-[var(--bg-overlay)] p-2 sm:p-4"
+              className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-2 sm:p-4"
               onClick={closeDialog}
               role="dialog"
             >
               <div
-                className="mx-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px]"
+                className="mx-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px]"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="shrink-0 border-b border-[var(--border)] px-4 py-4 sm:px-6 lg:px-8">
@@ -415,12 +427,12 @@ export function ImportLogDialog({
                 </div>
 
                 <div
-                  className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6"
+                  className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6"
                   ref={contentRef}
                 >
               {stage === "review" && review ? (
                 <form
-                  className="flex flex-col gap-6"
+                  className="flex flex-col gap-4 md:gap-6"
                   onSubmit={(event) => {
                     event.preventDefault();
                     void handleSubmit(new FormData(event.currentTarget));
@@ -525,7 +537,85 @@ export function ImportLogDialog({
                     title={"Opponent's deck"}
                   />
 
-                  <section className="grid gap-4 xl:grid-cols-2">
+                  <section className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 md:hidden">
+                    <label className="grid gap-2">
+                      <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
+                      <select
+                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                        onChange={(event) => setSelectedFormat(event.target.value)}
+                        value={selectedFormat}
+                      >
+                        {FORMAT_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <details className="group rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+                      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
+                        <span className="flex items-center justify-between gap-3">
+                          More details
+                          <ChevronIcon className="h-4 w-4 text-[var(--text-muted)] transition group-open:rotate-180" />
+                        </span>
+                      </summary>
+                      <div className="grid gap-3 border-t border-[var(--border)] px-4 py-4">
+                        <label className="grid gap-2">
+                          <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
+                          <input
+                            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                            onChange={(event) => setSelectedDate(event.target.value)}
+                            type="date"
+                            value={selectedDate}
+                          />
+                        </label>
+
+                        <label className="grid gap-2">
+                          <span className="text-sm font-semibold text-[var(--text-muted)]">
+                            Deck Strategy
+                          </span>
+                          <select
+                            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                            onChange={(event) => setSelectedDeckId(event.target.value)}
+                            value={selectedDeckId}
+                          >
+                            <option value="">No linked deck</option>
+                            {userDecks.map((deck) => (
+                              <option key={deck.id} value={deck.id}>
+                                {deck.deckName}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="grid gap-2">
+                          <span className="text-sm font-semibold text-[var(--text-muted)]">
+                            Deck List
+                          </span>
+                          <select
+                            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={availableDeckLists.length === 0}
+                            onChange={(event) => setSelectedDeckListId(event.target.value)}
+                            value={selectedDeckListId}
+                          >
+                            <option value="">
+                              {availableDeckLists.length > 0
+                                ? "No linked deck list"
+                                : "Select a deck strategy first"}
+                            </option>
+                            {availableDeckLists.map((deckList: DeckList) => (
+                              <option key={deckList.id} value={deckList.id}>
+                                {deckList.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    </details>
+                  </section>
+
+                  <section className="hidden gap-4 xl:grid-cols-2 md:grid">
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
                       <input
@@ -603,7 +693,7 @@ export function ImportLogDialog({
                     <p className="text-base font-semibold text-[var(--text-primary)]">
                       {review.selfPlayerName}&apos;s Result: {resultLabel}
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="hidden flex-wrap gap-2 md:flex">
                       <ResultChip>{selectedFormat}</ResultChip>
                       <ResultChip>{review.goOrder || "Unknown go order"}</ResultChip>
                       <ResultChip>
@@ -616,6 +706,13 @@ export function ImportLogDialog({
                       <ResultChip>{review.language}</ResultChip>
                     </div>
                   </section>
+
+                  <div className="grid gap-3 md:hidden">
+                    <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
+                    <Button className="w-full" onClick={closeDialog} type="button" variant="secondary">
+                      Close
+                    </Button>
+                  </div>
                 </form>
               ) : (
                 <div className="flex flex-col gap-6">
