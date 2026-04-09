@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 type SidebarProfile = {
   displayName: string;
   email: string;
+  isAdmin?: boolean;
 };
 
 type SidebarProps = {
@@ -112,6 +113,14 @@ export function Sidebar({ profile }: SidebarProps) {
           <p className="truncate text-xs text-[var(--text-muted)]">{profile.email}</p>
         </div>
       </Link>
+      {profile.isAdmin ? (
+        <Link
+          className="mt-3 flex items-center rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
+          href="/admin/dashboard"
+        >
+          Admin Dashboard
+        </Link>
+      ) : null}
       <Button className="mt-4 w-full justify-center" onClick={handleSignOut} variant="secondary">
         Sign Out
       </Button>
@@ -244,6 +253,7 @@ export function Sidebar({ profile }: SidebarProps) {
                 <SectionLabel>ACCOUNT</SectionLabel>
                 <div className="flex flex-col gap-2">
                   {renderNavLink("Profile", "/profile", true)}
+                  {profile.isAdmin ? renderNavLink("Admin Dashboard", "/admin/dashboard", true) : null}
                   <Button className="w-full justify-center" onClick={handleSignOut} variant="secondary">
                     Sign Out
                   </Button>

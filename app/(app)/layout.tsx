@@ -15,7 +15,8 @@ export default async function AppLayout({
       <Sidebar
         profile={{
           displayName: profile.displayName,
-          email: profile.email || user.email || ""
+          email: profile.email || user.email || "",
+          isAdmin: profile.role === "admin"
         }}
       />
       <main className="min-[860px]:pl-64">

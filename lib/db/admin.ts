@@ -1,0 +1,299 @@
+import { requireUser } from "@/lib/auth";
+import { createAdminClient, hasAdminSupabaseAccess } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import type { AdminUser, CatalogHealth, Role } from "@/types/index";
+
+type ProfileRow = {
+  id: string;
+  email: string;
+  display_name: string;
+  ptcgl_username: string;
+  role: Role;
+  auth_account_created_at: string | null;
+  last_login_at: string | null;
+  last_active_at: string | null;
+  login_count: number;
+  created_at: string;
+};
+
+type UserCountRow = {
+  user_id: string;
+};
+
+type AdminUsersResult = {
+  users: AdminUser[];
+  roleUpdatesEnabled: boolean;
+  warning?: string;
+};
+
+function sortUsers(users: AdminUser[]) {
+  return [...users].sort((left, right) => {
+    if (left.role !== right.role) {
+      return left.role === "admin" ? -1 : 1;
+    }
+
+    const leftActivity = left.lastActiveAt || left.lastLoginAt || left.accountCreatedAt;
+    const rightActivity = right.lastActiveAt || right.lastLoginAt || right.accountCreatedAt;
+    return rightActivity.localeCompare(leftActivity);
+  });
+}
+
+function mapCountRows(rows: UserCountRow[] | null) {
+  const counts = new Map<string, number>();
+
+  for (const row of rows ?? []) {
+    const userId = String(row.user_id || "").trim();
+    if (!userId) {
+      continue;
+    }
+
+    counts.set(userId, (counts.get(userId) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+function mapAdminUser(
+  row: ProfileRow,
+  deckCounts: Map<string, number>,
+  logCounts: Map<string, number>
+): AdminUser {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    ptcglUsername: row.ptcgl_username,
+    role: row.role,
+    accountCreatedAt: row.auth_account_created_at || row.created_at,
+    lastLoginAt: row.last_login_at ?? undefined,
+    lastActiveAt: row.last_active_at ?? undefined,
+    loginCount: Number.isFinite(row.login_count) ? row.login_count : 0,
+    deckCount: deckCounts.get(row.id) ?? 0,
+    logCount: logCounts.get(row.id) ?? 0
+  };
+}
+
+async function requireAdminAccess() {
+  const user = await requireUser();
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (data?.role !== "admin") {
+    throw new Error("You do not have permission to use admin tools.");
+  }
+
+  return user;
+}
+
+export async function getAdminUsers(): Promise<AdminUsersResult> {
+  await requireAdminAccess();
+
+  if (hasAdminSupabaseAccess()) {
+    const supabase = createAdminClient();
+    const [profilesResult, decksResult, logsResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select(
+          [
+            "id",
+            "email",
+            "display_name",
+            "ptcgl_username",
+            "role",
+            "auth_account_created_at",
+            "last_login_at",
+            "last_active_at",
+            "login_count",
+            "created_at"
+          ].join(",")
+        ),
+      supabase.from("decks").select("user_id"),
+      supabase.from("logs").select("user_id")
+    ]);
+
+    if (profilesResult.error) {
+      throw profilesResult.error;
+    }
+
+    if (decksResult.error) {
+      throw decksResult.error;
+    }
+
+    if (logsResult.error) {
+      throw logsResult.error;
+    }
+
+    const deckCounts = mapCountRows((decksResult.data as UserCountRow[] | null) ?? null);
+    const logCounts = mapCountRows((logsResult.data as UserCountRow[] | null) ?? null);
+    const users = (((profilesResult.data ?? null) as unknown as ProfileRow[] | null) ?? []).map((row) =>
+      mapAdminUser(row, deckCounts, logCounts)
+    );
+
+    return {
+      users: sortUsers(users),
+      roleUpdatesEnabled: true
+    };
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(
+      [
+        "id",
+        "email",
+        "display_name",
+        "ptcgl_username",
+        "role",
+        "auth_account_created_at",
+        "last_login_at",
+        "last_active_at",
+        "login_count",
+        "created_at"
+      ].join(",")
+    );
+
+  if (error) {
+    throw error;
+  }
+
+  const users = ((((data ?? null) as unknown) as ProfileRow[] | null) ?? []).map((row) =>
+    mapAdminUser(row, new Map<string, number>(), new Map<string, number>())
+  );
+
+  return {
+    users: sortUsers(users),
+    roleUpdatesEnabled: false,
+    warning:
+      "Admin role updates are disabled until SUPABASE_SERVICE_ROLE_KEY is configured on the app."
+  };
+}
+
+export async function getCatalogHealth(): Promise<CatalogHealth> {
+  await requireAdminAccess();
+
+  const supabase = createClient();
+  const [
+    pokemonCountResult,
+    archetypeCountResult,
+    excludedCountResult,
+    pokemonLastSyncedResult,
+    archetypeLastSyncedResult
+  ] = await Promise.all([
+    supabase.from("pokemon_catalog").select("slug", { count: "exact", head: true }),
+    supabase.from("archetype_catalog").select("id", { count: "exact", head: true }),
+    supabase
+      .from("archetype_catalog")
+      .select("id", { count: "exact", head: true })
+      .eq("is_excluded", true),
+    supabase
+      .from("pokemon_catalog")
+      .select("last_synced_at")
+      .order("last_synced_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("archetype_catalog")
+      .select("last_synced_at")
+      .order("last_synced_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+  ]);
+
+  if (pokemonCountResult.error) {
+    throw pokemonCountResult.error;
+  }
+
+  if (archetypeCountResult.error) {
+    throw archetypeCountResult.error;
+  }
+
+  if (excludedCountResult.error) {
+    throw excludedCountResult.error;
+  }
+
+  if (pokemonLastSyncedResult.error) {
+    throw pokemonLastSyncedResult.error;
+  }
+
+  if (archetypeLastSyncedResult.error) {
+    throw archetypeLastSyncedResult.error;
+  }
+
+  return {
+    pokemonCatalogCount: pokemonCountResult.count ?? 0,
+    archetypeCatalogCount: archetypeCountResult.count ?? 0,
+    pokemonLastSyncedAt:
+      pokemonLastSyncedResult.data?.last_synced_at
+        ? String(pokemonLastSyncedResult.data.last_synced_at)
+        : undefined,
+    archetypeLastSyncedAt:
+      archetypeLastSyncedResult.data?.last_synced_at
+        ? String(archetypeLastSyncedResult.data.last_synced_at)
+        : undefined,
+    excludedArchetypeCount: excludedCountResult.count ?? 0
+  };
+}
+
+export async function updateAdminUserRole(userId: string, role: Role) {
+  const actingUser = await requireAdminAccess();
+
+  if (!userId) {
+    throw new Error("User id is required.");
+  }
+
+  if (role !== "user" && role !== "admin") {
+    throw new Error("Choose a valid role.");
+  }
+
+  const supabase = createAdminClient();
+
+  if (actingUser.id === userId && role !== "admin") {
+    const { data, error } = await supabase.from("profiles").select("id,role");
+    if (error) {
+      throw error;
+    }
+
+    const adminCount = ((data as Array<{ role: Role }> | null) ?? []).filter(
+      (profile) => profile.role === "admin"
+    ).length;
+
+    if (adminCount <= 1) {
+      throw new Error("You cannot remove admin access from the only admin account.");
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ role })
+    .eq("id", userId)
+    .select(
+      [
+        "id",
+        "email",
+        "display_name",
+        "ptcgl_username",
+        "role",
+        "auth_account_created_at",
+        "last_login_at",
+        "last_active_at",
+        "login_count",
+        "created_at"
+      ].join(",")
+    )
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapAdminUser(data as unknown as ProfileRow, new Map<string, number>(), new Map<string, number>());
+}
