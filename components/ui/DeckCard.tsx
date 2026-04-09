@@ -28,7 +28,7 @@ export function DeckCard({ deck }: DeckCardProps) {
     <Link className="block h-full" href={`/decks/${deck.id}`}>
       <Card className="flex h-full flex-col gap-4 transition hover:translate-y-[-1px] hover:border-[var(--color-brand)]">
         <div className="flex items-start justify-between gap-4">
-          <SpriteStrip size="sm" sprites={deck.deckPokemon} />
+          <SpriteStrip size="lg" sprites={deck.deckPokemon} />
           <div className="shrink-0">
             <Badge>{deck.format}</Badge>
           </div>

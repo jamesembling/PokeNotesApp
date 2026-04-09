@@ -7,7 +7,7 @@ import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 
 type SpriteStripProps = {
   sprites: string[];
-  size: "sm" | "md" | "lg";
+  size: "sm" | "md" | "lg" | "xl";
   maxVisible?: number;
   className?: string;
 };
@@ -15,13 +15,15 @@ type SpriteStripProps = {
 const sizeClasses: Record<SpriteStripProps["size"], string> = {
   sm: "h-8 w-8",
   md: "h-8 w-8",
-  lg: "h-9 w-9 sm:h-11 sm:w-11"
+  lg: "h-10 w-10 sm:h-12 sm:w-12",
+  xl: "h-12 w-12 sm:h-14 sm:w-14"
 };
 
 const sizeValues: Record<SpriteStripProps["size"], number> = {
   sm: 32,
   md: 32,
-  lg: 44
+  lg: 48,
+  xl: 56
 };
 
 function SpriteStripItem({

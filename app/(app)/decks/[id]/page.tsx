@@ -139,7 +139,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       <Card>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <SpriteStrip maxVisible={3} size="md" sprites={deck.deckPokemon} />
+            <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
 
             <div className="flex flex-wrap gap-2">
               <Badge>{deck.format}</Badge>
