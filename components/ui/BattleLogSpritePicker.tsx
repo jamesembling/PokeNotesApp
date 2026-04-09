@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { prettifyPokemonSlug } from "@/lib/battle-log/display";
+import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
 import type { PokemonOption } from "@/types/index";
 
 type BattleLogSpritePickerProps = {
@@ -13,8 +14,17 @@ type BattleLogSpritePickerProps = {
   pokemonOptions: PokemonOption[];
 };
 
-function SpriteThumb({ slug }: { slug: string }) {
+function SpriteThumb({
+  pokemonOptions,
+  slug
+}: {
+  pokemonOptions: PokemonOption[];
+  slug: string;
+}) {
   const [hasError, setHasError] = useState(false);
+  const src =
+    pokemonOptions.find((option) => option.slug === slug)?.spriteUrl ??
+    buildPokemonSpriteUrlFromSlug(slug);
 
   if (!slug) {
     return (
@@ -24,7 +34,7 @@ function SpriteThumb({ slug }: { slug: string }) {
     );
   }
 
-  if (hasError) {
+  if (hasError || !src) {
     return (
       <div
         aria-label={prettifyPokemonSlug(slug)}
@@ -44,7 +54,7 @@ function SpriteThumb({ slug }: { slug: string }) {
         setHasError(true);
       }}
       sizes="48px"
-      src={`https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`}
+      src={src}
       width={48}
     />
   );
@@ -240,7 +250,7 @@ function SpriteSearchSlot({
       key={`${title}-${index}`}
       ref={containerRef}
     >
-      <SpriteThumb slug={currentSlug} />
+      <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -302,7 +312,7 @@ function SpriteSearchSlot({
                       }}
                       type="button"
                     >
-                      <SpriteThumb slug={option.slug} />
+                      <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
                       <span className="min-w-0 truncate text-sm font-medium text-[var(--text-primary)]">
                         {option.label}
                       </span>

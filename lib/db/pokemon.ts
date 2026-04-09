@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
 import { CACHE_TAGS } from "@/lib/server/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 import { measureServerCall } from "@/lib/server/perf";
@@ -7,6 +8,7 @@ import type { PokemonOption } from "@/types/index";
 type PokemonOptionRow = {
   slug: string;
   label: string;
+  sprite_url: string;
 };
 
 const getPokemonOptionsCached = unstable_cache(
@@ -14,7 +16,10 @@ const getPokemonOptionsCached = unstable_cache(
     const supabase = createPublicClient();
 
     const { data, error } = await measureServerCall("db.pokemon.options", async () =>
-      await supabase.from("pokemon_catalog").select("slug,label").order("label", { ascending: true })
+      await supabase
+        .from("pokemon_catalog")
+        .select("slug,label,sprite_url")
+        .order("label", { ascending: true })
     );
 
     if (error) {
@@ -25,7 +30,11 @@ const getPokemonOptionsCached = unstable_cache(
       .filter((row) => row.slug && row.label)
       .map((row) => ({
         slug: row.slug,
-        label: row.label
+        label: row.label,
+        spriteUrl:
+          typeof row.sprite_url === "string" && row.sprite_url
+            ? row.sprite_url
+            : buildPokemonSpriteUrlFromSlug(row.slug)
       }));
   },
   ["pokemon-options"],

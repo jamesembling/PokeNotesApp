@@ -11,6 +11,29 @@ type LogSummaryStats = {
   losses: number;
 };
 
+type StatsOverviewRow = {
+  result: Result;
+  coin_toss_won: boolean | null;
+  self_prizes_taken: number;
+  opponent_prizes_taken: number;
+  self_attack_damage: number;
+  opponent_attack_damage: number;
+  self_mulligans: number;
+};
+
+export type LogStatsOverview = {
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+  attackDamage: number;
+  opponentAttackDamage: number;
+  coinFlipsWon: number;
+  mulligansTaken: number;
+  prizesTaken: number;
+  trackedDamage: number;
+  trackedPrizes: number;
+};
+
 type LogsTableRow = {
   id: string;
   date: string;
@@ -204,6 +227,69 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
     wins,
     losses
   };
+}
+
+export async function getLogStatsOverview(userId: string): Promise<LogStatsOverview> {
+  const supabase = createClient();
+  const { data, error } = await measureServerCall("db.logs.statsOverview", async () =>
+    await supabase
+      .from("logs")
+      .select(
+        [
+          "result",
+          "coin_toss_won",
+          "self_prizes_taken",
+          "opponent_prizes_taken",
+          "self_attack_damage",
+          "opponent_attack_damage",
+          "self_mulligans"
+        ].join(",")
+      )
+      .eq("user_id", userId)
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return (((data ?? []) as unknown) as StatsOverviewRow[]).reduce<LogStatsOverview>(
+    (totals, row) => {
+      totals.gamesPlayed += 1;
+
+      if (row.result === "Win") {
+        totals.gamesWon += 1;
+      } else if (row.result === "Loss") {
+        totals.gamesLost += 1;
+      }
+
+      if (row.coin_toss_won) {
+        totals.coinFlipsWon += 1;
+      }
+
+      totals.attackDamage += Number(row.self_attack_damage || 0);
+      totals.opponentAttackDamage += Number(row.opponent_attack_damage || 0);
+      totals.mulligansTaken += Number(row.self_mulligans || 0);
+      totals.prizesTaken += Number(row.self_prizes_taken || 0);
+      totals.trackedDamage +=
+        Number(row.self_attack_damage || 0) + Number(row.opponent_attack_damage || 0);
+      totals.trackedPrizes +=
+        Number(row.self_prizes_taken || 0) + Number(row.opponent_prizes_taken || 0);
+
+      return totals;
+    },
+    {
+      gamesPlayed: 0,
+      gamesWon: 0,
+      gamesLost: 0,
+      attackDamage: 0,
+      opponentAttackDamage: 0,
+      coinFlipsWon: 0,
+      mulligansTaken: 0,
+      prizesTaken: 0,
+      trackedDamage: 0,
+      trackedPrizes: 0
+    }
+  );
 }
 
 export async function getLogsWindow(

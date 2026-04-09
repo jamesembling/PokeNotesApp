@@ -14,6 +14,9 @@ import {
   type CalculatorAnalysis,
   type CalculatorCardGroup
 } from "@/lib/probability-calculator";
+import { findPokemonOptionBySlug, prettifyPokemonSlug, resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
+import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
+import type { PokemonOption } from "@/types/index";
 
 type TabId = "setup" | "prizing";
 type ComparisonMetric = {
@@ -57,6 +60,7 @@ export function ProbabilityCalculator() {
   const [deckInput, setDeckInput] = useState("");
   const [analysis, setAnalysis] = useState<CalculatorAnalysis | null>(null);
   const [deckVisualCards, setDeckVisualCards] = useState<CalculatorAnalysis["cards"]>([]);
+  const pokemonOptions = usePokemonOptions();
   const [activeTab, setActiveTab] = useState<TabId>("setup");
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"info" | "warn">("info");
@@ -395,6 +399,7 @@ export function ProbabilityCalculator() {
                   { key: "primary", label: "Only Starter" },
                   { key: "secondary", label: "In Starting 7" }
                 ]}
+                pokemonOptions={pokemonOptions}
                 rows={setupComparisonRows.map((row) => ({
                   card: row.card,
                   key: `${row.card.name}-${row.card.category}`,
@@ -411,6 +416,7 @@ export function ProbabilityCalculator() {
             )
           ) : prizingComparisonRows.length ? (
             <ProbabilityCompactGrid
+              pokemonOptions={pokemonOptions}
               rows={prizingComparisonRows.map((row) => ({
                 card: row.card,
                 key: `${row.card.name}-${row.card.category}`,
@@ -435,9 +441,11 @@ export function ProbabilityCalculator() {
 
 function ProbabilityComparisonTable({
   columns,
+  pokemonOptions,
   rows
 }: {
   columns: Array<{ key: string; label: string }>;
+  pokemonOptions: PokemonOption[] | null;
   rows: Array<{ key: string; card: CalculatorCardGroup; metrics: ComparisonMetric[] }>;
 }) {
   return (
@@ -456,7 +464,13 @@ function ProbabilityComparisonTable({
 
       <div className="divide-y divide-[var(--border)]">
         {rows.map((row) => (
-          <ProbabilityComparisonRow columns={columns} key={row.key} card={row.card} metrics={row.metrics} />
+          <ProbabilityComparisonRow
+            card={row.card}
+            columns={columns}
+            key={row.key}
+            metrics={row.metrics}
+            pokemonOptions={pokemonOptions}
+          />
         ))}
       </div>
     </div>
@@ -466,11 +480,13 @@ function ProbabilityComparisonTable({
 function ProbabilityComparisonRow({
   card,
   columns,
-  metrics
+  metrics,
+  pokemonOptions
 }: {
   card: CalculatorCardGroup;
   columns: Array<{ key: string; label: string }>;
   metrics: ComparisonMetric[];
+  pokemonOptions: PokemonOption[] | null;
 }) {
   return (
     <article className="px-4 py-4 sm:px-5">
@@ -484,18 +500,7 @@ function ProbabilityComparisonRow({
         >
           <div className="flex min-w-0 items-center gap-3">
             {card.category === "Pokemon" ? (
-              <Image
-                alt=""
-                aria-hidden="true"
-                className="h-10 w-10 shrink-0 object-contain"
-                height={40}
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
-                sizes="40px"
-                src={getPokemonSpriteUrl(card.name)}
-                width={40}
-              />
+              <CalculatorPokemonSprite name={card.name} pokemonOptions={pokemonOptions} />
             ) : (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
                 {card.category.slice(0, 1)}
@@ -526,18 +531,7 @@ function ProbabilityComparisonRow({
         <div className="grid gap-3 lg:hidden">
           <div className="flex min-w-0 items-center gap-3">
             {card.category === "Pokemon" ? (
-              <Image
-                alt=""
-                aria-hidden="true"
-                className="h-10 w-10 shrink-0 object-contain"
-                height={40}
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
-                sizes="40px"
-                src={getPokemonSpriteUrl(card.name)}
-                width={40}
-              />
+              <CalculatorPokemonSprite name={card.name} pokemonOptions={pokemonOptions} />
             ) : (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
                 {card.category.slice(0, 1)}
@@ -573,8 +567,10 @@ function ProbabilityComparisonRow({
 }
 
 function ProbabilityCompactGrid({
+  pokemonOptions,
   rows
 }: {
+  pokemonOptions: PokemonOption[] | null;
   rows: Array<{ key: string; card: CalculatorCardGroup; metrics: ComparisonMetric[] }>;
 }) {
   return (
@@ -586,18 +582,7 @@ function ProbabilityCompactGrid({
         >
           <div className="flex min-w-0 items-center gap-3">
             {row.card.category === "Pokemon" ? (
-              <Image
-                alt=""
-                aria-hidden="true"
-                className="h-10 w-10 shrink-0 object-contain"
-                height={40}
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
-                sizes="40px"
-                src={getPokemonSpriteUrl(row.card.name)}
-                width={40}
-              />
+              <CalculatorPokemonSprite name={row.card.name} pokemonOptions={pokemonOptions} />
             ) : (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
                 {row.card.category.slice(0, 1)}
@@ -632,5 +617,45 @@ function ProbabilityCompactGrid({
         </article>
       ))}
     </div>
+  );
+}
+
+function CalculatorPokemonSprite({
+  name,
+  pokemonOptions
+}: {
+  name: string;
+  pokemonOptions: PokemonOption[] | null;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const slug = resolvePokemonSpriteSlug(name, pokemonOptions ?? undefined);
+  const matchedOption = findPokemonOptionBySlug(slug, pokemonOptions ?? undefined);
+  const src = matchedOption?.spriteUrl || getPokemonSpriteUrl(name, pokemonOptions ?? undefined);
+  const fallbackLabel = prettifyPokemonSlug(slug || name);
+
+  if (hasError || !src) {
+    return (
+      <div
+        aria-label={fallbackLabel}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-1 text-center text-[8px] font-semibold leading-tight text-[var(--text-muted)]"
+      >
+        {fallbackLabel}
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      alt=""
+      aria-hidden="true"
+      className="h-10 w-10 shrink-0 object-contain"
+      height={40}
+      onError={() => {
+        setHasError(true);
+      }}
+      sizes="40px"
+      src={src}
+      width={40}
+    />
   );
 }

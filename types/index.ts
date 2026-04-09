@@ -320,6 +320,7 @@ export type PokemonCatalogEntry = {
 export type PokemonOption = {
   slug: string
   label: string
+  spriteUrl?: string
 }
 
 // A single archetype entry from the archetype_catalog table

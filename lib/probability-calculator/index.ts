@@ -10,6 +10,8 @@ import {
   POKEMON_STAGE_MAP,
   POKEMON_VARIANT_STAGE_MAP
 } from "@/lib/probability-calculator/stages";
+import { getPokemonSpriteUrl as getSharedPokemonSpriteUrl } from "@/lib/pokemon/sprites";
+import type { PokemonOption } from "@/types/index";
 
 export const DECK_SIZE = 60;
 export const OPENING_HAND = 7;
@@ -230,8 +232,8 @@ export function buildGalleryCardImageCandidates(set: string, number: string) {
   ];
 }
 
-export function getPokemonSpriteUrl(name: string) {
-  return `https://r2.limitlesstcg.net/pokemon/gen9/${pokemonSpriteSlug(name)}.png`;
+export function getPokemonSpriteUrl(name: string, pokemonOptions?: PokemonOption[]) {
+  return getSharedPokemonSpriteUrl(name, pokemonOptions);
 }
 
 export function reportTimestamp(date: Date) {
@@ -681,60 +683,6 @@ function formatCardNumberForImage(number: string) {
   }
 
   return compact.toUpperCase();
-}
-
-function pokemonSpriteSlug(name: string) {
-  let clean = String(name).trim();
-  clean = clean.replace(/^Stage\s+[12]\s+/i, "");
-  clean = clean.replace(/\b(ex|vstar|vmax|v|gx)\b/gi, " ");
-  clean = clean
-    .replace(/[’']/g, "")
-    .replace(/\./g, " ")
-    .replace(/:/g, " ")
-    .replace(/♀/g, " f ")
-    .replace(/♂/g, " m ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-
-  const explicitMap: Record<string, string> = {
-    "bloodmoon ursaluna": "ursaluna-bloodmoon",
-    "mr mime": "mr-mime",
-    "mr rime": "mr-rime",
-    "mime jr": "mime-jr",
-    "type null": "type-null",
-    "ho oh": "ho-oh",
-    "porygon z": "porygon-z",
-    "jangmo o": "jangmo-o",
-    "hakamo o": "hakamo-o",
-    "kommo o": "kommo-o"
-  };
-
-  if (explicitMap[clean]) {
-    return explicitMap[clean];
-  }
-
-  let tokens = clean.split(" ").filter(Boolean);
-  if (tokens.length === 0) {
-    return "unknown";
-  }
-
-  if (tokens[0] === "mega" && tokens.length > 1) {
-    tokens = tokens.slice(1).concat("mega");
-  }
-  if (tokens[0] === "bloodmoon" && tokens.length > 1) {
-    tokens = tokens.slice(1).concat("bloodmoon");
-  }
-  if (tokens[0] === "radiant" && tokens.length > 1) {
-    tokens = tokens.slice(1).concat("radiant");
-  }
-
-  const regionalPrefixes = new Set(["alolan", "galarian", "hisuian", "paldean"]);
-  if (regionalPrefixes.has(tokens[0]) && tokens.length > 1) {
-    tokens = tokens.slice(1).concat(tokens[0]);
-  }
-
-  return tokens.join("-").replace(/[^a-z0-9-]/g, "");
 }
 
 function buildExportReportModel(analysis: CalculatorAnalysis): ExportReportModel {

@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { buildPokemonSpriteUrlFromSlug, findPokemonOptionBySlug, prettifyPokemonSlug } from "@/lib/pokemon/sprites";
+import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 
 type SpriteStripProps = {
   sprites: string[];
@@ -22,24 +24,18 @@ const sizeValues: Record<SpriteStripProps["size"], number> = {
   lg: 44
 };
 
-function prettifyPokemonSlug(slug: string) {
-  return slug
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function SpriteStripItem({
   slug,
+  src,
   size
 }: {
   slug: string;
+  src?: string;
   size: SpriteStripProps["size"];
 }) {
   const [hasError, setHasError] = useState(false);
 
-  if (hasError) {
+  if (hasError || !src) {
     return (
       <div
         aria-label={prettifyPokemonSlug(slug)}
@@ -53,8 +49,6 @@ function SpriteStripItem({
       </div>
     );
   }
-
-  const src = `https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`;
 
   return (
     <Image
@@ -72,6 +66,7 @@ function SpriteStripItem({
 }
 
 export function SpriteStrip({ sprites, size, maxVisible = 2, className }: SpriteStripProps) {
+  const pokemonOptions = usePokemonOptions();
   const visibleSprites = sprites.slice(0, maxVisible);
   const stripClassName = ["flex items-center gap-0.5", className].filter(Boolean).join(" ");
 
@@ -93,8 +88,14 @@ export function SpriteStrip({ sprites, size, maxVisible = 2, className }: Sprite
   return (
     <div className={stripClassName}>
       {visibleSprites.map((slug, index) => {
+        const matchedOption = findPokemonOptionBySlug(slug, pokemonOptions ?? undefined);
         return (
-          <SpriteStripItem key={`${slug}-${index}`} size={size} slug={slug} />
+          <SpriteStripItem
+            key={`${slug}-${index}`}
+            size={size}
+            slug={slug}
+            src={matchedOption?.spriteUrl || buildPokemonSpriteUrlFromSlug(slug) || undefined}
+          />
         );
       })}
     </div>
