@@ -228,6 +228,73 @@ export type DeckSummary = {
 
 
 // ============================================================
+// TOURNAMENTS
+// ============================================================
+
+export type TournamentCategory =
+  | 'online'
+  | 'local'
+  | 'challenge'
+  | 'cup'
+  | 'regional'
+  | 'international'
+  | 'world'
+  | ''
+
+export type TournamentPlacement =
+  | 'no placement'
+  | 'dropped'
+  | 't1024'
+  | 't512'
+  | 't256'
+  | 't128'
+  | 't64'
+  | 't32'
+  | 't16'
+  | 't8'
+  | 't4'
+  | 'finalist'
+  | 'champion'
+  | ''
+
+export type TournamentRoundResult = 'Win' | 'Loss' | 'Tie'
+
+export type TournamentRound = {
+  id: string
+  tournamentId: string
+  userId: string
+  roundNumber: number
+  opponentDeckName: string
+  opponentDeckSprites: string[]
+  result: TournamentRoundResult
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type Tournament = {
+  id: string
+  userId: string
+  name: string
+  dateFrom: string
+  dateTo: string
+  linkedDeckId: string | undefined
+  deckName: string
+  deckSprites: string[]
+  category: TournamentCategory
+  placement: TournamentPlacement
+  format: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type TournamentSummary = Tournament & {
+  rounds: TournamentRound[]
+}
+
+
+// ============================================================
 // LOG SHARE
 // ============================================================
 

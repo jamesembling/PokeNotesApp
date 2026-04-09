@@ -3,7 +3,6 @@
 import { cloneElement, isValidElement, type ReactElement } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { PencilIcon } from "@/components/ui/icons";
 import { EditLogDialog } from "@/components/ui/EditLogDialog";
 import type { BattleLog, DeckSummary, PokemonOption } from "@/types/index";
 
@@ -76,14 +75,8 @@ export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButton
       onClick: handleOpen
     })
   ) : (
-    <Button
-      aria-label="Edit battle log"
-      className="h-10 w-10 px-0"
-      disabled={isLoading}
-      onClick={handleOpen}
-      variant="ghost"
-    >
-      <PencilIcon className="h-4 w-4" />
+    <Button disabled={isLoading} onClick={handleOpen} variant="secondary">
+      Edit Log
     </Button>
   );
 

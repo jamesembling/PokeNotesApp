@@ -401,11 +401,7 @@ export function BattleLogDetailView({
 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-3">
-              <SummaryChip>{log.format}</SummaryChip>
               <SummaryChip>{coinFlipLabel} coin toss</SummaryChip>
-              {linkedStrategyLabel !== "No strategy linked" ? (
-                <SummaryChip>Deck Strategy Linked</SummaryChip>
-              ) : null}
               {log.goOrder ? <SummaryChip>Went {log.goOrder}</SummaryChip> : null}
             </div>
             <p className="text-sm text-[var(--text-muted)]">{timestampLabel}</p>

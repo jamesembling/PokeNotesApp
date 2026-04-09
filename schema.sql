@@ -85,6 +85,67 @@ comment on column public.decks.matchup_plans is
 
 
 -- ============================================================
+-- TOURNAMENTS
+-- Tournament runs tied to a deck strategy or a manually tracked deck.
+-- ============================================================
+
+create table public.tournaments (
+  id                text primary key,
+  user_id           uuid not null references auth.users(id) on delete cascade,
+  name              text not null default '',
+  date_from         date not null,
+  date_to           date not null,
+  linked_deck_id    text references public.decks(id) on delete set null,
+  deck_name         text not null default '',
+  deck_sprites      jsonb not null default '[]',
+  category          text not null default ''
+                      check (category in ('', 'online', 'local', 'challenge', 'cup', 'regional', 'international', 'world')),
+  placement         text not null default ''
+                      check (placement in ('', 'no placement', 'dropped', 't1024', 't512', 't256', 't128', 't64', 't32', 't16', 't8', 't4', 'finalist', 'champion')),
+  format            text not null default '',
+  notes             text not null default '',
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now(),
+
+  constraint tournaments_valid_date_range
+    check (date_to >= date_from)
+);
+
+comment on table public.tournaments is
+  'User tournament records. Can link to a saved deck or store a manual deck snapshot.';
+comment on column public.tournaments.deck_sprites is
+  'Array of Pokemon slug strings used for tournament deck display.';
+
+
+-- ============================================================
+-- TOURNAMENT ROUNDS
+-- Individual rounds within a tournament run.
+-- ============================================================
+
+create table public.tournament_rounds (
+  id                     text primary key,
+  tournament_id          text not null references public.tournaments(id) on delete cascade,
+  user_id                uuid not null references auth.users(id) on delete cascade,
+  round_number           integer not null check (round_number > 0),
+  opponent_deck_name     text not null default '',
+  opponent_deck_sprites  jsonb not null default '[]',
+  result                 text not null
+                           check (result in ('Win', 'Loss', 'Tie')),
+  notes                  text not null default '',
+  created_at             timestamptz not null default now(),
+  updated_at             timestamptz not null default now(),
+
+  constraint tournament_rounds_unique_round
+    unique (tournament_id, round_number)
+);
+
+comment on table public.tournament_rounds is
+  'Round-by-round results for a tournament run.';
+comment on column public.tournament_rounds.opponent_deck_sprites is
+  'Array of Pokemon slug strings used for opponent deck display.';
+
+
+-- ============================================================
 -- LOGS
 -- Battle logs imported from PTCGL.
 -- All filterable/sortable fields are proper columns.
@@ -308,6 +369,20 @@ create index decks_user_id
 create index decks_user_format
   on public.decks (user_id, format);
 
+-- Tournaments
+create index tournaments_user_date
+  on public.tournaments (user_id, date_from desc, date_to desc);
+
+create index tournaments_linked_deck
+  on public.tournaments (linked_deck_id)
+  where linked_deck_id is not null;
+
+create index tournament_rounds_tournament
+  on public.tournament_rounds (tournament_id, round_number asc);
+
+create index tournament_rounds_user
+  on public.tournament_rounds (user_id, created_at desc);
+
 -- Pokemon catalog
 create index pokemon_catalog_national_dex
   on public.pokemon_catalog (national_dex);
@@ -380,6 +455,14 @@ create trigger set_logs_updated_at
 
 create trigger set_decks_updated_at
   before update on public.decks
+  for each row execute function set_updated_at();
+
+create trigger set_tournaments_updated_at
+  before update on public.tournaments
+  for each row execute function set_updated_at();
+
+create trigger set_tournament_rounds_updated_at
+  before update on public.tournament_rounds
   for each row execute function set_updated_at();
 
 create trigger set_profiles_updated_at
@@ -463,6 +546,46 @@ create policy "Users can delete own decks"
   using (auth.uid() = user_id);
 
 
+-- TOURNAMENTS
+alter table public.tournaments enable row level security;
+
+create policy "Users can read own tournaments"
+  on public.tournaments for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own tournaments"
+  on public.tournaments for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own tournaments"
+  on public.tournaments for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own tournaments"
+  on public.tournaments for delete
+  using (auth.uid() = user_id);
+
+
+-- TOURNAMENT ROUNDS
+alter table public.tournament_rounds enable row level security;
+
+create policy "Users can read own tournament rounds"
+  on public.tournament_rounds for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own tournament rounds"
+  on public.tournament_rounds for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own tournament rounds"
+  on public.tournament_rounds for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own tournament rounds"
+  on public.tournament_rounds for delete
+  using (auth.uid() = user_id);
+
+
 -- LOG SHARES
 -- Public read by token. Only owner can create or delete.
 alter table public.log_shares enable row level security;
@@ -521,8 +644,8 @@ create policy "Admins can update role permissions"
 
 insert into public.role_permissions (role, menu_sections)
 values
-  ('user',  '["logs", "decks", "stats", "calculator"]'),
-  ('admin', '["logs", "decks", "stats", "calculator"]');
+  ('user',  '["logs", "decks", "tournaments", "stats", "calculator"]'),
+  ('admin', '["logs", "decks", "tournaments", "stats", "calculator"]');
 
 
 -- ============================================================

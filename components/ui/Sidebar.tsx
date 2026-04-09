@@ -22,6 +22,7 @@ type SidebarProps = {
 const navItems = [
   { label: "Battle Logs", href: "/logs" },
   { label: "Deck Strategy", href: "/decks" },
+  { label: "Tournaments", href: "/tournaments" },
   { label: "Stats", href: "/stats" },
   { label: "Probability Calculator", href: "/calculator" }
 ];

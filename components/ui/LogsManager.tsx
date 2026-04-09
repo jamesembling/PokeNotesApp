@@ -388,7 +388,7 @@ export function LogsManager({
           <div className="grid gap-3">
             <p className="ui-eyebrow">Workspace Tools</p>
             <div>
-              {canLoadMore ? <Badge>More available</Badge> : <Badge>Current window complete</Badge>}
+              {!canLoadMore ? <Badge>Current window complete</Badge> : null}
             </div>
           </div>
 

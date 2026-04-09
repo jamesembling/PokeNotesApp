@@ -142,7 +142,6 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
             <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
 
             <div className="flex flex-wrap gap-2">
-              <Badge>{deck.format}</Badge>
               {deck.goPreference ? <Badge>Prefers {deck.goPreference}</Badge> : null}
             </div>
           </div>
