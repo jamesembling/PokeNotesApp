@@ -16,6 +16,7 @@
   --color-win-bg: rgba(22, 163, 74, 0.1);
   --color-win-border: rgba(22, 163, 74, 0.2);
   --color-loss: #dc2626;
+  --color-loss-strong: #b91c1c;
   --color-loss-bg: rgba(220, 38, 38, 0.08);
   --color-loss-border: rgba(220, 38, 38, 0.16);
   --color-brand: #2563eb;
@@ -23,6 +24,8 @@
   --color-danger: #dc2626;
   --text-inverse: #ffffff;
   --bg-overlay: rgba(17, 24, 39, 0.44);
+  --shadow-sm: 0 10px 24px rgba(17, 24, 39, 0.08);
+  --shadow-card: 0 18px 42px rgba(17, 24, 39, 0.12);
   --shadow-lg: 0 24px 64px rgba(17, 24, 39, 0.18);
 }
 
@@ -40,6 +43,7 @@
   --color-win-bg: rgba(22, 163, 74, 0.1);
   --color-win-border: rgba(22, 163, 74, 0.2);
   --color-loss: #dc2626;
+  --color-loss-strong: #f87171;
   --color-loss-bg: rgba(220, 38, 38, 0.08);
   --color-loss-border: rgba(220, 38, 38, 0.16);
   --color-brand: #2563eb;
@@ -47,11 +51,19 @@
   --color-danger: #dc2626;
   --text-inverse: #ffffff;
   --bg-overlay: rgba(15, 17, 23, 0.6);
+  --shadow-sm: 0 12px 28px rgba(0, 0, 0, 0.18);
+  --shadow-card: 0 20px 48px rgba(0, 0, 0, 0.24);
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.32);
 }
 
 html {
   min-height: 100%;
+  background-color: var(--bg-page);
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 body {
@@ -60,6 +72,33 @@ body {
   color: var(--text-secondary);
   font-family: var(--font-body), system-ui, -apple-system, sans-serif;
   font-kerning: normal;
+}
+
+html.theme-switching body,
+html.theme-switching main,
+html.theme-switching aside,
+html.theme-switching header,
+html.theme-switching nav,
+html.theme-switching section,
+html.theme-switching article,
+html.theme-switching div,
+html.theme-switching a,
+html.theme-switching button,
+html.theme-switching input,
+html.theme-switching textarea,
+html.theme-switching select,
+html.theme-switching summary,
+html.theme-switching p,
+html.theme-switching h1,
+html.theme-switching h2,
+html.theme-switching h3,
+html.theme-switching h4,
+html.theme-switching span {
+  transition:
+    background-color 180ms ease-out,
+    border-color 180ms ease-out,
+    color 180ms ease-out,
+    box-shadow 180ms ease-out;
 }
 
 h1,

@@ -17,29 +17,55 @@ type ThemeContextValue = {
 };
 
 const THEME_STORAGE_KEY = "theme";
+const THEME_COOKIE_KEY = "theme";
+const THEME_SWITCHING_CLASS = "theme-switching";
+const THEME_TRANSITION_DURATION_MS = 180;
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function applyTheme(theme: Theme) {
   document.documentElement.classList.toggle("dark", theme === "dark");
+  document.documentElement.style.colorScheme = theme;
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+function persistTheme(theme: Theme) {
+  window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  document.cookie = `${THEME_COOKIE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`;
+}
+
+function animateThemeSwitch() {
+  const root = document.documentElement;
+
+  root.classList.add(THEME_SWITCHING_CLASS);
+  window.setTimeout(() => {
+    root.classList.remove(THEME_SWITCHING_CLASS);
+  }, THEME_TRANSITION_DURATION_MS);
+}
+
+export function ThemeProvider({
+  children,
+  initialTheme = "light"
+}: {
+  children: React.ReactNode;
+  initialTheme?: Theme;
+}) {
+  const [theme, setTheme] = useState<Theme>(initialTheme);
 
   useEffect(() => {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-    const nextTheme: Theme = storedTheme === "dark" ? "dark" : "light";
+    const nextTheme: Theme = storedTheme === "dark" ? "dark" : initialTheme;
 
     setTheme(nextTheme);
     applyTheme(nextTheme);
-  }, []);
+    persistTheme(nextTheme);
+  }, [initialTheme]);
 
   const toggleTheme = useCallback(() => {
     setTheme((currentTheme) => {
       const nextTheme: Theme = currentTheme === "dark" ? "light" : "dark";
 
-      window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+      animateThemeSwitch();
+      persistTheme(nextTheme);
       applyTheme(nextTheme);
 
       return nextTheme;
