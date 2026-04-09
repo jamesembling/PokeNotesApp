@@ -1,5 +1,5 @@
+import { cache } from "react";
 import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
-import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { createClient } from "@/lib/supabase/server";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
@@ -150,22 +150,6 @@ function parseDeckList(value: unknown): DeckList | null {
   };
 }
 
-async function resolveSortedDeckCards(parsedCards: DeckCard[], storedSortedCards: DeckCard[]) {
-  if (parsedCards.length === 0) {
-    return [];
-  }
-
-  try {
-    return await sortDeckListCards(parsedCards);
-  } catch {
-    if (storedSortedCards.length > 0) {
-      return storedSortedCards;
-    }
-
-    return sortDeckListCardsLocally(parsedCards);
-  }
-}
-
 function parseDeckLists(value: unknown): DeckList[] {
   if (!Array.isArray(value)) {
     return [];
@@ -174,6 +158,14 @@ function parseDeckLists(value: unknown): DeckList[] {
   return value
     .map((entry) => parseDeckList(entry))
     .filter((entry): entry is DeckList => entry !== null);
+}
+
+function stripDeckListCards(deckList: DeckList): DeckList {
+  return {
+    ...deckList,
+    parsedCards: [],
+    sortedCards: []
+  };
 }
 
 function buildPokemonLookupKeys(rawValue: string) {
@@ -298,18 +290,12 @@ async function deriveDeckPokemon(deckName: string, deckLists: DeckList[]): Promi
 
 async function mapDeckSummary(row: DeckSummaryRow): Promise<DeckSummary> {
   const parsedDeckLists = parseDeckLists(row.deck_lists);
-  const deckLists = await Promise.all(
-    parsedDeckLists.map(async (deckList) => ({
-      ...deckList,
-      sortedCards: await resolveSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
-    }))
-  );
   const storedDeckPokemon = parseStringArray(row.deck_pokemon);
   const normalizedStoredDeckPokemon = await normalizeDeckPokemon(storedDeckPokemon);
   const deckPokemon =
     normalizedStoredDeckPokemon.length > 0
       ? normalizedStoredDeckPokemon
-      : await deriveDeckPokemon(row.deck_name, deckLists);
+      : await deriveDeckPokemon(row.deck_name, parsedDeckLists);
 
   return {
     id: row.id,
@@ -318,7 +304,7 @@ async function mapDeckSummary(row: DeckSummaryRow): Promise<DeckSummary> {
     format: row.format,
     goPreference: row.go_preference ?? "",
     deckPokemon,
-    deckLists,
+    deckLists: parsedDeckLists.map(stripDeckListCards),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -337,7 +323,7 @@ async function mapDeck(row: DeckRow): Promise<Deck> {
   };
 }
 
-export async function getDecks(userId: string): Promise<DeckSummary[]> {
+export const getDecks = cache(async function getDecks(userId: string): Promise<DeckSummary[]> {
   const supabase = createClient();
 
   const { data, error } = await measureServerCall("db.decks.list", async () =>
@@ -366,9 +352,12 @@ export async function getDecks(userId: string): Promise<DeckSummary[]> {
 
   const rows = ((data ?? []) as unknown) as DeckSummaryRow[];
   return await Promise.all(rows.map((row) => mapDeckSummary(row)));
-}
+});
 
-export async function getDeckById(userId: string, deckId: string): Promise<Deck | null> {
+export const getDeckById = cache(async function getDeckById(
+  userId: string,
+  deckId: string
+): Promise<Deck | null> {
   const supabase = createClient();
 
   const { data, error } = await measureServerCall("db.decks.byId", async () =>
@@ -405,7 +394,7 @@ export async function getDeckById(userId: string, deckId: string): Promise<Deck 
   }
 
   return await mapDeck((data as unknown) as DeckRow);
-}
+});
 
 export async function getDeckWithList(
   userId: string,
@@ -431,13 +420,7 @@ export async function getDeckWithList(
   }
 
   const row = (data as unknown) as DeckListLookupRow;
-  const parsedDeckLists = parseDeckLists(row.deck_lists);
-  const deckLists = await Promise.all(
-    parsedDeckLists.map(async (deckList) => ({
-      ...deckList,
-      sortedCards: await resolveSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
-    }))
-  );
+  const deckLists = parseDeckLists(row.deck_lists);
   const deckList = deckLists.find((entry) => entry.id === listId);
 
   if (!deckList) {

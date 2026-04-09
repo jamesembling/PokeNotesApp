@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/Card";
-import { ImportLogDialog } from "@/components/ui/ImportLogDialog";
+import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LogsManager } from "@/components/ui/LogsManager";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
@@ -7,7 +7,6 @@ import { requireUser } from "@/lib/auth";
 import { getDecks } from "@/lib/db/decks";
 import { getLogsWindow, getLogSummaryStats } from "@/lib/db/logs";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
-import { getPokemonOptions } from "@/lib/db/pokemon";
 import type { BattleLogSummary } from "@/types/index";
 
 function attachLinkedDeckListNames(
@@ -52,11 +51,10 @@ function attachLinkedDeckListNames(
 export default async function LogsPage() {
   const user = await requireUser();
 
-  const [stats, page, userDecks, pokemonOptions] = await Promise.all([
+  const [stats, page, userDecks] = await Promise.all([
     getLogSummaryStats(user.id),
     getLogsWindow(user.id),
-    getDecks(user.id),
-    getPokemonOptions()
+    getDecks(user.id)
   ]);
   const logs = attachLinkedDeckListNames(page.logs, userDecks);
 
@@ -69,12 +67,7 @@ export default async function LogsPage() {
         ]}
         title="Battle Logs"
         subtitle="Imported Pokemon TCG Live logs, grouped by day and ready for deeper review."
-        action={
-          <ImportLogDialog
-            pokemonOptions={pokemonOptions}
-            userDecks={userDecks}
-          />
-        }
+        action={<LazyImportLogButton />}
       />
 
       <Card>
@@ -105,7 +98,6 @@ export default async function LogsPage() {
           initialNextWindowEndDate={page.nextWindowEndDate}
           initialWindowEndDate={page.windowEndDate}
           initialWindowStartDate={page.windowStartDate}
-          pokemonOptions={pokemonOptions}
           userDecks={userDecks}
         />
       </Card>

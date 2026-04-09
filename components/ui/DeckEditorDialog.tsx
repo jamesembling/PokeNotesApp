@@ -14,6 +14,7 @@ import type { Deck, PokemonOption } from "@/types/index";
 
 type DeckEditorDialogProps = {
   deck?: Deck;
+  initialOpen?: boolean;
   pokemonOptions: PokemonOption[];
   triggerLabel: string;
   triggerVariant?: "primary" | "secondary" | "ghost";
@@ -65,13 +66,14 @@ function normalizeRedirectPath(value: string) {
 
 export function DeckEditorDialog({
   deck,
+  initialOpen = false,
   pokemonOptions,
   triggerLabel,
   triggerVariant = "primary"
 }: DeckEditorDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(deck?.deckPokemon ?? []);
   const [actionError, setActionError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");

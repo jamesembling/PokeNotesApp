@@ -1,10 +1,17 @@
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
 import { buildPokemonNameVariants, normalizeText } from "@/lib/log-import/normalization";
+import { CACHE_TAGS } from "@/lib/server/cache";
+import { createPublicClient } from "@/lib/supabase/public";
 import type {
   ArchetypeCatalogRow,
   IdentificationCatalog,
   PokemonCatalogRow
 } from "@/lib/log-import/types";
+
+type CachedIdentificationCatalogRows = {
+  archetypeRows: ArchetypeCatalogRow[];
+  pokemonRows: PokemonCatalogRow[];
+};
 
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
@@ -86,44 +93,60 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[]) {
   };
 }
 
+const loadIdentificationCatalogCached = unstable_cache(
+  async (): Promise<CachedIdentificationCatalogRows> => {
+    const supabase = createPublicClient();
+    const [{ data: pokemonRows, error: pokemonError }, archetypeResult] = await Promise.all([
+      supabase
+        .from("pokemon_catalog")
+        .select("slug,label,evolves_from,sprite_url,name_de,name_es,name_fr,name_it,name_pt_br"),
+      supabase
+        .from("archetype_catalog")
+        .select("id,label,sprites,detection_sprites,is_excluded")
+        .eq("is_excluded", false)
+    ]);
+
+    let archetypeRows = archetypeResult.data;
+    let archetypeError = archetypeResult.error;
+
+    if (archetypeError && /detection_sprites/i.test(archetypeError.message)) {
+      const fallbackResult = await supabase
+        .from("archetype_catalog")
+        .select("id,label,sprites,is_excluded")
+        .eq("is_excluded", false);
+
+      archetypeRows = (fallbackResult.data ?? []).map((row) => ({
+        ...row,
+        detection_sprites: row.sprites
+      }));
+      archetypeError = fallbackResult.error;
+    }
+
+    if (pokemonError) {
+      throw pokemonError;
+    }
+
+    if (archetypeError) {
+      throw archetypeError;
+    }
+
+    return {
+      pokemonRows: (pokemonRows ?? []) as PokemonCatalogRow[],
+      archetypeRows: (archetypeRows ?? []) as ArchetypeCatalogRow[]
+    };
+  },
+  ["identification-catalog"],
+  {
+    revalidate: 60 * 60,
+    tags: [CACHE_TAGS.identificationCatalog]
+  }
+);
+
 export async function loadIdentificationCatalog(): Promise<IdentificationCatalog> {
-  const supabase = createClient();
-  const [{ data: pokemonRows, error: pokemonError }, archetypeResult] = await Promise.all([
-    supabase
-      .from("pokemon_catalog")
-      .select("slug,label,evolves_from,sprite_url,name_de,name_es,name_fr,name_it,name_pt_br"),
-    supabase
-      .from("archetype_catalog")
-      .select("id,label,sprites,detection_sprites,is_excluded")
-      .eq("is_excluded", false)
-  ]);
-
-  let archetypeRows = archetypeResult.data;
-  let archetypeError = archetypeResult.error;
-
-  if (archetypeError && /detection_sprites/i.test(archetypeError.message)) {
-    const fallbackResult = await supabase
-      .from("archetype_catalog")
-      .select("id,label,sprites,is_excluded")
-      .eq("is_excluded", false);
-
-    archetypeRows = (fallbackResult.data ?? []).map((row) => ({
-      ...row,
-      detection_sprites: row.sprites
-    }));
-    archetypeError = fallbackResult.error;
-  }
-
-  if (pokemonError) {
-    throw pokemonError;
-  }
-
-  if (archetypeError) {
-    throw archetypeError;
-  }
+  const { pokemonRows, archetypeRows } = await loadIdentificationCatalogCached();
 
   return {
-    pokemon: buildPokemonIndex((pokemonRows ?? []) as PokemonCatalogRow[]),
-    archetypes: buildArchetypeIndex((archetypeRows ?? []) as ArchetypeCatalogRow[])
+    pokemon: buildPokemonIndex(pokemonRows),
+    archetypes: buildArchetypeIndex(archetypeRows)
   };
 }

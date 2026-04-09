@@ -1,14 +1,13 @@
 import { Card } from "@/components/ui/Card";
 import { DeckCard } from "@/components/ui/DeckCard";
-import { DeckEditorDialog } from "@/components/ui/DeckEditorDialog";
+import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { getDecks } from "@/lib/db/decks";
-import { getPokemonOptions } from "@/lib/db/pokemon";
 
 export default async function DecksPage() {
   const user = await requireUser();
-  const [decks, pokemonOptions] = await Promise.all([getDecks(user.id), getPokemonOptions()]);
+  const decks = await getDecks(user.id);
 
   return (
     <>
@@ -17,7 +16,7 @@ export default async function DecksPage() {
         showDivider={false}
         title="Deck Strategy"
         subtitle="Your saved deck strategies and battle records."
-        action={<DeckEditorDialog pokemonOptions={pokemonOptions} triggerLabel="New Deck" />}
+        action={<LazyDeckEditorButton triggerLabel="New Deck" />}
       />
 
       {decks.length === 0 ? (

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { parseDeckList, parseLines } from "@/lib/decks/deck-list-parse";
@@ -69,6 +70,11 @@ type SaveActionResult = {
   redirectTo: string;
 };
 
+function revalidateDeckWorkspace() {
+  revalidatePath("/decks", "layout");
+  revalidatePath("/logs", "layout");
+}
+
 export async function createDeckAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
   const supabase = createClient();
@@ -98,6 +104,8 @@ export async function createDeckAction(formData: FormData): Promise<SaveActionRe
   if (error) {
     throw error;
   }
+
+  revalidateDeckWorkspace();
 
   return {
     ok: true,
@@ -141,6 +149,8 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
     throw error;
   }
 
+  revalidateDeckWorkspace();
+
   return {
     ok: true,
     redirectTo: withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`))
@@ -178,6 +188,8 @@ export async function deleteDeckAction(formData: FormData): Promise<SaveActionRe
   if (deleteError) {
     throw deleteError;
   }
+
+  revalidateDeckWorkspace();
 
   return {
     ok: true,
@@ -284,6 +296,8 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
   if (updateError) {
     throw updateError;
   }
+
+  revalidateDeckWorkspace();
 
   return {
     ok: true,

@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
-import { getDecks } from "@/lib/db/decks";
+import { getDeckWithList, getDecks } from "@/lib/db/decks";
 import { getLogById } from "@/lib/db/logs";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 
@@ -84,10 +84,12 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const linkedDeck = resolvedLinkedDeckId
     ? userDecks.find((deck) => deck.id === resolvedLinkedDeckId) ?? null
     : null;
-  const linkedDeckList = linkedDeck?.deckLists.find(
-    (deckList) => deckList.id === log.linkedDeckListId
-  );
-  const linkedDeckListSortedCards = linkedDeckList?.sortedCards ?? [];
+  const linkedDeckList = linkedDeck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
+  const linkedDeckWithList =
+    resolvedLinkedDeckId && log.linkedDeckListId
+      ? await getDeckWithList(user.id, resolvedLinkedDeckId, log.linkedDeckListId)
+      : null;
+  const linkedDeckListSortedCards = linkedDeckWithList?.deckList.sortedCards ?? [];
   const linkedStrategyLabel = linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
   const timestampLabel = formatImportedAt(log.importedAt);
 
@@ -107,7 +109,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
         linkedDeckListFormat={linkedDeckList?.format}
         linkedDeckListId={linkedDeckList?.id}
         linkedDeckListName={linkedDeckList?.name}
-        linkedDeckListNotes={linkedDeckList?.notes}
+        linkedDeckListNotes={linkedDeckWithList?.deckList.notes ?? linkedDeckList?.notes}
         linkedDeckListSortedCards={linkedDeckListSortedCards}
         linkedStrategyLabel={linkedStrategyLabel}
         log={log}

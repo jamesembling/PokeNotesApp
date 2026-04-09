@@ -11,11 +11,11 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
-import { EditLogDialog } from "@/components/ui/EditLogDialog";
 import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
+import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LogRow } from "@/components/ui/LogRow";
 import { formatDayDate } from "@/lib/client/date-format";
-import type { BattleLog, BattleLogSummary, DeckSummary, PokemonOption } from "@/types/index";
+import type { BattleLog, BattleLogSummary, DeckSummary } from "@/types/index";
 
 type LogGroup = {
   date: string;
@@ -30,7 +30,6 @@ type LogsManagerProps = {
   initialNextWindowEndDate: string;
   initialWindowEndDate: string;
   initialWindowStartDate: string;
-  pokemonOptions: PokemonOption[];
   userDecks: DeckSummary[];
 };
 
@@ -158,7 +157,6 @@ export function LogsManager({
   initialNextWindowEndDate,
   initialWindowEndDate,
   initialWindowStartDate,
-  pokemonOptions,
   userDecks
 }: LogsManagerProps) {
   const router = useRouter();
@@ -547,18 +545,8 @@ export function LogsManager({
                   {group.logs.map((log) => (
                     <LogRow
                       editAction={
-                        <EditLogDialog
+                        <LazyEditLogButton
                           log={toEditableLog(log)}
-                          pokemonOptions={pokemonOptions}
-                          trigger={
-                            <button
-                              aria-label="Edit battle log"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
-                              type="button"
-                            >
-                              <PencilIcon className="h-4 w-4" />
-                            </button>
-                          }
                           userDecks={userDecks}
                         />
                       }

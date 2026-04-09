@@ -1,18 +1,21 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { DeckEditorDialog } from "@/components/ui/DeckEditorDialog";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
-import { LogRow } from "@/components/ui/LogRow";
+import {
+  DeckLogStatsGrid,
+  DeckLogStatsGridFallback,
+  DeckRelatedLogsSection,
+  DeckRelatedLogsSectionFallback
+} from "@/components/ui/DeckRelatedLogsSection";
+import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
-import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
 import { getDeckById } from "@/lib/db/decks";
-import { getAllLogsForDeck, getBattleLogSummaryStats } from "@/lib/db/logs";
-import { getPokemonOptions } from "@/lib/db/pokemon";
-import type { BattleLogSummary } from "@/types/index";
+import { getAllLogsForDeck } from "@/lib/db/logs";
 
 type DeckDetailPageProps = {
   params: {
@@ -58,28 +61,6 @@ function StrategySection({
   );
 }
 
-function attachLinkedDeckListNames(logs: BattleLogSummary[], deckId: string, deck: Awaited<ReturnType<typeof getDeckById>>) {
-  if (!deck) {
-    return logs;
-  }
-
-  return logs.map((log) => {
-    if (log.linkedDeckId !== deckId || !log.linkedDeckListId) {
-      return log;
-    }
-
-    const linkedDeckList = deck.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
-    if (!linkedDeckList?.name) {
-      return log;
-    }
-
-    return {
-      ...log,
-      linkedDeckListName: linkedDeckList.name
-    };
-  });
-}
-
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const user = await requireUser();
   const defaultCreatedBy =
@@ -88,10 +69,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     user.email?.split("@")[0] ||
     "Trainer";
 
-  const [deck, pokemonOptions] = await Promise.all([
-    getDeckById(user.id, params.id),
-    getPokemonOptions()
-  ]);
+  const deck = await getDeckById(user.id, params.id);
 
   if (!deck) {
     return (
@@ -123,14 +101,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     );
   }
 
-  const allRelatedLogs = attachLinkedDeckListNames(
-    await getAllLogsForDeck(user.id, deck.id, [deck]),
-    deck.id,
-    deck
-  );
-  const stats = getBattleLogSummaryStats(allRelatedLogs);
-  const relatedLogs = allRelatedLogs.slice(0, 5);
-  const recentStats = getBattleLogSummaryStats(relatedLogs);
+  const relatedLogsPromise = getAllLogsForDeck(user.id, deck.id, [deck]);
 
   return (
     <PageWidth size="standard">
@@ -150,9 +121,8 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
               triggerLabel="Add Deck List"
               triggerVariant="secondary"
             />
-            <DeckEditorDialog
+            <LazyDeckEditorButton
               deck={deck}
-              pokemonOptions={pokemonOptions}
               triggerLabel="Edit Deck"
               triggerVariant="secondary"
             />
@@ -177,11 +147,9 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <StatCard label="Total Games" value={stats.total} />
-            <StatCard label="Wins" value={stats.wins} valueColor="win" />
-            <StatCard label="Losses" value={stats.losses} valueColor="loss" />
-          </div>
+          <Suspense fallback={<DeckLogStatsGridFallback />}>
+            <DeckLogStatsGrid logsPromise={relatedLogsPromise} />
+          </Suspense>
         </div>
       </Card>
 
@@ -263,44 +231,9 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         )}
       </Card>
 
-      <Card className="space-y-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-2">
-            <p className="ui-eyebrow">Battle Logs</p>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Recent battle logs linked to this strategy or matched to its archetype.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Badge>{relatedLogs.length} logs</Badge>
-            <Badge>{recentStats.wins} wins</Badge>
-            <Badge>{recentStats.losses} losses</Badge>
-          </div>
-        </div>
-
-        {relatedLogs.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">
-            No linked battle logs yet for this deck.
-          </p>
-        ) : (
-          <>
-            <div className="flex flex-col gap-3">
-              {relatedLogs.map((log) => (
-                <LogRow key={log.id} log={log} />
-              ))}
-            </div>
-
-            <p className="text-sm text-[var(--text-muted)]">
-              Showing the latest {relatedLogs.length} linked log
-              {relatedLogs.length === 1 ? "" : "s"}.
-              {stats.total > relatedLogs.length
-                ? ` ${recentStats.wins}-${recentStats.losses} in this preview, ${stats.wins}-${stats.losses} overall.`
-                : ` ${stats.wins}-${stats.losses} overall.`}
-            </p>
-          </>
-        )}
-      </Card>
+      <Suspense fallback={<DeckRelatedLogsSectionFallback />}>
+        <DeckRelatedLogsSection deck={deck} logsPromise={relatedLogsPromise} />
+      </Suspense>
     </PageWidth>
   );
 }

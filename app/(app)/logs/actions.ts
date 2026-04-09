@@ -29,6 +29,11 @@ type SaveActionResult = {
   redirectTo: string;
 };
 
+function revalidateWorkspaceViews() {
+  revalidatePath("/logs", "layout");
+  revalidatePath("/decks", "layout");
+}
+
 function buildImportDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -265,7 +270,7 @@ export async function importLogAction(formData: FormData): Promise<void> {
     throw insertError;
   }
 
-  revalidatePath("/logs");
+  revalidateWorkspaceViews();
   redirect(`/logs/${record.id}`);
 }
 
@@ -299,6 +304,8 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
   if (error) {
     throw error;
   }
+
+  revalidateWorkspaceViews();
 
   return {
     ok: true,
@@ -352,7 +359,7 @@ export async function bulkAssignDeckListAction(input: {
     throw error;
   }
 
-  revalidatePath("/logs");
+  revalidateWorkspaceViews();
 }
 
 export async function loadMoreLogsAction(windowEndDate?: string) {
@@ -387,7 +394,7 @@ export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
     throw error;
   }
 
-  revalidatePath("/logs");
+  revalidateWorkspaceViews();
 }
 
 export async function deleteLogAction(logIdInput: string): Promise<void> {
