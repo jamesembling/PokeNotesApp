@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { memo, type CSSProperties, type ReactNode } from "react";
 import { TrashIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import { formatDayDate } from "@/lib/client/date-format";
 import type { BattleLogSummary } from "@/types/index";
 
 type LogRowProps = {
@@ -15,14 +16,6 @@ type LogRowProps = {
   onToggleSelected?: () => void;
   selected?: boolean;
 };
-
-function formatLogDate(date: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(`${date}T00:00:00`));
-}
 
 function formatGoOrder(goOrder: BattleLogSummary["goOrder"]) {
   if (goOrder === "First") {
@@ -36,7 +29,12 @@ function formatGoOrder(goOrder: BattleLogSummary["goOrder"]) {
   return null;
 }
 
-export function LogRow({
+const cardStyle: CSSProperties = {
+  contentVisibility: "auto",
+  containIntrinsicSize: "96px"
+};
+
+function LogRowComponent({
   editAction,
   log,
   managementMode = false,
@@ -55,12 +53,12 @@ export function LogRow({
     log.opponentDeckSprites
   );
   const goOrderLabel = formatGoOrder(log.goOrder);
-  const metadata = [formatLogDate(log.date), log.linkedDeckListName ? `List: ${log.linkedDeckListName}` : ""]
+  const metadata = [formatDayDate(log.date), log.linkedDeckListName ? `List: ${log.linkedDeckListName}` : ""]
     .filter(Boolean)
     .join(" · ");
 
   const cardClasses = [
-    "grid w-full grid-cols-1 gap-3 rounded-[22px] border px-4 py-4 text-left transition hover:brightness-[0.98] sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:items-center sm:gap-3 sm:rounded-[24px] sm:px-4 lg:grid-cols-[5.5rem_minmax(0,1fr)_4rem_5.5rem] lg:gap-5 lg:px-6",
+    "grid w-full grid-cols-1 gap-3 rounded-[10px] border px-4 py-4 text-left transition hover:brightness-[0.98] sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:items-center sm:gap-3 sm:px-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5",
     rowClasses
   ].join(" ");
 
@@ -91,14 +89,14 @@ export function LogRow({
 
   if (!managementMode) {
     return (
-      <Link className={cardClasses} href={`/logs/${log.id}`}>
+      <Link className={cardClasses} href={`/logs/${log.id}`} style={cardStyle}>
         {content}
       </Link>
     );
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" style={cardStyle}>
       <Link className={cardClasses} href={`/logs/${log.id}`}>
         {content}
       </Link>
@@ -128,3 +126,5 @@ export function LogRow({
     </div>
   );
 }
+
+export const LogRow = memo(LogRowComponent);

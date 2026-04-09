@@ -10,9 +10,11 @@ import {
 } from "@/app/(app)/logs/actions";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
 import { EditLogDialog } from "@/components/ui/EditLogDialog";
 import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
 import { LogRow } from "@/components/ui/LogRow";
+import { formatDayDate } from "@/lib/client/date-format";
 import type { BattleLog, BattleLogSummary, DeckSummary, PokemonOption } from "@/types/index";
 
 type LogGroup = {
@@ -32,18 +34,18 @@ type LogsManagerProps = {
   userDecks: DeckSummary[];
 };
 
-function formatGroupDate(date: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(`${date}T00:00:00`));
-}
-
-function groupLogsByDate(logs: BattleLogSummary[]): LogGroup[] {
+function summarizeVisibleLogs(logs: BattleLogSummary[]) {
   const groups = new Map<string, LogGroup>();
+  let totalWins = 0;
+  let totalLosses = 0;
 
   logs.forEach((log) => {
+    if (log.result === "Win") {
+      totalWins += 1;
+    } else {
+      totalLosses += 1;
+    }
+
     const existingGroup = groups.get(log.date);
 
     if (existingGroup) {
@@ -65,7 +67,11 @@ function groupLogsByDate(logs: BattleLogSummary[]): LogGroup[] {
     });
   });
 
-  return Array.from(groups.values());
+  return {
+    groups: Array.from(groups.values()),
+    totalWins,
+    totalLosses
+  };
 }
 
 function toEditableLog(log: BattleLogSummary): BattleLog {
@@ -105,14 +111,6 @@ function toEditableLog(log: BattleLogSummary): BattleLog {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong.";
-}
-
-function formatRangeDate(date: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(`${date}T00:00:00`));
 }
 
 function mergeLogs(current: BattleLogSummary[], incoming: BattleLogSummary[]) {
@@ -176,13 +174,18 @@ export function LogsManager({
   const [windowStartDate, setWindowStartDate] = useState(initialWindowStartDate);
   const [windowEndDate, setWindowEndDate] = useState(initialWindowEndDate);
   const [loadMoreError, setLoadMoreError] = useState("");
+  const [openGroupDates, setOpenGroupDates] = useState<string[]>(() =>
+    initialLogs.length > 0 ? [initialLogs[0].date] : []
+  );
 
-  const groups = useMemo(() => groupLogsByDate(visibleLogs), [visibleLogs]);
+  const visibleSummary = useMemo(() => summarizeVisibleLogs(visibleLogs), [visibleLogs]);
+  const groups = visibleSummary.groups;
   const selectedDeck = useMemo(
     () => userDecks.find((deck) => deck.id === selectedDeckId) ?? null,
     [selectedDeckId, userDecks]
   );
   const availableDeckLists = selectedDeck?.deckLists ?? [];
+  const selectedLogIdSet = useMemo(() => new Set(selectedLogIds), [selectedLogIds]);
   const allSelected = visibleLogs.length > 0 && selectedLogIds.length === visibleLogs.length;
   const selectedCount = selectedLogIds.length;
   const canApplyDeckList =
@@ -190,10 +193,10 @@ export function LogsManager({
   const canDeleteSelected = selectedCount > 0 && !isMutating;
   const currentWindowSummary =
     windowStartDate && windowEndDate
-      ? `${formatRangeDate(windowStartDate)} - ${formatRangeDate(windowEndDate)}`
+      ? `${formatDayDate(windowStartDate)} - ${formatDayDate(windowEndDate)}`
       : "";
-  const totalWins = visibleLogs.reduce((sum, log) => sum + (log.result === "Win" ? 1 : 0), 0);
-  const totalLosses = visibleLogs.reduce((sum, log) => sum + (log.result === "Loss" ? 1 : 0), 0);
+  const totalWins = visibleSummary.totalWins;
+  const totalLosses = visibleSummary.totalLosses;
 
   useEffect(() => {
     setVisibleLogs(initialLogs);
@@ -202,6 +205,7 @@ export function LogsManager({
     setWindowStartDate(initialWindowStartDate);
     setWindowEndDate(initialWindowEndDate);
     setLoadMoreError("");
+    setOpenGroupDates(initialLogs.length > 0 ? [initialLogs[0].date] : []);
   }, [
     initialCanLoadMore,
     initialLogs,
@@ -233,6 +237,24 @@ export function LogsManager({
     }
   }, [availableDeckLists, selectedDeckId, selectedDeckListId]);
 
+  useEffect(() => {
+    if (!groups.length) {
+      setOpenGroupDates([]);
+      return;
+    }
+
+    setOpenGroupDates((current) => {
+      const validDates = new Set(groups.map((group) => group.date));
+      const filtered = current.filter((date) => validDates.has(date));
+
+      if (filtered.length > 0) {
+        return filtered;
+      }
+
+      return [groups[0].date];
+    });
+  }, [groups]);
+
   function toggleSelectedLog(logId: string) {
     setSelectedLogIds((current) =>
       current.includes(logId) ? current.filter((id) => id !== logId) : [...current, logId]
@@ -241,6 +263,16 @@ export function LogsManager({
 
   function toggleSelectAll() {
     setSelectedLogIds(allSelected ? [] : visibleLogs.map((log) => log.id));
+  }
+
+  function toggleGroup(date: string, isOpen: boolean) {
+    setOpenGroupDates((current) => {
+      if (isOpen) {
+        return current.includes(date) ? current : [...current, date];
+      }
+
+      return current.filter((value) => value !== date);
+    });
   }
 
   function runAsyncAction(work: () => Promise<void>) {
@@ -319,7 +351,7 @@ export function LogsManager({
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="grid gap-4 rounded-[26px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)] xl:items-start">
+      <section className="grid gap-4 rounded-[26px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(24rem,0.9fr)] xl:items-start">
         <div className="space-y-4">
           <div>
             <p className="ui-eyebrow">All Logs</p>
@@ -354,15 +386,17 @@ export function LogsManager({
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface)] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="grid content-start gap-4 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+          <div className="grid gap-3">
             <p className="ui-eyebrow">Workspace Tools</p>
-            {canLoadMore ? <Badge>More available</Badge> : <Badge>Current window complete</Badge>}
+            <div>
+              {canLoadMore ? <Badge>More available</Badge> : <Badge>Current window complete</Badge>}
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid gap-3">
             <Button
-              className="gap-2"
+              className="gap-2 justify-self-start"
               onClick={() => setIsManagementMode((current) => !current)}
               variant="secondary"
             >
@@ -371,7 +405,7 @@ export function LogsManager({
             </Button>
 
             {isManagementMode ? (
-              <>
+              <div className="flex flex-wrap items-center gap-4">
                 <button
                   className="ui-control-text text-[var(--text-muted)] transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={!canDeleteSelected}
@@ -392,16 +426,22 @@ export function LogsManager({
                     <span>Select All</span>
                   </label>
                 ) : null}
-              </>
+              </div>
             ) : null}
           </div>
 
-          <p className="text-sm leading-6 text-[var(--text-muted)]">
+          <p className="max-w-[34ch] text-sm leading-6 text-[var(--text-muted)]">
             Review grouped results, bulk-link saved deck lists, or switch into editing mode to
             clean up imported logs.
           </p>
         </div>
       </section>
+
+      <ClientPerfPanel
+        expandedGroupCount={openGroupDates.length}
+        totalGroupCount={groups.length}
+        visibleLogCount={visibleLogs.length}
+      />
 
       {isManagementMode ? (
         <section className="grid gap-3 rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
@@ -458,74 +498,83 @@ export function LogsManager({
       ) : null}
 
       {groups.length > 0 ? (
-        groups.map((group, index) => (
-          <details
-            className="group rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-1 shadow-[var(--shadow-sm)]"
-            key={group.date}
-            open={index === 0}
-          >
-            <summary className="grid cursor-pointer list-none gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center [&::-webkit-details-marker]:hidden">
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                <div>
-                <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
-                  {formatGroupDate(group.date)}
-                </h3>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
-                </p>
+        <div className="divide-y divide-[var(--border)] rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface)]">
+          {groups.map((group, index) => (
+            <details
+              className="group px-4 py-1 first:rounded-t-[24px] last:rounded-b-[24px] sm:px-5"
+              key={group.date}
+              onToggle={(event) => toggleGroup(group.date, event.currentTarget.open)}
+              open={openGroupDates.includes(group.date) || (index === 0 && openGroupDates.length === 0)}
+              style={{
+                contentVisibility: "auto",
+                containIntrinsicSize: "128px"
+              }}
+            >
+              <summary className="grid cursor-pointer list-none gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center [&::-webkit-details-marker]:hidden">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div>
+                    <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                      {formatDayDate(group.date)}
+                    </h3>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">
+                      {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <div className="grid w-[13rem] grid-cols-2 gap-2 self-center">
+                    <Badge className="w-full justify-center self-center" variant="win">
+                      {group.wins} wins
+                    </Badge>
+                    <Badge className="w-full justify-center self-center" variant="loss">
+                      {group.losses} losses
+                    </Badge>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Badge className="justify-center min-w-[6.25rem]" variant="win">
-                    {group.wins} wins
-                  </Badge>
-                  <Badge className="justify-center min-w-[6.25rem]" variant="loss">
-                    {group.losses} losses
-                  </Badge>
+                <div className="flex items-center gap-2 self-center">
+                  <div className="text-right">
+                    <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
+                      {group.wins}-{group.losses}
+                    </p>
+                    <p className="mt-1 text-[0.95rem] leading-none text-[var(--text-muted)]">
+                      {group.logs.length} total
+                    </p>
+                  </div>
+                  <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180" />
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-right">
-                  <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
-                    {group.wins}-{group.losses}
-                  </p>
-                  <p className="mt-1 text-[0.95rem] leading-none text-[var(--text-muted)]">
-                    {group.logs.length} total
-                  </p>
-                </div>
-                <ChevronIcon className="mt-1 h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180" />
-              </div>
-            </summary>
+              </summary>
 
-            <div className="flex flex-col gap-3 border-t border-[var(--border)] pb-5 pt-4">
-              {group.logs.map((log) => (
-                <LogRow
-                  editAction={
-                    <EditLogDialog
-                      log={toEditableLog(log)}
-                      pokemonOptions={pokemonOptions}
-                      trigger={
-                        <button
-                          aria-label="Edit battle log"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
-                          type="button"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
+              {openGroupDates.includes(group.date) ? (
+                <div className="flex flex-col gap-3 pb-5 pt-2">
+                  {group.logs.map((log) => (
+                    <LogRow
+                      editAction={
+                        <EditLogDialog
+                          log={toEditableLog(log)}
+                          pokemonOptions={pokemonOptions}
+                          trigger={
+                            <button
+                              aria-label="Edit battle log"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
+                              type="button"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                          }
+                          userDecks={userDecks}
+                        />
                       }
-                      userDecks={userDecks}
+                      key={log.id}
+                      log={log}
+                      managementMode={isManagementMode}
+                      onDelete={() => handleDeleteSingle(log.id)}
+                      onToggleSelected={() => toggleSelectedLog(log.id)}
+                      selected={selectedLogIdSet.has(log.id)}
                     />
-                  }
-                  key={log.id}
-                  log={log}
-                  managementMode={isManagementMode}
-                  onDelete={() => handleDeleteSingle(log.id)}
-                  onToggleSelected={() => toggleSelectedLog(log.id)}
-                  selected={selectedLogIds.includes(log.id)}
-                />
-              ))}
-            </div>
-          </details>
-        ))
+                  ))}
+                </div>
+              ) : null}
+            </details>
+          ))}
+        </div>
       ) : (
         <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface-alt)] p-6 text-sm text-[var(--text-muted)]">
           {canLoadMore
