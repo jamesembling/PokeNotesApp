@@ -13,6 +13,26 @@ export function prettifyPokemonSlug(slug: string) {
   return parts.join(" ");
 }
 
+function getVisibleSprites(sprites: string[]) {
+  return Array.from(
+    new Set(
+      sprites
+        .map((sprite) => String(sprite || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+export function getBattleLogSpriteDisplayName(sprites: string[], separator = " / ") {
+  const visibleSprites = getVisibleSprites(sprites);
+
+  if (visibleSprites.length === 0) {
+    return "";
+  }
+
+  return visibleSprites.map(prettifyPokemonSlug).join(separator);
+}
+
 export function getBattleLogDeckDisplayName(deckName: string, sprites: string[]) {
   const normalizedDeckName = String(deckName || "").trim();
 
@@ -20,17 +40,19 @@ export function getBattleLogDeckDisplayName(deckName: string, sprites: string[])
     return normalizedDeckName;
   }
 
-  const visibleSprites = Array.from(
-    new Set(
-      sprites
-        .map((sprite) => String(sprite || "").trim())
-        .filter(Boolean)
-    )
-  );
-
-  if (visibleSprites.length > 0) {
-    return visibleSprites.map(prettifyPokemonSlug).join(" / ");
+  const spriteDisplayName = getBattleLogSpriteDisplayName(sprites);
+  if (spriteDisplayName) {
+    return spriteDisplayName;
   }
 
   return "Unknown Deck";
+}
+
+export function getBattleLogOpponentDisplayName(deckName: string, sprites: string[]) {
+  const spriteDisplayName = getBattleLogSpriteDisplayName(sprites, "/");
+  if (spriteDisplayName) {
+    return spriteDisplayName;
+  }
+
+  return getBattleLogDeckDisplayName(deckName, sprites);
 }

@@ -3,7 +3,10 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import {
+  getBattleLogDeckDisplayName,
+  getBattleLogOpponentDisplayName
+} from "@/lib/battle-log/display";
 import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
 import { linkDeckConservatively } from "@/lib/log-import/deck-linking";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
@@ -130,7 +133,7 @@ async function buildParsedLogReview(rawLog: string): Promise<ParsedLogReview> {
     selfPlayerName: parsed.players.selfPlayerName,
     opponentPlayerName: parsed.players.opponentPlayerName,
     selfDeckName,
-    opponentDeckName: getBattleLogDeckDisplayName(
+    opponentDeckName: getBattleLogOpponentDisplayName(
       opponentArchetype?.label ?? "",
       opponentSprites.slugs
     ),

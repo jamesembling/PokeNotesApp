@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Card } from "@/components/ui/Card";
 import { LinkedDeckListPanel } from "@/components/ui/LinkedDeckListPanel";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
-import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import type { BattleLog, DeckCard, LogSection } from "@/types/index";
 
 const SETUP_SECTION_LABELS = new Set(["setup"]);
@@ -331,6 +331,7 @@ function getSectionTurnNumbers(sections: LogSection[]) {
 
 type BattleLogDetailViewProps = {
   actions?: ReactNode;
+  footerAction?: ReactNode;
   linkedDeckId?: string;
   linkedDeckListFormat?: string;
   linkedDeckListId?: string;
@@ -346,6 +347,7 @@ type BattleLogDetailViewProps = {
 
 export function BattleLogDetailView({
   actions,
+  footerAction,
   linkedDeckId,
   linkedDeckListFormat,
   linkedDeckListId,
@@ -358,7 +360,7 @@ export function BattleLogDetailView({
   notice,
   timestampLabel
 }: BattleLogDetailViewProps) {
-  const opponentDeckName = getBattleLogDeckDisplayName(
+  const opponentDeckName = getBattleLogOpponentDisplayName(
     log.opponentDeckName,
     log.opponentDeckSprites
   );
@@ -369,10 +371,11 @@ export function BattleLogDetailView({
 
   return (
     <>
-      <Card className="rounded-[28px] p-6 sm:p-8">
+      {mobileNavigation ? <div className="mb-0 sm:hidden">{mobileNavigation}</div> : null}
+
+      <Card className="rounded-[28px] px-6 pb-6 pt-3 sm:p-8">
         <div className="flex flex-col gap-8">
           {notice ? <div>{notice}</div> : null}
-          {mobileNavigation ? <div className="sm:hidden">{mobileNavigation}</div> : null}
 
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -487,6 +490,8 @@ export function BattleLogDetailView({
           </div>
         </Card>
       )}
+
+      {footerAction ? <div>{footerAction}</div> : null}
     </>
   );
 }

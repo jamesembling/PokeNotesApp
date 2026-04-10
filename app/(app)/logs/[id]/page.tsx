@@ -3,7 +3,7 @@ import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
-import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
 import { getLogById } from "@/lib/db/logs";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
@@ -71,7 +71,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
     );
   }
 
-  const opponentDeckName = getBattleLogDeckDisplayName(
+  const opponentDeckName = getBattleLogOpponentDisplayName(
     log.opponentDeckName,
     log.opponentDeckSprites
   );
@@ -95,27 +95,29 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
 
   return (
     <PageWidth size="standard">
-      <PageHeader
-        breadcrumb={[
-          { label: "Poke Notes", href: "/" },
-          { label: "Battle Logs", href: "/logs" },
-          { label: opponentDeckName }
-        ]}
-        title=" "
-      />
+      <div className="flex flex-col gap-2 sm:gap-6">
+        <PageHeader
+          breadcrumb={[
+            { label: "Poke Notes", href: "/" },
+            { label: "Battle Logs", href: "/logs" },
+            { label: opponentDeckName }
+          ]}
+          title=" "
+        />
 
-      <BattleLogDetailShell
-        linkedDeckId={linkedDeck?.id}
-        linkedDeckListFormat={linkedDeckList?.format}
-        linkedDeckListId={linkedDeckList?.id}
-        linkedDeckListName={linkedDeckList?.name}
-        linkedDeckListNotes={linkedDeckWithList?.deckList.notes ?? linkedDeckList?.notes}
-        linkedDeckListSortedCards={linkedDeckListSortedCards}
-        linkedStrategyLabel={linkedStrategyLabel}
-        log={log}
-        timestampLabel={timestampLabel}
-        userDecks={userDecks}
-      />
+        <BattleLogDetailShell
+          linkedDeckId={linkedDeck?.id}
+          linkedDeckListFormat={linkedDeckList?.format}
+          linkedDeckListId={linkedDeckList?.id}
+          linkedDeckListName={linkedDeckList?.name}
+          linkedDeckListNotes={linkedDeckWithList?.deckList.notes ?? linkedDeckList?.notes}
+          linkedDeckListSortedCards={linkedDeckListSortedCards}
+          linkedStrategyLabel={linkedStrategyLabel}
+          log={log}
+          timestampLabel={timestampLabel}
+          userDecks={userDecks}
+        />
+      </div>
     </PageWidth>
   );
 }

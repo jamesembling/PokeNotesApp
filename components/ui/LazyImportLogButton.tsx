@@ -7,6 +7,7 @@ import type { DeckSummary, PokemonOption } from "@/types/index";
 
 type LazyImportLogButtonProps = {
   className?: string;
+  label?: string;
 };
 
 type ImportDialogDataResponse = {
@@ -14,7 +15,10 @@ type ImportDialogDataResponse = {
   userDecks?: DeckSummary[];
 };
 
-export function LazyImportLogButton({ className }: LazyImportLogButtonProps) {
+export function LazyImportLogButton({
+  className,
+  label = "Import PTCGL Log"
+}: LazyImportLogButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [userDecks, setUserDecks] = useState<DeckSummary[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -72,7 +76,7 @@ export function LazyImportLogButton({ className }: LazyImportLogButtonProps) {
   return (
     <>
       <Button className={className} disabled={isLoading} onClick={handleOpen} type="button">
-        {isLoading ? "Loading Importer..." : "Import PTCGL Log"}
+        {isLoading ? "Loading Importer..." : label}
       </Button>
       {loadError ? (
         <p className="text-sm text-[var(--color-loss)]" role="status">

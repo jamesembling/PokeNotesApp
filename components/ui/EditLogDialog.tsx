@@ -13,7 +13,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { updateLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
-import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import {
+  getBattleLogDeckDisplayName,
+  getBattleLogOpponentDisplayName
+} from "@/lib/battle-log/display";
 import { SITE_FORMAT_OPTIONS, isKnownSiteFormat } from "@/lib/formats/options";
 import type { BattleLog, DeckList, DeckSummary, PokemonOption } from "@/types/index";
 
@@ -95,7 +98,7 @@ export function EditLogDialog({
     [log.selfDeckName, selectedSelfSprites]
   );
   const detectedOpponentLabel = useMemo(
-    () => getBattleLogDeckDisplayName(log.opponentDeckName, selectedOpponentSprites),
+    () => getBattleLogOpponentDisplayName(log.opponentDeckName, selectedOpponentSprites),
     [log.opponentDeckName, selectedOpponentSprites]
   );
   const formatOptions = isKnownSiteFormat(selectedFormat)

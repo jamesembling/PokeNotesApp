@@ -4,7 +4,7 @@ import Link from "next/link";
 import { memo, type CSSProperties, type ReactNode } from "react";
 import { TrashIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
-import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import { formatDayDate } from "@/lib/client/date-format";
 import type { BattleLogSummary } from "@/types/index";
 
@@ -48,7 +48,7 @@ function LogRowComponent({
       : "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]";
 
   const selfSprites = log.selfDeckSprites.slice(0, 2);
-  const opponentDeckName = getBattleLogDeckDisplayName(
+  const opponentDeckName = getBattleLogOpponentDisplayName(
     log.opponentDeckName,
     log.opponentDeckSprites
   );

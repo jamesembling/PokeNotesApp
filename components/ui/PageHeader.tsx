@@ -21,6 +21,9 @@ export function PageHeader({
   action,
   showDivider = true
 }: PageHeaderProps) {
+  const hasTitle = title.trim().length > 0;
+  const hasMetaRow = hasTitle || Boolean(subtitle) || Boolean(action);
+
   return (
     <header className="flex flex-col gap-4">
       <nav aria-label="Breadcrumb">
@@ -47,18 +50,22 @@ export function PageHeader({
         </ol>
       </nav>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--text-primary)] sm:text-4xl">
-            {title}
-          </h1>
-          {subtitle ? (
-            <p className="max-w-[65ch] text-base leading-7 text-[var(--text-muted)]">{subtitle}</p>
-          ) : null}
-        </div>
+      {hasMetaRow ? (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            {hasTitle ? (
+              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--text-primary)] sm:text-4xl">
+                {title}
+              </h1>
+            ) : null}
+            {subtitle ? (
+              <p className="max-w-[65ch] text-base leading-7 text-[var(--text-muted)]">{subtitle}</p>
+            ) : null}
+          </div>
 
-        {action ? <div className="sm:shrink-0">{action}</div> : null}
-      </div>
+          {action ? <div className="sm:shrink-0">{action}</div> : null}
+        </div>
+      ) : null}
 
       {showDivider ? <div className="border-b border-[var(--border)]" /> : null}
     </header>

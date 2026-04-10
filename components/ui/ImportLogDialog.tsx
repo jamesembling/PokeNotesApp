@@ -8,7 +8,10 @@ import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
-import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import {
+  getBattleLogDeckDisplayName,
+  getBattleLogOpponentDisplayName
+} from "@/lib/battle-log/display";
 import { SITE_FORMAT_OPTIONS, getDefaultSiteFormat } from "@/lib/formats/options";
 import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/types/index";
 
@@ -111,7 +114,7 @@ export function ImportLogDialog({
   const detectedOpponentLabel = useMemo(
     () =>
       review
-        ? getBattleLogDeckDisplayName(review.opponentDeckName, selectedOpponentSprites)
+        ? getBattleLogOpponentDisplayName(review.opponentDeckName, selectedOpponentSprites)
         : undefined,
     [review, selectedOpponentSprites]
   );
