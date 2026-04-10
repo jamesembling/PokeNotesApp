@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { buildPokemonNameVariants, normalizeText } from "@/lib/log-import/normalization";
+import { mergePokemonCatalogRows } from "@/lib/pokemon/catalog-supplements";
 import { CACHE_TAGS } from "@/lib/server/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 import type {
@@ -12,6 +13,8 @@ type CachedIdentificationCatalogRows = {
   archetypeRows: ArchetypeCatalogRow[];
   pokemonRows: PokemonCatalogRow[];
 };
+
+const IDENTIFICATION_CATALOG_CACHE_VERSION = "v2";
 
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
@@ -135,7 +138,7 @@ const loadIdentificationCatalogCached = unstable_cache(
       archetypeRows: (archetypeRows ?? []) as ArchetypeCatalogRow[]
     };
   },
-  ["identification-catalog"],
+  ["identification-catalog", IDENTIFICATION_CATALOG_CACHE_VERSION],
   {
     revalidate: 60 * 60,
     tags: [CACHE_TAGS.identificationCatalog]
@@ -146,7 +149,7 @@ export async function loadIdentificationCatalog(): Promise<IdentificationCatalog
   const { pokemonRows, archetypeRows } = await loadIdentificationCatalogCached();
 
   return {
-    pokemon: buildPokemonIndex(pokemonRows),
+    pokemon: buildPokemonIndex(mergePokemonCatalogRows(pokemonRows)),
     archetypes: buildArchetypeIndex(archetypeRows)
   };
 }

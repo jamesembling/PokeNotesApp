@@ -10,6 +10,16 @@ const MAX_NATIONAL_DEX = 1025;
 const EVOLUTION_CHAIN_DELAY_MS = 200;
 const SPECIES_LIST_URL = "https://pokeapi.co/api/v2/pokemon-species";
 const LIMITLESS_CDN_BASE = "https://r2.limitlesstcg.net/pokemon/gen9";
+const SUPPLEMENTAL_POKEMON_FORMS = [
+  { slug: "ogerpon", label: "Teal Mask Ogerpon", evolves_from: null },
+  { slug: "ogerpon-cornerstone", label: "Cornerstone Mask Ogerpon", evolves_from: null },
+  { slug: "ogerpon-wellspring", label: "Wellspring Mask Ogerpon", evolves_from: null },
+  { slug: "ogerpon-hearthflame", label: "Hearthflame Mask Ogerpon", evolves_from: null },
+  { slug: "ursaluna-bloodmoon", label: "Bloodmoon Ursaluna", evolves_from: null },
+  { slug: "dialga-origin", label: "Origin Forme Dialga", evolves_from: null },
+  { slug: "palkia-origin", label: "Origin Forme Palkia", evolves_from: null },
+  { slug: "zoroark-hisui", label: "Hisuian Zoroark", evolves_from: null },
+];
 
 for (const envVar of REQUIRED_ENV_VARS) {
   if (!process.env[envVar]) {
@@ -268,6 +278,23 @@ async function main() {
   const megaCatalogRows = await fetchMegaPokemonForms();
   catalogRows.push(...megaCatalogRows);
   console.log(`Prepared ${megaCatalogRows.length} Mega Pokemon forms.`);
+
+  const supplementalCatalogRows = SUPPLEMENTAL_POKEMON_FORMS.map((form) => ({
+    slug: form.slug,
+    label: form.label,
+    national_dex: null,
+    stage: "Basic",
+    evolves_from: form.evolves_from,
+    sprite_url: `${LIMITLESS_CDN_BASE}/${form.slug}.png`,
+    name_de: null,
+    name_es: null,
+    name_fr: null,
+    name_it: null,
+    name_pt_br: null,
+    last_synced_at: new Date().toISOString(),
+  }));
+  catalogRows.push(...supplementalCatalogRows);
+  console.log(`Prepared ${supplementalCatalogRows.length} supplemental Pokemon forms.`);
 
   console.log("");
   console.log("Pass 1: inserting Pokemon with evolves_from set to null...");

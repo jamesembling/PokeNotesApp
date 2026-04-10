@@ -23,6 +23,8 @@ function SpriteThumb({
   slug: string;
 }) {
   const [hasError, setHasError] = useState(false);
+  const label =
+    pokemonOptions.find((option) => option.slug === slug)?.label ?? prettifyPokemonSlug(slug);
   const src =
     pokemonOptions.find((option) => option.slug === slug)?.spriteUrl ??
     buildPokemonSpriteUrlFromSlug(slug);
@@ -38,17 +40,17 @@ function SpriteThumb({
   if (hasError || !src) {
     return (
       <div
-        aria-label={prettifyPokemonSlug(slug)}
+        aria-label={label}
         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--bg-surface)] px-1 text-center text-[10px] font-semibold leading-tight text-[var(--text-muted)]"
       >
-        {prettifyPokemonSlug(slug)}
+        {label}
       </div>
     );
   }
 
   return (
     <Image
-      alt={prettifyPokemonSlug(slug)}
+      alt={label}
       className="h-12 w-12 shrink-0 object-contain"
       height={48}
       onError={(event) => {
@@ -69,6 +71,10 @@ function buildOptionsForSlot(
   return pokemonOptions.filter(
     (option) => option.slug === currentSlug || !allSelected.includes(option.slug)
   );
+}
+
+function getPokemonOptionLabel(slug: string, pokemonOptions: PokemonOption[]) {
+  return pokemonOptions.find((option) => option.slug === slug)?.label ?? prettifyPokemonSlug(slug);
 }
 
 function normalizeSearchValue(value: string) {
@@ -288,7 +294,7 @@ function SpriteSearchSlot({
               </div>
             )}
             <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-[var(--text-primary)]">
-              {currentSlug ? prettifyPokemonSlug(currentSlug) : "Select pokemon..."}
+              {currentSlug ? getPokemonOptionLabel(currentSlug, pokemonOptions) : "Select pokemon..."}
             </span>
             {!currentSlug ? (
               <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] -rotate-90" />
@@ -296,7 +302,7 @@ function SpriteSearchSlot({
           </button>
           {currentSlug ? (
             <button
-              aria-label={`Remove ${prettifyPokemonSlug(currentSlug)}`}
+              aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions)}`}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
               onClick={() => {
                 onChange(updateSpritesAtIndex(sprites, index, ""));
@@ -314,12 +320,12 @@ function SpriteSearchSlot({
             <div className="flex min-w-0 items-start gap-3">
               <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
               <p className="truncate text-[0.95rem] font-medium text-[var(--text-primary)] md:text-sm">
-                {currentSlug ? prettifyPokemonSlug(currentSlug) : "No Pokemon selected"}
+                {currentSlug ? getPokemonOptionLabel(currentSlug, pokemonOptions) : "No Pokemon selected"}
               </p>
             </div>
             {currentSlug ? (
               <button
-                aria-label={`Remove ${prettifyPokemonSlug(currentSlug)}`}
+                aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions)}`}
                 className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] md:h-auto md:w-auto md:rounded-none"
                 onClick={() => {
                   onChange(updateSpritesAtIndex(sprites, index, ""));
