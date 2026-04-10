@@ -257,12 +257,6 @@ export function EditLogDialog({
                   Edit Battle Log
                 </h2>
               </div>
-              <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-                <Button onClick={closeDialog} type="button" variant="secondary">
-                  Close
-                </Button>
-                <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
-              </div>
             </div>
             <form
               className="flex min-w-0 flex-col gap-6"
@@ -384,6 +378,13 @@ export function EditLogDialog({
                   </select>
                 </label>
               </section>
+
+              <div className="grid gap-2.5 border-t border-[var(--border)] pt-4 sm:flex sm:justify-end">
+                <Button onClick={closeDialog} type="button" variant="secondary">
+                  Close
+                </Button>
+                <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
+              </div>
             </form>
             </div>
           </div>
