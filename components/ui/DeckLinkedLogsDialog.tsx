@@ -47,7 +47,7 @@ export function DeckLinkedLogsDialog({ logs }: DeckLinkedLogsDialogProps) {
           role="dialog"
         >
           <div
-            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-5xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]"
+            className="mx-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-5 lg:px-8">
@@ -66,7 +66,7 @@ export function DeckLinkedLogsDialog({ logs }: DeckLinkedLogsDialogProps) {
               </Button>
             </div>
 
-            <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-5 pr-8 [scrollbar-gutter:stable] lg:px-8 lg:pr-10">
+            <div className="min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-5 pr-8 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] lg:px-8 lg:pr-10">
               <div className="flex min-w-0 flex-col gap-3">
                 {logs.map((log) => (
                   <LogRow key={log.id} log={log} />
