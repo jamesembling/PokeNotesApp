@@ -24,7 +24,7 @@ function getRoundRowTone(result: TournamentRound["result"]) {
 
 export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentRoundRowProps) {
   const rowContent = (
-    <div className={["grid w-full gap-4 rounded-2xl border p-4 text-left transition hover:brightness-[0.98] md:grid-cols-[auto_1fr_auto_auto_auto] md:items-center", getRoundRowTone(round.result)].join(" ")}>
+    <div className={["group grid w-full gap-4 rounded-2xl border p-4 text-left transition duration-200 hover:brightness-[0.98] md:grid-cols-[auto_1fr_auto_auto_auto] md:items-center lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]", getRoundRowTone(round.result)].join(" ")}>
       <div className="space-y-1">
         <p className="ui-eyebrow">Round</p>
         <p className="font-display text-[1.12rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
@@ -48,7 +48,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
       </div>
 
       {canEdit ? (
-        <div className="text-sm font-medium text-[var(--text-secondary)] md:justify-self-end">
+        <div className="text-sm font-medium text-[var(--text-secondary)] transition duration-200 md:justify-self-end lg:translate-x-1 lg:opacity-0 lg:group-hover:translate-x-0 lg:group-hover:opacity-100 lg:group-focus-within:translate-x-0 lg:group-focus-within:opacity-100">
           Edit Round
         </div>
       ) : null}

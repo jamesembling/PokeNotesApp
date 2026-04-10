@@ -59,7 +59,7 @@ function LogRowComponent({
   const mobileMetadata = formatDayDate(log.date);
 
   const cardClasses = [
-    "grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 rounded-[10px] border px-3 py-3 text-left transition hover:brightness-[0.98] sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5",
+    "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border px-3 py-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)] sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
     rowClasses
   ].join(" ");
 
@@ -114,12 +114,12 @@ function LogRowComponent({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" style={cardStyle}>
+    <div className="group/row grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" style={cardStyle}>
       <Link className={cardClasses} href={`/logs/${log.id}`}>
         {content}
       </Link>
 
-      <div className="flex items-center justify-end gap-1 text-[var(--text-muted)]">
+      <div className="flex items-center justify-end gap-1 text-[var(--text-muted)] transition duration-200 sm:pointer-events-none sm:translate-x-1 sm:opacity-0 sm:group-hover/row:pointer-events-auto sm:group-hover/row:translate-x-0 sm:group-hover/row:opacity-100 sm:group-focus-within/row:pointer-events-auto sm:group-focus-within/row:translate-x-0 sm:group-focus-within/row:opacity-100">
         <label className="inline-flex cursor-pointer items-center justify-center p-2">
           <span className="sr-only">Select battle log</span>
           <input
