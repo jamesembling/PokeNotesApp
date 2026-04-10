@@ -62,6 +62,13 @@ function parseFormat(value: FormDataEntryValue | null) {
   return normalized;
 }
 
+function parseSpriteArray(values: FormDataEntryValue[]) {
+  return values
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .slice(0, 2);
+}
+
 function parseIsoDate(value: FormDataEntryValue | null, fallback?: string) {
   const normalized = String(value || "").trim() || String(fallback || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
@@ -113,6 +120,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
   const dateFrom = parseIsoDate(formData.get("dateFrom"));
   const dateTo = parseIsoDate(formData.get("dateTo"), dateFrom);
   const format = parseFormat(formData.get("format"));
+  const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
 
   if (!name) {
     throw new Error("Enter a tournament name before saving.");
@@ -137,7 +145,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
     date_to: dateTo,
     linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
     deck_name: deckName,
-    deck_sprites: resolvedDeck?.deckSprites ?? [],
+    deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
     category: parseCategory(formData.get("category")),
     placement: parsePlacement(formData.get("placement")),
     format,
@@ -165,6 +173,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
   const name = String(formData.get("name") || "").trim();
   const manualDeckName = String(formData.get("deckName") || "").trim();
   const format = parseFormat(formData.get("format"));
+  const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
 
   if (!tournamentId) {
     throw new Error("Tournament id is required.");
@@ -191,7 +200,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       date_to: parseIsoDate(formData.get("dateTo")),
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
       deck_name: deckName,
-      deck_sprites: resolvedDeck?.deckSprites ?? [],
+      deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
       category: parseCategory(formData.get("category")),
       placement: parsePlacement(formData.get("placement")),
       format,
@@ -246,6 +255,7 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
   const roundId = String(formData.get("roundId") || "").trim();
   const roundNumber = Number(formData.get("roundNumber") || "");
   const opponentDeckName = String(formData.get("opponentDeckName") || "").trim();
+  const opponentDeckSprites = parseSpriteArray(formData.getAll("opponentDeckSprites"));
 
   if (!tournamentId) {
     throw new Error("Tournament id is required.");
@@ -264,7 +274,7 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
     user_id: user.id,
     round_number: roundNumber,
     opponent_deck_name: opponentDeckName,
-    opponent_deck_sprites: [],
+    opponent_deck_sprites: opponentDeckSprites,
     result: parseRoundResult(formData.get("result")),
     notes: String(formData.get("notes") || "").trim()
   };

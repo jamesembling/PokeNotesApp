@@ -2,11 +2,11 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
+import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
-import { TournamentEditorDialog } from "@/components/ui/TournamentEditorDialog";
-import { TournamentRoundEditorDialog } from "@/components/ui/TournamentRoundEditorDialog";
 import { TournamentRoundRow } from "@/components/ui/TournamentRoundRow";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { requireUser } from "@/lib/auth";
@@ -102,7 +102,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         subtitle={formatTournamentDateRange(tournament.dateFrom, tournament.dateTo)}
         action={
           <div className="flex flex-wrap items-center gap-3">
-            <TournamentEditorDialog
+            <LazyTournamentEditorButton
               decks={decks}
               tournament={tournament}
               triggerLabel="Edit Tournament"
@@ -161,7 +161,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
             </h2>
           </div>
 
-          <TournamentRoundEditorDialog
+          <LazyTournamentRoundEditorButton
             suggestedRoundNumber={rounds.length + 1}
             tournamentId={tournament.id}
             triggerLabel="Add Round"

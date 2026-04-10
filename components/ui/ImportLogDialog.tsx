@@ -345,12 +345,13 @@ export function ImportLogDialog({
               Import PTCGL Log
             </h2>
           </div>
-          <div className="flex flex-wrap gap-2.5">
-            <Button onClick={closeDialog} type="button" variant="secondary">
+          <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+            <Button className="w-full sm:w-auto" onClick={closeDialog} type="button" variant="secondary">
               Close
             </Button>
             {isTrainingCourtUrl ? (
               <Button
+                className="w-full whitespace-normal text-center leading-5 sm:w-auto sm:whitespace-nowrap"
                 disabled={isParsing || trimmedRawLog.length === 0}
                 onClick={handleReviewLog}
                 type="button"

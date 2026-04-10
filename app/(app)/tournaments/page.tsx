@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/Card";
+import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { TournamentCard } from "@/components/ui/TournamentCard";
-import { TournamentEditorDialog } from "@/components/ui/TournamentEditorDialog";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
+import { TournamentSummaryList } from "@/components/ui/TournamentSummaryList";
 import { requireUser } from "@/lib/auth";
 import {
   getTournamentDeckChoices,
@@ -39,7 +39,7 @@ export default async function TournamentsPage() {
         title="Tournaments"
         subtitle="Track tournament runs, placements, and round-by-round results."
         action={schemaMissing ? undefined : (
-          <TournamentEditorDialog
+          <LazyTournamentEditorButton
             decks={decks}
             triggerLabel="New Tournament"
           />
@@ -61,14 +61,7 @@ export default async function TournamentsPage() {
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {tournaments.map((tournament) => (
-            <TournamentCard
-              key={tournament.id}
-              tournament={tournament}
-            />
-          ))}
-        </div>
+        <TournamentSummaryList tournaments={tournaments} />
       )}
     </>
   );

@@ -21,6 +21,14 @@ export function formatTournamentDateRange(dateFrom: string, dateTo: string) {
 }
 
 export function getTournamentRecord(rounds: TournamentRound[]) {
+  const totals = getTournamentRecordBreakdown(rounds);
+
+  return totals.ties > 0
+    ? `${totals.wins}-${totals.losses}-${totals.ties}`
+    : `${totals.wins}-${totals.losses}`;
+}
+
+export function getTournamentRecordBreakdown(rounds: TournamentRound[]) {
   const totals = rounds.reduce(
     (accumulator, round) => {
       if (round.result === "Win") {
@@ -36,9 +44,7 @@ export function getTournamentRecord(rounds: TournamentRound[]) {
     { wins: 0, losses: 0, ties: 0 }
   );
 
-  return totals.ties > 0
-    ? `${totals.wins}-${totals.losses}-${totals.ties}`
-    : `${totals.wins}-${totals.losses}`;
+  return totals;
 }
 
 export function getRoundResultVariant(result: TournamentRoundResult): "default" | "win" | "loss" {

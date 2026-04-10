@@ -7,16 +7,19 @@ import {
   deleteTournamentAction,
   updateTournamentAction
 } from "@/app/(app)/tournaments/actions";
+import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { SITE_FORMAT_OPTIONS } from "@/lib/formats/options";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS
 } from "@/lib/tournaments/options";
-import type { DeckSummary, Tournament } from "@/types/index";
+import type { DeckSummary, PokemonOption, Tournament } from "@/types/index";
 
 type TournamentEditorDialogProps = {
   decks: DeckSummary[];
+  initialOpen?: boolean;
+  pokemonOptions: PokemonOption[];
   tournament?: Tournament;
   triggerLabel: string;
   triggerVariant?: "primary" | "secondary" | "ghost";
@@ -62,6 +65,8 @@ function SaveButton({
 
 export function TournamentEditorDialog({
   decks,
+  initialOpen = false,
+  pokemonOptions,
   tournament,
   triggerLabel,
   triggerVariant = "primary"
@@ -72,9 +77,10 @@ export function TournamentEditorDialog({
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const isEditing = Boolean(tournament?.id);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [linkedDeckId, setLinkedDeckId] = useState(tournament?.linkedDeckId ?? "");
   const [deckName, setDeckName] = useState(tournament?.deckName ?? "");
+  const [selectedSprites, setSelectedSprites] = useState<string[]>(tournament?.deckSprites.slice(0, 2) ?? []);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [deleteState, setDeleteState] = useState<DeleteState>("idle");
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -102,6 +108,7 @@ export function TournamentEditorDialog({
   function resetState() {
     setLinkedDeckId(tournament?.linkedDeckId ?? "");
     setDeckName(tournament?.deckName ?? "");
+    setSelectedSprites(tournament?.deckSprites.slice(0, 2) ?? []);
     setSaveState("idle");
     setDeleteState("idle");
     setShowDeleteConfirmation(false);
@@ -137,17 +144,27 @@ export function TournamentEditorDialog({
   }, [isOpen]);
 
   useEffect(() => {
-    if (selectedDeck) {
-      setDeckName(selectedDeck.deckName);
-    }
-  }, [selectedDeck]);
-
-  useEffect(() => {
     return () => {
       clearCloseTimer();
       clearNavigationTimer();
     };
   }, []);
+
+  function handleLinkedDeckChange(nextDeckId: string) {
+    setLinkedDeckId(nextDeckId);
+
+    if (!nextDeckId) {
+      return;
+    }
+
+    const nextDeck = decks.find((deck) => deck.id === nextDeckId);
+    if (!nextDeck) {
+      return;
+    }
+
+    setDeckName(nextDeck.deckName);
+    setSelectedSprites(nextDeck.deckPokemon.slice(0, 2));
+  }
 
   async function handleSubmit(formData: FormData) {
     setActionError("");
@@ -339,7 +356,7 @@ export function TournamentEditorDialog({
                     className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
                     id="tournament-linked-deck"
                     name="linkedDeckId"
-                    onChange={(event) => setLinkedDeckId(event.target.value)}
+                    onChange={(event) => handleLinkedDeckChange(event.target.value)}
                     value={linkedDeckId}
                   >
                     <option value="">No linked deck</option>
@@ -365,6 +382,22 @@ export function TournamentEditorDialog({
                   />
                 </div>
               </div>
+
+              {selectedSprites.map((slug, index) => (
+                <input
+                  key={`tournament-sprite-${slug}-${index}`}
+                  name="deckSprites"
+                  type="hidden"
+                  value={slug}
+                />
+              ))}
+
+              <BattleLogSpritePicker
+                onChange={setSelectedSprites}
+                pokemonOptions={pokemonOptions}
+                sprites={selectedSprites}
+                title="Tournament sprites"
+              />
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-2">

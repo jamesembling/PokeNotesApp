@@ -1,19 +1,24 @@
 "use client";
 
+import { cloneElement, isValidElement, type ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   deleteTournamentRoundAction,
   saveTournamentRoundAction
 } from "@/app/(app)/tournaments/actions";
+import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { TOURNAMENT_ROUND_RESULT_OPTIONS } from "@/lib/tournaments/options";
-import type { TournamentRound } from "@/types/index";
+import type { PokemonOption, TournamentRound } from "@/types/index";
 
 type TournamentRoundEditorDialogProps = {
+  initialOpen?: boolean;
+  pokemonOptions: PokemonOption[];
   round?: TournamentRound;
   suggestedRoundNumber: number;
   tournamentId: string;
+  trigger?: ReactElement<{ onClick?: () => void }>;
   triggerLabel: string;
   triggerVariant?: "primary" | "secondary" | "ghost";
 };
@@ -28,9 +33,12 @@ function normalizeRedirectPath(value: string) {
 }
 
 export function TournamentRoundEditorDialog({
+  initialOpen = false,
+  pokemonOptions,
   round,
   suggestedRoundNumber,
   tournamentId,
+  trigger,
   triggerLabel,
   triggerVariant = "secondary"
 }: TournamentRoundEditorDialogProps) {
@@ -40,7 +48,8 @@ export function TournamentRoundEditorDialog({
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const isEditing = Boolean(round?.id);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
+  const [selectedSprites, setSelectedSprites] = useState<string[]>(round?.opponentDeckSprites.slice(0, 2) ?? []);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [deleteState, setDeleteState] = useState<DeleteState>("idle");
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -61,6 +70,7 @@ export function TournamentRoundEditorDialog({
   }
 
   function resetState() {
+    setSelectedSprites(round?.opponentDeckSprites.slice(0, 2) ?? []);
     setSaveState("idle");
     setDeleteState("idle");
     setShowDeleteConfirmation(false);
@@ -152,19 +162,30 @@ export function TournamentRoundEditorDialog({
   }
 
   const isBusy = saveState === "saving" || deleteState === "deleting";
+  const triggerElement = isValidElement(trigger) ? (
+    cloneElement(trigger, {
+      ...trigger.props,
+      onClick: () => {
+        resetState();
+        setIsOpen(true);
+      }
+    })
+  ) : (
+    <Button
+      disabled={deleteState === "deleting"}
+      onClick={() => {
+        resetState();
+        setIsOpen(true);
+      }}
+      variant={triggerVariant}
+    >
+      {triggerLabel}
+    </Button>
+  );
 
   return (
     <>
-      <Button
-        disabled={deleteState === "deleting"}
-        onClick={() => {
-          resetState();
-          setIsOpen(true);
-        }}
-        variant={triggerVariant}
-      >
-        {triggerLabel}
-      </Button>
+      {triggerElement}
 
       {isOpen ? (
         <div
@@ -247,6 +268,14 @@ export function TournamentRoundEditorDialog({
               <input name="tournamentId" type="hidden" value={tournamentId} />
               <input name="redirectTo" type="hidden" value={pathname} />
               {isEditing && round ? <input name="roundId" type="hidden" value={round.id} /> : null}
+              {selectedSprites.map((slug, index) => (
+                <input
+                  key={`round-sprite-${slug}-${index}`}
+                  name="opponentDeckSprites"
+                  type="hidden"
+                  value={slug}
+                />
+              ))}
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
@@ -294,6 +323,13 @@ export function TournamentRoundEditorDialog({
                   placeholder="Raging Bolt, Gardevoir, Lugia..."
                 />
               </div>
+
+              <BattleLogSpritePicker
+                onChange={setSelectedSprites}
+                pokemonOptions={pokemonOptions}
+                sprites={selectedSprites}
+                title="Opponent deck"
+              />
 
               <div className="grid gap-2">
                 <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="round-notes">

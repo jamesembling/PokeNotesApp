@@ -311,7 +311,8 @@ function SpriteSearchSlot({
 
         <div className="hidden min-w-0 flex-1 md:block">
           <div className="flex items-start justify-between gap-2 md:gap-3">
-            <div className="min-w-0">
+            <div className="flex min-w-0 items-start gap-3">
+              <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
               <p className="truncate text-[0.95rem] font-medium text-[var(--text-primary)] md:text-sm">
                 {currentSlug ? prettifyPokemonSlug(currentSlug) : "No Pokemon selected"}
               </p>
