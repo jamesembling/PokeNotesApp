@@ -7,12 +7,13 @@ import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 
 type SpriteStripProps = {
   sprites: string[];
-  size: "sm" | "md" | "lg" | "xl";
+  size: "xs" | "sm" | "md" | "lg" | "xl";
   maxVisible?: number;
   className?: string;
 };
 
 const sizeClasses: Record<SpriteStripProps["size"], string> = {
+  xs: "h-5 w-5",
   sm: "h-8 w-8",
   md: "h-8 w-8",
   lg: "h-10 w-10 sm:h-12 sm:w-12",
@@ -20,6 +21,7 @@ const sizeClasses: Record<SpriteStripProps["size"], string> = {
 };
 
 const sizeValues: Record<SpriteStripProps["size"], number> = {
+  xs: 20,
   sm: 32,
   md: 32,
   lg: 48,
@@ -43,7 +45,7 @@ function SpriteStripItem({
         aria-label={prettifyPokemonSlug(slug)}
         className={[
           "flex items-center justify-center rounded-full bg-[var(--bg-surface-alt)] px-1 text-center font-semibold leading-tight text-[var(--text-muted)]",
-          size === "lg" ? "text-[9px]" : "text-[8px]",
+          size === "lg" ? "text-[9px]" : size === "xs" ? "text-[7px]" : "text-[8px]",
           sizeClasses[size]
         ].join(" ")}
       >

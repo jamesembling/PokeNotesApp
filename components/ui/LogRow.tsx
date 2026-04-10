@@ -56,32 +56,47 @@ function LogRowComponent({
   const metadata = [formatDayDate(log.date), log.linkedDeckListName ? `List: ${log.linkedDeckListName}` : ""]
     .filter(Boolean)
     .join(" · ");
+  const mobileMetadata = formatDayDate(log.date);
 
   const cardClasses = [
-    "grid w-full grid-cols-1 gap-3 rounded-[10px] border px-4 py-4 text-left transition hover:brightness-[0.98] sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:items-center sm:gap-3 sm:px-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5",
+    "grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 rounded-[10px] border px-3 py-3 text-left transition hover:brightness-[0.98] sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5",
     rowClasses
   ].join(" ");
 
   const content = (
     <>
+      <div className="flex min-w-0 items-center justify-start sm:hidden">
+        <SpriteStrip className="-space-x-1 gap-0" maxVisible={2} size="xs" sprites={selfSprites} />
+      </div>
+
       <div className="hidden min-w-0 items-center justify-start sm:flex">
         <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={selfSprites} />
       </div>
 
-      <div className="min-w-0 text-left">
-        <p className="block whitespace-normal text-[1.06rem] font-semibold leading-[1.25] tracking-[-0.015em] text-[var(--text-primary)] sm:truncate">
+      <div className="min-w-0 text-center sm:text-left">
+        <p className="block truncate text-[0.92rem] font-semibold leading-[1.15] tracking-[-0.015em] text-[var(--text-primary)] sm:whitespace-normal sm:text-[1.06rem] sm:leading-[1.25] sm:truncate">
           {log.result} vs {opponentDeckName}
           {log.opponentPlayerName ? (
-            <span className="font-normal"> ({log.opponentPlayerName})</span>
+            <span className="hidden font-normal sm:inline"> ({log.opponentPlayerName})</span>
           ) : null}
         </p>
-        <p className="mt-1 text-base leading-6 text-[var(--text-muted)]">
-          {metadata}
+        <p className="mt-0.5 truncate text-[0.8rem] leading-4 text-[var(--text-muted)] sm:mt-1 sm:text-base sm:leading-6">
+          <span className="sm:hidden">{mobileMetadata}</span>
+          <span className="hidden sm:inline">{metadata}</span>
         </p>
       </div>
 
-      <div className="w-full text-left text-[0.95rem] font-semibold text-[var(--text-muted)] sm:text-center sm:text-[1rem]">
+      <div className="hidden w-full text-center text-[0.95rem] font-semibold text-[var(--text-muted)] sm:block sm:text-[1rem]">
         {goOrderLabel ?? ""}
+      </div>
+
+      <div className="flex min-w-0 items-center justify-end sm:hidden">
+        <SpriteStrip
+          className="-space-x-1 gap-0"
+          maxVisible={2}
+          size="xs"
+          sprites={log.opponentDeckSprites}
+        />
       </div>
 
       <div className="hidden min-w-0 items-center justify-end sm:flex">
