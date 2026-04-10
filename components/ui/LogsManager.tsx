@@ -511,14 +511,27 @@ export function LogsManager({
               <summary className="grid cursor-pointer list-none gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center [&::-webkit-details-marker]:hidden">
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                   <div>
-                    <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
-                      {formatDayDate(group.date)}
-                    </h3>
-                    <p className="mt-1 text-sm text-[var(--text-muted)]">
-                      {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
-                    </p>
+                    <div className="flex items-start justify-between gap-3 sm:block">
+                      <div>
+                        <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                          {formatDayDate(group.date)}
+                        </h3>
+                        <p className="mt-1 text-sm text-[var(--text-muted)]">
+                          <span className="sm:hidden">
+                            {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
+                          </span>
+                          <span className="hidden sm:inline">
+                            {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
+                          </span>
+                        </p>
+                      </div>
+
+                      <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)] sm:hidden">
+                        {group.wins}-{group.losses}
+                      </p>
+                    </div>
                   </div>
-                  <div className="grid w-[13rem] grid-cols-2 gap-2 self-center">
+                  <div className="hidden w-[13rem] grid-cols-2 gap-2 self-center sm:grid">
                     <Badge className="w-full justify-center self-center" variant="win">
                       {group.wins} wins
                     </Badge>
@@ -529,10 +542,10 @@ export function LogsManager({
                 </div>
                 <div className="flex items-center gap-2 self-center">
                   <div className="text-right">
-                    <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
+                    <p className="hidden font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)] lg:block">
                       {group.wins}-{group.losses}
                     </p>
-                    <p className="mt-1 text-[0.95rem] leading-none text-[var(--text-muted)]">
+                    <p className="mt-1 hidden text-[0.95rem] leading-none text-[var(--text-muted)] lg:block">
                       {group.logs.length} total
                     </p>
                   </div>
