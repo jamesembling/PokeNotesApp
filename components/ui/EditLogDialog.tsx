@@ -13,6 +13,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { updateLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
@@ -107,6 +108,8 @@ export function EditLogDialog({
 
   const availableDeckLists = selectedDeck?.deckLists ?? [];
 
+  useBodyScrollLock(isOpen);
+
   function resetEditorState() {
     setSelectedSelfSprites(log.selfDeckSprites.slice(0, 2));
     setSelectedOpponentSprites(log.opponentDeckSprites.slice(0, 2));
@@ -125,9 +128,6 @@ export function EditLogDialog({
 
     resetEditorState();
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         closeDialog();
@@ -137,7 +137,6 @@ export function EditLogDialog({
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, log]);
@@ -248,9 +247,10 @@ export function EditLogDialog({
           role="dialog"
         >
           <div
-            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-y-auto rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--shadow-lg)] lg:p-8"
+            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
             onClick={(event) => event.stopPropagation()}
           >
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-gutter:stable] sm:pr-2">
             <div className="mb-6 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
@@ -385,6 +385,7 @@ export function EditLogDialog({
                 </label>
               </section>
             </form>
+            </div>
           </div>
         </div>
       ) : null}

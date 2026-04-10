@@ -8,6 +8,7 @@ import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
+import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
@@ -119,6 +120,8 @@ export function ImportLogDialog({
     [review, selectedOpponentSprites]
   );
 
+  useBodyScrollLock(isOpen);
+
   function resetImportState() {
     setStage("raw");
     setRawLog("");
@@ -154,9 +157,6 @@ export function ImportLogDialog({
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         closeDialog();
@@ -166,7 +166,6 @@ export function ImportLogDialog({
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
@@ -418,7 +417,7 @@ export function ImportLogDialog({
                 </div>
 
                 <div
-                  className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6"
+                  className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 pr-5 [scrollbar-gutter:stable] sm:px-6 sm:py-5 sm:pr-7 lg:px-8 lg:py-6 lg:pr-9"
                   ref={contentRef}
                 >
               {stage === "review" && review ? (

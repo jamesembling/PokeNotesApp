@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import { LogRow } from "@/components/ui/LogRow";
 import type { BattleLogSummary } from "@/types/index";
 
@@ -12,13 +13,12 @@ type DeckLinkedLogsDialogProps = {
 export function DeckLinkedLogsDialog({ logs }: DeckLinkedLogsDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
 
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     if (!isOpen) {
       return;
     }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -29,7 +29,6 @@ export function DeckLinkedLogsDialog({ logs }: DeckLinkedLogsDialogProps) {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
@@ -67,7 +66,7 @@ export function DeckLinkedLogsDialog({ logs }: DeckLinkedLogsDialogProps) {
               </Button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5 lg:px-8">
+            <div className="flex-1 overflow-y-auto px-6 py-5 pr-8 [scrollbar-gutter:stable] lg:px-8 lg:pr-10">
               <div className="flex flex-col gap-3">
                 {logs.map((log) => (
                   <LogRow key={log.id} log={log} />
