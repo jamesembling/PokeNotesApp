@@ -272,7 +272,7 @@ function SpriteSearchSlot({
 
   return (
     <div
-      className="relative flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:items-start md:px-4 md:py-3"
+      className="relative flex min-w-0 items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:items-start md:px-4 md:py-3"
       key={`${title}-${index}`}
       ref={containerRef}
     >
@@ -400,8 +400,8 @@ function SpriteSearchSlot({
         </div>
 
         {isEditingMobile ? (
-          <div className="absolute inset-x-3 top-full z-30 mt-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] md:hidden">
-            <div className="flex items-center gap-2">
+          <div className="absolute inset-x-3 top-full z-30 mt-2 min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] md:hidden">
+            <div className="flex min-w-0 items-center gap-2">
               <input
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-[0.95rem] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                 onBlur={() => {
@@ -482,9 +482,9 @@ export function BattleLogSpritePicker({
   pokemonOptions
 }: BattleLogSpritePickerProps) {
   return (
-    <section className="grid gap-3">
-      <div className="flex items-start justify-between gap-3 md:gap-4">
-        <div className="grid gap-1">
+    <section className="grid min-w-0 gap-3">
+      <div className="flex min-w-0 items-start justify-between gap-3 md:gap-4">
+        <div className="grid min-w-0 gap-1">
           <p className="text-[0.95rem] font-semibold text-[var(--text-muted)] md:text-sm">{title}</p>
           {detectedLabel ? (
             <p className="text-[0.95rem] leading-5 text-[var(--text-secondary)] md:text-sm">
@@ -501,7 +501,7 @@ export function BattleLogSpritePicker({
           <span>Swap</span>
         </button>
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-3 lg:grid-cols-2">
         {[0, 1].map((index) => {
           const currentSlug = sprites[index] ?? "";
 

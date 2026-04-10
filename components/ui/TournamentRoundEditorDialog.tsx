@@ -189,23 +189,23 @@ export function TournamentRoundEditorDialog({
       {isOpen ? (
         <div
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-[var(--bg-overlay)] p-4"
+          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
           onClick={closeDialog}
           role="dialog"
         >
           <div
-            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
+            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-2xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-gutter:stable] sm:pr-2">
-            <div className="mb-2 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable] sm:pr-2">
+            <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
                 <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                   {isEditing ? `Edit Round ${round?.roundNumber}` : "Add Round"}
                 </h2>
               </div>
 
-              <div className="flex flex-wrap gap-2.5">
+              <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
                 <Button onClick={closeDialog} type="button" variant="secondary">
                   Close
                 </Button>
@@ -243,7 +243,7 @@ export function TournamentRoundEditorDialog({
                 <p className="text-sm text-[var(--text-primary)]">
                   Delete this round from the tournament?
                 </p>
-                <div className="mt-3 flex flex-wrap gap-3">
+                <div className="mt-3 grid gap-3 sm:flex sm:flex-wrap">
                   <Button disabled={deleteState === "deleting"} onClick={handleDelete} variant="danger">
                     {deleteState === "deleting" ? "Deleting..." : "Yes, delete"}
                   </Button>
@@ -264,7 +264,7 @@ export function TournamentRoundEditorDialog({
               </div>
             ) : null}
 
-            <form action={handleSubmit} className="grid gap-5" ref={formRef}>
+            <form action={handleSubmit} className="grid min-w-0 gap-5" ref={formRef}>
               <input name="tournamentId" type="hidden" value={tournamentId} />
               <input name="redirectTo" type="hidden" value={pathname} />
               {isEditing && round ? <input name="roundId" type="hidden" value={round.id} /> : null}

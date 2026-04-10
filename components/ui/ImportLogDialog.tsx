@@ -30,7 +30,7 @@ const SUCCESS_CLOSE_DELAY_MS = 650;
 
 function ResultChip({ children }: { children: string }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)]">
+    <span className="inline-flex max-w-full items-center truncate rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)]">
       {children}
     </span>
   );
@@ -341,8 +341,8 @@ export function ImportLogDialog({
   function renderHeader() {
     if (stage === "raw") {
       return (
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
+        <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
             <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
               Import PTCGL Log
             </h2>
@@ -367,7 +367,7 @@ export function ImportLogDialog({
     }
 
     return (
-      <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className="relative flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <button
           aria-label="Close review"
           className="absolute right-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)] md:hidden"
@@ -376,7 +376,7 @@ export function ImportLogDialog({
         >
           <CloseIcon className="h-5 w-5" />
         </button>
-        <div className="pr-12 text-center md:pr-0 md:text-left">
+        <div className="min-w-0 pr-12 text-center md:pr-0 md:text-left">
           <h2 className="text-[1.3rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.55rem] md:text-[1.9rem]">
             Review Battle Log
           </h2>
@@ -422,7 +422,7 @@ export function ImportLogDialog({
                 >
               {stage === "review" && review ? (
                 <form
-                  className="flex flex-col gap-4 md:gap-6"
+                  className="flex min-w-0 flex-col gap-4 md:gap-6"
                   onSubmit={(event) => {
                     event.preventDefault();
                     void handleSubmit(new FormData(event.currentTarget));
@@ -697,7 +697,7 @@ export function ImportLogDialog({
                     </div>
                   </section>
 
-                  <div className="grid gap-3 md:hidden">
+                  <div className="grid min-w-0 gap-3 md:hidden">
                     <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
                     <Button className="w-full" onClick={closeDialog} type="button" variant="secondary">
                       Close
@@ -705,7 +705,7 @@ export function ImportLogDialog({
                   </div>
                 </form>
               ) : (
-                <div className="flex flex-col gap-6">
+                <div className="flex min-w-0 flex-col gap-6">
                   <label className="grid gap-2">
                     <span className="text-sm font-semibold text-[var(--text-muted)]">Battle log</span>
                     <textarea

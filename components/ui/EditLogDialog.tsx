@@ -48,10 +48,10 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-[148px] shrink-0 whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)]"
+          ? "w-full whitespace-normal pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
           : isSaving
-            ? "w-[148px] shrink-0 whitespace-nowrap pointer-events-none"
-            : "w-[148px] shrink-0 whitespace-nowrap"
+            ? "w-full whitespace-normal pointer-events-none sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
+            : "w-full whitespace-normal sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
       }
       disabled={isSaving}
       onClick={onClick}
@@ -242,22 +242,22 @@ export function EditLogDialog({
       {isOpen ? (
         <div
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-[var(--bg-overlay)] p-4"
+          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
           onClick={closeDialog}
           role="dialog"
         >
           <div
-            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
+            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-gutter:stable] sm:pr-2">
-            <div className="mb-6 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable] sm:pr-2">
+            <div className="mb-6 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
                 <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                   Edit Battle Log
                 </h2>
               </div>
-              <div className="flex flex-wrap gap-2.5">
+              <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
                 <Button onClick={closeDialog} type="button" variant="secondary">
                   Close
                 </Button>
@@ -265,7 +265,7 @@ export function EditLogDialog({
               </div>
             </div>
             <form
-              className="flex flex-col gap-6"
+              className="flex min-w-0 flex-col gap-6"
               onSubmit={(event) => {
                 event.preventDefault();
                 void handleSubmit(new FormData(event.currentTarget));

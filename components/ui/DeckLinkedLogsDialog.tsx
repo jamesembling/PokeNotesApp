@@ -42,16 +42,16 @@ export function DeckLinkedLogsDialog({ logs }: DeckLinkedLogsDialogProps) {
       {isOpen ? (
         <div
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-[var(--bg-overlay)] p-4"
+          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
           onClick={() => setIsOpen(false)}
           role="dialog"
         >
           <div
-            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]"
+            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-5xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-5 lg:px-8">
-              <div className="space-y-2">
+            <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-5 lg:px-8">
+              <div className="min-w-0 space-y-2">
                 <p className="ui-eyebrow">Battle Logs</p>
                 <h2 className="text-[1.45rem] font-bold tracking-[-0.04em] text-[var(--text-primary)] sm:text-[1.8rem]">
                   All linked logs
@@ -66,8 +66,8 @@ export function DeckLinkedLogsDialog({ logs }: DeckLinkedLogsDialogProps) {
               </Button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5 pr-8 [scrollbar-gutter:stable] lg:px-8 lg:pr-10">
-              <div className="flex flex-col gap-3">
+            <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-5 pr-8 [scrollbar-gutter:stable] lg:px-8 lg:pr-10">
+              <div className="flex min-w-0 flex-col gap-3">
                 {logs.map((log) => (
                   <LogRow key={log.id} log={log} />
                 ))}

@@ -43,10 +43,10 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-[110px] shrink-0 pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)]"
+          ? "w-full pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[110px] sm:shrink-0"
           : isSaving
-            ? "w-[110px] shrink-0 pointer-events-none"
-            : "w-[110px] shrink-0"
+            ? "w-full pointer-events-none sm:w-[110px] sm:shrink-0"
+            : "w-full sm:w-[110px] sm:shrink-0"
       }
       disabled={isSaving}
       onClick={onClick}
@@ -218,22 +218,22 @@ export function DeckEditorDialog({
       {isOpen ? (
         <div
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-[var(--bg-overlay)] p-4"
+          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
           onClick={closeDialog}
           role="dialog"
         >
           <div
-            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
+            className="mx-auto flex max-h-[calc(100vh-2rem)] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-gutter:stable] sm:pr-2">
-            <div className="mb-2 flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable] sm:pr-2">
+            <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
                 <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                   {isEditing ? "Edit Deck" : "New Deck"}
                 </h2>
               </div>
-              <div className="flex flex-wrap gap-2.5">
+              <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
                 <Button onClick={closeDialog} type="button" variant="secondary">
                   Close
                 </Button>
@@ -259,8 +259,8 @@ export function DeckEditorDialog({
             </div>
             {isEditing && showDeleteConfirmation ? (
               <section className="mb-5 rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
+                <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-1">
                     <p className="text-sm font-semibold text-[var(--color-loss)]">
                       Delete this deck strategy?
                     </p>
@@ -269,7 +269,7 @@ export function DeckEditorDialog({
                       account as unlinked records.
                     </p>
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2 sm:flex-nowrap">
+                  <div className="grid w-full gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-nowrap">
                     <Button
                       disabled={isBusy}
                       onClick={() => setShowDeleteConfirmation(false)}
@@ -279,7 +279,7 @@ export function DeckEditorDialog({
                       Cancel
                     </Button>
                     <Button
-                      className="whitespace-nowrap"
+                      className="whitespace-normal sm:whitespace-nowrap"
                       disabled={isBusy}
                       onClick={() => void handleDelete()}
                       type="button"
@@ -292,7 +292,7 @@ export function DeckEditorDialog({
               </section>
             ) : null}
             <form
-              className="flex flex-col gap-6"
+              className="flex min-w-0 flex-col gap-6"
               onSubmit={(event) => {
                 event.preventDefault();
                 void handleSubmit(new FormData(event.currentTarget));
