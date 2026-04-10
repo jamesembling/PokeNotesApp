@@ -339,6 +339,7 @@ type BattleLogDetailViewProps = {
   linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel: string;
   log: BattleLog;
+  mobileNavigation?: ReactNode;
   notice?: ReactNode;
   timestampLabel: string;
 };
@@ -353,6 +354,7 @@ export function BattleLogDetailView({
   linkedDeckListSortedCards,
   linkedStrategyLabel,
   log,
+  mobileNavigation,
   notice,
   timestampLabel
 }: BattleLogDetailViewProps) {
@@ -370,6 +372,7 @@ export function BattleLogDetailView({
       <Card className="rounded-[28px] p-6 sm:p-8">
         <div className="flex flex-col gap-8">
           {notice ? <div>{notice}</div> : null}
+          {mobileNavigation ? <div className="sm:hidden">{mobileNavigation}</div> : null}
 
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -418,9 +421,8 @@ export function BattleLogDetailView({
             <HighlightPanel kicker="Matched Strategy" value={linkedStrategyLabel} />
           </div>
 
-          <div className="border-b border-[var(--border)]" />
-
-          <div className="flex flex-col gap-4">
+          <div className="hidden flex-col gap-4 sm:flex">
+            <div className="border-b border-[var(--border)]" />
             <SectionKicker>Match Stats</SectionKicker>
             <div className="grid gap-4 md:grid-cols-2">
               <DetailStat label="First or Second" value={formatGoOrder(log.goOrder)} />
@@ -434,6 +436,27 @@ export function BattleLogDetailView({
             </div>
           </div>
         </div>
+      </Card>
+
+      <Card className="rounded-[28px] p-6 sm:hidden">
+        <details className="group flex flex-col gap-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 [&::-webkit-details-marker]:hidden">
+            <SectionKicker>Match Stats</SectionKicker>
+            <span className="text-[var(--text-muted)]">
+              <ChevronIcon />
+            </span>
+          </summary>
+          <div className="grid gap-4">
+            <DetailStat label="First or Second" value={formatGoOrder(log.goOrder)} />
+            <DetailStat label="Number of Turns" value={log.totalTurns} />
+            <DetailStat label="Your Mulligans Taken" value={log.selfMultigans} />
+            <DetailStat label="Opponent Mulligans Taken" value={log.opponentMulligans} />
+            <DetailStat label="Your Attack Damage" value={log.selfAttackDamage} />
+            <DetailStat label="Opponent Attack Damage" value={log.opponentAttackDamage} />
+            <DetailStat label="Your Prizes Taken" value={log.selfPrizesTaken} />
+            <DetailStat label="Opponent Prizes Taken" value={log.opponentPrizesTaken} />
+          </div>
+        </details>
       </Card>
 
       {linkedDeckListId && linkedDeckListName ? (
