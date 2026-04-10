@@ -33,9 +33,9 @@ export function DeckCard({
   const statusToneClassName =
     winRate == null
       ? "border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)]"
-      : winRate > 75
+      : winRate > 60
         ? "border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win-strong)]"
-        : winRate >= 50
+        : winRate >= 40
           ? "border-[rgba(217,119,6,0.22)] bg-[rgba(217,119,6,0.1)] text-[rgb(180,83,9)] dark:border-[rgba(251,191,36,0.22)] dark:bg-[rgba(245,158,11,0.12)] dark:text-[rgb(251,191,36)]"
           : "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss-strong)]";
 
