@@ -162,6 +162,7 @@ export function LogsManager({
   const router = useRouter();
   const [isMutating, startMutationTransition] = useTransition();
   const [isLoadingMore, startLoadMoreTransition] = useTransition();
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [isManagementMode, setIsManagementMode] = useState(false);
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState("");
@@ -186,15 +187,24 @@ export function LogsManager({
   const selectedLogIdSet = useMemo(() => new Set(selectedLogIds), [selectedLogIds]);
   const allSelected = visibleLogs.length > 0 && selectedLogIds.length === visibleLogs.length;
   const selectedCount = selectedLogIds.length;
+  const managementModeActive = isManagementMode && isDesktopViewport;
   const canApplyDeckList =
     selectedCount > 0 && Boolean(selectedDeckId) && Boolean(selectedDeckListId) && !isMutating;
   const canDeleteSelected = selectedCount > 0 && !isMutating;
-  const currentWindowSummary =
-    windowStartDate && windowEndDate
-      ? `${formatDayDate(windowStartDate)} - ${formatDayDate(windowEndDate)}`
-      : "";
-  const totalWins = visibleSummary.totalWins;
-  const totalLosses = visibleSummary.totalLosses;
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 640px)");
+    const syncViewport = () => {
+      setIsDesktopViewport(mediaQuery.matches);
+    };
+
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncViewport);
+    };
+  }, []);
 
   useEffect(() => {
     setVisibleLogs(initialLogs);
@@ -213,10 +223,10 @@ export function LogsManager({
   ]);
 
   useEffect(() => {
-    if (!isManagementMode && selectedLogIds.length > 0) {
+    if (!managementModeActive && selectedLogIds.length > 0) {
       setSelectedLogIds([]);
     }
-  }, [isManagementMode, selectedLogIds.length]);
+  }, [managementModeActive, selectedLogIds.length]);
 
   useEffect(() => {
     const validIds = new Set(visibleLogs.map((log) => log.id));
@@ -349,88 +359,121 @@ export function LogsManager({
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="grid gap-4 rounded-[26px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(24rem,0.9fr)] xl:items-start">
-        <div className="space-y-4">
-          <div>
-            <p className="ui-eyebrow">All Logs</p>
-            <h2 className="ui-section-title mt-1 text-[1.7rem]">By Date</h2>
-            {currentWindowSummary ? (
-              <p className="mt-2 text-sm font-medium text-[var(--text-muted)]">
-                Showing {currentWindowSummary}
-                {canLoadMore ? ". Load more to include older logs." : "."}
-              </p>
-            ) : null}
+      <section className="hidden gap-5 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-5 sm:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="ui-eyebrow">Workspace Tools</p>
+            <Badge>{isManagementMode ? "Editing enabled" : "Review mode"}</Badge>
+            {!canLoadMore ? <Badge>Current window complete</Badge> : null}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[18px] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
-              <p className="ui-eyebrow">Visible Logs</p>
-              <p className="font-display mt-2 text-[1.6rem] font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
-                {visibleLogs.length}
-              </p>
-            </div>
-            <div className="rounded-[18px] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
-              <p className="ui-eyebrow">Visible Days</p>
-              <p className="font-display mt-2 text-[1.6rem] font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
-                {groups.length}
-              </p>
-            </div>
-            <div className="rounded-[18px] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
-              <p className="ui-eyebrow">Record</p>
-              <p className="font-display mt-2 text-[1.6rem] font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
-                {totalWins}-{totalLosses}
-              </p>
-            </div>
+          <div className="space-y-2">
+            <h2 className="ui-section-title">Manage Battle Logs</h2>
+            <p className="max-w-[58ch] text-sm leading-6 text-[var(--text-muted)]">
+              {managementModeActive
+                ? "Select logs below to delete bad imports or bulk-apply a saved deck list."
+                : "Turn on editing to select multiple logs, remove bad imports, and apply saved deck lists in bulk."}
+            </p>
           </div>
+
+          {managementModeActive ? (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-1">
+              <button
+                className="ui-control-text text-[var(--text-muted)] transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canDeleteSelected}
+                onClick={handleDeleteSelected}
+                type="button"
+              >
+                Delete Selected{selectedCount ? ` (${selectedCount})` : ""}
+              </button>
+
+              {visibleLogs.length > 0 ? (
+                <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-[var(--text-muted)]">
+                  <input
+                    checked={allSelected}
+                    className="h-5 w-5 cursor-pointer rounded border-[var(--border)] bg-[var(--bg-surface)]"
+                    onChange={toggleSelectAll}
+                    type="checkbox"
+                  />
+                  <span>Select All In View</span>
+                </label>
+              ) : null}
+            </div>
+          ) : null}
+
+          {managementModeActive ? (
+            <div className="grid gap-3 border-t border-[var(--border)] pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-[var(--text-muted)]">Deck Strategy</span>
+                <select
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                  onChange={(event) => setSelectedDeckId(event.target.value)}
+                  value={selectedDeckId}
+                >
+                  <option value="">Select deck strategy</option>
+                  {userDecks.map((deck) => (
+                    <option key={deck.id} value={deck.id}>
+                      {deck.deckName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-[var(--text-muted)]">Deck List</span>
+                <select
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={!selectedDeck || availableDeckLists.length === 0}
+                  onChange={(event) => setSelectedDeckListId(event.target.value)}
+                  value={selectedDeckListId}
+                >
+                  <option value="">
+                    {selectedDeck
+                      ? availableDeckLists.length > 0
+                        ? "Select deck list"
+                        : "No saved deck lists yet"
+                      : "Choose a deck strategy first"}
+                  </option>
+                  {availableDeckLists.map((deckList) => (
+                    <option key={deckList.id} value={deckList.id}>
+                      {deckList.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="flex lg:justify-end">
+                <Button
+                  className="w-full justify-center lg:w-auto"
+                  disabled={!canApplyDeckList}
+                  onClick={handleApplyDeckList}
+                >
+                  {isMutating ? "Applying..." : "Apply to Selected"}
+                </Button>
+              </div>
+
+              <p className="text-sm text-[var(--text-muted)] lg:col-span-3">
+                Apply one saved deck list to the {selectedCount} selected battle log
+                {selectedCount === 1 ? "" : "s"}.
+              </p>
+            </div>
+          ) : null}
         </div>
 
-        <div className="grid content-start gap-4 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface)] p-5">
-          <div className="grid gap-3">
-            <p className="ui-eyebrow">Workspace Tools</p>
-            <div>
-              {!canLoadMore ? <Badge>Current window complete</Badge> : null}
-            </div>
-          </div>
+        <div className="flex flex-col gap-3 lg:items-end">
+          <Button
+            className="gap-2 justify-center lg:min-w-[12rem]"
+            onClick={() => setIsManagementMode((current) => !current)}
+            variant="secondary"
+          >
+            <PencilIcon className="h-4 w-4" />
+            {managementModeActive ? "Done Editing" : "Edit Logs"}
+          </Button>
 
-          <div className="grid gap-3">
-            <Button
-              className="gap-2 justify-self-start"
-              onClick={() => setIsManagementMode((current) => !current)}
-              variant="secondary"
-            >
-              <PencilIcon className="h-4 w-4" />
-              {isManagementMode ? "Done Editing" : "Edit Logs"}
-            </Button>
-
-            {isManagementMode ? (
-              <div className="flex flex-wrap items-center gap-4">
-                <button
-                  className="ui-control-text text-[var(--text-muted)] transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={!canDeleteSelected}
-                  onClick={handleDeleteSelected}
-                  type="button"
-                >
-                  Delete Selected{selectedCount ? ` (${selectedCount})` : ""}
-                </button>
-
-                {visibleLogs.length > 0 ? (
-                  <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-[var(--text-muted)]">
-                    <input
-                      checked={allSelected}
-                      className="h-5 w-5 cursor-pointer rounded border-[var(--border)] bg-[var(--bg-surface)]"
-                      onChange={toggleSelectAll}
-                      type="checkbox"
-                    />
-                    <span>Select All</span>
-                  </label>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-
-          <p className="max-w-[34ch] text-sm leading-6 text-[var(--text-muted)]">
-            Review grouped results, bulk-link saved deck lists, or switch into editing mode to
-            clean up imported logs.
+          <p className="text-sm text-[var(--text-muted)] lg:max-w-[18rem] lg:text-right">
+            {managementModeActive
+              ? "Bulk actions stay available while editing is on."
+              : "Editing mode unlocks selection and bulk actions."}
           </p>
         </div>
       </section>
@@ -440,60 +483,6 @@ export function LogsManager({
         totalGroupCount={groups.length}
         visibleLogCount={visibleLogs.length}
       />
-
-      {isManagementMode ? (
-        <section className="grid gap-3 rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-start">
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold text-[var(--text-muted)]">Deck Strategy</span>
-            <select
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-              onChange={(event) => setSelectedDeckId(event.target.value)}
-              value={selectedDeckId}
-            >
-              <option value="">Select deck strategy</option>
-              {userDecks.map((deck) => (
-                <option key={deck.id} value={deck.id}>
-                  {deck.deckName}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="grid gap-2">
-            <span className="text-sm font-semibold text-[var(--text-muted)]">Deck List</span>
-            <select
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={!selectedDeck || availableDeckLists.length === 0}
-              onChange={(event) => setSelectedDeckListId(event.target.value)}
-              value={selectedDeckListId}
-            >
-              <option value="">
-                {selectedDeck
-                  ? availableDeckLists.length > 0
-                    ? "Select deck list"
-                    : "No saved deck lists yet"
-                  : "Choose a deck strategy first"}
-              </option>
-              {availableDeckLists.map((deckList) => (
-                <option key={deckList.id} value={deckList.id}>
-                  {deckList.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="flex items-end">
-            <Button disabled={!canApplyDeckList} onClick={handleApplyDeckList}>
-              {isMutating ? "Applying..." : "Apply to Selected"}
-            </Button>
-          </div>
-
-          <p className="text-sm text-[var(--text-muted)] lg:col-span-3">
-            Apply one saved deck list to the {selectedCount} selected battle log
-            {selectedCount === 1 ? "" : "s"}.
-          </p>
-        </section>
-      ) : null}
 
       {groups.length > 0 ? (
         <div className="divide-y divide-[var(--border)] rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface)]">
@@ -526,9 +515,14 @@ export function LogsManager({
                         </p>
                       </div>
 
-                      <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)] sm:hidden">
-                        {group.wins}-{group.losses}
-                      </p>
+                      <div className="text-right sm:hidden">
+                        <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
+                          {group.wins}-{group.losses}
+                        </p>
+                        <div className="mt-1 flex justify-end">
+                          <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180" />
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="hidden w-[13rem] grid-cols-2 gap-2 self-center sm:grid">
@@ -540,7 +534,7 @@ export function LogsManager({
                     </Badge>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 self-center">
+                <div className="hidden items-center self-center lg:flex">
                   <div className="text-right">
                     <p className="hidden font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)] lg:block">
                       {group.wins}-{group.losses}
@@ -565,7 +559,7 @@ export function LogsManager({
                       }
                       key={log.id}
                       log={log}
-                      managementMode={isManagementMode}
+                      managementMode={managementModeActive}
                       onDelete={() => handleDeleteSingle(log.id)}
                       onToggleSelected={() => toggleSelectedLog(log.id)}
                       selected={selectedLogIdSet.has(log.id)}
