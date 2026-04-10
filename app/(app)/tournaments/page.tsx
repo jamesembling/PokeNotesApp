@@ -9,15 +9,12 @@ import {
   getTournamentSummaries,
   TournamentSchemaMissingError
 } from "@/lib/db/tournaments";
-import { getLimitlessTournamentFormatOptions } from "@/lib/tournaments/formats";
 import type { DeckSummary, TournamentSummary } from "@/types/index";
 
 export default async function TournamentsPage() {
   const user = await requireUser();
   let tournaments: TournamentSummary[] = [];
   let decks: DeckSummary[] = [];
-  const formatOptions = await getLimitlessTournamentFormatOptions();
-  const formatLabelMap = new Map(formatOptions.map((option) => [option.value, option.label]));
   let schemaMissing = false;
 
   try {
@@ -44,7 +41,6 @@ export default async function TournamentsPage() {
         action={schemaMissing ? undefined : (
           <TournamentEditorDialog
             decks={decks}
-            formatOptions={formatOptions}
             triggerLabel="New Tournament"
           />
         )}
@@ -68,7 +64,6 @@ export default async function TournamentsPage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {tournaments.map((tournament) => (
             <TournamentCard
-              formatLabel={formatLabelMap.get(tournament.format) || tournament.format}
               key={tournament.id}
               tournament={tournament}
             />

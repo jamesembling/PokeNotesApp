@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { isKnownSiteFormat } from "@/lib/formats/options";
 import { createClient } from "@/lib/supabase/server";
-import { isKnownTournamentFormat } from "@/lib/tournaments/formats";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS,
@@ -123,7 +123,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
     throw new Error("Choose a linked deck or enter a deck name.");
   }
 
-  if (format && !(await isKnownTournamentFormat(format))) {
+  if (format && !isKnownSiteFormat(format)) {
     throw new Error("Choose a valid tournament format.");
   }
 
@@ -179,7 +179,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
     throw new Error("Choose a linked deck or enter a deck name.");
   }
 
-  if (format && !(await isKnownTournamentFormat(format))) {
+  if (format && !isKnownSiteFormat(format)) {
     throw new Error("Choose a valid tournament format.");
   }
 

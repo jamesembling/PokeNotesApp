@@ -1,17 +1,5 @@
-export const DECK_FORMAT_OPTIONS = [
-  "SVI-ASC",
-  "SVI-POR",
-  "SVI-SSP",
-  "SVI-TWM",
-  "SVI-SFA",
-  "SVI-OBF",
-  "SVI-PAR",
-  "SVI-PAL",
-  "SVI-MEW",
-  "SVI-TEF",
-  "SVI-BRS"
-] as const;
+import { SITE_FORMAT_OPTIONS, getDefaultSiteFormat } from "@/lib/formats/options";
 
-export function getDefaultDeckFormat() {
-  return DECK_FORMAT_OPTIONS[0];
-}
+export const DECK_FORMAT_OPTIONS = SITE_FORMAT_OPTIONS;
+
+export { getDefaultSiteFormat as getDefaultDeckFormat };

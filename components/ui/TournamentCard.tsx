@@ -9,11 +9,10 @@ import { getTournamentCategoryLabel, getTournamentPlacementLabel } from "@/lib/t
 import type { TournamentSummary } from "@/types/index";
 
 type TournamentCardProps = {
-  formatLabel?: string;
   tournament: TournamentSummary;
 };
 
-export function TournamentCard({ tournament, formatLabel }: TournamentCardProps) {
+export function TournamentCard({ tournament }: TournamentCardProps) {
   const record = getTournamentRecord(tournament.rounds);
 
   return (
@@ -55,7 +54,7 @@ export function TournamentCard({ tournament, formatLabel }: TournamentCardProps)
           {tournament.placement ? (
             <Badge>{getTournamentPlacementLabel(tournament.placement)}</Badge>
           ) : null}
-          {formatLabel ? <Badge>{formatLabel}</Badge> : null}
+          {tournament.format ? <Badge>{tournament.format}</Badge> : null}
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-2">

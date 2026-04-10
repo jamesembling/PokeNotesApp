@@ -17,7 +17,6 @@ import {
   TournamentSchemaMissingError
 } from "@/lib/db/tournaments";
 import { formatTournamentDateRange, getTournamentRecord } from "@/lib/tournaments/display";
-import { getLimitlessTournamentFormatOptions } from "@/lib/tournaments/formats";
 import { getTournamentCategoryLabel, getTournamentPlacementLabel } from "@/lib/tournaments/options";
 
 type TournamentDetailPageProps = {
@@ -28,8 +27,6 @@ type TournamentDetailPageProps = {
 
 export default async function TournamentDetailPage({ params }: TournamentDetailPageProps) {
   const user = await requireUser();
-  const formatOptions = await getLimitlessTournamentFormatOptions();
-  const formatLabelMap = new Map(formatOptions.map((option) => [option.value, option.label]));
   let tournament = null;
   let rounds = [];
   let decks = [];
@@ -107,7 +104,6 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
           <div className="flex flex-wrap items-center gap-3">
             <TournamentEditorDialog
               decks={decks}
-              formatOptions={formatOptions}
               tournament={tournament}
               triggerLabel="Edit Tournament"
               triggerVariant="secondary"
@@ -141,9 +137,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
               {tournament.placement ? (
                 <Badge>{getTournamentPlacementLabel(tournament.placement)}</Badge>
               ) : null}
-              {tournament.format ? (
-                <Badge>{formatLabelMap.get(tournament.format) || tournament.format}</Badge>
-              ) : null}
+              {tournament.format ? <Badge>{tournament.format}</Badge> : null}
             </div>
           </div>
 

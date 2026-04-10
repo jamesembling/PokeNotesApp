@@ -8,7 +8,7 @@ import {
   updateTournamentAction
 } from "@/app/(app)/tournaments/actions";
 import { Button } from "@/components/ui/Button";
-import type { TournamentFormatOption } from "@/lib/tournaments/formats";
+import { SITE_FORMAT_OPTIONS } from "@/lib/formats/options";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS
@@ -17,7 +17,6 @@ import type { DeckSummary, Tournament } from "@/types/index";
 
 type TournamentEditorDialogProps = {
   decks: DeckSummary[];
-  formatOptions: TournamentFormatOption[];
   tournament?: Tournament;
   triggerLabel: string;
   triggerVariant?: "primary" | "secondary" | "ghost";
@@ -63,7 +62,6 @@ function SaveButton({
 
 export function TournamentEditorDialog({
   decks,
-  formatOptions,
   tournament,
   triggerLabel,
   triggerVariant = "primary"
@@ -418,9 +416,9 @@ export function TournamentEditorDialog({
                     name="format"
                   >
                     <option value="">Select format</option>
-                    {formatOptions.map((format) => (
-                      <option key={format.value} value={format.value}>
-                        {format.label}
+                    {SITE_FORMAT_OPTIONS.map((format) => (
+                      <option key={format} value={format}>
+                        {format}
                       </option>
                     ))}
                   </select>

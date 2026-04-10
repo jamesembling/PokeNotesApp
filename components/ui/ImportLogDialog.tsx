@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import { SITE_FORMAT_OPTIONS, getDefaultSiteFormat } from "@/lib/formats/options";
 import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/types/index";
 
 type ImportLogDialogProps = {
@@ -22,20 +23,6 @@ type Stage = "raw" | "review";
 type SaveState = "idle" | "saving" | "success";
 
 const SUCCESS_CLOSE_DELAY_MS = 650;
-
-const FORMAT_OPTIONS = [
-  "SVI-ASC",
-  "SVI-PRE",
-  "SVI-SSP",
-  "SVI-TWM",
-  "SVI-SFA",
-  "SVI-OBF",
-  "SVI-PAR",
-  "SVI-PAL",
-  "SVI-MEW",
-  "SVI-TEF",
-  "SVI-BRS"
-] as const;
 
 function ResultChip({ children }: { children: string }) {
   return (
@@ -238,7 +225,7 @@ export function ImportLogDialog({
     setSelectedDeckId(nextReview.suggestedLinkedDeckId ?? "");
     setSelectedDeckListId("");
     setSelectedDate(nextReview.date);
-    setSelectedFormat(FORMAT_OPTIONS.includes("SVI-ASC") ? "SVI-ASC" : "");
+    setSelectedFormat(getDefaultSiteFormat());
     setSaveError("");
     setSaveState("idle");
   }
@@ -545,7 +532,7 @@ export function ImportLogDialog({
                         onChange={(event) => setSelectedFormat(event.target.value)}
                         value={selectedFormat}
                       >
-                        {FORMAT_OPTIONS.map((option) => (
+                        {SITE_FORMAT_OPTIONS.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>
@@ -636,7 +623,7 @@ export function ImportLogDialog({
                         onChange={(event) => setSelectedFormat(event.target.value)}
                         value={selectedFormat}
                       >
-                        {FORMAT_OPTIONS.map((option) => (
+                        {SITE_FORMAT_OPTIONS.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>

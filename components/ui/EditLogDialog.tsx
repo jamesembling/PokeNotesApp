@@ -14,6 +14,7 @@ import { updateLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
+import { SITE_FORMAT_OPTIONS, isKnownSiteFormat } from "@/lib/formats/options";
 import type { BattleLog, DeckList, DeckSummary, PokemonOption } from "@/types/index";
 
 type EditLogDialogProps = {
@@ -27,20 +28,6 @@ type EditLogDialogProps = {
 type SaveState = "idle" | "saving" | "success";
 
 const SUCCESS_CLOSE_DELAY_MS = 650;
-
-const FORMAT_OPTIONS = [
-  "SVI-ASC",
-  "SVI-PRE",
-  "SVI-SSP",
-  "SVI-TWM",
-  "SVI-SFA",
-  "SVI-OBF",
-  "SVI-PAR",
-  "SVI-PAL",
-  "SVI-MEW",
-  "SVI-TEF",
-  "SVI-BRS"
-] as const;
 
 function SaveButton({
   onClick,
@@ -111,9 +98,9 @@ export function EditLogDialog({
     () => getBattleLogDeckDisplayName(log.opponentDeckName, selectedOpponentSprites),
     [log.opponentDeckName, selectedOpponentSprites]
   );
-  const formatOptions = FORMAT_OPTIONS.includes(selectedFormat as (typeof FORMAT_OPTIONS)[number])
-    ? [...FORMAT_OPTIONS]
-    : [selectedFormat, ...FORMAT_OPTIONS];
+  const formatOptions = isKnownSiteFormat(selectedFormat)
+    ? [...SITE_FORMAT_OPTIONS]
+    : [selectedFormat, ...SITE_FORMAT_OPTIONS];
 
   const availableDeckLists = selectedDeck?.deckLists ?? [];
 
