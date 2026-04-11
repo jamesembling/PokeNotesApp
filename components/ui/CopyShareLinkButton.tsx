@@ -20,6 +20,20 @@ function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
+function shouldUseNativeShare() {
+  return window.matchMedia("(max-width: 859px)").matches;
+}
+
+function getNativeShare() {
+  const mobileNavigator = navigator as Navigator & {
+    share?: (data?: ShareData) => Promise<void>;
+  };
+
+  return typeof mobileNavigator.share === "function"
+    ? mobileNavigator.share.bind(mobileNavigator)
+    : null;
+}
+
 async function copyTextToClipboard(text: string) {
   if (navigator.clipboard?.writeText) {
     try {
@@ -40,9 +54,11 @@ async function copyTextToClipboard(text: string) {
 }
 
 async function shareOrCopyLink(shareUrl: string): Promise<ShareMethod> {
-  if (navigator.share) {
+  const nativeShare = getNativeShare();
+
+  if (nativeShare && shouldUseNativeShare()) {
     try {
-      await navigator.share({
+      await nativeShare({
         title: "Poke Notes Battle Log",
         text: shareUrl,
         url: shareUrl
