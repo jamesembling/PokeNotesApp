@@ -82,6 +82,14 @@ body {
   line-height: 1.6;
 }
 
+@media (max-width: 859px) {
+  input:not([type="hidden"]),
+  textarea,
+  select {
+    font-size: 1rem !important;
+  }
+}
+
 html.theme-switching body,
 html.theme-switching main,
 html.theme-switching aside,

@@ -296,19 +296,27 @@ function SpriteSearchSlot({
       }
 
       const rect = container.getBoundingClientRect();
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      const left = Math.max(8, Math.min(rect.left + 12, viewportWidth - 8));
+      const width = Math.max(0, Math.min(rect.width - 24, viewportWidth - left - 8));
+
       setSearchEditorStyle({
-        left: rect.left + 12,
+        left,
         position: "fixed",
         top: rect.bottom + 8,
-        width: Math.max(0, rect.width - 24)
+        width
       });
     }
 
     syncSearchEditorPosition();
+    window.visualViewport?.addEventListener("resize", syncSearchEditorPosition);
+    window.visualViewport?.addEventListener("scroll", syncSearchEditorPosition);
     window.addEventListener("resize", syncSearchEditorPosition);
     window.addEventListener("scroll", syncSearchEditorPosition, true);
 
     return () => {
+      window.visualViewport?.removeEventListener("resize", syncSearchEditorPosition);
+      window.visualViewport?.removeEventListener("scroll", syncSearchEditorPosition);
       window.removeEventListener("resize", syncSearchEditorPosition);
       window.removeEventListener("scroll", syncSearchEditorPosition, true);
     };
@@ -327,20 +335,28 @@ function SpriteSearchSlot({
       }
 
       const rect = input.getBoundingClientRect();
+      const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+      const left = Math.max(8, Math.min(rect.left, viewportWidth - 8));
+      const width = Math.max(0, Math.min(rect.width, viewportWidth - left - 8));
+
       setResultsStyle({
-        left: rect.left,
+        left,
         maxHeight: Math.max(160, Math.min(256, window.innerHeight - rect.bottom - 12)),
         position: "fixed",
         top: rect.bottom + 8,
-        width: rect.width
+        width
       });
     }
 
     syncResultsPosition();
+    window.visualViewport?.addEventListener("resize", syncResultsPosition);
+    window.visualViewport?.addEventListener("scroll", syncResultsPosition);
     window.addEventListener("resize", syncResultsPosition);
     window.addEventListener("scroll", syncResultsPosition, true);
 
     return () => {
+      window.visualViewport?.removeEventListener("resize", syncResultsPosition);
+      window.visualViewport?.removeEventListener("scroll", syncResultsPosition);
       window.removeEventListener("resize", syncResultsPosition);
       window.removeEventListener("scroll", syncResultsPosition, true);
     };
@@ -393,10 +409,7 @@ function SpriteSearchSlot({
           >
             <div className="flex min-w-0 items-center gap-2">
               <input
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-[0.95rem] text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                onBlur={() => {
-                  commitQuerySelection();
-                }}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 md:text-sm"
                 onChange={(event) => {
                   setQuery(event.target.value);
                   setIsOpen(true);
