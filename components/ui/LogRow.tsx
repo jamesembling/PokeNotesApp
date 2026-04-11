@@ -119,7 +119,7 @@ function LogRowComponent({
         {content}
       </Link>
 
-      <div className="flex items-center justify-end gap-1 text-[var(--text-muted)] transition duration-200 sm:pointer-events-none sm:translate-x-1 sm:opacity-0 sm:group-hover/row:pointer-events-auto sm:group-hover/row:translate-x-0 sm:group-hover/row:opacity-100 sm:group-focus-within/row:pointer-events-auto sm:group-focus-within/row:translate-x-0 sm:group-focus-within/row:opacity-100">
+      <div className="flex items-center justify-end gap-1 text-[var(--text-muted)]">
         <label className="inline-flex cursor-pointer items-center justify-center p-2">
           <span className="sr-only">Select battle log</span>
           <input

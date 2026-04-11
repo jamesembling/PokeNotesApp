@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import {
   createTournamentAction,
@@ -9,6 +10,7 @@ import {
 } from "@/app/(app)/tournaments/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import { ChevronIcon } from "@/components/ui/icons";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import { SITE_FORMAT_OPTIONS } from "@/lib/formats/options";
 import {
@@ -28,8 +30,190 @@ type TournamentEditorDialogProps = {
 
 type SaveState = "idle" | "saving" | "success";
 type DeleteState = "idle" | "deleting";
+type SelectOption = {
+  label: string;
+  value: string;
+};
 
 const SUCCESS_CLOSE_DELAY_MS = 650;
+const TOURNAMENT_PLACEMENT_VALUES_BY_CATEGORY: Record<string, string[]> = {
+  local: [
+    "champion",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "t16",
+    "t32"
+  ],
+  challenge: ["no placement", "dropped", "t8", "t4", "finalist", "champion"],
+  cup: ["no placement", "dropped", "t8", "t4", "finalist", "champion"]
+};
+
+function getPlacementOptionsForCategory(category: string): SelectOption[] {
+  const placementValues = TOURNAMENT_PLACEMENT_VALUES_BY_CATEGORY[category];
+
+  if (!placementValues) {
+    return TOURNAMENT_PLACEMENT_OPTIONS;
+  }
+
+  return placementValues.reduce<SelectOption[]>((filteredOptions, placementValue) => {
+    const option = TOURNAMENT_PLACEMENT_OPTIONS.find(
+      (candidate) => candidate.value === placementValue
+    );
+
+    if (option) {
+      filteredOptions.push({
+        label: option.label,
+        value: option.value
+      });
+    }
+
+    return filteredOptions;
+  }, []);
+}
+
+function TournamentSelectField({
+  id,
+  label,
+  name,
+  onChange,
+  options,
+  placeholder,
+  value
+}: {
+  id: string;
+  label: string;
+  name: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  placeholder: string;
+  value: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
+  const selectedOption = options.find((option) => option.value === value);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function syncMenuPosition() {
+      const button = buttonRef.current;
+      if (!button) {
+        return;
+      }
+
+      const rect = button.getBoundingClientRect();
+      setMenuStyle({
+        left: rect.left,
+        maxHeight: Math.max(160, Math.min(288, window.innerHeight - rect.bottom - 16)),
+        position: "fixed",
+        top: rect.bottom,
+        width: rect.width
+      });
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (fieldRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      if (menuRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsOpen(false);
+    }
+
+    syncMenuPosition();
+    window.addEventListener("resize", syncMenuPosition);
+    window.addEventListener("scroll", syncMenuPosition, true);
+    window.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("resize", syncMenuPosition);
+      window.removeEventListener("scroll", syncMenuPosition, true);
+      window.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [isOpen]);
+
+  const menu = isOpen && menuStyle
+    ? createPortal(
+        <div
+          className="z-[60] overflow-y-auto rounded-b-xl border border-t-0 border-[var(--color-brand)] bg-[var(--bg-surface-alt)] shadow-[var(--shadow-sm)]"
+          ref={menuRef}
+          role="listbox"
+          style={menuStyle}
+        >
+          {options.map((option) => (
+            <button
+              aria-selected={option.value === value}
+              className="block w-full px-4 py-2.5 text-left text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-surface)] aria-selected:bg-[var(--bg-surface)]"
+              key={option.value}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              role="option"
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div ref={fieldRef}>
+      <input name={name} type="hidden" value={value} />
+      <div
+        className={[
+          "rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] transition",
+          isOpen ? "rounded-b-none border-[var(--color-brand)]" : ""
+        ].join(" ")}
+      >
+        <label
+          className="block px-4 pt-3 text-xs font-semibold uppercase leading-tight tracking-wide text-[var(--text-muted)]"
+          htmlFor={id}
+        >
+          {label}
+        </label>
+        <button
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          className="flex w-full items-center justify-between gap-3 px-4 pb-3 pt-1 text-left text-sm font-semibold text-[var(--text-primary)] outline-none"
+          id={id}
+          onClick={() => setIsOpen((current) => !current)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              setIsOpen(false);
+            }
+          }}
+          ref={buttonRef}
+          type="button"
+        >
+          <span>{selectedOption?.label ?? placeholder}</span>
+          <ChevronIcon
+            className={`h-4 w-4 shrink-0 text-[var(--text-muted)] transition ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      </div>
+      {menu}
+    </div>
+  );
+}
 
 function normalizeRedirectPath(value: string) {
   return value.split("?")[0] || value;
@@ -52,8 +236,8 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[132px] sm:shrink-0"
-          : "w-full sm:w-[132px] sm:shrink-0"
+          ? "w-full pointer-events-none whitespace-nowrap bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[9.5rem] sm:shrink-0"
+          : "w-full whitespace-nowrap sm:w-[9.5rem] sm:shrink-0"
       }
       disabled={isSaving}
       onClick={onClick}
@@ -81,6 +265,9 @@ export function TournamentEditorDialog({
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [linkedDeckId, setLinkedDeckId] = useState(tournament?.linkedDeckId ?? "");
   const [deckName, setDeckName] = useState(tournament?.deckName ?? "");
+  const [category, setCategory] = useState<string>(tournament?.category ?? "");
+  const [placement, setPlacement] = useState<string>(tournament?.placement ?? "");
+  const [format, setFormat] = useState<string>(tournament?.format ?? "");
   const [selectedSprites, setSelectedSprites] = useState<string[]>(tournament?.deckSprites.slice(0, 2) ?? []);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [deleteState, setDeleteState] = useState<DeleteState>("idle");
@@ -93,6 +280,19 @@ export function TournamentEditorDialog({
     () => decks.find((deck) => deck.id === linkedDeckId) ?? null,
     [decks, linkedDeckId]
   );
+  const placementOptions = useMemo(() => getPlacementOptionsForCategory(category), [category]);
+
+  useEffect(() => {
+    if (!placement) {
+      return;
+    }
+
+    if (placementOptions.some((option) => option.value === placement)) {
+      return;
+    }
+
+    setPlacement("");
+  }, [placement, placementOptions]);
 
   function clearCloseTimer() {
     if (closeTimerRef.current !== null) {
@@ -111,6 +311,9 @@ export function TournamentEditorDialog({
   function resetState() {
     setLinkedDeckId(tournament?.linkedDeckId ?? "");
     setDeckName(tournament?.deckName ?? "");
+    setCategory(tournament?.category ?? "");
+    setPlacement(tournament?.placement ?? "");
+    setFormat(tournament?.format ?? "");
     setSelectedSprites(tournament?.deckSprites.slice(0, 2) ?? []);
     setSaveState("idle");
     setDeleteState("idle");
@@ -248,11 +451,12 @@ export function TournamentEditorDialog({
               </div>
 
               <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-                <Button onClick={closeDialog} type="button" variant="secondary">
+                <Button className="whitespace-nowrap" onClick={closeDialog} type="button" variant="secondary">
                   Close
                 </Button>
                 {isEditing ? (
                   <Button
+                    className="whitespace-nowrap"
                     disabled={isBusy}
                     onClick={() => {
                       setActionError("");
@@ -308,7 +512,7 @@ export function TournamentEditorDialog({
 
               <div className="grid gap-2">
                 <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-name">
-                  Tournament name
+                  Tournament information
                 </label>
                 <input
                   className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
@@ -316,6 +520,41 @@ export function TournamentEditorDialog({
                   id="tournament-name"
                   name="name"
                   placeholder="EUIC, local cup, online challenge..."
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <TournamentSelectField
+                  id="tournament-category"
+                  label="Category"
+                  name="category"
+                  onChange={setCategory}
+                  options={TOURNAMENT_CATEGORY_OPTIONS}
+                  placeholder="Select category"
+                  value={category}
+                />
+
+                <TournamentSelectField
+                  id="tournament-placement"
+                  label="Placement"
+                  name="placement"
+                  onChange={setPlacement}
+                  options={placementOptions}
+                  placeholder="Select placement"
+                  value={placement}
+                />
+
+                <TournamentSelectField
+                  id="tournament-format"
+                  label="Format"
+                  name="format"
+                  onChange={setFormat}
+                  options={SITE_FORMAT_OPTIONS.map((format) => ({
+                    label: format,
+                    value: format
+                  }))}
+                  placeholder="Select format"
+                  value={format}
                 />
               </div>
 
@@ -398,65 +637,6 @@ export function TournamentEditorDialog({
                 sprites={selectedSprites}
                 title="Tournament sprites"
               />
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-category">
-                    Category
-                  </label>
-                  <select
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
-                    defaultValue={tournament?.category ?? ""}
-                    id="tournament-category"
-                    name="category"
-                  >
-                    <option value="">Select category</option>
-                    {TOURNAMENT_CATEGORY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-placement">
-                    Placement
-                  </label>
-                  <select
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
-                    defaultValue={tournament?.placement ?? ""}
-                    id="tournament-placement"
-                    name="placement"
-                  >
-                    <option value="">Select placement</option>
-                    {TOURNAMENT_PLACEMENT_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-format">
-                    Format
-                  </label>
-                  <select
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
-                    defaultValue={tournament?.format ?? ""}
-                    id="tournament-format"
-                    name="format"
-                  >
-                    <option value="">Select format</option>
-                    {SITE_FORMAT_OPTIONS.map((format) => (
-                      <option key={format} value={format}>
-                        {format}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
               <div className="grid gap-2">
                 <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-notes">

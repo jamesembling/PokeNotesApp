@@ -363,7 +363,6 @@ export function LogsManager({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <p className="ui-eyebrow">Workspace Tools</p>
-            <Badge>{isManagementMode ? "Editing enabled" : "Review mode"}</Badge>
             {!canLoadMore ? <Badge>Current window complete</Badge> : null}
           </div>
 
@@ -554,6 +553,15 @@ export function LogsManager({
                       editAction={
                         <LazyEditLogButton
                           log={toEditableLog(log)}
+                          trigger={
+                            <button
+                              aria-label="Edit battle log"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--color-brand)]"
+                              type="button"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                          }
                           userDecks={userDecks}
                         />
                       }
@@ -579,14 +587,14 @@ export function LogsManager({
       )}
 
       {canLoadMore ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          className={`flex flex-wrap items-center gap-3 ${
+            loadMoreError ? "justify-between" : "justify-end"
+          }`}
+        >
           {loadMoreError ? (
             <p className="text-sm font-medium text-[var(--color-loss-strong)]">{loadMoreError}</p>
-          ) : (
-            <p className="text-sm text-[var(--text-muted)]">
-              Continue loading older windows to extend the visible log history.
-            </p>
-          )}
+          ) : null}
           <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="secondary">
             {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}
           </Button>

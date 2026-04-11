@@ -99,9 +99,9 @@ create table public.tournaments (
   deck_name         text not null default '',
   deck_sprites      jsonb not null default '[]',
   category          text not null default ''
-                      check (category in ('', 'online', 'local', 'challenge', 'cup', 'regional', 'international', 'world')),
+                      check (category in ('', 'online', 'local', 'challenge', 'cup', 'prerelease', 'regional', 'world')),
   placement         text not null default ''
-                      check (placement in ('', 'no placement', 'dropped', 't1024', 't512', 't256', 't128', 't64', 't32', 't16', 't8', 't4', 'finalist', 'champion')),
+                      check (placement in ('', 'no placement', 'dropped', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 't1024', 't512', 't256', 't128', 't64', 't32', 't16', 't8', 't4', 'finalist', 'champion')),
   format            text not null default '',
   notes             text not null default '',
   created_at        timestamptz not null default now(),

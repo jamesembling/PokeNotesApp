@@ -18,7 +18,12 @@ export function StatCard({
   valueColor = "default"
 }: StatCardProps) {
   return (
-    <div className="grid h-full grid-rows-[2rem_auto_1fr] rounded-xl bg-[var(--bg-surface-alt)] p-4">
+    <div
+      className={[
+        "grid h-full rounded-xl bg-[var(--bg-surface-alt)] p-4",
+        detail ? "grid-rows-[2rem_auto_1fr]" : "content-start gap-3"
+      ].join(" ")}
+    >
       <p className="text-xs font-medium uppercase leading-tight tracking-wide text-[var(--text-muted)]">
         {label}
       </p>

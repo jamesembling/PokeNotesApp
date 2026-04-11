@@ -73,18 +73,15 @@ export default async function LogsPage() {
       <Card>
         <div className="grid gap-4 sm:grid-cols-3">
           <StatCard
-            detail="Imported battle logs available in your workspace."
             label="Total Logs"
             value={stats.total}
           />
           <StatCard
-            detail="Resolved wins across all imported games."
             label="Wins"
             value={stats.wins}
             valueColor="win"
           />
           <StatCard
-            detail="Resolved losses across all imported games."
             label="Losses"
             value={stats.losses}
             valueColor="loss"
