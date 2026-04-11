@@ -353,13 +353,12 @@ function SpriteSearchSlot({
           {isOpen && normalizeSearchValue(query) ? (
             <div className="mt-2 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)]">
               {filteredOptions.length > 0 ? (
-                <div className="max-h-64 overflow-y-auto py-2">
+                <div className="max-h-64 touch-pan-y overflow-y-auto py-2">
                   {filteredOptions.map((option) => (
                     <button
                       className="flex w-full touch-manipulation items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface)]"
                       key={option.slug}
-                      onPointerDown={(event) => {
-                        event.preventDefault();
+                      onClick={() => {
                         commitQuerySelection(option.slug);
                       }}
                       type="button"
