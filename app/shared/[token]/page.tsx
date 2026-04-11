@@ -34,7 +34,7 @@ function formatSharedLogDate(value: string) {
   }).format(new Date(value));
 }
 
-function buildSharedLogMetadata(log: BattleLog, linkedStrategyLabel: string) {
+function buildSharedLogMetadata(log: BattleLog) {
   const selfDeckName =
     getBattleLogSpriteDisplayName(log.selfDeckSprites) ||
     getBattleLogDeckDisplayName(log.selfDeckName, log.selfDeckSprites);
@@ -42,23 +42,10 @@ function buildSharedLogMetadata(log: BattleLog, linkedStrategyLabel: string) {
     getBattleLogSpriteDisplayName(log.opponentDeckSprites) ||
     getBattleLogOpponentDisplayName(log.opponentDeckName, log.opponentDeckSprites);
   const dateLabel = formatSharedLogDate(log.date);
-  const goOrderLabel = log.goOrder ? `Went ${log.goOrder.toLowerCase()}.` : "";
-  const formatLabel = log.format ? `${log.format}.` : "";
-  const strategyLabel =
-    linkedStrategyLabel && linkedStrategyLabel !== "No strategy linked"
-      ? `Linked strategy: ${linkedStrategyLabel}.`
-      : "";
 
   return {
     title: `${log.result} vs ${opponentDeckName} | Poke Notes`,
-    description: [
-      `${selfDeckName} vs ${opponentDeckName} on ${dateLabel}.`,
-      formatLabel,
-      goOrderLabel,
-      strategyLabel
-    ]
-      .filter(Boolean)
-      .join(" ")
+    description: `${selfDeckName} vs ${opponentDeckName} on ${dateLabel}.`
   };
 }
 
@@ -72,10 +59,7 @@ export async function generateMetadata({ params }: SharedLogPageProps): Promise<
     };
   }
 
-  const metadata = buildSharedLogMetadata(
-    sharedLog.payload.log,
-    sharedLog.payload.linkedStrategyLabel
-  );
+  const metadata = buildSharedLogMetadata(sharedLog.payload.log);
 
   return {
     title: metadata.title,
