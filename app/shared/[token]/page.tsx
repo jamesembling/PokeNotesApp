@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  getBattleLogDeckDisplayName,
+  getBattleLogOpponentDisplayName,
+  getBattleLogSpriteDisplayName
+} from "@/lib/battle-log/display";
 import { getSharedLogSnapshot } from "@/lib/db/log-shares";
+import type { BattleLog } from "@/types/index";
 
 type SharedLogPageProps = {
   params: {
@@ -17,6 +24,74 @@ function formatImportedAt(value: string) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatSharedLogDate(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(value));
+}
+
+function buildSharedLogMetadata(log: BattleLog, linkedStrategyLabel: string) {
+  const selfDeckName =
+    getBattleLogSpriteDisplayName(log.selfDeckSprites) ||
+    getBattleLogDeckDisplayName(log.selfDeckName, log.selfDeckSprites);
+  const opponentDeckName =
+    getBattleLogSpriteDisplayName(log.opponentDeckSprites) ||
+    getBattleLogOpponentDisplayName(log.opponentDeckName, log.opponentDeckSprites);
+  const dateLabel = formatSharedLogDate(log.date);
+  const goOrderLabel = log.goOrder ? `Went ${log.goOrder.toLowerCase()}.` : "";
+  const formatLabel = log.format ? `${log.format}.` : "";
+  const strategyLabel =
+    linkedStrategyLabel && linkedStrategyLabel !== "No strategy linked"
+      ? `Linked strategy: ${linkedStrategyLabel}.`
+      : "";
+
+  return {
+    title: `${log.result} vs ${opponentDeckName} | Poke Notes`,
+    description: [
+      `${selfDeckName} vs ${opponentDeckName} on ${dateLabel}.`,
+      formatLabel,
+      goOrderLabel,
+      strategyLabel
+    ]
+      .filter(Boolean)
+      .join(" ")
+  };
+}
+
+export async function generateMetadata({ params }: SharedLogPageProps): Promise<Metadata> {
+  const sharedLog = await getSharedLogSnapshot(params.token);
+
+  if (!sharedLog) {
+    return {
+      title: "Shared Battle Log | Poke Notes",
+      description: "This shared battle log link is missing or no longer available."
+    };
+  }
+
+  const metadata = buildSharedLogMetadata(
+    sharedLog.payload.log,
+    sharedLog.payload.linkedStrategyLabel
+  );
+
+  return {
+    title: metadata.title,
+    description: metadata.description,
+    openGraph: {
+      title: metadata.title,
+      description: metadata.description,
+      siteName: "Poke Notes",
+      type: "article"
+    },
+    twitter: {
+      card: "summary",
+      title: metadata.title,
+      description: metadata.description
+    }
+  };
 }
 
 export default async function SharedLogPage({ params }: SharedLogPageProps) {
