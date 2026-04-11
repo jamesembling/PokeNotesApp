@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { mergePokemonOptions } from "@/lib/pokemon/catalog-supplements";
 import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
 import { CACHE_TAGS } from "@/lib/server/cache";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { createPublicClient } from "@/lib/supabase/public";
 import { measureServerCall } from "@/lib/server/perf";
 import type { PokemonOption } from "@/types/index";
@@ -12,22 +13,21 @@ type PokemonOptionRow = {
   sprite_url: string;
 };
 
-const POKEMON_OPTIONS_CACHE_VERSION = "v2";
+const POKEMON_OPTIONS_CACHE_VERSION = "v4";
 
 const getPokemonOptionsCached = unstable_cache(
   async (): Promise<PokemonOption[]> => {
     const supabase = createPublicClient();
 
-    const { data, error } = await measureServerCall("db.pokemon.options", async () =>
-      await supabase
-        .from("pokemon_catalog")
-        .select("slug,label,sprite_url")
-        .order("label", { ascending: true })
+    const data = await measureServerCall("db.pokemon.options", async () =>
+      await fetchAllRows<PokemonOptionRow>((from, to) =>
+        supabase
+          .from("pokemon_catalog")
+          .select("slug,label,sprite_url")
+          .order("label", { ascending: true })
+          .range(from, to)
+      )
     );
-
-    if (error) {
-      throw error;
-    }
 
     const options = ((data ?? []) as PokemonOptionRow[])
       .filter((row) => row.slug && row.label)

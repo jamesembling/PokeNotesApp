@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "audit:pokemon-options": "node audit-pokemon-options.mjs",
     "clean": "rm -rf .next",
     "dev": "next dev",
     "dev:reset": "rm -rf .next && next dev",

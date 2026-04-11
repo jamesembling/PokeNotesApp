@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { buildPokemonNameVariants, normalizeText } from "@/lib/log-import/normalization";
 import { mergePokemonCatalogRows } from "@/lib/pokemon/catalog-supplements";
 import { CACHE_TAGS } from "@/lib/server/cache";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { createPublicClient } from "@/lib/supabase/public";
 import type {
   ArchetypeCatalogRow,
@@ -14,7 +15,7 @@ type CachedIdentificationCatalogRows = {
   pokemonRows: PokemonCatalogRow[];
 };
 
-const IDENTIFICATION_CATALOG_CACHE_VERSION = "v2";
+const IDENTIFICATION_CATALOG_CACHE_VERSION = "v4";
 
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
@@ -27,6 +28,7 @@ function parseStringArray(value: unknown) {
 function buildPokemonIndex(rows: PokemonCatalogRow[]) {
   const bySlug = new Map(rows.map((row) => [row.slug, row]));
   const normalizedNameToSlug = new Map<string, string>();
+  const slugToFamilyRoot = new Map<string, string>();
   let maxNameTokens = 1;
 
   rows.forEach((row) => {
@@ -47,17 +49,19 @@ function buildPokemonIndex(rows: PokemonCatalogRow[]) {
       cursor = bySlug.get(cursor)?.evolves_from ?? null;
     }
     slugToAncestors.set(row.slug, ancestors);
+    slugToFamilyRoot.set(row.slug, ancestors[ancestors.length - 1] ?? row.slug);
   });
 
   return {
     bySlug,
     normalizedNameToSlug,
     slugToAncestors,
+    slugToFamilyRoot,
     maxNameTokens
   };
 }
 
-function buildArchetypeIndex(rows: ArchetypeCatalogRow[]) {
+function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnType<typeof buildPokemonIndex>) {
   const includedRows = rows
     .filter((row) => !row.is_excluded)
     .map((row) => ({
@@ -75,6 +79,7 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[]) {
   const byId = new Map(includedRows.map((row) => [row.id, row]));
   const normalizedLabelToIds = new Map<string, string[]>();
   const spriteToCandidateArchetypes = new Map<string, string[]>();
+  const familyRootToCandidateArchetypes = new Map<string, string[]>();
 
   includedRows.forEach((row) => {
     const labelKey = normalizeText(row.label);
@@ -86,52 +91,63 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[]) {
       const candidateIds = spriteToCandidateArchetypes.get(sprite) ?? [];
       candidateIds.push(row.id);
       spriteToCandidateArchetypes.set(sprite, candidateIds);
+
+      const familyRoot = pokemonIndex.slugToFamilyRoot.get(sprite) ?? sprite;
+      const familyCandidateIds = familyRootToCandidateArchetypes.get(familyRoot) ?? [];
+      familyCandidateIds.push(row.id);
+      familyRootToCandidateArchetypes.set(familyRoot, familyCandidateIds);
     });
   });
 
   return {
     byId,
     normalizedLabelToIds,
-    spriteToCandidateArchetypes
+    spriteToCandidateArchetypes,
+    familyRootToCandidateArchetypes
   };
 }
 
 const loadIdentificationCatalogCached = unstable_cache(
   async (): Promise<CachedIdentificationCatalogRows> => {
     const supabase = createPublicClient();
-    const [{ data: pokemonRows, error: pokemonError }, archetypeResult] = await Promise.all([
-      supabase
-        .from("pokemon_catalog")
-        .select("slug,label,evolves_from,sprite_url,name_de,name_es,name_fr,name_it,name_pt_br"),
-      supabase
-        .from("archetype_catalog")
-        .select("id,label,sprites,detection_sprites,is_excluded")
-        .eq("is_excluded", false)
+    const [pokemonRows, archetypeRows] = await Promise.all([
+      fetchAllRows<PokemonCatalogRow>((from, to) =>
+        supabase
+          .from("pokemon_catalog")
+          .select("slug,label,evolves_from,sprite_url,name_de,name_es,name_fr,name_it,name_pt_br")
+          .range(from, to)
+      ),
+      (async () => {
+        try {
+          return await fetchAllRows<ArchetypeCatalogRow>((from, to) =>
+            supabase
+              .from("archetype_catalog")
+              .select("id,label,sprites,detection_sprites,is_excluded")
+              .eq("is_excluded", false)
+              .range(from, to)
+          );
+        } catch (error) {
+          if (!(error instanceof Error) || !/detection_sprites/i.test(error.message)) {
+            throw error;
+          }
+
+          const fallbackRows = await fetchAllRows<
+            Omit<ArchetypeCatalogRow, "detection_sprites"> & { detection_sprites?: unknown }
+          >((from, to) =>
+            supabase
+              .from("archetype_catalog")
+              .select("id,label,sprites,is_excluded")
+              .eq("is_excluded", false)
+              .range(from, to)
+          );
+
+          return fallbackRows.map((row) => ({
+            ...row,
+            detection_sprites: row.sprites
+          })) as ArchetypeCatalogRow[];
+        }
+      })()
     ]);
-
-    let archetypeRows = archetypeResult.data;
-    let archetypeError = archetypeResult.error;
-
-    if (archetypeError && /detection_sprites/i.test(archetypeError.message)) {
-      const fallbackResult = await supabase
-        .from("archetype_catalog")
-        .select("id,label,sprites,is_excluded")
-        .eq("is_excluded", false);
-
-      archetypeRows = (fallbackResult.data ?? []).map((row) => ({
-        ...row,
-        detection_sprites: row.sprites
-      }));
-      archetypeError = fallbackResult.error;
-    }
-
-    if (pokemonError) {
-      throw pokemonError;
-    }
-
-    if (archetypeError) {
-      throw archetypeError;
-    }
 
     return {
       pokemonRows: (pokemonRows ?? []) as PokemonCatalogRow[],
@@ -147,9 +163,10 @@ const loadIdentificationCatalogCached = unstable_cache(
 
 export async function loadIdentificationCatalog(): Promise<IdentificationCatalog> {
   const { pokemonRows, archetypeRows } = await loadIdentificationCatalogCached();
+  const pokemon = buildPokemonIndex(mergePokemonCatalogRows(pokemonRows));
 
   return {
-    pokemon: buildPokemonIndex(mergePokemonCatalogRows(pokemonRows)),
-    archetypes: buildArchetypeIndex(archetypeRows)
+    pokemon,
+    archetypes: buildArchetypeIndex(archetypeRows, pokemon)
   };
 }

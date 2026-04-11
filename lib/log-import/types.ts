@@ -66,6 +66,7 @@ export type PokemonCatalogIndex = {
   bySlug: Map<string, PokemonCatalogRow>;
   normalizedNameToSlug: Map<string, string>;
   slugToAncestors: Map<string, string[]>;
+  slugToFamilyRoot: Map<string, string>;
   maxNameTokens: number;
 };
 
@@ -76,6 +77,7 @@ export type ArchetypeCatalogIndex = {
   >;
   normalizedLabelToIds: Map<string, string[]>;
   spriteToCandidateArchetypes: Map<string, string[]>;
+  familyRootToCandidateArchetypes: Map<string, string[]>;
 };
 
 export type IdentificationCatalog = {

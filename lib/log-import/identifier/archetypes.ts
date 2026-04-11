@@ -67,8 +67,11 @@ function resolveUniqueAnchorCandidate(args: {
   });
 
   for (const [slug, count] of rankedEvidence) {
+    const familyRoot = args.catalog.pokemon.slugToFamilyRoot.get(slug) ?? slug;
     const directCandidateIds = args.catalog.archetypes.spriteToCandidateArchetypes.get(slug) ?? [];
-    const uniqueDirectCandidateIds = Array.from(new Set(directCandidateIds));
+    const familyCandidateIds =
+      args.catalog.archetypes.familyRootToCandidateArchetypes.get(familyRoot) ?? [];
+    const uniqueDirectCandidateIds = Array.from(new Set([...directCandidateIds, ...familyCandidateIds]));
 
     if (uniqueDirectCandidateIds.length === 1) {
       const candidate = args.catalog.archetypes.byId.get(uniqueDirectCandidateIds[0]);
@@ -115,6 +118,11 @@ export function identifyLikelyArchetype(args: {
   args.evidence.mentionCounts.forEach((_count, slug) => {
     candidateIds.add(slug);
     args.catalog.archetypes.spriteToCandidateArchetypes.get(slug)?.forEach((id) => candidateIds.add(id));
+
+    const familyRoot = args.catalog.pokemon.slugToFamilyRoot.get(slug) ?? slug;
+    args.catalog.archetypes.familyRootToCandidateArchetypes
+      .get(familyRoot)
+      ?.forEach((id) => candidateIds.add(id));
 
     const ancestors = args.catalog.pokemon.slugToAncestors.get(slug) ?? [];
     ancestors.forEach((ancestorSlug) => {

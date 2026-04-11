@@ -114,13 +114,6 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         title={deck.deckName}
         action={
           <div className="flex flex-wrap items-center gap-3">
-            <DeckListEditorDialog
-              deckId={deck.id}
-              defaultCreatedBy={defaultCreatedBy}
-              defaultFormat={deck.format}
-              triggerLabel="Add Deck List"
-              triggerVariant="secondary"
-            />
             <LazyDeckEditorButton
               deck={deck}
               triggerLabel="Edit Deck"
@@ -187,7 +180,16 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       ) : null}
 
       <Card className="space-y-4" id="deck-lists">
-        <p className="ui-eyebrow">Deck Lists</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="ui-eyebrow">Deck Lists</p>
+          <DeckListEditorDialog
+            deckId={deck.id}
+            defaultCreatedBy={defaultCreatedBy}
+            defaultFormat={deck.format}
+            triggerLabel="Add Deck List"
+            triggerVariant="secondary"
+          />
+        </div>
 
         {deck.deckLists.length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)]">No deck lists saved.</p>
