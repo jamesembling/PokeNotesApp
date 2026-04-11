@@ -44,7 +44,7 @@ async function shareOrCopyLink(shareUrl: string): Promise<ShareMethod> {
     try {
       await navigator.share({
         title: "Poke Notes Battle Log",
-        text: "Shared battle log from Poke Notes.",
+        text: shareUrl,
         url: shareUrl
       });
       return "native-share";
