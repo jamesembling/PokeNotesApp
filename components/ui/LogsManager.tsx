@@ -533,7 +533,7 @@ export function LogsManager({
                     </Badge>
                   </div>
                 </div>
-                <div className="hidden items-center self-center lg:flex">
+                <div className="hidden items-center self-center lg:flex lg:gap-2.5">
                   <div className="text-right">
                     <p className="hidden font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)] lg:block">
                       {group.wins}-{group.losses}
