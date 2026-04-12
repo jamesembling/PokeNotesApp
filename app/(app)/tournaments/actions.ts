@@ -79,6 +79,18 @@ function parseRoundGameResult(value: FormDataEntryValue | null): "" | Tournament
     : "";
 }
 
+function buildTournamentRoundResult(gameResults: TournamentRoundGameResult[]): TournamentRoundResult {
+  if (gameResults.length === 1) {
+    return gameResults[0];
+  }
+
+  if (gameResults.length === 2) {
+    return `${gameResults[0]}${gameResults[1]}`;
+  }
+
+  return `${gameResults[0]}${gameResults[1]}${gameResults[2]}`;
+}
+
 function parseRoundResult(formData: FormData): TournamentRoundResult {
   const isBye = String(formData.get("isBye") || "").trim();
   if (isBye) {
@@ -89,13 +101,10 @@ function parseRoundResult(formData: FormData): TournamentRoundResult {
     parseRoundGameResult(formData.get("game1")),
     parseRoundGameResult(formData.get("game2")),
     parseRoundGameResult(formData.get("game3"))
-  ]
-    .filter((result): result is TournamentRoundGameResult => Boolean(result))
-    .join("")
-    .slice(0, 3);
+  ].filter((result): result is TournamentRoundGameResult => Boolean(result));
 
-  if (selectedGameResults) {
-    return selectedGameResults;
+  if (selectedGameResults.length > 0) {
+    return buildTournamentRoundResult(selectedGameResults);
   }
 
   throw new Error("Choose at least one game result or mark the round as BYE.");
