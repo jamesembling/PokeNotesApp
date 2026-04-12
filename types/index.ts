@@ -338,6 +338,7 @@ export type Tournament = {
   dateFrom: string
   dateTo: string
   linkedDeckId: string | undefined
+  linkedDeckListId: string | undefined
   deckName: string
   deckSprites: string[]
   category: TournamentCategory

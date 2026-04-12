@@ -28,6 +28,10 @@ type PostgrestLikeError = {
   message?: string | null;
 };
 
+function isMissingTournamentDeckListColumns(error: PostgrestLikeError | null) {
+  return error?.code === "42703";
+}
+
 function revalidateTournamentWorkspace(tournamentId?: string) {
   revalidatePath("/tournaments", "layout");
   if (tournamentId) {
@@ -139,13 +143,13 @@ async function resolveDeckSnapshot(userId: string, linkedDeckId: string) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("decks")
-    .select("id,deck_name,deck_pokemon")
+    .select("id,deck_name,deck_pokemon,deck_lists")
     .eq("id", linkedDeckId)
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error) {
-    throw error;
+    throw toUserFacingDatabaseError(error);
   }
 
   if (!data) {
@@ -159,6 +163,11 @@ async function resolveDeckSnapshot(userId: string, linkedDeckId: string) {
       ? ((data as { deck_pokemon: unknown[] }).deck_pokemon.filter(
           (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
         ))
+      : [],
+    deckListIds: Array.isArray((data as { deck_lists?: unknown }).deck_lists)
+      ? ((data as { deck_lists: Array<{ id?: unknown }> }).deck_lists
+          .map((entry) => String(entry?.id || "").trim())
+          .filter(Boolean))
       : []
   };
 }
@@ -210,12 +219,15 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
   const user = await requireUser();
   const supabase = createClient();
   const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
+  const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
   const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
   const name = String(formData.get("name") || "").trim();
   const dateFrom = parseIsoDate(formData.get("dateFrom"));
   const dateTo = parseIsoDate(formData.get("dateTo"), dateFrom);
   const format = parseFormat(formData.get("format"));
   const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
+  const resolvedDeckListId =
+    resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
 
   if (!name) {
     throw new Error("Enter a tournament name before saving.");
@@ -227,23 +239,43 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
 
   const tournamentId = crypto.randomUUID();
 
-  const { error } = await supabase.from("tournaments").insert({
+  const nextTournament = {
     id: tournamentId,
     user_id: user.id,
     name,
     date_from: dateFrom,
     date_to: dateTo,
     linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
+    linked_deck_list_id: resolvedDeckListId,
     deck_name: resolvedDeck?.deckName ?? "",
     deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
     category: parseCategory(formData.get("category")),
     placement: parsePlacement(formData.get("placement")),
     format,
     notes: String(formData.get("notes") || "").trim()
-  });
+  };
+
+  let { error } = await supabase.from("tournaments").insert(nextTournament);
+
+  if (isMissingTournamentDeckListColumns(error)) {
+    ({ error } = await supabase.from("tournaments").insert({
+      id: tournamentId,
+      user_id: user.id,
+      name,
+      date_from: dateFrom,
+      date_to: dateTo,
+      linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
+      deck_name: resolvedDeck?.deckName ?? "",
+      deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
+      category: parseCategory(formData.get("category")),
+      placement: parsePlacement(formData.get("placement")),
+      format,
+      notes: String(formData.get("notes") || "").trim()
+    }));
+  }
 
   if (error) {
-    throw error;
+    throw toUserFacingDatabaseError(error);
   }
 
   revalidateTournamentWorkspace(tournamentId);
@@ -259,10 +291,13 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
   const supabase = createClient();
   const tournamentId = String(formData.get("tournamentId") || "").trim();
   const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
+  const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
   const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
   const name = String(formData.get("name") || "").trim();
   const format = parseFormat(formData.get("format"));
   const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
+  const resolvedDeckListId =
+    resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
 
   if (!tournamentId) {
     throw new Error("Tournament id is required.");
@@ -276,25 +311,47 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
     throw new Error("Choose a valid tournament format.");
   }
 
-  const { error } = await supabase
+  const nextTournament = {
+    name,
+    date_from: parseIsoDate(formData.get("dateFrom")),
+    date_to: parseIsoDate(formData.get("dateTo")),
+    linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
+    linked_deck_list_id: resolvedDeckListId,
+    deck_name: resolvedDeck?.deckName ?? "",
+    deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
+    category: parseCategory(formData.get("category")),
+    placement: parsePlacement(formData.get("placement")),
+    format,
+    notes: String(formData.get("notes") || "").trim()
+  };
+
+  let { error } = await supabase
     .from("tournaments")
-    .update({
-      name,
-      date_from: parseIsoDate(formData.get("dateFrom")),
-      date_to: parseIsoDate(formData.get("dateTo")),
-      linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-      deck_name: resolvedDeck?.deckName ?? "",
-      deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
-      category: parseCategory(formData.get("category")),
-      placement: parsePlacement(formData.get("placement")),
-      format,
-      notes: String(formData.get("notes") || "").trim()
-    })
+    .update(nextTournament)
     .eq("id", tournamentId)
     .eq("user_id", user.id);
 
+  if (isMissingTournamentDeckListColumns(error)) {
+    ({ error } = await supabase
+      .from("tournaments")
+      .update({
+        name,
+        date_from: parseIsoDate(formData.get("dateFrom")),
+        date_to: parseIsoDate(formData.get("dateTo")),
+        linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
+        deck_name: resolvedDeck?.deckName ?? "",
+        deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
+        category: parseCategory(formData.get("category")),
+        placement: parsePlacement(formData.get("placement")),
+        format,
+        notes: String(formData.get("notes") || "").trim()
+      })
+      .eq("id", tournamentId)
+      .eq("user_id", user.id));
+  }
+
   if (error) {
-    throw error;
+    throw toUserFacingDatabaseError(error);
   }
 
   revalidateTournamentWorkspace(tournamentId);
@@ -321,7 +378,7 @@ export async function deleteTournamentAction(formData: FormData): Promise<SaveAc
     .eq("user_id", user.id);
 
   if (error) {
-    throw error;
+    throw toUserFacingDatabaseError(error);
   }
 
   revalidateTournamentWorkspace();

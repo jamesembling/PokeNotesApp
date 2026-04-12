@@ -9,6 +9,41 @@ type PostgrestLikeError = {
   message?: string | null;
 };
 
+const TOURNAMENT_BASE_SELECT = [
+  "id",
+  "user_id",
+  "name",
+  "date_from",
+  "date_to",
+  "linked_deck_id",
+  "deck_name",
+  "deck_sprites",
+  "category",
+  "placement",
+  "format",
+  "notes",
+  "created_at",
+  "updated_at"
+].join(",");
+
+const TOURNAMENT_EXTENDED_SELECT = [
+  "id",
+  "user_id",
+  "name",
+  "date_from",
+  "date_to",
+  "linked_deck_id",
+  "linked_deck_list_id",
+  "deck_name",
+  "deck_sprites",
+  "category",
+  "placement",
+  "format",
+  "notes",
+  "created_at",
+  "updated_at"
+].join(",");
+
 type TournamentRow = {
   id: string;
   user_id: string;
@@ -16,6 +51,7 @@ type TournamentRow = {
   date_from: string;
   date_to: string;
   linked_deck_id: string | null;
+  linked_deck_list_id: string | null;
   deck_name: string;
   deck_sprites: unknown;
   category: Tournament["category"];
@@ -47,6 +83,10 @@ function parseSpriteArray(value: unknown) {
   return value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
 }
 
+function isMissingTournamentDeckListColumns(error: PostgrestLikeError | null) {
+  return error?.code === "42703";
+}
+
 function mapTournamentRow(row: TournamentRow): Tournament {
   return {
     id: row.id,
@@ -55,6 +95,7 @@ function mapTournamentRow(row: TournamentRow): Tournament {
     dateFrom: row.date_from,
     dateTo: row.date_to,
     linkedDeckId: row.linked_deck_id ?? undefined,
+    linkedDeckListId: row.linked_deck_list_id ?? undefined,
     deckName: row.deck_name,
     deckSprites: parseSpriteArray(row.deck_sprites),
     category: row.category || "",
@@ -96,31 +137,25 @@ function rethrowIfSchemaMissing(error: PostgrestLikeError | null) {
 
 export const getTournaments = cache(async (userId: string): Promise<Tournament[]> => {
   const supabase = createClient();
-  const { data, error } = await measureServerCall("db.tournaments.list", async () =>
+  let { data, error } = await measureServerCall("db.tournaments.list", async () =>
     await supabase
       .from("tournaments")
-      .select(
-        [
-          "id",
-          "user_id",
-          "name",
-          "date_from",
-          "date_to",
-          "linked_deck_id",
-          "deck_name",
-          "deck_sprites",
-          "category",
-          "placement",
-          "format",
-          "notes",
-          "created_at",
-          "updated_at"
-        ].join(",")
-      )
+      .select(TOURNAMENT_EXTENDED_SELECT)
       .eq("user_id", userId)
       .order("date_from", { ascending: false })
       .order("created_at", { ascending: false })
   );
+
+  if (isMissingTournamentDeckListColumns(error)) {
+    ({ data, error } = await measureServerCall("db.tournaments.list.legacy", async () =>
+      await supabase
+        .from("tournaments")
+        .select(TOURNAMENT_BASE_SELECT)
+        .eq("user_id", userId)
+        .order("date_from", { ascending: false })
+        .order("created_at", { ascending: false })
+    ));
+  }
 
   if (error) {
     rethrowIfSchemaMissing(error);
@@ -167,31 +202,25 @@ export const getTournamentRounds = cache(
 export const getTournamentById = cache(
   async (userId: string, tournamentId: string): Promise<Tournament | null> => {
     const supabase = createClient();
-    const { data, error } = await measureServerCall("db.tournaments.detail", async () =>
+    let { data, error } = await measureServerCall("db.tournaments.detail", async () =>
       await supabase
         .from("tournaments")
-        .select(
-          [
-            "id",
-            "user_id",
-            "name",
-            "date_from",
-            "date_to",
-            "linked_deck_id",
-            "deck_name",
-            "deck_sprites",
-            "category",
-            "placement",
-            "format",
-            "notes",
-            "created_at",
-            "updated_at"
-          ].join(",")
-        )
+        .select(TOURNAMENT_EXTENDED_SELECT)
         .eq("user_id", userId)
         .eq("id", tournamentId)
         .maybeSingle()
     );
+
+    if (isMissingTournamentDeckListColumns(error)) {
+      ({ data, error } = await measureServerCall("db.tournaments.detail.legacy", async () =>
+        await supabase
+          .from("tournaments")
+          .select(TOURNAMENT_BASE_SELECT)
+          .eq("user_id", userId)
+          .eq("id", tournamentId)
+          .maybeSingle()
+      ));
+    }
 
     if (error) {
       rethrowIfSchemaMissing(error);

@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import {
@@ -15,7 +14,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { requireUser } from "@/lib/auth";
-import { getDeckById } from "@/lib/db/decks";
+import { getDeckById, getDecks } from "@/lib/db/decks";
 import { getAllLogsForDeck } from "@/lib/db/logs";
 import type { Deck } from "@/types/index";
 
@@ -111,13 +110,15 @@ function MatchupPlaceholderTile({
 
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const user = await requireUser();
+  const [deck, userDecks] = await Promise.all([
+    getDeckById(user.id, params.id),
+    getDecks(user.id)
+  ]);
   const defaultCreatedBy =
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||
     user.email?.split("@")[0] ||
     "Trainer";
-
-  const deck = await getDeckById(user.id, params.id);
 
   if (!deck) {
     return (
@@ -149,7 +150,22 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     );
   }
 
-  const relatedLogsPromise = getAllLogsForDeck(user.id, deck.id, [deck]);
+  const relatedLogsPromise = getAllLogsForDeck(user.id, deck.id, userDecks);
+  const deckActions = (
+    <div className="flex flex-wrap items-center gap-3">
+      <LazyDeckEditorButton
+        deck={deck}
+        triggerLabel="Edit Deck"
+        triggerVariant="secondary"
+      />
+      <Link
+        className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
+        href="/decks"
+      >
+        Back to Decks
+      </Link>
+    </div>
+  );
 
   return (
     <PageWidth size="standard">
@@ -159,31 +175,21 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           { label: "Deck Strategy", href: "/decks" },
           { label: deck.deckName }
         ]}
-        title={deck.deckName}
-        action={
-          <div className="flex flex-wrap items-center gap-3">
-            <LazyDeckEditorButton
-              deck={deck}
-              triggerLabel="Edit Deck"
-              triggerVariant="secondary"
-            />
-            <Link
-              className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
-              href="/decks"
-            >
-              Back to Decks
-            </Link>
-          </div>
-        }
+        title=""
       />
 
       <Card>
         <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
+          <div className="border-b border-[var(--border)] pb-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+                <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
+                <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--text-primary)] sm:text-4xl">
+                  {deck.deckName}
+                </h1>
+              </div>
 
-            <div className="flex flex-wrap gap-2">
-              {deck.goPreference ? <Badge>Prefers {deck.goPreference}</Badge> : null}
+              <div className="lg:shrink-0">{deckActions}</div>
             </div>
           </div>
 

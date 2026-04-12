@@ -264,6 +264,7 @@ export function TournamentEditorDialog({
   const isEditing = Boolean(tournament?.id);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [linkedDeckId, setLinkedDeckId] = useState(tournament?.linkedDeckId ?? "");
+  const [linkedDeckListId, setLinkedDeckListId] = useState(tournament?.linkedDeckListId ?? "");
   const [category, setCategory] = useState<string>(tournament?.category ?? "");
   const [placement, setPlacement] = useState<string>(tournament?.placement ?? "");
   const [format, setFormat] = useState<string>(tournament?.format ?? "");
@@ -275,6 +276,11 @@ export function TournamentEditorDialog({
 
   useBodyScrollLock(isOpen);
   const placementOptions = useMemo(() => getPlacementOptionsForCategory(category), [category]);
+  const selectedDeck = useMemo(
+    () => decks.find((deck) => deck.id === linkedDeckId) ?? null,
+    [decks, linkedDeckId]
+  );
+  const availableDeckLists = selectedDeck?.deckLists ?? [];
 
   useEffect(() => {
     if (!placement) {
@@ -287,6 +293,22 @@ export function TournamentEditorDialog({
 
     setPlacement("");
   }, [placement, placementOptions]);
+
+  useEffect(() => {
+    if (!linkedDeckId || availableDeckLists.length === 0) {
+      setLinkedDeckListId("");
+      return;
+    }
+
+    if (!linkedDeckListId) {
+      return;
+    }
+
+    const stillValid = availableDeckLists.some((deckList) => deckList.id === linkedDeckListId);
+    if (!stillValid) {
+      setLinkedDeckListId(availableDeckLists[0]?.id ?? "");
+    }
+  }, [availableDeckLists, linkedDeckId, linkedDeckListId]);
 
   function clearCloseTimer() {
     if (closeTimerRef.current !== null) {
@@ -304,6 +326,7 @@ export function TournamentEditorDialog({
 
   function resetState() {
     setLinkedDeckId(tournament?.linkedDeckId ?? "");
+    setLinkedDeckListId(tournament?.linkedDeckListId ?? "");
     setCategory(tournament?.category ?? "");
     setPlacement(tournament?.placement ?? "");
     setFormat(tournament?.format ?? "");
@@ -347,6 +370,7 @@ export function TournamentEditorDialog({
 
   function handleLinkedDeckChange(nextDeckId: string) {
     setLinkedDeckId(nextDeckId);
+    setLinkedDeckListId("");
 
     if (!nextDeckId) {
       return;
@@ -594,6 +618,31 @@ export function TournamentEditorDialog({
                     {decks.map((deck) => (
                       <option key={deck.id} value={deck.id}>
                         {deck.deckName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-linked-deck-list">
+                    Saved deck list
+                  </label>
+                  <select
+                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={availableDeckLists.length === 0}
+                    id="tournament-linked-deck-list"
+                    name="linkedDeckListId"
+                    onChange={(event) => setLinkedDeckListId(event.target.value)}
+                    value={linkedDeckListId}
+                  >
+                    <option value="">
+                      {availableDeckLists.length > 0
+                        ? "No linked deck list"
+                        : "Select a deck strategy first"}
+                    </option>
+                    {availableDeckLists.map((deckList) => (
+                      <option key={deckList.id} value={deckList.id}>
+                        {deckList.name}
                       </option>
                     ))}
                   </select>

@@ -96,6 +96,7 @@ create table public.tournaments (
   date_from         date not null,
   date_to           date not null,
   linked_deck_id    text references public.decks(id) on delete set null,
+  linked_deck_list_id text,
   deck_name         text not null default '',
   deck_sprites      jsonb not null default '[]',
   category          text not null default ''
@@ -115,6 +116,8 @@ comment on table public.tournaments is
   'User tournament records. Can link to a saved deck or store a manual deck snapshot.';
 comment on column public.tournaments.deck_sprites is
   'Array of Pokemon slug strings used for tournament deck display.';
+comment on column public.tournaments.linked_deck_list_id is
+  'References a deck list within linked_deck_id. Not a foreign key as deck lists are stored in JSONB.';
 
 
 -- ============================================================

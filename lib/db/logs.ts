@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
-import { getDeckMatchScore } from "@/lib/log-import/deck-linking";
+import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 import type { BattleLog, BattleLogSummary, DeckSummary, LogSection, Result } from "@/types/index";
 
 const DEFAULT_LOG_WINDOW_DAYS = 7;
@@ -562,21 +562,14 @@ export async function getAllLogsForDeck(
   const explicitLogs = (((explicitResult.data ?? []) as unknown) as LogsTableRow[]).map(mapLogSummary);
   const inferredLogs = (((unlinkedResult.data ?? []) as unknown) as LogsTableRow[])
     .map(mapLogSummary)
-    .filter((log) => {
-      const matchScore = getDeckMatchScore(
-        {
-          id: deck.id,
-          deckName: deck.deckName,
-          deckPokemon: deck.deckPokemon
-        },
-        {
-          deckName: log.selfDeckName,
-          sprites: log.selfDeckSprites
-        }
-      );
-
-      return matchScore >= 120;
-    });
+    .filter(
+      (log) =>
+        resolveLinkedDeck(decks, {
+          linkedDeckId: log.linkedDeckId,
+          selfDeckName: log.selfDeckName,
+          selfDeckSprites: log.selfDeckSprites
+        }) === deckId
+    );
 
   const merged = new Map<string, BattleLogSummary>();
   [...explicitLogs, ...inferredLogs].forEach((log) => {

@@ -7,9 +7,11 @@ import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentR
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { TournamentDeckListPanel } from "@/components/ui/TournamentDeckListPanel";
 import { TournamentRoundRow } from "@/components/ui/TournamentRoundRow";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { requireUser } from "@/lib/auth";
+import { getDeckWithList } from "@/lib/db/decks";
 import {
   getTournamentById,
   getTournamentDeckChoices,
@@ -89,6 +91,11 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   }
 
   const record = getTournamentRecord(rounds);
+  const linkedDeckWithList =
+    tournament.linkedDeckId && tournament.linkedDeckListId
+      ? await getDeckWithList(user.id, tournament.linkedDeckId, tournament.linkedDeckListId)
+      : null;
+  const resolvedTournamentDeckList = linkedDeckWithList?.deckList;
 
   return (
     <PageWidth size="standard">
@@ -151,6 +158,14 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
           ) : null}
         </div>
       </Card>
+
+      <TournamentDeckListPanel
+        deckId={tournament.linkedDeckId}
+        deckListFormat={resolvedTournamentDeckList?.format}
+        deckListName={resolvedTournamentDeckList?.name}
+        deckListNotes={resolvedTournamentDeckList?.notes}
+        sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
+      />
 
       <Card className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
