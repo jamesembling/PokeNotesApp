@@ -330,9 +330,12 @@ function SpriteSearchSlot({
   const searchPanel =
     isEditingSearch && panelPosition && typeof document !== "undefined"
       ? createPortal(
-        <div
+          <div
           className="fixed z-[70] min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)]"
           ref={panelRef}
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+          onTouchStart={(event) => event.stopPropagation()}
           style={{
             left: panelPosition.left,
             top: panelPosition.top,
