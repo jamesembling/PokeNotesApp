@@ -264,7 +264,6 @@ export function TournamentEditorDialog({
   const isEditing = Boolean(tournament?.id);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [linkedDeckId, setLinkedDeckId] = useState(tournament?.linkedDeckId ?? "");
-  const [deckName, setDeckName] = useState(tournament?.deckName ?? "");
   const [category, setCategory] = useState<string>(tournament?.category ?? "");
   const [placement, setPlacement] = useState<string>(tournament?.placement ?? "");
   const [format, setFormat] = useState<string>(tournament?.format ?? "");
@@ -275,11 +274,6 @@ export function TournamentEditorDialog({
   const [actionError, setActionError] = useState("");
 
   useBodyScrollLock(isOpen);
-
-  const selectedDeck = useMemo(
-    () => decks.find((deck) => deck.id === linkedDeckId) ?? null,
-    [decks, linkedDeckId]
-  );
   const placementOptions = useMemo(() => getPlacementOptionsForCategory(category), [category]);
 
   useEffect(() => {
@@ -310,7 +304,6 @@ export function TournamentEditorDialog({
 
   function resetState() {
     setLinkedDeckId(tournament?.linkedDeckId ?? "");
-    setDeckName(tournament?.deckName ?? "");
     setCategory(tournament?.category ?? "");
     setPlacement(tournament?.placement ?? "");
     setFormat(tournament?.format ?? "");
@@ -364,7 +357,6 @@ export function TournamentEditorDialog({
       return;
     }
 
-    setDeckName(nextDeck.deckName);
     setSelectedSprites(nextDeck.deckPokemon.slice(0, 2));
   }
 
@@ -605,20 +597,6 @@ export function TournamentEditorDialog({
                       </option>
                     ))}
                   </select>
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-deck-name">
-                    Deck name
-                  </label>
-                  <input
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-60"
-                    id="tournament-deck-name"
-                    name="deckName"
-                    onChange={(event) => setDeckName(event.target.value)}
-                    placeholder="Dragapult / Dusknoir"
-                    value={deckName}
-                  />
                 </div>
               </div>
 

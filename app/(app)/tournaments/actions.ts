@@ -203,7 +203,6 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
   const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
   const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
   const name = String(formData.get("name") || "").trim();
-  const manualDeckName = String(formData.get("deckName") || "").trim();
   const dateFrom = parseIsoDate(formData.get("dateFrom"));
   const dateTo = parseIsoDate(formData.get("dateTo"), dateFrom);
   const format = parseFormat(formData.get("format"));
@@ -211,11 +210,6 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
 
   if (!name) {
     throw new Error("Enter a tournament name before saving.");
-  }
-
-  const deckName = resolvedDeck?.deckName || manualDeckName;
-  if (!deckName) {
-    throw new Error("Choose a linked deck or enter a deck name.");
   }
 
   if (format && !isKnownSiteFormat(format)) {
@@ -231,7 +225,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
     date_from: dateFrom,
     date_to: dateTo,
     linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-    deck_name: deckName,
+    deck_name: resolvedDeck?.deckName ?? "",
     deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
     category: parseCategory(formData.get("category")),
     placement: parsePlacement(formData.get("placement")),
@@ -258,7 +252,6 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
   const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
   const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
   const name = String(formData.get("name") || "").trim();
-  const manualDeckName = String(formData.get("deckName") || "").trim();
   const format = parseFormat(formData.get("format"));
   const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
 
@@ -268,11 +261,6 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
 
   if (!name) {
     throw new Error("Enter a tournament name before saving.");
-  }
-
-  const deckName = resolvedDeck?.deckName || manualDeckName;
-  if (!deckName) {
-    throw new Error("Choose a linked deck or enter a deck name.");
   }
 
   if (format && !isKnownSiteFormat(format)) {
@@ -286,7 +274,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       date_from: parseIsoDate(formData.get("dateFrom")),
       date_to: parseIsoDate(formData.get("dateTo")),
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-      deck_name: deckName,
+      deck_name: resolvedDeck?.deckName ?? "",
       deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
       category: parseCategory(formData.get("category")),
       placement: parsePlacement(formData.get("placement")),

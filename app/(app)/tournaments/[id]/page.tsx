@@ -126,7 +126,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
               <div className="space-y-1">
                 <p className="ui-eyebrow">Deck</p>
                 <p className="font-display text-[1.15rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
-                  {tournament.deckName}
+                  {tournament.deckName || "No linked deck"}
                 </p>
               </div>
             </div>
