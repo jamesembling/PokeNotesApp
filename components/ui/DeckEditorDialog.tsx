@@ -9,8 +9,8 @@ import {
 } from "@/app/(app)/decks/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
-import { DECK_FORMAT_OPTIONS, getDefaultDeckFormat } from "@/lib/decks/formats";
 import type { Deck, PokemonOption } from "@/types/index";
 
 type DeckEditorDialogProps = {
@@ -74,8 +74,10 @@ export function DeckEditorDialog({
 }: DeckEditorDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(deck?.deckPokemon ?? []);
+  const [selectedFormat, setSelectedFormat] = useState(deck?.format || defaultFormat);
   const [actionError, setActionError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [deleteState, setDeleteState] = useState<DeleteState>("idle");
@@ -84,8 +86,19 @@ export function DeckEditorDialog({
   const navigationTimerRef = useRef<number | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const isEditing = Boolean(deck?.id);
+  const formatOptions = selectedFormat && !siteFormatOptions.includes(selectedFormat)
+    ? [selectedFormat, ...siteFormatOptions]
+    : siteFormatOptions;
 
   useBodyScrollLock(isOpen);
+
+  useEffect(() => {
+    if (deck?.format) {
+      return;
+    }
+
+    setSelectedFormat((current) => current || defaultFormat);
+  }, [deck?.format, defaultFormat]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -138,6 +151,7 @@ export function DeckEditorDialog({
     setDeleteState("idle");
     setShowDeleteConfirmation(false);
     setSelectedSprites(deck?.deckPokemon ?? []);
+    setSelectedFormat(deck?.format || defaultFormat);
     setIsOpen(true);
   }
 
@@ -150,6 +164,7 @@ export function DeckEditorDialog({
     setDeleteState("idle");
     setShowDeleteConfirmation(false);
     setSelectedSprites(deck?.deckPokemon ?? []);
+    setSelectedFormat(deck?.format || defaultFormat);
   }
 
   async function handleSubmit(formData: FormData) {
@@ -336,10 +351,11 @@ export function DeckEditorDialog({
                   <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
                   <select
                     className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                    defaultValue={deck?.format || getDefaultDeckFormat()}
                     name="format"
+                    onChange={(event) => setSelectedFormat(event.target.value)}
+                    value={selectedFormat}
                   >
-                    {DECK_FORMAT_OPTIONS.map((option) => (
+                    {formatOptions.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>

@@ -11,8 +11,8 @@ import {
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { ChevronIcon } from "@/components/ui/icons";
+import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
-import { SITE_FORMAT_OPTIONS } from "@/lib/formats/options";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS
@@ -49,8 +49,8 @@ const TOURNAMENT_PLACEMENT_VALUES_BY_CATEGORY: Record<string, string[]> = {
     "t16",
     "t32"
   ],
-  challenge: ["no placement", "dropped", "t8", "t4", "finalist", "champion"],
-  cup: ["no placement", "dropped", "t8", "t4", "finalist", "champion"]
+  challenge: ["champion", "finalist", "t4", "t8", "dropped", "no placement"],
+  cup: ["champion", "finalist", "t4", "t8", "dropped", "no placement"]
 };
 
 function getPlacementOptionsForCategory(category: string): SelectOption[] {
@@ -258,6 +258,7 @@ export function TournamentEditorDialog({
 }: TournamentEditorDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const formRef = useRef<HTMLFormElement | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
@@ -267,7 +268,7 @@ export function TournamentEditorDialog({
   const [linkedDeckListId, setLinkedDeckListId] = useState(tournament?.linkedDeckListId ?? "");
   const [category, setCategory] = useState<string>(tournament?.category ?? "");
   const [placement, setPlacement] = useState<string>(tournament?.placement ?? "");
-  const [format, setFormat] = useState<string>(tournament?.format ?? "");
+  const [format, setFormat] = useState<string>(tournament?.format || defaultFormat);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(tournament?.deckSprites.slice(0, 2) ?? []);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [deleteState, setDeleteState] = useState<DeleteState>("idle");
@@ -281,6 +282,17 @@ export function TournamentEditorDialog({
     [decks, linkedDeckId]
   );
   const availableDeckLists = selectedDeck?.deckLists ?? [];
+  const formatOptions = useMemo(() => {
+    const normalizedFormat = String(format || "").trim();
+    const options = normalizedFormat && !siteFormatOptions.includes(normalizedFormat)
+      ? [normalizedFormat, ...siteFormatOptions]
+      : siteFormatOptions;
+
+    return options.map((option) => ({
+      label: option,
+      value: option
+    }));
+  }, [format, siteFormatOptions]);
 
   useEffect(() => {
     if (!placement) {
@@ -293,6 +305,14 @@ export function TournamentEditorDialog({
 
     setPlacement("");
   }, [placement, placementOptions]);
+
+  useEffect(() => {
+    if (tournament?.format) {
+      return;
+    }
+
+    setFormat((current) => current || defaultFormat);
+  }, [defaultFormat, tournament?.format]);
 
   useEffect(() => {
     if (!linkedDeckId || availableDeckLists.length === 0) {
@@ -329,7 +349,7 @@ export function TournamentEditorDialog({
     setLinkedDeckListId(tournament?.linkedDeckListId ?? "");
     setCategory(tournament?.category ?? "");
     setPlacement(tournament?.placement ?? "");
-    setFormat(tournament?.format ?? "");
+    setFormat(tournament?.format || defaultFormat);
     setSelectedSprites(tournament?.deckSprites.slice(0, 2) ?? []);
     setSaveState("idle");
     setDeleteState("idle");
@@ -565,10 +585,7 @@ export function TournamentEditorDialog({
                   label="Format"
                   name="format"
                   onChange={setFormat}
-                  options={SITE_FORMAT_OPTIONS.map((format) => ({
-                    label: format,
-                    value: format
-                  }))}
+                  options={formatOptions}
                   placeholder="Select format"
                   value={format}
                 />

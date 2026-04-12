@@ -7,13 +7,13 @@ import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
+import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
 } from "@/lib/battle-log/display";
-import { SITE_FORMAT_OPTIONS, getDefaultSiteFormat } from "@/lib/formats/options";
 import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/types/index";
 
 type ImportLogDialogProps = {
@@ -77,6 +77,7 @@ export function ImportLogDialog({
 }: ImportLogDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [stage, setStage] = useState<Stage>("raw");
   const [rawLog, setRawLog] = useState("");
@@ -119,6 +120,16 @@ export function ImportLogDialog({
         : undefined,
     [review, selectedOpponentSprites]
   );
+  const formatOptions = useMemo(() => {
+    const normalizedFormat = String(selectedFormat || "").trim();
+    if (!normalizedFormat) {
+      return [...siteFormatOptions];
+    }
+
+    return siteFormatOptions.includes(normalizedFormat)
+      ? [...siteFormatOptions]
+      : [normalizedFormat, ...siteFormatOptions];
+  }, [selectedFormat, siteFormatOptions]);
 
   useBodyScrollLock(isOpen);
 
@@ -227,7 +238,7 @@ export function ImportLogDialog({
     setSelectedDeckId(nextReview.suggestedLinkedDeckId ?? "");
     setSelectedDeckListId("");
     setSelectedDate(nextReview.date);
-    setSelectedFormat(getDefaultSiteFormat());
+    setSelectedFormat(defaultFormat);
     setSaveError("");
     setSaveState("idle");
   }
@@ -535,7 +546,7 @@ export function ImportLogDialog({
                         onChange={(event) => setSelectedFormat(event.target.value)}
                         value={selectedFormat}
                       >
-                        {SITE_FORMAT_OPTIONS.map((option) => (
+                        {formatOptions.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>
@@ -626,7 +637,7 @@ export function ImportLogDialog({
                         onChange={(event) => setSelectedFormat(event.target.value)}
                         value={selectedFormat}
                       >
-                        {SITE_FORMAT_OPTIONS.map((option) => (
+                        {formatOptions.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>

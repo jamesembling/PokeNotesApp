@@ -22,8 +22,17 @@ export const TOURNAMENT_PLACEMENT_OPTIONS: Array<{
   value: Exclude<TournamentPlacement, "">;
   label: string;
 }> = [
-  { value: "no placement", label: "No placement" },
-  { value: "dropped", label: "Dropped" },
+  { value: "champion", label: "Champion" },
+  { value: "finalist", label: "Finalist" },
+  { value: "t4", label: "Top 4" },
+  { value: "t8", label: "Top 8" },
+  { value: "t16", label: "Top 16" },
+  { value: "t32", label: "Top 32" },
+  { value: "t64", label: "Top 64" },
+  { value: "t128", label: "Top 128" },
+  { value: "t256", label: "Top 256" },
+  { value: "t512", label: "Top 512" },
+  { value: "t1024", label: "Top 1024" },
   { value: "second", label: "2nd" },
   { value: "third", label: "3rd" },
   { value: "fourth", label: "4th" },
@@ -31,17 +40,8 @@ export const TOURNAMENT_PLACEMENT_OPTIONS: Array<{
   { value: "sixth", label: "6th" },
   { value: "seventh", label: "7th" },
   { value: "eighth", label: "8th" },
-  { value: "t1024", label: "Top 1024" },
-  { value: "t512", label: "Top 512" },
-  { value: "t256", label: "Top 256" },
-  { value: "t128", label: "Top 128" },
-  { value: "t64", label: "Top 64" },
-  { value: "t32", label: "Top 32" },
-  { value: "t16", label: "Top 16" },
-  { value: "t8", label: "Top 8" },
-  { value: "t4", label: "Top 4" },
-  { value: "finalist", label: "Finalist" },
-  { value: "champion", label: "Champion" }
+  { value: "dropped", label: "Dropped" },
+  { value: "no placement", label: "No placement" }
 ];
 
 export const TOURNAMENT_ROUND_GAME_RESULT_OPTIONS: TournamentRoundGameResult[] = ["W", "L", "T"];

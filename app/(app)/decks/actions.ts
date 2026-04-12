@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { parseDeckList, parseLines } from "@/lib/decks/deck-list-parse";
-import { getDefaultDeckFormat } from "@/lib/decks/formats";
+import { getDefaultSyncedSiteFormat } from "@/lib/formats/catalog";
 import { createClient } from "@/lib/supabase/server";
 
 function normalizeSelectedSprites(values: FormDataEntryValue[]) {
@@ -90,7 +90,7 @@ export async function createDeckAction(formData: FormData): Promise<SaveActionRe
     id: deckId,
     user_id: user.id,
     deck_name: deckName,
-    format: String(formData.get("format") || "").trim() || getDefaultDeckFormat(),
+    format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
     go_preference: parseGoPreference(formData.get("goPreference")),
     deck_pokemon: selectedSprites,
     core_strategy: String(formData.get("coreStrategy") || "").trim(),
@@ -133,7 +133,7 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
     .from("decks")
     .update({
       deck_name: deckName,
-      format: String(formData.get("format") || "").trim() || getDefaultDeckFormat(),
+      format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
       go_preference: parseGoPreference(formData.get("goPreference")),
       deck_pokemon: selectedSprites,
       core_strategy: String(formData.get("coreStrategy") || "").trim(),
@@ -250,7 +250,7 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
   const nextDeckList = {
     id: deckListId || crypto.randomUUID(),
     name,
-    format: String(formData.get("format") || "").trim() || getDefaultDeckFormat(),
+    format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
     date: String(formData.get("date") || "").trim() || timestamp.slice(0, 10),
     createdBy: String(formData.get("createdBy") || "").trim() || getCurrentDisplayName(user),
     notes: String(formData.get("notes") || "").trim(),

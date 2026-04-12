@@ -13,12 +13,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { updateLogAction } from "@/app/(app)/logs/actions";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
 } from "@/lib/battle-log/display";
-import { SITE_FORMAT_OPTIONS, isKnownSiteFormat } from "@/lib/formats/options";
 import type { BattleLog, DeckList, DeckSummary, PokemonOption } from "@/types/index";
 
 type EditLogDialogProps = {
@@ -75,6 +75,7 @@ export function EditLogDialog({
 }: EditLogDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { options: siteFormatOptions } = useSiteFormats();
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSelfSprites, setSelectedSelfSprites] = useState(log.selfDeckSprites.slice(0, 2));
   const [selectedOpponentSprites, setSelectedOpponentSprites] = useState(
@@ -102,9 +103,16 @@ export function EditLogDialog({
     () => getBattleLogOpponentDisplayName(log.opponentDeckName, selectedOpponentSprites),
     [log.opponentDeckName, selectedOpponentSprites]
   );
-  const formatOptions = isKnownSiteFormat(selectedFormat)
-    ? [...SITE_FORMAT_OPTIONS]
-    : [selectedFormat, ...SITE_FORMAT_OPTIONS];
+  const formatOptions = useMemo(() => {
+    const normalizedSelectedFormat = String(selectedFormat || "").trim();
+    if (!normalizedSelectedFormat) {
+      return [...siteFormatOptions];
+    }
+
+    return siteFormatOptions.includes(normalizedSelectedFormat)
+      ? [...siteFormatOptions]
+      : [normalizedSelectedFormat, ...siteFormatOptions];
+  }, [selectedFormat, siteFormatOptions]);
 
   const availableDeckLists = selectedDeck?.deckLists ?? [];
 

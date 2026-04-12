@@ -14,10 +14,16 @@ export const SITE_FORMAT_OPTIONS = [
   "PTCG Pocket"
 ] as const;
 
+const NON_STANDARD_SITE_FORMATS = new Set<(typeof SITE_FORMAT_OPTIONS)[number]>([
+  "Expanded",
+  "GLC",
+  "PTCG Pocket"
+]);
+
 export function isKnownSiteFormat(value: string) {
   return SITE_FORMAT_OPTIONS.includes(value as (typeof SITE_FORMAT_OPTIONS)[number]);
 }
 
 export function getDefaultSiteFormat() {
-  return SITE_FORMAT_OPTIONS[0];
+  return SITE_FORMAT_OPTIONS.find((format) => !NON_STANDARD_SITE_FORMATS.has(format)) ?? SITE_FORMAT_OPTIONS[0];
 }

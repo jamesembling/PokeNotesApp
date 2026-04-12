@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { SiteFormatsProvider } from "@/components/ui/SiteFormatsProvider";
 import { IBM_Plex_Sans } from "next/font/google";
+import { getSiteFormats } from "@/lib/formats/catalog";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import "./globals.css";
 
@@ -60,12 +62,13 @@ function buildThemeBootScript(initialTheme: Theme) {
   `;
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const initialTheme = parseTheme(cookies().get(THEME_COOKIE_KEY)?.value);
+  const initialSiteFormats = await getSiteFormats();
 
   return (
     <html
@@ -77,7 +80,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: buildThemeBootScript(initialTheme) }} />
       </head>
       <body>
-        <ThemeProvider initialTheme={initialTheme}>{children}</ThemeProvider>
+        <SiteFormatsProvider initialSiteFormats={initialSiteFormats}>
+          <ThemeProvider initialTheme={initialTheme}>{children}</ThemeProvider>
+        </SiteFormatsProvider>
       </body>
     </html>
   );

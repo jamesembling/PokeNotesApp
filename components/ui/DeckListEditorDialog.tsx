@@ -5,9 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { saveDeckListAction } from "@/app/(app)/decks/actions";
 import { Button } from "@/components/ui/Button";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
+import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import { parseDeckList, summarizeDeckList } from "@/lib/decks/deck-list-parse";
-import { DECK_FORMAT_OPTIONS, getDefaultDeckFormat } from "@/lib/decks/formats";
 import type { DeckList } from "@/types/index";
 
 type DeckListEditorDialogProps = {
@@ -109,13 +109,16 @@ export function DeckListEditorDialog({
 }: DeckListEditorDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { defaultFormat: syncedDefaultFormat, options: siteFormatOptions } = useSiteFormats();
   const isEditing = Boolean(deckList?.id);
 
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<DialogStep>("list");
   const [rawList, setRawList] = useState(deckList?.rawList ?? "");
   const [listName, setListName] = useState(deckList?.name ?? "");
-  const [format, setFormat] = useState(deckList?.format || defaultFormat || getDefaultDeckFormat());
+  const [format, setFormat] = useState(
+    deckList?.format || defaultFormat || syncedDefaultFormat
+  );
   const [date, setDate] = useState(deckList?.date ?? "");
   const [createdBy, setCreatedBy] = useState(deckList?.createdBy || defaultCreatedBy);
   const [notes, setNotes] = useState(deckList?.notes ?? "");
@@ -131,8 +134,26 @@ export function DeckListEditorDialog({
   const hasDeckListText = rawList.trim().length > 0;
   const canContinueFromList = isEditing ? hasDeckListText : summary.total === 60;
   const canSave = hasDeckListText && listName.trim().length > 0;
+  const formatOptions = useMemo(() => {
+    const normalizedFormat = String(format || "").trim();
+    if (!normalizedFormat) {
+      return [...siteFormatOptions];
+    }
+
+    return siteFormatOptions.includes(normalizedFormat)
+      ? [...siteFormatOptions]
+      : [normalizedFormat, ...siteFormatOptions];
+  }, [format, siteFormatOptions]);
 
   useBodyScrollLock(isOpen);
+
+  useEffect(() => {
+    if (deckList?.format) {
+      return;
+    }
+
+    setFormat((current) => current || defaultFormat || syncedDefaultFormat);
+  }, [deckList?.format, defaultFormat, syncedDefaultFormat]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -195,7 +216,7 @@ export function DeckListEditorDialog({
     setStep("list");
     setRawList(deckList?.rawList ?? "");
     setListName(deckList?.name ?? "");
-    setFormat(deckList?.format || defaultFormat || getDefaultDeckFormat());
+    setFormat(deckList?.format || defaultFormat || syncedDefaultFormat);
     setDate(deckList?.date ?? "");
     setCreatedBy(deckList?.createdBy || defaultCreatedBy);
     setNotes(deckList?.notes ?? "");
@@ -211,7 +232,7 @@ export function DeckListEditorDialog({
     setStep("list");
     setRawList(deckList?.rawList ?? "");
     setListName(deckList?.name ?? "");
-    setFormat(deckList?.format || defaultFormat || getDefaultDeckFormat());
+    setFormat(deckList?.format || defaultFormat || syncedDefaultFormat);
     setDate(deckList?.date ?? "");
     setCreatedBy(deckList?.createdBy || defaultCreatedBy);
     setNotes(deckList?.notes ?? "");
@@ -239,7 +260,7 @@ export function DeckListEditorDialog({
           setStep("list");
           setRawList(deckList?.rawList ?? "");
           setListName(deckList?.name ?? "");
-          setFormat(deckList?.format || defaultFormat || getDefaultDeckFormat());
+          setFormat(deckList?.format || defaultFormat || syncedDefaultFormat);
           setDate(deckList?.date ?? "");
           setCreatedBy(deckList?.createdBy || defaultCreatedBy);
           setNotes(deckList?.notes ?? "");
@@ -393,7 +414,7 @@ export function DeckListEditorDialog({
                         onChange={(event) => setFormat(event.target.value)}
                         value={format}
                       >
-                        {DECK_FORMAT_OPTIONS.map((option) => (
+                        {formatOptions.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>

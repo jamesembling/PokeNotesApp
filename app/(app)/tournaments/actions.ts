@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { isKnownSiteFormat } from "@/lib/formats/options";
+import { getDefaultSyncedSiteFormat, isKnownSyncedSiteFormat } from "@/lib/formats/catalog";
 import { createClient } from "@/lib/supabase/server";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
@@ -224,7 +224,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
   const name = String(formData.get("name") || "").trim();
   const dateFrom = parseIsoDate(formData.get("dateFrom"));
   const dateTo = parseIsoDate(formData.get("dateTo"), dateFrom);
-  const format = parseFormat(formData.get("format"));
+  const format = parseFormat(formData.get("format")) || await getDefaultSyncedSiteFormat();
   const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
   const resolvedDeckListId =
     resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
@@ -233,7 +233,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
     throw new Error("Enter a tournament name before saving.");
   }
 
-  if (format && !isKnownSiteFormat(format)) {
+  if (!(await isKnownSyncedSiteFormat(format))) {
     throw new Error("Choose a valid tournament format.");
   }
 
@@ -294,7 +294,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
   const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
   const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
   const name = String(formData.get("name") || "").trim();
-  const format = parseFormat(formData.get("format"));
+  const format = parseFormat(formData.get("format")) || await getDefaultSyncedSiteFormat();
   const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
   const resolvedDeckListId =
     resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
@@ -307,7 +307,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
     throw new Error("Enter a tournament name before saving.");
   }
 
-  if (format && !isKnownSiteFormat(format)) {
+  if (!(await isKnownSyncedSiteFormat(format))) {
     throw new Error("Choose a valid tournament format.");
   }
 
