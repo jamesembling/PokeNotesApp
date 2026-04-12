@@ -10,7 +10,8 @@ import {
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
-import { TOURNAMENT_ROUND_RESULT_OPTIONS } from "@/lib/tournaments/options";
+import { TOURNAMENT_ROUND_GAME_RESULT_OPTIONS } from "@/lib/tournaments/options";
+import { getRoundResultGameTokens } from "@/lib/tournaments/display";
 import type { PokemonOption, TournamentRound } from "@/types/index";
 
 type TournamentRoundEditorDialogProps = {
@@ -43,6 +44,14 @@ export function TournamentRoundEditorDialog({
   triggerLabel,
   triggerVariant = "secondary"
 }: TournamentRoundEditorDialogProps) {
+  const roundGameDefaults = round?.result ? getRoundResultGameTokens(round.result) : [];
+  const byeAwareDefaults = round?.result === "BYE"
+    ? ["", "", ""]
+    : [
+      roundGameDefaults[0] ?? "",
+      roundGameDefaults[1] ?? "",
+      roundGameDefaults[2] ?? ""
+    ];
   const router = useRouter();
   const pathname = usePathname();
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -51,6 +60,12 @@ export function TournamentRoundEditorDialog({
   const isEditing = Boolean(round?.id);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(round?.opponentDeckSprites.slice(0, 2) ?? []);
+  const [isBye, setIsBye] = useState<boolean>(round?.result === "BYE");
+  const [gameResults, setGameResults] = useState<string[]>([
+    byeAwareDefaults[0] ?? "",
+    byeAwareDefaults[1] ?? "",
+    byeAwareDefaults[2] ?? ""
+  ]);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [deleteState, setDeleteState] = useState<DeleteState>("idle");
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -74,6 +89,12 @@ export function TournamentRoundEditorDialog({
 
   function resetState() {
     setSelectedSprites(round?.opponentDeckSprites.slice(0, 2) ?? []);
+    setIsBye(round?.result === "BYE");
+    setGameResults([
+      byeAwareDefaults[0] ?? "",
+      byeAwareDefaults[1] ?? "",
+      byeAwareDefaults[2] ?? ""
+    ]);
     setSaveState("idle");
     setDeleteState("idle");
     setShowDeleteConfirmation(false);
@@ -277,51 +298,61 @@ export function TournamentRoundEditorDialog({
                 />
               ))}
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="round-number">
-                    Round number
-                  </label>
-                  <input
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
-                    defaultValue={round?.roundNumber ?? suggestedRoundNumber}
-                    id="round-number"
-                    min={1}
-                    name="roundNumber"
-                    type="number"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="round-result">
+                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="round-bye">
                     Result
                   </label>
-                  <select
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
-                    defaultValue={round?.result ?? "Win"}
-                    id="round-result"
-                    name="result"
-                  >
-                    {TOURNAMENT_ROUND_RESULT_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="grid gap-2">
+                    <label className="inline-flex w-fit items-center gap-2 text-sm" htmlFor="round-bye">
+                      <input
+                        checked={isBye}
+                        className="h-4 w-4 accent-[var(--color-win)]"
+                        id="round-bye"
+                        name="isBye"
+                        onChange={(event) => {
+                          const nextIsBye = event.target.checked;
+                          setIsBye(nextIsBye);
+                          if (nextIsBye) {
+                            setGameResults(["", "", ""]);
+                          }
+                        }}
+                        type="checkbox"
+                      />
+                      BYE
+                    </label>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      {[0, 1, 2].map((index) => (
+                        <label
+                          className="grid gap-1 text-sm"
+                          htmlFor={`round-game-${index + 1}`}
+                          key={index}
+                        >
+                          Game {index + 1}
+                          <select
+                            className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-55"
+                            disabled={isBye}
+                            id={`round-game-${index + 1}`}
+                            name={`game${index + 1}`}
+                            onChange={(event) => {
+                              const next = [...gameResults];
+                              next[index] = event.target.value;
+                              setGameResults(next);
+                            }}
+                            value={gameResults[index]}
+                          >
+                            <option value="">—</option>
+                            {TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              <div className="grid gap-2">
-                <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="round-opponent-deck">
-                  Opponent deck
-                </label>
-                <input
-                  className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
-                  defaultValue={round?.opponentDeckName ?? ""}
-                  id="round-opponent-deck"
-                  name="opponentDeckName"
-                  placeholder="Raging Bolt, Gardevoir, Lugia..."
-                />
               </div>
 
               <BattleLogSpritePicker

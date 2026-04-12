@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 type BadgeProps = {
   children: ReactNode;
   className?: string;
-  variant?: "default" | "win" | "loss";
+  variant?: "default" | "win" | "loss" | "warning";
 };
 
 const variantClasses: Record<NonNullable<BadgeProps["variant"]>, string> = {
@@ -11,7 +11,9 @@ const variantClasses: Record<NonNullable<BadgeProps["variant"]>, string> = {
     "border border-[var(--border)] bg-[var(--bg-surface-alt)] text-[var(--text-secondary)]",
   win: "border border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win)]",
   loss:
-    "border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+    "border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]",
+  warning:
+    "border border-[var(--color-warning-border)] bg-[var(--color-warning-bg)] text-[var(--color-warning)]"
 };
 
 export function Badge({ children, className, variant = "default" }: BadgeProps) {

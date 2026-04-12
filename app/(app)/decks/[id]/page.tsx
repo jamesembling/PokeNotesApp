@@ -9,6 +9,7 @@ import {
   DeckRelatedLogsSection,
   DeckRelatedLogsSectionFallback
 } from "@/components/ui/DeckRelatedLogsSection";
+import { ChevronIcon } from "@/components/ui/icons";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
@@ -16,6 +17,7 @@ import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { requireUser } from "@/lib/auth";
 import { getDeckById } from "@/lib/db/decks";
 import { getAllLogsForDeck } from "@/lib/db/logs";
+import type { Deck } from "@/types/index";
 
 type DeckDetailPageProps = {
   params: {
@@ -58,6 +60,52 @@ function StrategySection({
         {children}
       </div>
     </section>
+  );
+}
+
+function MatchupPlaceholderTile({
+  deck,
+  index
+}: {
+  deck: Deck;
+  index: number;
+}) {
+  return (
+    <button className="block h-full text-left" type="button">
+      <Card className="flex h-full flex-col gap-5 transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[var(--shadow-sm)]">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 space-y-3">
+            <SpriteStrip className="min-h-12" size="lg" sprites={deck.deckPokemon} />
+            <div className="space-y-2">
+              <h3 className="font-display text-[1.12rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)]">
+                Matchup {index}
+              </h3>
+              <p className="text-sm leading-6 text-[var(--text-muted)]">
+                Placeholder tile for matchup notes and planning.
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-center text-[var(--text-muted)]">
+            <p className="ui-eyebrow text-current/80">Status</p>
+            <p className="mt-1 font-display text-[1rem] font-semibold tracking-[-0.03em] text-current">
+              Soon
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-auto flex items-end justify-between gap-3 border-t border-[var(--border)] pt-4">
+          <div className="space-y-1">
+            <p className="ui-eyebrow">Notes</p>
+            <p className="text-sm text-[var(--text-muted)]">No matchup page linked yet.</p>
+          </div>
+          <span className="inline-flex items-center gap-1 ui-control-text text-[var(--color-brand)]">
+            Open matchup
+            <ChevronIcon className="h-4 w-4 -rotate-90" />
+          </span>
+        </div>
+      </Card>
+    </button>
   );
 }
 
@@ -145,14 +193,6 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         </div>
       </Card>
 
-      {deck.coreStrategy ? (
-        <StrategySection kicker="CORE STRATEGY" variant="hero">
-          <p className="whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
-            {deck.coreStrategy}
-          </p>
-        </StrategySection>
-      ) : null}
-
       {deck.generalNotes ? (
         <StrategySection kicker="GENERAL NOTES">
           <p className="whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
@@ -235,6 +275,28 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       <Suspense fallback={<DeckRelatedLogsSectionFallback />}>
         <DeckRelatedLogsSection deck={deck} logsPromise={relatedLogsPromise} />
       </Suspense>
+
+      <Card className="space-y-4">
+        <div className="space-y-1">
+          <p className="ui-eyebrow">Core Strategy</p>
+        </div>
+        <div className="min-h-[240px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-5 py-4">
+          <p className="whitespace-pre-wrap text-sm leading-7 text-[var(--text-secondary)]">
+            {deck.coreStrategy || "No core strategy added yet."}
+          </p>
+        </div>
+      </Card>
+
+      <Card className="space-y-4">
+        <div className="space-y-1">
+          <p className="ui-eyebrow">Matchup Notes</p>
+        </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((index) => (
+            <MatchupPlaceholderTile deck={deck} index={index} key={index} />
+          ))}
+        </div>
+      </Card>
     </PageWidth>
   );
 }

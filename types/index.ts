@@ -310,7 +310,13 @@ export type TournamentPlacement =
   | "champion"
   | ""
 
-export type TournamentRoundResult = "Win" | "Loss" | "Tie"
+export type TournamentRoundLegacyResult = "Win" | "Loss" | "Tie" | "BYE"
+export type TournamentRoundGameResult = "W" | "L" | "T"
+export type TournamentRoundResult =
+  | TournamentRoundLegacyResult
+  | `${TournamentRoundGameResult}`
+  | `${TournamentRoundGameResult}${TournamentRoundGameResult}`
+  | `${TournamentRoundGameResult}${TournamentRoundGameResult}${TournamentRoundGameResult}`
 
 export type TournamentRound = {
   id: string

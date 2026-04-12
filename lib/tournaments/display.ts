@@ -1,5 +1,9 @@
 import { formatDayDate } from "@/lib/client/date-format";
-import type { TournamentRound, TournamentRoundResult } from "@/types/index";
+import type {
+  TournamentRound,
+  TournamentRoundGameResult,
+  TournamentRoundResult
+} from "@/types/index";
 
 export function formatTournamentDateRange(dateFrom: string, dateTo: string) {
   if (dateFrom === dateTo) {
@@ -31,13 +35,21 @@ export function getTournamentRecord(rounds: TournamentRound[]) {
 export function getTournamentRecordBreakdown(rounds: TournamentRound[]) {
   const totals = rounds.reduce(
     (accumulator, round) => {
-      if (round.result === "Win") {
-        accumulator.wins += 1;
-      } else if (round.result === "Loss") {
-        accumulator.losses += 1;
-      } else {
+      const gameResults = getRoundResultGameTokens(round.result);
+
+      gameResults.forEach((gameResult) => {
+        if (gameResult === "W") {
+          accumulator.wins += 1;
+          return;
+        }
+
+        if (gameResult === "L") {
+          accumulator.losses += 1;
+          return;
+        }
+
         accumulator.ties += 1;
-      }
+      });
 
       return accumulator;
     },
@@ -47,14 +59,43 @@ export function getTournamentRecordBreakdown(rounds: TournamentRound[]) {
   return totals;
 }
 
-export function getRoundResultVariant(result: TournamentRoundResult): "default" | "win" | "loss" {
-  if (result === "Win") {
+export function getRoundResultVariant(
+  result: TournamentRoundResult
+): "default" | "win" | "loss" | "warning" {
+  const gameResults = getRoundResultGameTokens(result);
+  const wins = gameResults.filter((token) => token === "W").length;
+  const losses = gameResults.filter((token) => token === "L").length;
+
+  if (wins === 0 && losses === 0) {
+    return "warning";
+  }
+
+  if (wins > losses) {
     return "win";
   }
 
-  if (result === "Loss") {
+  if (losses > wins) {
     return "loss";
   }
 
-  return "default";
+  return "warning";
+}
+
+export function getRoundResultGameTokens(result: TournamentRoundResult): TournamentRoundGameResult[] {
+  if (result === "Win" || result === "BYE") {
+    return ["W"];
+  }
+
+  if (result === "Loss") {
+    return ["L"];
+  }
+
+  if (result === "Tie") {
+    return ["T"];
+  }
+
+  return result
+    .split("")
+    .filter((token): token is TournamentRoundGameResult => token === "W" || token === "L" || token === "T")
+    .slice(0, 3);
 }

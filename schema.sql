@@ -130,7 +130,11 @@ create table public.tournament_rounds (
   opponent_deck_name     text not null default '',
   opponent_deck_sprites  jsonb not null default '[]',
   result                 text not null
-                           check (result in ('Win', 'Loss', 'Tie')),
+                           check (
+                             result = 'BYE' OR
+                             result in ('Win', 'Loss', 'Tie') OR
+                             result ~ '^[WLT]{1,3}$'
+                           ),
   notes                  text not null default '',
   created_at             timestamptz not null default now(),
   updated_at             timestamptz not null default now(),

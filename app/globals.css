@@ -19,6 +19,10 @@
   --color-loss-strong: #b91c1c;
   --color-loss-bg: rgba(220, 38, 38, 0.08);
   --color-loss-border: rgba(220, 38, 38, 0.16);
+  --color-warning: #b45309;
+  --color-warning-strong: #92400e;
+  --color-warning-bg: rgba(180, 83, 9, 0.12);
+  --color-warning-border: rgba(180, 83, 9, 0.2);
   --color-brand: #2563eb;
   --color-brand-hover: #1d4ed8;
   --color-danger: #dc2626;
@@ -46,6 +50,10 @@
   --color-loss-strong: #f87171;
   --color-loss-bg: rgba(220, 38, 38, 0.08);
   --color-loss-border: rgba(220, 38, 38, 0.16);
+  --color-warning: #f59e0b;
+  --color-warning-strong: #d97706;
+  --color-warning-bg: rgba(251, 146, 60, 0.12);
+  --color-warning-border: rgba(251, 146, 60, 0.24);
   --color-brand: #2563eb;
   --color-brand-hover: #1d4ed8;
   --color-danger: #dc2626;

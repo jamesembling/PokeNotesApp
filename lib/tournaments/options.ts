@@ -1,6 +1,7 @@
 import type {
   TournamentCategory,
   TournamentPlacement,
+  TournamentRoundGameResult,
   TournamentRoundResult
 } from "@/types/index";
 
@@ -43,7 +44,14 @@ export const TOURNAMENT_PLACEMENT_OPTIONS: Array<{
   { value: "champion", label: "Champion" }
 ];
 
-export const TOURNAMENT_ROUND_RESULT_OPTIONS: TournamentRoundResult[] = ["Win", "Loss", "Tie"];
+export const TOURNAMENT_ROUND_GAME_RESULT_OPTIONS: TournamentRoundGameResult[] = ["W", "L", "T"];
+export const TOURNAMENT_ROUND_RESULT_OPTIONS: TournamentRoundResult[] = [
+  "Win",
+  "Loss",
+  "Tie",
+  "BYE",
+  ...TOURNAMENT_ROUND_GAME_RESULT_OPTIONS
+];
 
 export function getTournamentCategoryLabel(category: TournamentCategory) {
   return (

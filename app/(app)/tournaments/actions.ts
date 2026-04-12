@@ -7,17 +7,25 @@ import { createClient } from "@/lib/supabase/server";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS,
-  TOURNAMENT_ROUND_RESULT_OPTIONS
+  TOURNAMENT_ROUND_GAME_RESULT_OPTIONS
 } from "@/lib/tournaments/options";
 import type {
   TournamentCategory,
   TournamentPlacement,
+  TournamentRoundGameResult,
   TournamentRoundResult
 } from "@/types/index";
 
 type SaveActionResult = {
   ok: true;
   redirectTo: string;
+};
+
+type PostgrestLikeError = {
+  code?: string | null;
+  details?: string | null;
+  hint?: string | null;
+  message?: string | null;
 };
 
 function revalidateTournamentWorkspace(tournamentId?: string) {
@@ -36,6 +44,20 @@ function withRefreshToken(path: string) {
   return `${path}${separator}r=${Date.now()}`;
 }
 
+function toUserFacingDatabaseError(error: PostgrestLikeError) {
+  if (error.code === "23514") {
+    return new Error(
+      "Your Supabase tournament round constraint is out of date. Run the latest tournament rounds SQL update, then try again."
+    );
+  }
+
+  if (error.message) {
+    return new Error(error.message);
+  }
+
+  return new Error("A database error occurred while saving.");
+}
+
 function parseCategory(value: FormDataEntryValue | null): TournamentCategory {
   const normalized = String(value || "").trim();
   return TOURNAMENT_CATEGORY_OPTIONS.some((option) => option.value === normalized)
@@ -50,11 +72,33 @@ function parsePlacement(value: FormDataEntryValue | null): TournamentPlacement {
     : "";
 }
 
-function parseRoundResult(value: FormDataEntryValue | null): TournamentRoundResult {
+function parseRoundGameResult(value: FormDataEntryValue | null): "" | TournamentRoundGameResult {
   const normalized = String(value || "").trim();
-  return TOURNAMENT_ROUND_RESULT_OPTIONS.includes(normalized as TournamentRoundResult)
-    ? (normalized as TournamentRoundResult)
-    : "Win";
+  return TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.includes(normalized as TournamentRoundGameResult)
+    ? (normalized as TournamentRoundGameResult)
+    : "";
+}
+
+function parseRoundResult(formData: FormData): TournamentRoundResult {
+  const isBye = String(formData.get("isBye") || "").trim();
+  if (isBye) {
+    return "BYE";
+  }
+
+  const selectedGameResults = [
+    parseRoundGameResult(formData.get("game1")),
+    parseRoundGameResult(formData.get("game2")),
+    parseRoundGameResult(formData.get("game3"))
+  ]
+    .filter((result): result is TournamentRoundGameResult => Boolean(result))
+    .join("")
+    .slice(0, 3);
+
+  if (selectedGameResults) {
+    return selectedGameResults;
+  }
+
+  throw new Error("Choose at least one game result or mark the round as BYE.");
 }
 
 function parseFormat(value: FormDataEntryValue | null) {
@@ -108,6 +152,49 @@ async function resolveDeckSnapshot(userId: string, linkedDeckId: string) {
         ))
       : []
   };
+}
+
+async function resolveTournamentRoundNumber(params: {
+  roundId: string;
+  tournamentId: string;
+  userId: string;
+}) {
+  const supabase = createClient();
+
+  if (params.roundId) {
+    const { data, error } = await supabase
+      .from("tournament_rounds")
+      .select("round_number")
+      .eq("id", params.roundId)
+      .eq("tournament_id", params.tournamentId)
+      .eq("user_id", params.userId)
+      .maybeSingle();
+
+    if (error) {
+      throw toUserFacingDatabaseError(error);
+    }
+
+    if (!data?.round_number) {
+      throw new Error("Could not find that round.");
+    }
+
+    return Number(data.round_number);
+  }
+
+  const { data, error } = await supabase
+    .from("tournament_rounds")
+    .select("round_number")
+    .eq("tournament_id", params.tournamentId)
+    .eq("user_id", params.userId)
+    .order("round_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw toUserFacingDatabaseError(error);
+  }
+
+  return Number(data?.round_number || 0) + 1;
 }
 
 export async function createTournamentAction(formData: FormData): Promise<SaveActionResult> {
@@ -253,29 +340,24 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
   const supabase = createClient();
   const tournamentId = String(formData.get("tournamentId") || "").trim();
   const roundId = String(formData.get("roundId") || "").trim();
-  const roundNumber = Number(formData.get("roundNumber") || "");
-  const opponentDeckName = String(formData.get("opponentDeckName") || "").trim();
   const opponentDeckSprites = parseSpriteArray(formData.getAll("opponentDeckSprites"));
 
   if (!tournamentId) {
     throw new Error("Tournament id is required.");
   }
-
-  if (!Number.isInteger(roundNumber) || roundNumber <= 0) {
-    throw new Error("Enter a valid round number.");
-  }
-
-  if (!opponentDeckName) {
-    throw new Error("Enter the opponent deck name.");
-  }
+  const roundNumber = await resolveTournamentRoundNumber({
+    roundId,
+    tournamentId,
+    userId: user.id
+  });
 
   const payload = {
     tournament_id: tournamentId,
     user_id: user.id,
     round_number: roundNumber,
-    opponent_deck_name: opponentDeckName,
+    opponent_deck_name: "",
     opponent_deck_sprites: opponentDeckSprites,
-    result: parseRoundResult(formData.get("result")),
+    result: parseRoundResult(formData),
     notes: String(formData.get("notes") || "").trim()
   };
 
@@ -287,7 +369,7 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
       .eq("user_id", user.id);
 
     if (error) {
-      throw error;
+      throw toUserFacingDatabaseError(error);
     }
   } else {
     const { error } = await supabase.from("tournament_rounds").insert({
@@ -296,7 +378,7 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
     });
 
     if (error) {
-      throw error;
+      throw toUserFacingDatabaseError(error);
     }
   }
 
