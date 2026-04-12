@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/Card";
+import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import type { DeckCard } from "@/types/index";
 
@@ -7,6 +8,7 @@ type TournamentDeckListPanelProps = {
   deckListFormat?: string;
   deckListName?: string;
   deckListNotes?: string;
+  rawList?: string;
   sortedCards?: DeckCard[];
 };
 
@@ -32,6 +34,7 @@ export function TournamentDeckListPanel({
   deckListFormat,
   deckListName,
   deckListNotes,
+  rawList,
   sortedCards = []
 }: TournamentDeckListPanelProps) {
   const hasVisualDeckList = Boolean(deckListName);
@@ -80,6 +83,9 @@ export function TournamentDeckListPanel({
           </summary>
 
           <div className="grid gap-4 px-0 py-4">
+            <div className="flex justify-end">
+              <CopyDeckListButton text={rawList ?? ""} />
+            </div>
             {sortedCards.length > 0 ? (
               <DeckListVisualGrid cards={sortedCards} />
             ) : (

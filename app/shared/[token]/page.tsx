@@ -7,6 +7,8 @@ import {
   getBattleLogOpponentDisplayName,
   getBattleLogSpriteDisplayName
 } from "@/lib/battle-log/display";
+import { sortDeckListCards } from "@/lib/deck-lists/sort";
+import { parseDeckList } from "@/lib/decks/deck-list-parse";
 import { getSharedLogSnapshot } from "@/lib/db/log-shares";
 import type { BattleLog } from "@/types/index";
 
@@ -108,6 +110,13 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
   const timestampLabel = formatImportedAt(
     sharedLog.payload.log.importedAt || sharedLog.createdAt
   );
+  const linkedDeckListSortedCards =
+    sharedLog.payload.linkedDeckListSortedCards &&
+    sharedLog.payload.linkedDeckListSortedCards.length > 0
+      ? sharedLog.payload.linkedDeckListSortedCards
+      : sharedLog.payload.linkedDeckListRawList?.trim()
+        ? await sortDeckListCards(parseDeckList(sharedLog.payload.linkedDeckListRawList))
+        : [];
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -118,6 +127,11 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
         />
 
         <BattleLogDetailView
+          linkedDeckListFormat={sharedLog.payload.linkedDeckListFormat}
+          linkedDeckListName={sharedLog.payload.linkedDeckListName}
+          linkedDeckListNotes={sharedLog.payload.linkedDeckListNotes}
+          linkedDeckListRawList={sharedLog.payload.linkedDeckListRawList}
+          linkedDeckListSortedCards={linkedDeckListSortedCards}
           linkedStrategyLabel={sharedLog.payload.linkedStrategyLabel}
           log={sharedLog.payload.log}
           notice={

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { BattleLog } from "@/types/index";
+import type { BattleLog, DeckCard } from "@/types/index";
 import { createClient } from "@/lib/supabase/server";
 
 type LogShareRow = {
@@ -12,6 +12,11 @@ export type BattleLogSharePayload = {
   version: "v1";
   log: BattleLog;
   linkedStrategyLabel: string;
+  linkedDeckListFormat?: string;
+  linkedDeckListName?: string;
+  linkedDeckListNotes?: string;
+  linkedDeckListRawList?: string;
+  linkedDeckListSortedCards?: DeckCard[];
 };
 
 export type SharedBattleLogSnapshot = {
@@ -42,12 +47,22 @@ export async function createLogShareSnapshot(input: {
   ownerUserId: string;
   log: BattleLog;
   linkedStrategyLabel: string;
+  linkedDeckListFormat?: string;
+  linkedDeckListName?: string;
+  linkedDeckListNotes?: string;
+  linkedDeckListRawList?: string;
+  linkedDeckListSortedCards?: DeckCard[];
 }): Promise<string> {
   const supabase = createClient();
   const payload: BattleLogSharePayload = {
     version: "v1",
     log: input.log,
-    linkedStrategyLabel: input.linkedStrategyLabel
+    linkedStrategyLabel: input.linkedStrategyLabel,
+    linkedDeckListFormat: input.linkedDeckListFormat,
+    linkedDeckListName: input.linkedDeckListName,
+    linkedDeckListNotes: input.linkedDeckListNotes,
+    linkedDeckListRawList: input.linkedDeckListRawList,
+    linkedDeckListSortedCards: input.linkedDeckListSortedCards
   };
 
   for (let attempt = 0; attempt < 5; attempt += 1) {

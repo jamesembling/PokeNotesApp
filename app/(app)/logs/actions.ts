@@ -14,7 +14,7 @@ import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
-import { getDecks } from "@/lib/db/decks";
+import { getDeckWithList, getDecks } from "@/lib/db/decks";
 import { createLogShareSnapshot } from "@/lib/db/log-shares";
 import { getLogById, getLogsWindow } from "@/lib/db/logs";
 import { createClient } from "@/lib/supabase/server";
@@ -436,6 +436,10 @@ export async function createLogShareAction(logId: string): Promise<{ shareUrl: s
   const linkedDeckList = linkedDeck?.deckLists.find(
     (deckList) => deckList.id === log.linkedDeckListId
   );
+  const hydratedLinkedDeckList =
+    linkedDeck?.id && linkedDeckList?.id
+      ? await getDeckWithList(user.id, linkedDeck.id, linkedDeckList.id)
+      : null;
   const linkedStrategyLabel = linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
   const sharedLog = {
     ...log,
@@ -447,7 +451,12 @@ export async function createLogShareAction(logId: string): Promise<{ shareUrl: s
   const token = await createLogShareSnapshot({
     ownerUserId: user.id,
     log: sharedLog,
-    linkedStrategyLabel
+    linkedStrategyLabel,
+    linkedDeckListFormat: hydratedLinkedDeckList?.deckList.format ?? linkedDeckList?.format,
+    linkedDeckListName: hydratedLinkedDeckList?.deckList.name ?? linkedDeckList?.name,
+    linkedDeckListNotes: hydratedLinkedDeckList?.deckList.notes ?? linkedDeckList?.notes,
+    linkedDeckListRawList: hydratedLinkedDeckList?.deckList.rawList ?? linkedDeckList?.rawList,
+    linkedDeckListSortedCards: hydratedLinkedDeckList?.deckList.sortedCards ?? []
   });
 
   const requestHeaders = headers();

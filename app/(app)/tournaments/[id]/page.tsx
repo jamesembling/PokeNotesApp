@@ -164,6 +164,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         deckListFormat={resolvedTournamentDeckList?.format}
         deckListName={resolvedTournamentDeckList?.name}
         deckListNotes={resolvedTournamentDeckList?.notes}
+        rawList={resolvedTournamentDeckList?.rawList}
         sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
       />
 

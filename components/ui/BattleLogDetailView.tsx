@@ -337,6 +337,7 @@ type BattleLogDetailViewProps = {
   linkedDeckListId?: string;
   linkedDeckListName?: string;
   linkedDeckListNotes?: string;
+  linkedDeckListRawList?: string;
   linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel: string;
   log: BattleLog;
@@ -353,6 +354,7 @@ export function BattleLogDetailView({
   linkedDeckListId,
   linkedDeckListName,
   linkedDeckListNotes,
+  linkedDeckListRawList,
   linkedDeckListSortedCards,
   linkedStrategyLabel,
   log,
@@ -462,13 +464,14 @@ export function BattleLogDetailView({
         </details>
       </Card>
 
-      {linkedDeckListId && linkedDeckListName ? (
+      {linkedDeckListName ? (
         <LinkedDeckListPanel
           deckId={linkedDeckId}
           deckListFormat={linkedDeckListFormat}
-          deckListId={linkedDeckListId}
+          deckListId={linkedDeckListId ?? "shared-linked-deck-list"}
           deckListName={linkedDeckListName}
           deckListNotes={linkedDeckListNotes}
+          rawList={linkedDeckListRawList}
           sortedCards={linkedDeckListSortedCards ?? []}
         />
       ) : null}

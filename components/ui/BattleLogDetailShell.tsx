@@ -21,6 +21,7 @@ type BattleLogDetailShellProps = {
   linkedDeckListId?: string;
   linkedDeckListName?: string;
   linkedDeckListNotes?: string;
+  linkedDeckListRawList?: string;
   linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel: string;
   log: BattleLog;
@@ -49,6 +50,7 @@ export function BattleLogDetailShell({
   linkedDeckListId,
   linkedDeckListName,
   linkedDeckListNotes,
+  linkedDeckListRawList,
   linkedDeckListSortedCards,
   linkedStrategyLabel,
   log,
@@ -73,6 +75,7 @@ export function BattleLogDetailShell({
       linkedDeckListId={linkedDeckListId}
       linkedDeckListName={linkedDeckListName}
       linkedDeckListNotes={linkedDeckListNotes}
+      linkedDeckListRawList={linkedDeckListRawList}
       linkedDeckListSortedCards={linkedDeckListSortedCards}
       linkedStrategyLabel={linkedStrategyLabel}
       log={log}

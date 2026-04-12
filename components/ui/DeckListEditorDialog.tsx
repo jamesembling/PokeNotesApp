@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { saveDeckListAction } from "@/app/(app)/decks/actions";
 import { Button } from "@/components/ui/Button";
+import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
@@ -450,9 +451,12 @@ export function DeckListEditorDialog({
                       />
                     </label>
                     <div className="grid gap-2 md:col-span-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">
-                        Visual deck list
-                      </span>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-[var(--text-muted)]">
+                          Visual deck list
+                        </span>
+                        <CopyDeckListButton text={rawList} />
+                      </div>
                       {parsedCards.length > 0 ? (
                         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
                           <DeckListVisualGrid cards={parsedCards} />

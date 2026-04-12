@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -85,7 +86,10 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
       />
 
       <Card className="space-y-4">
-        <p className="ui-eyebrow">Deck List</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="ui-eyebrow">Deck List</p>
+          <CopyDeckListButton text={deckList.rawList} />
+        </div>
 
         {deckList.parsedCards.length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)]">

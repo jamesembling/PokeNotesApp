@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { StatCard } from "@/components/ui/StatCard";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
@@ -277,11 +278,14 @@ export function ProbabilityCalculator() {
               </div>
 
               <div className="rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5">
-                <div className="space-y-1">
-                  <p className="ui-eyebrow">Deck Visual</p>
-                  <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
-                    60-Card Graphic
-                  </h3>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="ui-eyebrow">Deck Visual</p>
+                    <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+                      60-Card Graphic
+                    </h3>
+                  </div>
+                  <CopyDeckListButton text={deckInput} />
                 </div>
 
                 <div className="mt-4">

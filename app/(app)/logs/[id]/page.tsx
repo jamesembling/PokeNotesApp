@@ -111,6 +111,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
           linkedDeckListId={linkedDeckList?.id}
           linkedDeckListName={linkedDeckList?.name}
           linkedDeckListNotes={linkedDeckWithList?.deckList.notes ?? linkedDeckList?.notes}
+          linkedDeckListRawList={linkedDeckWithList?.deckList.rawList ?? linkedDeckList?.rawList}
           linkedDeckListSortedCards={linkedDeckListSortedCards}
           linkedStrategyLabel={linkedStrategyLabel}
           log={log}
