@@ -7,9 +7,14 @@ type PokemonOptionsResponse = {
   pokemonOptions?: PokemonOption[];
 };
 
+let pokemonOptionsCache: PokemonOption[] | null = null;
 let pokemonOptionsPromise: Promise<PokemonOption[]> | null = null;
 
-async function loadPokemonOptions() {
+export async function loadPokemonOptions() {
+  if (pokemonOptionsCache) {
+    return pokemonOptionsCache;
+  }
+
   if (!pokemonOptionsPromise) {
     pokemonOptionsPromise = fetch("/api/pokemon-options", {
       credentials: "same-origin",
@@ -22,11 +27,15 @@ async function loadPokemonOptions() {
 
         const payload = (await response.json()) as PokemonOptionsResponse;
         const options = Array.isArray(payload.pokemonOptions) ? payload.pokemonOptions : [];
+        pokemonOptionsCache = options;
         return options;
       })
-      .catch((error) => {
+      .catch(() => {
         pokemonOptionsPromise = null;
-        throw error;
+        throw new Error("Could not load Pokemon options.");
+      })
+      .finally(() => {
+        pokemonOptionsPromise = null;
       });
   }
 
@@ -34,7 +43,7 @@ async function loadPokemonOptions() {
 }
 
 export function usePokemonOptions() {
-  const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
+  const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(pokemonOptionsCache);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,7 +62,6 @@ export function usePokemonOptions() {
 
     return () => {
       cancelled = true;
-      pokemonOptionsPromise = null;
     };
   }, []);
 

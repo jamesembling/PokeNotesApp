@@ -4,12 +4,14 @@ import Image from "next/image";
 import { useState } from "react";
 import { buildPokemonSpriteUrlFromSlug, findPokemonOptionBySlug, prettifyPokemonSlug } from "@/lib/pokemon/sprites";
 import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
+import type { PokemonOption } from "@/types/index";
 
 type SpriteStripProps = {
   sprites: string[];
   size: "xs" | "sm" | "md" | "lg" | "xl";
   maxVisible?: number;
   className?: string;
+  pokemonOptions?: PokemonOption[] | null;
 };
 
 const sizeClasses: Record<SpriteStripProps["size"], string> = {
@@ -69,8 +71,17 @@ function SpriteStripItem({
   );
 }
 
-export function SpriteStrip({ sprites, size, maxVisible = 2, className }: SpriteStripProps) {
-  const pokemonOptions = usePokemonOptions();
+type SpriteStripContentProps = Omit<SpriteStripProps, "pokemonOptions"> & {
+  pokemonOptions?: PokemonOption[] | null;
+};
+
+function SpriteStripContent({
+  sprites,
+  size,
+  maxVisible = 2,
+  className,
+  pokemonOptions
+}: SpriteStripContentProps) {
   const visibleSprites = sprites.slice(0, maxVisible);
   const stripClassName = ["flex items-center gap-0.5", className].filter(Boolean).join(" ");
 
@@ -104,4 +115,18 @@ export function SpriteStrip({ sprites, size, maxVisible = 2, className }: Sprite
       })}
     </div>
   );
+}
+
+function SpriteStripWithHook(props: Omit<SpriteStripProps, "pokemonOptions">) {
+  const pokemonOptions = usePokemonOptions();
+
+  return <SpriteStripContent {...props} pokemonOptions={pokemonOptions} />;
+}
+
+export function SpriteStrip({ pokemonOptions, ...props }: SpriteStripProps) {
+  if (pokemonOptions !== undefined) {
+    return <SpriteStripContent {...props} pokemonOptions={pokemonOptions} />;
+  }
+
+  return <SpriteStripWithHook {...props} />;
 }

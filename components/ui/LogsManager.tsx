@@ -15,6 +15,7 @@ import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LogRow } from "@/components/ui/LogRow";
 import { formatDayDate } from "@/lib/client/date-format";
+import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { BattleLog, BattleLogSummary, DeckSummary } from "@/types/index";
 
 type LogGroup = {
@@ -176,6 +177,7 @@ export function LogsManager({
   const [openGroupDates, setOpenGroupDates] = useState<string[]>(() =>
     initialLogs.length > 0 ? [initialLogs[0].date] : []
   );
+  const pokemonOptions = usePokemonOptions();
 
   const visibleSummary = useMemo(() => summarizeVisibleLogs(visibleLogs), [visibleLogs]);
   const groups = visibleSummary.groups;
@@ -549,11 +551,11 @@ export function LogsManager({
               {openGroupDates.includes(group.date) ? (
                 <div className="flex flex-col gap-3 pb-5 pt-2">
                   {group.logs.map((log) => (
-                    <LogRow
-                      editAction={
-                        <LazyEditLogButton
-                          log={toEditableLog(log)}
-                          trigger={
+                          <LogRow
+                            editAction={
+                              <LazyEditLogButton
+                                log={toEditableLog(log)}
+                                trigger={
                             <button
                               aria-label="Edit battle log"
                               className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--color-brand)]"
@@ -562,16 +564,17 @@ export function LogsManager({
                               <PencilIcon className="h-4 w-4" />
                             </button>
                           }
-                          userDecks={userDecks}
-                        />
-                      }
-                      key={log.id}
-                      log={log}
-                      managementMode={managementModeActive}
-                      onDelete={() => handleDeleteSingle(log.id)}
-                      onToggleSelected={() => toggleSelectedLog(log.id)}
-                      selected={selectedLogIdSet.has(log.id)}
-                    />
+                                userDecks={userDecks}
+                              />
+                            }
+                            key={log.id}
+                            log={log}
+                            managementMode={managementModeActive}
+                            onDelete={() => handleDeleteSingle(log.id)}
+                            onToggleSelected={() => toggleSelectedLog(log.id)}
+                            pokemonOptions={pokemonOptions}
+                            selected={selectedLogIdSet.has(log.id)}
+                          />
                   ))}
                 </div>
               ) : null}

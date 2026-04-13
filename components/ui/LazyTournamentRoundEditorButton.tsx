@@ -4,6 +4,7 @@ import { cloneElement, isValidElement, type ReactElement } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TournamentRoundEditorDialog } from "@/components/ui/TournamentRoundEditorDialog";
+import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { PokemonOption, TournamentRound } from "@/types/index";
 
 type LazyTournamentRoundEditorButtonProps = {
@@ -13,10 +14,6 @@ type LazyTournamentRoundEditorButtonProps = {
   trigger?: ReactElement<{ onClick?: () => void }>;
   triggerLabel: string;
   triggerVariant?: "primary" | "secondary" | "ghost";
-};
-
-type PokemonOptionsResponse = {
-  pokemonOptions?: PokemonOption[];
 };
 
 export function LazyTournamentRoundEditorButton({
@@ -42,17 +39,7 @@ export function LazyTournamentRoundEditorButton({
     setLoadError("");
 
     try {
-      const response = await fetch("/api/pokemon-options", {
-        credentials: "same-origin",
-        cache: "no-store"
-      });
-
-      if (!response.ok) {
-        throw new Error("Could not load Pokemon options.");
-      }
-
-      const payload = (await response.json()) as PokemonOptionsResponse;
-      setPokemonOptions(Array.isArray(payload.pokemonOptions) ? payload.pokemonOptions : []);
+      setPokemonOptions(await loadPokemonOptions());
       setMountDialogOpen(true);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Could not load Pokemon options.");

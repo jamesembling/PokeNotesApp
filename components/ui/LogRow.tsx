@@ -6,7 +6,7 @@ import { TrashIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import { formatDayDate } from "@/lib/client/date-format";
-import type { BattleLogSummary } from "@/types/index";
+import type { BattleLogSummary, PokemonOption } from "@/types/index";
 
 type LogRowProps = {
   editAction?: ReactNode;
@@ -14,6 +14,7 @@ type LogRowProps = {
   managementMode?: boolean;
   onDelete?: () => void;
   onToggleSelected?: () => void;
+  pokemonOptions?: PokemonOption[] | null;
   selected?: boolean;
 };
 
@@ -40,6 +41,7 @@ function LogRowComponent({
   managementMode = false,
   onDelete,
   onToggleSelected,
+  pokemonOptions,
   selected = false
 }: LogRowProps) {
   const rowClasses =
@@ -66,11 +68,22 @@ function LogRowComponent({
   const content = (
     <>
       <div className="flex min-w-0 items-center justify-start sm:hidden">
-        <SpriteStrip className="-space-x-1 gap-0" maxVisible={2} size="xs" sprites={selfSprites} />
+        <SpriteStrip
+          className="-space-x-1 gap-0"
+          maxVisible={2}
+          pokemonOptions={pokemonOptions}
+          size="xs"
+          sprites={selfSprites}
+        />
       </div>
 
       <div className="hidden min-w-0 items-center justify-start sm:flex">
-        <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={selfSprites} />
+        <SpriteStrip
+          className="-space-x-2 gap-0"
+          pokemonOptions={pokemonOptions}
+          size="lg"
+          sprites={selfSprites}
+        />
       </div>
 
       <div className="min-w-0 text-center sm:text-left">
@@ -94,13 +107,19 @@ function LogRowComponent({
         <SpriteStrip
           className="-space-x-1 gap-0"
           maxVisible={2}
+          pokemonOptions={pokemonOptions}
           size="xs"
           sprites={log.opponentDeckSprites}
         />
       </div>
 
       <div className="hidden min-w-0 items-center justify-end sm:flex">
-        <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={log.opponentDeckSprites} />
+        <SpriteStrip
+          className="-space-x-2 gap-0"
+          pokemonOptions={pokemonOptions}
+          size="lg"
+          sprites={log.opponentDeckSprites}
+        />
       </div>
     </>
   );

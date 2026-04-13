@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState
-} from "react";
+import { createContext, useContext } from "react";
 import type { SiteFormatsCatalog } from "@/lib/formats/catalog";
 
 type SiteFormatsContextValue = SiteFormatsCatalog;
@@ -20,37 +14,11 @@ export function SiteFormatsProvider({
   children: React.ReactNode;
   initialSiteFormats: SiteFormatsCatalog;
 }) {
-  const [siteFormats, setSiteFormats] = useState<SiteFormatsCatalog>(initialSiteFormats);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function refreshSiteFormats() {
-      try {
-        const response = await fetch("/api/site-formats", { cache: "no-store" });
-        if (!response.ok) {
-          return;
-        }
-
-        const nextSiteFormats = (await response.json()) as SiteFormatsCatalog;
-        if (cancelled) {
-          return;
-        }
-
-        setSiteFormats(nextSiteFormats);
-      } catch {}
-    }
-
-    void refreshSiteFormats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const value = useMemo(() => siteFormats, [siteFormats]);
-
-  return <SiteFormatsContext.Provider value={value}>{children}</SiteFormatsContext.Provider>;
+  return (
+    <SiteFormatsContext.Provider value={initialSiteFormats}>
+      {children}
+    </SiteFormatsContext.Provider>
+  );
 }
 
 export function useSiteFormats() {

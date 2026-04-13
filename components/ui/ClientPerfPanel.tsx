@@ -17,7 +17,6 @@ type PerfSnapshot = {
   lastLongTaskStartedAt: number | null;
   lcp: number | null;
   navigationType: string | null;
-  renderCount: number;
   totalBlockingTimeEstimate: number;
 };
 
@@ -48,7 +47,6 @@ export function ClientPerfPanel({
     lastLongTaskStartedAt: null,
     lcp: null,
     navigationType: null,
-    renderCount: 0,
     totalBlockingTimeEstimate: 0
   });
 
@@ -95,8 +93,7 @@ export function ClientPerfPanel({
       hardwareConcurrency: navigator.hardwareConcurrency ?? null,
       deviceMemory:
         typeof typedNavigator.deviceMemory === "number" ? typedNavigator.deviceMemory : null,
-      navigationType: nav?.type ?? null,
-      renderCount: renderCountRef.current
+      navigationType: nav?.type ?? null
     }));
 
     let lcpObserver: PerformanceObserver | null = null;
@@ -147,17 +144,6 @@ export function ClientPerfPanel({
     };
   }, [perfEnabled]);
 
-  useEffect(() => {
-    if (!perfEnabled) {
-      return;
-    }
-
-    setSnapshot((current) => ({
-      ...current,
-      renderCount: renderCountRef.current
-    }));
-  });
-
   if (!snapshot.enabled) {
     return null;
   }
@@ -173,7 +159,7 @@ export function ClientPerfPanel({
         </div>
         <div className="text-right text-xs text-[var(--text-muted)]">
           <p>Nav: {snapshot.navigationType ?? "n/a"}</p>
-          <p>Renders: {snapshot.renderCount}</p>
+          <p>Renders: {renderCountRef.current}</p>
         </div>
       </div>
 
