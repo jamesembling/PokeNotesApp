@@ -1,8 +1,10 @@
 import { cache } from "react";
+import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
+import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import {
-  hasCanonicalDeckListVisualGrouping,
-  sortDeckListCardsLocally
-} from "@/lib/deck-lists/local-sort";
+  CANONICAL_DECK_LIST_SORT_VERSION,
+  shouldRebuildDeckListVisualSort
+} from "@/lib/deck-lists/version";
 import { createClient } from "@/lib/supabase/server";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
@@ -207,6 +209,12 @@ function parseDeckList(value: unknown): DeckList | null {
           : "",
     parsedCards,
     sortedCards,
+    sortedCardsVersion:
+      typeof candidate.sortedCardsVersion === "number"
+        ? candidate.sortedCardsVersion
+        : typeof candidate.sorted_cards_version === "number"
+          ? candidate.sorted_cards_version
+          : undefined,
     createdAt:
       typeof candidate.createdAt === "string"
         ? candidate.createdAt
@@ -234,14 +242,36 @@ function parseDeckLists(value: unknown): DeckList[] {
 
 function getReadSortedDeckCards(parsedCards: DeckCard[], storedSortedCards: DeckCard[]) {
   if (storedSortedCards.length > 0) {
-    if (hasCanonicalDeckListVisualGrouping(storedSortedCards)) {
-      return storedSortedCards;
-    }
-
     return sortDeckListCardsLocally(storedSortedCards);
   }
 
   return sortDeckListCardsLocally(parsedCards);
+}
+
+async function hydrateDeckListVisualOrder(deckList: DeckList): Promise<DeckList> {
+  if (!shouldRebuildDeckListVisualSort(deckList) && deckList.sortedCards.length > 0) {
+    return deckList;
+  }
+
+  if (deckList.parsedCards.length === 0) {
+    return {
+      ...deckList,
+      sortedCards: getReadSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
+    };
+  }
+
+  try {
+    return {
+      ...deckList,
+      sortedCards: await sortDeckListCards(deckList.parsedCards),
+      sortedCardsVersion: CANONICAL_DECK_LIST_SORT_VERSION
+    };
+  } catch {
+    return {
+      ...deckList,
+      sortedCards: getReadSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
+    };
+  }
 }
 
 function stripDeckListCards(deckList: DeckList): DeckList {
@@ -503,10 +533,7 @@ export async function getDeckWithList(
   }
 
   const row = (data as unknown) as DeckListLookupRow;
-  const deckLists = parseDeckLists(row.deck_lists).map((deckList) => ({
-    ...deckList,
-    sortedCards: getReadSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
-  }));
+  const deckLists = await Promise.all(parseDeckLists(row.deck_lists).map(hydrateDeckListVisualOrder));
   const deckList = deckLists.find((entry) => entry.id === listId);
 
   if (!deckList) {

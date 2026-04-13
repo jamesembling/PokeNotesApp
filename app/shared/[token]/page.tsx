@@ -124,11 +124,11 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
   );
   const expiryLabel = formatExpiry(sharedLog.expiresAt);
   const linkedDeckListSortedCards =
-    sharedLog.payload.linkedDeckListSortedCards &&
-    sharedLog.payload.linkedDeckListSortedCards.length > 0
-      ? sharedLog.payload.linkedDeckListSortedCards
-      : sharedLog.payload.linkedDeckListRawList?.trim()
-        ? await sortDeckListCards(parseDeckList(sharedLog.payload.linkedDeckListRawList))
+    sharedLog.payload.linkedDeckListRawList?.trim()
+      ? await sortDeckListCards(parseDeckList(sharedLog.payload.linkedDeckListRawList))
+      : sharedLog.payload.linkedDeckListSortedCards &&
+          sharedLog.payload.linkedDeckListSortedCards.length > 0
+        ? sharedLog.payload.linkedDeckListSortedCards
         : [];
 
   return (

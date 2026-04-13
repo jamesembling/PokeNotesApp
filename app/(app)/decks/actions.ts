@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
+import { CANONICAL_DECK_LIST_SORT_VERSION } from "@/lib/deck-lists/version";
 import { parseDeckList, parseLines } from "@/lib/decks/deck-list-parse";
 import { getDefaultSyncedSiteFormat } from "@/lib/formats/catalog";
 import { createClient } from "@/lib/supabase/server";
@@ -292,6 +293,7 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
     rawList,
     parsedCards,
     sortedCards,
+    sortedCardsVersion: CANONICAL_DECK_LIST_SORT_VERSION,
     createdAt:
       String(formData.get("createdAt") || "").trim() ||
       (deckListId
