@@ -184,7 +184,6 @@ function SpriteSearchSlot({
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingSearch, setIsEditingSearch] = useState(false);
   const [query, setQuery] = useState("");
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const slotOptions = useMemo(
     () => buildOptionsForSlot(currentSlug, sprites, pokemonOptions),
@@ -252,34 +251,10 @@ function SpriteSearchSlot({
     inputRef.current?.select();
   }, [isEditingSearch]);
 
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target as Node;
-      const clickedTrigger = containerRef.current?.contains(target);
-
-      if (clickedTrigger) {
-        return;
-      }
-
-      if (isEditingSearch) {
-        closeSearchEditor();
-        return;
-      }
-
-      setIsOpen(false);
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isEditingSearch]);
-
   return (
     <div
       className={`relative grid min-w-0 gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${isEditingSearch ? "z-30" : ""}`}
       key={`${title}-${index}`}
-      ref={containerRef}
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <button
@@ -319,69 +294,83 @@ function SpriteSearchSlot({
         ) : null}
       </div>
       {isEditingSearch ? (
-        <div className="grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-sm)]">
-          <div className="flex min-w-0 items-center gap-2">
-            <input
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 md:text-sm"
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setIsOpen(true);
-              }}
-              onFocus={() => setIsOpen(true)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  if (commitQuerySelection(filteredOptions[0]?.slug)) {
-                    event.preventDefault();
-                    return;
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-[var(--bg-overlay)]/70 p-3 sm:items-center"
+          onClick={closeSearchEditor}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <div
+            className="grid w-full max-w-xl gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)]"
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <input
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 md:text-sm"
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setIsOpen(true);
+                }}
+                onFocus={() => setIsOpen(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    if (commitQuerySelection(filteredOptions[0]?.slug)) {
+                      event.preventDefault();
+                      return;
+                    }
                   }
-                }
 
-                if (event.key === "Escape") {
-                  closeSearchEditor();
-                }
-              }}
-              placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
-              ref={inputRef}
-              spellCheck={false}
-              value={query}
-            />
-            <button
-              aria-label="Close Pokemon search"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
-              onClick={closeSearchEditor}
-              type="button"
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          </div>
-
-          {isOpen && normalizeSearchValue(query) ? (
-            <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)]">
-              {filteredOptions.length > 0 ? (
-                <div className="max-h-72 touch-pan-y overflow-y-auto py-2">
-                  {filteredOptions.map((option) => (
-                    <button
-                      className="flex w-full touch-manipulation items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface)]"
-                      key={option.slug}
-                      onClick={() => {
-                        commitQuerySelection(option.slug);
-                      }}
-                      type="button"
-                    >
-                      <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
-                      <span className="min-w-0 truncate text-base font-medium text-[var(--text-primary)] md:text-sm">
-                        {option.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="px-4 py-3 text-base text-[var(--text-muted)] md:text-sm">
-                  No Pokemon found for &quot;{query}&quot;
-                </div>
-              )}
+                  if (event.key === "Escape") {
+                    closeSearchEditor();
+                  }
+                }}
+                placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
+                ref={inputRef}
+                spellCheck={false}
+                value={query}
+              />
+              <button
+                aria-label="Close Pokemon search"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
+                onClick={closeSearchEditor}
+                type="button"
+              >
+                <CloseIcon className="h-4 w-4" />
+              </button>
             </div>
-          ) : null}
+
+            {isOpen && normalizeSearchValue(query) ? (
+              <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)]">
+                {filteredOptions.length > 0 ? (
+                  <div className="max-h-[min(24rem,60vh)] touch-pan-y overflow-y-auto py-2">
+                    {filteredOptions.map((option) => (
+                      <button
+                        className="flex w-full touch-manipulation items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface)]"
+                        key={option.slug}
+                        onClick={() => {
+                          commitQuerySelection(option.slug);
+                        }}
+                        type="button"
+                      >
+                        <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
+                        <span className="min-w-0 truncate text-base font-medium text-[var(--text-primary)] md:text-sm">
+                          {option.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 text-base text-[var(--text-muted)] md:text-sm">
+                    No Pokemon found for &quot;{query}&quot;
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="px-1 text-sm text-[var(--text-muted)]">
+                Start typing to search the Pokemon list.
+              </p>
+            )}
+          </div>
         </div>
       ) : null}
     </div>
