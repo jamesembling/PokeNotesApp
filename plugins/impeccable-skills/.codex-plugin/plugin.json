@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Impeccable Skills",
     "shortDescription": "Design and UX fluency skills for Codex",
-    "longDescription": "A Codex plugin packaging the Impeccable skill bundle, including design critique, typography, frontend design, polishing, clarification, and related workflow skills.",
+    "longDescription": "A Codex plugin packaging the updated Impeccable skill bundle, including i-impeccable, i-shape, i-layout, critique, typography, polishing, clarification, and related design workflow skills.",
     "developerName": "Impeccable",
     "category": "Productivity",
     "capabilities": [
@@ -33,9 +33,9 @@
     "privacyPolicyURL": "[TODO: privacy-policy-url]",
     "termsOfServiceURL": "[TODO: terms-of-service-url]",
     "defaultPrompt": [
-      "Use i-frontend-design to improve this interface.",
-      "Review this screen with i-critique and suggest fixes.",
-      "Polish this copy and layout with the Impeccable skills."
+      "Use i-impeccable craft to improve this interface.",
+      "Shape this feature with i-shape before we build it.",
+      "Review this screen with i-critique and suggest fixes."
     ],
     "brandColor": "#111111"
   }

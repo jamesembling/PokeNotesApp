@@ -1,7 +1,16 @@
 # Impeccable Skills
 
-This plugin packages the Codex-ready portion of the Impeccable skill bundle from [`/Users/jamesembling/Documents/Codex/workspaces/PokeNotesV2/SKILLS`](/Users/jamesembling/Documents/Codex/workspaces/PokeNotesV2/SKILLS).
+Impeccable — Design fluency for AI harnesses  
+[https://impeccable.style](https://impeccable.style)
 
-The bundled skills live in [`/Users/jamesembling/Documents/Codex/workspaces/PokeNotesV2/plugins/impeccable-skills/skills`](/Users/jamesembling/Documents/Codex/workspaces/PokeNotesV2/plugins/impeccable-skills/skills) and are sourced from `SKILLS/.codex/skills`.
+This plugin packages the updated Impeccable bundle for your Codex workspace.
 
-Update the placeholder metadata in [`/Users/jamesembling/Documents/Codex/workspaces/PokeNotesV2/plugins/impeccable-skills/.codex-plugin/plugin.json`](/Users/jamesembling/Documents/Codex/workspaces/PokeNotesV2/plugins/impeccable-skills/.codex-plugin/plugin.json) if you want to publish or share the plugin beyond this workspace.
+Skills in this bundle are prefixed with `i-` to avoid conflicts.
+
+Included sources:
+
+- `.codex/` for Codex-oriented upstream skill files
+- `.agents/` for agent-oriented upstream skill files
+- `skills/` as the active Codex plugin skill directory, synced from `.codex/skills`
+
+Notable updates in this refresh include the newer `i-impeccable`, `i-layout`, and `i-shape` skills, replacing older naming such as `i-frontend-design`, `i-arrange`, and `i-teach-impeccable`.
