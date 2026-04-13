@@ -36,7 +36,7 @@ function mapClaimsToUser(claims: Record<string, unknown>): AuthenticatedUser | n
 }
 
 export const getCurrentUser = cache(async (): Promise<AuthenticatedUser | null> => {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await measureServerCall("auth.getClaims", () =>
     supabase.auth.getClaims()
   );

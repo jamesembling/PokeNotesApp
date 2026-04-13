@@ -10,20 +10,21 @@ import { requireUser } from "@/lib/auth";
 import { getDeckWithList } from "@/lib/db/decks";
 
 type DeckListPageProps = {
-  params: {
+  params: Promise<{
     id: string;
     listId: string;
-  };
+  }>;
 };
 
 export default async function DeckListPage({ params }: DeckListPageProps) {
   const user = await requireUser();
+  const { id, listId } = await params;
   const defaultCreatedBy =
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||
     user.email?.split("@")[0] ||
     "Trainer";
-  const result = await getDeckWithList(user.id, params.id, params.listId);
+  const result = await getDeckWithList(user.id, id, listId);
 
   if (!result) {
     return (
@@ -45,7 +46,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
             </p>
             <Link
               className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
-              href={`/decks/${params.id}`}
+              href={`/decks/${id}`}
             >
               Back to Deck
             </Link>
@@ -64,21 +65,21 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
           { label: "Deck Strategy", href: "/decks" },
-          { label: deckName, href: `/decks/${params.id}` },
+          { label: deckName, href: `/decks/${id}` },
           { label: deckList.name }
         ]}
         title={deckList.name}
         action={
           <div className="flex flex-wrap gap-3">
             <DeckListEditorDialog
-              deckId={params.id}
+              deckId={id}
               deckList={deckList}
               defaultCreatedBy={defaultCreatedBy}
               defaultFormat={deckList.format}
               triggerLabel="Edit List"
               triggerVariant="secondary"
             />
-            <Link href={`/decks/${params.id}`}>
+            <Link href={`/decks/${id}`}>
               <Button variant="secondary">Back to Deck</Button>
             </Link>
           </div>

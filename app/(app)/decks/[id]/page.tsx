@@ -20,9 +20,9 @@ import { getAllLogsForDeck } from "@/lib/db/logs";
 import type { Deck } from "@/types/index";
 
 type DeckDetailPageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 function formatDate(date: string) {
@@ -111,8 +111,9 @@ function MatchupPlaceholderTile({
 
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const user = await requireUser();
+  const { id } = await params;
   const [deck, userDecks] = await Promise.all([
-    getDeckById(user.id, params.id),
+    getDeckById(user.id, id),
     getDecks(user.id)
   ]);
   const defaultCreatedBy =

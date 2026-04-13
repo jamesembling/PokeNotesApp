@@ -15,7 +15,7 @@ export default async function AdminLayout({
 }>) {
   const user = await requireUser();
   const currentProfile = await getCurrentProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: roleProfile } = await supabase
     .from("profiles")

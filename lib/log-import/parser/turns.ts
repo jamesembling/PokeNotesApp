@@ -141,7 +141,7 @@ export function divideIntoSections({
   const sections: LogSection[] = [];
   let currentTitle = LANGUAGE_STRINGS[language].setup;
   let currentBody: string[] = [];
-  let prizes = Object.fromEntries(playerNames.map((player) => [player, 6]));
+  const prizes = Object.fromEntries(playerNames.map((player) => [player, 6]));
 
   const pushCurrentSection = () => {
     if (!currentTitle || currentBody.length === 0) {

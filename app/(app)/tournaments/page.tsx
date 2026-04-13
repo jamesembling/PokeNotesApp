@@ -13,6 +13,7 @@ import type { DeckSummary, TournamentSummary } from "@/types/index";
 
 export default async function TournamentsPage() {
   const user = await requireUser();
+  const showSchemaNotice = process.env.NODE_ENV !== "production";
   let tournaments: TournamentSummary[] = [];
   let decks: DeckSummary[] = [];
   let schemaMissing = false;
@@ -46,8 +47,21 @@ export default async function TournamentsPage() {
         )}
       />
 
-      {schemaMissing ? (
+      {schemaMissing && showSchemaNotice ? (
         <TournamentSchemaNotice />
+      ) : schemaMissing ? (
+        <Card>
+          <div className="flex flex-col gap-3">
+            <p className="ui-eyebrow">Tournaments Unavailable</p>
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              Tournament tracking is temporarily unavailable
+            </h2>
+            <p className="text-sm leading-6 text-[var(--text-secondary)]">
+              We could not load tournament data right now. Please try again later or contact the
+              app owner if this keeps happening.
+            </p>
+          </div>
+        </Card>
       ) : tournaments.length === 0 ? (
         <Card>
           <div className="flex flex-col gap-3">

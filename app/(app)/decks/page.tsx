@@ -3,27 +3,26 @@ import { DeckCard } from "@/components/ui/DeckCard";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
-import { getBattleLogSummaryStats, getAllLogsForDeck } from "@/lib/db/logs";
+import { getAllLogsByDeck, getBattleLogSummaryStats } from "@/lib/db/logs";
 import { getDecks } from "@/lib/db/decks";
 
 export default async function DecksPage() {
   const user = await requireUser();
   const decks = await getDecks(user.id);
-  const deckCardData = await Promise.all(
-    decks.map(async (deck) => {
-      const stats = getBattleLogSummaryStats(await getAllLogsForDeck(user.id, deck.id, decks));
-      const winRate = stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0;
+  const logsByDeck = await getAllLogsByDeck(user.id, decks);
+  const deckCardData = decks.map((deck) => {
+    const stats = getBattleLogSummaryStats(logsByDeck.get(deck.id) ?? []);
+    const winRate = stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0;
 
-      return {
-        deck,
-        gamesPlayed: stats.total,
-        deckListCount: deck.deckLists.length,
-        losses: stats.losses,
-        winRate: stats.total > 0 ? winRate : null,
-        winRateLabel: stats.total > 0 ? `${winRate}% (${stats.wins}-${stats.losses})` : "No logs yet"
-      };
-    })
-  );
+    return {
+      deck,
+      gamesPlayed: stats.total,
+      deckListCount: deck.deckLists.length,
+      losses: stats.losses,
+      winRate: stats.total > 0 ? winRate : null,
+      winRateLabel: stats.total > 0 ? `${winRate}% (${stats.wins}-${stats.losses})` : "No logs yet"
+    };
+  });
   const trackedDecksCount = deckCardData.filter(({ gamesPlayed }) => gamesPlayed > 0).length;
   const averageWinRate =
     trackedDecksCount > 0

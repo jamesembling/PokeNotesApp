@@ -125,7 +125,7 @@ function getUniqueBestCandidate(
 }
 
 export async function getDeckLinkCandidates(userId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("decks")
     .select("id,deck_name,deck_pokemon")

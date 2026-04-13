@@ -140,7 +140,7 @@ async function resolveDeckSnapshot(userId: string, linkedDeckId: string) {
     return null;
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("decks")
     .select("id,deck_name,deck_pokemon,deck_lists")
@@ -177,7 +177,7 @@ async function resolveTournamentRoundNumber(params: {
   tournamentId: string;
   userId: string;
 }) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   if (params.roundId) {
     const { data, error } = await supabase
@@ -217,7 +217,7 @@ async function resolveTournamentRoundNumber(params: {
 
 export async function createTournamentAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
   const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
   const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
@@ -288,7 +288,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
 
 export async function updateTournamentAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const tournamentId = String(formData.get("tournamentId") || "").trim();
   const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
   const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
@@ -364,7 +364,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
 
 export async function deleteTournamentAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const tournamentId = String(formData.get("tournamentId") || "").trim();
 
   if (!tournamentId) {
@@ -391,7 +391,7 @@ export async function deleteTournamentAction(formData: FormData): Promise<SaveAc
 
 export async function saveTournamentRoundAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const tournamentId = String(formData.get("tournamentId") || "").trim();
   const roundId = String(formData.get("roundId") || "").trim();
   const opponentDeckSprites = parseSpriteArray(formData.getAll("opponentDeckSprites"));
@@ -446,7 +446,7 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
 
 export async function deleteTournamentRoundAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const tournamentId = String(formData.get("tournamentId") || "").trim();
   const roundId = String(formData.get("roundId") || "").trim();
 

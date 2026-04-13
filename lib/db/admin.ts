@@ -105,7 +105,7 @@ function mapAdminUser(
 
 async function requireAdminAccess() {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
     .select("role")
@@ -183,7 +183,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
     };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
     .select(
@@ -226,7 +226,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
 export async function getCatalogHealth(): Promise<CatalogHealth> {
   await requireAdminAccess();
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const [
     pokemonCountResult,
     archetypeCountResult,

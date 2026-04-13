@@ -13,7 +13,7 @@ function getSupabaseEnv() {
   return { supabaseUrl, supabaseAnonKey };
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
 
   const requestPath = request.nextUrl.pathname;
@@ -49,7 +49,7 @@ export async function middleware(request: NextRequest) {
           });
         }
 
-        logAuthDebug("middleware.setAll", {
+        logAuthDebug("proxy.setAll", {
           path: requestPath,
           cookieNames: cookiesToSet.map(({ name }) => name)
         });
@@ -59,7 +59,7 @@ export async function middleware(request: NextRequest) {
 
   const { data, error } = await supabase.auth.getUser();
 
-  logAuthDebug("middleware.getUser", {
+  logAuthDebug("proxy.getUser", {
     path: requestPath,
     hasUser: Boolean(data.user),
     error: error?.message ?? null,
@@ -76,5 +76,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"]
+  matcher: [
+    "/logs/:path*",
+    "/decks/:path*",
+    "/tournaments/:path*",
+    "/profile/:path*",
+    "/stats/:path*",
+    "/admin/:path*"
+  ]
 };

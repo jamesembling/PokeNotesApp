@@ -56,7 +56,7 @@ function joinSprites(slugs: string[]) {
 
 async function getImportContext() {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("ptcgl_username")
@@ -282,7 +282,7 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
 
 export async function updateLogAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const logId = String(formData.get("logId") || "").trim();
 
   if (!logId) {
@@ -325,7 +325,7 @@ export async function bulkAssignDeckListAction(input: {
   linkedDeckListId: string;
 }): Promise<void> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const logIds = Array.from(
     new Set(
       (input.logIds ?? [])
@@ -377,7 +377,7 @@ export async function loadMoreLogsAction(windowEndDate?: string) {
 
 export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const logIds = Array.from(
     new Set(
       (logIdsInput ?? [])
@@ -459,7 +459,7 @@ export async function createLogShareAction(logId: string): Promise<{ shareUrl: s
     linkedDeckListSortedCards: hydratedLinkedDeckList?.deckList.sortedCards ?? []
   });
 
-  const requestHeaders = headers();
+  const requestHeaders = await headers();
   const origin = requestHeaders.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
   const shareUrl = `${origin.replace(/\/$/, "")}/shared/${token}`;
 

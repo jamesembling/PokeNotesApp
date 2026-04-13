@@ -103,11 +103,11 @@ function ChevronIcon() {
   );
 }
 
-function renderIndentedLine(text: string, level = 1) {
+function renderIndentedLine(text: string, level = 1, keyValue?: string) {
   return (
     <div
       className={level === 1 ? "pl-5" : "ml-6 border-l border-[var(--border)] pl-6"}
-      key={`${level}-${text}`}
+      key={keyValue}
     >
       <p className="m-0 flex items-start gap-3">
         <span className="text-[var(--text-muted)]">{level === 1 ? "•" : "◦"}</span>
@@ -120,8 +120,9 @@ function renderIndentedLine(text: string, level = 1) {
 function renderBattleLogActionDetails(details: string[]) {
   const chunks: ReactNode[] = [];
   let bullets: string[] = [];
+  let chunkIndex = 0;
 
-  function renderNestedBulletGroup(items: string[]) {
+  function renderNestedBulletGroup(items: string[], groupIndex: number) {
     if (!items.length) {
       return null;
     }
@@ -133,16 +134,22 @@ function renderBattleLogActionDetails(details: string[]) {
 
     if (supportsNestedCards && rest.length > 0) {
       return (
-        <div className="grid gap-2" key={`group-${first}`}>
+        <div className="grid gap-2" key={`group-${groupIndex}`}>
           {renderIndentedLine(first, 1)}
-          <div className="grid gap-1">{rest.map((item) => renderIndentedLine(item, 2))}</div>
+          <div className="grid gap-1">
+            {rest.map((item, index) =>
+              renderIndentedLine(item, 2, `group-${groupIndex}-nested-${index}`)
+            )}
+          </div>
         </div>
       );
     }
 
     return (
-      <div className="grid gap-2" key={`group-${first}`}>
-        {items.map((item) => renderIndentedLine(item, 1))}
+      <div className="grid gap-2" key={`group-${groupIndex}`}>
+        {items.map((item, index) =>
+          renderIndentedLine(item, 1, `group-${groupIndex}-item-${index}`)
+        )}
       </div>
     );
   }
@@ -152,7 +159,8 @@ function renderBattleLogActionDetails(details: string[]) {
       return;
     }
 
-    chunks.push(renderNestedBulletGroup(bullets));
+    chunks.push(renderNestedBulletGroup(bullets, chunkIndex));
+    chunkIndex += 1;
     bullets = [];
   }
 
@@ -170,10 +178,11 @@ function renderBattleLogActionDetails(details: string[]) {
 
     flushBullets();
     chunks.push(
-      <p className="m-0" key={value}>
+      <p className="m-0" key={`detail-${chunkIndex}`}>
         {value}
       </p>
     );
+    chunkIndex += 1;
   });
 
   flushBullets();

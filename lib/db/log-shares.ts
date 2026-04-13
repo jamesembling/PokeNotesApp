@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 type LogShareRow = {
   id: string;
   payload: unknown;
+  expires_at: string;
   created_at: string;
 };
 
@@ -22,6 +23,7 @@ export type BattleLogSharePayload = {
 export type SharedBattleLogSnapshot = {
   id: string;
   createdAt: string;
+  expiresAt: string;
   payload: BattleLogSharePayload;
 };
 
@@ -53,7 +55,7 @@ export async function createLogShareSnapshot(input: {
   linkedDeckListRawList?: string;
   linkedDeckListSortedCards?: DeckCard[];
 }): Promise<string> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const payload: BattleLogSharePayload = {
     version: "v1",
     log: input.log,
@@ -70,6 +72,7 @@ export async function createLogShareSnapshot(input: {
     const { error } = await supabase.from("log_shares").insert({
       id: token,
       owner_user_id: input.ownerUserId,
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       payload
     });
 
@@ -88,10 +91,10 @@ export async function createLogShareSnapshot(input: {
 export async function getSharedLogSnapshot(
   token: string
 ): Promise<SharedBattleLogSnapshot | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("log_shares")
-    .select("id,payload,created_at")
+    .select("id,payload,expires_at,created_at")
     .eq("id", token)
     .maybeSingle();
 
@@ -104,9 +107,14 @@ export async function getSharedLogSnapshot(
     return null;
   }
 
+  if (Date.parse(row.expires_at) <= Date.now()) {
+    return null;
+  }
+
   return {
     id: row.id,
     createdAt: row.created_at,
+    expiresAt: row.expires_at,
     payload: row.payload
   };
 }

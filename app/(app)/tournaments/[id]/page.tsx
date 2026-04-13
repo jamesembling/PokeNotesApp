@@ -22,21 +22,22 @@ import { formatTournamentDateRange, getTournamentRecord } from "@/lib/tournament
 import { getTournamentCategoryLabel, getTournamentPlacementLabel } from "@/lib/tournaments/options";
 
 type TournamentDetailPageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export default async function TournamentDetailPage({ params }: TournamentDetailPageProps) {
   const user = await requireUser();
+  const { id } = await params;
   let tournament = null;
   let rounds = [];
   let decks = [];
 
   try {
     [tournament, rounds, decks] = await Promise.all([
-      getTournamentById(user.id, params.id),
-      getTournamentRounds(user.id, params.id),
+      getTournamentById(user.id, id),
+      getTournamentRounds(user.id, id),
       getTournamentDeckChoices(user.id)
     ]);
   } catch (error) {

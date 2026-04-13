@@ -34,6 +34,19 @@ export type LogStatsOverview = {
   trackedPrizes: number;
 };
 
+type LogStatsOverviewRpcRow = {
+  games_played: number | null;
+  games_won: number | null;
+  games_lost: number | null;
+  attack_damage: number | null;
+  opponent_attack_damage: number | null;
+  coin_flips_won: number | null;
+  mulligans_taken: number | null;
+  prizes_taken: number | null;
+  tracked_damage: number | null;
+  tracked_prizes: number | null;
+};
+
 type LogsTableRow = {
   id: string;
   date: string;
@@ -190,7 +203,7 @@ function shiftDateString(date: string, dayOffset: number) {
 }
 
 export async function getLogSummaryStats(userId: string): Promise<LogSummaryStats> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const [total, wins, losses] = await measureServerCall("db.logs.summaryStats", async () => {
     const [{ count: totalCount, error: totalError }, { count: winsCount, error: winsError }, { count: lossesCount, error: lossesError }] =
       await Promise.all([
@@ -230,29 +243,56 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
 }
 
 export async function getLogStatsOverview(userId: string): Promise<LogStatsOverview> {
-  const supabase = createClient();
-  const { data, error } = await measureServerCall("db.logs.statsOverview", async () =>
-    await supabase
-      .from("logs")
-      .select(
-        [
-          "result",
-          "coin_toss_won",
-          "self_prizes_taken",
-          "opponent_prizes_taken",
-          "self_attack_damage",
-          "opponent_attack_damage",
-          "self_mulligans"
-        ].join(",")
-      )
-      .eq("user_id", userId)
+  const supabase = await createClient();
+  const { data, error } = await measureServerCall("db.logs.statsOverviewRpc", async () =>
+    await supabase.rpc("get_log_stats_overview")
   );
 
-  if (error) {
-    throw error;
+  if (!error) {
+    const row = Array.isArray(data)
+      ? (((data[0] ?? null) as unknown) as LogStatsOverviewRpcRow | null)
+      : (((data ?? null) as unknown) as LogStatsOverviewRpcRow | null);
+
+    if (row) {
+      return {
+        gamesPlayed: Number(row.games_played ?? 0),
+        gamesWon: Number(row.games_won ?? 0),
+        gamesLost: Number(row.games_lost ?? 0),
+        attackDamage: Number(row.attack_damage ?? 0),
+        opponentAttackDamage: Number(row.opponent_attack_damage ?? 0),
+        coinFlipsWon: Number(row.coin_flips_won ?? 0),
+        mulligansTaken: Number(row.mulligans_taken ?? 0),
+        prizesTaken: Number(row.prizes_taken ?? 0),
+        trackedDamage: Number(row.tracked_damage ?? 0),
+        trackedPrizes: Number(row.tracked_prizes ?? 0)
+      };
+    }
   }
 
-  return (((data ?? []) as unknown) as StatsOverviewRow[]).reduce<LogStatsOverview>(
+  const { data: fallbackData, error: fallbackError } = await measureServerCall(
+    "db.logs.statsOverviewFallback",
+    async () =>
+      await supabase
+        .from("logs")
+        .select(
+          [
+            "result",
+            "coin_toss_won",
+            "self_prizes_taken",
+            "opponent_prizes_taken",
+            "self_attack_damage",
+            "opponent_attack_damage",
+            "self_mulligans"
+          ].join(",")
+        )
+        .eq("user_id", userId)
+  );
+
+  if (fallbackError) {
+    throw fallbackError;
+  }
+
+  return (((fallbackData ?? []) as unknown) as StatsOverviewRow[]).reduce<LogStatsOverview>(
     (totals, row) => {
       totals.gamesPlayed += 1;
 
@@ -299,7 +339,7 @@ export async function getLogsWindow(
     windowEndDate?: string;
   }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const windowDays = normalizeWindowDays(options?.windowDays);
   const windowEndDate = normalizeDateString(options?.windowEndDate);
   const windowStartDate = shiftDateString(windowEndDate, -(windowDays - 1));
@@ -366,7 +406,7 @@ export async function getLogsWindow(
 }
 
 export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const pageSize = Math.max(1, limit);
 
   let query = supabase
@@ -422,7 +462,7 @@ export async function getLogById(
   userId: string,
   logId: string
 ): Promise<BattleLog | null> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await measureServerCall("db.logs.byId", async () =>
     await supabase
@@ -454,6 +494,7 @@ export async function getLogById(
           "linked_deck_id",
           "linked_deck_list_id",
           "reason",
+          "raw_log",
           "sections",
           "imported_at",
           "created_at",
@@ -476,30 +517,22 @@ export async function getLogById(
   return mapBattleLog((data as unknown) as LogDetailTableRow);
 }
 
-export async function getLogsForDeck(
+async function getLogsIndexedByDeck(
   userId: string,
-  deckId: string,
   decks: DeckSummary[],
-  limit = 10
-): Promise<BattleLogSummary[]> {
-  const logs = await getAllLogsForDeck(userId, deckId, decks);
-  return logs.slice(0, Math.max(1, limit));
-}
+  targetDeckIdsInput?: string[]
+) {
+  const knownDeckIds = new Set(decks.map((deck) => deck.id));
+  const targetDeckIds = (targetDeckIdsInput?.length ? targetDeckIdsInput : decks.map((deck) => deck.id))
+    .filter((deckId) => knownDeckIds.has(deckId));
 
-export async function getAllLogsForDeck(
-  userId: string,
-  deckId: string,
-  decks: DeckSummary[]
-): Promise<BattleLogSummary[]> {
-  const deck = decks.find((candidate) => candidate.id === deckId);
-  if (!deck) {
-    return [];
+  if (targetDeckIds.length === 0) {
+    return new Map<string, BattleLogSummary[]>();
   }
 
-  const supabase = createClient();
-
+  const supabase = await createClient();
   const [explicitResult, unlinkedResult] = await Promise.all([
-    measureServerCall("db.logs.forDeck.explicit", async () =>
+    measureServerCall("db.logs.forDecks.explicit", async () =>
       await supabase
         .from("logs")
         .select(
@@ -522,9 +555,9 @@ export async function getAllLogsForDeck(
           ].join(",")
         )
         .eq("user_id", userId)
-        .eq("linked_deck_id", deckId)
+        .in("linked_deck_id", targetDeckIds)
     ),
-    measureServerCall("db.logs.forDeck.unlinked", async () =>
+    measureServerCall("db.logs.forDecks.unlinked", async () =>
       await supabase
         .from("logs")
         .select(
@@ -559,24 +592,77 @@ export async function getAllLogsForDeck(
     throw unlinkedResult.error;
   }
 
-  const explicitLogs = (((explicitResult.data ?? []) as unknown) as LogsTableRow[]).map(mapLogSummary);
-  const inferredLogs = (((unlinkedResult.data ?? []) as unknown) as LogsTableRow[])
+  const groupedLogs = new Map<string, Map<string, BattleLogSummary>>(
+    targetDeckIds.map((deckId) => [deckId, new Map<string, BattleLogSummary>()])
+  );
+
+  const addLogToDeck = (deckId: string, log: BattleLogSummary) => {
+    const deckLogs = groupedLogs.get(deckId);
+    if (!deckLogs) {
+      return;
+    }
+
+    deckLogs.set(log.id, log);
+  };
+
+  (((explicitResult.data ?? []) as unknown) as LogsTableRow[])
     .map(mapLogSummary)
-    .filter(
-      (log) =>
-        resolveLinkedDeck(decks, {
-          linkedDeckId: log.linkedDeckId,
-          selfDeckName: log.selfDeckName,
-          selfDeckSprites: log.selfDeckSprites
-        }) === deckId
-    );
+    .forEach((log) => {
+      if (log.linkedDeckId) {
+        addLogToDeck(log.linkedDeckId, log);
+      }
+    });
 
-  const merged = new Map<string, BattleLogSummary>();
-  [...explicitLogs, ...inferredLogs].forEach((log) => {
-    merged.set(log.id, log);
-  });
+  (((unlinkedResult.data ?? []) as unknown) as LogsTableRow[])
+    .map(mapLogSummary)
+    .forEach((log) => {
+      const resolvedDeckId = resolveLinkedDeck(decks, {
+        linkedDeckId: log.linkedDeckId,
+        selfDeckName: log.selfDeckName,
+        selfDeckSprites: log.selfDeckSprites
+      });
 
-  return sortLogsByBattleDate(Array.from(merged.values()));
+      if (resolvedDeckId) {
+        addLogToDeck(resolvedDeckId, log);
+      }
+    });
+
+  return new Map(
+    Array.from(groupedLogs.entries()).map(([deckId, deckLogs]) => [
+      deckId,
+      sortLogsByBattleDate(Array.from(deckLogs.values()))
+    ])
+  );
+}
+
+export async function getAllLogsByDeck(
+  userId: string,
+  decks: DeckSummary[],
+  targetDeckIdsInput?: string[]
+) {
+  return await getLogsIndexedByDeck(userId, decks, targetDeckIdsInput);
+}
+
+export async function getLogsForDeck(
+  userId: string,
+  deckId: string,
+  decks: DeckSummary[],
+  limit = 10
+): Promise<BattleLogSummary[]> {
+  const logs = await getAllLogsForDeck(userId, deckId, decks);
+  return logs.slice(0, Math.max(1, limit));
+}
+
+export async function getAllLogsForDeck(
+  userId: string,
+  deckId: string,
+  decks: DeckSummary[]
+): Promise<BattleLogSummary[]> {
+  if (!decks.some((candidate) => candidate.id === deckId)) {
+    return [];
+  }
+  const logsByDeck = await getLogsIndexedByDeck(userId, decks, [deckId]);
+  return logsByDeck.get(deckId) ?? [];
 }
 
 export function getBattleLogSummaryStats(logs: BattleLogSummary[]): LogSummaryStats {

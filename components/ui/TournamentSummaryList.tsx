@@ -86,7 +86,7 @@ function TournamentSummaryRow({
       {isConfirming ? (
         <div className="rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4">
           <p className="text-sm text-[var(--text-primary)]">
-            Delete "{tournament.name}" and all of its rounds? This cannot be undone.
+            Delete &quot;{tournament.name}&quot; and all of its rounds? This cannot be undone.
           </p>
           <div className="mt-3 flex flex-wrap gap-3">
             <button

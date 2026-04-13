@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { SiteFormatsProvider } from "@/components/ui/SiteFormatsProvider";
-import { IBM_Plex_Sans } from "next/font/google";
-import { getSiteFormats } from "@/lib/formats/catalog";
+import { getInitialSiteFormats } from "@/lib/formats/catalog";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import "./globals.css";
 
 type Theme = "light" | "dark";
-
-const bodyFont = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-body",
-  display: "swap"
-});
 
 export const metadata: Metadata = {
   title: "Poke Notes",
@@ -67,12 +59,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const initialTheme = parseTheme(cookies().get(THEME_COOKIE_KEY)?.value);
-  const initialSiteFormats = await getSiteFormats();
+  const cookieStore = await cookies();
+  const initialTheme = parseTheme(cookieStore.get(THEME_COOKIE_KEY)?.value);
+  const initialSiteFormats = getInitialSiteFormats();
 
   return (
     <html
-      className={`${bodyFont.variable} ${initialTheme === "dark" ? "dark" : ""}`}
+      className={initialTheme === "dark" ? "dark" : ""}
       lang="en"
       suppressHydrationWarning
     >

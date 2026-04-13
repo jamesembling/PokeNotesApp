@@ -12,7 +12,7 @@ export default function LoginPage() {
   const handleSignIn = async () => {
     setIsLoading(true);
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const redirectTo = new URL("/auth/callback", window.location.origin).toString();
 
     const { error } = await supabase.auth.signInWithOAuth({

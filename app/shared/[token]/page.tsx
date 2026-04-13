@@ -13,12 +13,22 @@ import { getSharedLogSnapshot } from "@/lib/db/log-shares";
 import type { BattleLog } from "@/types/index";
 
 type SharedLogPageProps = {
-  params: {
+  params: Promise<{
     token: string;
-  };
+  }>;
 };
 
 function formatImportedAt(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatExpiry(value: string) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
@@ -52,7 +62,8 @@ function buildSharedLogMetadata(log: BattleLog) {
 }
 
 export async function generateMetadata({ params }: SharedLogPageProps): Promise<Metadata> {
-  const sharedLog = await getSharedLogSnapshot(params.token);
+  const { token } = await params;
+  const sharedLog = await getSharedLogSnapshot(token);
 
   if (!sharedLog) {
     return {
@@ -81,7 +92,8 @@ export async function generateMetadata({ params }: SharedLogPageProps): Promise<
 }
 
 export default async function SharedLogPage({ params }: SharedLogPageProps) {
-  const sharedLog = await getSharedLogSnapshot(params.token);
+  const { token } = await params;
+  const sharedLog = await getSharedLogSnapshot(token);
 
   if (!sharedLog) {
     return (
@@ -110,6 +122,7 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
   const timestampLabel = formatImportedAt(
     sharedLog.payload.log.importedAt || sharedLog.createdAt
   );
+  const expiryLabel = formatExpiry(sharedLog.expiresAt);
   const linkedDeckListSortedCards =
     sharedLog.payload.linkedDeckListSortedCards &&
     sharedLog.payload.linkedDeckListSortedCards.length > 0
@@ -136,7 +149,9 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
           log={sharedLog.payload.log}
           notice={
             <div className="rounded-[20px] border border-[rgba(43,109,246,0.14)] bg-[linear-gradient(180deg,var(--bg-surface),rgba(43,109,246,0.08))] px-4 py-3 text-sm leading-6 text-[var(--text-primary)] shadow-[var(--shadow-sm)]">
-              This battle log was opened from a share link.
+              This battle log was opened from a time-limited share link. Linked deck-list details
+              are included in this snapshot when they were attached at share time. This link expires
+              on {expiryLabel}.
             </div>
           }
           timestampLabel={timestampLabel}

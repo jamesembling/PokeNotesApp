@@ -86,7 +86,7 @@ function isMissingDeckArchetypeColumn(error: PostgrestLikeError | null) {
 
 export async function createDeckAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const deckId = crypto.randomUUID();
   const deckName = String(formData.get("deckName") || "").trim();
 
@@ -130,7 +130,7 @@ export async function createDeckAction(formData: FormData): Promise<SaveActionRe
 
 export async function updateDeckAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const deckId = String(formData.get("deckId") || "").trim();
 
   if (!deckId) {
@@ -194,7 +194,7 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
 
 export async function deleteDeckAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const deckId = String(formData.get("deckId") || "").trim();
 
   if (!deckId) {
@@ -234,7 +234,7 @@ export async function deleteDeckAction(formData: FormData): Promise<SaveActionRe
 
 export async function saveDeckListAction(formData: FormData): Promise<SaveActionResult> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
   const deckId = String(formData.get("deckId") || "").trim();
   const deckListId = String(formData.get("deckListId") || "").trim();
 

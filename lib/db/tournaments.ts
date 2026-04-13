@@ -136,7 +136,7 @@ function rethrowIfSchemaMissing(error: PostgrestLikeError | null) {
 }
 
 export const getTournaments = cache(async (userId: string): Promise<Tournament[]> => {
-  const supabase = createClient();
+  const supabase = await createClient();
   let { data, error } = await measureServerCall("db.tournaments.list", async () =>
     await supabase
       .from("tournaments")
@@ -167,7 +167,7 @@ export const getTournaments = cache(async (userId: string): Promise<Tournament[]
 
 export const getTournamentRounds = cache(
   async (userId: string, tournamentId: string): Promise<TournamentRound[]> => {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await measureServerCall("db.tournaments.rounds", async () =>
       await supabase
         .from("tournament_rounds")
@@ -201,7 +201,7 @@ export const getTournamentRounds = cache(
 
 export const getTournamentById = cache(
   async (userId: string, tournamentId: string): Promise<Tournament | null> => {
-    const supabase = createClient();
+    const supabase = await createClient();
     let { data, error } = await measureServerCall("db.tournaments.detail", async () =>
       await supabase
         .from("tournaments")
@@ -271,7 +271,7 @@ export async function getTournamentDeckChoices(userId: string): Promise<DeckSumm
 }
 
 async function getAllTournamentRoundsForUser(userId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await measureServerCall("db.tournaments.roundsAll", async () =>
     await supabase
       .from("tournament_rounds")

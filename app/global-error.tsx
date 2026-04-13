@@ -67,23 +67,24 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               The app failed before the normal layout could render.
             </h1>
             <p style={{ margin: 0, color: "#d1d5db", fontSize: "14px", lineHeight: 1.6 }}>
-              This screen exists so Next always has a recovery boundary available in development.
+              This screen is a last-resort recovery boundary. We’ve logged the failure and can use
+              the reference below to track it down.
             </p>
-            <pre
-              style={{
-                marginTop: "20px",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                borderRadius: "14px",
-                padding: "16px",
-                background: "#14161f",
-                border: "1px solid #2a2d3a",
-                color: "#fca5a5",
-                fontSize: "13px"
-              }}
-            >
-              {error.message || "Unknown error"}
-            </pre>
+            {error.digest ? (
+              <div
+                style={{
+                  marginTop: "20px",
+                  borderRadius: "14px",
+                  padding: "16px",
+                  background: "#14161f",
+                  border: "1px solid #2a2d3a",
+                  color: "#d1d5db",
+                  fontSize: "13px"
+                }}
+              >
+                Error reference: <strong style={{ color: "#f9fafb" }}>{error.digest}</strong>
+              </div>
+            ) : null}
             <button
               onClick={reset}
               style={{

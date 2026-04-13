@@ -96,10 +96,10 @@ export function CopyShareLinkButton({ logId, onFeedbackChange }: CopyShareLinkBu
         tone: shareMethod === "prompt" ? "info" : "success",
         text:
           shareMethod === "native-share"
-            ? "Share link ready. Anyone with the link can open this battle log."
+            ? "Share link ready. Anyone with the link can open this battle log snapshot, including linked deck-list details when present, for 30 days."
             : shareMethod === "prompt"
-            ? "Share link ready to copy. Anyone with the link can open this battle log."
-            : "Share link copied. Anyone with the link can open this battle log."
+            ? "Share link ready to copy. Anyone with the link can open this battle log snapshot, including linked deck-list details when present, for 30 days."
+            : "Share link copied. Anyone with the link can open this battle log snapshot, including linked deck-list details when present, for 30 days."
       });
     } catch (error) {
       onFeedbackChange?.({

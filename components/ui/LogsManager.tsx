@@ -10,6 +10,7 @@ import {
 } from "@/app/(app)/logs/actions";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
 import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
@@ -23,6 +24,16 @@ type LogGroup = {
   logs: BattleLogSummary[];
   wins: number;
   losses: number;
+};
+
+type ActionNotice = {
+  kind: "error";
+  message: string;
+};
+
+type DeletePrompt = {
+  ids: string[];
+  message: string;
 };
 
 type LogsManagerProps = {
@@ -109,10 +120,6 @@ function toEditableLog(log: BattleLogSummary): BattleLog {
   };
 }
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Something went wrong.";
-}
-
 function mergeLogs(current: BattleLogSummary[], incoming: BattleLogSummary[]) {
   const merged = new Map<string, BattleLogSummary>();
 
@@ -174,6 +181,8 @@ export function LogsManager({
   const [windowStartDate, setWindowStartDate] = useState(initialWindowStartDate);
   const [windowEndDate, setWindowEndDate] = useState(initialWindowEndDate);
   const [loadMoreError, setLoadMoreError] = useState("");
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
+  const [deletePrompt, setDeletePrompt] = useState<DeletePrompt | null>(null);
   const [openGroupDates, setOpenGroupDates] = useState<string[]>(() =>
     initialLogs.length > 0 ? [initialLogs[0].date] : []
   );
@@ -193,6 +202,7 @@ export function LogsManager({
   const canApplyDeckList =
     selectedCount > 0 && Boolean(selectedDeckId) && Boolean(selectedDeckListId) && !isMutating;
   const canDeleteSelected = selectedCount > 0 && !isMutating;
+  const deletePromptCount = deletePrompt?.ids.length ?? 0;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 640px)");
@@ -215,6 +225,8 @@ export function LogsManager({
     setWindowStartDate(initialWindowStartDate);
     setWindowEndDate(initialWindowEndDate);
     setLoadMoreError("");
+    setActionNotice(null);
+    setDeletePrompt(null);
     setOpenGroupDates(initialLogs.length > 0 ? [initialLogs[0].date] : []);
   }, [
     initialCanLoadMore,
@@ -286,12 +298,17 @@ export function LogsManager({
   }
 
   function runAsyncAction(work: () => Promise<void>) {
+    setActionNotice(null);
     startMutationTransition(async () => {
       try {
         await work();
         router.refresh();
       } catch (error) {
-        window.alert(getErrorMessage(error));
+        console.error(error);
+        setActionNotice({
+          kind: "error",
+          message: "We could not finish that action. Please try again."
+        });
       }
     });
   }
@@ -313,7 +330,8 @@ export function LogsManager({
         setWindowStartDate(result.windowStartDate);
         setWindowEndDate((current) => current || result.windowEndDate);
       } catch (error) {
-        setLoadMoreError(getErrorMessage(error));
+        console.error(error);
+        setLoadMoreError("Couldn't load more logs right now. Please try again.");
       }
     });
   }
@@ -334,33 +352,77 @@ export function LogsManager({
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete ${selectedCount} battle log${selectedCount === 1 ? "" : "s"}? This cannot be undone.`
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    runAsyncAction(async () => {
-      await deleteLogsAction(selectedLogIds);
-      setSelectedLogIds([]);
+    setDeletePrompt({
+      ids: selectedLogIds,
+      message: `Delete ${selectedCount} battle log${selectedCount === 1 ? "" : "s"}? This cannot be undone.`
     });
   }
 
   function handleDeleteSingle(logId: string) {
-    const confirmed = window.confirm("Delete this battle log? This cannot be undone.");
-    if (!confirmed) {
+    setDeletePrompt({
+      ids: [logId],
+      message: "Delete this battle log? This cannot be undone."
+    });
+  }
+
+  function cancelDeletePrompt() {
+    setDeletePrompt(null);
+  }
+
+  function confirmDeletePrompt() {
+    if (!deletePrompt) {
       return;
     }
 
+    const idsToDelete = deletePrompt.ids;
+    setDeletePrompt(null);
     runAsyncAction(async () => {
-      await deleteLogAction(logId);
-      setSelectedLogIds((current) => current.filter((id) => id !== logId));
+      if (idsToDelete.length === 1) {
+        await deleteLogAction(idsToDelete[0]);
+      } else {
+        await deleteLogsAction(idsToDelete);
+      }
+      setSelectedLogIds((current) => current.filter((id) => !idsToDelete.includes(id)));
     });
   }
 
   return (
     <div className="flex flex-col gap-6">
+      {actionNotice ? (
+        <Card
+          aria-live="polite"
+          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+        >
+          <p className="ui-eyebrow">Action Failed</p>
+          <p className="mt-2 text-sm leading-6">{actionNotice.message}</p>
+        </Card>
+      ) : null}
+
+      {deletePrompt ? (
+        <Card className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]">
+          <div className="flex flex-col gap-4">
+            <div className="space-y-2">
+              <p className="ui-eyebrow">Confirm Delete</p>
+              <p className="text-sm leading-6 text-[var(--text-primary)]">{deletePrompt.message}</p>
+              {deletePromptCount > 1 ? (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {deletePromptCount} logs are selected for removal.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={confirmDeletePrompt} variant="danger">
+                Delete{deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}
+              </Button>
+              <Button onClick={cancelDeletePrompt} variant="secondary">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
       <section className="hidden gap-5 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-5 sm:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">

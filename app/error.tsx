@@ -24,14 +24,16 @@ export default function AppError({ error, reset }: AppErrorProps) {
               Something went wrong while loading this page.
             </h1>
             <p className="text-sm text-[var(--text-secondary)]">
-              Try reloading the route. If this keeps happening, the error details below will help us
-              trace it quickly.
+              Try reloading the route. If this keeps happening, we’ve logged the failure and can
+              trace it from the reference below.
             </p>
           </div>
 
-          <div className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-            {error.message || "Unknown error"}
-          </div>
+          {error.digest ? (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+              Error reference: <span className="font-semibold text-[var(--text-primary)]">{error.digest}</span>
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap gap-3">
             <Button onClick={reset}>Try Again</Button>

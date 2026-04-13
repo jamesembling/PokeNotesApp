@@ -20,6 +20,14 @@ export type SiteFormatsCatalog = {
   source: "limitless" | "fallback";
 };
 
+export function getInitialSiteFormats(): SiteFormatsCatalog {
+  return {
+    defaultFormat: getFallbackSiteFormat(),
+    options: [...SITE_FORMAT_OPTIONS],
+    source: "fallback"
+  };
+}
+
 function dedupeFormats(formats: string[]) {
   const seen = new Set<string>();
   const uniqueFormats: string[] = [];

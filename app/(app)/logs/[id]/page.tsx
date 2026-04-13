@@ -9,9 +9,9 @@ import { getLogById } from "@/lib/db/logs";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 
 type LogDetailPageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 const backLinkClassName =
@@ -29,9 +29,10 @@ function formatImportedAt(value: string) {
 
 export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const user = await requireUser();
+  const { id } = await params;
 
   const [log, userDecks] = await Promise.all([
-    getLogById(user.id, params.id),
+    getLogById(user.id, id),
     getDecks(user.id)
   ]);
 

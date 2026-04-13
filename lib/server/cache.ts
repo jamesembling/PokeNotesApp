@@ -7,7 +7,7 @@ export const CACHE_TAGS = {
 } as const;
 
 export function invalidateReferenceDataCaches() {
-  revalidateTag(CACHE_TAGS.identificationCatalog);
-  revalidateTag(CACHE_TAGS.pokemonOptions);
-  revalidateTag(CACHE_TAGS.siteFormats);
+  revalidateTag(CACHE_TAGS.identificationCatalog, "max");
+  revalidateTag(CACHE_TAGS.pokemonOptions, "max");
+  revalidateTag(CACHE_TAGS.siteFormats, "max");
 }

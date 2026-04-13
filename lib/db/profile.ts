@@ -121,7 +121,7 @@ export async function syncCurrentProfileFromAuthUser(authUser: Pick<
   User,
   "id" | "email" | "created_at" | "last_sign_in_at" | "user_metadata"
 >) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: existingProfile, error: existingProfileError } = await supabase
     .from("profiles")
     .select("display_name,first_name,last_name,ptcgl_username,role,avatar_color")
@@ -161,8 +161,8 @@ export async function syncCurrentProfileFromAuthUser(authUser: Pick<
 
 export async function getCurrentProfile(): Promise<UserProfile> {
   const user = await requireUser();
-  const supabase = createClient();
-  let { data, error } = await supabase
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from("profiles")
     .select(
       [
@@ -254,7 +254,7 @@ export async function getCurrentProfile(): Promise<UserProfile> {
 
 export async function updateCurrentProfile(input: UpdateProfileInput): Promise<UserProfile> {
   const user = await requireUser();
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const firstName = input.firstName.trim();
   const lastName = input.lastName.trim();
