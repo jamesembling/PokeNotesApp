@@ -21,6 +21,18 @@ npm run clean
 npm run dev
 ```
 
+When starting the dev server from Codex or another short-lived agent session, prefer a detached process so `localhost:3000` stays up across turns:
+
+```bash
+nohup npm run dev > /tmp/pokenotes-dev.log 2>&1 &
+```
+
+Then verify the server is up with:
+
+```bash
+curl -I http://127.0.0.1:3000
+```
+
 ## Important note
 
 Do not run `npm run build` at the same time as a live `npm run dev` server in this workspace.
