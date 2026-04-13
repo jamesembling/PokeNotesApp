@@ -275,32 +275,6 @@ export type DeckSummary = {
   updatedAt: string
 }
 
-export type CompetitiveDeckResult = {
-  tournamentId: string
-  tournamentName: string
-  tournamentDate: string
-  tournamentPlayers: number
-  playerId: string
-  playerName: string
-  placing: number
-  wins: number
-  losses: number
-  ties: number
-  decklistUrl: string
-}
-
-export type CompetitiveDeckStats = {
-  archetypeId: string
-  sampleDays: number
-  appearanceCount: number
-  bestFinish: number | undefined
-  topCutCount: number
-  results: CompetitiveDeckResult[]
-  syncedAt: string | undefined
-  source: "limitless"
-  status: "ok" | "empty" | "unavailable"
-}
-
 
 // ============================================================
 // TOURNAMENTS

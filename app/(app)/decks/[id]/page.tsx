@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
-import { DeckCompetitiveDataSection } from "@/components/ui/DeckCompetitiveDataSection";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import {
   DeckLogStatsGrid,
@@ -198,9 +197,6 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           </Suspense>
         </div>
       </Card>
-
-      <DeckCompetitiveDataSection deckPokemon={deck.deckPokemon} />
-
       {deck.generalNotes ? (
         <StrategySection kicker="GENERAL NOTES">
           <p className="whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
