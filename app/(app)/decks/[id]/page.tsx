@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { DeckCompetitiveDataSection } from "@/components/ui/DeckCompetitiveDataSection";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import {
   DeckLogStatsGrid,
@@ -180,17 +181,15 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
 
       <Card>
         <div className="flex flex-col gap-6">
-          <div className="border-b border-[var(--border)] pb-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-                <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
-                <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--text-primary)] sm:text-4xl">
-                  {deck.deckName}
-                </h1>
-              </div>
-
-              <div className="lg:shrink-0">{deckActions}</div>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+              <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
+              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--text-primary)] sm:text-4xl">
+                {deck.deckName}
+              </h1>
             </div>
+
+            <div className="lg:shrink-0">{deckActions}</div>
           </div>
 
           <Suspense fallback={<DeckLogStatsGridFallback />}>
@@ -198,6 +197,8 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           </Suspense>
         </div>
       </Card>
+
+      <DeckCompetitiveDataSection deckPokemon={deck.deckPokemon} />
 
       {deck.generalNotes ? (
         <StrategySection kicker="GENERAL NOTES">

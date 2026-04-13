@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { parseDeckList, parseLines } from "@/lib/decks/deck-list-parse";
 import { getDefaultSyncedSiteFormat } from "@/lib/formats/catalog";
@@ -70,9 +71,17 @@ type SaveActionResult = {
   redirectTo: string;
 };
 
+type PostgrestLikeError = {
+  code?: string | null;
+};
+
 function revalidateDeckWorkspace() {
   revalidatePath("/decks", "layout");
   revalidatePath("/logs", "layout");
+}
+
+function isMissingDeckArchetypeColumn(error: PostgrestLikeError | null) {
+  return error?.code === "42703";
 }
 
 export async function createDeckAction(formData: FormData): Promise<SaveActionResult> {
@@ -86,10 +95,12 @@ export async function createDeckAction(formData: FormData): Promise<SaveActionRe
   }
 
   const selectedSprites = parseSelectedSprites(formData);
+  const archetypeId = buildDeckArchetypeId(selectedSprites);
   const payload = {
     id: deckId,
     user_id: user.id,
     deck_name: deckName,
+    archetype_id: archetypeId,
     format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
     go_preference: parseGoPreference(formData.get("goPreference")),
     deck_pokemon: selectedSprites,
@@ -99,8 +110,12 @@ export async function createDeckAction(formData: FormData): Promise<SaveActionRe
     resource_plan: String(formData.get("resourcePlan") || "").trim(),
     deck_lists: []
   };
+  const { archetype_id: _archetypeId, ...legacyPayload } = payload;
 
-  const { error } = await supabase.from("decks").insert(payload);
+  let { error } = await supabase.from("decks").insert(payload);
+  if (isMissingDeckArchetypeColumn(error)) {
+    ({ error } = await supabase.from("decks").insert(legacyPayload));
+  }
   if (error) {
     throw error;
   }
@@ -128,11 +143,13 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
   }
 
   const selectedSprites = parseSelectedSprites(formData);
+  const archetypeId = buildDeckArchetypeId(selectedSprites);
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from("decks")
     .update({
       deck_name: deckName,
+      archetype_id: archetypeId,
       format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
       go_preference: parseGoPreference(formData.get("goPreference")),
       deck_pokemon: selectedSprites,
@@ -144,6 +161,24 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
     })
     .eq("id", deckId)
     .eq("user_id", user.id);
+
+  if (isMissingDeckArchetypeColumn(error)) {
+    ({ error } = await supabase
+      .from("decks")
+      .update({
+        deck_name: deckName,
+        format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
+        go_preference: parseGoPreference(formData.get("goPreference")),
+        deck_pokemon: selectedSprites,
+        core_strategy: String(formData.get("coreStrategy") || "").trim(),
+        general_notes: String(formData.get("generalNotes") || "").trim(),
+        setup_goals: parseLines(String(formData.get("setupGoals") || "")),
+        resource_plan: String(formData.get("resourcePlan") || "").trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", deckId)
+      .eq("user_id", user.id));
+  }
 
   if (error) {
     throw error;

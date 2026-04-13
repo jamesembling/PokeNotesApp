@@ -9,6 +9,7 @@
     "dev:reset": "rm -rf .next && next dev",
     "build": "next build",
     "start": "next start",
+    "sync:competitive-data": "node sync-competitive-data.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

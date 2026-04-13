@@ -2,6 +2,7 @@ import { cache } from "react";
 import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { createClient } from "@/lib/supabase/server";
+import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
@@ -11,10 +12,73 @@ import { measureServerCall } from "@/lib/server/perf";
 import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
 import type { Deck, DeckCard, DeckList, DeckSummary, GoPreference } from "@/types/index";
 
+type PostgrestLikeError = {
+  code?: string | null;
+};
+
+const DECK_SUMMARY_SELECT = [
+  "id",
+  "user_id",
+  "deck_name",
+  "archetype_id",
+  "format",
+  "go_preference",
+  "deck_pokemon",
+  "deck_lists",
+  "created_at",
+  "updated_at"
+].join(",");
+
+const DECK_SUMMARY_LEGACY_SELECT = [
+  "id",
+  "user_id",
+  "deck_name",
+  "format",
+  "go_preference",
+  "deck_pokemon",
+  "deck_lists",
+  "created_at",
+  "updated_at"
+].join(",");
+
+const DECK_DETAIL_SELECT = [
+  "id",
+  "user_id",
+  "deck_name",
+  "archetype_id",
+  "format",
+  "go_preference",
+  "deck_pokemon",
+  "created_at",
+  "updated_at",
+  "core_strategy",
+  "general_notes",
+  "setup_goals",
+  "resource_plan",
+  "deck_lists"
+].join(",");
+
+const DECK_DETAIL_LEGACY_SELECT = [
+  "id",
+  "user_id",
+  "deck_name",
+  "format",
+  "go_preference",
+  "deck_pokemon",
+  "created_at",
+  "updated_at",
+  "core_strategy",
+  "general_notes",
+  "setup_goals",
+  "resource_plan",
+  "deck_lists"
+].join(",");
+
 type DeckSummaryRow = {
   id: string;
   user_id: string;
   deck_name: string;
+  archetype_id?: string | null;
   format: string;
   go_preference: GoPreference | null;
   deck_pokemon: unknown;
@@ -41,6 +105,7 @@ type DeckListLookupRow = {
   id: string;
   user_id: string;
   deck_name: string;
+  archetype_id?: string | null;
   deck_lists: unknown;
 };
 
@@ -58,6 +123,10 @@ function parseStringArray(value: unknown): string[] {
   }
 
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function isMissingDeckArchetypeColumn(error: PostgrestLikeError | null) {
+  return error?.code === "42703";
 }
 
 function parseDeckCard(value: unknown): DeckCard | null {
@@ -347,11 +416,13 @@ async function mapDeckSummary(row: DeckSummaryRow): Promise<DeckSummary> {
     normalizedStoredDeckPokemon.length > 0
       ? normalizedStoredDeckPokemon
       : await deriveDeckPokemon(row.deck_name, parsedDeckLists);
+  const archetypeId = String(row.archetype_id || "").trim() || buildDeckArchetypeId(deckPokemon);
 
   return {
     id: row.id,
     userId: row.user_id,
     deckName: row.deck_name,
+    archetypeId,
     format: row.format,
     goPreference: row.go_preference ?? "",
     deckPokemon,
@@ -378,25 +449,23 @@ async function mapDeck(row: DeckRow): Promise<Deck> {
 export const getDecks = cache(async function getDecks(userId: string): Promise<DeckSummary[]> {
   const supabase = createClient();
 
-  const { data, error } = await measureServerCall("db.decks.list", async () =>
+  let { data, error } = await measureServerCall("db.decks.list", async () =>
     await supabase
       .from("decks")
-      .select(
-        [
-          "id",
-          "user_id",
-          "deck_name",
-          "format",
-          "go_preference",
-          "deck_pokemon",
-          "deck_lists",
-          "created_at",
-          "updated_at"
-        ].join(",")
-      )
+      .select(DECK_SUMMARY_SELECT)
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
   );
+
+  if (isMissingDeckArchetypeColumn(error)) {
+    ({ data, error } = await measureServerCall("db.decks.list.legacy", async () =>
+      await supabase
+        .from("decks")
+        .select(DECK_SUMMARY_LEGACY_SELECT)
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false })
+    ));
+  }
 
   if (error) {
     throw error;
@@ -412,30 +481,25 @@ export const getDeckById = cache(async function getDeckById(
 ): Promise<Deck | null> {
   const supabase = createClient();
 
-  const { data, error } = await measureServerCall("db.decks.byId", async () =>
+  let { data, error } = await measureServerCall("db.decks.byId", async () =>
     await supabase
       .from("decks")
-      .select(
-        [
-          "id",
-          "user_id",
-          "deck_name",
-          "format",
-          "go_preference",
-          "deck_pokemon",
-          "created_at",
-          "updated_at",
-          "core_strategy",
-          "general_notes",
-          "setup_goals",
-          "resource_plan",
-          "deck_lists"
-        ].join(",")
-      )
+      .select(DECK_DETAIL_SELECT)
       .eq("user_id", userId)
       .eq("id", deckId)
       .maybeSingle()
   );
+
+  if (isMissingDeckArchetypeColumn(error)) {
+    ({ data, error } = await measureServerCall("db.decks.byId.legacy", async () =>
+      await supabase
+        .from("decks")
+        .select(DECK_DETAIL_LEGACY_SELECT)
+        .eq("user_id", userId)
+        .eq("id", deckId)
+        .maybeSingle()
+    ));
+  }
 
   if (error) {
     throw error;

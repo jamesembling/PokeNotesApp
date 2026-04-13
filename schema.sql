@@ -55,6 +55,7 @@ create table public.decks (
 
   -- Core identity
   deck_name         text not null default '',
+  archetype_id      text not null default '',
   format            text not null default '',
   go_preference     text not null default ''
                       check (go_preference in ('First', 'Second', '')),
@@ -78,6 +79,8 @@ create table public.decks (
 
 comment on table public.decks is
   'User deck strategies. Each deck can have multiple deck lists and matchup plans.';
+comment on column public.decks.archetype_id is
+  'Backend-owned canonical deck archetype key derived from the selected Pokemon slugs.';
 comment on column public.decks.deck_lists is
   'Array of deck list objects. Each has id, name, format, rawList, and parsed card data.';
 comment on column public.decks.matchup_plans is
@@ -322,6 +325,78 @@ comment on column public.archetype_catalog.detection_sprites is
 
 
 -- ============================================================
+-- COMPETITIVE ARCHETYPE SNAPSHOTS
+-- Cached external competitive data synced from Limitless in controlled batches.
+-- User-facing pages read from this table only and never call Limitless directly.
+-- ============================================================
+
+create table public.competitive_archetype_snapshots (
+  archetype_id      text not null,
+  sample_days       integer not null default 7,
+  appearance_count  integer not null default 0,
+  best_finish       integer,
+  top_cut_count     integer not null default 0,
+  results           jsonb not null default '[]',
+  source            text not null default 'limitless'
+                      check (source in ('limitless')),
+  synced_at         timestamptz not null default now(),
+
+  primary key (archetype_id, sample_days)
+);
+
+comment on table public.competitive_archetype_snapshots is
+  'Cached recent competitive archetype results from Limitless. Refreshed in controlled background syncs.';
+comment on column public.competitive_archetype_snapshots.results is
+  'Array of top competitive results for the archetype, including public decklist links.';
+
+create table public.competitive_tournament_results (
+  tournament_id      text not null,
+  archetype_id       text not null,
+  tournament_name    text not null default '',
+  tournament_date    timestamptz not null,
+  tournament_players integer not null default 0,
+  player_id          text not null,
+  player_name        text not null default '',
+  finish_placing     integer not null,
+  wins               integer not null default 0,
+  losses             integer not null default 0,
+  ties               integer not null default 0,
+  decklist_url       text not null default '',
+  source             text not null default 'limitless'
+                       check (source in ('limitless')),
+  synced_at          timestamptz not null default now(),
+
+  primary key (tournament_id, player_id)
+);
+
+comment on table public.competitive_tournament_results is
+  'Cached player-level competitive tournament results fetched from Limitless.';
+
+create table public.competitive_processed_tournaments (
+  tournament_id      text primary key,
+  tournament_date    timestamptz not null,
+  tournament_players integer not null default 0,
+  processed_at       timestamptz not null default now(),
+  source             text not null default 'limitless'
+                       check (source in ('limitless'))
+);
+
+comment on table public.competitive_processed_tournaments is
+  'Tracks which tournaments have already been processed so sync jobs do not re-fetch standings indefinitely.';
+
+create table public.competitive_sync_state (
+  sync_key           text primary key,
+  next_backfill_page integer not null default 2,
+  last_run_at        timestamptz,
+  last_status        text not null default 'idle',
+  last_error         text not null default ''
+);
+
+comment on table public.competitive_sync_state is
+  'Internal sync cursor and run status for controlled competitive data backfills.';
+
+
+-- ============================================================
 -- ROLE PERMISSIONS
 -- Controls which menu sections are visible per role.
 -- ============================================================
@@ -376,6 +451,10 @@ create index decks_user_id
 create index decks_user_format
   on public.decks (user_id, format);
 
+create index decks_user_archetype
+  on public.decks (user_id, archetype_id)
+  where archetype_id <> '';
+
 -- Tournaments
 create index tournaments_user_date
   on public.tournaments (user_id, date_from desc, date_to desc);
@@ -402,6 +481,18 @@ create index pokemon_catalog_evolves_from
 create index archetype_catalog_excluded
   on public.archetype_catalog (is_excluded)
   where is_excluded = false;
+
+create index competitive_archetype_snapshots_synced_at
+  on public.competitive_archetype_snapshots (synced_at desc);
+
+create index competitive_tournament_results_archetype_date
+  on public.competitive_tournament_results (archetype_id, tournament_date desc);
+
+create index competitive_tournament_results_date
+  on public.competitive_tournament_results (tournament_date desc);
+
+create index competitive_processed_tournaments_date
+  on public.competitive_processed_tournaments (tournament_date desc, processed_at desc);
 
 -- Log shares
 create index log_shares_owner
@@ -625,6 +716,12 @@ alter table public.archetype_catalog enable row level security;
 
 create policy "Anyone can read archetype catalog"
   on public.archetype_catalog for select
+  using (true);
+
+alter table public.competitive_archetype_snapshots enable row level security;
+
+create policy "Anyone can read competitive archetype snapshots"
+  on public.competitive_archetype_snapshots for select
   using (true);
 
 
