@@ -11,7 +11,7 @@
     "lint": "eslint . --quiet",
     "start": "next start",
     "sync:competitive-data": "node sync-competitive-data.mjs",
-    "test": "tsx --test tests/**/*.test.ts",
+    "test": "tsx --test",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
