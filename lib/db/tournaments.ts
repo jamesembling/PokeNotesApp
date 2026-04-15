@@ -124,7 +124,7 @@ function mapTournamentRoundRow(row: TournamentRoundRow): TournamentRound {
 
 export class TournamentSchemaMissingError extends Error {
   constructor() {
-    super("Tournament tables are not available in the current Supabase schema yet.");
+    super("Tournament tables are missing from the current Supabase schema.");
     this.name = "TournamentSchemaMissingError";
   }
 }

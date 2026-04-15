@@ -70,6 +70,17 @@ web_modules/
 .env.*
 !.env.example
 
+# Local agent/editor tooling
+.agents/
+.codex/
+SKILLS/
+plugins/
+AGENT.md
+HANDOVER.md
+REBUILD_PLAN.md
+.impeccable.md
+ARCHETYPE_CATALOG_STARTER.md
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

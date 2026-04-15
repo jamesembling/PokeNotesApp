@@ -1,16 +1,5 @@
-// ============================================================
-// Poke Notes — Core TypeScript Types
-// ============================================================
-// These types are the contract for all data in the app.
-// They are referenced in every Codex session that touches data.
-//
-// Rules:
-// - These types reflect what the app works with, not raw DB rows
-// - Sprite strings from the DB are always parsed to string[] here
-// - Dates from the DB are always strings (YYYY-MM-DD) here
-// - All optional fields use undefined, not null
-// - No `any` types anywhere in the codebase
-// ============================================================
+// Shared application types.
+// These types model the app-facing data shape rather than raw database rows.
 
 
 // ============================================================

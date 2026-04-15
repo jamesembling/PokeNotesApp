@@ -1,4 +1,4 @@
-# Poke Notes V2
+# Poke Notes
 
 Poke Notes is a Next.js App Router app for tracking Pokemon TCG battle logs, deck lists, tournaments, and related stats.
 
@@ -7,9 +7,9 @@ Poke Notes is a Next.js App Router app for tracking Pokemon TCG battle logs, dec
 - Node.js 20 or newer
 - npm
 - A Supabase project with Auth enabled
-- A Google OAuth provider configured in Supabase Auth
+- A Google OAuth provider configured for Supabase Auth
 
-## Setup
+## Local Setup
 
 1. Install dependencies:
 
@@ -17,7 +17,7 @@ Poke Notes is a Next.js App Router app for tracking Pokemon TCG battle logs, dec
 npm ci
 ```
 
-2. Create your local env file from the example:
+2. Create a local env file:
 
 ```bash
 cp .env.example .env
@@ -25,20 +25,23 @@ cp .env.example .env
 
 3. Fill in the values in `.env`.
 
-4. Configure Supabase Auth redirect URLs for the environments you plan to use:
+4. Bootstrap the database:
+
+- For a new Supabase project, run [`schema.sql`](./schema.sql) in the SQL editor.
+- For an existing project that already has the base schema, apply any newer files in [`sql/`](./sql).
+
+5. Configure Supabase Auth redirect URLs for each environment:
 
 - `http://localhost:3000/auth/callback`
 - `https://<your-production-domain>/auth/callback`
 
-5. Start the app:
+6. Start the app:
 
 ```bash
 npm run dev
 ```
 
-6. Open `http://localhost:3000`.
-
-If the dev server starts showing missing chunk errors or half-rendered pages, reset the Next.js cache and restart:
+If the dev server starts showing stale chunk errors, clear the Next cache and restart:
 
 ```bash
 npm run dev:reset
@@ -46,40 +49,48 @@ npm run dev:reset
 
 ## Environment Variables
 
-The app reads the following variables:
+Copy the keys from `.env.example` and provide values for:
 
-- `NEXT_PUBLIC_APP_URL` for same-origin checks and redirects
-- `NEXT_PUBLIC_SUPABASE_URL` for browser and server Supabase clients
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` for browser and server Supabase clients
-- `SUPABASE_SERVICE_ROLE_KEY` for admin/server-side Supabase actions
-- `NEW_SUPABASE_URL` and `NEW_SUPABASE_SERVICE_KEY` for migration and seed scripts
-- `OLD_SUPABASE_URL` and `OLD_SUPABASE_SERVICE_KEY` only when running `migrate.mjs` against an older project
-- `POKE_NOTES_DEBUG_AUTH` and `POKE_NOTES_DEBUG_PERF` for local debugging
+- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEW_SUPABASE_URL`
+- `NEW_SUPABASE_SERVICE_KEY`
 
-For local development, the Supabase URL and anon key must point at the project that backs this app. The service role key is needed for admin flows and any server-side updates that bypass the public client.
+Optional variables:
 
-## Common Commands
+- `OLD_SUPABASE_URL`
+- `OLD_SUPABASE_SERVICE_KEY`
+- `POKE_NOTES_DEBUG_AUTH`
+- `POKE_NOTES_DEBUG_PERF`
+
+## Commands
 
 - `npm run dev` starts the app locally
-- `npm run dev:reset` clears `./.next` and starts the dev server again
-- `npm run clean` removes the local Next.js build output
+- `npm run dev:reset` clears `.next` and starts the dev server again
+- `npm run clean` removes local Next.js build output
 - `npm run lint` runs ESLint
 - `npm run typecheck` runs Next type generation and TypeScript checks
 - `npm run test` runs the test suite
 - `npm run build` creates a production build
+- `npm run start` serves the production build locally
 
-## Data Scripts
+## Deployment
 
-These scripts use the Supabase environment variables above:
+Deployments are intended for Vercel.
 
-- `node migrate.mjs`
-- `node seed-pokemon.mjs`
-- `node seed-archetypes.mjs`
-- `node backfill-deck-lists.mjs`
-- `node sync-mega-pokemon-forms.mjs`
-- `node audit-pokemon-options.mjs`
+1. Create a Vercel project from this repository.
+2. Add the same runtime env vars used locally.
+3. Set `NEXT_PUBLIC_APP_URL` to the deployed origin.
+4. In Supabase Auth, add the deployed `/auth/callback` URL to the allow list.
+5. Run [`schema.sql`](./schema.sql) for a fresh database or apply any required files in [`sql/`](./sql) before using the app in production.
 
-## Notes
+Before shipping a change, the recommended checks are:
 
-- Do not run `npm run build` at the same time as `npm run dev`; both write to `./.next`.
-- The app uses Google OAuth through Supabase, so login will not work until the redirect URLs and provider settings are configured.
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
