@@ -16,10 +16,6 @@ type LogSummaryStats = {
 };
 
 type DeckStatsExplicitRow = Pick<LogsTableRow, "id" | "result" | "linked_deck_id">;
-type DeckStatsUnlinkedRow = Pick<
-  LogsTableRow,
-  "id" | "result" | "linked_deck_id" | "self_deck_name" | "self_deck_sprites"
->;
 
 export type DeckLogSnapshot = {
   logs: BattleLogSummary[];
@@ -723,49 +719,21 @@ export async function getDeckStatsForIndex(
     targetDeckIds.map((deckId) => [deckId, createEmptyLogSummaryStats()])
   );
   const supabase = await logsDbTestHooks.createClient();
-  const [explicitResult, unlinkedResult] = await Promise.all([
-    measureServerCall("db.logs.statsForDecks.explicit", async () =>
-      await supabase
-        .from("logs")
-        .select(["id", "result", "linked_deck_id"].join(","))
-        .eq("user_id", userId)
-        .in("linked_deck_id", targetDeckIds)
-    ),
-    measureServerCall("db.logs.statsForDecks.unlinked", async () =>
-      await supabase
-        .from("logs")
-        .select(["id", "result", "self_deck_name", "self_deck_sprites", "linked_deck_id"].join(","))
-        .eq("user_id", userId)
-        .is("linked_deck_id", null)
-    )
-  ]);
+  const explicitResult = await measureServerCall("db.logs.statsForDecks.explicit", async () =>
+    await supabase
+      .from("logs")
+      .select(["id", "result", "linked_deck_id"].join(","))
+      .eq("user_id", userId)
+      .in("linked_deck_id", targetDeckIds)
+  );
 
   if (explicitResult.error) {
     throw explicitResult.error;
   }
 
-  if (unlinkedResult.error) {
-    throw unlinkedResult.error;
-  }
-
   ((((explicitResult.data ?? []) as unknown) as DeckStatsExplicitRow[])).forEach((row) => {
     const deckId = row.linked_deck_id ?? "";
     const deckStats = statsByDeck.get(deckId);
-
-    if (!deckStats) {
-      return;
-    }
-
-    addResultToSummaryStats(deckStats, row.result);
-  });
-
-  ((((unlinkedResult.data ?? []) as unknown) as DeckStatsUnlinkedRow[])).forEach((row) => {
-    const resolvedDeckId = resolveLinkedDeck(decks, {
-      linkedDeckId: row.linked_deck_id ?? undefined,
-      selfDeckName: row.self_deck_name,
-      selfDeckSprites: splitSprites(row.self_deck_sprites)
-    });
-    const deckStats = resolvedDeckId ? statsByDeck.get(resolvedDeckId) : undefined;
 
     if (!deckStats) {
       return;

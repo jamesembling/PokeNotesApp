@@ -287,35 +287,17 @@ test("getDeckLogSnapshots preserves grouped stats parity without extra unresolve
   );
 });
 
-test("getDeckStatsForIndex preserves deck stats parity without materializing log lists", async (t) => {
+test("getDeckStatsForIndex preserves explicit linked stats without materializing log lists", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
   const { client, queries } = createFakeSupabaseClient((ctx) => {
     const hasExplicitDeckFilter = ctx.operations.some(
       (op) => op.method === "in" && op.args[0] === "linked_deck_id"
     );
-    const hasUnlinkedFilter = ctx.operations.some(
-      (op) => op.method === "is" && op.args[0] === "linked_deck_id"
-    );
 
     if (hasExplicitDeckFilter) {
       return {
         data: [buildLogRow({ id: "deck-b-explicit", linked_deck_id: "deck-b", result: "Win" })],
-        error: null
-      };
-    }
-
-    if (hasUnlinkedFilter) {
-      return {
-        data: [
-          buildLogRow({
-            id: "deck-b-legacy",
-            linked_deck_id: null,
-            self_deck_name: "Deck deck-b",
-            self_deck_sprites: "",
-            result: "Loss"
-          })
-        ],
         error: null
       };
     }
@@ -331,45 +313,31 @@ test("getDeckStatsForIndex preserves deck stats parity without materializing log
   const statsByDeck = await getDeckStatsForIndex("user-1", decks);
   const deckBStats = statsByDeck.get("deck-b");
 
-  assert.equal(queries.length, 2);
+  assert.equal(queries.length, 1);
   assert.deepEqual(
     queries.map((query) => query.operations.find((op) => op.method === "select")?.args[0]),
-    [
-      "id,result,linked_deck_id",
-      "id,result,self_deck_name,self_deck_sprites,linked_deck_id"
-    ]
+    ["id,result,linked_deck_id"]
   );
   assert.deepEqual(deckBStats, {
-    total: 2,
+    total: 1,
     wins: 1,
-    losses: 1
+    losses: 0
   });
 });
 
-test("getDeckStatsForIndex prefers stored deck links while preserving legacy fallback parity", async (t) => {
+test("getDeckStatsForIndex ignores unlinked logs that were not explicitly mapped", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
   const { client } = createFakeSupabaseClient((ctx) => {
     const hasExplicitDeckFilter = ctx.operations.some(
       (op) => op.method === "in" && op.args[0] === "linked_deck_id"
     );
-    const hasUnlinkedFilter = ctx.operations.some(
-      (op) => op.method === "is" && op.args[0] === "linked_deck_id"
-    );
 
     if (hasExplicitDeckFilter) {
       return {
         data: [
           buildLogRow({ id: "deck-a-explicit", linked_deck_id: "deck-a", result: "Win" }),
-          buildLogRow({ id: "deck-b-explicit", linked_deck_id: "deck-b", result: "Loss" })
-        ],
-        error: null
-      };
-    }
-
-    if (hasUnlinkedFilter) {
-      return {
-        data: [
+          buildLogRow({ id: "deck-b-explicit", linked_deck_id: "deck-b", result: "Loss" }),
           buildLogRow({
             id: "deck-b-legacy",
             linked_deck_id: null,
@@ -398,8 +366,8 @@ test("getDeckStatsForIndex prefers stored deck links while preserving legacy fal
     losses: 0
   });
   assert.deepEqual(statsByDeck.get("deck-b"), {
-    total: 2,
-    wins: 1,
+    total: 1,
+    wins: 0,
     losses: 1
   });
   assert.deepEqual(statsByDeck.get("deck-c"), {
