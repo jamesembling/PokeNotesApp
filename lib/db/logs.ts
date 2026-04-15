@@ -1,7 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 import type { BattleLog, BattleLogSummary, DeckSummary, LogSection, Result } from "@/types/index";
+
+export const logsDbTestHooks = {
+  createClient: createSupabaseClient
+};
 
 const DEFAULT_LOG_WINDOW_DAYS = 7;
 
@@ -143,7 +147,7 @@ function sortLogsByBattleDate(logs: BattleLogSummary[]) {
   });
 }
 
-function mapBattleLog(row: LogDetailTableRow): BattleLog {
+export function mapBattleLog(row: LogDetailTableRow): BattleLog {
   return {
     id: row.id,
     userId: row.user_id,
@@ -165,7 +169,7 @@ function mapBattleLog(row: LogDetailTableRow): BattleLog {
     opponentPrizesTaken: row.opponent_prizes_taken,
     selfAttackDamage: row.self_attack_damage,
     opponentAttackDamage: row.opponent_attack_damage,
-    selfMultigans: row.self_mulligans,
+    selfMulligans: row.self_mulligans,
     opponentMulligans: row.opponent_mulligans,
     linkedDeckId: row.linked_deck_id ?? undefined,
     linkedDeckListId: row.linked_deck_list_id ?? undefined,
@@ -203,7 +207,7 @@ function shiftDateString(date: string, dayOffset: number) {
 }
 
 export async function getLogSummaryStats(userId: string): Promise<LogSummaryStats> {
-  const supabase = await createClient();
+  const supabase = await logsDbTestHooks.createClient();
   const [total, wins, losses] = await measureServerCall("db.logs.summaryStats", async () => {
     const [{ count: totalCount, error: totalError }, { count: winsCount, error: winsError }, { count: lossesCount, error: lossesError }] =
       await Promise.all([
@@ -243,7 +247,7 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
 }
 
 export async function getLogStatsOverview(userId: string): Promise<LogStatsOverview> {
-  const supabase = await createClient();
+  const supabase = await logsDbTestHooks.createClient();
   const { data, error } = await measureServerCall("db.logs.statsOverviewRpc", async () =>
     await supabase.rpc("get_log_stats_overview")
   );
@@ -339,7 +343,7 @@ export async function getLogsWindow(
     windowEndDate?: string;
   }
 ) {
-  const supabase = await createClient();
+  const supabase = await logsDbTestHooks.createClient();
   const windowDays = normalizeWindowDays(options?.windowDays);
   const windowEndDate = normalizeDateString(options?.windowEndDate);
   const windowStartDate = shiftDateString(windowEndDate, -(windowDays - 1));
@@ -406,7 +410,7 @@ export async function getLogsWindow(
 }
 
 export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
-  const supabase = await createClient();
+  const supabase = await logsDbTestHooks.createClient();
   const pageSize = Math.max(1, limit);
 
   let query = supabase
@@ -462,7 +466,7 @@ export async function getLogById(
   userId: string,
   logId: string
 ): Promise<BattleLog | null> {
-  const supabase = await createClient();
+  const supabase = await logsDbTestHooks.createClient();
 
   const { data, error } = await measureServerCall("db.logs.byId", async () =>
     await supabase
@@ -530,7 +534,7 @@ async function getLogsIndexedByDeck(
     return new Map<string, BattleLogSummary[]>();
   }
 
-  const supabase = await createClient();
+  const supabase = await logsDbTestHooks.createClient();
   const [explicitResult, unlinkedResult] = await Promise.all([
     measureServerCall("db.logs.forDecks.explicit", async () =>
       await supabase
@@ -592,6 +596,22 @@ async function getLogsIndexedByDeck(
     throw unlinkedResult.error;
   }
 
+  return groupLogsByDeck({
+    decks,
+    explicitRows: (((explicitResult.data ?? []) as unknown) as LogsTableRow[]),
+    targetDeckIds,
+    unlinkedRows: (((unlinkedResult.data ?? []) as unknown) as LogsTableRow[])
+  });
+}
+
+export function groupLogsByDeck(input: {
+  decks: DeckSummary[];
+  explicitRows: LogsTableRow[];
+  targetDeckIds: string[];
+  unlinkedRows: LogsTableRow[];
+}) {
+  const { decks, explicitRows, targetDeckIds, unlinkedRows } = input;
+
   const groupedLogs = new Map<string, Map<string, BattleLogSummary>>(
     targetDeckIds.map((deckId) => [deckId, new Map<string, BattleLogSummary>()])
   );
@@ -605,17 +625,13 @@ async function getLogsIndexedByDeck(
     deckLogs.set(log.id, log);
   };
 
-  (((explicitResult.data ?? []) as unknown) as LogsTableRow[])
-    .map(mapLogSummary)
-    .forEach((log) => {
+  explicitRows.map(mapLogSummary).forEach((log) => {
       if (log.linkedDeckId) {
         addLogToDeck(log.linkedDeckId, log);
       }
     });
 
-  (((unlinkedResult.data ?? []) as unknown) as LogsTableRow[])
-    .map(mapLogSummary)
-    .forEach((log) => {
+  unlinkedRows.map(mapLogSummary).forEach((log) => {
       const resolvedDeckId = resolveLinkedDeck(decks, {
         linkedDeckId: log.linkedDeckId,
         selfDeckName: log.selfDeckName,

@@ -107,7 +107,7 @@ function toEditableLog(log: BattleLogSummary): BattleLog {
     opponentPrizesTaken: 0,
     selfAttackDamage: 0,
     opponentAttackDamage: 0,
-    selfMultigans: 0,
+    selfMulligans: 0,
     opponentMulligans: 0,
     linkedDeckId: log.linkedDeckId,
     linkedDeckListId: log.linkedDeckListId,

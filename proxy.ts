@@ -76,6 +76,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // Keep the matcher intentionally narrow so auth refresh only runs on
+  // protected app surfaces, not public or static routes.
   matcher: [
     "/logs/:path*",
     "/decks/:path*",
