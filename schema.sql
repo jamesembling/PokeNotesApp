@@ -396,12 +396,16 @@ create index logs_user_opponent_deck
 create index logs_user_go_order
   on public.logs (user_id, go_order);
 
-create index logs_linked_deck
-  on public.logs (linked_deck_id)
+create index logs_user_linked_deck_date
+  on public.logs (user_id, linked_deck_id, date desc, imported_at desc)
   where linked_deck_id is not null;
 
 create index logs_imported_at
   on public.logs (user_id, imported_at desc);
+
+create index logs_user_unlinked_imported_at
+  on public.logs (user_id, imported_at desc, id)
+  where linked_deck_id is null;
 
 -- Full text search
 create index logs_search_vector

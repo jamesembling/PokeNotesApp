@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getAllLogsByDeck, getLogById, logsDbTestHooks } from "@/lib/db/logs";
+import { getAllLogsByDeck, getDeckLogSnapshots, getLogById, logsDbTestHooks } from "@/lib/db/logs";
 import type { DeckSummary, Result } from "@/types/index";
 
 type QueryOp = {
@@ -224,5 +224,59 @@ test("getAllLogsByDeck keeps the overview query grouped into one explicit and on
   assert.deepEqual(
     (logsByDeck.get("deck-b") ?? []).map((log) => log.id),
     ["deck-b-log"]
+  );
+});
+
+test("getDeckLogSnapshots preserves grouped stats parity without extra unresolved fetches", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
+  const { client, queries } = createFakeSupabaseClient((ctx) => {
+    const hasExplicitDeckFilter = ctx.operations.some(
+      (op) => op.method === "in" && op.args[0] === "linked_deck_id"
+    );
+    const hasUnlinkedFilter = ctx.operations.some(
+      (op) => op.method === "is" && op.args[0] === "linked_deck_id"
+    );
+
+    if (hasExplicitDeckFilter) {
+      return {
+        data: [buildLogRow({ id: "deck-b-explicit", linked_deck_id: "deck-b", result: "Win" })],
+        error: null
+      };
+    }
+
+    if (hasUnlinkedFilter) {
+      return {
+        data: [
+          buildLogRow({
+            id: "deck-b-legacy",
+            linked_deck_id: null,
+            self_deck_name: "Deck deck-b",
+            self_deck_sprites: "",
+            result: "Loss"
+          })
+        ],
+        error: null
+      };
+    }
+
+    throw new Error(`Unexpected query: ${JSON.stringify(ctx.operations)}`);
+  });
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const snapshots = await getDeckLogSnapshots("user-1", decks);
+  const deckBSnapshot = snapshots.get("deck-b");
+
+  assert.equal(queries.length, 2);
+  assert.equal(deckBSnapshot?.stats.total, 2);
+  assert.equal(deckBSnapshot?.stats.wins, 1);
+  assert.equal(deckBSnapshot?.stats.losses, 1);
+  assert.deepEqual(
+    deckBSnapshot?.logs.map((log) => log.id),
+    ["deck-b-explicit", "deck-b-legacy"]
   );
 });
