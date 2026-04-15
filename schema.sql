@@ -83,8 +83,6 @@ comment on column public.decks.archetype_id is
   'Backend-owned canonical deck archetype key derived from the selected Pokemon slugs.';
 comment on column public.decks.deck_lists is
   'Array of deck list objects. Each has id, name, format, rawList, and parsed card data.';
-comment on column public.decks.matchup_plans is
-  'Array of matchup plan objects linking this deck to specific matchup strategies.';
 
 
 -- ============================================================
@@ -269,6 +267,7 @@ $$;
 create table public.log_shares (
   id                text primary key,       -- cryptographically random token, 32+ chars
   owner_user_id     uuid not null references auth.users(id) on delete cascade,
+  source_log_id     text,
 
   -- Full snapshot of the log at time of sharing
   -- Includes all log fields plus resolved deck list if linked
@@ -283,6 +282,8 @@ comment on table public.log_shares is
   'Public share tokens for battle logs. Payload is a full snapshot taken at share time.';
 comment on column public.log_shares.id is
   'Share token. Must be cryptographically random and at least 32 characters. Never sequential.';
+comment on column public.log_shares.source_log_id is
+  'Source battle log ID for owner-side share management. Nullable for legacy rows created before this column existed.';
 comment on column public.log_shares.payload is
   'Complete snapshot of the log including all fields and resolved deck list. Immutable after creation.';
 
@@ -395,12 +396,16 @@ create index logs_user_opponent_deck
 create index logs_user_go_order
   on public.logs (user_id, go_order);
 
-create index logs_linked_deck
-  on public.logs (linked_deck_id)
+create index logs_user_linked_deck_date
+  on public.logs (user_id, linked_deck_id, date desc, imported_at desc)
   where linked_deck_id is not null;
 
 create index logs_imported_at
   on public.logs (user_id, imported_at desc);
+
+create index logs_user_unlinked_imported_at
+  on public.logs (user_id, imported_at desc, id)
+  where linked_deck_id is null;
 
 -- Full text search
 create index logs_search_vector
@@ -447,6 +452,8 @@ create index archetype_catalog_excluded
 -- Log shares
 create index log_shares_owner
   on public.log_shares (owner_user_id);
+create index log_shares_owner_source_log
+  on public.log_shares (owner_user_id, source_log_id);
 
 
 -- ============================================================

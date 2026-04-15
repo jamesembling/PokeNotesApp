@@ -19,6 +19,32 @@ export type LinkableLogDeck = {
   selfDeckSprites: string[];
 };
 
+export type PersistableLogDeck = {
+  linkedDeckId?: string | null;
+  linkedDeckListId?: string | null;
+  selfDeckName: string;
+  selfDeckSlug: string;
+  selfDeckSprites: string[];
+};
+
+export type PersistableDeckLinkDecision =
+  | {
+      status: "already-linked";
+      linkedDeckId?: string;
+    }
+  | {
+      status: "linked";
+      linkedDeckId: string;
+    }
+  | {
+      status: "ambiguous";
+    }
+  | {
+      status: "no-match";
+    };
+
+type CandidateDecision = Exclude<PersistableDeckLinkDecision, { status: "already-linked" }>;
+
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
@@ -104,24 +130,39 @@ function getDeckLinkScore(deck: DeckLinkCandidate, identified: {
   return baseScore;
 }
 
-function getUniqueBestCandidate(
+function getUniqueBestCandidateDecision(
   candidates: Array<{ id: string; score: number }>,
   minimumScore: number
-) {
+): CandidateDecision {
   const ranked = candidates
     .filter((entry) => entry.score >= minimumScore)
     .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
 
   const best = ranked[0];
   if (!best) {
-    return null;
+    return {
+      status: "no-match"
+    };
   }
 
   if (ranked[1] && ranked[1].score === best.score) {
-    return null;
+    return {
+      status: "ambiguous"
+    };
   }
 
-  return best.id;
+  return {
+    status: "linked",
+    linkedDeckId: best.id
+  };
+}
+
+function getUniqueBestCandidate(
+  candidates: Array<{ id: string; score: number }>,
+  minimumScore: number
+) {
+  const decision = getUniqueBestCandidateDecision(candidates, minimumScore);
+  return decision.status === "linked" ? decision.linkedDeckId : null;
 }
 
 export async function getDeckLinkCandidates(userId: string) {
@@ -150,6 +191,33 @@ export function resolveConservativeDeckLink(
     candidates.map((deck) => ({
       id: deck.id,
       score: getDeckLinkScore(deck, identified)
+    })),
+    170
+  );
+}
+
+export function resolvePersistableLogDeckLink(
+  candidates: DeckLinkCandidate[],
+  log: PersistableLogDeck
+): PersistableDeckLinkDecision {
+  const explicitDeckId = String(log.linkedDeckId || "").trim();
+  const explicitDeckListId = String(log.linkedDeckListId || "").trim();
+
+  if (explicitDeckId || explicitDeckListId) {
+    return {
+      status: "already-linked",
+      linkedDeckId: explicitDeckId || undefined
+    };
+  }
+
+  return getUniqueBestCandidateDecision(
+    candidates.map((deck) => ({
+      id: deck.id,
+      score: getDeckLinkScore(deck, {
+        deckName: log.selfDeckName,
+        deckSlug: log.selfDeckSlug,
+        sprites: log.selfDeckSprites
+      })
     })),
     170
   );

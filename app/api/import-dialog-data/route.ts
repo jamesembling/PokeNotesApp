@@ -2,16 +2,33 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { getDecks } from "@/lib/db/decks";
 import { getPokemonOptions } from "@/lib/db/pokemon";
+import { reportError } from "@/lib/server/report-error";
 
 export async function GET() {
-  const user = await requireUser();
-  const [userDecks, pokemonOptions] = await Promise.all([
-    getDecks(user.id),
-    getPokemonOptions()
-  ]);
+  try {
+    const user = await requireUser();
+    const [userDecks, pokemonOptions] = await Promise.all([
+      getDecks(user.id),
+      getPokemonOptions()
+    ]);
 
-  return NextResponse.json({
-    pokemonOptions,
-    userDecks
-  });
+    return NextResponse.json({
+      pokemonOptions,
+      userDecks
+    });
+  } catch (error) {
+    reportError(error, {
+      action: "getImportDialogData",
+      area: "api",
+      boundary: "import-dialog-data-route",
+      route: "/api/import-dialog-data"
+    });
+
+    return NextResponse.json(
+      {
+        error: "We couldn't load import data right now."
+      },
+      { status: 500 }
+    );
+  }
 }

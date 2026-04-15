@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportError } from "@/lib/server/report-error";
 
 type GlobalErrorProps = {
   error: Error & { digest?: string };
@@ -9,7 +10,7 @@ type GlobalErrorProps = {
 
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
   useEffect(() => {
-    console.error(error);
+    reportError(error, { boundary: "global-error", digest: error.digest });
   }, [error]);
 
   return (
@@ -64,11 +65,11 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 letterSpacing: "-0.04em"
               }}
             >
-              The app failed before the normal layout could render.
+              We hit a problem before the app finished loading.
             </h1>
             <p style={{ margin: 0, color: "#d1d5db", fontSize: "14px", lineHeight: 1.6 }}>
-              This screen is a last-resort recovery boundary. We’ve logged the failure and can use
-              the reference below to track it down.
+              This recovery screen is here to help you get back on track. We’ve logged the
+              failure and can use the reference below to track it down.
             </p>
             {error.digest ? (
               <div

@@ -135,7 +135,7 @@ export type BattleLog = {
   opponentPrizesTaken: number
   selfAttackDamage: number
   opponentAttackDamage: number
-  selfMultigans: number
+  selfMulligans: number
   opponentMulligans: number
 
   // Deck linking — both optional

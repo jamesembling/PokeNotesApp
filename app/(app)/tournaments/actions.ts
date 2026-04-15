@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { getDefaultSyncedSiteFormat, isKnownSyncedSiteFormat } from "@/lib/formats/catalog";
+import {
+  resolveActionFailure,
+  userFacingActionError
+} from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
@@ -50,16 +54,12 @@ function withRefreshToken(path: string) {
 
 function toUserFacingDatabaseError(error: PostgrestLikeError) {
   if (error.code === "23514") {
-    return new Error(
+    return userFacingActionError(
       "Your Supabase tournament round constraint is out of date. Run the latest tournament rounds SQL update, then try again."
     );
   }
 
-  if (error.message) {
-    return new Error(error.message);
-  }
-
-  return new Error("A database error occurred while saving.");
+  return userFacingActionError("We couldn't save that tournament update right now.");
 }
 
 function parseCategory(value: FormDataEntryValue | null): TournamentCategory {
@@ -111,7 +111,7 @@ function parseRoundResult(formData: FormData): TournamentRoundResult {
     return buildTournamentRoundResult(selectedGameResults);
   }
 
-  throw new Error("Choose at least one game result or mark the round as BYE.");
+  throw userFacingActionError("Choose at least one game result or mark the round as BYE.");
 }
 
 function parseFormat(value: FormDataEntryValue | null) {
@@ -129,7 +129,7 @@ function parseSpriteArray(values: FormDataEntryValue[]) {
 function parseIsoDate(value: FormDataEntryValue | null, fallback?: string) {
   const normalized = String(value || "").trim() || String(fallback || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-    throw new Error("Choose a valid date.");
+    throw userFacingActionError("Choose a valid date.");
   }
 
   return normalized;
@@ -193,7 +193,7 @@ async function resolveTournamentRoundNumber(params: {
     }
 
     if (!data?.round_number) {
-      throw new Error("Could not find that round.");
+      throw userFacingActionError("Could not find that round.");
     }
 
     return Number(data.round_number);
@@ -216,258 +216,315 @@ async function resolveTournamentRoundNumber(params: {
 }
 
 export async function createTournamentAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
-  const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
-  const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
-  const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
-  const name = String(formData.get("name") || "").trim();
-  const dateFrom = parseIsoDate(formData.get("dateFrom"));
-  const dateTo = parseIsoDate(formData.get("dateTo"), dateFrom);
-  const format = parseFormat(formData.get("format")) || await getDefaultSyncedSiteFormat();
-  const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
-  const resolvedDeckListId =
-    resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
-
-  if (!name) {
-    throw new Error("Enter a tournament name before saving.");
-  }
-
-  if (!(await isKnownSyncedSiteFormat(format))) {
-    throw new Error("Choose a valid tournament format.");
-  }
-
   const tournamentId = crypto.randomUUID();
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+    const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
+    const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
+    const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
+    const name = String(formData.get("name") || "").trim();
+    const dateFrom = parseIsoDate(formData.get("dateFrom"));
+    const dateTo = parseIsoDate(formData.get("dateTo"), dateFrom);
+    const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
+    const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
+    const resolvedDeckListId =
+      resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
 
-  const nextTournament = {
-    id: tournamentId,
-    user_id: user.id,
-    name,
-    date_from: dateFrom,
-    date_to: dateTo,
-    linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-    linked_deck_list_id: resolvedDeckListId,
-    deck_name: resolvedDeck?.deckName ?? "",
-    deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
-    category: parseCategory(formData.get("category")),
-    placement: parsePlacement(formData.get("placement")),
-    format,
-    notes: String(formData.get("notes") || "").trim()
-  };
+    if (!name) {
+      throw userFacingActionError("Enter a tournament name before saving.");
+    }
 
-  let { error } = await supabase.from("tournaments").insert(nextTournament);
+    if (!(await isKnownSyncedSiteFormat(format))) {
+      throw userFacingActionError("Choose a valid tournament format.");
+    }
 
-  if (isMissingTournamentDeckListColumns(error)) {
-    ({ error } = await supabase.from("tournaments").insert({
+    const nextTournament = {
       id: tournamentId,
       user_id: user.id,
       name,
       date_from: dateFrom,
       date_to: dateTo,
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
+      linked_deck_list_id: resolvedDeckListId,
       deck_name: resolvedDeck?.deckName ?? "",
-      deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
+      deck_sprites:
+        selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
       category: parseCategory(formData.get("category")),
       placement: parsePlacement(formData.get("placement")),
       format,
       notes: String(formData.get("notes") || "").trim()
-    }));
-  }
+    };
 
-  if (error) {
-    throw toUserFacingDatabaseError(error);
-  }
+    let { error } = await supabase.from("tournaments").insert(nextTournament);
 
-  revalidateTournamentWorkspace(tournamentId);
-
-  return {
-    ok: true,
-    redirectTo: `/tournaments/${tournamentId}`
-  };
-}
-
-export async function updateTournamentAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
-  const tournamentId = String(formData.get("tournamentId") || "").trim();
-  const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
-  const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
-  const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
-  const name = String(formData.get("name") || "").trim();
-  const format = parseFormat(formData.get("format")) || await getDefaultSyncedSiteFormat();
-  const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
-  const resolvedDeckListId =
-    resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
-
-  if (!tournamentId) {
-    throw new Error("Tournament id is required.");
-  }
-
-  if (!name) {
-    throw new Error("Enter a tournament name before saving.");
-  }
-
-  if (!(await isKnownSyncedSiteFormat(format))) {
-    throw new Error("Choose a valid tournament format.");
-  }
-
-  const nextTournament = {
-    name,
-    date_from: parseIsoDate(formData.get("dateFrom")),
-    date_to: parseIsoDate(formData.get("dateTo")),
-    linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-    linked_deck_list_id: resolvedDeckListId,
-    deck_name: resolvedDeck?.deckName ?? "",
-    deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
-    category: parseCategory(formData.get("category")),
-    placement: parsePlacement(formData.get("placement")),
-    format,
-    notes: String(formData.get("notes") || "").trim()
-  };
-
-  let { error } = await supabase
-    .from("tournaments")
-    .update(nextTournament)
-    .eq("id", tournamentId)
-    .eq("user_id", user.id);
-
-  if (isMissingTournamentDeckListColumns(error)) {
-    ({ error } = await supabase
-      .from("tournaments")
-      .update({
+    if (isMissingTournamentDeckListColumns(error)) {
+      ({ error } = await supabase.from("tournaments").insert({
+        id: tournamentId,
+        user_id: user.id,
         name,
-        date_from: parseIsoDate(formData.get("dateFrom")),
-        date_to: parseIsoDate(formData.get("dateTo")),
+        date_from: dateFrom,
+        date_to: dateTo,
         linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
         deck_name: resolvedDeck?.deckName ?? "",
-        deck_sprites: selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
+        deck_sprites:
+          selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
         category: parseCategory(formData.get("category")),
         placement: parsePlacement(formData.get("placement")),
         format,
         notes: String(formData.get("notes") || "").trim()
-      })
+      }));
+    }
+
+    if (error) {
+      throw toUserFacingDatabaseError(error);
+    }
+
+    revalidateTournamentWorkspace(tournamentId);
+
+    return {
+      ok: true,
+      redirectTo: `/tournaments/${tournamentId}`
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "createTournament",
+      area: "tournaments",
+      fallbackMessage: "We couldn't save that tournament right now.",
+      route: "/tournaments",
+      tournamentId
+    });
+  }
+}
+
+export async function updateTournamentAction(formData: FormData): Promise<SaveActionResult> {
+  const tournamentId = String(formData.get("tournamentId") || "").trim();
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+    const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
+    const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
+    const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
+    const name = String(formData.get("name") || "").trim();
+    const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
+    const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
+    const resolvedDeckListId =
+      resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
+
+    if (!tournamentId) {
+      throw userFacingActionError("Tournament id is required.");
+    }
+
+    if (!name) {
+      throw userFacingActionError("Enter a tournament name before saving.");
+    }
+
+    if (!(await isKnownSyncedSiteFormat(format))) {
+      throw userFacingActionError("Choose a valid tournament format.");
+    }
+
+    const nextTournament = {
+      name,
+      date_from: parseIsoDate(formData.get("dateFrom")),
+      date_to: parseIsoDate(formData.get("dateTo")),
+      linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
+      linked_deck_list_id: resolvedDeckListId,
+      deck_name: resolvedDeck?.deckName ?? "",
+      deck_sprites:
+        selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
+      category: parseCategory(formData.get("category")),
+      placement: parsePlacement(formData.get("placement")),
+      format,
+      notes: String(formData.get("notes") || "").trim()
+    };
+
+    let { error } = await supabase
+      .from("tournaments")
+      .update(nextTournament)
       .eq("id", tournamentId)
-      .eq("user_id", user.id));
+      .eq("user_id", user.id);
+
+    if (isMissingTournamentDeckListColumns(error)) {
+      ({ error } = await supabase
+        .from("tournaments")
+        .update({
+          name,
+          date_from: parseIsoDate(formData.get("dateFrom")),
+          date_to: parseIsoDate(formData.get("dateTo")),
+          linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
+          deck_name: resolvedDeck?.deckName ?? "",
+          deck_sprites:
+            selectedDeckSprites.length > 0
+              ? selectedDeckSprites
+              : (resolvedDeck?.deckSprites ?? []),
+          category: parseCategory(formData.get("category")),
+          placement: parsePlacement(formData.get("placement")),
+          format,
+          notes: String(formData.get("notes") || "").trim()
+        })
+        .eq("id", tournamentId)
+        .eq("user_id", user.id));
+    }
+
+    if (error) {
+      throw toUserFacingDatabaseError(error);
+    }
+
+    revalidateTournamentWorkspace(tournamentId);
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(getRedirectTarget(formData, `/tournaments/${tournamentId}`))
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "updateTournament",
+      area: "tournaments",
+      fallbackMessage: "We couldn't update that tournament right now.",
+      route: "/tournaments",
+      tournamentId
+    });
   }
-
-  if (error) {
-    throw toUserFacingDatabaseError(error);
-  }
-
-  revalidateTournamentWorkspace(tournamentId);
-
-  return {
-    ok: true,
-    redirectTo: withRefreshToken(getRedirectTarget(formData, `/tournaments/${tournamentId}`))
-  };
 }
 
 export async function deleteTournamentAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
   const tournamentId = String(formData.get("tournamentId") || "").trim();
 
-  if (!tournamentId) {
-    throw new Error("Tournament id is required.");
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!tournamentId) {
+      throw userFacingActionError("Tournament id is required.");
+    }
+
+    const { error } = await supabase
+      .from("tournaments")
+      .delete()
+      .eq("id", tournamentId)
+      .eq("user_id", user.id);
+
+    if (error) {
+      throw toUserFacingDatabaseError(error);
+    }
+
+    revalidateTournamentWorkspace();
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken("/tournaments")
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "deleteTournament",
+      area: "tournaments",
+      fallbackMessage: "We couldn't delete that tournament right now.",
+      route: "/tournaments",
+      tournamentId
+    });
   }
-
-  const { error } = await supabase
-    .from("tournaments")
-    .delete()
-    .eq("id", tournamentId)
-    .eq("user_id", user.id);
-
-  if (error) {
-    throw toUserFacingDatabaseError(error);
-  }
-
-  revalidateTournamentWorkspace();
-
-  return {
-    ok: true,
-    redirectTo: withRefreshToken("/tournaments")
-  };
 }
 
 export async function saveTournamentRoundAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
   const tournamentId = String(formData.get("tournamentId") || "").trim();
   const roundId = String(formData.get("roundId") || "").trim();
-  const opponentDeckSprites = parseSpriteArray(formData.getAll("opponentDeckSprites"));
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+    const opponentDeckSprites = parseSpriteArray(formData.getAll("opponentDeckSprites"));
 
-  if (!tournamentId) {
-    throw new Error("Tournament id is required.");
+    if (!tournamentId) {
+      throw userFacingActionError("Tournament id is required.");
+    }
+    const roundNumber = await resolveTournamentRoundNumber({
+      roundId,
+      tournamentId,
+      userId: user.id
+    });
+
+    const payload = {
+      tournament_id: tournamentId,
+      user_id: user.id,
+      round_number: roundNumber,
+      opponent_deck_name: "",
+      opponent_deck_sprites: opponentDeckSprites,
+      result: parseRoundResult(formData),
+      notes: String(formData.get("notes") || "").trim()
+    };
+
+    if (roundId) {
+      const { error } = await supabase
+        .from("tournament_rounds")
+        .update(payload)
+        .eq("id", roundId)
+        .eq("user_id", user.id);
+
+      if (error) {
+        throw toUserFacingDatabaseError(error);
+      }
+    } else {
+      const { error } = await supabase.from("tournament_rounds").insert({
+        id: crypto.randomUUID(),
+        ...payload
+      });
+
+      if (error) {
+        throw toUserFacingDatabaseError(error);
+      }
+    }
+
+    revalidateTournamentWorkspace(tournamentId);
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(getRedirectTarget(formData, `/tournaments/${tournamentId}`))
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: roundId ? "updateTournamentRound" : "createTournamentRound",
+      area: "tournaments",
+      fallbackMessage: "We couldn't save that tournament round right now.",
+      route: "/tournaments",
+      tournamentId
+    });
   }
-  const roundNumber = await resolveTournamentRoundNumber({
-    roundId,
-    tournamentId,
-    userId: user.id
-  });
+}
 
-  const payload = {
-    tournament_id: tournamentId,
-    user_id: user.id,
-    round_number: roundNumber,
-    opponent_deck_name: "",
-    opponent_deck_sprites: opponentDeckSprites,
-    result: parseRoundResult(formData),
-    notes: String(formData.get("notes") || "").trim()
-  };
+export async function deleteTournamentRoundAction(formData: FormData): Promise<SaveActionResult> {
+  const tournamentId = String(formData.get("tournamentId") || "").trim();
+  const roundId = String(formData.get("roundId") || "").trim();
 
-  if (roundId) {
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!tournamentId || !roundId) {
+      throw userFacingActionError("Round id is required.");
+    }
+
     const { error } = await supabase
       .from("tournament_rounds")
-      .update(payload)
+      .delete()
       .eq("id", roundId)
       .eq("user_id", user.id);
 
     if (error) {
       throw toUserFacingDatabaseError(error);
     }
-  } else {
-    const { error } = await supabase.from("tournament_rounds").insert({
-      id: crypto.randomUUID(),
-      ...payload
+
+    revalidateTournamentWorkspace(tournamentId);
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(`/tournaments/${tournamentId}`)
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "deleteTournamentRound",
+      area: "tournaments",
+      fallbackMessage: "We couldn't delete that tournament round right now.",
+      route: "/tournaments",
+      tournamentId
     });
-
-    if (error) {
-      throw toUserFacingDatabaseError(error);
-    }
   }
-
-  revalidateTournamentWorkspace(tournamentId);
-
-  return {
-    ok: true,
-    redirectTo: withRefreshToken(getRedirectTarget(formData, `/tournaments/${tournamentId}`))
-  };
-}
-
-export async function deleteTournamentRoundAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
-  const tournamentId = String(formData.get("tournamentId") || "").trim();
-  const roundId = String(formData.get("roundId") || "").trim();
-
-  if (!tournamentId || !roundId) {
-    throw new Error("Round id is required.");
-  }
-
-  const { error } = await supabase
-    .from("tournament_rounds")
-    .delete()
-    .eq("id", roundId)
-    .eq("user_id", user.id);
-
-  if (error) {
-    throw error;
-  }
-
-  revalidateTournamentWorkspace(tournamentId);
-
-  return {
-    ok: true,
-    redirectTo: withRefreshToken(`/tournaments/${tournamentId}`)
-  };
 }

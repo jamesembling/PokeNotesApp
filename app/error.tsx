@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { reportError } from "@/lib/server/report-error";
 
 type AppErrorProps = {
   error: Error & { digest?: string };
@@ -11,7 +12,7 @@ type AppErrorProps = {
 
 export default function AppError({ error, reset }: AppErrorProps) {
   useEffect(() => {
-    console.error(error);
+    reportError(error, { boundary: "app-error", digest: error.digest });
   }, [error]);
 
   return (
@@ -24,8 +25,8 @@ export default function AppError({ error, reset }: AppErrorProps) {
               Something went wrong while loading this page.
             </h1>
             <p className="text-sm text-[var(--text-secondary)]">
-              Try reloading the route. If this keeps happening, we’ve logged the failure and can
-              trace it from the reference below.
+              Try the page again. If it keeps happening, we’ve logged the failure and can trace it
+              from the reference below.
             </p>
           </div>
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { updateAdminUserRole } from "@/lib/db/admin";
+import { reportError } from "@/lib/server/report-error";
 import type { Role } from "@/types/index";
 
 export async function updateAdminUserRoleAction(input: { userId: string; role: Role }) {
@@ -13,9 +14,14 @@ export async function updateAdminUserRoleAction(input: { userId: string; role: R
       ok: true as const
     };
   } catch (error) {
+    reportError(error, {
+      boundary: "admin-dashboard-actions",
+      route: "/admin/dashboard"
+    });
+
     return {
       ok: false as const,
-      error: error instanceof Error ? error.message : "Unable to update the user role."
+      error: "Unable to update the user role right now."
     };
   }
 }

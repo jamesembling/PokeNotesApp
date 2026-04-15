@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
-import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   getBattleLogDeckDisplayName,
@@ -10,6 +10,7 @@ import {
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { parseDeckList } from "@/lib/decks/deck-list-parse";
 import { getSharedLogSnapshot } from "@/lib/db/log-shares";
+import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
 import type { BattleLog } from "@/types/index";
 
 type SharedLogPageProps = {
@@ -68,7 +69,11 @@ export async function generateMetadata({ params }: SharedLogPageProps): Promise<
   if (!sharedLog) {
     return {
       title: "Shared Battle Log | Poke Notes",
-      description: "This shared battle log link is missing or no longer available."
+      description: "This shared battle log link is missing or no longer available.",
+      robots: {
+        follow: false,
+        index: false
+      }
     };
   }
 
@@ -77,6 +82,10 @@ export async function generateMetadata({ params }: SharedLogPageProps): Promise<
   return {
     title: metadata.title,
     description: metadata.description,
+    robots: {
+      follow: false,
+      index: false
+    },
     openGraph: {
       title: metadata.title,
       description: metadata.description,
@@ -93,31 +102,7 @@ export async function generateMetadata({ params }: SharedLogPageProps): Promise<
 
 export default async function SharedLogPage({ params }: SharedLogPageProps) {
   const { token } = await params;
-  const sharedLog = await getSharedLogSnapshot(token);
-
-  if (!sharedLog) {
-    return (
-      <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <div className="mx-auto flex max-w-5xl flex-col gap-6">
-          <PageHeader
-            breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Shared Battle Log" }]}
-            title="Shared Battle Log"
-          />
-
-          <Card>
-            <div className="flex flex-col gap-3">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Shared log not found
-              </h2>
-              <p className="text-sm text-[var(--text-muted)]">
-                This shared battle log link is missing or no longer available.
-              </p>
-            </div>
-          </Card>
-        </div>
-      </main>
-    );
-  }
+  const sharedLog = requireSharedLogSnapshot(await getSharedLogSnapshot(token), notFound);
 
   const timestampLabel = formatImportedAt(
     sharedLog.payload.log.importedAt || sharedLog.createdAt

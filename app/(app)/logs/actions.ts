@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import {
@@ -15,8 +14,13 @@ import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
-import { createLogShareSnapshot } from "@/lib/db/log-shares";
+import { getOrCreateLogShareSnapshot, revokeLogShare } from "@/lib/db/log-shares";
 import { getLogById, getLogsWindow } from "@/lib/db/logs";
+import { getAppOrigin } from "@/lib/server/app-url";
+import {
+  resolveActionFailure,
+  userFacingActionError
+} from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportLogRecord } from "@/lib/log-import/types";
 import type { LogSection, ParsedLogReview, Result } from "@/types/index";
@@ -212,111 +216,144 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
     const rawLog = String(formData.get("rawLog") || "");
     return await buildParsedLogReview(rawLog);
   } catch (error) {
+    if (error instanceof ImportLogValidationError) {
+      return {
+        error: error.message
+      };
+    }
+
+    const actionError = resolveActionFailure(error, {
+      action: "parseLog",
+      area: "logs",
+      fallbackMessage: "We couldn't parse that battle log.",
+      route: "/logs"
+    });
+
     return {
-      error:
-        error instanceof Error ? error.message : "Unable to review this battle log right now."
+      error: actionError.message
     };
   }
 }
 
 export async function importLogAction(formData: FormData): Promise<SaveActionResult> {
-  const rawLogInput = String(formData.get("rawLog") || "").trim();
-  const review = await buildParsedLogReview(rawLogInput);
-  const { user, supabase } = await getImportContext();
+  try {
+    const rawLogInput = String(formData.get("rawLog") || "").trim();
+    const review = await buildParsedLogReview(rawLogInput);
+    const { user, supabase } = await getImportContext();
 
-  const selectedDeckId = String(formData.get("linkedDeckId") || "").trim();
-  const selectedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
-  const sections = parseSections(formData.get("sections"));
+    const selectedDeckId = String(formData.get("linkedDeckId") || "").trim();
+    const selectedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
+    const sections = parseSections(formData.get("sections"));
 
-  const record: ImportLogRecord = {
-    id: crypto.randomUUID(),
-    date: String(formData.get("date") || review.date).trim() || review.date,
-    result: parseResult(formData.get("result")),
-    format: String(formData.get("format") || "").trim(),
-    go_order: parseGoOrder(formData.get("goOrder")) || review.goOrder,
-    self_player_name: String(formData.get("selfPlayerName") || review.selfPlayerName).trim(),
-    self_deck_name: String(formData.get("selfDeckName") || review.selfDeckName).trim(),
-    self_deck_slug: String(formData.get("selfDeckSlug") || review.selfDeckSlug).trim(),
-    self_deck_sprites: joinSprites(parseStringArray(formData.getAll("selfSprites"))),
-    opponent_player_name: String(
-      formData.get("opponentPlayerName") || review.opponentPlayerName
-    ).trim(),
-    opponent_deck_name: String(formData.get("opponentDeckName") || review.opponentDeckName).trim(),
-    opponent_deck_slug: String(
-      formData.get("opponentDeckSlug") || review.opponentDeckSlug
-    ).trim(),
-    opponent_deck_sprites: joinSprites(parseStringArray(formData.getAll("opponentSprites"))),
-    total_turns: Number(formData.get("totalTurns") || review.totalTurns) || 0,
-    coin_toss_won: parseBoolean(formData.get("coinTossWon")),
-    self_prizes_taken: Number(formData.get("selfPrizesTaken") || review.selfPrizesTaken) || 0,
-    opponent_prizes_taken:
-      Number(formData.get("opponentPrizesTaken") || review.opponentPrizesTaken) || 0,
-    self_attack_damage: Number(formData.get("selfAttackDamage") || review.selfAttackDamage) || 0,
-    opponent_attack_damage:
-      Number(formData.get("opponentAttackDamage") || review.opponentAttackDamage) || 0,
-    self_mulligans: Number(formData.get("selfMulligans") || review.selfMulligans) || 0,
-    opponent_mulligans: Number(formData.get("opponentMulligans") || review.opponentMulligans) || 0,
-    linked_deck_id: selectedDeckId || review.suggestedLinkedDeckId || null,
-    linked_deck_list_id: selectedDeckListId || null,
-    reason: String(formData.get("reason") || review.reason).trim(),
-    raw_log: review.rawLog,
-    sections: sections.length > 0 ? sections : review.sections
-  };
+    const record: ImportLogRecord = {
+      id: crypto.randomUUID(),
+      date: String(formData.get("date") || review.date).trim() || review.date,
+      result: parseResult(formData.get("result")),
+      format: String(formData.get("format") || "").trim(),
+      go_order: parseGoOrder(formData.get("goOrder")) || review.goOrder,
+      self_player_name: String(formData.get("selfPlayerName") || review.selfPlayerName).trim(),
+      self_deck_name: String(formData.get("selfDeckName") || review.selfDeckName).trim(),
+      self_deck_slug: String(formData.get("selfDeckSlug") || review.selfDeckSlug).trim(),
+      self_deck_sprites: joinSprites(parseStringArray(formData.getAll("selfSprites"))),
+      opponent_player_name: String(
+        formData.get("opponentPlayerName") || review.opponentPlayerName
+      ).trim(),
+      opponent_deck_name: String(formData.get("opponentDeckName") || review.opponentDeckName).trim(),
+      opponent_deck_slug: String(
+        formData.get("opponentDeckSlug") || review.opponentDeckSlug
+      ).trim(),
+      opponent_deck_sprites: joinSprites(parseStringArray(formData.getAll("opponentSprites"))),
+      total_turns: Number(formData.get("totalTurns") || review.totalTurns) || 0,
+      coin_toss_won: parseBoolean(formData.get("coinTossWon")),
+      self_prizes_taken: Number(formData.get("selfPrizesTaken") || review.selfPrizesTaken) || 0,
+      opponent_prizes_taken:
+        Number(formData.get("opponentPrizesTaken") || review.opponentPrizesTaken) || 0,
+      self_attack_damage: Number(formData.get("selfAttackDamage") || review.selfAttackDamage) || 0,
+      opponent_attack_damage:
+        Number(formData.get("opponentAttackDamage") || review.opponentAttackDamage) || 0,
+      self_mulligans: Number(formData.get("selfMulligans") || review.selfMulligans) || 0,
+      opponent_mulligans:
+        Number(formData.get("opponentMulligans") || review.opponentMulligans) || 0,
+      linked_deck_id: selectedDeckId || review.suggestedLinkedDeckId || null,
+      linked_deck_list_id: selectedDeckListId || null,
+      reason: String(formData.get("reason") || review.reason).trim(),
+      raw_log: review.rawLog,
+      sections: sections.length > 0 ? sections : review.sections
+    };
 
-  const { error: insertError } = await supabase.from("logs").insert({
-    ...record,
-    user_id: user.id
-  });
+    const { error: insertError } = await supabase.from("logs").insert({
+      ...record,
+      user_id: user.id
+    });
 
-  if (insertError) {
-    throw insertError;
+    if (insertError) {
+      throw insertError;
+    }
+
+    revalidateWorkspaceViews();
+
+    return {
+      ok: true,
+      redirectTo: `/logs/${record.id}`
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "importLog",
+      area: "logs",
+      fallbackMessage: "We couldn't import that battle log right now.",
+      route: "/logs"
+    });
   }
-
-  revalidateWorkspaceViews();
-
-  return {
-    ok: true,
-    redirectTo: `/logs/${record.id}`
-  };
 }
 
 export async function updateLogAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
   const logId = String(formData.get("logId") || "").trim();
 
-  if (!logId) {
-    throw new Error("Missing battle log ID.");
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!logId) {
+      throw userFacingActionError("Missing battle log ID.");
+    }
+
+    const date = String(formData.get("date") || "").trim();
+    const format = String(formData.get("format") || "").trim();
+    const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
+    const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
+
+    const { error } = await supabase
+      .from("logs")
+      .update({
+        date,
+        format,
+        linked_deck_id: linkedDeckId || null,
+        linked_deck_list_id: linkedDeckListId || null,
+        self_deck_sprites: joinSprites(parseStringArray(formData.getAll("selfSprites"))),
+        opponent_deck_sprites: joinSprites(parseStringArray(formData.getAll("opponentSprites")))
+      })
+      .eq("user_id", user.id)
+      .eq("id", logId);
+
+    if (error) {
+      throw error;
+    }
+
+    revalidateWorkspaceViews();
+
+    return {
+      ok: true,
+      redirectTo: getRedirectTarget(formData, `/logs/${logId}`)
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "updateLog",
+      area: "logs",
+      fallbackMessage: "We couldn't update that battle log right now.",
+      logId,
+      route: "/logs"
+    });
   }
-
-  const date = String(formData.get("date") || "").trim();
-  const format = String(formData.get("format") || "").trim();
-  const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
-  const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
-
-  const { error } = await supabase
-    .from("logs")
-    .update({
-      date,
-      format,
-      linked_deck_id: linkedDeckId || null,
-      linked_deck_list_id: linkedDeckListId || null,
-      self_deck_sprites: joinSprites(parseStringArray(formData.getAll("selfSprites"))),
-      opponent_deck_sprites: joinSprites(parseStringArray(formData.getAll("opponentSprites")))
-    })
-    .eq("user_id", user.id)
-    .eq("id", logId);
-
-  if (error) {
-    throw error;
-  }
-
-  revalidateWorkspaceViews();
-
-  return {
-    ok: true,
-    redirectTo: getRedirectTarget(formData, `/logs/${logId}`)
-  };
 }
 
 export async function bulkAssignDeckListAction(input: {
@@ -324,8 +361,6 @@ export async function bulkAssignDeckListAction(input: {
   linkedDeckId: string;
   linkedDeckListId: string;
 }): Promise<void> {
-  const user = await requireUser();
-  const supabase = await createClient();
   const logIds = Array.from(
     new Set(
       (input.logIds ?? [])
@@ -336,36 +371,51 @@ export async function bulkAssignDeckListAction(input: {
   const linkedDeckId = String(input.linkedDeckId || "").trim();
   const linkedDeckListId = String(input.linkedDeckListId || "").trim();
 
-  if (!logIds.length) {
-    throw new Error("Select at least one battle log.");
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!logIds.length) {
+      throw userFacingActionError("Select at least one battle log.");
+    }
+
+    if (!linkedDeckId || !linkedDeckListId) {
+      throw userFacingActionError("Choose both a deck strategy and deck list first.");
+    }
+
+    const userDecks = await getDecks(user.id);
+    const selectedDeck = userDecks.find((deck) => deck.id === linkedDeckId);
+    const selectedDeckList = selectedDeck?.deckLists.find(
+      (deckList) => deckList.id === linkedDeckListId
+    );
+
+    if (!selectedDeck || !selectedDeckList) {
+      throw userFacingActionError("That deck list could not be found.");
+    }
+
+    const { error } = await supabase
+      .from("logs")
+      .update({
+        linked_deck_id: linkedDeckId,
+        linked_deck_list_id: linkedDeckListId
+      })
+      .eq("user_id", user.id)
+      .in("id", logIds);
+
+    if (error) {
+      throw error;
+    }
+
+    revalidateWorkspaceViews();
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "bulkAssignDeckList",
+      area: "logs",
+      fallbackMessage: "We couldn't update those linked deck lists right now.",
+      route: "/logs",
+      userId: undefined
+    });
   }
-
-  if (!linkedDeckId || !linkedDeckListId) {
-    throw new Error("Choose both a deck strategy and deck list first.");
-  }
-
-  const userDecks = await getDecks(user.id);
-  const selectedDeck = userDecks.find((deck) => deck.id === linkedDeckId);
-  const selectedDeckList = selectedDeck?.deckLists.find((deckList) => deckList.id === linkedDeckListId);
-
-  if (!selectedDeck || !selectedDeckList) {
-    throw new Error("That deck list could not be found.");
-  }
-
-  const { error } = await supabase
-    .from("logs")
-    .update({
-      linked_deck_id: linkedDeckId,
-      linked_deck_list_id: linkedDeckListId
-    })
-    .eq("user_id", user.id)
-    .in("id", logIds);
-
-  if (error) {
-    throw error;
-  }
-
-  revalidateWorkspaceViews();
 }
 
 export async function loadMoreLogsAction(windowEndDate?: string) {
@@ -376,8 +426,6 @@ export async function loadMoreLogsAction(windowEndDate?: string) {
 }
 
 export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
-  const user = await requireUser();
-  const supabase = await createClient();
   const logIds = Array.from(
     new Set(
       (logIdsInput ?? [])
@@ -386,82 +434,140 @@ export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
     )
   );
 
-  if (!logIds.length) {
-    throw new Error("Select at least one battle log.");
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!logIds.length) {
+      throw userFacingActionError("Select at least one battle log.");
+    }
+
+    const { error } = await supabase
+      .from("logs")
+      .delete()
+      .eq("user_id", user.id)
+      .in("id", logIds);
+
+    if (error) {
+      throw error;
+    }
+
+    revalidateWorkspaceViews();
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "deleteLogs",
+      area: "logs",
+      fallbackMessage: "We couldn't delete those battle logs right now.",
+      route: "/logs"
+    });
   }
-
-  const { error } = await supabase
-    .from("logs")
-    .delete()
-    .eq("user_id", user.id)
-    .in("id", logIds);
-
-  if (error) {
-    throw error;
-  }
-
-  revalidateWorkspaceViews();
 }
 
 export async function deleteLogAction(logIdInput: string): Promise<void> {
   const logId = String(logIdInput || "").trim();
 
   if (!logId) {
-    throw new Error("Missing battle log ID.");
+    throw userFacingActionError("Missing battle log ID.");
   }
 
   await deleteLogsAction([logId]);
 }
 
-export async function createLogShareAction(logId: string): Promise<{ shareUrl: string }> {
+export async function createLogShareAction(logId: string): Promise<{
+  expiresAt: string;
+  shareId: string;
+  shareUrl: string;
+}> {
   const user = await requireUser();
   const normalizedLogId = String(logId || "").trim();
 
-  if (!normalizedLogId) {
-    throw new Error("Missing battle log ID.");
-  }
+  try {
+    if (!normalizedLogId) {
+      throw userFacingActionError("Missing battle log ID.");
+    }
 
-  const [log, userDecks] = await Promise.all([
-    getLogById(user.id, normalizedLogId),
-    getDecks(user.id)
-  ]);
+    const [log, userDecks] = await Promise.all([
+      getLogById(user.id, normalizedLogId),
+      getDecks(user.id)
+    ]);
 
-  if (!log) {
-    throw new Error("Battle log not found.");
-  }
+    if (!log) {
+      throw userFacingActionError("Battle log not found.");
+    }
 
-  const linkedDeck = log.linkedDeckId
-    ? userDecks.find((deck) => deck.id === log.linkedDeckId) ?? null
-    : null;
-  const linkedDeckList = linkedDeck?.deckLists.find(
-    (deckList) => deckList.id === log.linkedDeckListId
-  );
-  const hydratedLinkedDeckList =
-    linkedDeck?.id && linkedDeckList?.id
-      ? await getDeckWithList(user.id, linkedDeck.id, linkedDeckList.id)
+    const linkedDeck = log.linkedDeckId
+      ? userDecks.find((deck) => deck.id === log.linkedDeckId) ?? null
       : null;
-  const linkedStrategyLabel = linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
-  const sharedLog = {
-    ...log,
-    id: "shared-log",
-    userId: "",
-    linkedDeckId: undefined,
-    linkedDeckListId: undefined
-  };
-  const token = await createLogShareSnapshot({
-    ownerUserId: user.id,
-    log: sharedLog,
-    linkedStrategyLabel,
-    linkedDeckListFormat: hydratedLinkedDeckList?.deckList.format ?? linkedDeckList?.format,
-    linkedDeckListName: hydratedLinkedDeckList?.deckList.name ?? linkedDeckList?.name,
-    linkedDeckListNotes: hydratedLinkedDeckList?.deckList.notes ?? linkedDeckList?.notes,
-    linkedDeckListRawList: hydratedLinkedDeckList?.deckList.rawList ?? linkedDeckList?.rawList,
-    linkedDeckListSortedCards: hydratedLinkedDeckList?.deckList.sortedCards ?? []
-  });
+    const linkedDeckList = linkedDeck?.deckLists.find(
+      (deckList) => deckList.id === log.linkedDeckListId
+    );
+    const hydratedLinkedDeckList =
+      linkedDeck?.id && linkedDeckList?.id
+        ? await getDeckWithList(user.id, linkedDeck.id, linkedDeckList.id)
+        : null;
+    const linkedStrategyLabel =
+      linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
+    const sharedLog = {
+      ...log,
+      id: "shared-log",
+      userId: "",
+      linkedDeckId: undefined,
+      linkedDeckListId: undefined
+    };
+    const share = await getOrCreateLogShareSnapshot({
+      ownerUserId: user.id,
+      sourceLogId: normalizedLogId,
+      log: sharedLog,
+      linkedStrategyLabel,
+      linkedDeckListFormat: hydratedLinkedDeckList?.deckList.format ?? linkedDeckList?.format,
+      linkedDeckListName: hydratedLinkedDeckList?.deckList.name ?? linkedDeckList?.name,
+      linkedDeckListNotes: hydratedLinkedDeckList?.deckList.notes ?? linkedDeckList?.notes,
+      linkedDeckListRawList: hydratedLinkedDeckList?.deckList.rawList ?? linkedDeckList?.rawList,
+      linkedDeckListSortedCards: hydratedLinkedDeckList?.deckList.sortedCards ?? []
+    });
 
-  const requestHeaders = await headers();
-  const origin = requestHeaders.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const shareUrl = `${origin.replace(/\/$/, "")}/shared/${token}`;
+    const shareUrl = `${await getAppOrigin()}/shared/${share.id}`;
 
-  return { shareUrl };
+    return {
+      expiresAt: share.expiresAt,
+      shareId: share.id,
+      shareUrl
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "createShare",
+      area: "logs",
+      fallbackMessage: "We couldn't create a share link for this battle log right now.",
+      logId: normalizedLogId,
+      route: "/logs",
+      userId: user.id
+    });
+  }
+}
+
+export async function revokeLogShareAction(shareId: string): Promise<void> {
+  const user = await requireUser();
+  const normalizedShareId = String(shareId || "").trim();
+
+  try {
+    if (!normalizedShareId) {
+      throw userFacingActionError("Missing share link ID.");
+    }
+
+    const didRevoke = await revokeLogShare(normalizedShareId, user.id);
+    if (!didRevoke) {
+      throw userFacingActionError("Share link not found or already revoked.");
+    }
+
+    revalidatePath("/logs", "layout");
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "revokeShare",
+      area: "logs",
+      fallbackMessage: "We couldn't revoke that share link right now.",
+      route: "/logs",
+      shareId: normalizedShareId,
+      userId: user.id
+    });
+  }
 }
