@@ -345,3 +345,66 @@ test("getDeckStatsForIndex preserves deck stats parity without materializing log
     losses: 1
   });
 });
+
+test("getDeckStatsForIndex prefers stored deck links while preserving legacy fallback parity", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
+  const { client } = createFakeSupabaseClient((ctx) => {
+    const hasExplicitDeckFilter = ctx.operations.some(
+      (op) => op.method === "in" && op.args[0] === "linked_deck_id"
+    );
+    const hasUnlinkedFilter = ctx.operations.some(
+      (op) => op.method === "is" && op.args[0] === "linked_deck_id"
+    );
+
+    if (hasExplicitDeckFilter) {
+      return {
+        data: [
+          buildLogRow({ id: "deck-a-explicit", linked_deck_id: "deck-a", result: "Win" }),
+          buildLogRow({ id: "deck-b-explicit", linked_deck_id: "deck-b", result: "Loss" })
+        ],
+        error: null
+      };
+    }
+
+    if (hasUnlinkedFilter) {
+      return {
+        data: [
+          buildLogRow({
+            id: "deck-b-legacy",
+            linked_deck_id: null,
+            self_deck_name: "Deck deck-b",
+            self_deck_sprites: "",
+            result: "Win"
+          })
+        ],
+        error: null
+      };
+    }
+
+    throw new Error(`Unexpected query: ${JSON.stringify(ctx.operations)}`);
+  });
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const statsByDeck = await getDeckStatsForIndex("user-1", decks);
+
+  assert.deepEqual(statsByDeck.get("deck-a"), {
+    total: 1,
+    wins: 1,
+    losses: 0
+  });
+  assert.deepEqual(statsByDeck.get("deck-b"), {
+    total: 2,
+    wins: 1,
+    losses: 1
+  });
+  assert.deepEqual(statsByDeck.get("deck-c"), {
+    total: 0,
+    wins: 0,
+    losses: 0
+  });
+});

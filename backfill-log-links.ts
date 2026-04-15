@@ -5,12 +5,11 @@ import {
   type DeckLinkCandidate
 } from "./lib/log-import/deck-linking";
 
-const REQUIRED_ENV_VARS = ["NEW_SUPABASE_URL", "NEW_SUPABASE_SERVICE_KEY"];
-
 type ScriptArgs = {
   batchSize: number;
   cursorId?: string;
   dryRun: boolean;
+  maxBatches?: number;
   userId?: string;
 };
 
@@ -39,16 +38,31 @@ type Summary = {
   skipped: number;
 };
 
-for (const envVar of REQUIRED_ENV_VARS) {
-  if (!process.env[envVar]) {
-    console.error(`Missing required environment variable: ${envVar}`);
-    process.exit(1);
-  }
+function getAdminSupabaseEnv() {
+  const supabaseUrl =
+    process.env.NEW_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const serviceKey =
+    process.env.NEW_SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+  return {
+    configured: Boolean(supabaseUrl && serviceKey),
+    serviceKey,
+    supabaseUrl
+  };
+}
+
+const adminSupabaseEnv = getAdminSupabaseEnv();
+
+if (!adminSupabaseEnv.configured) {
+  console.error(
+    "Missing required Supabase admin env. Set NEW_SUPABASE_URL/NEW_SUPABASE_SERVICE_KEY or NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY."
+  );
+  process.exit(1);
 }
 
 const supabase = createClient(
-  process.env.NEW_SUPABASE_URL!,
-  process.env.NEW_SUPABASE_SERVICE_KEY!,
+  adminSupabaseEnv.supabaseUrl,
+  adminSupabaseEnv.serviceKey,
   {
     auth: {
       autoRefreshToken: false,
@@ -89,6 +103,14 @@ function parseArgs(argv: string[]): ScriptArgs {
       const cursorId = arg.slice("--after-id=".length).trim();
       if (cursorId) {
         parsed.cursorId = cursorId;
+      }
+      continue;
+    }
+
+    if (arg.startsWith("--max-batches=")) {
+      const maxBatches = Number.parseInt(arg.slice("--max-batches=".length), 10);
+      if (Number.isFinite(maxBatches) && maxBatches > 0) {
+        parsed.maxBatches = maxBatches;
       }
     }
   }
@@ -221,7 +243,7 @@ async function main() {
   const candidatesByUser = await loadDeckCandidates(args.userId);
 
   console.log(
-    `Starting log link backfill (${args.dryRun ? "dry-run" : "apply"}) batchSize=${args.batchSize}${args.userId ? ` userId=${args.userId}` : ""}${args.cursorId ? ` afterId=${args.cursorId}` : ""}`
+    `Starting log link backfill (${args.dryRun ? "dry-run" : "apply"}) batchSize=${args.batchSize}${args.userId ? ` userId=${args.userId}` : ""}${args.cursorId ? ` afterId=${args.cursorId}` : ""}${args.maxBatches ? ` maxBatches=${args.maxBatches}` : ""}`
   );
   console.log(`Loaded deck candidates for ${candidatesByUser.size} user(s).`);
 
@@ -229,6 +251,11 @@ async function main() {
   let batchNumber = 0;
 
   while (true) {
+    if (args.maxBatches && batchNumber >= args.maxBatches) {
+      console.log(`Reached max batch limit (${args.maxBatches}); stopping early.`);
+      break;
+    }
+
     const rows = await fetchLogBatch({
       batchSize: args.batchSize,
       cursorId,

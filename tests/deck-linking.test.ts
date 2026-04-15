@@ -125,6 +125,35 @@ test("resolvePersistableLogDeckLink preserves explicit link fields", () => {
   });
 });
 
+test("resolvePersistableLogDeckLink returns a unique conservative persisted match", () => {
+  const decision = resolvePersistableLogDeckLink(
+    [
+      {
+        id: "deck-a",
+        deckName: "Gardevoir ex",
+        deckPokemon: ["gardevoir", "kirlia"]
+      },
+      {
+        id: "deck-b",
+        deckName: "Dragapult ex",
+        deckPokemon: ["dragapult", "dusknoir"]
+      }
+    ],
+    {
+      linkedDeckId: null,
+      linkedDeckListId: null,
+      selfDeckName: "Dragapult ex",
+      selfDeckSlug: "dragapult-ex",
+      selfDeckSprites: ["dragapult", "dusknoir"]
+    }
+  );
+
+  assert.deepEqual(decision, {
+    status: "linked",
+    linkedDeckId: "deck-b"
+  });
+});
+
 test("resolvePersistableLogDeckLink reports ambiguous matches without selecting one", () => {
   const decision = resolvePersistableLogDeckLink(
     [
