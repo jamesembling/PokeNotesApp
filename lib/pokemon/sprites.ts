@@ -15,11 +15,20 @@ export function prettifyPokemonSlug(slug: string) {
     .join(" ");
 }
 
-function normalizePokemonText(value: string) {
+function stripTrainerPrefix(value: string) {
   return String(value || "")
     .trim()
-    .replace(/^Stage\s+[12]\s+/i, "")
-    .replace(/^Basic\s+/i, "")
+    .replace(/^(?:[A-Za-z]+(?:[ .-][A-Za-z]+)*)[’']s\s+/i, "");
+}
+
+function normalizePokemonText(value: string) {
+  return stripTrainerPrefix(
+    String(value || "")
+      .trim()
+      .replace(/^Stage\s+[12]\s+/i, "")
+      .replace(/^Basic\s+/i, "")
+  )
+    .trim()
     .replace(/\b(ex|vstar|vmax|v|gx)\b/gi, " ")
     .replace(/[’']/g, "")
     .replace(/\./g, " ")
