@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { updateCurrentProfile } from "@/lib/db/profile";
+import { reportError } from "@/lib/server/report-error";
 
 export type ProfileActionState = {
   error: string | null;
@@ -52,8 +53,13 @@ export async function saveProfileAction(
       success: "Profile saved."
     };
   } catch (error) {
+    reportError(error, {
+      boundary: "profile-actions",
+      route: "/profile"
+    });
+
     return {
-      error: error instanceof Error ? error.message : "Unable to save your profile right now.",
+      error: "Unable to save your profile right now.",
       success: null
     };
   }

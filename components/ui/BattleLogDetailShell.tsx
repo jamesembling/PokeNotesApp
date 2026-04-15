@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
-import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
+import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
+import { ShareLinkPanel } from "@/components/ui/ShareLinkPanel";
 import type { BattleLog, DeckCard, DeckSummary } from "@/types/index";
 
 type ShareTone = "success" | "info" | "error";
@@ -16,6 +17,7 @@ type ShareFeedback = {
 };
 
 type BattleLogDetailShellProps = {
+  activeShare?: ShareLinkState | null;
   linkedDeckId?: string;
   linkedDeckListFormat?: string;
   linkedDeckListId?: string;
@@ -45,6 +47,7 @@ const feedbackClassName: Record<ShareTone, string> = {
 };
 
 export function BattleLogDetailShell({
+  activeShare = null,
   linkedDeckId,
   linkedDeckListFormat,
   linkedDeckListId,
@@ -64,7 +67,6 @@ export function BattleLogDetailShell({
       actions={
         <>
           <LazyEditLogButton log={log} userDecks={userDecks} />
-          <CopyShareLinkButton logId={log.id} onFeedbackChange={setShareFeedback} />
           <Link className={`${backLinkClassName} hidden sm:inline-flex`} href="/logs">
             Back to Logs
           </Link>
@@ -88,9 +90,16 @@ export function BattleLogDetailShell({
         </div>
       }
       notice={
-        shareFeedback ? (
-          <p className={feedbackClassName[shareFeedback.tone]}>{shareFeedback.text}</p>
-        ) : null
+        <div className="grid gap-3">
+          <ShareLinkPanel
+            initialShare={activeShare}
+            logId={log.id}
+            onFeedbackChange={setShareFeedback}
+          />
+          {shareFeedback ? (
+            <p className={feedbackClassName[shareFeedback.tone]}>{shareFeedback.text}</p>
+          ) : null}
+        </div>
       }
       timestampLabel={timestampLabel}
     />

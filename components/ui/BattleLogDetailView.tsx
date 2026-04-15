@@ -441,7 +441,7 @@ export function BattleLogDetailView({
             <div className="grid gap-4 md:grid-cols-2">
               <DetailStat label="First or Second" value={formatGoOrder(log.goOrder)} />
               <DetailStat label="Number of Turns" value={log.totalTurns} />
-              <DetailStat label="Your Mulligans Taken" value={log.selfMultigans} />
+              <DetailStat label="Your Mulligans Taken" value={log.selfMulligans} />
               <DetailStat label="Opponent Mulligans Taken" value={log.opponentMulligans} />
               <DetailStat label="Your Attack Damage" value={log.selfAttackDamage} />
               <DetailStat label="Opponent Attack Damage" value={log.opponentAttackDamage} />
@@ -463,7 +463,7 @@ export function BattleLogDetailView({
           <div className="grid gap-4">
             <DetailStat label="First or Second" value={formatGoOrder(log.goOrder)} />
             <DetailStat label="Number of Turns" value={log.totalTurns} />
-            <DetailStat label="Your Mulligans Taken" value={log.selfMultigans} />
+            <DetailStat label="Your Mulligans Taken" value={log.selfMulligans} />
             <DetailStat label="Opponent Mulligans Taken" value={log.opponentMulligans} />
             <DetailStat label="Your Attack Damage" value={log.selfAttackDamage} />
             <DetailStat label="Opponent Attack Damage" value={log.opponentAttackDamage} />

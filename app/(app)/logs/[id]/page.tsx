@@ -5,8 +5,10 @@ import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
+import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogById } from "@/lib/db/logs";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
+import { getAppOrigin } from "@/lib/server/app-url";
 
 type LogDetailPageProps = {
   params: Promise<{
@@ -31,9 +33,10 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const user = await requireUser();
   const { id } = await params;
 
-  const [log, userDecks] = await Promise.all([
+  const [log, userDecks, appOrigin] = await Promise.all([
     getLogById(user.id, id),
-    getDecks(user.id)
+    getDecks(user.id),
+    getAppOrigin()
   ]);
 
   if (!log) {
@@ -93,6 +96,14 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const linkedDeckListSortedCards = linkedDeckWithList?.deckList.sortedCards ?? [];
   const linkedStrategyLabel = linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
   const timestampLabel = formatImportedAt(log.importedAt);
+  const [activeShare] = await listActiveSharesForOwnerLog(user.id, log.id);
+  const activeShareState = activeShare
+    ? {
+        expiresAt: activeShare.expiresAt,
+        shareId: activeShare.id,
+        shareUrl: `${appOrigin}/shared/${activeShare.id}`
+      }
+    : null;
 
   return (
     <PageWidth size="standard">
@@ -107,6 +118,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
         />
 
         <BattleLogDetailShell
+          activeShare={activeShareState}
           linkedDeckId={linkedDeck?.id}
           linkedDeckListFormat={linkedDeckList?.format}
           linkedDeckListId={linkedDeckList?.id}

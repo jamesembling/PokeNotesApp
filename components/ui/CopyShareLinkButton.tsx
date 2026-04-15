@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 type CopyShareLinkButtonProps = {
   logId: string;
   onFeedbackChange?: (feedback: ShareFeedback | null) => void;
+  onShareReady?: (share: ShareLinkState) => void;
 };
 
 type ShareMethod = "native-share" | "clipboard" | "prompt" | "cancelled";
@@ -14,6 +15,12 @@ type ShareMethod = "native-share" | "clipboard" | "prompt" | "cancelled";
 export type ShareFeedback = {
   tone: "success" | "info" | "error";
   text: string;
+};
+
+export type ShareLinkState = {
+  expiresAt: string;
+  shareId: string;
+  shareUrl: string;
 };
 
 function isAbortError(error: unknown) {
@@ -74,14 +81,20 @@ async function shareOrCopyLink(shareUrl: string): Promise<ShareMethod> {
   return copyTextToClipboard(shareUrl);
 }
 
-export function CopyShareLinkButton({ logId, onFeedbackChange }: CopyShareLinkButtonProps) {
+export function CopyShareLinkButton({
+  logId,
+  onFeedbackChange,
+  onShareReady
+}: CopyShareLinkButtonProps) {
   const [isBusy, setIsBusy] = useState(false);
 
   async function handleCopy() {
     setIsBusy(true);
 
     try {
-      const { shareUrl } = await createLogShareAction(logId);
+      const share = await createLogShareAction(logId);
+      onShareReady?.(share);
+      const { shareUrl } = share;
       const shareMethod = await shareOrCopyLink(shareUrl);
 
       if (shareMethod === "cancelled") {

@@ -7,6 +7,10 @@ import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { CANONICAL_DECK_LIST_SORT_VERSION } from "@/lib/deck-lists/version";
 import { parseDeckList, parseLines } from "@/lib/decks/deck-list-parse";
 import { getDefaultSyncedSiteFormat } from "@/lib/formats/catalog";
+import {
+  resolveActionFailure,
+  userFacingActionError
+} from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
 
 function normalizeSelectedSprites(values: FormDataEntryValue[]) {
@@ -86,89 +90,87 @@ function isMissingDeckArchetypeColumn(error: PostgrestLikeError | null) {
 }
 
 export async function createDeckAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
   const deckId = crypto.randomUUID();
-  const deckName = String(formData.get("deckName") || "").trim();
 
-  if (!deckName) {
-    throw new Error("Enter a deck name before saving.");
-  }
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+    const deckName = String(formData.get("deckName") || "").trim();
 
-  const selectedSprites = parseSelectedSprites(formData);
-  const archetypeId = buildDeckArchetypeId(selectedSprites);
-  const payload = {
-    id: deckId,
-    user_id: user.id,
-    deck_name: deckName,
-    archetype_id: archetypeId,
-    format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
-    go_preference: parseGoPreference(formData.get("goPreference")),
-    deck_pokemon: selectedSprites,
-    core_strategy: String(formData.get("coreStrategy") || "").trim(),
-    general_notes: String(formData.get("generalNotes") || "").trim(),
-    setup_goals: parseLines(String(formData.get("setupGoals") || "")),
-    resource_plan: String(formData.get("resourcePlan") || "").trim(),
-    deck_lists: []
-  };
-  const { archetype_id: _archetypeId, ...legacyPayload } = payload;
+    if (!deckName) {
+      throw userFacingActionError("Enter a deck name before saving.");
+    }
 
-  let { error } = await supabase.from("decks").insert(payload);
-  if (isMissingDeckArchetypeColumn(error)) {
-    ({ error } = await supabase.from("decks").insert(legacyPayload));
-  }
-  if (error) {
-    throw error;
-  }
-
-  revalidateDeckWorkspace();
-
-  return {
-    ok: true,
-    redirectTo: `/decks/${deckId}`
-  };
-}
-
-export async function updateDeckAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
-  const deckId = String(formData.get("deckId") || "").trim();
-
-  if (!deckId) {
-    throw new Error("Deck id is required.");
-  }
-
-  const deckName = String(formData.get("deckName") || "").trim();
-  if (!deckName) {
-    throw new Error("Enter a deck name before saving.");
-  }
-
-  const selectedSprites = parseSelectedSprites(formData);
-  const archetypeId = buildDeckArchetypeId(selectedSprites);
-
-  let { error } = await supabase
-    .from("decks")
-    .update({
+    const selectedSprites = parseSelectedSprites(formData);
+    const archetypeId = buildDeckArchetypeId(selectedSprites);
+    const payload = {
+      id: deckId,
+      user_id: user.id,
       deck_name: deckName,
       archetype_id: archetypeId,
-      format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
+      format:
+        String(formData.get("format") || "").trim() || (await getDefaultSyncedSiteFormat()),
       go_preference: parseGoPreference(formData.get("goPreference")),
       deck_pokemon: selectedSprites,
       core_strategy: String(formData.get("coreStrategy") || "").trim(),
       general_notes: String(formData.get("generalNotes") || "").trim(),
       setup_goals: parseLines(String(formData.get("setupGoals") || "")),
       resource_plan: String(formData.get("resourcePlan") || "").trim(),
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", deckId)
-    .eq("user_id", user.id);
+      deck_lists: []
+    };
+    const { archetype_id: _archetypeId, ...legacyPayload } = payload;
 
-  if (isMissingDeckArchetypeColumn(error)) {
-    ({ error } = await supabase
+    let { error } = await supabase.from("decks").insert(payload);
+    if (isMissingDeckArchetypeColumn(error)) {
+      ({ error } = await supabase.from("decks").insert(legacyPayload));
+    }
+    if (error) {
+      throw error;
+    }
+
+    revalidateDeckWorkspace();
+
+    return {
+      ok: true,
+      redirectTo: `/decks/${deckId}`
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "createDeck",
+      area: "decks",
+      deckId,
+      fallbackMessage: "We couldn't save that deck right now.",
+      route: "/decks"
+    });
+  }
+}
+
+export async function updateDeckAction(formData: FormData): Promise<SaveActionResult> {
+  const deckId = String(formData.get("deckId") || "").trim();
+
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!deckId) {
+      throw userFacingActionError("Deck id is required.");
+    }
+
+    const deckName = String(formData.get("deckName") || "").trim();
+    if (!deckName) {
+      throw userFacingActionError("Enter a deck name before saving.");
+    }
+
+    const selectedSprites = parseSelectedSprites(formData);
+    const archetypeId = buildDeckArchetypeId(selectedSprites);
+
+    let { error } = await supabase
       .from("decks")
       .update({
         deck_name: deckName,
-        format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
+        archetype_id: archetypeId,
+        format:
+          String(formData.get("format") || "").trim() || (await getDefaultSyncedSiteFormat()),
         go_preference: parseGoPreference(formData.get("goPreference")),
         deck_pokemon: selectedSprites,
         core_strategy: String(formData.get("coreStrategy") || "").trim(),
@@ -178,166 +180,218 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
         updated_at: new Date().toISOString()
       })
       .eq("id", deckId)
-      .eq("user_id", user.id));
+      .eq("user_id", user.id);
+
+    if (isMissingDeckArchetypeColumn(error)) {
+      ({ error } = await supabase
+        .from("decks")
+        .update({
+          deck_name: deckName,
+          format:
+            String(formData.get("format") || "").trim() || (await getDefaultSyncedSiteFormat()),
+          go_preference: parseGoPreference(formData.get("goPreference")),
+          deck_pokemon: selectedSprites,
+          core_strategy: String(formData.get("coreStrategy") || "").trim(),
+          general_notes: String(formData.get("generalNotes") || "").trim(),
+          setup_goals: parseLines(String(formData.get("setupGoals") || "")),
+          resource_plan: String(formData.get("resourcePlan") || "").trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", deckId)
+        .eq("user_id", user.id));
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    revalidateDeckWorkspace();
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`))
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "updateDeck",
+      area: "decks",
+      deckId,
+      fallbackMessage: "We couldn't update that deck right now.",
+      route: "/decks"
+    });
   }
-
-  if (error) {
-    throw error;
-  }
-
-  revalidateDeckWorkspace();
-
-  return {
-    ok: true,
-    redirectTo: withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`))
-  };
 }
 
 export async function deleteDeckAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
   const deckId = String(formData.get("deckId") || "").trim();
 
-  if (!deckId) {
-    throw new Error("Deck id is required.");
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!deckId) {
+      throw userFacingActionError("Deck id is required.");
+    }
+
+    const { error: unlinkLogsError } = await supabase
+      .from("logs")
+      .update({
+        linked_deck_id: null,
+        linked_deck_list_id: null
+      })
+      .eq("user_id", user.id)
+      .eq("linked_deck_id", deckId);
+
+    if (unlinkLogsError) {
+      throw unlinkLogsError;
+    }
+
+    const { error: deleteError } = await supabase
+      .from("decks")
+      .delete()
+      .eq("id", deckId)
+      .eq("user_id", user.id);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    revalidateDeckWorkspace();
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken("/decks")
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "deleteDeck",
+      area: "decks",
+      deckId,
+      fallbackMessage: "We couldn't delete that deck right now.",
+      route: "/decks"
+    });
   }
-
-  const { error: unlinkLogsError } = await supabase
-    .from("logs")
-    .update({
-      linked_deck_id: null,
-      linked_deck_list_id: null
-    })
-    .eq("user_id", user.id)
-    .eq("linked_deck_id", deckId);
-
-  if (unlinkLogsError) {
-    throw unlinkLogsError;
-  }
-
-  const { error: deleteError } = await supabase
-    .from("decks")
-    .delete()
-    .eq("id", deckId)
-    .eq("user_id", user.id);
-
-  if (deleteError) {
-    throw deleteError;
-  }
-
-  revalidateDeckWorkspace();
-
-  return {
-    ok: true,
-    redirectTo: withRefreshToken("/decks")
-  };
 }
 
 export async function saveDeckListAction(formData: FormData): Promise<SaveActionResult> {
-  const user = await requireUser();
-  const supabase = await createClient();
   const deckId = String(formData.get("deckId") || "").trim();
   const deckListId = String(formData.get("deckListId") || "").trim();
 
-  if (!deckId) {
-    throw new Error("Deck id is required.");
-  }
-
-  const { data, error } = await supabase
-    .from("decks")
-    .select("id,deck_lists")
-    .eq("id", deckId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
-    throw new Error("Deck could not be found.");
-  }
-
-  const existingDeckLists = Array.isArray(data.deck_lists) ? data.deck_lists : [];
-  const name = String(formData.get("name") || "").trim();
-  const rawList = String(formData.get("rawList") || "").trim();
-
-  if (!name) {
-    throw new Error("Enter a deck list name before saving.");
-  }
-
-  if (!rawList) {
-    throw new Error("Paste the deck list before saving.");
-  }
-
-  const timestamp = new Date().toISOString();
-  let parsedCards;
-  let sortedCards;
   try {
-    const sortedDeckListCards = await buildSortedDeckListCards(rawList);
-    parsedCards = sortedDeckListCards.parsedCards;
-    sortedCards = sortedDeckListCards.sortedCards;
-  } catch {
-    throw new Error(
-      "We couldn't apply the canonical deck ordering right now. Please try saving again in a moment."
-    );
-  }
+    const user = await requireUser();
+    const supabase = await createClient();
 
-  const nextDeckList = {
-    id: deckListId || crypto.randomUUID(),
-    name,
-    format: String(formData.get("format") || "").trim() || await getDefaultSyncedSiteFormat(),
-    date: String(formData.get("date") || "").trim() || timestamp.slice(0, 10),
-    createdBy: String(formData.get("createdBy") || "").trim() || getCurrentDisplayName(user),
-    notes: String(formData.get("notes") || "").trim(),
-    rawList,
-    parsedCards,
-    sortedCards,
-    sortedCardsVersion: CANONICAL_DECK_LIST_SORT_VERSION,
-    createdAt:
-      String(formData.get("createdAt") || "").trim() ||
-      (deckListId
-        ? String(
-            existingDeckLists.find(
-              (entry) =>
-                entry &&
-                typeof entry === "object" &&
-                "id" in entry &&
-                String((entry as { id?: unknown }).id || "") === deckListId
-            )?.createdAt || ""
-          ).trim()
-        : "") ||
-      timestamp,
-    updatedAt: timestamp
-  };
+    if (!deckId) {
+      throw userFacingActionError("Deck id is required.");
+    }
 
-  const updatedDeckLists = deckListId
-    ? existingDeckLists.map((entry) => {
-        if (!entry || typeof entry !== "object") {
-          return entry;
-        }
+    const { data, error } = await supabase
+      .from("decks")
+      .select("id,deck_lists")
+      .eq("id", deckId)
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-        return String((entry as { id?: unknown }).id || "") === deckListId ? nextDeckList : entry;
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      throw userFacingActionError("Deck could not be found.");
+    }
+
+    const existingDeckLists = Array.isArray(data.deck_lists) ? data.deck_lists : [];
+    const name = String(formData.get("name") || "").trim();
+    const rawList = String(formData.get("rawList") || "").trim();
+
+    if (!name) {
+      throw userFacingActionError("Enter a deck list name before saving.");
+    }
+
+    if (!rawList) {
+      throw userFacingActionError("Paste the deck list before saving.");
+    }
+
+    const timestamp = new Date().toISOString();
+    let parsedCards;
+    let sortedCards;
+    try {
+      const sortedDeckListCards = await buildSortedDeckListCards(rawList);
+      parsedCards = sortedDeckListCards.parsedCards;
+      sortedCards = sortedDeckListCards.sortedCards;
+    } catch {
+      throw userFacingActionError(
+        "We couldn't apply the canonical deck ordering right now. Please try saving again in a moment."
+      );
+    }
+
+    const nextDeckList = {
+      id: deckListId || crypto.randomUUID(),
+      name,
+      format:
+        String(formData.get("format") || "").trim() || (await getDefaultSyncedSiteFormat()),
+      date: String(formData.get("date") || "").trim() || timestamp.slice(0, 10),
+      createdBy: String(formData.get("createdBy") || "").trim() || getCurrentDisplayName(user),
+      notes: String(formData.get("notes") || "").trim(),
+      rawList,
+      parsedCards,
+      sortedCards,
+      sortedCardsVersion: CANONICAL_DECK_LIST_SORT_VERSION,
+      createdAt:
+        String(formData.get("createdAt") || "").trim() ||
+        (deckListId
+          ? String(
+              existingDeckLists.find(
+                (entry) =>
+                  entry &&
+                  typeof entry === "object" &&
+                  "id" in entry &&
+                  String((entry as { id?: unknown }).id || "") === deckListId
+              )?.createdAt || ""
+            ).trim()
+          : "") ||
+        timestamp,
+      updatedAt: timestamp
+    };
+
+    const updatedDeckLists = deckListId
+      ? existingDeckLists.map((entry) => {
+          if (!entry || typeof entry !== "object") {
+            return entry;
+          }
+
+          return String((entry as { id?: unknown }).id || "") === deckListId
+            ? nextDeckList
+            : entry;
+        })
+      : [nextDeckList, ...existingDeckLists];
+
+    const { error: updateError } = await supabase
+      .from("decks")
+      .update({
+        deck_lists: updatedDeckLists,
+        updated_at: timestamp
       })
-    : [nextDeckList, ...existingDeckLists];
+      .eq("id", deckId)
+      .eq("user_id", user.id);
 
-  const { error: updateError } = await supabase
-    .from("decks")
-    .update({
-      deck_lists: updatedDeckLists,
-      updated_at: timestamp
-    })
-    .eq("id", deckId)
-    .eq("user_id", user.id);
+    if (updateError) {
+      throw updateError;
+    }
 
-  if (updateError) {
-    throw updateError;
+    revalidateDeckWorkspace();
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`))
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: deckListId ? "updateDeckList" : "createDeckList",
+      area: "decks",
+      deckId,
+      fallbackMessage: "We couldn't save that deck list right now.",
+      route: "/decks"
+    });
   }
-
-  revalidateDeckWorkspace();
-
-  return {
-    ok: true,
-    redirectTo: withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`))
-  };
 }
