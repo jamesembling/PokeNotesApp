@@ -15,6 +15,11 @@ type LogSummaryStats = {
   losses: number;
 };
 
+export type DeckLogSnapshot = {
+  logs: BattleLogSummary[];
+  stats: LogSummaryStats;
+};
+
 type StatsOverviewRow = {
   result: Result;
   coin_toss_won: boolean | null;
@@ -657,6 +662,24 @@ export async function getAllLogsByDeck(
   targetDeckIdsInput?: string[]
 ) {
   return await getLogsIndexedByDeck(userId, decks, targetDeckIdsInput);
+}
+
+export async function getDeckLogSnapshots(
+  userId: string,
+  decks: DeckSummary[],
+  targetDeckIdsInput?: string[]
+) {
+  const logsByDeck = await getLogsIndexedByDeck(userId, decks, targetDeckIdsInput);
+
+  return new Map<string, DeckLogSnapshot>(
+    Array.from(logsByDeck.entries()).map(([deckId, logs]) => [
+      deckId,
+      {
+        logs,
+        stats: getBattleLogSummaryStats(logs)
+      }
+    ])
+  );
 }
 
 export async function getLogsForDeck(

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "audit:pokemon-options": "node audit-pokemon-options.mjs",
+    "backfill:log-links": "tsx backfill-log-links.ts",
     "clean": "rm -rf .next",
     "dev": "next dev",
     "dev:reset": "rm -rf .next && next dev",
