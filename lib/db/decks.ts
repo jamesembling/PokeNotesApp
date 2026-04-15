@@ -14,6 +14,7 @@ import { normalizeText } from "@/lib/log-import/normalization";
 import { getAllLogsForDeck, getBattleLogSummaryStats } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
 import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
+import type { IdentificationCatalog } from "@/lib/log-import/types";
 import type { Deck, DeckCard, DeckList, DeckSummary, GoPreference } from "@/types/index";
 
 type PostgrestLikeError = {
@@ -111,6 +112,11 @@ type DeckListLookupRow = {
   deck_name: string;
   archetype_id?: string | null;
   deck_lists: unknown;
+};
+
+type DeckMappingContext = {
+  catalog: IdentificationCatalog;
+  slugIndex: Map<string, { slug: string }>;
 };
 
 function parsePokemonStage(value: unknown): DeckCard["stage"] {
@@ -341,19 +347,30 @@ function buildDeckSpriteEvidence(
   };
 }
 
-async function normalizeDeckPokemon(deckPokemon: string[]): Promise<string[]> {
-  if (deckPokemon.length === 0) {
-    return [];
-  }
-
+async function loadDeckMappingContext(): Promise<DeckMappingContext> {
   const catalog = await loadIdentificationCatalog();
   const slugIndex = new Map<string, { slug: string }>();
-  catalog.pokemon.bySlug.forEach((row, slug) => {
+
+  catalog.pokemon.bySlug.forEach((_row, slug) => {
     slugIndex.set(slug, { slug });
   });
   catalog.pokemon.normalizedNameToSlug.forEach((slug, normalizedName) => {
     slugIndex.set(normalizedName, { slug });
   });
+
+  return {
+    catalog,
+    slugIndex
+  };
+}
+
+async function normalizeDeckPokemon(
+  deckPokemon: string[],
+  slugIndex: DeckMappingContext["slugIndex"]
+): Promise<string[]> {
+  if (deckPokemon.length === 0) {
+    return [];
+  }
 
   return Array.from(
     new Set(
@@ -371,19 +388,15 @@ async function normalizeDeckPokemon(deckPokemon: string[]): Promise<string[]> {
   );
 }
 
-async function deriveDeckPokemon(deckName: string, deckLists: DeckList[]): Promise<string[]> {
+async function deriveDeckPokemon(
+  deckName: string,
+  deckLists: DeckList[],
+  context: DeckMappingContext
+): Promise<string[]> {
   if (deckLists.length === 0) {
     return [];
   }
-
-  const catalog = await loadIdentificationCatalog();
-  const slugIndex = new Map<string, { slug: string }>();
-  catalog.pokemon.bySlug.forEach((row, slug) => {
-    slugIndex.set(slug, { slug });
-  });
-  catalog.pokemon.normalizedNameToSlug.forEach((slug, normalizedName) => {
-    slugIndex.set(normalizedName, { slug });
-  });
+  const { catalog, slugIndex } = context;
   const evidence = buildDeckSpriteEvidence(deckName, deckLists, slugIndex);
 
   if (evidence.mentionCounts.size === 0) {
@@ -402,14 +415,17 @@ async function deriveDeckPokemon(deckName: string, deckLists: DeckList[]): Promi
   }).slugs;
 }
 
-async function mapDeckSummary(row: DeckSummaryRow): Promise<DeckSummary> {
+async function mapDeckSummary(
+  row: DeckSummaryRow,
+  context: DeckMappingContext
+): Promise<DeckSummary> {
   const parsedDeckLists = parseDeckLists(row.deck_lists);
   const storedDeckPokemon = parseStringArray(row.deck_pokemon);
-  const normalizedStoredDeckPokemon = await normalizeDeckPokemon(storedDeckPokemon);
+  const normalizedStoredDeckPokemon = await normalizeDeckPokemon(storedDeckPokemon, context.slugIndex);
   const deckPokemon =
     normalizedStoredDeckPokemon.length > 0
       ? normalizedStoredDeckPokemon
-      : await deriveDeckPokemon(row.deck_name, parsedDeckLists);
+      : await deriveDeckPokemon(row.deck_name, parsedDeckLists, context);
   const archetypeId = String(row.archetype_id || "").trim() || buildDeckArchetypeId(deckPokemon);
 
   return {
@@ -426,8 +442,8 @@ async function mapDeckSummary(row: DeckSummaryRow): Promise<DeckSummary> {
   };
 }
 
-async function mapDeck(row: DeckRow): Promise<Deck> {
-  const deckSummary = await mapDeckSummary(row);
+async function mapDeck(row: DeckRow, context: DeckMappingContext): Promise<Deck> {
+  const deckSummary = await mapDeckSummary(row, context);
   const hydratedDeckLists = parseDeckLists(row.deck_lists).map((deckList) => ({
     ...deckList,
     sortedCards: getReadSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
@@ -469,7 +485,12 @@ export const getDecks = cache(async function getDecks(userId: string): Promise<D
   }
 
   const rows = ((data ?? []) as unknown) as DeckSummaryRow[];
-  return await Promise.all(rows.map((row) => mapDeckSummary(row)));
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const mappingContext = await loadDeckMappingContext();
+  return await Promise.all(rows.map((row) => mapDeckSummary(row, mappingContext)));
 });
 
 export const getDeckById = cache(async function getDeckById(
@@ -506,7 +527,8 @@ export const getDeckById = cache(async function getDeckById(
     return null;
   }
 
-  return await mapDeck((data as unknown) as DeckRow);
+  const mappingContext = await loadDeckMappingContext();
+  return await mapDeck((data as unknown) as DeckRow, mappingContext);
 });
 
 export async function getDeckWithList(

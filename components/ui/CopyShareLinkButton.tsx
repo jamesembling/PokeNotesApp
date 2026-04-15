@@ -5,6 +5,7 @@ import { createLogShareAction } from "@/app/(app)/logs/actions";
 import { Button } from "@/components/ui/Button";
 
 type CopyShareLinkButtonProps = {
+  initialShare?: ShareLinkState | null;
   logId: string;
   onFeedbackChange?: (feedback: ShareFeedback | null) => void;
   onShareReady?: (share: ShareLinkState) => void;
@@ -82,6 +83,7 @@ async function shareOrCopyLink(shareUrl: string): Promise<ShareMethod> {
 }
 
 export function CopyShareLinkButton({
+  initialShare = null,
   logId,
   onFeedbackChange,
   onShareReady
@@ -92,7 +94,7 @@ export function CopyShareLinkButton({
     setIsBusy(true);
 
     try {
-      const share = await createLogShareAction(logId);
+      const share = initialShare ?? (await createLogShareAction(logId));
       onShareReady?.(share);
       const { shareUrl } = share;
       const shareMethod = await shareOrCopyLink(shareUrl);
@@ -129,7 +131,7 @@ export function CopyShareLinkButton({
 
   return (
     <Button disabled={isBusy} onClick={handleCopy} type="button" variant="secondary">
-      {isBusy ? "Creating Link..." : "Copy Share Link"}
+      {isBusy ? "Preparing Share..." : "Share Log"}
     </Button>
   );
 }

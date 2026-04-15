@@ -3,15 +3,20 @@ import { DeckCard } from "@/components/ui/DeckCard";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
-import { getDeckLogSnapshots } from "@/lib/db/logs";
+import { getDeckStatsForIndex } from "@/lib/db/logs";
 import { getDecks } from "@/lib/db/decks";
+import { measureServerCall } from "@/lib/server/perf";
 
 export default async function DecksPage() {
   const user = await requireUser();
-  const decks = await getDecks(user.id);
-  const deckLogSnapshots = await getDeckLogSnapshots(user.id, decks);
+  const [decks, deckStatsByDeck] = await measureServerCall("page.decks.data", async () => {
+    const decks = await getDecks(user.id);
+    const deckStatsByDeck = await getDeckStatsForIndex(user.id, decks);
+
+    return [decks, deckStatsByDeck] as const;
+  });
   const deckCardData = decks.map((deck) => {
-    const stats = deckLogSnapshots.get(deck.id)?.stats ?? {
+    const stats = deckStatsByDeck.get(deck.id) ?? {
       total: 0,
       wins: 0,
       losses: 0

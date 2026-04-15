@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { buildPokemonNameVariants, normalizeText } from "@/lib/log-import/normalization";
 import { mergePokemonCatalogRows } from "@/lib/pokemon/catalog-supplements";
@@ -161,7 +162,7 @@ const loadIdentificationCatalogCached = unstable_cache(
   }
 );
 
-export async function loadIdentificationCatalog(): Promise<IdentificationCatalog> {
+const loadBuiltIdentificationCatalog = cache(async (): Promise<IdentificationCatalog> => {
   const { pokemonRows, archetypeRows } = await loadIdentificationCatalogCached();
   const pokemon = buildPokemonIndex(mergePokemonCatalogRows(pokemonRows));
 
@@ -169,4 +170,8 @@ export async function loadIdentificationCatalog(): Promise<IdentificationCatalog
     pokemon,
     archetypes: buildArchetypeIndex(archetypeRows, pokemon)
   };
+});
+
+export async function loadIdentificationCatalog(): Promise<IdentificationCatalog> {
+  return loadBuiltIdentificationCatalog();
 }

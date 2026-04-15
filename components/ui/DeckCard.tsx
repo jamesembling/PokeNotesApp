@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
@@ -44,7 +42,7 @@ export function DeckCard({
       <Card className="flex h-full flex-col gap-5 transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[var(--shadow-sm)]">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-3">
-            <SpriteStrip className="min-h-12" size="lg" sprites={deck.deckPokemon} />
+            <SpriteStrip className="min-h-12" pokemonOptions={null} size="lg" sprites={deck.deckPokemon} />
             <div className="space-y-2">
               <h2 className="font-display text-[1.22rem] font-semibold leading-tight tracking-[-0.035em] text-[var(--text-primary)]">
                 {deck.deckName}

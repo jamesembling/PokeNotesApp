@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { revokeLogShareAction } from "@/app/(app)/logs/actions";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
+import { Button } from "@/components/ui/Button";
 import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
-import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
-import { ShareLinkPanel } from "@/components/ui/ShareLinkPanel";
+import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
+import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
 import type { BattleLog, DeckCard, DeckSummary } from "@/types/index";
 
 type ShareTone = "success" | "info" | "error";
@@ -60,13 +62,53 @@ export function BattleLogDetailShell({
   timestampLabel,
   userDecks
 }: BattleLogDetailShellProps) {
+  const [currentShare, setCurrentShare] = useState<ShareLinkState | null>(activeShare);
   const [shareFeedback, setShareFeedback] = useState<ShareFeedback | null>(null);
+  const [isRevoking, setIsRevoking] = useState(false);
+
+  async function handleRevoke() {
+    if (!currentShare) {
+      return;
+    }
+
+    setIsRevoking(true);
+
+    try {
+      await revokeLogShareAction(currentShare.shareId);
+      setCurrentShare(null);
+      setShareFeedback({
+        tone: "success",
+        text: "Share link revoked. The previous URL stops working immediately."
+      });
+    } catch (error) {
+      setShareFeedback({
+        tone: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Could not revoke this share link right now."
+      });
+    } finally {
+      setIsRevoking(false);
+    }
+  }
 
   return (
     <BattleLogDetailView
       actions={
         <>
           <LazyEditLogButton log={log} userDecks={userDecks} />
+          <CopyShareLinkButton
+            initialShare={currentShare}
+            logId={log.id}
+            onFeedbackChange={setShareFeedback}
+            onShareReady={setCurrentShare}
+          />
+          {currentShare ? (
+            <Button disabled={isRevoking} onClick={handleRevoke} type="button" variant="ghost">
+              {isRevoking ? "Revoking..." : "Revoke Link"}
+            </Button>
+          ) : null}
           <Link className={`${backLinkClassName} hidden sm:inline-flex`} href="/logs">
             Back to Logs
           </Link>
@@ -90,16 +132,9 @@ export function BattleLogDetailShell({
         </div>
       }
       notice={
-        <div className="grid gap-3">
-          <ShareLinkPanel
-            initialShare={activeShare}
-            logId={log.id}
-            onFeedbackChange={setShareFeedback}
-          />
-          {shareFeedback ? (
-            <p className={feedbackClassName[shareFeedback.tone]}>{shareFeedback.text}</p>
-          ) : null}
-        </div>
+        shareFeedback ? (
+          <p className={feedbackClassName[shareFeedback.tone]}>{shareFeedback.text}</p>
+        ) : null
       }
       timestampLabel={timestampLabel}
     />
