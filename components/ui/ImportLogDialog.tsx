@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
@@ -94,6 +94,7 @@ export function ImportLogDialog({
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isParsing, startParseTransition] = useTransition();
   const autoParseRequestIdRef = useRef(0);
+  const shouldAutoParseImmediatelyRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -229,19 +230,22 @@ export function ImportLogDialog({
     resetImportState();
   }
 
-  function moveToReviewStage(nextReview: ParsedLogReview) {
-    setReview(nextReview);
-    setStage("review");
-    setParseError(null);
-    setSelectedSelfSprites(nextReview.selfSprites.slice(0, 2));
-    setSelectedOpponentSprites(nextReview.opponentSprites.slice(0, 2));
-    setSelectedDeckId(nextReview.suggestedLinkedDeckId ?? "");
-    setSelectedDeckListId("");
-    setSelectedDate(nextReview.date);
-    setSelectedFormat(defaultFormat);
-    setSaveError("");
-    setSaveState("idle");
-  }
+  const moveToReviewStage = useCallback(
+    (nextReview: ParsedLogReview) => {
+      setReview(nextReview);
+      setStage("review");
+      setParseError(null);
+      setSelectedSelfSprites(nextReview.selfSprites.slice(0, 2));
+      setSelectedOpponentSprites(nextReview.opponentSprites.slice(0, 2));
+      setSelectedDeckId(nextReview.suggestedLinkedDeckId ?? "");
+      setSelectedDeckListId("");
+      setSelectedDate(nextReview.date);
+      setSelectedFormat(defaultFormat);
+      setSaveError("");
+      setSaveState("idle");
+    },
+    [defaultFormat]
+  );
 
   async function handlePasteFromClipboard() {
     if (!navigator.clipboard?.readText) {
@@ -252,6 +256,7 @@ export function ImportLogDialog({
     try {
       setIsPasting(true);
       const clipboardText = await navigator.clipboard.readText();
+      shouldAutoParseImmediatelyRef.current = true;
       setRawLog(clipboardText);
       setParseError(null);
     } catch {
@@ -268,7 +273,7 @@ export function ImportLogDialog({
 
     startParseTransition(async () => {
       const formData = new FormData();
-      formData.set("rawLog", rawLog);
+      formData.set("rawLog", rawLog.trim());
       const result = await parseLogAction(formData);
 
       if (autoParseRequestIdRef.current !== requestId) {
@@ -319,19 +324,29 @@ export function ImportLogDialog({
     }
 
     if (!trimmedRawLog || isTrainingCourtUrl) {
+      shouldAutoParseImmediatelyRef.current = false;
       return;
     }
 
     const requestId = autoParseRequestIdRef.current + 1;
     autoParseRequestIdRef.current = requestId;
+    const shouldParseImmediately = shouldAutoParseImmediatelyRef.current;
+    shouldAutoParseImmediatelyRef.current = false;
 
     const timeoutId = window.setTimeout(() => {
+      if (autoParseRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      const parseRequestId = autoParseRequestIdRef.current + 1;
+      autoParseRequestIdRef.current = parseRequestId;
+
       startParseTransition(async () => {
         const formData = new FormData();
         formData.set("rawLog", trimmedRawLog);
         const result = await parseLogAction(formData);
 
-        if (autoParseRequestIdRef.current !== requestId) {
+        if (autoParseRequestIdRef.current !== parseRequestId) {
           return;
         }
 
@@ -342,12 +357,12 @@ export function ImportLogDialog({
 
         moveToReviewStage(result);
       });
-    }, 500);
+    }, shouldParseImmediately ? 0 : 500);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isOpen, isTrainingCourtUrl, stage, startParseTransition, trimmedRawLog]);
+  }, [isOpen, isTrainingCourtUrl, moveToReviewStage, stage, trimmedRawLog]);
 
   function renderHeader() {
     if (stage === "raw") {
@@ -721,6 +736,9 @@ export function ImportLogDialog({
                     <span className="text-sm font-semibold text-[var(--text-muted)]">Battle log</span>
                     <textarea
                       className="min-h-[280px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                      onPaste={() => {
+                        shouldAutoParseImmediatelyRef.current = true;
+                      }}
                       onChange={(event) => setRawLog(event.target.value)}
                       placeholder="Paste your full PTCGL battle log here"
                       spellCheck={false}

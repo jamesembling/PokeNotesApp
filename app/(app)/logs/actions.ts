@@ -21,12 +21,20 @@ import {
   resolveActionFailure,
   userFacingActionError
 } from "@/lib/server/action-errors";
+import { measureServerCall, measureServerStep } from "@/lib/server/perf";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportLogRecord } from "@/lib/log-import/types";
 import type { LogSection, ParsedLogReview, Result } from "@/types/index";
 
 type ProfileRow = {
   ptcgl_username: string;
+};
+
+type ImportContext = {
+  user: Awaited<ReturnType<typeof requireUser>>;
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  catalog: Awaited<ReturnType<typeof loadIdentificationCatalog>>;
+  ptcglUsername: string;
 };
 
 type ParseLogActionResult = ParsedLogReview | { error: string };
@@ -58,14 +66,18 @@ function joinSprites(slugs: string[]) {
   ).join(",");
 }
 
-async function getImportContext() {
-  const user = await requireUser();
-  const supabase = await createClient();
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("ptcgl_username")
-    .eq("id", user.id)
-    .single();
+async function getImportContext(): Promise<ImportContext> {
+  const user = await measureServerCall("logs.import.requireUser", () => requireUser());
+  const supabase = await measureServerCall("logs.import.createClient", () => createClient());
+  const { data: profile, error: profileError } = await measureServerCall(
+    "logs.import.loadProfile",
+    async () =>
+      await supabase
+        .from("profiles")
+        .select("ptcgl_username")
+        .eq("id", user.id)
+        .single()
+  );
 
   if (profileError) {
     throw profileError;
@@ -79,7 +91,9 @@ async function getImportContext() {
     );
   }
 
-  const catalog = await loadIdentificationCatalog();
+  const catalog = await measureServerCall("logs.import.loadIdentificationCatalog", () =>
+    loadIdentificationCatalog()
+  );
 
   return {
     user,
@@ -89,78 +103,91 @@ async function getImportContext() {
   };
 }
 
-async function buildParsedLogReview(rawLog: string): Promise<ParsedLogReview> {
-  const resolvedRawLog = await resolveBattleLogImportInput(rawLog);
+async function buildParsedLogReview(
+  rawLog: string,
+  context?: ImportContext
+): Promise<{ context: ImportContext; review: ParsedLogReview }> {
+  const resolvedRawLog = await measureServerCall(
+    "logs.import.resolveBattleLogImportInput",
+    () => resolveBattleLogImportInput(rawLog)
+  );
   const trimmedRawLog = String(resolvedRawLog || "").trim();
 
   if (!trimmedRawLog) {
     throw new ImportLogValidationError("EMPTY_INPUT", "Paste a PTCGL battle log before importing.");
   }
 
-  const { user, catalog, ptcglUsername } = await getImportContext();
-  const parsed = parseBattleLog({
-    rawLog: trimmedRawLog,
-    ptcglUsername,
-    catalog
-  });
+  const importContext = context ?? (await measureServerCall("logs.import.getImportContext", () => getImportContext()));
+  const { catalog, ptcglUsername } = importContext;
+  const parsed = measureServerStep("logs.import.parseBattleLog", () =>
+    parseBattleLog({
+      rawLog: trimmedRawLog,
+      ptcglUsername,
+      catalog
+    })
+  );
 
-  const selfArchetype = identifyLikelyArchetype({
-    evidence: parsed.pokemonEvidence.self,
-    catalog
-  });
-  const opponentArchetype = identifyLikelyArchetype({
-    evidence: parsed.pokemonEvidence.opponent,
-    catalog
-  });
+  const selfArchetype = measureServerStep("logs.import.identifyLikelyArchetype.self", () =>
+    identifyLikelyArchetype({
+      evidence: parsed.pokemonEvidence.self,
+      catalog
+    })
+  );
+  const opponentArchetype = measureServerStep("logs.import.identifyLikelyArchetype.opponent", () =>
+    identifyLikelyArchetype({
+      evidence: parsed.pokemonEvidence.opponent,
+      catalog
+    })
+  );
 
-  const selfSprites = selectDeckSprites({
-    archetype: selfArchetype,
-    evidence: parsed.pokemonEvidence.self,
-    catalog
-  });
-  const opponentSprites = selectDeckSprites({
-    archetype: opponentArchetype,
-    evidence: parsed.pokemonEvidence.opponent,
-    catalog
-  });
+  const selfSprites = measureServerStep("logs.import.selectDeckSprites.self", () =>
+    selectDeckSprites({
+      archetype: selfArchetype,
+      evidence: parsed.pokemonEvidence.self,
+      catalog
+    })
+  );
+  const opponentSprites = measureServerStep("logs.import.selectDeckSprites.opponent", () =>
+    selectDeckSprites({
+      archetype: opponentArchetype,
+      evidence: parsed.pokemonEvidence.opponent,
+      catalog
+    })
+  );
 
   const selfDeckName = getBattleLogDeckDisplayName(selfArchetype?.label ?? "", selfSprites.slugs);
   const selfDeckSlug = selfArchetype?.archetypeId ?? "";
-  const suggestedLinkedDeckId = await linkDeckConservatively({
-    userId: user.id,
-    identifiedDeckName: selfDeckName,
-    identifiedDeckSlug: selfDeckSlug,
-    identifiedSprites: selfSprites.slugs
-  });
 
   return {
-    selfPlayerName: parsed.players.selfPlayerName,
-    opponentPlayerName: parsed.players.opponentPlayerName,
-    selfDeckName,
-    opponentDeckName: getBattleLogOpponentDisplayName(
-      opponentArchetype?.label ?? "",
-      opponentSprites.slugs
-    ),
-    selfSprites: selfSprites.slugs,
-    opponentSprites: opponentSprites.slugs,
-    selfDeckSlug,
-    opponentDeckSlug: opponentArchetype?.archetypeId ?? "",
-    date: buildImportDate(),
-    goOrder: parsed.stats.goOrder,
-    coinTossWon: parsed.stats.coinTossWon,
-    result: parsed.stats.result,
-    language: parsed.language,
-    rawLog: parsed.rawLog,
-    sections: parsed.sections,
-    totalTurns: parsed.stats.totalTurns,
-    selfPrizesTaken: parsed.stats.selfPrizesTaken,
-    opponentPrizesTaken: parsed.stats.opponentPrizesTaken,
-    selfAttackDamage: parsed.stats.selfAttackDamage,
-    opponentAttackDamage: parsed.stats.opponentAttackDamage,
-    selfMulligans: parsed.stats.selfMulligans,
-    opponentMulligans: parsed.stats.opponentMulligans,
-    reason: parsed.stats.reason,
-    suggestedLinkedDeckId: suggestedLinkedDeckId ?? undefined
+    context: importContext,
+    review: {
+      selfPlayerName: parsed.players.selfPlayerName,
+      opponentPlayerName: parsed.players.opponentPlayerName,
+      selfDeckName,
+      opponentDeckName: getBattleLogOpponentDisplayName(
+        opponentArchetype?.label ?? "",
+        opponentSprites.slugs
+      ),
+      selfSprites: selfSprites.slugs,
+      opponentSprites: opponentSprites.slugs,
+      selfDeckSlug,
+      opponentDeckSlug: opponentArchetype?.archetypeId ?? "",
+      date: buildImportDate(),
+      goOrder: parsed.stats.goOrder,
+      coinTossWon: parsed.stats.coinTossWon,
+      result: parsed.stats.result,
+      language: parsed.language,
+      rawLog: parsed.rawLog,
+      sections: parsed.sections,
+      totalTurns: parsed.stats.totalTurns,
+      selfPrizesTaken: parsed.stats.selfPrizesTaken,
+      opponentPrizesTaken: parsed.stats.opponentPrizesTaken,
+      selfAttackDamage: parsed.stats.selfAttackDamage,
+      opponentAttackDamage: parsed.stats.opponentAttackDamage,
+      selfMulligans: parsed.stats.selfMulligans,
+      opponentMulligans: parsed.stats.opponentMulligans,
+      reason: parsed.stats.reason
+    }
   };
 }
 
@@ -214,7 +241,8 @@ function parseSections(value: FormDataEntryValue | null): LogSection[] {
 export async function parseLogAction(formData: FormData): Promise<ParseLogActionResult> {
   try {
     const rawLog = String(formData.get("rawLog") || "");
-    return await buildParsedLogReview(rawLog);
+    const { review } = await buildParsedLogReview(rawLog);
+    return review;
   } catch (error) {
     if (error instanceof ImportLogValidationError) {
       return {
@@ -238,12 +266,22 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
 export async function importLogAction(formData: FormData): Promise<SaveActionResult> {
   try {
     const rawLogInput = String(formData.get("rawLog") || "").trim();
-    const review = await buildParsedLogReview(rawLogInput);
-    const { user, supabase } = await getImportContext();
+    const { context, review } = await buildParsedLogReview(rawLogInput);
+    const { user, supabase } = context;
 
     const selectedDeckId = String(formData.get("linkedDeckId") || "").trim();
     const selectedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
     const sections = parseSections(formData.get("sections"));
+    const suggestedLinkedDeckId = selectedDeckId
+      ? ""
+      : (await measureServerCall("logs.import.linkDeckConservatively", () =>
+          linkDeckConservatively({
+            userId: user.id,
+            identifiedDeckName: review.selfDeckName,
+            identifiedDeckSlug: review.selfDeckSlug,
+            identifiedSprites: review.selfSprites
+          })
+        )) ?? "";
 
     const record: ImportLogRecord = {
       id: crypto.randomUUID(),
@@ -274,7 +312,7 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       self_mulligans: Number(formData.get("selfMulligans") || review.selfMulligans) || 0,
       opponent_mulligans:
         Number(formData.get("opponentMulligans") || review.opponentMulligans) || 0,
-      linked_deck_id: selectedDeckId || review.suggestedLinkedDeckId || null,
+      linked_deck_id: selectedDeckId || suggestedLinkedDeckId || null,
       linked_deck_list_id: selectedDeckListId || null,
       reason: String(formData.get("reason") || review.reason).trim(),
       raw_log: review.rawLog,

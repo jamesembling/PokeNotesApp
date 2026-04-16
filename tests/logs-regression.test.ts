@@ -5,6 +5,7 @@ import {
   getDeckLogSnapshots,
   getDeckStatsForIndex,
   getLogById,
+  getLogStatsOverview,
   logsDbTestHooks
 } from "@/lib/db/logs";
 import type { DeckSummary, Result } from "@/types/index";
@@ -21,7 +22,12 @@ type QueryContext = {
 
 type QueryResult = {
   data: unknown;
-  error: null;
+  error: unknown;
+};
+
+type RpcResult = {
+  data: unknown;
+  error: unknown;
 };
 
 type QueryChain = {
@@ -41,8 +47,12 @@ type QueryChain = {
   ): Promise<unknown>;
 };
 
-function createFakeSupabaseClient(resolver: (ctx: QueryContext) => QueryResult) {
+function createFakeSupabaseClient(
+  resolver: (ctx: QueryContext) => QueryResult,
+  rpcResolver?: (fnName: string) => RpcResult
+) {
   const queries: QueryContext[] = [];
+  const rpcCalls: string[] = [];
 
   const makeChain = (ctx: QueryContext) => {
     const chain: QueryChain = {
@@ -95,6 +105,16 @@ function createFakeSupabaseClient(resolver: (ctx: QueryContext) => QueryResult) 
 
   return {
     client: {
+      rpc(fnName: string) {
+        rpcCalls.push(fnName);
+        if (!rpcResolver) {
+          return Promise.resolve({
+            data: null,
+            error: new Error(`Unexpected rpc call: ${fnName}`)
+          });
+        }
+        return Promise.resolve(rpcResolver(fnName));
+      },
       from(table: string) {
         const ctx: QueryContext = {
           table,
@@ -104,7 +124,8 @@ function createFakeSupabaseClient(resolver: (ctx: QueryContext) => QueryResult) 
         return makeChain(ctx);
       }
     },
-    queries
+    queries,
+    rpcCalls
   };
 }
 
@@ -173,6 +194,115 @@ test("getLogById falls back to an empty raw log when the stored value is missing
   const log = await getLogById("user-1", "log-1");
 
   assert.equal(log?.rawLog, "");
+});
+
+test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries, rpcCalls } = createFakeSupabaseClient(
+    () => {
+      throw new Error("Fallback query should not run when RPC succeeds.");
+    },
+    (fnName) => {
+      assert.equal(fnName, "get_log_stats_overview");
+      return {
+        data: [
+          {
+            games_played: 12,
+            games_won: 7,
+            games_lost: 5,
+            attack_damage: 1820,
+            opponent_attack_damage: 1660,
+            coin_flips_won: 8,
+            mulligans_taken: 3,
+            prizes_taken: 29,
+            tracked_damage: 3480,
+            tracked_prizes: 54
+          }
+        ],
+        error: null
+      };
+    }
+  );
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const overview = await getLogStatsOverview("user-1");
+
+  assert.deepEqual(overview, {
+    gamesPlayed: 12,
+    gamesWon: 7,
+    gamesLost: 5,
+    attackDamage: 1820,
+    opponentAttackDamage: 1660,
+    coinFlipsWon: 8,
+    mulligansTaken: 3,
+    prizesTaken: 29,
+    trackedDamage: 3480,
+    trackedPrizes: 54
+  });
+  assert.deepEqual(rpcCalls, ["get_log_stats_overview"]);
+  assert.equal(queries.length, 0);
+});
+
+test("getLogStatsOverview falls back to aggregating log rows if the RPC errors", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries, rpcCalls } = createFakeSupabaseClient(
+    () => ({
+      data: [
+        buildLogRow({
+          id: "log-win",
+          result: "Win",
+          coin_toss_won: true,
+          self_prizes_taken: 6,
+          opponent_prizes_taken: 4,
+          self_attack_damage: 240,
+          opponent_attack_damage: 180,
+          self_mulligans: 1
+        }),
+        buildLogRow({
+          id: "log-loss",
+          result: "Loss",
+          coin_toss_won: false,
+          self_prizes_taken: 2,
+          opponent_prizes_taken: 6,
+          self_attack_damage: 80,
+          opponent_attack_damage: 250,
+          self_mulligans: 0
+        })
+      ],
+      error: null
+    }),
+    () => ({
+      data: null,
+      error: new Error("rpc failed")
+    })
+  );
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const overview = await getLogStatsOverview("user-1");
+
+  assert.deepEqual(overview, {
+    gamesPlayed: 2,
+    gamesWon: 1,
+    gamesLost: 1,
+    attackDamage: 320,
+    opponentAttackDamage: 430,
+    coinFlipsWon: 1,
+    mulligansTaken: 1,
+    prizesTaken: 8,
+    trackedDamage: 750,
+    trackedPrizes: 18
+  });
+  assert.deepEqual(rpcCalls, ["get_log_stats_overview"]);
+  assert.equal(queries.length, 1);
+  assert.deepEqual(queries[0]?.table, "logs");
 });
 
 test("getAllLogsByDeck keeps the overview query grouped into one explicit and one unlinked fetch", async (t) => {
