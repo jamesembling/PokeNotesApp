@@ -170,7 +170,6 @@ export function LogsManager({
   const router = useRouter();
   const [isMutating, startMutationTransition] = useTransition();
   const [isLoadingMore, startLoadMoreTransition] = useTransition();
-  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [isManagementMode, setIsManagementMode] = useState(false);
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState("");
@@ -198,25 +197,11 @@ export function LogsManager({
   const selectedLogIdSet = useMemo(() => new Set(selectedLogIds), [selectedLogIds]);
   const allSelected = visibleLogs.length > 0 && selectedLogIds.length === visibleLogs.length;
   const selectedCount = selectedLogIds.length;
-  const managementModeActive = isManagementMode && isDesktopViewport;
+  const managementModeActive = isManagementMode;
   const canApplyDeckList =
     selectedCount > 0 && Boolean(selectedDeckId) && Boolean(selectedDeckListId) && !isMutating;
   const canDeleteSelected = selectedCount > 0 && !isMutating;
   const deletePromptCount = deletePrompt?.ids.length ?? 0;
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 640px)");
-    const syncViewport = () => {
-      setIsDesktopViewport(mediaQuery.matches);
-    };
-
-    syncViewport();
-    mediaQuery.addEventListener("change", syncViewport);
-
-    return () => {
-      mediaQuery.removeEventListener("change", syncViewport);
-    };
-  }, []);
 
   useEffect(() => {
     setVisibleLogs(initialLogs);
@@ -387,7 +372,7 @@ export function LogsManager({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={`flex flex-col gap-6 ${deletePrompt ? "pb-40 sm:pb-0" : ""}`}>
       {actionNotice ? (
         <Card
           aria-live="polite"
@@ -398,8 +383,8 @@ export function LogsManager({
         </Card>
       ) : null}
 
-      {deletePrompt ? (
-        <Card className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]">
+      {deletePrompt && deletePromptCount > 1 ? (
+        <Card className="fixed inset-x-3 bottom-3 z-40 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] shadow-[var(--shadow-lg)] sm:static sm:inset-auto sm:bottom-auto sm:z-auto sm:shadow-none">
           <div className="flex flex-col gap-4">
             <div className="space-y-2">
               <p className="ui-eyebrow">Confirm Delete</p>
@@ -411,11 +396,11 @@ export function LogsManager({
               ) : null}
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={confirmDeletePrompt} variant="danger">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Button className="w-full sm:w-auto" onClick={confirmDeletePrompt} variant="danger">
                 Delete{deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}
               </Button>
-              <Button onClick={cancelDeletePrompt} variant="secondary">
+              <Button className="w-full sm:w-auto" onClick={cancelDeletePrompt} variant="secondary">
                 Cancel
               </Button>
             </div>
@@ -423,7 +408,7 @@ export function LogsManager({
         </Card>
       ) : null}
 
-      <section className="hidden gap-5 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-5 sm:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+      <section className="grid gap-5 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <p className="ui-eyebrow">Workspace Tools</p>
@@ -440,7 +425,7 @@ export function LogsManager({
           </div>
 
           {managementModeActive ? (
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-1">
+            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-3">
               <button
                 className="ui-control-text text-[var(--text-muted)] transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!canDeleteSelected}
@@ -465,7 +450,7 @@ export function LogsManager({
           ) : null}
 
           {managementModeActive ? (
-            <div className="grid gap-3 border-t border-[var(--border)] pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+            <div className="grid gap-3 border-t border-[var(--border)] pt-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
               <label className="grid gap-2">
                 <span className="text-sm font-semibold text-[var(--text-muted)]">Deck Strategy</span>
                 <select
@@ -505,9 +490,9 @@ export function LogsManager({
                 </select>
               </label>
 
-              <div className="flex lg:justify-end">
+              <div className="flex md:col-span-2 xl:col-span-1 xl:justify-end">
                 <Button
-                  className="w-full justify-center lg:w-auto"
+                  className="w-full justify-center xl:w-auto"
                   disabled={!canApplyDeckList}
                   onClick={handleApplyDeckList}
                 >
@@ -515,7 +500,7 @@ export function LogsManager({
                 </Button>
               </div>
 
-              <p className="text-sm text-[var(--text-muted)] lg:col-span-3">
+              <p className="text-sm text-[var(--text-muted)] md:col-span-2 xl:col-span-3">
                 Apply one saved deck list to the {selectedCount} selected battle log
                 {selectedCount === 1 ? "" : "s"}.
               </p>
@@ -523,9 +508,9 @@ export function LogsManager({
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-3 lg:items-end">
+        <div className="flex flex-col gap-3 xl:items-end">
           <Button
-            className="gap-2 justify-center lg:min-w-[12rem]"
+            className="gap-2 justify-center xl:min-w-[12rem]"
             onClick={() => setIsManagementMode((current) => !current)}
             variant="secondary"
           >
@@ -533,7 +518,7 @@ export function LogsManager({
             {managementModeActive ? "Done Editing" : "Edit Logs"}
           </Button>
 
-          <p className="text-sm text-[var(--text-muted)] lg:max-w-[18rem] lg:text-right">
+          <p className="text-sm text-[var(--text-muted)] xl:max-w-[18rem] xl:text-right">
             {managementModeActive
               ? "Bulk actions stay available while editing is on."
               : "Editing mode unlocks selection and bulk actions."}
@@ -613,30 +598,61 @@ export function LogsManager({
               {openGroupDates.includes(group.date) ? (
                 <div className="flex flex-col gap-3 pb-5 pt-2">
                   {group.logs.map((log) => (
-                          <LogRow
-                            editAction={
-                              <LazyEditLogButton
-                                log={toEditableLog(log)}
-                                trigger={
-                            <button
-                              aria-label="Edit battle log"
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--color-brand)]"
-                              type="button"
-                            >
-                              <PencilIcon className="h-4 w-4" />
-                            </button>
-                          }
-                                userDecks={userDecks}
-                              />
+                    <div className="flex flex-col gap-3" key={log.id}>
+                      <LogRow
+                        editAction={
+                          <LazyEditLogButton
+                            log={toEditableLog(log)}
+                            trigger={
+                              <button
+                                aria-label="Edit battle log"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--color-brand)]"
+                                type="button"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
                             }
-                            key={log.id}
-                            log={log}
-                            managementMode={managementModeActive}
-                            onDelete={() => handleDeleteSingle(log.id)}
-                            onToggleSelected={() => toggleSelectedLog(log.id)}
-                            pokemonOptions={pokemonOptions}
-                            selected={selectedLogIdSet.has(log.id)}
+                            userDecks={userDecks}
                           />
+                        }
+                        log={log}
+                        managementMode={managementModeActive}
+                        onDelete={() => handleDeleteSingle(log.id)}
+                        onToggleSelected={() => toggleSelectedLog(log.id)}
+                        pokemonOptions={pokemonOptions}
+                        selected={selectedLogIdSet.has(log.id)}
+                      />
+
+                      {deletePromptCount === 1 && deletePrompt?.ids[0] === log.id ? (
+                        <Card className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-2.5 sm:p-3">
+                          <div className="flex flex-col gap-2">
+                            <div className="space-y-1">
+                              <p className="ui-eyebrow">Confirm Delete</p>
+                              <p className="text-sm leading-5 text-[var(--text-primary)]">
+                                {deletePrompt.message}
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                className="min-h-[2.5rem] w-full px-3 py-1.5 text-sm"
+                                onClick={confirmDeletePrompt}
+                                variant="danger"
+                              >
+                                Delete Log
+                              </Button>
+                              <Button
+                                className="min-h-[2.5rem] w-full px-3 py-1.5 text-sm"
+                                onClick={cancelDeletePrompt}
+                                variant="secondary"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ) : null}
+                    </div>
                   ))}
                 </div>
               ) : null}

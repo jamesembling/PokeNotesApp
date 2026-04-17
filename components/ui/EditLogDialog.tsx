@@ -31,7 +31,7 @@ type EditLogDialogProps = {
 
 type SaveState = "idle" | "saving" | "success";
 
-const SUCCESS_CLOSE_DELAY_MS = 650;
+const SUCCESS_CLOSE_DELAY_MS = 250;
 
 function SaveButton({
   onClick,

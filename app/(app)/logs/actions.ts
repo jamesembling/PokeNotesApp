@@ -265,9 +265,13 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
 
 export async function importLogAction(formData: FormData): Promise<SaveActionResult> {
   try {
-    const rawLogInput = String(formData.get("rawLog") || "").trim();
-    const { context, review } = await buildParsedLogReview(rawLogInput);
-    const { user, supabase } = context;
+    const user = await requireUser();
+    const supabase = await createClient();
+    const rawLog = String(formData.get("rawLog") || "").trim();
+
+    if (!rawLog) {
+      throw userFacingActionError("Paste a PTCGL battle log before importing.");
+    }
 
     const selectedDeckId = String(formData.get("linkedDeckId") || "").trim();
     const selectedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
@@ -277,46 +281,39 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       : (await measureServerCall("logs.import.linkDeckConservatively", () =>
           linkDeckConservatively({
             userId: user.id,
-            identifiedDeckName: review.selfDeckName,
-            identifiedDeckSlug: review.selfDeckSlug,
-            identifiedSprites: review.selfSprites
+            identifiedDeckName: String(formData.get("selfDeckName") || "").trim(),
+            identifiedDeckSlug: String(formData.get("selfDeckSlug") || "").trim(),
+            identifiedSprites: parseStringArray(formData.getAll("selfSprites"))
           })
         )) ?? "";
 
     const record: ImportLogRecord = {
       id: crypto.randomUUID(),
-      date: String(formData.get("date") || review.date).trim() || review.date,
+      date: String(formData.get("date") || "").trim() || buildImportDate(),
       result: parseResult(formData.get("result")),
       format: String(formData.get("format") || "").trim(),
-      go_order: parseGoOrder(formData.get("goOrder")) || review.goOrder,
-      self_player_name: String(formData.get("selfPlayerName") || review.selfPlayerName).trim(),
-      self_deck_name: String(formData.get("selfDeckName") || review.selfDeckName).trim(),
-      self_deck_slug: String(formData.get("selfDeckSlug") || review.selfDeckSlug).trim(),
+      go_order: parseGoOrder(formData.get("goOrder")),
+      self_player_name: String(formData.get("selfPlayerName") || "").trim(),
+      self_deck_name: String(formData.get("selfDeckName") || "").trim(),
+      self_deck_slug: String(formData.get("selfDeckSlug") || "").trim(),
       self_deck_sprites: joinSprites(parseStringArray(formData.getAll("selfSprites"))),
-      opponent_player_name: String(
-        formData.get("opponentPlayerName") || review.opponentPlayerName
-      ).trim(),
-      opponent_deck_name: String(formData.get("opponentDeckName") || review.opponentDeckName).trim(),
-      opponent_deck_slug: String(
-        formData.get("opponentDeckSlug") || review.opponentDeckSlug
-      ).trim(),
+      opponent_player_name: String(formData.get("opponentPlayerName") || "").trim(),
+      opponent_deck_name: String(formData.get("opponentDeckName") || "").trim(),
+      opponent_deck_slug: String(formData.get("opponentDeckSlug") || "").trim(),
       opponent_deck_sprites: joinSprites(parseStringArray(formData.getAll("opponentSprites"))),
-      total_turns: Number(formData.get("totalTurns") || review.totalTurns) || 0,
+      total_turns: Number(formData.get("totalTurns")) || 0,
       coin_toss_won: parseBoolean(formData.get("coinTossWon")),
-      self_prizes_taken: Number(formData.get("selfPrizesTaken") || review.selfPrizesTaken) || 0,
-      opponent_prizes_taken:
-        Number(formData.get("opponentPrizesTaken") || review.opponentPrizesTaken) || 0,
-      self_attack_damage: Number(formData.get("selfAttackDamage") || review.selfAttackDamage) || 0,
-      opponent_attack_damage:
-        Number(formData.get("opponentAttackDamage") || review.opponentAttackDamage) || 0,
-      self_mulligans: Number(formData.get("selfMulligans") || review.selfMulligans) || 0,
-      opponent_mulligans:
-        Number(formData.get("opponentMulligans") || review.opponentMulligans) || 0,
+      self_prizes_taken: Number(formData.get("selfPrizesTaken")) || 0,
+      opponent_prizes_taken: Number(formData.get("opponentPrizesTaken")) || 0,
+      self_attack_damage: Number(formData.get("selfAttackDamage")) || 0,
+      opponent_attack_damage: Number(formData.get("opponentAttackDamage")) || 0,
+      self_mulligans: Number(formData.get("selfMulligans")) || 0,
+      opponent_mulligans: Number(formData.get("opponentMulligans")) || 0,
       linked_deck_id: selectedDeckId || suggestedLinkedDeckId || null,
       linked_deck_list_id: selectedDeckListId || null,
-      reason: String(formData.get("reason") || review.reason).trim(),
-      raw_log: review.rawLog,
-      sections: sections.length > 0 ? sections : review.sections
+      reason: String(formData.get("reason") || "").trim(),
+      raw_log: rawLog,
+      sections
     };
 
     const { error: insertError } = await supabase.from("logs").insert({

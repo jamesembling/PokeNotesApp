@@ -19,14 +19,18 @@ import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/ty
 type ImportLogDialogProps = {
   className?: string;
   initialOpen?: boolean;
+  importDataError?: string;
+  isImportDataLoading?: boolean;
+  onOpen?: () => void | Promise<void>;
   pokemonOptions: PokemonOption[];
+  triggerLabel?: string;
   userDecks: DeckSummary[];
 };
 
 type Stage = "raw" | "review";
 type SaveState = "idle" | "saving" | "success";
 
-const SUCCESS_CLOSE_DELAY_MS = 650;
+const SUCCESS_CLOSE_DELAY_MS = 250;
 
 function ResultChip({ children }: { children: string }) {
   return (
@@ -72,7 +76,11 @@ function normalizeRedirectPath(value: string) {
 export function ImportLogDialog({
   className,
   initialOpen = false,
+  importDataError = "",
+  isImportDataLoading = false,
+  onOpen,
   pokemonOptions,
+  triggerLabel = "Import PTCGL Log",
   userDecks
 }: ImportLogDialogProps) {
   const router = useRouter();
@@ -204,6 +212,12 @@ export function ImportLogDialog({
   }, []);
 
   useEffect(() => {
+    if (initialOpen) {
+      setIsOpen(true);
+    }
+  }, [initialOpen]);
+
+  useEffect(() => {
     if (!selectedDeckId) {
       setSelectedDeckListId("");
       return;
@@ -216,6 +230,7 @@ export function ImportLogDialog({
   }, [availableDeckLists, selectedDeckId, selectedDeckListId]);
 
   function openDialog() {
+    void onOpen?.();
     clearCloseTimer();
     clearNavigationTimer();
     setSaveError("");
@@ -423,7 +438,7 @@ export function ImportLogDialog({
   return (
     <>
       <Button className={className} onClick={openDialog}>
-        Import PTCGL Log
+        {triggerLabel}
       </Button>
 
       {isOpen && typeof document !== "undefined"
@@ -455,7 +470,7 @@ export function ImportLogDialog({
                   }}
                   ref={formRef}
                 >
-                  <input name="rawLog" type="hidden" value={rawLog} />
+                  <input name="rawLog" type="hidden" value={review.rawLog} />
                   <input name="selfPlayerName" type="hidden" value={review.selfPlayerName} />
                   <input name="opponentPlayerName" type="hidden" value={review.opponentPlayerName} />
                   <input
@@ -732,6 +747,18 @@ export function ImportLogDialog({
                 </form>
               ) : (
                 <div className="flex min-w-0 flex-col gap-6">
+                  {isImportDataLoading ? (
+                    <p className="rounded-xl border border-[var(--color-brand)]/15 bg-[var(--color-brand)]/5 px-4 py-3 text-sm text-[var(--color-brand)]">
+                      Loading Pokemon options for deck sprites…
+                    </p>
+                  ) : null}
+
+                  {importDataError ? (
+                    <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
+                      {importDataError}
+                    </p>
+                  ) : null}
+
                   <label className="grid gap-2">
                     <span className="text-sm font-semibold text-[var(--text-muted)]">Battle log</span>
                     <textarea
