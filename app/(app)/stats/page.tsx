@@ -11,8 +11,6 @@ function formatMetric(value: number) {
 export default async function StatsPage() {
   const user = await requireUser();
   const overview = await getLogStatsOverview(user.id);
-  const resolvedGames = overview.gamesWon + overview.gamesLost;
-  const winRate = resolvedGames ? Math.round((overview.gamesWon / resolvedGames) * 100) : null;
   const metrics = [
     {
       label: "Games Played",
@@ -59,19 +57,9 @@ export default async function StatsPage() {
       />
 
       <Card className="grid gap-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-2">
-            <p className="ui-eyebrow">Overview</p>
-            <h2 className="ui-section-title">Battle Log Totals</h2>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center rounded-full bg-[var(--bg-surface-alt)] px-4 py-1.5 text-sm font-semibold text-[var(--text-muted)]">
-              {formatMetric(overview.gamesPlayed)} logs tracked
-            </span>
-            <span className="inline-flex items-center rounded-full bg-[var(--bg-surface-alt)] px-4 py-1.5 text-sm font-semibold text-[var(--text-muted)]">
-              {winRate === null ? "Win rate unavailable" : `${winRate}% win rate`}
-            </span>
-          </div>
+        <div className="space-y-2">
+          <p className="ui-eyebrow">Overview</p>
+          <h2 className="ui-section-title">Battle Log Totals</h2>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
