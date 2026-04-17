@@ -105,8 +105,9 @@ async function getImportContext(): Promise<ImportContext> {
 
 async function buildParsedLogReview(
   rawLog: string,
-  context?: ImportContext
-): Promise<{ context: ImportContext; review: ParsedLogReview }> {
+  context?: ImportContext,
+  ptcglUsernameOverride?: string
+): Promise<ParsedLogReview> {
   const resolvedRawLog = await measureServerCall(
     "logs.import.resolveBattleLogImportInput",
     () => resolveBattleLogImportInput(rawLog)
@@ -117,7 +118,19 @@ async function buildParsedLogReview(
     throw new ImportLogValidationError("EMPTY_INPUT", "Paste a PTCGL battle log before importing.");
   }
 
-  const importContext = context ?? (await measureServerCall("logs.import.getImportContext", () => getImportContext()));
+  const normalizedPtcglUsername = String(ptcglUsernameOverride || "").trim();
+  const importContext =
+    context ??
+    (normalizedPtcglUsername
+      ? {
+          user: null,
+          supabase: null,
+          catalog: await measureServerCall("logs.import.loadIdentificationCatalog", () =>
+            loadIdentificationCatalog()
+          ),
+          ptcglUsername: normalizedPtcglUsername
+        }
+      : await measureServerCall("logs.import.getImportContext", () => getImportContext()));
   const { catalog, ptcglUsername } = importContext;
   const parsed = measureServerStep("logs.import.parseBattleLog", () =>
     parseBattleLog({
@@ -159,35 +172,32 @@ async function buildParsedLogReview(
   const selfDeckSlug = selfArchetype?.archetypeId ?? "";
 
   return {
-    context: importContext,
-    review: {
-      selfPlayerName: parsed.players.selfPlayerName,
-      opponentPlayerName: parsed.players.opponentPlayerName,
-      selfDeckName,
-      opponentDeckName: getBattleLogOpponentDisplayName(
-        opponentArchetype?.label ?? "",
-        opponentSprites.slugs
-      ),
-      selfSprites: selfSprites.slugs,
-      opponentSprites: opponentSprites.slugs,
-      selfDeckSlug,
-      opponentDeckSlug: opponentArchetype?.archetypeId ?? "",
-      date: buildImportDate(),
-      goOrder: parsed.stats.goOrder,
-      coinTossWon: parsed.stats.coinTossWon,
-      result: parsed.stats.result,
-      language: parsed.language,
-      rawLog: parsed.rawLog,
-      sections: parsed.sections,
-      totalTurns: parsed.stats.totalTurns,
-      selfPrizesTaken: parsed.stats.selfPrizesTaken,
-      opponentPrizesTaken: parsed.stats.opponentPrizesTaken,
-      selfAttackDamage: parsed.stats.selfAttackDamage,
-      opponentAttackDamage: parsed.stats.opponentAttackDamage,
-      selfMulligans: parsed.stats.selfMulligans,
-      opponentMulligans: parsed.stats.opponentMulligans,
-      reason: parsed.stats.reason
-    }
+    selfPlayerName: parsed.players.selfPlayerName,
+    opponentPlayerName: parsed.players.opponentPlayerName,
+    selfDeckName,
+    opponentDeckName: getBattleLogOpponentDisplayName(
+      opponentArchetype?.label ?? "",
+      opponentSprites.slugs
+    ),
+    selfSprites: selfSprites.slugs,
+    opponentSprites: opponentSprites.slugs,
+    selfDeckSlug,
+    opponentDeckSlug: opponentArchetype?.archetypeId ?? "",
+    date: buildImportDate(),
+    goOrder: parsed.stats.goOrder,
+    coinTossWon: parsed.stats.coinTossWon,
+    result: parsed.stats.result,
+    language: parsed.language,
+    rawLog: parsed.rawLog,
+    sections: parsed.sections,
+    totalTurns: parsed.stats.totalTurns,
+    selfPrizesTaken: parsed.stats.selfPrizesTaken,
+    opponentPrizesTaken: parsed.stats.opponentPrizesTaken,
+    selfAttackDamage: parsed.stats.selfAttackDamage,
+    opponentAttackDamage: parsed.stats.opponentAttackDamage,
+    selfMulligans: parsed.stats.selfMulligans,
+    opponentMulligans: parsed.stats.opponentMulligans,
+    reason: parsed.stats.reason
   };
 }
 
@@ -241,8 +251,8 @@ function parseSections(value: FormDataEntryValue | null): LogSection[] {
 export async function parseLogAction(formData: FormData): Promise<ParseLogActionResult> {
   try {
     const rawLog = String(formData.get("rawLog") || "");
-    const { review } = await buildParsedLogReview(rawLog);
-    return review;
+    const ptcglUsername = String(formData.get("ptcglUsername") || "").trim();
+    return await buildParsedLogReview(rawLog, undefined, ptcglUsername);
   } catch (error) {
     if (error instanceof ImportLogValidationError) {
       return {

@@ -12,6 +12,7 @@ type LazyImportLogButtonProps = {
 
 type ImportDialogDataResponse = {
   pokemonOptions?: PokemonOption[];
+  ptcglUsername?: string;
   userDecks?: DeckSummary[];
 };
 
@@ -21,12 +22,17 @@ export function LazyImportLogButton({
   label = "Import PTCGL Log"
 }: LazyImportLogButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
+  const [ptcglUsername, setPtcglUsername] = useState("");
   const [userDecks, setUserDecks] = useState<DeckSummary[]>(initialUserDecks);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
   async function handleImporterOpen() {
-    if ((pokemonOptions && userDecks.length > 0) || isLoading) {
+    if (pokemonOptions && ptcglUsername && userDecks.length > 0) {
+      return;
+    }
+
+    if (isLoading) {
       return;
     }
 
@@ -34,8 +40,7 @@ export function LazyImportLogButton({
     setLoadError("");
 
     try {
-      const route = userDecks.length > 0 ? "/api/pokemon-options" : "/api/import-dialog-data";
-      const response = await fetch(route, {
+      const response = await fetch("/api/import-dialog-data", {
         credentials: "same-origin",
         cache: "no-store"
       });
@@ -46,6 +51,7 @@ export function LazyImportLogButton({
 
       const payload = (await response.json()) as ImportDialogDataResponse;
       setPokemonOptions(Array.isArray(payload.pokemonOptions) ? payload.pokemonOptions : []);
+      setPtcglUsername(String(payload.ptcglUsername || "").trim());
       if (Array.isArray(payload.userDecks)) {
         setUserDecks(payload.userDecks);
       }
@@ -61,9 +67,9 @@ export function LazyImportLogButton({
       <ImportLogDialog
         className={className}
         importDataError={loadError}
-        isImportDataLoading={isLoading}
         onOpen={handleImporterOpen}
         pokemonOptions={pokemonOptions ?? []}
+        ptcglUsername={ptcglUsername}
         triggerLabel={label}
         userDecks={userDecks}
       />

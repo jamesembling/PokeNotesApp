@@ -20,9 +20,9 @@ type ImportLogDialogProps = {
   className?: string;
   initialOpen?: boolean;
   importDataError?: string;
-  isImportDataLoading?: boolean;
   onOpen?: () => void | Promise<void>;
   pokemonOptions: PokemonOption[];
+  ptcglUsername?: string;
   triggerLabel?: string;
   userDecks: DeckSummary[];
 };
@@ -77,9 +77,9 @@ export function ImportLogDialog({
   className,
   initialOpen = false,
   importDataError = "",
-  isImportDataLoading = false,
   onOpen,
   pokemonOptions,
+  ptcglUsername = "",
   triggerLabel = "Import PTCGL Log",
   userDecks
 }: ImportLogDialogProps) {
@@ -281,14 +281,14 @@ export function ImportLogDialog({
     }
   }
 
-  function handleReviewLog() {
-    setParseError(null);
-    const requestId = autoParseRequestIdRef.current + 1;
-    autoParseRequestIdRef.current = requestId;
-
-    startParseTransition(async () => {
+  const requestParseReview = useCallback(
+    async (rawLogValue: string, requestId: number) => {
       const formData = new FormData();
-      formData.set("rawLog", rawLog.trim());
+      formData.set("rawLog", rawLogValue.trim());
+      if (ptcglUsername) {
+        formData.set("ptcglUsername", ptcglUsername);
+      }
+
       const result = await parseLogAction(formData);
 
       if (autoParseRequestIdRef.current !== requestId) {
@@ -301,6 +301,17 @@ export function ImportLogDialog({
       }
 
       moveToReviewStage(result);
+    },
+    [moveToReviewStage, ptcglUsername]
+  );
+
+  function handleReviewLog() {
+    setParseError(null);
+    const requestId = autoParseRequestIdRef.current + 1;
+    autoParseRequestIdRef.current = requestId;
+
+    startParseTransition(async () => {
+      await requestParseReview(rawLog, requestId);
     });
   }
 
@@ -357,27 +368,14 @@ export function ImportLogDialog({
       autoParseRequestIdRef.current = parseRequestId;
 
       startParseTransition(async () => {
-        const formData = new FormData();
-        formData.set("rawLog", trimmedRawLog);
-        const result = await parseLogAction(formData);
-
-        if (autoParseRequestIdRef.current !== parseRequestId) {
-          return;
-        }
-
-        if ("error" in result) {
-          setParseError(result.error);
-          return;
-        }
-
-        moveToReviewStage(result);
+        await requestParseReview(trimmedRawLog, parseRequestId);
       });
     }, shouldParseImmediately ? 0 : 500);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isOpen, isTrainingCourtUrl, moveToReviewStage, stage, trimmedRawLog]);
+  }, [isOpen, isTrainingCourtUrl, requestParseReview, stage, trimmedRawLog]);
 
   function renderHeader() {
     if (stage === "raw") {
@@ -747,12 +745,6 @@ export function ImportLogDialog({
                 </form>
               ) : (
                 <div className="flex min-w-0 flex-col gap-6">
-                  {isImportDataLoading ? (
-                    <p className="rounded-xl border border-[var(--color-brand)]/15 bg-[var(--color-brand)]/5 px-4 py-3 text-sm text-[var(--color-brand)]">
-                      Loading Pokemon options for deck sprites…
-                    </p>
-                  ) : null}
-
                   {importDataError ? (
                     <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
                       {importDataError}
