@@ -8,6 +8,7 @@ import { CloseIcon, MenuIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { createClient } from "@/lib/supabase/client";
+import type { DeckSummary } from "@/types/index";
 
 type SidebarProfile = {
   displayName: string;
@@ -16,6 +17,7 @@ type SidebarProfile = {
 };
 
 type SidebarProps = {
+  userDecks: DeckSummary[];
   profile: SidebarProfile;
 };
 
@@ -45,7 +47,7 @@ function SectionLabel({ children }: { children: string }) {
   return <p className="ui-eyebrow">{children}</p>;
 }
 
-export function Sidebar({ profile }: SidebarProps) {
+export function Sidebar({ profile, userDecks }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -165,7 +167,7 @@ export function Sidebar({ profile }: SidebarProps) {
                 {navItems.map((item) => renderNavLink(item.label, item.href))}
               </nav>
               <div className="pt-3">
-                <LazyImportLogButton className="w-full justify-center" />
+                <LazyImportLogButton className="w-full justify-center" initialUserDecks={userDecks} />
               </div>
             </div>
           </div>
@@ -243,7 +245,7 @@ export function Sidebar({ profile }: SidebarProps) {
             <div className="mt-8 flex flex-1 flex-col gap-8 overflow-y-auto">
               <div className="space-y-3">
                 <SectionLabel>QUICK ACTIONS</SectionLabel>
-                <LazyImportLogButton className="w-full justify-center" />
+                <LazyImportLogButton className="w-full justify-center" initialUserDecks={userDecks} />
               </div>
 
               <div className="space-y-3">

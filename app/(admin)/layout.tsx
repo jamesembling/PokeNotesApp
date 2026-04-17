@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { requireUser } from "@/lib/auth";
+import { getDecks } from "@/lib/db/decks";
 import { getCurrentProfile } from "@/lib/db/profile";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,7 +15,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }>) {
   const user = await requireUser();
-  const currentProfile = await getCurrentProfile();
+  const [currentProfile, userDecks] = await Promise.all([getCurrentProfile(), getDecks(user.id)]);
   const supabase = await createClient();
 
   const { data: roleProfile } = await supabase
@@ -37,6 +38,7 @@ export default async function AdminLayout({
           email: currentProfile.email || user.email || "",
           isAdmin: true
         }}
+        userDecks={userDecks}
       />
       <main className="min-[860px]:pl-64">
         <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">

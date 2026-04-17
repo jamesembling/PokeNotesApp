@@ -10,8 +10,9 @@ type LazyImportLogButtonProps = {
   label?: string;
 };
 
-type PokemonOptionsResponse = {
+type ImportDialogDataResponse = {
   pokemonOptions?: PokemonOption[];
+  userDecks?: DeckSummary[];
 };
 
 export function LazyImportLogButton({
@@ -20,11 +21,12 @@ export function LazyImportLogButton({
   label = "Import PTCGL Log"
 }: LazyImportLogButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
+  const [userDecks, setUserDecks] = useState<DeckSummary[]>(initialUserDecks);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
   async function handleImporterOpen() {
-    if (pokemonOptions || isLoading) {
+    if ((pokemonOptions && userDecks.length > 0) || isLoading) {
       return;
     }
 
@@ -32,19 +34,23 @@ export function LazyImportLogButton({
     setLoadError("");
 
     try {
-      const response = await fetch("/api/pokemon-options", {
+      const route = userDecks.length > 0 ? "/api/pokemon-options" : "/api/import-dialog-data";
+      const response = await fetch(route, {
         credentials: "same-origin",
         cache: "no-store"
       });
 
       if (!response.ok) {
-        throw new Error("Could not load Pokemon options.");
+        throw new Error("Could not load import tools.");
       }
 
-      const payload = (await response.json()) as PokemonOptionsResponse;
+      const payload = (await response.json()) as ImportDialogDataResponse;
       setPokemonOptions(Array.isArray(payload.pokemonOptions) ? payload.pokemonOptions : []);
+      if (Array.isArray(payload.userDecks)) {
+        setUserDecks(payload.userDecks);
+      }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not load Pokemon options.");
+      setLoadError(error instanceof Error ? error.message : "Could not load import tools.");
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +65,7 @@ export function LazyImportLogButton({
         onOpen={handleImporterOpen}
         pokemonOptions={pokemonOptions ?? []}
         triggerLabel={label}
-        userDecks={initialUserDecks}
+        userDecks={userDecks}
       />
       {loadError ? (
         <p className="text-sm text-[var(--color-loss)]" role="status">

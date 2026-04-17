@@ -128,7 +128,11 @@ export function BattleLogDetailShell({
           <Link className={mobileBackLinkClassName} href="/logs">
             Back to Logs
           </Link>
-          <LazyImportLogButton className="w-full justify-center" label="Import New Log" />
+          <LazyImportLogButton
+            className="w-full justify-center"
+            initialUserDecks={userDecks}
+            label="Import New Log"
+          />
         </div>
       }
       notice={
