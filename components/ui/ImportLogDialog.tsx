@@ -646,8 +646,8 @@ export function ImportLogDialog({
                     </details>
                   </section>
 
-                  <section className="hidden gap-4 xl:grid-cols-2 md:grid">
-                    <label className="grid gap-2">
+                  <section className="hidden gap-4 lg:grid-cols-2 md:grid">
+                    <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
                       <input
                         className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
@@ -660,7 +660,7 @@ export function ImportLogDialog({
                       </span>
                     </label>
 
-                    <label className="grid gap-2">
+                    <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
                       <select
                         className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
@@ -678,7 +678,7 @@ export function ImportLogDialog({
                       </span>
                     </label>
 
-                    <label className="grid gap-2">
+                    <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">
                         Deck Strategy
                       </span>
@@ -696,7 +696,7 @@ export function ImportLogDialog({
                       </select>
                     </label>
 
-                    <label className="grid gap-2">
+                    <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">
                         Deck List
                       </span>

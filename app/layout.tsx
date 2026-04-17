@@ -9,7 +9,13 @@ type Theme = "light" | "dark";
 
 export const metadata: Metadata = {
   title: "Poke Notes",
-  description: "Competitive Pokemon TCG notes, logs, and analysis."
+  description: "Competitive Pokemon TCG notes, logs, and analysis.",
+  icons: {
+    icon: [
+      { url: "/pokeball-icon.svg", type: "image/svg+xml" }
+    ],
+    shortcut: "/pokeball-icon.svg"
+  }
 };
 
 const THEME_COOKIE_KEY = "theme";
