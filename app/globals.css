@@ -92,6 +92,13 @@ body {
   line-height: 1.6;
 }
 
+input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  min-width: 0;
+  max-width: 100%;
+}
+
 @media (max-width: 859px) {
   input:not([type="hidden"]),
   textarea,

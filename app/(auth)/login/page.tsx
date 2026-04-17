@@ -1,31 +1,15 @@
-"use client";
-
-import { useState } from "react";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false);
+type LoginPageProps = {
+  searchParams: Promise<{
+    error?: string;
+  }>;
+};
 
-  const handleSignIn = async () => {
-    setIsLoading(true);
-
-    const supabase = await createClient();
-    const redirectTo = new URL("/auth/callback", window.location.origin).toString();
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo
-      }
-    });
-
-    if (error) {
-      setIsLoading(false);
-    }
-  };
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  const authError = params.error ? decodeURIComponent(params.error) : null;
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -41,10 +25,18 @@ export default function LoginPage() {
             <p className="text-sm text-[var(--text-secondary)]">
               Use your Google account to continue into Poke Notes.
             </p>
+            {authError ? (
+              <div className="rounded-lg border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
+                Google sign-in failed: {authError}
+              </div>
+            ) : null}
             <div>
-              <Button disabled={isLoading} onClick={handleSignIn}>
-                {isLoading ? "Redirecting..." : "Sign in with Google"}
-              </Button>
+              <a
+                className="ui-control-text inline-flex items-center justify-center rounded-lg bg-[var(--color-brand)] px-4 py-2 text-[var(--text-inverse)] transition hover:bg-[var(--color-brand-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)]"
+                href="/auth/sign-in/google"
+              >
+                Sign in with Google
+              </a>
             </div>
           </div>
         </Card>

@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { logAuthDebug } from "@/lib/server/auth-debug";
+import { buildAppOriginFromHeaders } from "@/lib/server/app-url";
 import { syncCurrentProfileFromAuthUser } from "@/lib/db/profile";
 
 function getSupabaseEnv() {
@@ -16,13 +17,14 @@ function getSupabaseEnv() {
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
+  const appOrigin = buildAppOriginFromHeaders(request.headers);
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", appOrigin));
   }
 
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
-  const response = NextResponse.redirect(new URL("/logs", request.url));
+  const response = NextResponse.redirect(new URL("/logs", appOrigin));
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (error) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", appOrigin));
   }
 
   if (data.user) {
