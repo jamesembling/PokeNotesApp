@@ -646,7 +646,7 @@ export function ImportLogDialog({
                     </details>
                   </section>
 
-                  <section className="hidden gap-4 lg:grid-cols-2 md:grid">
+                  <section className="hidden gap-4 xl:grid-cols-2 md:grid">
                     <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
                       <input

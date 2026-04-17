@@ -315,7 +315,7 @@ export function EditLogDialog({
                 title={"Opponent's deck"}
               />
 
-              <section className="grid gap-4 lg:grid-cols-2">
+              <section className="grid gap-4 xl:grid-cols-2">
                 <label className="grid min-w-0 gap-2">
                   <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
                   <input
