@@ -1,5 +1,4 @@
 import { unstable_cache } from "next/cache";
-import { mergePokemonOptions } from "@/lib/pokemon/catalog-supplements";
 import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
 import { CACHE_TAGS } from "@/lib/server/cache";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
@@ -13,7 +12,7 @@ type PokemonOptionRow = {
   sprite_url: string;
 };
 
-const POKEMON_OPTIONS_CACHE_VERSION = "v4";
+const POKEMON_OPTIONS_CACHE_VERSION = "v5";
 
 const getPokemonOptionsCached = unstable_cache(
   async (): Promise<PokemonOption[]> => {
@@ -40,7 +39,7 @@ const getPokemonOptionsCached = unstable_cache(
             : buildPokemonSpriteUrlFromSlug(row.slug)
       }));
 
-    return mergePokemonOptions(options);
+    return options;
   },
   ["pokemon-options", POKEMON_OPTIONS_CACHE_VERSION],
   {

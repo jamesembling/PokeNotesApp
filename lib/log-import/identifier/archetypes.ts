@@ -13,10 +13,16 @@ type CandidateScore = {
   directLabelMatch: boolean;
   directOverlap: number;
   ancestorOverlap: number;
+  matchedRequiredGroups: number;
+  requiredGroupCount: number;
   totalEvidence: number;
 };
 
 function compareCandidates(left: CandidateScore, right: CandidateScore) {
+  if (left.matchedRequiredGroups !== right.matchedRequiredGroups) {
+    return right.matchedRequiredGroups - left.matchedRequiredGroups;
+  }
+
   if (left.directLabelMatch !== right.directLabelMatch) {
     return left.directLabelMatch ? -1 : 1;
   }
@@ -47,11 +53,68 @@ function hasAmbiguousTopMatch(best: CandidateScore, runnerUp: CandidateScore | u
 
   return (
     best.directLabelMatch === runnerUp.directLabelMatch &&
+    best.matchedRequiredGroups === runnerUp.matchedRequiredGroups &&
     best.totalEvidence === runnerUp.totalEvidence &&
     best.directOverlap === runnerUp.directOverlap &&
     best.ancestorOverlap === runnerUp.ancestorOverlap &&
     best.sprites.length === runnerUp.sprites.length
   );
+}
+
+function getAncestorEvidenceCount(args: {
+  slug: string;
+  evidence: PlayerPokemonEvidence;
+  catalog: IdentificationCatalog;
+}) {
+  const ancestors = args.catalog.pokemon.slugToAncestors.get(args.slug) ?? [];
+
+  return ancestors.reduce(
+    (sum, ancestor) => sum + (args.evidence.mentionCounts.get(ancestor) ?? 0),
+    0
+  );
+}
+
+function getRequiredGroupStats(args: {
+  requiredMatchGroups: string[][];
+  evidence: PlayerPokemonEvidence;
+  catalog: IdentificationCatalog;
+}) {
+  if (args.requiredMatchGroups.length === 0) {
+    return {
+      matchedGroups: 0,
+      requiredGroupCount: 0,
+      totalEvidence: 0,
+      allMatched: true
+    };
+  }
+
+  let matchedGroups = 0;
+  let totalEvidence = 0;
+
+  args.requiredMatchGroups.forEach((group) => {
+    const groupEvidence = group.reduce((sum, slug) => {
+      const directCount = args.evidence.mentionCounts.get(slug) ?? 0;
+      const ancestorCount = getAncestorEvidenceCount({
+        slug,
+        evidence: args.evidence,
+        catalog: args.catalog
+      });
+
+      return sum + directCount + ancestorCount;
+    }, 0);
+
+    if (groupEvidence > 0) {
+      matchedGroups += 1;
+      totalEvidence += groupEvidence;
+    }
+  });
+
+  return {
+    matchedGroups,
+    requiredGroupCount: args.requiredMatchGroups.length,
+    totalEvidence,
+    allMatched: matchedGroups === args.requiredMatchGroups.length
+  };
 }
 
 function resolveUniqueAnchorCandidate(args: {
@@ -76,6 +139,15 @@ function resolveUniqueAnchorCandidate(args: {
     if (uniqueDirectCandidateIds.length === 1) {
       const candidate = args.catalog.archetypes.byId.get(uniqueDirectCandidateIds[0]);
       if (candidate) {
+        const requiredGroupStats = getRequiredGroupStats({
+          requiredMatchGroups: candidate.requiredMatchGroups,
+          evidence: args.evidence,
+          catalog: args.catalog
+        });
+        if (!requiredGroupStats.allMatched) {
+          continue;
+        }
+
         return {
           archetypeId: candidate.id,
           label: candidate.label,
@@ -96,6 +168,15 @@ function resolveUniqueAnchorCandidate(args: {
       const candidateId = Array.from(ancestorCandidates)[0];
       const candidate = args.catalog.archetypes.byId.get(candidateId);
       if (candidate) {
+        const requiredGroupStats = getRequiredGroupStats({
+          requiredMatchGroups: candidate.requiredMatchGroups,
+          evidence: args.evidence,
+          catalog: args.catalog
+        });
+        if (!requiredGroupStats.allMatched) {
+          continue;
+        }
+
         return {
           archetypeId: candidate.id,
           label: candidate.label,
@@ -151,6 +232,15 @@ export function identifyLikelyArchetype(args: {
       const normalizedLabel = normalizeText(candidate.label);
       const directLabelMatch =
         normalizedLabel.length > 0 && args.evidence.normalizedText.includes(normalizedLabel);
+      const requiredGroupStats = getRequiredGroupStats({
+        requiredMatchGroups: candidate.requiredMatchGroups,
+        evidence: args.evidence,
+        catalog: args.catalog
+      });
+
+      if (!requiredGroupStats.allMatched) {
+        return null;
+      }
 
       let directOverlap = 0;
       let ancestorOverlap = 0;
@@ -176,7 +266,16 @@ export function identifyLikelyArchetype(args: {
         }
       });
 
-      if (!directLabelMatch && directOverlap === 0 && ancestorOverlap === 0) {
+      if (requiredGroupStats.requiredGroupCount > 0) {
+        totalEvidence += requiredGroupStats.matchedGroups * 25 + requiredGroupStats.totalEvidence;
+      }
+
+      if (
+        !directLabelMatch &&
+        directOverlap === 0 &&
+        ancestorOverlap === 0 &&
+        requiredGroupStats.totalEvidence === 0
+      ) {
         return null;
       }
 
@@ -188,6 +287,8 @@ export function identifyLikelyArchetype(args: {
         directLabelMatch,
         directOverlap,
         ancestorOverlap,
+        matchedRequiredGroups: requiredGroupStats.matchedGroups,
+        requiredGroupCount: requiredGroupStats.requiredGroupCount,
         totalEvidence
       } satisfies CandidateScore;
     })

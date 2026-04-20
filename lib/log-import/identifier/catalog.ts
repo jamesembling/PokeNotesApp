@@ -1,7 +1,6 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { buildPokemonNameVariants, normalizeText } from "@/lib/log-import/normalization";
-import { mergePokemonCatalogRows } from "@/lib/pokemon/catalog-supplements";
 import { CACHE_TAGS } from "@/lib/server/cache";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -16,7 +15,7 @@ type CachedIdentificationCatalogRows = {
   pokemonRows: PokemonCatalogRow[];
 };
 
-const IDENTIFICATION_CATALOG_CACHE_VERSION = "v4";
+const IDENTIFICATION_CATALOG_CACHE_VERSION = "v6";
 
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
@@ -24,6 +23,16 @@ function parseStringArray(value: unknown) {
   }
 
   return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+}
+
+function parseStringMatrix(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => parseStringArray(entry))
+    .filter((entry) => entry.length > 0);
 }
 
 function buildPokemonIndex(rows: PokemonCatalogRow[]) {
@@ -69,7 +78,8 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnTy
       id: row.id,
       label: row.label,
       sprites: parseStringArray(row.sprites),
-      detectionSprites: parseStringArray(row.detection_sprites)
+      detectionSprites: parseStringArray(row.detection_sprites),
+      requiredMatchGroups: parseStringMatrix(row.required_match_groups)
     }))
     .map((row) => ({
       ...row,
@@ -108,6 +118,62 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnTy
   };
 }
 
+async function loadArchetypeRows(supabase: ReturnType<typeof createPublicClient>) {
+  try {
+    return await fetchAllRows<ArchetypeCatalogRow>((from, to) =>
+      supabase
+        .from("archetype_catalog")
+        .select("id,label,sprites,detection_sprites,required_match_groups,is_excluded")
+        .eq("is_excluded", false)
+        .range(from, to)
+    );
+  } catch (fullSchemaError) {
+    try {
+      const rows = await fetchAllRows<
+        Omit<ArchetypeCatalogRow, "required_match_groups"> & { required_match_groups?: unknown }
+      >((from, to) =>
+        supabase
+          .from("archetype_catalog")
+          .select("id,label,sprites,detection_sprites,is_excluded")
+          .eq("is_excluded", false)
+          .range(from, to)
+      );
+
+      return rows.map((row) => ({
+        ...row,
+        required_match_groups: []
+      })) as ArchetypeCatalogRow[];
+    } catch (detectionSchemaError) {
+      try {
+        const rows = await fetchAllRows<
+          Omit<ArchetypeCatalogRow, "detection_sprites" | "required_match_groups"> & {
+            detection_sprites?: unknown;
+            required_match_groups?: unknown;
+          }
+        >((from, to) =>
+          supabase
+            .from("archetype_catalog")
+            .select("id,label,sprites,is_excluded")
+            .eq("is_excluded", false)
+            .range(from, to)
+        );
+
+        return rows.map((row) => ({
+          ...row,
+          detection_sprites: row.sprites,
+          required_match_groups: []
+        })) as ArchetypeCatalogRow[];
+      } catch {
+        throw fullSchemaError instanceof Error
+          ? fullSchemaError
+          : detectionSchemaError instanceof Error
+            ? detectionSchemaError
+            : new Error("Failed to load archetype catalog rows.");
+      }
+    }
+  }
+}
+
 const loadIdentificationCatalogCached = unstable_cache(
   async (): Promise<CachedIdentificationCatalogRows> => {
     const supabase = createPublicClient();
@@ -118,36 +184,7 @@ const loadIdentificationCatalogCached = unstable_cache(
           .select("slug,label,evolves_from,sprite_url,name_de,name_es,name_fr,name_it,name_pt_br")
           .range(from, to)
       ),
-      (async () => {
-        try {
-          return await fetchAllRows<ArchetypeCatalogRow>((from, to) =>
-            supabase
-              .from("archetype_catalog")
-              .select("id,label,sprites,detection_sprites,is_excluded")
-              .eq("is_excluded", false)
-              .range(from, to)
-          );
-        } catch (error) {
-          if (!(error instanceof Error) || !/detection_sprites/i.test(error.message)) {
-            throw error;
-          }
-
-          const fallbackRows = await fetchAllRows<
-            Omit<ArchetypeCatalogRow, "detection_sprites"> & { detection_sprites?: unknown }
-          >((from, to) =>
-            supabase
-              .from("archetype_catalog")
-              .select("id,label,sprites,is_excluded")
-              .eq("is_excluded", false)
-              .range(from, to)
-          );
-
-          return fallbackRows.map((row) => ({
-            ...row,
-            detection_sprites: row.sprites
-          })) as ArchetypeCatalogRow[];
-        }
-      })()
+      loadArchetypeRows(supabase)
     ]);
 
     return {
@@ -164,7 +201,7 @@ const loadIdentificationCatalogCached = unstable_cache(
 
 const loadBuiltIdentificationCatalog = cache(async (): Promise<IdentificationCatalog> => {
   const { pokemonRows, archetypeRows } = await loadIdentificationCatalogCached();
-  const pokemon = buildPokemonIndex(mergePokemonCatalogRows(pokemonRows));
+  const pokemon = buildPokemonIndex(pokemonRows);
 
   return {
     pokemon,

@@ -4,7 +4,16 @@ const EXPLICIT_NAME_TO_SLUG: Record<string, string> = {
   "teal mask ogerpon": "ogerpon",
   "cornerstone mask ogerpon": "ogerpon-cornerstone",
   "wellspring mask ogerpon": "ogerpon-wellspring",
-  "hearthflame mask ogerpon": "ogerpon-hearthflame"
+  "hearthflame mask ogerpon": "ogerpon-hearthflame",
+  "bloodmoon ursaluna": "ursaluna-bloodmoon",
+  "origin forme dialga": "dialga-origin",
+  "dialga origin": "dialga-origin",
+  "dialga origin forme": "dialga-origin",
+  "origin forme palkia": "palkia-origin",
+  "palkia origin": "palkia-origin",
+  "palkia origin forme": "palkia-origin",
+  "hisuian zoroark": "zoroark-hisui",
+  "zoroark hisui": "zoroark-hisui"
 };
 
 export function prettifyPokemonSlug(slug: string) {
@@ -44,7 +53,6 @@ function buildLegacySpriteSlug(name: string) {
   const clean = normalizePokemonText(name);
   const explicitMap: Record<string, string> = {
     ...EXPLICIT_NAME_TO_SLUG,
-    "bloodmoon ursaluna": "ursaluna-bloodmoon",
     "mr mime": "mr-mime",
     "mr rime": "mr-rime",
     "mime jr": "mime-jr",
@@ -66,7 +74,12 @@ function buildLegacySpriteSlug(name: string) {
   }
 
   if (tokens[0] === "mega" && tokens.length > 1) {
-    tokens = tokens.slice(1).concat("mega");
+    const suffix = tokens[tokens.length - 1];
+    if ((suffix === "x" || suffix === "y") && tokens.length > 2) {
+      tokens = tokens.slice(1, -1).concat("mega", suffix);
+    } else {
+      tokens = tokens.slice(1).concat("mega");
+    }
   }
   if (tokens[0] === "bloodmoon" && tokens.length > 1) {
     tokens = tokens.slice(1).concat("bloodmoon");
@@ -75,9 +88,14 @@ function buildLegacySpriteSlug(name: string) {
     tokens = tokens.slice(1).concat("radiant");
   }
 
-  const regionalPrefixes = new Set(["alolan", "galarian", "hisuian", "paldean"]);
-  if (regionalPrefixes.has(tokens[0]) && tokens.length > 1) {
-    tokens = tokens.slice(1).concat(tokens[0]);
+  const regionalSuffixes: Record<string, string> = {
+    alolan: "alola",
+    galarian: "galar",
+    hisuian: "hisui",
+    paldean: "paldea"
+  };
+  if (regionalSuffixes[tokens[0]] && tokens.length > 1) {
+    tokens = tokens.slice(1).concat(regionalSuffixes[tokens[0]]);
   }
 
   return tokens.join("-").replace(/[^a-z0-9-]/g, "");
@@ -93,7 +111,12 @@ function buildPokemonNameCandidates(name: string) {
   const tokens = normalized.split(" ").filter(Boolean);
 
   if (tokens[0] === "mega" && tokens.length > 1) {
-    candidates.add(`${tokens.slice(1).join(" ")} mega`);
+    const suffix = tokens[tokens.length - 1];
+    if ((suffix === "x" || suffix === "y") && tokens.length > 2) {
+      candidates.add(`${tokens.slice(1, -1).join(" ")} mega ${suffix}`);
+    } else {
+      candidates.add(`${tokens.slice(1).join(" ")} mega`);
+    }
   }
   if (tokens[0] === "bloodmoon" && tokens.length > 1) {
     candidates.add(`${tokens.slice(1).join(" ")} bloodmoon`);
@@ -104,9 +127,14 @@ function buildPokemonNameCandidates(name: string) {
     candidates.add(tokens.slice(1).join(" "));
   }
 
-  const regionalPrefixes = new Set(["alolan", "galarian", "hisuian", "paldean"]);
-  if (regionalPrefixes.has(tokens[0]) && tokens.length > 1) {
-    candidates.add(`${tokens.slice(1).join(" ")} ${tokens[0]}`);
+  const regionalSuffixes: Record<string, string> = {
+    alolan: "alola",
+    galarian: "galar",
+    hisuian: "hisui",
+    paldean: "paldea"
+  };
+  if (regionalSuffixes[tokens[0]] && tokens.length > 1) {
+    candidates.add(`${tokens.slice(1).join(" ")} ${regionalSuffixes[tokens[0]]}`);
     candidates.add(tokens.slice(1).join(" "));
   }
 

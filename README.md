@@ -62,6 +62,7 @@ Optional variables:
 
 - `OLD_SUPABASE_URL`
 - `OLD_SUPABASE_SERVICE_KEY`
+- `CRON_SECRET`
 - `POKE_NOTES_DEBUG_AUTH`
 - `POKE_NOTES_DEBUG_PERF`
 
@@ -75,6 +76,7 @@ Optional variables:
 - `npm run test` runs the test suite
 - `npm run build` creates a production build
 - `npm run start` serves the production build locally
+- `npm run sync:pokemon-catalog` runs the Pokemon catalog sync manually
 
 ## Deployment
 
@@ -85,6 +87,9 @@ Deployments are intended for Vercel.
 3. Set `NEXT_PUBLIC_APP_URL` to the deployed origin.
 4. In Supabase Auth, add the deployed `/auth/callback` URL to the allow list.
 5. Run [`schema.sql`](./schema.sql) for a fresh database or apply any required files in [`sql/`](./sql) before using the app in production.
+6. Set `CRON_SECRET` in Vercel so the scheduled catalog sync route can authenticate requests.
+
+`vercel.json` schedules `/api/cron/sync-pokemon-catalog` to run daily at `05:00` UTC. The job refreshes `pokemon_catalog` from the upstream sources, then invalidates the cached Pokemon options and identification catalog so UI menus and lookup paths see the new rows without a manual reseed.
 
 Before shipping a change, the recommended checks are:
 

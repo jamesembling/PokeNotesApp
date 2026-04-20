@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
-import { fetchMegaPokemonForms } from "./lib/pokemon-catalog/mega-forms.mjs";
+import { buildSpecialPokemonCatalogRows } from "./lib/pokemon-catalog/special-forms.mjs";
 
 const REQUIRED_ENV_VARS = ["NEW_SUPABASE_URL", "NEW_SUPABASE_SERVICE_KEY"];
 
@@ -23,14 +23,14 @@ const supabase = createClient(
 );
 
 async function main() {
-  const rows = await fetchMegaPokemonForms();
+  const rows = buildSpecialPokemonCatalogRows({ category: "mega" });
   const { error } = await supabase.from("pokemon_catalog").upsert(rows, { onConflict: "slug" });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  console.log(`Synced ${rows.length} Mega Pokemon forms to pokemon_catalog.`);
+  console.log(`Synced ${rows.length} configured Mega Pokemon forms to pokemon_catalog.`);
 }
 
 main().catch((error) => {

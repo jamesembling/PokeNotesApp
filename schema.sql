@@ -415,6 +415,11 @@ create table public.archetype_catalog (
   -- e.g. ["dragapult", "dusknoir", "drakloak", "dreepy"]
   detection_sprites jsonb not null default '[]',
 
+  -- Optional grouped evidence requirements. Each inner array is an OR group,
+  -- and every group must have at least one Pokemon match for this archetype
+  -- to qualify during identification.
+  required_match_groups jsonb not null default '[]',
+
   -- Archetypes that cause false positive matches are excluded
   -- See known-edge-cases.md section 1.1
   is_excluded       boolean not null default false,
@@ -430,6 +435,8 @@ comment on column public.archetype_catalog.sprites is
   'Curated Pokemon slugs that visually represent this archetype in the UI.';
 comment on column public.archetype_catalog.detection_sprites is
   'Additional Pokemon slugs that should count as evidence when identifying this archetype from a battle log.';
+comment on column public.archetype_catalog.required_match_groups is
+  'Optional grouped evidence requirements. Each group needs at least one matching Pokemon before the archetype can qualify.';
 
 
 -- ============================================================

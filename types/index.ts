@@ -402,6 +402,7 @@ export type ArchetypeCatalogEntry = {
   label: string                    // e.g. "Dragapult ex"
   sprites: string[]                // e.g. ["dragapult", "dusknoir"]
   detectionSprites: string[]       // e.g. ["dragapult", "dusknoir", "drakloak", "dreepy"]
+  requiredMatchGroups: string[][]  // e.g. [["charizard", "charmeleon"], ["pidgeot", "pidgeotto"]]
   isExcluded: boolean
   lastSyncedAt: string
 }

@@ -59,6 +59,7 @@ export type ArchetypeCatalogRow = {
   label: string;
   sprites: unknown;
   detection_sprites: unknown;
+  required_match_groups: unknown;
   is_excluded: boolean;
 };
 
@@ -73,7 +74,13 @@ export type PokemonCatalogIndex = {
 export type ArchetypeCatalogIndex = {
   byId: Map<
     string,
-    { id: string; label: string; sprites: string[]; detectionSprites: string[] }
+    {
+      id: string;
+      label: string;
+      sprites: string[];
+      detectionSprites: string[];
+      requiredMatchGroups: string[][];
+    }
   >;
   normalizedLabelToIds: Map<string, string[]>;
   spriteToCandidateArchetypes: Map<string, string[]>;

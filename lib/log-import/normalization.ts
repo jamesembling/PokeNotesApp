@@ -31,9 +31,10 @@ function pushVariant(target: Set<string>, value: string) {
 
 function buildMegaVariants(label: string) {
   const variants = new Set<string>();
-  const megaPrefix = label.match(/^Mega\s+(.+)$/i);
+  const megaPrefix = label.match(/^Mega\s+(.+?)(?:\s+([XY]))?$/i);
   if (megaPrefix) {
-    pushVariant(variants, `${megaPrefix[1]} Mega`);
+    const [, base, form] = megaPrefix;
+    pushVariant(variants, `${base} Mega${form ? ` ${form}` : ""}`);
   }
 
   const megaSuffix = label.match(/^(.+)\s+Mega(?:\s+([XY]))?$/i);
