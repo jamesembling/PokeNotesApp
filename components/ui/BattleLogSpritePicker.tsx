@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { prettifyPokemonSlug } from "@/lib/battle-log/display";
 import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
@@ -79,6 +80,10 @@ function getPokemonOptionLabel(slug: string, pokemonOptions: PokemonOption[]) {
 
 function normalizeSearchValue(value: string) {
   return value.trim().toLowerCase();
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(Math.max(value, minimum), maximum);
 }
 
 function getSearchRank(option: PokemonOption, normalizedQuery: string) {
@@ -183,9 +188,12 @@ function SpriteSearchSlot({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingSearch, setIsEditingSearch] = useState(false);
+  const [isDesktopFloatingPanel, setIsDesktopFloatingPanel] = useState(false);
+  const [floatingPanelStyle, setFloatingPanelStyle] = useState<CSSProperties | null>(null);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const floatingPanelRef = useRef<HTMLDivElement | null>(null);
   const slotOptions = useMemo(
     () => buildOptionsForSlot(currentSlug, sprites, pokemonOptions),
     [currentSlug, pokemonOptions, sprites]
@@ -244,6 +252,19 @@ function SpriteSearchSlot({
   }, [currentSlug]);
 
   useEffect(() => {
+    function syncDesktopMode() {
+      setIsDesktopFloatingPanel(window.innerWidth >= 1024);
+    }
+
+    syncDesktopMode();
+    window.addEventListener("resize", syncDesktopMode);
+
+    return () => {
+      window.removeEventListener("resize", syncDesktopMode);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isEditingSearch) {
       return;
     }
@@ -253,14 +274,66 @@ function SpriteSearchSlot({
   }, [isEditingSearch]);
 
   useEffect(() => {
+    if (!isEditingSearch || !isDesktopFloatingPanel) {
+      setFloatingPanelStyle(null);
+      return;
+    }
+
+    function syncFloatingPanelPosition() {
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const viewportPadding = 16;
+      const minPanelWidth = 320;
+      const preferredPanelWidth = Math.max(minPanelWidth, Math.min(420, rect.width + 28));
+      const maxPanelWidth = Math.max(minPanelWidth, window.innerWidth - viewportPadding * 2);
+      const panelWidth = Math.min(preferredPanelWidth, maxPanelWidth);
+      const left = clamp(rect.left, viewportPadding, window.innerWidth - panelWidth - viewportPadding);
+      const top = rect.bottom + 8;
+      const maxHeight = Math.max(
+        180,
+        Math.min(420, window.innerHeight - top - viewportPadding)
+      );
+
+      setFloatingPanelStyle({
+        left,
+        maxHeight,
+        position: "fixed",
+        top,
+        width: panelWidth
+      });
+    }
+
+    syncFloatingPanelPosition();
+    window.addEventListener("resize", syncFloatingPanelPosition);
+    window.addEventListener("scroll", syncFloatingPanelPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", syncFloatingPanelPosition);
+      window.removeEventListener("scroll", syncFloatingPanelPosition, true);
+    };
+  }, [isDesktopFloatingPanel, isEditingSearch]);
+
+  useEffect(() => {
     if (!isEditingSearch) {
       return;
     }
 
     function handlePointerDown(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        closeSearchEditor();
+      const target = event.target as Node;
+
+      if (containerRef.current?.contains(target)) {
+        return;
       }
+
+      if (floatingPanelRef.current?.contains(target)) {
+        return;
+      }
+
+      closeSearchEditor();
     }
 
     window.addEventListener("pointerdown", handlePointerDown);
@@ -269,6 +342,109 @@ function SpriteSearchSlot({
       window.removeEventListener("pointerdown", handlePointerDown);
     };
   }, [isEditingSearch]);
+
+  const searchPanelContent = (
+    <div
+      className="grid gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)]"
+      ref={isDesktopFloatingPanel ? floatingPanelRef : undefined}
+    >
+      <div
+        className="flex min-w-0 items-center gap-2"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <input
+          className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 md:text-sm"
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              if (commitQuerySelection(filteredOptions[0]?.slug)) {
+                event.preventDefault();
+                return;
+              }
+            }
+
+            if (event.key === "Escape") {
+              closeSearchEditor();
+            }
+          }}
+          placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
+          ref={inputRef}
+          spellCheck={false}
+          value={query}
+        />
+        <button
+          aria-label="Close Pokemon search"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
+          onClick={closeSearchEditor}
+          type="button"
+        >
+          <CloseIcon className="h-4 w-4" />
+        </button>
+      </div>
+
+      {isOpen && normalizeSearchValue(query) ? (
+        <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)]">
+          {filteredOptions.length > 0 ? (
+            <div
+              className="touch-pan-y overflow-y-auto py-2"
+              style={
+                isDesktopFloatingPanel && floatingPanelStyle?.maxHeight
+                  ? { maxHeight: Math.max(120, Number(floatingPanelStyle.maxHeight) - 84) }
+                  : { maxHeight: "min(20rem,45vh)" }
+              }
+            >
+              {filteredOptions.map((option) => (
+                <button
+                  className="flex w-full touch-manipulation items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface)]"
+                  key={option.slug}
+                  onClick={() => {
+                    commitQuerySelection(option.slug);
+                  }}
+                  type="button"
+                >
+                  <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
+                  <span className="min-w-0 truncate text-base font-medium text-[var(--text-primary)] md:text-sm">
+                    {option.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="px-4 py-3 text-base text-[var(--text-muted)] md:text-sm">
+              No Pokemon found for &quot;{query}&quot;
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="px-1 text-sm text-[var(--text-muted)]">
+          Start typing to search the Pokemon list.
+        </p>
+      )}
+    </div>
+  );
+
+  const floatingSearchPanel =
+    isEditingSearch &&
+    isDesktopFloatingPanel &&
+    floatingPanelStyle &&
+    typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="z-[90]"
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            style={floatingPanelStyle}
+          >
+            {searchPanelContent}
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <div
@@ -313,82 +489,14 @@ function SpriteSearchSlot({
           </button>
         ) : null}
       </div>
-      {isEditingSearch ? (
+      {isEditingSearch && !isDesktopFloatingPanel ? (
         <div
-          className="absolute left-0 right-0 top-full z-20 mt-2 grid gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)]"
+          className="absolute left-0 right-0 top-full z-20 mt-2"
         >
-          <div
-            className="flex min-w-0 items-center gap-2"
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <input
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 md:text-sm"
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setIsOpen(true);
-              }}
-              onFocus={() => setIsOpen(true)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  if (commitQuerySelection(filteredOptions[0]?.slug)) {
-                    event.preventDefault();
-                    return;
-                  }
-                }
-
-                if (event.key === "Escape") {
-                  closeSearchEditor();
-                }
-              }}
-              placeholder={currentSlug ? "Search to replace Pokemon" : "Search Pokemon"}
-              ref={inputRef}
-              spellCheck={false}
-              value={query}
-            />
-            <button
-              aria-label="Close Pokemon search"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
-              onClick={closeSearchEditor}
-              type="button"
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          </div>
-
-          {isOpen && normalizeSearchValue(query) ? (
-            <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)]">
-              {filteredOptions.length > 0 ? (
-                <div className="max-h-[min(20rem,45vh)] touch-pan-y overflow-y-auto py-2">
-                  {filteredOptions.map((option) => (
-                    <button
-                      className="flex w-full touch-manipulation items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface)]"
-                      key={option.slug}
-                      onClick={() => {
-                        commitQuerySelection(option.slug);
-                      }}
-                      type="button"
-                    >
-                      <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
-                      <span className="min-w-0 truncate text-base font-medium text-[var(--text-primary)] md:text-sm">
-                        {option.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="px-4 py-3 text-base text-[var(--text-muted)] md:text-sm">
-                  No Pokemon found for &quot;{query}&quot;
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="px-1 text-sm text-[var(--text-muted)]">
-              Start typing to search the Pokemon list.
-            </p>
-          )}
+          {searchPanelContent}
         </div>
       ) : null}
+      {floatingSearchPanel}
     </div>
   );
 }
