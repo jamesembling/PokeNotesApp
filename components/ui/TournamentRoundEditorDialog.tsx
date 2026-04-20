@@ -140,28 +140,30 @@ export function TournamentRoundEditorDialog({
     setActionError("");
     setSaveState("saving");
 
-    try {
-      const result = await saveTournamentRoundAction(formData);
-      setSaveState("success");
+    const result = await saveTournamentRoundAction(formData);
 
-      clearCloseTimer();
-      closeTimerRef.current = window.setTimeout(() => {
-        setIsOpen(false);
-        clearNavigationTimer();
-        navigationTimerRef.current = window.setTimeout(() => {
-          resetState();
-
-          if (normalizeRedirectPath(result.redirectTo) === pathname) {
-            router.refresh();
-          } else {
-            router.push(result.redirectTo);
-          }
-        }, 50);
-      }, SUCCESS_CLOSE_DELAY_MS);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Could not save this round.");
+    if (!result.ok) {
+      setActionError(result.message);
       setSaveState("idle");
+      return;
     }
+
+    setSaveState("success");
+
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setIsOpen(false);
+      clearNavigationTimer();
+      navigationTimerRef.current = window.setTimeout(() => {
+        resetState();
+
+        if (normalizeRedirectPath(result.redirectTo) === pathname) {
+          router.refresh();
+        } else {
+          router.push(result.redirectTo);
+        }
+      }, 50);
+    }, SUCCESS_CLOSE_DELAY_MS);
   }
 
   async function handleDelete() {
@@ -172,17 +174,19 @@ export function TournamentRoundEditorDialog({
     setActionError("");
     setDeleteState("deleting");
 
-    try {
-      const formData = new FormData();
-      formData.set("tournamentId", tournamentId);
-      formData.set("roundId", round.id);
-      const result = await deleteTournamentRoundAction(formData);
-      closeDialog();
-      router.push(result.redirectTo);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Could not delete this round.");
+    const formData = new FormData();
+    formData.set("tournamentId", tournamentId);
+    formData.set("roundId", round.id);
+    const result = await deleteTournamentRoundAction(formData);
+
+    if (!result.ok) {
+      setActionError(result.message);
       setDeleteState("idle");
+      return;
     }
+
+    closeDialog();
+    router.push(result.redirectTo);
   }
 
   const isBusy = saveState === "saving" || deleteState === "deleting";

@@ -126,19 +126,19 @@ export function TournamentSummaryList({
     setDeleteError("");
     setDeletingId(tournament.id);
 
-    try {
-      const formData = new FormData();
-      formData.set("tournamentId", tournament.id);
-      const result = await deleteTournamentAction(formData);
-      setConfirmingId(null);
-      router.push(result.redirectTo);
-      router.refresh();
-    } catch (error) {
-      setDeleteError(
-        error instanceof Error ? error.message : "Could not delete this tournament."
-      );
+    const formData = new FormData();
+    formData.set("tournamentId", tournament.id);
+    const result = await deleteTournamentAction(formData);
+
+    if (!result.ok) {
+      setDeleteError(result.message);
       setDeletingId(null);
+      return;
     }
+
+    setConfirmingId(null);
+    router.push(result.redirectTo);
+    router.refresh();
   }
 
   if (tournaments.length === 0) {

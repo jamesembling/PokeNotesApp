@@ -1,3 +1,5 @@
+"use client";
+
 import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";

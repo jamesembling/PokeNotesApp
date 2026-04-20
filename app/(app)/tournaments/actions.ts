@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { getDefaultSyncedSiteFormat, isKnownSyncedSiteFormat } from "@/lib/formats/catalog";
 import {
-  resolveActionFailure,
+  toActionFailureResult,
   userFacingActionError
 } from "@/lib/server/action-errors";
+import type { FailedActionResult } from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
@@ -25,7 +26,7 @@ import type {
 type SaveActionResult = {
   ok: true;
   redirectTo: string;
-};
+} | FailedActionResult;
 
 type PostgrestLikeError = {
   code?: string | null;
@@ -300,7 +301,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
       redirectTo: `/tournaments/${tournamentId}`
     };
   } catch (error) {
-    throw resolveActionFailure(error, {
+    return toActionFailureResult(error, {
       action: "createTournament",
       area: "tournaments",
       fallbackMessage: "We couldn't save that tournament right now.",
@@ -390,7 +391,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       redirectTo: withRefreshToken(getRedirectTarget(formData, `/tournaments/${tournamentId}`))
     };
   } catch (error) {
-    throw resolveActionFailure(error, {
+    return toActionFailureResult(error, {
       action: "updateTournament",
       area: "tournaments",
       fallbackMessage: "We couldn't update that tournament right now.",
@@ -428,7 +429,7 @@ export async function deleteTournamentAction(formData: FormData): Promise<SaveAc
       redirectTo: withRefreshToken("/tournaments")
     };
   } catch (error) {
-    throw resolveActionFailure(error, {
+    return toActionFailureResult(error, {
       action: "deleteTournament",
       area: "tournaments",
       fallbackMessage: "We couldn't delete that tournament right now.",
@@ -493,7 +494,7 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
       redirectTo: withRefreshToken(getRedirectTarget(formData, `/tournaments/${tournamentId}`))
     };
   } catch (error) {
-    throw resolveActionFailure(error, {
+    return toActionFailureResult(error, {
       action: roundId ? "updateTournamentRound" : "createTournamentRound",
       area: "tournaments",
       fallbackMessage: "We couldn't save that tournament round right now.",
@@ -532,7 +533,7 @@ export async function deleteTournamentRoundAction(formData: FormData): Promise<S
       redirectTo: withRefreshToken(`/tournaments/${tournamentId}`)
     };
   } catch (error) {
-    throw resolveActionFailure(error, {
+    return toActionFailureResult(error, {
       action: "deleteTournamentRound",
       area: "tournaments",
       fallbackMessage: "We couldn't delete that tournament round right now.",

@@ -408,28 +408,32 @@ export function TournamentEditorDialog({
     setActionError("");
     setSaveState("saving");
 
-    try {
-      const result = await (isEditing ? updateTournamentAction(formData) : createTournamentAction(formData));
-      setSaveState("success");
+    const result = await (
+      isEditing ? updateTournamentAction(formData) : createTournamentAction(formData)
+    );
 
-      clearCloseTimer();
-      closeTimerRef.current = window.setTimeout(() => {
-        setIsOpen(false);
-        clearNavigationTimer();
-        navigationTimerRef.current = window.setTimeout(() => {
-          resetState();
-
-          if (normalizeRedirectPath(result.redirectTo) === pathname) {
-            router.refresh();
-          } else {
-            router.push(result.redirectTo);
-          }
-        }, 50);
-      }, SUCCESS_CLOSE_DELAY_MS);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Could not save this tournament.");
+    if (!result.ok) {
+      setActionError(result.message);
       setSaveState("idle");
+      return;
     }
+
+    setSaveState("success");
+
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setIsOpen(false);
+      clearNavigationTimer();
+      navigationTimerRef.current = window.setTimeout(() => {
+        resetState();
+
+        if (normalizeRedirectPath(result.redirectTo) === pathname) {
+          router.refresh();
+        } else {
+          router.push(result.redirectTo);
+        }
+      }, 50);
+    }, SUCCESS_CLOSE_DELAY_MS);
   }
 
   async function handleDelete() {
@@ -440,16 +444,18 @@ export function TournamentEditorDialog({
     setActionError("");
     setDeleteState("deleting");
 
-    try {
-      const formData = new FormData();
-      formData.set("tournamentId", tournament.id);
-      const result = await deleteTournamentAction(formData);
-      closeDialog();
-      router.push(result.redirectTo);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Could not delete this tournament.");
+    const formData = new FormData();
+    formData.set("tournamentId", tournament.id);
+    const result = await deleteTournamentAction(formData);
+
+    if (!result.ok) {
+      setActionError(result.message);
       setDeleteState("idle");
+      return;
     }
+
+    closeDialog();
+    router.push(result.redirectTo);
   }
 
   const isBusy = saveState === "saving" || deleteState === "deleting";

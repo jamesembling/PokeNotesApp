@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { reportError } from "@/lib/server/report-error";
 
 export class UserFacingActionError extends Error {
@@ -18,6 +19,11 @@ type ActionErrorContext = {
   shareId?: string;
   tournamentId?: string;
   userId?: string;
+};
+
+export type FailedActionResult = {
+  ok: false;
+  message: string;
 };
 
 export function userFacingActionError(message: string) {
@@ -46,4 +52,16 @@ export function resolveActionFailure(error: unknown, context: ActionErrorContext
   });
 
   return userFacingActionError(context.fallbackMessage);
+}
+
+export function toActionFailureResult(
+  error: unknown,
+  context: ActionErrorContext
+): FailedActionResult {
+  unstable_rethrow(error);
+
+  return {
+    ok: false,
+    message: resolveActionFailure(error, context).message
+  };
 }
