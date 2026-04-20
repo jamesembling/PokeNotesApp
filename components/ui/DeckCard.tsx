@@ -3,13 +3,17 @@ import { Card } from "@/components/ui/Card";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import type { DeckSummary } from "@/types/index";
 
+export type DeckCardView = "tile" | "list";
+
+const listSpriteLaneClassName = "min-h-12 w-[82px] shrink-0 sm:w-[98px]";
+
 type DeckCardProps = {
   deck: DeckSummary;
   deckListCount: number;
   gamesPlayed: number;
   recordLabel: string;
+  view?: DeckCardView;
   winRate: number | null;
-  winRateLabel: string;
 };
 
 function formatUpdatedDate(date: string) {
@@ -20,13 +24,29 @@ function formatUpdatedDate(date: string) {
   }).format(new Date(date));
 }
 
+function getListWinRateTextClass(winRate: number | null) {
+  if (winRate == null) {
+    return "text-[var(--text-muted)]";
+  }
+
+  if (winRate > 60) {
+    return "text-[var(--color-win-strong)]";
+  }
+
+  if (winRate >= 40) {
+    return "text-[rgb(180,83,9)] dark:text-[rgb(251,191,36)]";
+  }
+
+  return "text-[var(--color-loss-strong)]";
+}
+
 export function DeckCard({
   deck,
   deckListCount,
   gamesPlayed,
   recordLabel,
-  winRate,
-  winRateLabel
+  view = "tile",
+  winRate
 }: DeckCardProps) {
   const statusToneClassName =
     winRate == null
@@ -34,8 +54,106 @@ export function DeckCard({
       : winRate > 60
         ? "border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win-strong)]"
         : winRate >= 40
-          ? "border-[rgba(217,119,6,0.22)] bg-[rgba(217,119,6,0.1)] text-[rgb(180,83,9)] dark:border-[rgba(251,191,36,0.22)] dark:bg-[rgba(245,158,11,0.12)] dark:text-[rgb(251,191,36)]"
-          : "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss-strong)]";
+        ? "border-[rgba(217,119,6,0.22)] bg-[rgba(217,119,6,0.1)] text-[rgb(180,83,9)] dark:border-[rgba(251,191,36,0.22)] dark:bg-[rgba(245,158,11,0.12)] dark:text-[rgb(251,191,36)]"
+        : "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss-strong)]";
+
+  if (view === "list") {
+    return (
+      <Link
+        className="group block px-4 py-4 transition hover:bg-[var(--bg-surface-alt)] sm:px-6"
+        href={`/decks/${deck.id}`}
+      >
+        <div className="md:hidden">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <SpriteStrip
+                className={listSpriteLaneClassName}
+                pokemonOptions={null}
+                size="lg"
+                sprites={deck.deckPokemon}
+              />
+              <div className="min-w-0 space-y-1">
+                <h2 className="truncate font-display text-[1.05rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)] transition group-hover:text-[var(--color-brand)]">
+                  {deck.deckName}
+                </h2>
+                <p className="text-sm text-[var(--text-muted)]">
+                  {gamesPlayed > 0 ? `${gamesPlayed} logged matches` : "No linked battle logs"}
+                </p>
+              </div>
+            </div>
+
+            <span className="ui-control-text shrink-0 text-[var(--color-brand)]">Open</span>
+          </div>
+
+          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
+            <div className="space-y-1">
+              <dt className="ui-eyebrow">Win rate</dt>
+              <dd
+                className={[
+                  "font-display text-[1rem] font-semibold tracking-[-0.04em]",
+                  getListWinRateTextClass(winRate)
+                ].join(" ")}
+              >
+                {winRate == null ? "--" : `${winRate}%`}
+              </dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="ui-eyebrow">Record</dt>
+              <dd className="text-sm font-medium text-[var(--text-primary)]">
+                {gamesPlayed > 0 ? recordLabel : "No logs yet"}
+              </dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="ui-eyebrow">Lists</dt>
+              <dd className="text-sm font-medium text-[var(--text-primary)]">{deckListCount}</dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="ui-eyebrow">Updated</dt>
+              <dd className="text-sm text-[var(--text-muted)]">{formatUpdatedDate(deck.updatedAt)}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="hidden md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(6.5rem,0.55fr)_minmax(7rem,0.65fr)_minmax(4.5rem,0.4fr)_minmax(7.5rem,0.6fr)_auto] md:items-center md:gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(7rem,0.55fr)_minmax(7.5rem,0.7fr)_minmax(5rem,0.4fr)_minmax(8rem,0.65fr)_auto]">
+          <div className="flex min-w-0 items-center gap-4">
+            <SpriteStrip
+              className={listSpriteLaneClassName}
+              pokemonOptions={null}
+              size="lg"
+              sprites={deck.deckPokemon}
+            />
+            <div className="min-w-0 space-y-1">
+              <h2 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)] transition group-hover:text-[var(--color-brand)]">
+                {deck.deckName}
+              </h2>
+              <p className="text-sm text-[var(--text-muted)]">
+                {gamesPlayed > 0 ? `${gamesPlayed} logged matches` : "No linked battle logs"}
+              </p>
+            </div>
+          </div>
+
+          <div
+            className={[
+              "text-right font-display text-[1.05rem] font-semibold tracking-[-0.04em]",
+              getListWinRateTextClass(winRate)
+            ].join(" ")}
+          >
+            {winRate == null ? "--" : `${winRate}%`}
+          </div>
+
+          <div className="text-right text-sm font-medium text-[var(--text-primary)]">
+            {gamesPlayed > 0 ? recordLabel : "No logs yet"}
+          </div>
+
+          <div className="text-right text-sm font-medium text-[var(--text-primary)]">{deckListCount}</div>
+
+          <div className="text-right text-sm text-[var(--text-muted)]">{formatUpdatedDate(deck.updatedAt)}</div>
+
+          <span className="ui-control-text justify-self-end text-[var(--color-brand)]">Open</span>
+        </div>
+      </Link>
+    );
+  }
 
   return (
     <Link className="block h-full" href={`/decks/${deck.id}`}>

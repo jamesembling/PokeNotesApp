@@ -1,0 +1,278 @@
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+import { Card } from "@/components/ui/Card";
+import { DeckCard, type DeckCardView } from "@/components/ui/DeckCard";
+import { ChevronIcon, GridIcon, MenuIcon } from "@/components/ui/icons";
+import type { DeckSummary } from "@/types/index";
+
+const STORAGE_KEY = "poke-notes.deck-strategy-view";
+
+type SortKey = "deck" | "winRate" | "record" | "lists" | "updated";
+type SortDirection = "asc" | "desc";
+
+type DeckStrategyCollectionProps = {
+  decks: Array<{
+    deck: DeckSummary;
+    deckListCount: number;
+    gamesPlayed: number;
+    losses: number;
+    winRate: number | null;
+  }>;
+};
+
+function getNextSortDirection(key: SortKey, currentSort: { key: SortKey; direction: SortDirection } | null) {
+  if (currentSort?.key === key) {
+    return currentSort.direction === "desc" ? "asc" : "desc";
+  }
+
+  return key === "deck" ? "asc" : "desc";
+}
+
+function ViewToggleButton({
+  active,
+  children,
+  label,
+  onClick
+}: {
+  active: boolean;
+  children: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className={[
+        "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
+        active
+          ? "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]"
+          : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+      ].join(" ")}
+      onClick={onClick}
+      type="button"
+    >
+      {children}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function SortHeaderButton({
+  active,
+  align = "left",
+  direction,
+  label,
+  onClick
+}: {
+  active: boolean;
+  align?: "left" | "right";
+  direction?: SortDirection;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={[
+        "inline-flex items-center gap-1 text-[0.72rem] font-semibold uppercase tracking-[0.22em] transition",
+        align === "right" ? "justify-self-end text-right" : "text-left",
+        active
+          ? "text-[var(--text-primary)]"
+          : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+      ].join(" ")}
+      onClick={onClick}
+      type="button"
+    >
+      <span>{label}</span>
+      <ChevronIcon
+        className={[
+          "h-3.5 w-3.5 transition",
+          active ? "opacity-100" : "opacity-45",
+          active && direction === "asc" ? "rotate-180" : ""
+        ].join(" ")}
+      />
+    </button>
+  );
+}
+
+export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
+  const [view, setView] = useState<DeckCardView>("tile");
+  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
+  const totalDeckLists = decks.reduce((sum, { deckListCount }) => sum + deckListCount, 0);
+  const totalMatches = decks.reduce((sum, { gamesPlayed }) => sum + gamesPlayed, 0);
+  const trackedDecks = decks.filter(({ gamesPlayed }) => gamesPlayed > 0).length;
+  const orderedDecks = [...decks].sort((left, right) => {
+    if (!sort) {
+      return 0;
+    }
+
+    const directionMultiplier = sort.direction === "asc" ? 1 : -1;
+
+    switch (sort.key) {
+      case "deck":
+        return left.deck.deckName.localeCompare(right.deck.deckName) * directionMultiplier;
+      case "winRate": {
+        const leftValue = left.winRate ?? -1;
+        const rightValue = right.winRate ?? -1;
+        if (leftValue !== rightValue) {
+          return (leftValue - rightValue) * directionMultiplier;
+        }
+        return left.deck.deckName.localeCompare(right.deck.deckName);
+      }
+      case "record": {
+        const leftWins = left.gamesPlayed - left.losses;
+        const rightWins = right.gamesPlayed - right.losses;
+        if (leftWins !== rightWins) {
+          return (leftWins - rightWins) * directionMultiplier;
+        }
+        if (left.losses !== right.losses) {
+          return (right.losses - left.losses) * directionMultiplier;
+        }
+        if (left.gamesPlayed !== right.gamesPlayed) {
+          return (left.gamesPlayed - right.gamesPlayed) * directionMultiplier;
+        }
+        return left.deck.deckName.localeCompare(right.deck.deckName);
+      }
+      case "lists":
+        if (left.deckListCount !== right.deckListCount) {
+          return (left.deckListCount - right.deckListCount) * directionMultiplier;
+        }
+        return left.deck.deckName.localeCompare(right.deck.deckName);
+      case "updated": {
+        const leftValue = new Date(left.deck.updatedAt).getTime();
+        const rightValue = new Date(right.deck.updatedAt).getTime();
+        if (leftValue !== rightValue) {
+          return (leftValue - rightValue) * directionMultiplier;
+        }
+        return left.deck.deckName.localeCompare(right.deck.deckName);
+      }
+      default:
+        return 0;
+    }
+  });
+
+  useEffect(() => {
+    const storedView = window.localStorage.getItem(STORAGE_KEY);
+    if (storedView === "tile" || storedView === "list") {
+      setView(storedView);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, view);
+  }, [view]);
+
+  return (
+    <section className="grid gap-5">
+      <Card className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <p className="ui-eyebrow">Deck Index</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--text-muted)]">
+            <span>
+              <strong className="font-semibold text-[var(--text-primary)]">{decks.length}</strong> decks
+            </span>
+            <span>
+              <strong className="font-semibold text-[var(--text-primary)]">{totalDeckLists}</strong> saved
+              lists
+            </span>
+            <span>
+              <strong className="font-semibold text-[var(--text-primary)]">{trackedDecks}</strong> with
+              linked logs
+            </span>
+            <span>
+              <strong className="font-semibold text-[var(--text-primary)]">{totalMatches}</strong> matches
+              tracked
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+          <div className="inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-1">
+            <ViewToggleButton active={view === "tile"} label="Tiles" onClick={() => setView("tile")}>
+              <GridIcon className="h-4 w-4" />
+            </ViewToggleButton>
+            <ViewToggleButton active={view === "list"} label="List" onClick={() => setView("list")}>
+              <MenuIcon className="h-4 w-4" />
+            </ViewToggleButton>
+          </div>
+        </div>
+      </Card>
+
+      {view === "tile" ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
+          {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
+            <DeckCard
+              deck={deck}
+              deckListCount={deckListCount}
+              gamesPlayed={gamesPlayed}
+              key={deck.id}
+              recordLabel={gamesPlayed > 0 ? `${gamesPlayed - losses}-${losses}` : "No record"}
+              view={view}
+              winRate={winRate}
+            />
+          ))}
+        </div>
+      ) : (
+        <Card className="overflow-hidden p-0">
+          <div className="hidden border-b border-[var(--border)] bg-[var(--bg-surface-alt)] px-6 py-3 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(6.5rem,0.55fr)_minmax(7rem,0.65fr)_minmax(4.5rem,0.4fr)_minmax(7.5rem,0.6fr)_auto] md:items-center md:gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(7rem,0.55fr)_minmax(7.5rem,0.7fr)_minmax(5rem,0.4fr)_minmax(8rem,0.65fr)_auto]">
+            <SortHeaderButton
+              active={sort?.key === "deck"}
+              direction={sort?.key === "deck" ? sort.direction : undefined}
+              label="Deck"
+              onClick={() => setSort({ key: "deck", direction: getNextSortDirection("deck", sort) })}
+            />
+            <SortHeaderButton
+              active={sort?.key === "winRate"}
+              align="right"
+              direction={sort?.key === "winRate" ? sort.direction : undefined}
+              label="Win rate"
+              onClick={() =>
+                setSort({ key: "winRate", direction: getNextSortDirection("winRate", sort) })
+              }
+            />
+            <SortHeaderButton
+              active={sort?.key === "record"}
+              align="right"
+              direction={sort?.key === "record" ? sort.direction : undefined}
+              label="Record"
+              onClick={() =>
+                setSort({ key: "record", direction: getNextSortDirection("record", sort) })
+              }
+            />
+            <SortHeaderButton
+              active={sort?.key === "lists"}
+              align="right"
+              direction={sort?.key === "lists" ? sort.direction : undefined}
+              label="Lists"
+              onClick={() => setSort({ key: "lists", direction: getNextSortDirection("lists", sort) })}
+            />
+            <SortHeaderButton
+              active={sort?.key === "updated"}
+              align="right"
+              direction={sort?.key === "updated" ? sort.direction : undefined}
+              label="Updated"
+              onClick={() =>
+                setSort({ key: "updated", direction: getNextSortDirection("updated", sort) })
+              }
+            />
+            <div className="ui-eyebrow text-right">Open</div>
+          </div>
+
+          <div className="divide-y divide-[var(--border)]">
+            {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
+              <DeckCard
+                deck={deck}
+                deckListCount={deckListCount}
+                gamesPlayed={gamesPlayed}
+                key={deck.id}
+                recordLabel={gamesPlayed > 0 ? `${gamesPlayed - losses}-${losses}` : "No record"}
+                view={view}
+                winRate={winRate}
+              />
+            ))}
+          </div>
+        </Card>
+      )}
+    </section>
+  );
+}
