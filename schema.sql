@@ -135,7 +135,7 @@ create table public.tournament_rounds (
   opponent_deck_sprites  jsonb not null default '[]',
   result                 text not null
                            check (
-                             result = 'BYE' OR
+                             result in ('BYE', 'ID', 'NO SHOW') OR
                              result in ('Win', 'Loss', 'Tie') OR
                              result ~ '^[WLT]{1,3}$'
                            ),

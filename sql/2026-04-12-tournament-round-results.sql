@@ -1,5 +1,5 @@
 -- ============================================================
--- Expand tournament round results to support BYE and per-game W/L/T strings.
+-- Expand tournament round results to support special results and per-game W/L/T strings.
 -- Run this in the Supabase SQL editor for existing projects.
 -- ============================================================
 
@@ -9,7 +9,7 @@ alter table public.tournament_rounds
 alter table public.tournament_rounds
   add constraint tournament_rounds_result_check
   check (
-    result = 'BYE' OR
+    result in ('BYE', 'ID', 'NO SHOW') OR
     result in ('Win', 'Loss', 'Tie') OR
     result ~ '^[WLT]{1,3}$'
   );

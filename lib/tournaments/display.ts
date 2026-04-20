@@ -1,9 +1,20 @@
 import { formatDayDate } from "@/lib/client/date-format";
+import { TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS } from "@/lib/tournaments/options";
 import type {
   TournamentRound,
   TournamentRoundGameResult,
-  TournamentRoundResult
+  TournamentRoundResult,
+  TournamentRoundSpecialResult
 } from "@/types/index";
+
+const TOURNAMENT_ROUND_SPECIAL_RESULT_TOKEN_MAP: Record<
+  TournamentRoundSpecialResult,
+  TournamentRoundGameResult[]
+> = {
+  BYE: ["W"],
+  ID: ["T"],
+  "NO SHOW": ["W"]
+};
 
 export function formatTournamentDateRange(dateFrom: string, dateTo: string) {
   if (dateFrom === dateTo) {
@@ -81,8 +92,19 @@ export function getRoundResultVariant(
   return "warning";
 }
 
+export function getRoundSpecialResult(result: TournamentRoundResult): TournamentRoundSpecialResult | null {
+  return TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.some((option) => option.value === result)
+    ? (result as TournamentRoundSpecialResult)
+    : null;
+}
+
 export function getRoundResultGameTokens(result: TournamentRoundResult): TournamentRoundGameResult[] {
-  if (result === "Win" || result === "BYE") {
+  const specialResult = getRoundSpecialResult(result);
+  if (specialResult) {
+    return TOURNAMENT_ROUND_SPECIAL_RESULT_TOKEN_MAP[specialResult];
+  }
+
+  if (result === "Win") {
     return ["W"];
   }
 

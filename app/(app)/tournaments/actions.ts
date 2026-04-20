@@ -11,12 +11,14 @@ import { createClient } from "@/lib/supabase/server";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS,
-  TOURNAMENT_ROUND_GAME_RESULT_OPTIONS
+  TOURNAMENT_ROUND_GAME_RESULT_OPTIONS,
+  TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS
 } from "@/lib/tournaments/options";
 import type {
   TournamentCategory,
   TournamentPlacement,
   TournamentRoundGameResult,
+  TournamentRoundSpecialResult,
   TournamentRoundResult
 } from "@/types/index";
 
@@ -96,9 +98,20 @@ function buildTournamentRoundResult(gameResults: TournamentRoundGameResult[]): T
 }
 
 function parseRoundResult(formData: FormData): TournamentRoundResult {
-  const isBye = String(formData.get("isBye") || "").trim();
-  if (isBye) {
-    return "BYE";
+  const selectedSpecialResults = TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.filter((option) =>
+    String(
+      formData.get(
+        option.value === "BYE" ? "isBye" : option.value === "ID" ? "isId" : "isNoShow"
+      ) || ""
+    ).trim()
+  ).map((option) => option.value);
+
+  if (selectedSpecialResults.length > 1) {
+    throw userFacingActionError("Choose only one of BYE, ID, or NO SHOW.");
+  }
+
+  if (selectedSpecialResults.length === 1) {
+    return selectedSpecialResults[0] as TournamentRoundSpecialResult;
   }
 
   const selectedGameResults = [
@@ -111,7 +124,7 @@ function parseRoundResult(formData: FormData): TournamentRoundResult {
     return buildTournamentRoundResult(selectedGameResults);
   }
 
-  throw userFacingActionError("Choose at least one game result or mark the round as BYE.");
+  throw userFacingActionError("Choose at least one game result or mark the round as BYE, ID, or NO SHOW.");
 }
 
 function parseFormat(value: FormDataEntryValue | null) {

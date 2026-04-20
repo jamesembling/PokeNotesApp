@@ -10,9 +10,12 @@ import {
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
-import { TOURNAMENT_ROUND_GAME_RESULT_OPTIONS } from "@/lib/tournaments/options";
-import { getRoundResultGameTokens } from "@/lib/tournaments/display";
-import type { PokemonOption, TournamentRound } from "@/types/index";
+import {
+  TOURNAMENT_ROUND_GAME_RESULT_OPTIONS,
+  TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS
+} from "@/lib/tournaments/options";
+import { getRoundResultGameTokens, getRoundSpecialResult } from "@/lib/tournaments/display";
+import type { PokemonOption, TournamentRound, TournamentRoundSpecialResult } from "@/types/index";
 
 type TournamentRoundEditorDialogProps = {
   initialOpen?: boolean;
@@ -44,8 +47,9 @@ export function TournamentRoundEditorDialog({
   triggerLabel,
   triggerVariant = "secondary"
 }: TournamentRoundEditorDialogProps) {
+  const roundSpecialResult = round?.result ? getRoundSpecialResult(round.result) : null;
   const roundGameDefaults = round?.result ? getRoundResultGameTokens(round.result) : [];
-  const byeAwareDefaults = round?.result === "BYE"
+  const gameDefaults = roundSpecialResult
     ? ["", "", ""]
     : [
       roundGameDefaults[0] ?? "",
@@ -60,11 +64,11 @@ export function TournamentRoundEditorDialog({
   const isEditing = Boolean(round?.id);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(round?.opponentDeckSprites.slice(0, 2) ?? []);
-  const [isBye, setIsBye] = useState<boolean>(round?.result === "BYE");
+  const [specialResult, setSpecialResult] = useState<TournamentRoundSpecialResult | "">(roundSpecialResult ?? "");
   const [gameResults, setGameResults] = useState<string[]>([
-    byeAwareDefaults[0] ?? "",
-    byeAwareDefaults[1] ?? "",
-    byeAwareDefaults[2] ?? ""
+    gameDefaults[0] ?? "",
+    gameDefaults[1] ?? "",
+    gameDefaults[2] ?? ""
   ]);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [deleteState, setDeleteState] = useState<DeleteState>("idle");
@@ -89,11 +93,11 @@ export function TournamentRoundEditorDialog({
 
   function resetState() {
     setSelectedSprites(round?.opponentDeckSprites.slice(0, 2) ?? []);
-    setIsBye(round?.result === "BYE");
+    setSpecialResult(roundSpecialResult ?? "");
     setGameResults([
-      byeAwareDefaults[0] ?? "",
-      byeAwareDefaults[1] ?? "",
-      byeAwareDefaults[2] ?? ""
+      gameDefaults[0] ?? "",
+      gameDefaults[1] ?? "",
+      gameDefaults[2] ?? ""
     ]);
     setSaveState("idle");
     setDeleteState("idle");
@@ -300,27 +304,42 @@ export function TournamentRoundEditorDialog({
 
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="round-bye">
-                    Result
-                  </label>
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Result</p>
                   <div className="grid gap-2">
-                    <label className="inline-flex w-fit items-center gap-2 text-sm" htmlFor="round-bye">
-                      <input
-                        checked={isBye}
-                        className="h-4 w-4 accent-[var(--color-win)]"
-                        id="round-bye"
-                        name="isBye"
-                        onChange={(event) => {
-                          const nextIsBye = event.target.checked;
-                          setIsBye(nextIsBye);
-                          if (nextIsBye) {
-                            setGameResults(["", "", ""]);
-                          }
-                        }}
-                        type="checkbox"
-                      />
-                      BYE
-                    </label>
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                      {TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.map((option) => {
+                        const fieldName =
+                          option.value === "BYE"
+                            ? "isBye"
+                            : option.value === "ID"
+                              ? "isId"
+                              : "isNoShow";
+
+                        return (
+                          <label
+                            className="inline-flex w-fit items-center gap-2 text-sm"
+                            htmlFor={`round-special-${fieldName}`}
+                            key={option.value}
+                          >
+                            <input
+                              checked={specialResult === option.value}
+                              className="h-4 w-4 accent-[var(--color-win)]"
+                              id={`round-special-${fieldName}`}
+                              name={fieldName}
+                              onChange={(event) => {
+                                const nextSpecialResult = event.target.checked ? option.value : "";
+                                setSpecialResult(nextSpecialResult);
+                                if (nextSpecialResult) {
+                                  setGameResults(["", "", ""]);
+                                }
+                              }}
+                              type="checkbox"
+                            />
+                            {option.label}
+                          </label>
+                        );
+                      })}
+                    </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                       {[0, 1, 2].map((index) => (
                         <label
@@ -331,7 +350,7 @@ export function TournamentRoundEditorDialog({
                           Game {index + 1}
                           <select
                             className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-55"
-                            disabled={isBye}
+                            disabled={Boolean(specialResult)}
                             id={`round-game-${index + 1}`}
                             name={`game${index + 1}`}
                             onChange={(event) => {

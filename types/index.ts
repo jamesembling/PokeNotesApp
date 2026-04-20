@@ -302,10 +302,12 @@ export type TournamentPlacement =
   | "champion"
   | ""
 
-export type TournamentRoundLegacyResult = "Win" | "Loss" | "Tie" | "BYE"
+export type TournamentRoundLegacyResult = "Win" | "Loss" | "Tie"
+export type TournamentRoundSpecialResult = "BYE" | "ID" | "NO SHOW"
 export type TournamentRoundGameResult = "W" | "L" | "T"
 export type TournamentRoundResult =
   | TournamentRoundLegacyResult
+  | TournamentRoundSpecialResult
   | `${TournamentRoundGameResult}`
   | `${TournamentRoundGameResult}${TournamentRoundGameResult}`
   | `${TournamentRoundGameResult}${TournamentRoundGameResult}${TournamentRoundGameResult}`

@@ -1,7 +1,11 @@
 import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
-import { getRoundResultGameTokens, getRoundResultVariant } from "@/lib/tournaments/display";
+import {
+  getRoundResultGameTokens,
+  getRoundResultVariant,
+  getRoundSpecialResult
+} from "@/lib/tournaments/display";
 import type { TournamentRound, TournamentRoundGameResult } from "@/types/index";
 
 type TournamentRoundRowProps = {
@@ -24,6 +28,7 @@ function getRoundResultTextColor(result: TournamentRoundGameResult) {
 
 export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentRoundRowProps) {
   const gameResults = getRoundResultGameTokens(round.result);
+  const specialResult = getRoundSpecialResult(round.result);
   const rowVariant = getRoundResultVariant(round.result);
   const rowTone =
     rowVariant === "win"
@@ -47,7 +52,20 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
 
       <div className="md:justify-self-end">
         <div className="flex items-center justify-end gap-0.5">
-          {gameResults.length > 0 ? (
+          {specialResult ? (
+            <span
+              className={[
+                "font-display text-[1rem] font-semibold tracking-[-0.04em]",
+                rowVariant === "win"
+                  ? "text-[var(--color-win)]"
+                  : rowVariant === "loss"
+                    ? "text-[var(--color-loss)]"
+                    : "text-[var(--color-warning)]"
+              ].join(" ")}
+            >
+              {specialResult}
+            </span>
+          ) : gameResults.length > 0 ? (
             gameResults.map((token, index) => (
               <span
                 className={[

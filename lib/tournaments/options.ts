@@ -2,6 +2,7 @@ import type {
   TournamentCategory,
   TournamentPlacement,
   TournamentRoundGameResult,
+  TournamentRoundSpecialResult,
   TournamentRoundResult
 } from "@/types/index";
 
@@ -45,11 +46,19 @@ export const TOURNAMENT_PLACEMENT_OPTIONS: Array<{
 ];
 
 export const TOURNAMENT_ROUND_GAME_RESULT_OPTIONS: TournamentRoundGameResult[] = ["W", "L", "T"];
+export const TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS: Array<{
+  value: TournamentRoundSpecialResult;
+  label: string;
+}> = [
+  { value: "BYE", label: "BYE" },
+  { value: "ID", label: "ID" },
+  { value: "NO SHOW", label: "NO SHOW" }
+];
 export const TOURNAMENT_ROUND_RESULT_OPTIONS: TournamentRoundResult[] = [
   "Win",
   "Loss",
   "Tie",
-  "BYE",
+  ...TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.map((option) => option.value),
   ...TOURNAMENT_ROUND_GAME_RESULT_OPTIONS
 ];
 
