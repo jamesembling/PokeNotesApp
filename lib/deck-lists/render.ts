@@ -1,3 +1,5 @@
+import { normalizeLimitlessSetCode } from "@/lib/deck-lists/limitless";
+
 export function formatDeckListCardNumber(number: string): string {
   const match = number.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
 
@@ -10,10 +12,11 @@ export function formatDeckListCardNumber(number: string): string {
 }
 
 export function buildDeckListCardImageUrl(set: string, number: string) {
+  const normalizedSet = normalizeLimitlessSetCode(set);
   const formattedNumber = formatDeckListCardNumber(number);
-  return `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${set}/${set}_${formattedNumber}_R_EN_SM.png`;
+  return `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${normalizedSet}/${normalizedSet}_${formattedNumber}_R_EN_SM.png`;
 }
 
 export function buildDeckListCardUrl(set: string, number: string) {
-  return `https://limitlesstcg.com/cards/${set}/${number}`;
+  return `https://limitlesstcg.com/cards/${normalizeLimitlessSetCode(set)}/${number}`;
 }

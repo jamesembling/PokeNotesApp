@@ -4,6 +4,7 @@ import {
   parseLines,
   splitDeckListDescription
 } from "@/lib/decks/deck-list-parse";
+import { normalizeLimitlessSetCode } from "@/lib/deck-lists/limitless";
 import type { DeckCard, PokemonStage } from "@/types/index";
 import {
   POKEMON_STAGE_COUNT,
@@ -207,7 +208,7 @@ export function pct(value: number) {
 }
 
 export function buildLimitlessCardUrl(card: Pick<DeckCard, "set" | "number">) {
-  return `https://limitlesstcg.com/cards/${String(card.set).trim().toUpperCase()}/${card.number}`;
+  return `https://limitlesstcg.com/cards/${normalizeLimitlessSetCode(card.set)}/${card.number}`;
 }
 
 export function buildCardImageUrlFromValues(
@@ -216,7 +217,7 @@ export function buildCardImageUrlFromValues(
   size: CardImageSize = "XS",
   withRarity = true
 ) {
-  const cleanSet = String(set).trim().toUpperCase();
+  const cleanSet = normalizeLimitlessSetCode(set);
   const cleanNumber = formatCardNumberForImage(number);
   const raritySegment = withRarity ? "_R" : "";
 

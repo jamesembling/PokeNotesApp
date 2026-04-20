@@ -1,4 +1,5 @@
 import type { DeckCard } from "@/types/index";
+import { normalizeLimitlessSetCode } from "@/lib/deck-lists/limitless";
 
 const LIMITLESS_API_ROOT = "https://limitlesstcg.com";
 const LIMITLESS_POKEDEX_API_URL = `${LIMITLESS_API_ROOT}/api/dm/pokedex`;
@@ -76,9 +77,7 @@ function normalizeCardName(value: string | null | undefined) {
 }
 
 function normalizeSetCode(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toUpperCase();
+  return normalizeLimitlessSetCode(value);
 }
 
 function normalizeLookupNumber(value: string | null | undefined) {
