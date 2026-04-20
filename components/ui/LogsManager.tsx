@@ -408,7 +408,7 @@ export function LogsManager({
         </Card>
       ) : null}
 
-      <section className="grid gap-5 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
+      <section className="grid gap-5 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-center">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <p className="ui-eyebrow">Workspace Tools</p>
@@ -417,11 +417,6 @@ export function LogsManager({
 
           <div className="space-y-2">
             <h2 className="ui-section-title">Manage Battle Logs</h2>
-            <p className="max-w-[58ch] text-sm leading-6 text-[var(--text-muted)]">
-              {managementModeActive
-                ? "Select logs below to delete bad imports or bulk-apply a saved deck list."
-                : "Turn on editing to select multiple logs, remove bad imports, and apply saved deck lists in bulk."}
-            </p>
           </div>
 
           {managementModeActive ? (
@@ -508,7 +503,7 @@ export function LogsManager({
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-3 xl:items-end">
+        <div className="flex flex-col gap-3 xl:items-end xl:self-center">
           <Button
             className="gap-2 justify-center xl:min-w-[12rem]"
             onClick={() => setIsManagementMode((current) => !current)}
@@ -517,12 +512,6 @@ export function LogsManager({
             <PencilIcon className="h-4 w-4" />
             {managementModeActive ? "Done Editing" : "Edit Logs"}
           </Button>
-
-          <p className="text-sm text-[var(--text-muted)] xl:max-w-[18rem] xl:text-right">
-            {managementModeActive
-              ? "Bulk actions stay available while editing is on."
-              : "Editing mode unlocks selection and bulk actions."}
-          </p>
         </div>
       </section>
 
