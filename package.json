@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "audit:pokemon-catalog": "tsx audit-pokemon-catalog.ts",
     "audit:pokemon-options": "node audit-pokemon-options.mjs",
     "backfill:log-links": "tsx backfill-log-links.ts",
     "clean": "rm -rf .next",

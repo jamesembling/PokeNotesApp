@@ -5,6 +5,11 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { prettifyPokemonSlug } from "@/lib/battle-log/display";
+import {
+  findBestPokemonSearchMatch,
+  findPokemonSearchMatches,
+  normalizePokemonSearchValue
+} from "@/lib/pokemon/search";
 import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
 import type { PokemonOption } from "@/types/index";
 
@@ -78,78 +83,8 @@ function getPokemonOptionLabel(slug: string, pokemonOptions: PokemonOption[]) {
   return pokemonOptions.find((option) => option.slug === slug)?.label ?? prettifyPokemonSlug(slug);
 }
 
-function normalizeSearchValue(value: string) {
-  return value.trim().toLowerCase();
-}
-
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), maximum);
-}
-
-function getSearchRank(option: PokemonOption, normalizedQuery: string) {
-  if (!normalizedQuery) {
-    return null;
-  }
-
-  const normalizedLabel = option.label.toLowerCase();
-  const normalizedSlug = option.slug.replace(/-/g, " ").toLowerCase();
-  const normalizedCompactSlug = option.slug.toLowerCase();
-
-  if (
-    normalizedLabel === normalizedQuery ||
-    normalizedSlug === normalizedQuery ||
-    normalizedCompactSlug === normalizedQuery
-  ) {
-    return 0;
-  }
-
-  if (
-    normalizedLabel.startsWith(normalizedQuery) ||
-    normalizedSlug.startsWith(normalizedQuery) ||
-    normalizedCompactSlug.startsWith(normalizedQuery)
-  ) {
-    return 1;
-  }
-
-  if (
-    normalizedLabel.split(/\s+/).some((part) => part.startsWith(normalizedQuery)) ||
-    normalizedSlug.split(/\s+/).some((part) => part.startsWith(normalizedQuery))
-  ) {
-    return 2;
-  }
-
-  if (
-    normalizedLabel.includes(normalizedQuery) ||
-    normalizedSlug.includes(normalizedQuery) ||
-    normalizedCompactSlug.includes(normalizedQuery)
-  ) {
-    return 3;
-  }
-
-  return null;
-}
-
-function findBestSearchMatch(options: PokemonOption[], query: string) {
-  const normalizedQuery = normalizeSearchValue(query);
-  if (!normalizedQuery) {
-    return null;
-  }
-
-  const exactMatch =
-    options.find((option) => normalizeSearchValue(option.label) === normalizedQuery) ??
-    options.find(
-      (option) => normalizeSearchValue(option.slug.replace(/-/g, " ")) === normalizedQuery
-    ) ??
-    options.find((option) => normalizeSearchValue(option.slug) === normalizedQuery);
-
-  if (exactMatch) {
-    return exactMatch;
-  }
-
-  const filteredOptions = options.filter(
-    (option) => getSearchRank(option, normalizedQuery) !== null
-  );
-  return filteredOptions.length === 1 ? filteredOptions[0] : null;
 }
 
 function updateSpritesAtIndex(currentSprites: string[], index: number, nextSlug: string) {
@@ -200,29 +135,11 @@ function SpriteSearchSlot({
   );
 
   const filteredOptions = useMemo(() => {
-    const normalizedQuery = normalizeSearchValue(query);
-
-    if (!normalizedQuery) {
+    if (!normalizePokemonSearchValue(query)) {
       return [];
     }
 
-    return slotOptions
-      .map((option) => ({
-        option,
-        rank: getSearchRank(option, normalizedQuery)
-      }))
-      .filter(
-        (entry): entry is { option: PokemonOption; rank: number } => entry.rank !== null
-      )
-      .sort((left, right) => {
-        if (left.rank !== right.rank) {
-          return left.rank - right.rank;
-        }
-
-        return left.option.label.localeCompare(right.option.label);
-      })
-      .slice(0, 8)
-      .map((entry) => entry.option);
+    return findPokemonSearchMatches(slotOptions, query, 8);
   }, [query, slotOptions]);
 
   function closeSearchEditor() {
@@ -234,7 +151,7 @@ function SpriteSearchSlot({
   function commitQuerySelection(preferredSlug?: string) {
     const nextOption =
       (preferredSlug ? slotOptions.find((option) => option.slug === preferredSlug) : null) ??
-      findBestSearchMatch(slotOptions, query);
+      findBestPokemonSearchMatch(slotOptions, query);
 
     if (!nextOption) {
       return false;
@@ -387,7 +304,7 @@ function SpriteSearchSlot({
         </button>
       </div>
 
-      {isOpen && normalizeSearchValue(query) ? (
+      {isOpen && normalizePokemonSearchValue(query) ? (
         <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)]">
           {filteredOptions.length > 0 ? (
             <div
