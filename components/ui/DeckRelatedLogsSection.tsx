@@ -44,10 +44,10 @@ export function DeckRelatedLogsSectionFallback() {
 
 export function DeckLogStatsGridFallback() {
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <div className="h-[112px] rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
-      <div className="h-[112px] rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
-      <div className="h-[112px] rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
+    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+      <div className="h-[86px] rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)] sm:h-[112px]" />
+      <div className="h-[86px] rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)] sm:h-[112px]" />
+      <div className="h-[86px] rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)] sm:h-[112px]" />
     </div>
   );
 }
@@ -60,10 +60,10 @@ export async function DeckLogStatsGrid({
   const stats = getBattleLogSummaryStats(await logsPromise);
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <StatCard label="Total Games" value={stats.total} />
-      <StatCard label="Wins" value={stats.wins} valueColor="win" />
-      <StatCard label="Losses" value={stats.losses} valueColor="loss" />
+    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+      <StatCard label="Total Games" size="compact" value={stats.total} />
+      <StatCard label="Wins" size="compact" value={stats.wins} valueColor="win" />
+      <StatCard label="Losses" size="compact" value={stats.losses} valueColor="loss" />
     </div>
   );
 }

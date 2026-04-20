@@ -2,6 +2,7 @@ type StatCardProps = {
   label: string;
   value: string | number;
   detail?: string;
+  size?: "default" | "compact";
   valueColor?: "win" | "loss" | "default";
 };
 
@@ -15,21 +16,33 @@ export function StatCard({
   label,
   value,
   detail,
+  size = "default",
   valueColor = "default"
 }: StatCardProps) {
   return (
     <div
       className={[
-        "grid h-full rounded-xl bg-[var(--bg-surface-alt)] p-4",
-        detail ? "grid-rows-[2rem_auto_1fr]" : "content-start gap-3"
+        "grid h-full rounded-xl bg-[var(--bg-surface-alt)]",
+        size === "compact" ? "p-3 sm:p-4" : "p-4",
+        detail
+          ? "grid-rows-[2rem_auto_1fr]"
+          : size === "compact"
+            ? "grid-rows-[2.1rem_auto] gap-2"
+            : "content-start gap-3"
       ].join(" ")}
     >
-      <p className="text-xs font-medium uppercase leading-tight tracking-wide text-[var(--text-muted)]">
+      <p
+        className={[
+          "font-medium uppercase leading-tight text-[var(--text-muted)]",
+          size === "compact" ? "text-[0.68rem] tracking-[0.18em] sm:text-xs sm:tracking-wide" : "text-xs tracking-wide"
+        ].join(" ")}
+      >
         {label}
       </p>
       <p
         className={[
-          "text-3xl font-semibold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]",
+          "font-semibold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]",
+          size === "compact" ? "text-[1.5rem] sm:text-3xl" : "text-3xl",
           valueClasses[valueColor]
         ].join(" ")}
       >

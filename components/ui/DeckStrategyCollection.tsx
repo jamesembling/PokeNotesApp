@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Card } from "@/components/ui/Card";
 import { DeckCard, type DeckCardView } from "@/components/ui/DeckCard";
 import { ChevronIcon, GridIcon, MenuIcon } from "@/components/ui/icons";
 import type { DeckSummary } from "@/types/index";
+import { Card } from "@/components/ui/Card";
 
 const STORAGE_KEY = "poke-notes.deck-strategy-view";
 
@@ -164,39 +164,52 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
 
   return (
     <section className="grid gap-5">
-      <Card className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <p className="ui-eyebrow">Deck Index</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--text-muted)]">
-            <span>
-              <strong className="font-semibold text-[var(--text-primary)]">{decks.length}</strong> decks
-            </span>
-            <span>
-              <strong className="font-semibold text-[var(--text-primary)]">{totalDeckLists}</strong> saved
-              lists
-            </span>
-            <span>
-              <strong className="font-semibold text-[var(--text-primary)]">{trackedDecks}</strong> with
-              linked logs
-            </span>
-            <span>
-              <strong className="font-semibold text-[var(--text-primary)]">{totalMatches}</strong> matches
-              tracked
-            </span>
-          </div>
+      <div className="flex justify-end lg:block">
+        <div className="hidden lg:block">
+          <Card className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="hidden space-y-2 lg:block">
+              <p className="ui-eyebrow">Deck Index</p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--text-muted)]">
+                <span>
+                  <strong className="font-semibold text-[var(--text-primary)]">{decks.length}</strong> decks
+                </span>
+                <span>
+                  <strong className="font-semibold text-[var(--text-primary)]">{totalDeckLists}</strong> saved
+                  lists
+                </span>
+                <span>
+                  <strong className="font-semibold text-[var(--text-primary)]">{trackedDecks}</strong> with
+                  linked logs
+                </span>
+                <span>
+                  <strong className="font-semibold text-[var(--text-primary)]">{totalMatches}</strong> matches
+                  tracked
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+              <div className="inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-1">
+                <ViewToggleButton active={view === "tile"} label="Tiles" onClick={() => setView("tile")}>
+                  <GridIcon className="h-4 w-4" />
+                </ViewToggleButton>
+                <ViewToggleButton active={view === "list"} label="List" onClick={() => setView("list")}>
+                  <MenuIcon className="h-4 w-4" />
+                </ViewToggleButton>
+              </div>
+            </div>
+          </Card>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-          <div className="inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-1">
-            <ViewToggleButton active={view === "tile"} label="Tiles" onClick={() => setView("tile")}>
-              <GridIcon className="h-4 w-4" />
-            </ViewToggleButton>
-            <ViewToggleButton active={view === "list"} label="List" onClick={() => setView("list")}>
-              <MenuIcon className="h-4 w-4" />
-            </ViewToggleButton>
-          </div>
+        <div className="inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-1 lg:hidden">
+          <ViewToggleButton active={view === "tile"} label="Tiles" onClick={() => setView("tile")}>
+            <GridIcon className="h-4 w-4" />
+          </ViewToggleButton>
+          <ViewToggleButton active={view === "list"} label="List" onClick={() => setView("list")}>
+            <MenuIcon className="h-4 w-4" />
+          </ViewToggleButton>
         </div>
-      </Card>
+      </div>
 
       {view === "tile" ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
