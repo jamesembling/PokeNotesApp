@@ -57,7 +57,6 @@ export default async function DecksPage() {
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Deck Strategy" }]}
         showDivider={false}
         title="Deck Strategy"
-        subtitle="A sharper view of your active decks, linked lists, and battle performance."
         action={<LazyDeckEditorButton triggerLabel="New Deck" />}
       />
 

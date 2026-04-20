@@ -66,7 +66,6 @@ export default async function LogsPage() {
           { label: "Battle Logs" }
         ]}
         title="Battle Logs"
-        subtitle="Imported Pokemon TCG Live logs, grouped by day and ready for deeper review."
         action={
           <LazyImportLogButton
             className="w-full justify-center sm:w-auto"

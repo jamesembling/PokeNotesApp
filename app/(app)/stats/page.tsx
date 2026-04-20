@@ -53,7 +53,6 @@ export default async function StatsPage() {
       <PageHeader
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Stats" }]}
         title="Stats"
-        subtitle="A quick overview of the results and tracked game metrics pulled from your saved battle logs."
       />
 
       <Card className="grid gap-5">

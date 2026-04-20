@@ -11,7 +11,6 @@ export default async function CalculatorPage() {
         ]}
         showDivider={false}
         title="Probability Calculator"
-        subtitle="Paste a Limitless decklist to view setup odds, prizing odds, mulligan streaks, and card visuals."
       />
       <LazyProbabilityCalculator />
     </>

@@ -38,7 +38,6 @@ export default async function TournamentsPage() {
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Tournaments" }]}
         showDivider={false}
         title="Tournaments"
-        subtitle="Track tournament runs, placements, and round-by-round results."
         action={schemaMissing ? undefined : (
           <LazyTournamentEditorButton
             decks={decks}
