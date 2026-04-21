@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import {
   initialProfileActionState,
   saveProfileAction
@@ -23,7 +24,7 @@ function SaveProfileButton() {
 }
 
 export function ProfileForm({ profile }: ProfileFormProps) {
-  const [state, formAction] = useFormState(saveProfileAction, initialProfileActionState);
+  const [state, formAction] = useActionState(saveProfileAction, initialProfileActionState);
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
