@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { getAdminAccessContext } from "@/lib/db/admin";
 import { getCurrentProfile } from "@/lib/db/profile";
+import { measureServerCall } from "@/lib/server/perf";
 
 export default async function AdminLayout({
   children
@@ -30,7 +31,9 @@ export default async function AdminLayout({
 }
 
 async function AdminSidebar({ userEmail }: { userEmail: string }) {
-  const currentProfile = await getCurrentProfile();
+  const currentProfile = await measureServerCall("layout.admin.sidebar", async () =>
+    await getCurrentProfile()
+  );
 
   return (
     <Sidebar

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { requireUser } from "@/lib/auth";
 import { getCurrentProfile } from "@/lib/db/profile";
+import { measureServerCall } from "@/lib/server/perf";
 
 export default async function AppLayout({
   children
@@ -25,7 +26,9 @@ export default async function AppLayout({
 }
 
 async function AppSidebar() {
-  const [user, profile] = await Promise.all([requireUser(), getCurrentProfile()]);
+  const [user, profile] = await measureServerCall("layout.app.sidebar", async () =>
+    await Promise.all([requireUser(), getCurrentProfile()])
+  );
 
   return (
     <Sidebar

@@ -8,6 +8,7 @@
     "backfill:log-links": "tsx backfill-log-links.ts",
     "clean": "rm -rf .next",
     "dev": "next dev",
+    "dev:perf": "POKE_NOTES_DEBUG_PERF=1 next dev",
     "dev:reset": "rm -rf .next && next dev",
     "build": "next build",
     "lint": "eslint . --quiet",

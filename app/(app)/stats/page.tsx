@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { getLogStatsOverview } from "@/lib/db/logs";
+import { measureServerCall } from "@/lib/server/perf";
 
 function formatMetric(value: number) {
   return value.toLocaleString();
@@ -31,7 +32,9 @@ export default async function StatsPage() {
 }
 
 async function StatsOverviewGrid() {
-  const overview = await getLogStatsOverview();
+  const overview = await measureServerCall("page.stats.overview", async () =>
+    await getLogStatsOverview()
+  );
   const metrics = [
     {
       label: "Games Played",

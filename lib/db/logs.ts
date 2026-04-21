@@ -306,7 +306,9 @@ export const getLogStatsOverview = cache(async function getLogStatsOverview(
   const { data: fallbackData, error: fallbackError } = await measureServerCall(
     "db.logs.statsOverviewFallback",
     async () => {
-      const resolvedUserId = userId || (await requireUser()).id;
+      const resolvedUserId = userId || (await measureServerCall("db.logs.statsOverviewFallback.requireUser", async () =>
+        await requireUser()
+      )).id;
 
       return await supabase
         .from("logs")

@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
+import { measureServerCall } from "@/lib/server/perf";
 import type { AvatarColor, UserProfile } from "@/types/index";
 
 type ProfileRow = {
@@ -163,28 +164,30 @@ export async function syncCurrentProfileFromAuthUser(authUser: Pick<
 export async function getCurrentProfile(): Promise<UserProfile> {
   const user = await requireUser();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(
-      [
-        "id",
-        "display_name",
-        "first_name",
-        "last_name",
-        "email",
-        "ptcgl_username",
-        "role",
-        "avatar_color",
-        "auth_account_created_at",
-        "last_login_at",
-        "last_active_at",
-        "login_count",
-        "created_at",
-        "updated_at"
-      ].join(",")
-    )
-    .eq("id", user.id)
-    .maybeSingle();
+  const { data, error } = await measureServerCall("db.profile.current", async () =>
+    await supabase
+      .from("profiles")
+      .select(
+        [
+          "id",
+          "display_name",
+          "first_name",
+          "last_name",
+          "email",
+          "ptcgl_username",
+          "role",
+          "avatar_color",
+          "auth_account_created_at",
+          "last_login_at",
+          "last_active_at",
+          "login_count",
+          "created_at",
+          "updated_at"
+        ].join(",")
+      )
+      .eq("id", user.id)
+      .maybeSingle()
+  );
 
   if (error) {
     throw error;
@@ -193,37 +196,44 @@ export async function getCurrentProfile(): Promise<UserProfile> {
   let profileRow = ((data ?? null) as unknown as ProfileRow | null) ?? null;
 
   if (!profileRow || !profileRow.last_login_at || !profileRow.auth_account_created_at) {
-    const { data: authData, error: authError } = await supabase.auth.getUser();
+    const { data: authData, error: authError } = await measureServerCall(
+      "db.profile.authRepair.getUser",
+      async () => await supabase.auth.getUser()
+    );
 
     if (authError) {
       throw authError;
     }
 
     if (authData.user) {
-      await syncCurrentProfileFromAuthUser(authData.user);
+      await measureServerCall("db.profile.authRepair.sync", async () =>
+        await syncCurrentProfileFromAuthUser(authData.user)
+      );
 
-      const refreshed = await supabase
-        .from("profiles")
-        .select(
-          [
-            "id",
-            "display_name",
-            "first_name",
-            "last_name",
-            "email",
-            "ptcgl_username",
-            "role",
-            "avatar_color",
-            "auth_account_created_at",
-            "last_login_at",
-            "last_active_at",
-            "login_count",
-            "created_at",
-            "updated_at"
-          ].join(",")
-        )
-        .eq("id", user.id)
-        .maybeSingle();
+      const refreshed = await measureServerCall("db.profile.authRepair.reload", async () =>
+        await supabase
+          .from("profiles")
+          .select(
+            [
+              "id",
+              "display_name",
+              "first_name",
+              "last_name",
+              "email",
+              "ptcgl_username",
+              "role",
+              "avatar_color",
+              "auth_account_created_at",
+              "last_login_at",
+              "last_active_at",
+              "login_count",
+              "created_at",
+              "updated_at"
+            ].join(",")
+          )
+          .eq("id", user.id)
+          .maybeSingle()
+      );
 
       if (refreshed.error) {
         throw refreshed.error;
