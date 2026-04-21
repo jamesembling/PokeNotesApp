@@ -19,7 +19,9 @@ import type {
   Deck,
   DeckCard,
   DeckList,
+  DeckListOption,
   DeckMatchup,
+  DeckSelectionOption,
   DeckSummary,
   GoPreference
 } from "@/types/index";
@@ -122,6 +124,8 @@ type DeckListLookupRow = {
   archetype_id?: string | null;
   deck_lists: unknown;
 };
+
+type DeckSelectionRow = Pick<DeckSummaryRow, "id" | "deck_name" | "deck_lists">;
 
 type DeckMappingContext = {
   catalog: IdentificationCatalog;
@@ -253,6 +257,13 @@ function parseDeckLists(value: unknown): DeckList[] {
   return value
     .map((entry) => parseDeckList(entry))
     .filter((entry): entry is DeckList => entry !== null);
+}
+
+function parseDeckListOptions(value: unknown): DeckListOption[] {
+  return parseDeckLists(value).map((deckList) => ({
+    id: deckList.id,
+    name: deckList.name
+  }));
 }
 
 function parseDeckMatchup(value: unknown): DeckMatchup | null {
@@ -539,6 +550,14 @@ async function mapDeckSummary(
   };
 }
 
+function mapDeckSelection(row: DeckSelectionRow): DeckSelectionOption {
+  return {
+    id: row.id,
+    deckName: row.deck_name,
+    deckLists: parseDeckListOptions(row.deck_lists)
+  };
+}
+
 async function mapDeck(row: DeckRow, context: DeckMappingContext): Promise<Deck> {
   const deckSummary = await mapDeckSummary(row, context);
   const hydratedDeckLists = parseDeckLists(row.deck_lists).map((deckList) => ({
@@ -589,6 +608,25 @@ export const getDecks = cache(async function getDecks(userId: string): Promise<D
 
   const mappingContext = await loadDeckMappingContext();
   return await Promise.all(rows.map((row) => mapDeckSummary(row, mappingContext)));
+});
+
+export const getDeckSelectionOptions = cache(async function getDeckSelectionOptions(
+  userId: string
+): Promise<DeckSelectionOption[]> {
+  const supabase = await createClient();
+  const { data, error } = await measureServerCall("db.decks.selectionOptions", async () =>
+    await supabase
+      .from("decks")
+      .select(["id", "deck_name", "deck_lists"].join(","))
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return (((data ?? []) as unknown) as DeckSelectionRow[]).map(mapDeckSelection);
 });
 
 export const getDeckById = cache(async function getDeckById(

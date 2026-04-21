@@ -1,7 +1,8 @@
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
-import type { BattleLog, BattleLogSummary, DeckSummary, LogSection, Result } from "@/types/index";
+import type { DeckLinkCandidate } from "@/lib/log-import/deck-linking";
+import type { BattleLog, BattleLogSummary, LogSection, Result } from "@/types/index";
 
 export const logsDbTestHooks = {
   createClient: createSupabaseClient
@@ -548,7 +549,7 @@ export async function getLogById(
 
 async function getLogsIndexedByDeck(
   userId: string,
-  decks: DeckSummary[],
+  decks: DeckLinkCandidate[],
   targetDeckIdsInput?: string[]
 ) {
   const knownDeckIds = new Set(decks.map((deck) => deck.id));
@@ -630,7 +631,7 @@ async function getLogsIndexedByDeck(
 }
 
 export function groupLogsByDeck(input: {
-  decks: DeckSummary[];
+  decks: DeckLinkCandidate[];
   explicitRows: LogsTableRow[];
   targetDeckIds: string[];
   unlinkedRows: LogsTableRow[];
@@ -678,7 +679,7 @@ export function groupLogsByDeck(input: {
 
 export async function getAllLogsByDeck(
   userId: string,
-  decks: DeckSummary[],
+  decks: DeckLinkCandidate[],
   targetDeckIdsInput?: string[]
 ) {
   return await getLogsIndexedByDeck(userId, decks, targetDeckIdsInput);
@@ -686,7 +687,7 @@ export async function getAllLogsByDeck(
 
 export async function getDeckLogSnapshots(
   userId: string,
-  decks: DeckSummary[],
+  decks: DeckLinkCandidate[],
   targetDeckIdsInput?: string[]
 ) {
   const logsByDeck = await getLogsIndexedByDeck(userId, decks, targetDeckIdsInput);
@@ -704,7 +705,7 @@ export async function getDeckLogSnapshots(
 
 export async function getDeckStatsForIndex(
   userId: string,
-  decks: DeckSummary[],
+  decks: DeckLinkCandidate[],
   targetDeckIdsInput?: string[]
 ) {
   const knownDeckIds = new Set(decks.map((deck) => deck.id));
@@ -748,7 +749,7 @@ export async function getDeckStatsForIndex(
 export async function getLogsForDeck(
   userId: string,
   deckId: string,
-  decks: DeckSummary[],
+  decks: DeckLinkCandidate[],
   limit = 10
 ): Promise<BattleLogSummary[]> {
   const logs = await getAllLogsForDeck(userId, deckId, decks);
@@ -758,7 +759,7 @@ export async function getLogsForDeck(
 export async function getAllLogsForDeck(
   userId: string,
   deckId: string,
-  decks: DeckSummary[]
+  decks: DeckLinkCandidate[]
 ): Promise<BattleLogSummary[]> {
   if (!decks.some((candidate) => candidate.id === deckId)) {
     return [];

@@ -17,8 +17,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { requireUser } from "@/lib/auth";
-import { getDeckById, getDecks } from "@/lib/db/decks";
+import { getDeckById } from "@/lib/db/decks";
 import { getAllLogsForDeck } from "@/lib/db/logs";
+import { getDeckLinkCandidates } from "@/lib/log-import/deck-linking";
 import type { Deck, DeckMatchup } from "@/types/index";
 
 type DeckDetailPageProps = {
@@ -91,9 +92,9 @@ function DeckMatchupTile({
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const user = await requireUser();
   const { id } = await params;
-  const [deck, userDecks] = await Promise.all([
+  const [deck, deckLinkCandidates] = await Promise.all([
     getDeckById(user.id, id),
-    getDecks(user.id)
+    getDeckLinkCandidates(user.id)
   ]);
   const defaultCreatedBy =
     user.user_metadata?.full_name ||
@@ -131,7 +132,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     );
   }
 
-  const relatedLogsPromise = getAllLogsForDeck(user.id, deck.id, userDecks);
+  const relatedLogsPromise = getAllLogsForDeck(user.id, deck.id, deckLinkCandidates);
   const previewMatchups = deck.matchups.slice(0, 4);
   const deckActions = (
     <div className="flex flex-wrap items-center gap-3">

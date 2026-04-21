@@ -8,7 +8,7 @@ import { CloseIcon, MenuIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { createClient } from "@/lib/supabase/client";
-import type { DeckSummary } from "@/types/index";
+import type { DeckSelectionOption } from "@/types/index";
 
 type SidebarProfile = {
   displayName: string;
@@ -17,7 +17,7 @@ type SidebarProfile = {
 };
 
 type SidebarProps = {
-  userDecks: DeckSummary[];
+  userDecks: DeckSelectionOption[];
   profile: SidebarProfile;
 };
 

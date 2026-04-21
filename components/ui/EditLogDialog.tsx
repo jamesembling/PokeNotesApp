@@ -19,14 +19,14 @@ import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
 } from "@/lib/battle-log/display";
-import type { BattleLog, DeckList, DeckSummary, PokemonOption } from "@/types/index";
+import type { BattleLog, DeckListOption, DeckSelectionOption, PokemonOption } from "@/types/index";
 
 type EditLogDialogProps = {
   initialOpen?: boolean;
   log: BattleLog;
   pokemonOptions: PokemonOption[];
   trigger?: ReactElement<{ onClick?: () => void }>;
-  userDecks: DeckSummary[];
+  userDecks: DeckSelectionOption[];
 };
 
 type SaveState = "idle" | "saving" | "success";
@@ -378,7 +378,7 @@ export function EditLogDialog({
                         ? "No linked deck list"
                         : "Select a deck strategy first"}
                     </option>
-                    {availableDeckLists.map((deckList: DeckList) => (
+                    {availableDeckLists.map((deckList: DeckListOption) => (
                       <option key={deckList.id} value={deckList.id}>
                         {deckList.name}
                       </option>

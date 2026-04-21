@@ -9,7 +9,7 @@ import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
-import type { BattleLog, DeckCard, DeckSummary } from "@/types/index";
+import type { BattleLog, DeckCard, DeckSelectionOption } from "@/types/index";
 
 type ShareTone = "success" | "info" | "error";
 
@@ -30,7 +30,7 @@ type BattleLogDetailShellProps = {
   linkedStrategyLabel: string;
   log: BattleLog;
   timestampLabel: string;
-  userDecks: DeckSummary[];
+  userDecks: DeckSelectionOption[];
 };
 
 const backLinkClassName =

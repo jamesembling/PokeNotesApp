@@ -4,10 +4,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
-import { getDeckWithList, getDecks } from "@/lib/db/decks";
+import { getDeckSelectionOptions, getDeckWithList } from "@/lib/db/decks";
 import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogById } from "@/lib/db/logs";
-import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
+import { getDeckLinkCandidates, resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 import { getAppOrigin } from "@/lib/server/app-url";
 
 type LogDetailPageProps = {
@@ -33,9 +33,10 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const user = await requireUser();
   const { id } = await params;
 
-  const [log, userDecks, appOrigin] = await Promise.all([
+  const [log, userDecks, deckLinkCandidates, appOrigin] = await Promise.all([
     getLogById(user.id, id),
-    getDecks(user.id),
+    getDeckSelectionOptions(user.id),
+    getDeckLinkCandidates(user.id),
     getAppOrigin()
   ]);
 
@@ -80,7 +81,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
     log.opponentDeckSprites
   );
   const resolvedLinkedDeckId =
-    resolveLinkedDeck(userDecks, {
+    resolveLinkedDeck(deckLinkCandidates, {
       linkedDeckId: log.linkedDeckId,
       selfDeckName: log.selfDeckName,
       selfDeckSprites: log.selfDeckSprites
@@ -94,7 +95,8 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
       ? await getDeckWithList(user.id, resolvedLinkedDeckId, log.linkedDeckListId)
       : null;
   const linkedDeckListSortedCards = linkedDeckWithList?.deckList.sortedCards ?? [];
-  const linkedStrategyLabel = linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
+  const linkedStrategyLabel =
+    linkedDeckWithList?.deckList.name ?? linkedDeck?.deckName ?? "No strategy linked";
   const timestampLabel = formatImportedAt(log.importedAt);
   const [activeShare] = await listActiveSharesForOwnerLog(user.id, log.id);
   const activeShareState = activeShare
@@ -120,11 +122,11 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
         <BattleLogDetailShell
           activeShare={activeShareState}
           linkedDeckId={linkedDeck?.id}
-          linkedDeckListFormat={linkedDeckList?.format}
+          linkedDeckListFormat={linkedDeckWithList?.deckList.format}
           linkedDeckListId={linkedDeckList?.id}
           linkedDeckListName={linkedDeckList?.name}
-          linkedDeckListNotes={linkedDeckWithList?.deckList.notes ?? linkedDeckList?.notes}
-          linkedDeckListRawList={linkedDeckWithList?.deckList.rawList ?? linkedDeckList?.rawList}
+          linkedDeckListNotes={linkedDeckWithList?.deckList.notes}
+          linkedDeckListRawList={linkedDeckWithList?.deckList.rawList}
           linkedDeckListSortedCards={linkedDeckListSortedCards}
           linkedStrategyLabel={linkedStrategyLabel}
           log={log}

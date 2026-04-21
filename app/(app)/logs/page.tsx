@@ -4,19 +4,24 @@ import { LogsManager } from "@/components/ui/LogsManager";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
-import { getDecks } from "@/lib/db/decks";
+import { getDeckSelectionOptions } from "@/lib/db/decks";
 import { getLogsWindow, getLogSummaryStats } from "@/lib/db/logs";
-import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
-import type { BattleLogSummary } from "@/types/index";
+import {
+  getDeckLinkCandidates,
+  resolveLinkedDeck,
+  type DeckLinkCandidate
+} from "@/lib/log-import/deck-linking";
+import type { BattleLogSummary, DeckSelectionOption } from "@/types/index";
 
 function attachLinkedDeckListNames(
   logs: BattleLogSummary[],
-  userDecks: Awaited<ReturnType<typeof getDecks>>
+  userDecks: DeckSelectionOption[],
+  deckLinkCandidates: DeckLinkCandidate[]
 ) {
   return logs.map((log) => {
     const resolvedLinkedDeckId =
       log.linkedDeckId ??
-      resolveLinkedDeck(userDecks, {
+      resolveLinkedDeck(deckLinkCandidates, {
         linkedDeckId: log.linkedDeckId,
         selfDeckName: log.selfDeckName,
         selfDeckSprites: log.selfDeckSprites
@@ -51,12 +56,13 @@ function attachLinkedDeckListNames(
 export default async function LogsPage() {
   const user = await requireUser();
 
-  const [stats, page, userDecks] = await Promise.all([
+  const [stats, page, userDecks, deckLinkCandidates] = await Promise.all([
     getLogSummaryStats(user.id),
     getLogsWindow(user.id),
-    getDecks(user.id)
+    getDeckSelectionOptions(user.id),
+    getDeckLinkCandidates(user.id)
   ]);
-  const logs = attachLinkedDeckListNames(page.logs, userDecks);
+  const logs = attachLinkedDeckListNames(page.logs, userDecks, deckLinkCandidates);
 
   return (
     <>

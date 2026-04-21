@@ -17,7 +17,7 @@ import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LogRow } from "@/components/ui/LogRow";
 import { formatDayDate } from "@/lib/client/date-format";
 import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
-import type { BattleLog, BattleLogSummary, DeckSummary } from "@/types/index";
+import type { BattleLog, BattleLogSummary, DeckSelectionOption } from "@/types/index";
 
 type LogGroup = {
   date: string;
@@ -42,7 +42,7 @@ type LogsManagerProps = {
   initialNextWindowEndDate: string;
   initialWindowEndDate: string;
   initialWindowStartDate: string;
-  userDecks: DeckSummary[];
+  userDecks: DeckSelectionOption[];
 };
 
 function summarizeVisibleLogs(logs: BattleLogSummary[]) {
@@ -140,7 +140,7 @@ function mergeLogs(current: BattleLogSummary[], incoming: BattleLogSummary[]) {
   });
 }
 
-function attachLinkedDeckListNames(logs: BattleLogSummary[], userDecks: DeckSummary[]) {
+function attachLinkedDeckListNames(logs: BattleLogSummary[], userDecks: DeckSelectionOption[]) {
   return logs.map((log) => {
     if (!log.linkedDeckId || !log.linkedDeckListId) {
       return {

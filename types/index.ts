@@ -232,6 +232,8 @@ export type DeckList = {
   updatedAt: string
 }
 
+export type DeckListOption = Pick<DeckList, "id" | "name">
+
 export type DeckMatchup = {
   id: string
   deckName: string
@@ -284,6 +286,12 @@ export type DeckSummary = {
   deckLists: DeckList[]
   createdAt: string
   updatedAt: string
+}
+
+export type DeckSelectionOption = {
+  id: string
+  deckName: string
+  deckLists: DeckListOption[]
 }
 
 

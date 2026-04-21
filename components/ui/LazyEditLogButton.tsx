@@ -5,12 +5,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { EditLogDialog } from "@/components/ui/EditLogDialog";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
-import type { BattleLog, DeckSummary, PokemonOption } from "@/types/index";
+import type { BattleLog, DeckSelectionOption, PokemonOption } from "@/types/index";
 
 type LazyEditLogButtonProps = {
   log: BattleLog;
   trigger?: ReactElement<{ onClick?: () => void }>;
-  userDecks: DeckSummary[];
+  userDecks: DeckSelectionOption[];
 };
 
 export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButtonProps) {

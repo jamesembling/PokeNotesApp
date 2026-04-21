@@ -14,7 +14,12 @@ import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
 } from "@/lib/battle-log/display";
-import type { DeckList, DeckSummary, ParsedLogReview, PokemonOption } from "@/types/index";
+import type {
+  DeckListOption,
+  DeckSelectionOption,
+  ParsedLogReview,
+  PokemonOption
+} from "@/types/index";
 
 type ImportLogDialogProps = {
   className?: string;
@@ -24,7 +29,7 @@ type ImportLogDialogProps = {
   pokemonOptions: PokemonOption[];
   ptcglUsername?: string;
   triggerLabel?: string;
-  userDecks: DeckSummary[];
+  userDecks: DeckSelectionOption[];
 };
 
 type Stage = "raw" | "review";
@@ -633,7 +638,7 @@ export function ImportLogDialog({
                                 ? "No linked deck list"
                                 : "Select a deck strategy first"}
                             </option>
-                            {availableDeckLists.map((deckList: DeckList) => (
+                            {availableDeckLists.map((deckList: DeckListOption) => (
                               <option key={deckList.id} value={deckList.id}>
                                 {deckList.name}
                               </option>
@@ -709,7 +714,7 @@ export function ImportLogDialog({
                             ? "No linked deck list"
                             : "Select a deck strategy first"}
                         </option>
-                        {availableDeckLists.map((deckList: DeckList) => (
+                        {availableDeckLists.map((deckList: DeckListOption) => (
                           <option key={deckList.id} value={deckList.id}>
                             {deckList.name}
                           </option>

@@ -2,18 +2,18 @@
 
 import { useState } from "react";
 import { ImportLogDialog } from "@/components/ui/ImportLogDialog";
-import type { DeckSummary, PokemonOption } from "@/types/index";
+import type { DeckSelectionOption, PokemonOption } from "@/types/index";
 
 type LazyImportLogButtonProps = {
   className?: string;
-  initialUserDecks?: DeckSummary[];
+  initialUserDecks?: DeckSelectionOption[];
   label?: string;
 };
 
 type ImportDialogDataResponse = {
   pokemonOptions?: PokemonOption[];
   ptcglUsername?: string;
-  userDecks?: DeckSummary[];
+  userDecks?: DeckSelectionOption[];
 };
 
 export function LazyImportLogButton({
@@ -23,7 +23,7 @@ export function LazyImportLogButton({
 }: LazyImportLogButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [ptcglUsername, setPtcglUsername] = useState("");
-  const [userDecks, setUserDecks] = useState<DeckSummary[]>(initialUserDecks);
+  const [userDecks, setUserDecks] = useState<DeckSelectionOption[]>(initialUserDecks);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 

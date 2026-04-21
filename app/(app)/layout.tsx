@@ -1,6 +1,6 @@
 import { Sidebar } from "@/components/ui/Sidebar";
 import { requireUser } from "@/lib/auth";
-import { getDecks } from "@/lib/db/decks";
+import { getDeckSelectionOptions } from "@/lib/db/decks";
 import { getCurrentProfile } from "@/lib/db/profile";
 
 export default async function AppLayout({
@@ -9,7 +9,10 @@ export default async function AppLayout({
   children: React.ReactNode;
 }>) {
   const user = await requireUser();
-  const [profile, userDecks] = await Promise.all([getCurrentProfile(), getDecks(user.id)]);
+  const [profile, userDecks] = await Promise.all([
+    getCurrentProfile(),
+    getDeckSelectionOptions(user.id)
+  ]);
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)]">
