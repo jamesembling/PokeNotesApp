@@ -55,7 +55,6 @@ export function LazyDeckMatchupEditorButton({
     return (
       <>
         <DeckMatchupEditorDialog
-          children={children}
           className={className}
           deckId={deckId}
           initialOpen={mountDialogOpen}
@@ -64,7 +63,9 @@ export function LazyDeckMatchupEditorButton({
           triggerLabel={triggerLabel}
           triggerVariant={triggerVariant}
           usePlainButton={usePlainButton}
-        />
+        >
+          {children}
+        </DeckMatchupEditorDialog>
         {loadError ? (
           <p className="text-sm text-[var(--color-loss)]" role="status">
             {loadError}
