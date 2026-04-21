@@ -125,10 +125,12 @@ function SpriteSearchSlot({
   const [isEditingSearch, setIsEditingSearch] = useState(false);
   const [isDesktopFloatingPanel, setIsDesktopFloatingPanel] = useState(false);
   const [floatingPanelStyle, setFloatingPanelStyle] = useState<CSSProperties | null>(null);
+  const [mobilePanelStyle, setMobilePanelStyle] = useState<CSSProperties | null>(null);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const floatingPanelRef = useRef<HTMLDivElement | null>(null);
+  const mobilePanelRef = useRef<HTMLDivElement | null>(null);
   const slotOptions = useMemo(
     () => buildOptionsForSlot(currentSlug, sprites, pokemonOptions),
     [currentSlug, pokemonOptions, sprites]
@@ -240,29 +242,62 @@ function SpriteSearchSlot({
 
   useEffect(() => {
     if (!isEditingSearch || isDesktopFloatingPanel) {
+      setMobilePanelStyle(null);
       return;
     }
 
-    function keepSlotVisible() {
-      containerRef.current?.scrollIntoView({
+    function syncMobilePanelPosition() {
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+
+      container.scrollIntoView({
         behavior: "smooth",
         block: "center",
         inline: "nearest"
       });
+
+      window.requestAnimationFrame(() => {
+        const visualViewport = window.visualViewport;
+        const viewportPadding = 12;
+        const viewportTop = visualViewport?.offsetTop ?? 0;
+        const viewportHeight = visualViewport?.height ?? window.innerHeight;
+        const viewportBottom = viewportTop + viewportHeight;
+        const rect = container.getBoundingClientRect();
+        const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+        const left = clamp(rect.left, viewportPadding, window.innerWidth - width - viewportPadding);
+        const preferredTop = rect.bottom + 4;
+        const top = clamp(
+          preferredTop,
+          viewportTop + viewportPadding,
+          viewportBottom - 180 - viewportPadding
+        );
+        const availableBelow = viewportBottom - top - viewportPadding;
+        const maxHeight = Math.max(180, Math.min(320, availableBelow));
+
+        setMobilePanelStyle({
+          left,
+          maxHeight,
+          position: "fixed",
+          top,
+          width
+        });
+      });
     }
 
-    const timeoutId = window.setTimeout(keepSlotVisible, 80);
-    window.addEventListener("resize", keepSlotVisible);
-    window.addEventListener("orientationchange", keepSlotVisible);
-    window.visualViewport?.addEventListener("resize", keepSlotVisible);
-    window.visualViewport?.addEventListener("scroll", keepSlotVisible);
+    const timeoutId = window.setTimeout(syncMobilePanelPosition, 80);
+    window.addEventListener("resize", syncMobilePanelPosition);
+    window.addEventListener("orientationchange", syncMobilePanelPosition);
+    window.visualViewport?.addEventListener("resize", syncMobilePanelPosition);
+    window.visualViewport?.addEventListener("scroll", syncMobilePanelPosition);
 
     return () => {
       window.clearTimeout(timeoutId);
-      window.removeEventListener("resize", keepSlotVisible);
-      window.removeEventListener("orientationchange", keepSlotVisible);
-      window.visualViewport?.removeEventListener("resize", keepSlotVisible);
-      window.visualViewport?.removeEventListener("scroll", keepSlotVisible);
+      window.removeEventListener("resize", syncMobilePanelPosition);
+      window.removeEventListener("orientationchange", syncMobilePanelPosition);
+      window.visualViewport?.removeEventListener("resize", syncMobilePanelPosition);
+      window.visualViewport?.removeEventListener("scroll", syncMobilePanelPosition);
     };
   }, [isDesktopFloatingPanel, isEditingSearch]);
 
@@ -282,6 +317,10 @@ function SpriteSearchSlot({
         return;
       }
 
+      if (mobilePanelRef.current?.contains(target)) {
+        return;
+      }
+
       closeSearchEditor();
     }
 
@@ -295,7 +334,7 @@ function SpriteSearchSlot({
   const searchPanelContent = (
     <div
       className="grid gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)]"
-      ref={isDesktopFloatingPanel ? floatingPanelRef : undefined}
+      ref={isDesktopFloatingPanel ? floatingPanelRef : mobilePanelStyle ? mobilePanelRef : undefined}
     >
       <div
         className="flex min-w-0 items-center gap-2"
@@ -395,6 +434,30 @@ function SpriteSearchSlot({
         )
       : null;
 
+  const mobileSearchPanel =
+    isEditingSearch &&
+    !isDesktopFloatingPanel &&
+    mobilePanelStyle &&
+    typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="z-[90]"
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            style={mobilePanelStyle}
+          >
+            <div
+              aria-hidden="true"
+              className="absolute left-3 right-3 top-[-6px] h-3 rounded-t-xl border border-b-0 border-[var(--border)] bg-[var(--bg-surface)]"
+            />
+            <div className="relative">
+              {searchPanelContent}
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <div
       className={`relative grid min-w-0 gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${isEditingSearch ? "z-30" : ""}`}
@@ -438,12 +501,8 @@ function SpriteSearchSlot({
           </button>
         ) : null}
       </div>
-      {isEditingSearch && !isDesktopFloatingPanel ? (
-        <div className="absolute left-0 right-0 top-full z-20 mt-2">
-          {searchPanelContent}
-        </div>
-      ) : null}
       {floatingSearchPanel}
+      {mobileSearchPanel}
     </div>
   );
 }
