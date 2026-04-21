@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -9,24 +11,19 @@ import {
   getTournamentSummaries,
   TournamentSchemaMissingError
 } from "@/lib/db/tournaments";
-import type { DeckSummary, TournamentSummary } from "@/types/index";
+import type { TournamentSummary } from "@/types/index";
 
 export default async function TournamentsPage() {
   const user = await requireUser();
   const showSchemaNotice = process.env.NODE_ENV !== "production";
   let tournaments: TournamentSummary[] = [];
-  let decks: DeckSummary[] = [];
   let schemaMissing = false;
 
   try {
-    [tournaments, decks] = await Promise.all([
-      getTournamentSummaries(user.id),
-      getTournamentDeckChoices(user.id)
-    ]);
+    tournaments = await getTournamentSummaries(user.id);
   } catch (error) {
     if (error instanceof TournamentSchemaMissingError) {
       schemaMissing = true;
-      decks = await getTournamentDeckChoices(user.id);
     } else {
       throw error;
     }
@@ -39,10 +36,9 @@ export default async function TournamentsPage() {
         showDivider={false}
         title="Tournaments"
         action={schemaMissing ? undefined : (
-          <LazyTournamentEditorButton
-            decks={decks}
-            triggerLabel="New Tournament"
-          />
+          <Suspense fallback={<TournamentEditorButtonFallback />}>
+            <TournamentCreateAction userId={user.id} />
+          </Suspense>
         )}
       />
 
@@ -77,5 +73,19 @@ export default async function TournamentsPage() {
         <TournamentSummaryList tournaments={tournaments} />
       )}
     </>
+  );
+}
+
+async function TournamentCreateAction({ userId }: { userId: string }) {
+  const decks = await getTournamentDeckChoices(userId);
+
+  return <LazyTournamentEditorButton decks={decks} triggerLabel="New Tournament" />;
+}
+
+function TournamentEditorButtonFallback() {
+  return (
+    <Button disabled variant="primary">
+      New Tournament
+    </Button>
   );
 }

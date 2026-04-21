@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { requireUser } from "@/lib/auth";
-import { getCurrentProfile } from "@/lib/db/profile";
+import { getCurrentSidebarProfile } from "@/lib/db/profile";
 import { measureServerCall } from "@/lib/server/perf";
 
 export default async function AppLayout({
@@ -26,15 +26,15 @@ export default async function AppLayout({
 }
 
 async function AppSidebar() {
-  const [user, profile] = await measureServerCall("layout.app.sidebar", async () =>
-    await Promise.all([requireUser(), getCurrentProfile()])
+  const profile = await measureServerCall("layout.app.sidebar", async () =>
+    await getCurrentSidebarProfile()
   );
 
   return (
     <Sidebar
       profile={{
         displayName: profile.displayName,
-        email: profile.email || user.email || "",
+        email: profile.email,
         isAdmin: profile.role === "admin"
       }}
     />

@@ -260,9 +260,22 @@ export async function getTournamentSummaries(userId: string): Promise<Tournament
     getAllTournamentRoundsForUser(userId)
   ]);
 
+  const roundsByTournamentId = new Map<string, TournamentRound[]>();
+
+  for (const round of rounds) {
+    const existingRounds = roundsByTournamentId.get(round.tournamentId);
+
+    if (existingRounds) {
+      existingRounds.push(round);
+      continue;
+    }
+
+    roundsByTournamentId.set(round.tournamentId, [round]);
+  }
+
   return tournaments.map((tournament) => ({
     ...tournament,
-    rounds: rounds.filter((round) => round.tournamentId === tournament.id)
+    rounds: roundsByTournamentId.get(tournament.id) ?? []
   }));
 }
 

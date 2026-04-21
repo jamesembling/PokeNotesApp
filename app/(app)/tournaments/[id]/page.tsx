@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -32,13 +33,11 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   const { id } = await params;
   let tournament = null;
   let rounds = [];
-  let decks = [];
 
   try {
-    [tournament, rounds, decks] = await Promise.all([
+    [tournament, rounds] = await Promise.all([
       getTournamentById(user.id, id),
-      getTournamentRounds(user.id, id),
-      getTournamentDeckChoices(user.id)
+      getTournamentRounds(user.id, id)
     ]);
   } catch (error) {
     if (error instanceof TournamentSchemaMissingError) {
@@ -110,12 +109,9 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         subtitle={formatTournamentDateRange(tournament.dateFrom, tournament.dateTo)}
         action={
           <div className="flex flex-wrap items-center gap-3">
-            <LazyTournamentEditorButton
-              decks={decks}
-              tournament={tournament}
-              triggerLabel="Edit Tournament"
-              triggerVariant="secondary"
-            />
+            <Suspense fallback={<TournamentEditButtonFallback />}>
+              <TournamentEditAction tournament={tournament} userId={user.id} />
+            </Suspense>
             <Link
               className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
               href="/tournaments"
@@ -205,5 +201,32 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         )}
       </Card>
     </PageWidth>
+  );
+}
+
+async function TournamentEditAction({
+  tournament,
+  userId
+}: {
+  tournament: NonNullable<Awaited<ReturnType<typeof getTournamentById>>>;
+  userId: string;
+}) {
+  const decks = await getTournamentDeckChoices(userId);
+
+  return (
+    <LazyTournamentEditorButton
+      decks={decks}
+      tournament={tournament}
+      triggerLabel="Edit Tournament"
+      triggerVariant="secondary"
+    />
+  );
+}
+
+function TournamentEditButtonFallback() {
+  return (
+    <Button disabled variant="secondary">
+      Edit Tournament
+    </Button>
   );
 }

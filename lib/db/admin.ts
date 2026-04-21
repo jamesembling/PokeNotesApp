@@ -115,7 +115,7 @@ export const getAdminAccessContext = cache(async () => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role,display_name,email")
     .eq("id", user.id)
     .single();
 
@@ -125,6 +125,16 @@ export const getAdminAccessContext = cache(async () => {
 
   return {
     user,
+    profile: {
+      displayName:
+        String(data?.display_name || "").trim() ||
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "Trainer",
+      email: String(data?.email || user.email || "").trim(),
+      role: data?.role === "admin" ? "admin" : "user"
+    },
     role: data?.role === "admin" ? "admin" : "user"
   } as const;
 });

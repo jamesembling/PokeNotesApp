@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
@@ -27,6 +28,14 @@ type UpdateProfileInput = {
   firstName: string;
   lastName: string;
   ptcglUsername: string;
+};
+
+type SidebarProfileRow = Pick<ProfileRow, "display_name" | "email" | "role" | "last_active_at">;
+
+type CurrentSidebarProfile = {
+  displayName: string;
+  email: string;
+  role: "user" | "admin";
 };
 
 const DEFAULT_AVATAR_COLOR: AvatarColor = "red";
@@ -161,7 +170,84 @@ export async function syncCurrentProfileFromAuthUser(authUser: Pick<
   }
 }
 
-export async function getCurrentProfile(): Promise<UserProfile> {
+function mapSidebarProfile(
+  user: Awaited<ReturnType<typeof requireUser>>,
+  row: SidebarProfileRow | null
+): CurrentSidebarProfile {
+  return {
+    displayName: String(row?.display_name || "").trim() || getFallbackDisplayName(user),
+    email: String(row?.email || user.email || "").trim(),
+    role: row?.role === "admin" ? "admin" : "user"
+  };
+}
+
+export const getCurrentSidebarProfile = cache(async (): Promise<CurrentSidebarProfile> => {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const loadSidebarProfile = async () =>
+    await supabase
+      .from("profiles")
+      .select(["display_name", "email", "role", "last_active_at"].join(","))
+      .eq("id", user.id)
+      .maybeSingle();
+
+  const { data, error } = await measureServerCall("db.profile.sidebar", loadSidebarProfile);
+
+  if (error) {
+    throw error;
+  }
+
+  let profileRow = ((data ?? null) as unknown as SidebarProfileRow | null) ?? null;
+
+  if (!profileRow) {
+    const { data: authData, error: authError } = await measureServerCall(
+      "db.profile.sidebarRepair.getUser",
+      async () => await supabase.auth.getUser()
+    );
+
+    if (authError) {
+      throw authError;
+    }
+
+    if (authData.user) {
+      await measureServerCall("db.profile.sidebarRepair.sync", async () =>
+        await syncCurrentProfileFromAuthUser(authData.user)
+      );
+
+      const refreshed = await measureServerCall("db.profile.sidebarRepair.reload", loadSidebarProfile);
+
+      if (refreshed.error) {
+        throw refreshed.error;
+      }
+
+      profileRow = ((refreshed.data ?? null) as unknown as SidebarProfileRow | null) ?? null;
+    }
+  }
+
+  if (profileRow && shouldRefreshLastActive(profileRow.last_active_at)) {
+    const nextLastActiveAt = new Date().toISOString();
+
+    profileRow = {
+      ...profileRow,
+      last_active_at: nextLastActiveAt
+    };
+
+    after(async () => {
+      const { error: activityError } = await supabase
+        .from("profiles")
+        .update({ last_active_at: nextLastActiveAt })
+        .eq("id", user.id);
+
+      if (activityError) {
+        console.error("[profile] failed to refresh last_active_at", activityError);
+      }
+    });
+  }
+
+  return mapSidebarProfile(user, profileRow);
+});
+
+export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
   const user = await requireUser();
   const supabase = await createClient();
   const { data, error } = await measureServerCall("db.profile.current", async () =>
@@ -264,7 +350,7 @@ export async function getCurrentProfile(): Promise<UserProfile> {
   }
 
   return mapProfileRowToUserProfile(user, profileRow);
-}
+});
 
 export async function updateCurrentProfile(input: UpdateProfileInput): Promise<UserProfile> {
   const user = await requireUser();
