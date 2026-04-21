@@ -126,6 +126,7 @@ function SpriteSearchSlot({
   const [isDesktopFloatingPanel, setIsDesktopFloatingPanel] = useState(false);
   const [floatingPanelStyle, setFloatingPanelStyle] = useState<CSSProperties | null>(null);
   const [mobilePanelStyle, setMobilePanelStyle] = useState<CSSProperties | null>(null);
+  const [mobilePanelReservedHeight, setMobilePanelReservedHeight] = useState(0);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -196,6 +197,37 @@ function SpriteSearchSlot({
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [isEditingSearch]);
+
+  useEffect(() => {
+    if (!isMobileAttachedPanel) {
+      setMobilePanelReservedHeight(0);
+      return;
+    }
+
+    const panel = mobilePanelRef.current;
+    if (!panel) {
+      return;
+    }
+
+    const syncReservedHeight = () => {
+      setMobilePanelReservedHeight(panel.offsetHeight);
+    };
+
+    syncReservedHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      syncReservedHeight();
+    });
+    observer.observe(panel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [filteredOptions.length, isMobileAttachedPanel, isOpen, query]);
 
   useEffect(() => {
     if (!isEditingSearch || !isDesktopFloatingPanel) {
@@ -447,70 +479,69 @@ function SpriteSearchSlot({
             onPointerDown={(event) => event.stopPropagation()}
             style={mobilePanelStyle}
           >
-            <div
-              aria-hidden="true"
-              className="absolute left-3 right-3 top-[-6px] h-3 rounded-t-xl border border-b-0 border-[var(--border)] bg-[var(--bg-surface)]"
-            />
-            <div className="relative">
-              {searchPanelContent}
-            </div>
+            {searchPanelContent}
           </div>,
           document.body
         )
       : null;
 
   return (
-    <div
-      className={`relative grid min-w-0 gap-2 border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${
-        isMobileAttachedPanel
-          ? "z-30 rounded-t-lg rounded-b-none border-b-transparent"
-          : isEditingSearch
-            ? "z-30 rounded-lg"
-            : "rounded-lg"
-      }`}
-      ref={containerRef}
-      key={`${title}-${index}`}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <button
-          className="flex min-h-[60px] w-full min-w-0 items-center gap-3 text-left md:min-h-[54px]"
-          onClick={() => {
-            setIsEditingSearch(true);
-            setIsOpen(true);
-          }}
-          type="button"
-        >
-          {currentSlug ? (
-            <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
-          ) : (
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
-              -
-            </div>
-          )}
-          <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-[var(--text-primary)] md:text-sm">
-            {currentSlug ? getPokemonOptionLabel(currentSlug, pokemonOptions) : "Select pokemon..."}
-          </span>
-          {!currentSlug ? (
-            <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] -rotate-90" />
-          ) : null}
-        </button>
-        {currentSlug ? (
+    <>
+      <div
+        className={`relative grid min-w-0 gap-2 border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${
+          isMobileAttachedPanel
+            ? "z-30 rounded-t-lg rounded-b-none border-b-transparent"
+            : isEditingSearch
+              ? "z-30 rounded-lg"
+              : "rounded-lg"
+        }`}
+        ref={containerRef}
+        key={`${title}-${index}`}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <button
-            aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions)}`}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+            className="flex min-h-[60px] w-full min-w-0 items-center gap-3 text-left md:min-h-[54px]"
             onClick={() => {
-              onChange(updateSpritesAtIndex(sprites, index, ""));
-              closeSearchEditor();
+              setIsEditingSearch(true);
+              setIsOpen(true);
             }}
             type="button"
           >
-            <CloseIcon className="h-[18px] w-[18px]" />
+            {currentSlug ? (
+              <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
+            ) : (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
+                -
+              </div>
+            )}
+            <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-[var(--text-primary)] md:text-sm">
+              {currentSlug ? getPokemonOptionLabel(currentSlug, pokemonOptions) : "Select pokemon..."}
+            </span>
+            {!currentSlug ? (
+              <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] -rotate-90" />
+            ) : null}
           </button>
-        ) : null}
+          {currentSlug ? (
+            <button
+              aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions)}`}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+              onClick={() => {
+                onChange(updateSpritesAtIndex(sprites, index, ""));
+                closeSearchEditor();
+              }}
+              type="button"
+            >
+              <CloseIcon className="h-[18px] w-[18px]" />
+            </button>
+          ) : null}
+        </div>
       </div>
+      {isMobileAttachedPanel && mobilePanelReservedHeight > 0 ? (
+        <div aria-hidden="true" className="pointer-events-none" style={{ height: mobilePanelReservedHeight - 1 }} />
+      ) : null}
       {floatingSearchPanel}
       {mobileSearchPanel}
-    </div>
+    </>
   );
 }
 
