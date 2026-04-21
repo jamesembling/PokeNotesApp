@@ -143,6 +143,7 @@ function SpriteSearchSlot({
 
     return findPokemonSearchMatches(slotOptions, query, 8);
   }, [query, slotOptions]);
+  const isMobileAttachedPanel = isEditingSearch && !isDesktopFloatingPanel;
 
   function closeSearchEditor() {
     setQuery("");
@@ -252,11 +253,7 @@ function SpriteSearchSlot({
         return;
       }
 
-      container.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "nearest"
-      });
+      container.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
 
       window.requestAnimationFrame(() => {
         const visualViewport = window.visualViewport;
@@ -267,7 +264,7 @@ function SpriteSearchSlot({
         const rect = container.getBoundingClientRect();
         const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
         const left = clamp(rect.left, viewportPadding, window.innerWidth - width - viewportPadding);
-        const preferredTop = rect.bottom + 4;
+        const preferredTop = rect.bottom - 1;
         const top = clamp(
           preferredTop,
           viewportTop + viewportPadding,
@@ -333,7 +330,11 @@ function SpriteSearchSlot({
 
   const searchPanelContent = (
     <div
-      className="grid gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)]"
+      className={`grid gap-2 border border-[var(--border)] bg-[var(--bg-surface)] p-3 ${
+        isMobileAttachedPanel
+          ? "rounded-b-2xl rounded-t-none border-t-0 shadow-none"
+          : "rounded-2xl shadow-[var(--shadow-lg)]"
+      }`}
       ref={isDesktopFloatingPanel ? floatingPanelRef : mobilePanelStyle ? mobilePanelRef : undefined}
     >
       <div
@@ -460,7 +461,13 @@ function SpriteSearchSlot({
 
   return (
     <div
-      className={`relative grid min-w-0 gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${isEditingSearch ? "z-30" : ""}`}
+      className={`relative grid min-w-0 gap-2 border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${
+        isMobileAttachedPanel
+          ? "z-30 rounded-t-lg rounded-b-none border-b-transparent"
+          : isEditingSearch
+            ? "z-30 rounded-lg"
+            : "rounded-lg"
+      }`}
       ref={containerRef}
       key={`${title}-${index}`}
     >
