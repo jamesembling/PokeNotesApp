@@ -20,7 +20,7 @@ import { requireUser } from "@/lib/auth";
 import { getDeckById } from "@/lib/db/decks";
 import { getAllLogsForDeck } from "@/lib/db/logs";
 import { getDeckLinkCandidates } from "@/lib/log-import/deck-linking";
-import type { Deck, DeckMatchup } from "@/types/index";
+import type { DeckMatchup } from "@/types/index";
 
 type DeckDetailPageProps = {
   params: Promise<{
@@ -34,33 +34,6 @@ function formatDate(date: string) {
     month: "short",
     year: "numeric"
   }).format(new Date(date));
-}
-
-function MatchupPlaceholderTile({
-  deckId,
-  deck,
-  index
-}: {
-  deckId: string;
-  deck: Deck;
-  index: number;
-}) {
-  return (
-    <Link className="group block h-full text-left" href={`/decks/${deckId}/matchups/placeholder-${index}`}>
-      <Card className="flex h-full flex-col gap-4 transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[var(--shadow-sm)]">
-        <div className="flex items-start justify-between gap-3">
-          <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={deck.deckPokemon} />
-          <span className="inline-flex min-h-10 shrink-0 items-center rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[0.76rem] font-semibold tracking-[0.12em] text-[var(--color-brand)] transition group-hover:border-[var(--color-brand)]">
-            OPEN
-          </span>
-        </div>
-
-        <h3 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)]">
-          Matchup {index}
-        </h3>
-      </Card>
-    </Link>
-  );
 }
 
 function DeckMatchupTile({
@@ -196,14 +169,6 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {previewMatchups.map((matchup) => (
             <DeckMatchupTile deckId={deck.id} key={matchup.id} matchup={matchup} />
-          ))}
-          {Array.from({ length: Math.max(0, 4 - previewMatchups.length) }, (_, index) => (
-            <MatchupPlaceholderTile
-              deck={deck}
-              deckId={deck.id}
-              index={previewMatchups.length + index + 1}
-              key={`placeholder-${index}`}
-            />
           ))}
         </div>
       </Card>

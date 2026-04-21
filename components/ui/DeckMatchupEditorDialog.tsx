@@ -50,7 +50,7 @@ export function DeckMatchupEditorDialog({
   const router = useRouter();
   const pathname = usePathname();
   const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
-  const isEditing = Boolean(matchup?.id && !matchup.id.startsWith("placeholder-"));
+  const isEditing = Boolean(matchup?.id);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(matchup?.deckPokemon ?? []);
   const [deckName, setDeckName] = useState(matchup?.deckName ?? "");

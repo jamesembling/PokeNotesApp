@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  createDeckMatchupAction,
-  updateDeckMatchupAction
-} from "@/app/(app)/decks/actions";
+import { updateDeckMatchupAction } from "@/app/(app)/decks/actions";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import type { DeckMatchup, GoPreference, MatchupFavorability } from "@/types/index";
 
@@ -43,7 +40,6 @@ export function InlineDeckMatchupHeaderControls({
   matchup
 }: InlineDeckMatchupHeaderControlsProps) {
   const router = useRouter();
-  const isPlaceholderMatchup = matchup.id.startsWith("placeholder-");
   const [isPending, startTransition] = useTransition();
   const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const [headerState, setHeaderState] = useState<HeaderState>(() => buildHeaderState(matchup));
@@ -125,18 +121,6 @@ export function InlineDeckMatchupHeaderControls({
       });
 
       try {
-        if (isPlaceholderMatchup) {
-          const result = await createDeckMatchupAction(formData);
-          savedStateRef.current = {
-            ...nextState,
-            format: String(nextState.format || "").trim() || defaultFormat
-          };
-          setHeaderState(savedStateRef.current);
-          setSaveStatus("saved");
-          router.push(result.redirectTo);
-          return;
-        }
-
         formData.set("matchupId", matchup.id);
         await updateDeckMatchupAction(formData);
         savedStateRef.current = {

@@ -717,33 +717,7 @@ export async function getDeckWithMatchup(
 
   const matchup = deck.matchups.find((entry) => entry.id === matchupId);
   if (!matchup) {
-    const placeholderMatch = matchupId.match(/^placeholder-(\d+)$/);
-    if (!placeholderMatch) {
-      return null;
-    }
-
-    const placeholderIndex = Number(placeholderMatch[1]);
-    if (!Number.isInteger(placeholderIndex) || placeholderIndex < 1 || placeholderIndex > 4) {
-      return null;
-    }
-
-    return {
-      deckName: deck.deckName,
-      deckPokemon: deck.deckPokemon,
-      matchup: {
-        id: matchupId,
-        deckName: `Matchup ${placeholderIndex}`,
-        deckPokemon: deck.deckPokemon.slice(0, 2),
-        format: "",
-        goPreference: "",
-        matchupFavor: "",
-        idealBench: "",
-        techsNeeded: "",
-        matchupPlan: "",
-        createdAt: deck.createdAt,
-        updatedAt: deck.updatedAt
-      }
-    };
+    return null;
   }
 
   return {
