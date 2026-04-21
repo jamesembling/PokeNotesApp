@@ -2,19 +2,24 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
+import { DeckMatchupsDialog } from "@/components/ui/DeckMatchupsDialog";
 import {
   DeckLogStatsGrid,
   DeckLogStatsGridFallback,
   DeckRelatedLogsSection,
   DeckRelatedLogsSectionFallback
 } from "@/components/ui/DeckRelatedLogsSection";
+import { ChevronIcon } from "@/components/ui/icons";
+import { InlineDeckStrategyEditor } from "@/components/ui/InlineDeckStrategyEditor";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
+import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { requireUser } from "@/lib/auth";
 import { getDeckById, getDecks } from "@/lib/db/decks";
 import { getAllLogsForDeck } from "@/lib/db/logs";
+import type { Deck, DeckMatchup } from "@/types/index";
 
 type DeckDetailPageProps = {
   params: Promise<{
@@ -30,33 +35,56 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
-function StrategySection({
-  kicker,
-  children,
-  variant = "light"
+function MatchupPlaceholderTile({
+  deckId,
+  deck,
+  index
 }: {
-  kicker: string;
-  children: React.ReactNode;
-  variant?: "hero" | "light";
+  deckId: string;
+  deck: Deck;
+  index: number;
 }) {
-  if (variant === "hero") {
-    return (
-      <Card>
-        <div className="space-y-4">
-          <p className="ui-eyebrow">{kicker}</p>
-          {children}
-        </div>
-      </Card>
-    );
-  }
-
   return (
-    <section className="border-t border-[var(--border)] pt-6">
-      <div className="space-y-3">
-        <p className="ui-eyebrow">{kicker}</p>
-        {children}
-      </div>
-    </section>
+    <Link className="group block h-full text-left" href={`/decks/${deckId}/matchups/placeholder-${index}`}>
+      <Card className="flex h-full flex-col gap-4 transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[var(--shadow-sm)]">
+        <div className="flex items-start justify-between gap-3">
+          <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={deck.deckPokemon} />
+          <span className="inline-flex min-h-10 shrink-0 items-center rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[0.76rem] font-semibold tracking-[0.12em] text-[var(--color-brand)] transition group-hover:border-[var(--color-brand)]">
+            OPEN
+          </span>
+        </div>
+
+        <h3 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)]">
+          Matchup {index}
+        </h3>
+      </Card>
+    </Link>
+  );
+}
+
+function DeckMatchupTile({
+  deckId,
+  matchup
+}: {
+  deckId: string;
+  matchup: DeckMatchup;
+}) {
+  return (
+    <Link className="group block h-full" href={`/decks/${deckId}/matchups/${matchup.id}`}>
+      <Card className="flex h-full flex-col gap-4 transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[var(--shadow-sm)]">
+        <div className="flex items-start justify-between gap-3">
+          <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={matchup.deckPokemon} />
+          <span className="inline-flex min-h-10 shrink-0 items-center rounded-2xl border border-[var(--color-brand)] bg-[color-mix(in_oklab,var(--color-brand)_8%,var(--bg-surface))] px-3 py-2 text-[0.76rem] font-semibold tracking-[0.12em] text-[var(--color-brand)]">
+            OPEN
+            <ChevronIcon className="h-4 w-4 -rotate-90" />
+          </span>
+        </div>
+
+        <h3 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)]">
+          {matchup.deckName}
+        </h3>
+      </Card>
+    </Link>
   );
 }
 
@@ -104,6 +132,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   }
 
   const relatedLogsPromise = getAllLogsForDeck(user.id, deck.id, userDecks);
+  const previewMatchups = deck.matchups.slice(0, 4);
   const deckActions = (
     <div className="flex flex-wrap items-center gap-3">
       <LazyDeckEditorButton
@@ -149,31 +178,34 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           </Suspense>
         </div>
       </Card>
-      {deck.generalNotes ? (
-        <StrategySection kicker="GENERAL NOTES">
-          <p className="whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
-            {deck.generalNotes}
-          </p>
-        </StrategySection>
-      ) : null}
+      <InlineDeckStrategyEditor deck={deck} />
 
-      {deck.resourcePlan ? (
-        <StrategySection kicker="RESOURCE PLAN">
-          <p className="whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
-            {deck.resourcePlan}
-          </p>
-        </StrategySection>
-      ) : null}
-
-      {deck.setupGoals.length > 0 ? (
-        <StrategySection kicker="SETUP GOALS">
-          <ul className="list-disc space-y-2 pl-5 text-sm text-[var(--text-secondary)]">
-            {deck.setupGoals.map((goal, index) => (
-              <li key={`${goal}-${index}`}>{goal}</li>
-            ))}
-          </ul>
-        </StrategySection>
-      ) : null}
+      <Card className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="ui-eyebrow">Matchup Notes</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <DeckMatchupsDialog deckId={deck.id} matchups={deck.matchups} />
+            <LazyDeckMatchupEditorButton
+              deckId={deck.id}
+              triggerLabel="New Matchup"
+              triggerVariant="secondary"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {previewMatchups.map((matchup) => (
+            <DeckMatchupTile deckId={deck.id} key={matchup.id} matchup={matchup} />
+          ))}
+          {Array.from({ length: Math.max(0, 4 - previewMatchups.length) }, (_, index) => (
+            <MatchupPlaceholderTile
+              deck={deck}
+              deckId={deck.id}
+              index={previewMatchups.length + index + 1}
+              key={`placeholder-${index}`}
+            />
+          ))}
+        </div>
+      </Card>
 
       <Card className="space-y-4" id="deck-lists">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -231,17 +263,6 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       <Suspense fallback={<DeckRelatedLogsSectionFallback />}>
         <DeckRelatedLogsSection deck={deck} logsPromise={relatedLogsPromise} />
       </Suspense>
-
-      <Card className="space-y-4">
-        <div className="space-y-1">
-          <p className="ui-eyebrow">Core Strategy</p>
-        </div>
-        <div className="min-h-[240px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-5 py-4">
-          <p className="whitespace-pre-wrap text-sm leading-7 text-[var(--text-secondary)]">
-            {deck.coreStrategy || "No core strategy added yet."}
-          </p>
-        </div>
-      </Card>
     </PageWidth>
   );
 }

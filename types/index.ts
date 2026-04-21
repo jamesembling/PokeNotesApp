@@ -27,6 +27,13 @@ export type Language = "en" | "de" | "es" | "fr" | "it" | "pt-br"
 export type PokemonStage = "Basic" | "Stage 1" | "Stage 2"
 
 export type GoPreference = "First" | "Second" | ""
+export type MatchupFavorability =
+  | "Heavily Favoured"
+  | "Slightly Favoured"
+  | "Even"
+  | "Slightly Unfavoured"
+  | "Heavily Unfavoured"
+  | ""
 
 
 // ============================================================
@@ -225,6 +232,20 @@ export type DeckList = {
   updatedAt: string
 }
 
+export type DeckMatchup = {
+  id: string
+  deckName: string
+  deckPokemon: string[]
+  format: string
+  goPreference: GoPreference
+  matchupFavor: MatchupFavorability
+  idealBench: string
+  techsNeeded: string
+  matchupPlan: string
+  createdAt: string
+  updatedAt: string
+}
+
 // The full deck — reflects the normalised DB columns
 export type Deck = {
   id: string
@@ -245,6 +266,7 @@ export type Deck = {
 
   // Nested data — stored as JSONB
   deckLists: DeckList[]
+  matchups: DeckMatchup[]
 
   createdAt: string
   updatedAt: string

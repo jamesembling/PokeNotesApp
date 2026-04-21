@@ -1,0 +1,384 @@
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { createDeckMatchupAction, updateDeckMatchupAction } from "@/app/(app)/decks/actions";
+import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
+import { Button } from "@/components/ui/Button";
+import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
+import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
+import type { DeckMatchup, GoPreference, MatchupFavorability, PokemonOption } from "@/types/index";
+
+type DeckMatchupEditorDialogProps = {
+  children?: ReactNode;
+  className?: string;
+  deckId: string;
+  initialOpen?: boolean;
+  matchup?: DeckMatchup;
+  pokemonOptions: PokemonOption[];
+  triggerLabel: string;
+  triggerVariant?: "primary" | "secondary" | "ghost";
+  usePlainButton?: boolean;
+};
+
+type SaveState = "idle" | "saving" | "success";
+
+const SUCCESS_CLOSE_DELAY_MS = 650;
+const MATCHUP_FAVOR_OPTIONS: MatchupFavorability[] = [
+  "Heavily Favoured",
+  "Slightly Favoured",
+  "Even",
+  "Slightly Unfavoured",
+  "Heavily Unfavoured"
+];
+
+function normalizeRedirectPath(value: string) {
+  return value.split("?")[0] || value;
+}
+
+export function DeckMatchupEditorDialog({
+  children,
+  className,
+  deckId,
+  initialOpen = false,
+  matchup,
+  pokemonOptions,
+  triggerLabel,
+  triggerVariant = "secondary",
+  usePlainButton = false
+}: DeckMatchupEditorDialogProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
+  const isEditing = Boolean(matchup?.id && !matchup.id.startsWith("placeholder-"));
+  const [isOpen, setIsOpen] = useState(initialOpen);
+  const [selectedSprites, setSelectedSprites] = useState<string[]>(matchup?.deckPokemon ?? []);
+  const [deckName, setDeckName] = useState(matchup?.deckName ?? "");
+  const [selectedFormat, setSelectedFormat] = useState(matchup?.format || defaultFormat);
+  const [goPreference, setGoPreference] = useState<GoPreference>(matchup?.goPreference ?? "");
+  const [matchupFavor, setMatchupFavor] = useState<MatchupFavorability>(matchup?.matchupFavor ?? "");
+  const [actionError, setActionError] = useState("");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const closeTimerRef = useRef<number | null>(null);
+  const navigationTimerRef = useRef<number | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+
+  useBodyScrollLock(isOpen);
+
+  useEffect(() => {
+    setSelectedFormat((current) => current || matchup?.format || defaultFormat);
+  }, [defaultFormat, matchup?.format]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+
+      if (navigationTimerRef.current !== null) {
+        window.clearTimeout(navigationTimerRef.current);
+      }
+    };
+  }, []);
+
+  function clearCloseTimer() {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }
+
+  function clearNavigationTimer() {
+    if (navigationTimerRef.current !== null) {
+      window.clearTimeout(navigationTimerRef.current);
+      navigationTimerRef.current = null;
+    }
+  }
+
+  function resetFormState() {
+    setSelectedSprites(matchup?.deckPokemon ?? []);
+    setDeckName(matchup?.deckName ?? "");
+    setSelectedFormat(matchup?.format || defaultFormat);
+    setGoPreference(matchup?.goPreference ?? "");
+    setMatchupFavor(matchup?.matchupFavor ?? "");
+    setActionError("");
+    setSaveState("idle");
+  }
+
+  function openDialog() {
+    clearCloseTimer();
+    clearNavigationTimer();
+    resetFormState();
+    setIsOpen(true);
+  }
+
+  function closeDialog() {
+    clearCloseTimer();
+    clearNavigationTimer();
+    setIsOpen(false);
+    resetFormState();
+  }
+
+  async function handleSubmit(formData: FormData) {
+    setActionError("");
+    setSaveState("saving");
+
+    try {
+      const result = await (isEditing
+        ? updateDeckMatchupAction(formData)
+        : createDeckMatchupAction(formData));
+      setSaveState("success");
+
+      clearCloseTimer();
+      closeTimerRef.current = window.setTimeout(() => {
+        setIsOpen(false);
+        clearNavigationTimer();
+        navigationTimerRef.current = window.setTimeout(() => {
+          resetFormState();
+
+          if (normalizeRedirectPath(result.redirectTo) === pathname) {
+            router.refresh();
+            return;
+          }
+
+          router.push(result.redirectTo);
+        }, 50);
+      }, SUCCESS_CLOSE_DELAY_MS);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : isEditing
+            ? "Could not update this matchup."
+            : "Could not create this matchup."
+      );
+      setSaveState("idle");
+    }
+  }
+
+  return (
+    <>
+      {usePlainButton ? (
+        <button className={className} onClick={openDialog} type="button">
+          {children ?? triggerLabel}
+        </button>
+      ) : (
+        <Button className={className} onClick={openDialog} variant={triggerVariant}>
+          {children ?? triggerLabel}
+        </Button>
+      )}
+
+      {isOpen ? (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
+          onClick={closeDialog}
+          role="dialog"
+        >
+          <div
+            className="mx-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
+              <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                    {isEditing ? "Edit Matchup" : "New Matchup"}
+                  </h2>
+                </div>
+                <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+                  <Button onClick={closeDialog} type="button" variant="secondary">
+                    Close
+                  </Button>
+                  <Button
+                    disabled={saveState === "saving"}
+                    onClick={() => formRef.current?.requestSubmit()}
+                    type="button"
+                  >
+                    {saveState === "saving"
+                      ? "Saving..."
+                      : saveState === "success"
+                        ? "Saved"
+                        : isEditing
+                          ? "Save Matchup"
+                          : "Create Matchup"}
+                  </Button>
+                </div>
+              </div>
+
+              <form
+                action={handleSubmit}
+                className="grid gap-6 pb-2"
+                ref={formRef}
+              >
+                <input name="deckId" type="hidden" value={deckId} />
+                {isEditing ? <input name="matchupId" type="hidden" value={matchup?.id ?? ""} /> : null}
+                <input name="format" type="hidden" value={selectedFormat} />
+                <input name="goPreference" type="hidden" value={goPreference} />
+                <input name="matchupFavor" type="hidden" value={matchupFavor} />
+                {isEditing ? (
+                  <>
+                    <input name="idealBench" type="hidden" value={matchup?.idealBench ?? ""} />
+                    <input name="techsNeeded" type="hidden" value={matchup?.techsNeeded ?? ""} />
+                    <input name="matchupPlan" type="hidden" value={matchup?.matchupPlan ?? ""} />
+                  </>
+                ) : null}
+                {selectedSprites.map((slug, index) => (
+                  <input key={`${slug}-${index}`} name="matchupSprites" type="hidden" value={slug} />
+                ))}
+
+                <section className="grid gap-4 md:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-[var(--text-muted)]">Deck Name</span>
+                    <input
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                      name="deckName"
+                      onChange={(event) => setDeckName(event.target.value)}
+                      placeholder="Dragapult / Dusknoir, Gardevoir ex, Miraidon..."
+                      value={deckName}
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
+                    <select
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                      onChange={(event) => setSelectedFormat(event.target.value)}
+                      value={selectedFormat}
+                    >
+                      {(selectedFormat && !siteFormatOptions.includes(selectedFormat)
+                        ? [selectedFormat, ...siteFormatOptions]
+                        : siteFormatOptions
+                      ).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <section className="grid gap-2 md:col-span-2">
+                    <span className="text-sm font-semibold text-[var(--text-muted)]">
+                      Turn Preference
+                    </span>
+                    <div
+                      aria-label="Turn preference"
+                      className="grid gap-3 sm:grid-cols-2"
+                      role="radiogroup"
+                    >
+                      <button
+                        aria-checked={goPreference === "First"}
+                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                          goPreference === "First"
+                            ? "border-[var(--color-brand)] bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-[var(--text-primary)]"
+                            : "border-[var(--border)] bg-[var(--bg-surface-alt)] text-[var(--text-muted)]"
+                        }`}
+                        onClick={() => setGoPreference("First")}
+                        role="radio"
+                        type="button"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                            goPreference === "First"
+                              ? "border-[var(--color-brand)]"
+                              : "border-[var(--border-strong)]"
+                          }`}
+                        >
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${
+                              goPreference === "First"
+                                ? "bg-[var(--color-brand)]"
+                                : "bg-transparent"
+                            }`}
+                          />
+                        </span>
+                        <span className="text-sm font-medium">Go First</span>
+                      </button>
+
+                      <button
+                        aria-checked={goPreference === "Second"}
+                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                          goPreference === "Second"
+                            ? "border-[var(--color-brand)] bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-[var(--text-primary)]"
+                            : "border-[var(--border)] bg-[var(--bg-surface-alt)] text-[var(--text-muted)]"
+                        }`}
+                        onClick={() => setGoPreference("Second")}
+                        role="radio"
+                        type="button"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                            goPreference === "Second"
+                              ? "border-[var(--color-brand)]"
+                              : "border-[var(--border-strong)]"
+                          }`}
+                        >
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${
+                              goPreference === "Second"
+                                ? "bg-[var(--color-brand)]"
+                                : "bg-transparent"
+                            }`}
+                          />
+                        </span>
+                        <span className="text-sm font-medium">Go Second</span>
+                      </button>
+                    </div>
+                  </section>
+
+                  <label className="grid gap-2 md:col-span-2">
+                    <span className="text-sm font-semibold text-[var(--text-muted)]">Matchup Favour</span>
+                    <select
+                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                      onChange={(event) => setMatchupFavor(event.target.value as MatchupFavorability)}
+                      value={matchupFavor}
+                    >
+                      <option value="">Select favour</option>
+                      {MATCHUP_FAVOR_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </section>
+
+                <BattleLogSpritePicker
+                  onChange={setSelectedSprites}
+                  pokemonOptions={pokemonOptions}
+                  sprites={selectedSprites}
+                  title="Featured Pokemon"
+                />
+
+                {actionError ? (
+                  <p className="text-sm text-[var(--color-loss)]" role="status">
+                    {actionError}
+                  </p>
+                ) : null}
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}

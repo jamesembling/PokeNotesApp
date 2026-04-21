@@ -400,19 +400,19 @@ export function DeckEditorDialog({
 
                 <label className="grid gap-2">
                   <span className="text-sm font-semibold text-[var(--text-muted)]">
-                    Setup goals
+                    Ideal bench
                   </span>
                   <textarea
                     className="min-h-[140px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                     defaultValue={parseSetupGoals(deck?.setupGoals ?? [])}
                     name="setupGoals"
-                    placeholder="One setup goal per line"
+                    placeholder="One ideal bench note per line"
                   />
                 </label>
 
                 <label className="grid gap-2">
                   <span className="text-sm font-semibold text-[var(--text-muted)]">
-                    Resource plan
+                    Potential cuts / techs / inclusions
                   </span>
                   <textarea
                     className="min-h-[140px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"

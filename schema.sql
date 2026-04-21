@@ -68,6 +68,7 @@ create table public.decks (
   general_notes     text not null default '',
   setup_goals       jsonb not null default '[]',
   resource_plan     text not null default '',
+  matchups          jsonb not null default '[]',
 
   -- Deck lists (array of deck list objects, stored as JSONB
   -- because they are complex nested structures with card entries)
@@ -81,6 +82,8 @@ comment on table public.decks is
   'User deck strategies. Each deck can have multiple deck lists and matchup plans.';
 comment on column public.decks.archetype_id is
   'Backend-owned canonical deck archetype key derived from the selected Pokemon slugs.';
+comment on column public.decks.matchups is
+  'Array of matchup plan objects. Each has id, deckName, deckPokemon, and timestamps.';
 comment on column public.decks.deck_lists is
   'Array of deck list objects. Each has id, name, format, rawList, and parsed card data.';
 

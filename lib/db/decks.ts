@@ -15,7 +15,14 @@ import { getAllLogsForDeck, getBattleLogSummaryStats } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
 import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
 import type { IdentificationCatalog } from "@/lib/log-import/types";
-import type { Deck, DeckCard, DeckList, DeckSummary, GoPreference } from "@/types/index";
+import type {
+  Deck,
+  DeckCard,
+  DeckList,
+  DeckMatchup,
+  DeckSummary,
+  GoPreference
+} from "@/types/index";
 
 type PostgrestLikeError = {
   code?: string | null;
@@ -60,6 +67,7 @@ const DECK_DETAIL_SELECT = [
   "general_notes",
   "setup_goals",
   "resource_plan",
+  "matchups",
   "deck_lists"
 ].join(",");
 
@@ -97,6 +105,7 @@ type DeckRow = DeckSummaryRow & {
   general_notes: string | null;
   setup_goals: unknown;
   resource_plan: string | null;
+  matchups?: unknown;
   deck_lists: unknown;
 };
 
@@ -244,6 +253,94 @@ function parseDeckLists(value: unknown): DeckList[] {
   return value
     .map((entry) => parseDeckList(entry))
     .filter((entry): entry is DeckList => entry !== null);
+}
+
+function parseDeckMatchup(value: unknown): DeckMatchup | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const id = typeof candidate.id === "string" ? candidate.id : "";
+  const deckName = typeof candidate.deckName === "string"
+    ? candidate.deckName
+    : typeof candidate.deck_name === "string"
+      ? candidate.deck_name
+      : "";
+  const createdAt = typeof candidate.createdAt === "string"
+    ? candidate.createdAt
+    : typeof candidate.created_at === "string"
+      ? candidate.created_at
+      : "";
+  const updatedAt = typeof candidate.updatedAt === "string"
+    ? candidate.updatedAt
+    : typeof candidate.updated_at === "string"
+      ? candidate.updated_at
+      : createdAt;
+
+  if (!id || !deckName) {
+    return null;
+  }
+
+  return {
+    id,
+    deckName,
+    deckPokemon: parseStringArray(candidate.deckPokemon ?? candidate.deck_pokemon),
+    format:
+      typeof candidate.format === "string"
+        ? candidate.format
+        : "",
+    goPreference:
+      candidate.goPreference === "First" || candidate.goPreference === "Second"
+        ? candidate.goPreference
+        : candidate.go_preference === "First" || candidate.go_preference === "Second"
+          ? candidate.go_preference
+          : "",
+    matchupFavor:
+      candidate.matchupFavor === "Heavily Favoured" ||
+      candidate.matchupFavor === "Slightly Favoured" ||
+      candidate.matchupFavor === "Even" ||
+      candidate.matchupFavor === "Slightly Unfavoured" ||
+      candidate.matchupFavor === "Heavily Unfavoured"
+        ? candidate.matchupFavor
+        : candidate.matchup_favor === "Heavily Favoured" ||
+            candidate.matchup_favor === "Slightly Favoured" ||
+            candidate.matchup_favor === "Even" ||
+            candidate.matchup_favor === "Slightly Unfavoured" ||
+            candidate.matchup_favor === "Heavily Unfavoured"
+          ? candidate.matchup_favor
+          : "",
+    idealBench:
+      typeof candidate.idealBench === "string"
+        ? candidate.idealBench
+        : typeof candidate.ideal_bench === "string"
+          ? candidate.ideal_bench
+          : "",
+    techsNeeded:
+      typeof candidate.techsNeeded === "string"
+        ? candidate.techsNeeded
+        : typeof candidate.techs_needed === "string"
+          ? candidate.techs_needed
+          : "",
+    matchupPlan:
+      typeof candidate.matchupPlan === "string"
+        ? candidate.matchupPlan
+        : typeof candidate.matchup_plan === "string"
+          ? candidate.matchup_plan
+          : "",
+    createdAt,
+    updatedAt
+  };
+}
+
+function parseDeckMatchups(value: unknown): DeckMatchup[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => parseDeckMatchup(entry))
+    .filter((entry): entry is DeckMatchup => entry !== null);
 }
 
 function getReadSortedDeckCards(parsedCards: DeckCard[], storedSortedCards: DeckCard[]) {
@@ -455,6 +552,7 @@ async function mapDeck(row: DeckRow, context: DeckMappingContext): Promise<Deck>
     generalNotes: row.general_notes ?? "",
     setupGoals: parseStringArray(row.setup_goals),
     resourcePlan: row.resource_plan ?? "",
+    matchups: parseDeckMatchups(row.matchups),
     deckLists: hydratedDeckLists
   };
 }
@@ -565,6 +663,55 @@ export async function getDeckWithList(
   return {
     deckName: row.deck_name,
     deckList
+  };
+}
+
+export async function getDeckWithMatchup(
+  userId: string,
+  deckId: string,
+  matchupId: string
+): Promise<{ deckName: string; deckPokemon: string[]; matchup: DeckMatchup } | null> {
+  const deck = await getDeckById(userId, deckId);
+
+  if (!deck) {
+    return null;
+  }
+
+  const matchup = deck.matchups.find((entry) => entry.id === matchupId);
+  if (!matchup) {
+    const placeholderMatch = matchupId.match(/^placeholder-(\d+)$/);
+    if (!placeholderMatch) {
+      return null;
+    }
+
+    const placeholderIndex = Number(placeholderMatch[1]);
+    if (!Number.isInteger(placeholderIndex) || placeholderIndex < 1 || placeholderIndex > 4) {
+      return null;
+    }
+
+    return {
+      deckName: deck.deckName,
+      deckPokemon: deck.deckPokemon,
+      matchup: {
+        id: matchupId,
+        deckName: `Matchup ${placeholderIndex}`,
+        deckPokemon: deck.deckPokemon.slice(0, 2),
+        format: "",
+        goPreference: "",
+        matchupFavor: "",
+        idealBench: "",
+        techsNeeded: "",
+        matchupPlan: "",
+        createdAt: deck.createdAt,
+        updatedAt: deck.updatedAt
+      }
+    };
+  }
+
+  return {
+    deckName: deck.deckName,
+    deckPokemon: deck.deckPokemon,
+    matchup
   };
 }
 

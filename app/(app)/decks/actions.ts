@@ -89,6 +89,10 @@ function isMissingDeckArchetypeColumn(error: PostgrestLikeError | null) {
   return error?.code === "42703";
 }
 
+function isMissingDeckMatchupsColumn(error: PostgrestLikeError | null) {
+  return error?.code === "42703";
+}
+
 export async function createDeckAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = crypto.randomUUID();
 
@@ -222,6 +226,67 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
   }
 }
 
+export async function updateDeckStrategyAction(formData: FormData): Promise<SaveActionResult> {
+  const deckId = String(formData.get("deckId") || "").trim();
+
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!deckId) {
+      throw userFacingActionError("Deck id is required.");
+    }
+
+    let { error } = await supabase
+      .from("decks")
+      .update({
+        go_preference: parseGoPreference(formData.get("goPreference")),
+        core_strategy: String(formData.get("coreStrategy") || ""),
+        general_notes: String(formData.get("generalNotes") || ""),
+        setup_goals: parseLines(String(formData.get("setupGoals") || "")),
+        resource_plan: String(formData.get("resourcePlan") || ""),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", deckId)
+      .eq("user_id", user.id);
+
+    if (isMissingDeckArchetypeColumn(error)) {
+      ({ error } = await supabase
+        .from("decks")
+        .update({
+          go_preference: parseGoPreference(formData.get("goPreference")),
+          core_strategy: String(formData.get("coreStrategy") || ""),
+          general_notes: String(formData.get("generalNotes") || ""),
+          setup_goals: parseLines(String(formData.get("setupGoals") || "")),
+          resource_plan: String(formData.get("resourcePlan") || ""),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", deckId)
+        .eq("user_id", user.id));
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    revalidateDeckWorkspace();
+    revalidatePath(`/decks/${deckId}`, "page");
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(`/decks/${deckId}`)
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "updateDeckStrategy",
+      area: "decks",
+      deckId,
+      fallbackMessage: "We couldn't save that strategy right now.",
+      route: deckId ? `/decks/${deckId}` : "/decks"
+    });
+  }
+}
+
 export async function deleteDeckAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
 
@@ -269,6 +334,218 @@ export async function deleteDeckAction(formData: FormData): Promise<SaveActionRe
       deckId,
       fallbackMessage: "We couldn't delete that deck right now.",
       route: "/decks"
+    });
+  }
+}
+
+export async function createDeckMatchupAction(formData: FormData): Promise<SaveActionResult> {
+  const deckId = String(formData.get("deckId") || "").trim();
+  const matchupId = crypto.randomUUID();
+
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!deckId) {
+      throw userFacingActionError("Deck id is required.");
+    }
+
+    const deckName = String(formData.get("deckName") || "").trim();
+    if (!deckName) {
+      throw userFacingActionError("Enter a matchup deck name before saving.");
+    }
+
+    const format = String(formData.get("format") || "").trim();
+    if (!format) {
+      throw userFacingActionError("Choose a format before saving this matchup.");
+    }
+
+    const matchupSprites = normalizeSelectedSprites(formData.getAll("matchupSprites"));
+    if (matchupSprites.length === 0) {
+      throw userFacingActionError("Pick at least one Pokemon sprite for the matchup.");
+    }
+
+    const { data, error } = await supabase
+      .from("decks")
+      .select("id,matchups")
+      .eq("id", deckId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (isMissingDeckMatchupsColumn(error)) {
+      throw userFacingActionError("Matchups need the latest database migration before they can be created.");
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      throw userFacingActionError("That deck could not be found.");
+    }
+
+    const now = new Date().toISOString();
+    const existingMatchups = Array.isArray(data.matchups) ? data.matchups : [];
+    const nextMatchups = [
+      ...existingMatchups,
+      {
+        id: matchupId,
+        deckName,
+        deckPokemon: matchupSprites,
+        format,
+        goPreference: parseGoPreference(formData.get("goPreference")),
+        matchupFavor: String(formData.get("matchupFavor") || "").trim(),
+        idealBench: String(formData.get("idealBench") || ""),
+        techsNeeded: String(formData.get("techsNeeded") || ""),
+        matchupPlan: "",
+        createdAt: now,
+        updatedAt: now
+      }
+    ];
+
+    const { error: updateError } = await supabase
+      .from("decks")
+      .update({
+        matchups: nextMatchups,
+        updated_at: now
+      })
+      .eq("id", deckId)
+      .eq("user_id", user.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    revalidateDeckWorkspace();
+    revalidatePath(`/decks/${deckId}`, "page");
+    revalidatePath(`/decks/${deckId}/matchups/${matchupId}`, "page");
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(`/decks/${deckId}/matchups/${matchupId}`)
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "createDeckMatchup",
+      area: "decks",
+      deckId,
+      fallbackMessage: "We couldn't create that matchup right now.",
+      route: deckId ? `/decks/${deckId}` : "/decks"
+    });
+  }
+}
+
+export async function updateDeckMatchupAction(formData: FormData): Promise<SaveActionResult> {
+  const deckId = String(formData.get("deckId") || "").trim();
+  const matchupId = String(formData.get("matchupId") || "").trim();
+
+  try {
+    const user = await requireUser();
+    const supabase = await createClient();
+
+    if (!deckId || !matchupId) {
+      throw userFacingActionError("Deck and matchup ids are required.");
+    }
+
+    const { data, error } = await supabase
+      .from("decks")
+      .select("id,matchups")
+      .eq("id", deckId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (isMissingDeckMatchupsColumn(error)) {
+      throw userFacingActionError("Matchups need the latest database migration before they can be updated.");
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      throw userFacingActionError("That deck could not be found.");
+    }
+
+    const existingMatchups = Array.isArray(data.matchups) ? data.matchups : [];
+    const currentMatchup = existingMatchups.find((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return false;
+      }
+
+      return String((entry as { id?: unknown }).id || "") === matchupId;
+    });
+
+    if (!currentMatchup) {
+      throw userFacingActionError("That matchup could not be found.");
+    }
+
+    const deckName = String(formData.get("deckName") || "").trim();
+    if (!deckName) {
+      throw userFacingActionError("Enter a matchup deck name before saving.");
+    }
+
+    const format = String(formData.get("format") || "").trim();
+    if (!format) {
+      throw userFacingActionError("Choose a format before saving this matchup.");
+    }
+
+    const matchupSprites = normalizeSelectedSprites(formData.getAll("matchupSprites"));
+    if (matchupSprites.length === 0) {
+      throw userFacingActionError("Pick at least one Pokemon sprite for the matchup.");
+    }
+
+    const now = new Date().toISOString();
+    const nextMatchups = existingMatchups.map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return entry;
+      }
+
+      if (String((entry as { id?: unknown }).id || "") !== matchupId) {
+        return entry;
+      }
+
+      return {
+        ...entry,
+        deckName,
+        deckPokemon: matchupSprites,
+        format,
+        goPreference: parseGoPreference(formData.get("goPreference")),
+        matchupFavor: String(formData.get("matchupFavor") || "").trim(),
+        idealBench: String(formData.get("idealBench") || ""),
+        techsNeeded: String(formData.get("techsNeeded") || ""),
+        matchupPlan: String(formData.get("matchupPlan") || ""),
+        updatedAt: now
+      };
+    });
+
+    const { error: updateError } = await supabase
+      .from("decks")
+      .update({
+        matchups: nextMatchups,
+        updated_at: now
+      })
+      .eq("id", deckId)
+      .eq("user_id", user.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    revalidateDeckWorkspace();
+    revalidatePath(`/decks/${deckId}`, "page");
+    revalidatePath(`/decks/${deckId}/matchups/${matchupId}`, "page");
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(`/decks/${deckId}/matchups/${matchupId}`)
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "updateDeckMatchup",
+      area: "decks",
+      deckId,
+      fallbackMessage: "We couldn't save that matchup right now.",
+      route: deckId ? `/decks/${deckId}/matchups/${matchupId}` : "/decks"
     });
   }
 }

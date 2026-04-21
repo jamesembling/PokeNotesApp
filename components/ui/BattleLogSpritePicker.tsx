@@ -169,15 +169,19 @@ function SpriteSearchSlot({
   }, [currentSlug]);
 
   useEffect(() => {
+    const desktopFloatingPanelQuery = window.matchMedia(
+      "(min-width: 1024px) and (hover: hover) and (pointer: fine)"
+    );
+
     function syncDesktopMode() {
-      setIsDesktopFloatingPanel(window.innerWidth >= 1024);
+      setIsDesktopFloatingPanel(desktopFloatingPanelQuery.matches);
     }
 
     syncDesktopMode();
-    window.addEventListener("resize", syncDesktopMode);
+    desktopFloatingPanelQuery.addEventListener("change", syncDesktopMode);
 
     return () => {
-      window.removeEventListener("resize", syncDesktopMode);
+      desktopFloatingPanelQuery.removeEventListener("change", syncDesktopMode);
     };
   }, []);
 

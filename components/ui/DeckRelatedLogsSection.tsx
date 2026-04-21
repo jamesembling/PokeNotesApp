@@ -29,9 +29,6 @@ export function DeckRelatedLogsSectionFallback() {
       <div className="space-y-2">
         <div className="space-y-2">
           <p className="ui-eyebrow">Battle Logs</p>
-          <p className="text-sm text-[var(--text-secondary)]">
-            Loading recent battle logs linked to this strategy.
-          </p>
         </div>
       </div>
       <div className="space-y-3">
@@ -82,9 +79,6 @@ export async function DeckRelatedLogsSection({
     <Card className="space-y-5">
       <div className="space-y-2">
         <p className="ui-eyebrow">Battle Logs</p>
-        <p className="text-sm text-[var(--text-secondary)]">
-          Recent battle logs linked to this strategy or matched to its archetype.
-        </p>
       </div>
 
       {relatedLogs.length === 0 ? (
