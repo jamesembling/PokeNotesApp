@@ -57,11 +57,11 @@ export async function proxy(request: NextRequest) {
     }
   });
 
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getClaims();
 
-  logAuthDebug("proxy.getUser", {
+  logAuthDebug("proxy.getClaims", {
     path: requestPath,
-    hasUser: Boolean(data.user),
+    hasClaims: Boolean(data?.claims),
     error: error?.message ?? null,
     requestCookieNames: request.cookies.getAll().map(({ name }) => name)
   });

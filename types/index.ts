@@ -294,6 +294,10 @@ export type DeckSelectionOption = {
   deckLists: DeckListOption[]
 }
 
+export type TournamentDeckChoice = DeckSelectionOption & {
+  deckPokemon: string[]
+}
+
 
 // ============================================================
 // TOURNAMENTS

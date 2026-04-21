@@ -4,10 +4,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TournamentEditorDialog } from "@/components/ui/TournamentEditorDialog";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
-import type { DeckSummary, PokemonOption, Tournament } from "@/types/index";
+import type { PokemonOption, Tournament, TournamentDeckChoice } from "@/types/index";
 
 type LazyTournamentEditorButtonProps = {
-  decks: DeckSummary[];
+  decks: TournamentDeckChoice[];
   tournament?: Tournament;
   triggerLabel: string;
   triggerVariant?: "primary" | "secondary" | "ghost";

@@ -16,18 +16,7 @@ import type { TournamentSummary } from "@/types/index";
 export default async function TournamentsPage() {
   const user = await requireUser();
   const showSchemaNotice = process.env.NODE_ENV !== "production";
-  let tournaments: TournamentSummary[] = [];
-  let schemaMissing = false;
-
-  try {
-    tournaments = await getTournamentSummaries(user.id);
-  } catch (error) {
-    if (error instanceof TournamentSchemaMissingError) {
-      schemaMissing = true;
-    } else {
-      throw error;
-    }
-  }
+  const tournamentsPromise = getTournamentSummaries(user.id);
 
   return (
     <>
@@ -35,16 +24,44 @@ export default async function TournamentsPage() {
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Tournaments" }]}
         showDivider={false}
         title="Tournaments"
-        action={schemaMissing ? undefined : (
+        action={(
           <Suspense fallback={<TournamentEditorButtonFallback />}>
-            <TournamentCreateAction userId={user.id} />
+            <TournamentPageAction
+              tournamentsPromise={tournamentsPromise}
+              userId={user.id}
+            />
           </Suspense>
         )}
       />
 
-      {schemaMissing && showSchemaNotice ? (
-        <TournamentSchemaNotice />
-      ) : schemaMissing ? (
+      <Suspense fallback={<TournamentsContentFallback />}>
+        <TournamentsContent
+          showSchemaNotice={showSchemaNotice}
+          tournamentsPromise={tournamentsPromise}
+        />
+      </Suspense>
+    </>
+  );
+}
+
+async function TournamentsContent({
+  showSchemaNotice,
+  tournamentsPromise
+}: {
+  showSchemaNotice: boolean;
+  tournamentsPromise: Promise<TournamentSummary[]>;
+}) {
+  let tournaments: TournamentSummary[] = [];
+
+  try {
+    tournaments = await tournamentsPromise;
+  } catch (error) {
+    if (error instanceof TournamentSchemaMissingError) {
+      if (showSchemaNotice) {
+        return <TournamentSchemaNotice />;
+      }
+
+      return (
         <Card>
           <div className="flex flex-col gap-3">
             <p className="ui-eyebrow">Tournaments Unavailable</p>
@@ -57,23 +74,49 @@ export default async function TournamentsPage() {
             </p>
           </div>
         </Card>
-      ) : tournaments.length === 0 ? (
-        <Card>
-          <div className="flex flex-col gap-3">
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              No tournaments saved yet
-            </h2>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Start with an event you already played or set up an upcoming tournament so you can
-              track each round as you go.
-            </p>
-          </div>
-        </Card>
-      ) : (
-        <TournamentSummaryList tournaments={tournaments} />
-      )}
-    </>
-  );
+      );
+    }
+
+    throw error;
+  }
+
+  if (tournaments.length === 0) {
+    return (
+      <Card>
+        <div className="flex flex-col gap-3">
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">
+            No tournaments saved yet
+          </h2>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Start with an event you already played or set up an upcoming tournament so you can
+            track each round as you go.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  return <TournamentSummaryList tournaments={tournaments} />;
+}
+
+async function TournamentPageAction({
+  tournamentsPromise,
+  userId
+}: {
+  tournamentsPromise: Promise<TournamentSummary[]>;
+  userId: string;
+}) {
+  try {
+    await tournamentsPromise;
+  } catch (error) {
+    if (error instanceof TournamentSchemaMissingError) {
+      return null;
+    }
+
+    throw error;
+  }
+
+  return <TournamentCreateAction userId={userId} />;
 }
 
 async function TournamentCreateAction({ userId }: { userId: string }) {
@@ -87,5 +130,20 @@ function TournamentEditorButtonFallback() {
     <Button disabled variant="primary">
       New Tournament
     </Button>
+  );
+}
+
+function TournamentsContentFallback() {
+  return (
+    <Card>
+      <div className="grid gap-4">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            className="h-28 animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
+            key={index}
+          />
+        ))}
+      </div>
+    </Card>
   );
 }

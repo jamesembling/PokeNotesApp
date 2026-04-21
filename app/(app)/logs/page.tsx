@@ -57,6 +57,7 @@ export default async function LogsPage() {
   const user = await requireUser();
   const userId = user.id;
   const deckContextPromise = getDeckSelectionAndLinkCandidates(userId);
+  const logsWindowPromise = getLogsWindow(userId);
 
   return (
     <>
@@ -78,6 +79,7 @@ export default async function LogsPage() {
       <Suspense fallback={<LogsManagerFallback />}>
         <LogsWorkspace
           deckContextPromise={deckContextPromise}
+          logsWindowPromise={logsWindowPromise}
           userId={userId}
         />
       </Suspense>
@@ -112,14 +114,16 @@ async function LogsSummaryCards({ userId }: { userId: string }) {
 
 async function LogsWorkspace({
   deckContextPromise,
+  logsWindowPromise,
   userId
 }: {
   deckContextPromise: ReturnType<typeof getDeckSelectionAndLinkCandidates>;
+  logsWindowPromise: ReturnType<typeof getLogsWindow>;
   userId: string;
 }) {
   const [{ deckLinkCandidates, userDecks }, page] = await Promise.all([
     deckContextPromise,
-    getLogsWindow(userId)
+    logsWindowPromise
   ]);
   const logs = attachLinkedDeckListNames(page.logs, userDecks, deckLinkCandidates);
 

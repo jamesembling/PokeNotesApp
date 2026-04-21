@@ -91,11 +91,10 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   }
 
   const record = getTournamentRecord(rounds);
-  const linkedDeckWithList =
+  const linkedDeckWithListPromise =
     tournament.linkedDeckId && tournament.linkedDeckListId
-      ? await getDeckWithList(user.id, tournament.linkedDeckId, tournament.linkedDeckListId)
+      ? getDeckWithList(user.id, tournament.linkedDeckId, tournament.linkedDeckListId)
       : null;
-  const resolvedTournamentDeckList = linkedDeckWithList?.deckList;
 
   return (
     <PageWidth size="standard">
@@ -156,14 +155,14 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         </div>
       </Card>
 
-      <TournamentDeckListPanel
-        deckId={tournament.linkedDeckId}
-        deckListFormat={resolvedTournamentDeckList?.format}
-        deckListName={resolvedTournamentDeckList?.name}
-        deckListNotes={resolvedTournamentDeckList?.notes}
-        rawList={resolvedTournamentDeckList?.rawList}
-        sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
-      />
+      {linkedDeckWithListPromise ? (
+        <Suspense fallback={<TournamentDeckListPanelFallback />}>
+          <TournamentDeckListSection
+            deckId={tournament.linkedDeckId}
+            linkedDeckWithListPromise={linkedDeckWithListPromise}
+          />
+        </Suspense>
+      ) : null}
 
       <Card className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -204,6 +203,28 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   );
 }
 
+async function TournamentDeckListSection({
+  deckId,
+  linkedDeckWithListPromise
+}: {
+  deckId: string | undefined;
+  linkedDeckWithListPromise: ReturnType<typeof getDeckWithList>;
+}) {
+  const linkedDeckWithList = await linkedDeckWithListPromise;
+  const resolvedTournamentDeckList = linkedDeckWithList?.deckList;
+
+  return (
+    <TournamentDeckListPanel
+      deckId={deckId}
+      deckListFormat={resolvedTournamentDeckList?.format}
+      deckListName={resolvedTournamentDeckList?.name}
+      deckListNotes={resolvedTournamentDeckList?.notes}
+      rawList={resolvedTournamentDeckList?.rawList}
+      sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
+    />
+  );
+}
+
 async function TournamentEditAction({
   tournament,
   userId
@@ -228,5 +249,16 @@ function TournamentEditButtonFallback() {
     <Button disabled variant="secondary">
       Edit Tournament
     </Button>
+  );
+}
+
+function TournamentDeckListPanelFallback() {
+  return (
+    <Card className="rounded-[24px] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
+      <div className="grid gap-4">
+        <div className="h-5 w-28 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
+        <div className="h-16 animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
+      </div>
+    </Card>
   );
 }

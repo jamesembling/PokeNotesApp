@@ -1,8 +1,8 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { getDecks } from "@/lib/db/decks";
+import { getDeckSelectionAndLinkCandidates } from "@/lib/db/decks";
 import { measureServerCall } from "@/lib/server/perf";
-import type { DeckSummary, Tournament, TournamentRound, TournamentSummary } from "@/types/index";
+import type { Tournament, TournamentDeckChoice, TournamentRound, TournamentSummary } from "@/types/index";
 
 type PostgrestLikeError = {
   code?: string | null;
@@ -279,8 +279,16 @@ export async function getTournamentSummaries(userId: string): Promise<Tournament
   }));
 }
 
-export async function getTournamentDeckChoices(userId: string): Promise<DeckSummary[]> {
-  return await getDecks(userId);
+export async function getTournamentDeckChoices(userId: string): Promise<TournamentDeckChoice[]> {
+  const { userDecks, deckLinkCandidates } = await getDeckSelectionAndLinkCandidates(userId);
+  const deckPokemonById = new Map(
+    deckLinkCandidates.map((candidate) => [candidate.id, candidate.deckPokemon] as const)
+  );
+
+  return userDecks.map((deck) => ({
+    ...deck,
+    deckPokemon: deckPokemonById.get(deck.id) ?? []
+  }));
 }
 
 async function getAllTournamentRoundsForUser(userId: string) {
