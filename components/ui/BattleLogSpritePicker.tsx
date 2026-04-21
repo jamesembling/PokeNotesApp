@@ -125,13 +125,10 @@ function SpriteSearchSlot({
   const [isEditingSearch, setIsEditingSearch] = useState(false);
   const [isDesktopFloatingPanel, setIsDesktopFloatingPanel] = useState(false);
   const [floatingPanelStyle, setFloatingPanelStyle] = useState<CSSProperties | null>(null);
-  const [mobilePanelStyle, setMobilePanelStyle] = useState<CSSProperties | null>(null);
-  const [mobilePanelReservedHeight, setMobilePanelReservedHeight] = useState(0);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const floatingPanelRef = useRef<HTMLDivElement | null>(null);
-  const mobilePanelRef = useRef<HTMLDivElement | null>(null);
   const slotOptions = useMemo(
     () => buildOptionsForSlot(currentSlug, sprites, pokemonOptions),
     [currentSlug, pokemonOptions, sprites]
@@ -144,7 +141,7 @@ function SpriteSearchSlot({
 
     return findPokemonSearchMatches(slotOptions, query, 8);
   }, [query, slotOptions]);
-  const isMobileAttachedPanel = isEditingSearch && !isDesktopFloatingPanel;
+  const isMobileInlinePanel = isEditingSearch && !isDesktopFloatingPanel;
 
   function closeSearchEditor() {
     setQuery("");
@@ -199,37 +196,6 @@ function SpriteSearchSlot({
   }, [isEditingSearch]);
 
   useEffect(() => {
-    if (!isMobileAttachedPanel) {
-      setMobilePanelReservedHeight(0);
-      return;
-    }
-
-    const panel = mobilePanelRef.current;
-    if (!panel) {
-      return;
-    }
-
-    const syncReservedHeight = () => {
-      setMobilePanelReservedHeight(panel.offsetHeight);
-    };
-
-    syncReservedHeight();
-
-    if (typeof ResizeObserver === "undefined") {
-      return;
-    }
-
-    const observer = new ResizeObserver(() => {
-      syncReservedHeight();
-    });
-    observer.observe(panel);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [filteredOptions.length, isMobileAttachedPanel, isOpen, query]);
-
-  useEffect(() => {
     if (!isEditingSearch || !isDesktopFloatingPanel) {
       setFloatingPanelStyle(null);
       return;
@@ -275,58 +241,29 @@ function SpriteSearchSlot({
 
   useEffect(() => {
     if (!isEditingSearch || isDesktopFloatingPanel) {
-      setMobilePanelStyle(null);
       return;
     }
 
-    function syncMobilePanelPosition() {
-      const container = containerRef.current;
-      if (!container) {
-        return;
-      }
-
-      container.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-
-      window.requestAnimationFrame(() => {
-        const visualViewport = window.visualViewport;
-        const viewportPadding = 12;
-        const viewportTop = visualViewport?.offsetTop ?? 0;
-        const viewportHeight = visualViewport?.height ?? window.innerHeight;
-        const viewportBottom = viewportTop + viewportHeight;
-        const rect = container.getBoundingClientRect();
-        const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
-        const left = clamp(rect.left, viewportPadding, window.innerWidth - width - viewportPadding);
-        const preferredTop = rect.bottom - 1;
-        const top = clamp(
-          preferredTop,
-          viewportTop + viewportPadding,
-          viewportBottom - 180 - viewportPadding
-        );
-        const availableBelow = viewportBottom - top - viewportPadding;
-        const maxHeight = Math.max(180, Math.min(320, availableBelow));
-
-        setMobilePanelStyle({
-          left,
-          maxHeight,
-          position: "fixed",
-          top,
-          width
-        });
+    function keepMobilePickerVisible() {
+      containerRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest"
       });
     }
 
-    const timeoutId = window.setTimeout(syncMobilePanelPosition, 80);
-    window.addEventListener("resize", syncMobilePanelPosition);
-    window.addEventListener("orientationchange", syncMobilePanelPosition);
-    window.visualViewport?.addEventListener("resize", syncMobilePanelPosition);
-    window.visualViewport?.addEventListener("scroll", syncMobilePanelPosition);
+    const timeoutId = window.setTimeout(keepMobilePickerVisible, 80);
+    window.addEventListener("resize", keepMobilePickerVisible);
+    window.addEventListener("orientationchange", keepMobilePickerVisible);
+    window.visualViewport?.addEventListener("resize", keepMobilePickerVisible);
+    window.visualViewport?.addEventListener("scroll", keepMobilePickerVisible);
 
     return () => {
       window.clearTimeout(timeoutId);
-      window.removeEventListener("resize", syncMobilePanelPosition);
-      window.removeEventListener("orientationchange", syncMobilePanelPosition);
-      window.visualViewport?.removeEventListener("resize", syncMobilePanelPosition);
-      window.visualViewport?.removeEventListener("scroll", syncMobilePanelPosition);
+      window.removeEventListener("resize", keepMobilePickerVisible);
+      window.removeEventListener("orientationchange", keepMobilePickerVisible);
+      window.visualViewport?.removeEventListener("resize", keepMobilePickerVisible);
+      window.visualViewport?.removeEventListener("scroll", keepMobilePickerVisible);
     };
   }, [isDesktopFloatingPanel, isEditingSearch]);
 
@@ -346,10 +283,6 @@ function SpriteSearchSlot({
         return;
       }
 
-      if (mobilePanelRef.current?.contains(target)) {
-        return;
-      }
-
       closeSearchEditor();
     }
 
@@ -363,11 +296,11 @@ function SpriteSearchSlot({
   const searchPanelContent = (
     <div
       className={`grid gap-2 border border-[var(--border)] bg-[var(--bg-surface)] p-3 ${
-        isMobileAttachedPanel
+        isMobileInlinePanel
           ? "rounded-b-2xl rounded-t-none border-t-0 shadow-none"
           : "rounded-2xl shadow-[var(--shadow-lg)]"
       }`}
-      ref={isDesktopFloatingPanel ? floatingPanelRef : mobilePanelStyle ? mobilePanelRef : undefined}
+      ref={isDesktopFloatingPanel ? floatingPanelRef : undefined}
     >
       <div
         className="flex min-w-0 items-center gap-2"
@@ -467,81 +400,58 @@ function SpriteSearchSlot({
         )
       : null;
 
-  const mobileSearchPanel =
-    isEditingSearch &&
-    !isDesktopFloatingPanel &&
-    mobilePanelStyle &&
-    typeof document !== "undefined"
-      ? createPortal(
-          <div
-            className="z-[90]"
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-            style={mobilePanelStyle}
-          >
-            {searchPanelContent}
-          </div>,
-          document.body
-        )
-      : null;
-
   return (
-    <>
-      <div
-        className={`relative grid min-w-0 gap-2 border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${
-          isMobileAttachedPanel
-            ? "z-30 rounded-t-lg rounded-b-none border-b-transparent"
-            : isEditingSearch
-              ? "z-30 rounded-lg"
-              : "rounded-lg"
-        }`}
-        ref={containerRef}
-        key={`${title}-${index}`}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div
+      className={`relative grid min-w-0 gap-2 border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${
+        isMobileInlinePanel
+          ? "z-30 rounded-t-lg rounded-b-none border-b-transparent"
+          : isEditingSearch
+            ? "z-30 rounded-lg"
+            : "rounded-lg"
+      }`}
+      ref={containerRef}
+      key={`${title}-${index}`}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <button
+          className="flex min-h-[60px] w-full min-w-0 items-center gap-3 text-left md:min-h-[54px]"
+          onClick={() => {
+            setIsEditingSearch(true);
+            setIsOpen(true);
+          }}
+          type="button"
+        >
+          {currentSlug ? (
+            <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
+          ) : (
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
+              -
+            </div>
+          )}
+          <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-[var(--text-primary)] md:text-sm">
+            {currentSlug ? getPokemonOptionLabel(currentSlug, pokemonOptions) : "Select pokemon..."}
+          </span>
+          {!currentSlug ? (
+            <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] -rotate-90" />
+          ) : null}
+        </button>
+        {currentSlug ? (
           <button
-            className="flex min-h-[60px] w-full min-w-0 items-center gap-3 text-left md:min-h-[54px]"
+            aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions)}`}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
             onClick={() => {
-              setIsEditingSearch(true);
-              setIsOpen(true);
+              onChange(updateSpritesAtIndex(sprites, index, ""));
+              closeSearchEditor();
             }}
             type="button"
           >
-            {currentSlug ? (
-              <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
-            ) : (
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
-                -
-              </div>
-            )}
-            <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-[var(--text-primary)] md:text-sm">
-              {currentSlug ? getPokemonOptionLabel(currentSlug, pokemonOptions) : "Select pokemon..."}
-            </span>
-            {!currentSlug ? (
-              <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] -rotate-90" />
-            ) : null}
+            <CloseIcon className="h-[18px] w-[18px]" />
           </button>
-          {currentSlug ? (
-            <button
-              aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions)}`}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
-              onClick={() => {
-                onChange(updateSpritesAtIndex(sprites, index, ""));
-                closeSearchEditor();
-              }}
-              type="button"
-            >
-              <CloseIcon className="h-[18px] w-[18px]" />
-            </button>
-          ) : null}
-        </div>
+        ) : null}
       </div>
-      {isMobileAttachedPanel && mobilePanelReservedHeight > 0 ? (
-        <div aria-hidden="true" className="pointer-events-none" style={{ height: mobilePanelReservedHeight - 1 }} />
-      ) : null}
+      {isMobileInlinePanel ? searchPanelContent : null}
       {floatingSearchPanel}
-      {mobileSearchPanel}
-    </>
+    </div>
   );
 }
 
