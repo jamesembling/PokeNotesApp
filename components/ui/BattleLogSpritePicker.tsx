@@ -246,23 +246,33 @@ function SpriteSearchSlot({
     }
 
     function syncMobilePanelPosition() {
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+
       const visualViewport = window.visualViewport;
       const viewportPadding = 12;
       const viewportTop = visualViewport?.offsetTop ?? 0;
       const viewportHeight = visualViewport?.height ?? window.innerHeight;
-      const maxHeight = Math.max(220, Math.min(420, viewportHeight - viewportPadding * 2));
-      const top =
-        viewportTop + Math.max(viewportPadding, viewportHeight - maxHeight - viewportPadding);
+      const viewportBottom = viewportTop + viewportHeight;
+      const rect = container.getBoundingClientRect();
+      const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+      const left = clamp(rect.left, viewportPadding, window.innerWidth - width - viewportPadding);
+      const top = rect.bottom + 6;
+      const availableBelow = viewportBottom - top - viewportPadding;
+      const maxHeight = Math.max(180, Math.min(320, availableBelow));
 
       setMobilePanelStyle({
-        left: viewportPadding,
+        left,
         maxHeight,
         position: "fixed",
-        right: viewportPadding,
-        top
+        top,
+        width
       });
     }
 
+    containerRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
     syncMobilePanelPosition();
     window.addEventListener("resize", syncMobilePanelPosition);
     window.addEventListener("orientationchange", syncMobilePanelPosition);
