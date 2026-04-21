@@ -1,13 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { StatCard } from "@/components/ui/StatCard";
-import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import {
   analyzeDecklist,
   getPokemonSpriteUrl,
@@ -61,7 +60,7 @@ export function ProbabilityCalculator() {
   const [deckInput, setDeckInput] = useState("");
   const [analysis, setAnalysis] = useState<CalculatorAnalysis | null>(null);
   const [deckVisualCards, setDeckVisualCards] = useState<CalculatorAnalysis["cards"]>([]);
-  const pokemonOptions = usePokemonOptions();
+  const pokemonOptions = usePokemonOptions(Boolean(analysis));
   const [activeTab, setActiveTab] = useState<TabId>("setup");
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"info" | "warn">("info");
@@ -133,9 +132,12 @@ export function ProbabilityCalculator() {
       }
 
       try {
+        const { sortDeckListCards } = await import("@/lib/deck-lists/sort");
         const sortedCards = await sortDeckListCards(analysis.cards);
         if (!cancelled) {
-          setDeckVisualCards(sortedCards as CalculatorAnalysis["cards"]);
+          startTransition(() => {
+            setDeckVisualCards(sortedCards as CalculatorAnalysis["cards"]);
+          });
         }
       } catch {
         if (!cancelled) {

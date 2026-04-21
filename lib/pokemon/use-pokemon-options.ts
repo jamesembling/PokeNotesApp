@@ -42,10 +42,14 @@ export async function loadPokemonOptions() {
   return pokemonOptionsPromise;
 }
 
-export function usePokemonOptions() {
+export function usePokemonOptions(enabled = true) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(pokemonOptionsCache);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     let cancelled = false;
 
     loadPokemonOptions()
@@ -63,7 +67,7 @@ export function usePokemonOptions() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [enabled]);
 
   return pokemonOptions;
 }

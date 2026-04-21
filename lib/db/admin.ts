@@ -1,6 +1,8 @@
 import { requireUser } from "@/lib/auth";
+import { cache } from "react";
 import { createAdminClient, hasAdminSupabaseAccess } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { measureServerCall } from "@/lib/server/perf";
 import type { AdminUser, CatalogHealth, Role } from "@/types/index";
 
 type ProfileRow = {
@@ -29,6 +31,11 @@ type AdminUsersResult = {
   users: AdminUser[];
   roleUpdatesEnabled: boolean;
   warning?: string;
+};
+
+type AdminUserSummary = {
+  userCount: number;
+  adminCount: number;
 };
 
 function sortUsers(users: AdminUser[]) {
@@ -103,7 +110,7 @@ function mapAdminUser(
   };
 }
 
-async function requireAdminAccess() {
+export const getAdminAccessContext = cache(async () => {
   const user = await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -116,177 +123,215 @@ async function requireAdminAccess() {
     throw error;
   }
 
-  if (data?.role !== "admin") {
+  return {
+    user,
+    role: data?.role === "admin" ? "admin" : "user"
+  } as const;
+});
+
+export const requireAdminAccess = cache(async () => {
+  const { role, user } = await getAdminAccessContext();
+
+  if (role !== "admin") {
     throw new Error("You do not have permission to use admin tools.");
   }
 
   return user;
+});
+
+export async function getAdminUserSummary(): Promise<AdminUserSummary> {
+  await requireAdminAccess();
+
+  return await measureServerCall("db.admin.userSummary", async () => {
+    const supabase = await createClient();
+    const [userCountResult, adminCountResult] = await Promise.all([
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin")
+    ]);
+
+    if (userCountResult.error) {
+      throw userCountResult.error;
+    }
+
+    if (adminCountResult.error) {
+      throw adminCountResult.error;
+    }
+
+    return {
+      userCount: userCountResult.count ?? 0,
+      adminCount: adminCountResult.count ?? 0
+    };
+  });
 }
 
 export async function getAdminUsers(): Promise<AdminUsersResult> {
   await requireAdminAccess();
 
-  if (hasAdminSupabaseAccess()) {
-    const supabase = createAdminClient();
-    const [profilesResult, decksResult, tournamentsResult, logsResult] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select(
-          [
-            "id",
-            "email",
-            "display_name",
-            "ptcgl_username",
-            "role",
-            "auth_account_created_at",
-            "last_login_at",
-            "last_active_at",
-            "login_count",
-            "created_at"
-          ].join(",")
-        ),
-      supabase.from("decks").select("user_id,deck_lists"),
-      supabase.from("tournaments").select("user_id"),
-      supabase.from("logs").select("user_id")
-    ]);
+  return await measureServerCall("db.admin.users", async () => {
+    if (hasAdminSupabaseAccess()) {
+      const supabase = createAdminClient();
+      const [profilesResult, decksResult, tournamentsResult, logsResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select(
+            [
+              "id",
+              "email",
+              "display_name",
+              "ptcgl_username",
+              "role",
+              "auth_account_created_at",
+              "last_login_at",
+              "last_active_at",
+              "login_count",
+              "created_at"
+            ].join(",")
+          ),
+        supabase.from("decks").select("user_id,deck_lists"),
+        supabase.from("tournaments").select("user_id"),
+        supabase.from("logs").select("user_id")
+      ]);
 
-    if (profilesResult.error) {
-      throw profilesResult.error;
+      if (profilesResult.error) {
+        throw profilesResult.error;
+      }
+
+      if (decksResult.error) {
+        throw decksResult.error;
+      }
+
+      if (tournamentsResult.error) {
+        throw tournamentsResult.error;
+      }
+
+      if (logsResult.error) {
+        throw logsResult.error;
+      }
+
+      const { deckCounts, deckListCounts } = mapDeckCounts(
+        (decksResult.data as DeckCountRow[] | null) ?? null
+      );
+      const tournamentCounts = mapCountRows(
+        (tournamentsResult.data as UserCountRow[] | null) ?? null
+      );
+      const logCounts = mapCountRows((logsResult.data as UserCountRow[] | null) ?? null);
+      const users = (((profilesResult.data ?? null) as unknown as ProfileRow[] | null) ?? []).map(
+        (row) => mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts)
+      );
+
+      return {
+        users: sortUsers(users),
+        roleUpdatesEnabled: true
+      };
     }
 
-    if (decksResult.error) {
-      throw decksResult.error;
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(
+        [
+          "id",
+          "email",
+          "display_name",
+          "ptcgl_username",
+          "role",
+          "auth_account_created_at",
+          "last_login_at",
+          "last_active_at",
+          "login_count",
+          "created_at"
+        ].join(",")
+      );
+
+    if (error) {
+      throw error;
     }
 
-    if (tournamentsResult.error) {
-      throw tournamentsResult.error;
-    }
-
-    if (logsResult.error) {
-      throw logsResult.error;
-    }
-
-    const { deckCounts, deckListCounts } = mapDeckCounts(
-      (decksResult.data as DeckCountRow[] | null) ?? null
-    );
-    const tournamentCounts = mapCountRows(
-      (tournamentsResult.data as UserCountRow[] | null) ?? null
-    );
-    const logCounts = mapCountRows((logsResult.data as UserCountRow[] | null) ?? null);
-    const users = (((profilesResult.data ?? null) as unknown as ProfileRow[] | null) ?? []).map((row) =>
-      mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts)
+    const users = ((((data ?? null) as unknown) as ProfileRow[] | null) ?? []).map((row) =>
+      mapAdminUser(
+        row,
+        new Map<string, number>(),
+        new Map<string, number>(),
+        new Map<string, number>(),
+        new Map<string, number>()
+      )
     );
 
     return {
       users: sortUsers(users),
-      roleUpdatesEnabled: true
+      roleUpdatesEnabled: false,
+      warning:
+        "Admin role updates are disabled until SUPABASE_SERVICE_ROLE_KEY is configured on the app."
     };
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(
-      [
-        "id",
-        "email",
-        "display_name",
-        "ptcgl_username",
-        "role",
-        "auth_account_created_at",
-        "last_login_at",
-        "last_active_at",
-        "login_count",
-        "created_at"
-      ].join(",")
-    );
-
-  if (error) {
-    throw error;
-  }
-
-  const users = ((((data ?? null) as unknown) as ProfileRow[] | null) ?? []).map((row) =>
-    mapAdminUser(
-      row,
-      new Map<string, number>(),
-      new Map<string, number>(),
-      new Map<string, number>(),
-      new Map<string, number>()
-    )
-  );
-
-  return {
-    users: sortUsers(users),
-    roleUpdatesEnabled: false,
-    warning:
-      "Admin role updates are disabled until SUPABASE_SERVICE_ROLE_KEY is configured on the app."
-  };
+  });
 }
 
 export async function getCatalogHealth(): Promise<CatalogHealth> {
   await requireAdminAccess();
 
-  const supabase = await createClient();
-  const [
-    pokemonCountResult,
-    archetypeCountResult,
-    excludedCountResult,
-    pokemonLastSyncedResult,
-    archetypeLastSyncedResult
-  ] = await Promise.all([
-    supabase.from("pokemon_catalog").select("slug", { count: "exact", head: true }),
-    supabase.from("archetype_catalog").select("id", { count: "exact", head: true }),
-    supabase
-      .from("archetype_catalog")
-      .select("id", { count: "exact", head: true })
-      .eq("is_excluded", true),
-    supabase
-      .from("pokemon_catalog")
-      .select("last_synced_at")
-      .order("last_synced_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("archetype_catalog")
-      .select("last_synced_at")
-      .order("last_synced_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-  ]);
+  return await measureServerCall("db.admin.catalogHealth", async () => {
+    const supabase = await createClient();
+    const [
+      pokemonCountResult,
+      archetypeCountResult,
+      excludedCountResult,
+      pokemonLastSyncedResult,
+      archetypeLastSyncedResult
+    ] = await Promise.all([
+      supabase.from("pokemon_catalog").select("slug", { count: "exact", head: true }),
+      supabase.from("archetype_catalog").select("id", { count: "exact", head: true }),
+      supabase
+        .from("archetype_catalog")
+        .select("id", { count: "exact", head: true })
+        .eq("is_excluded", true),
+      supabase
+        .from("pokemon_catalog")
+        .select("last_synced_at")
+        .order("last_synced_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("archetype_catalog")
+        .select("last_synced_at")
+        .order("last_synced_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ]);
 
-  if (pokemonCountResult.error) {
-    throw pokemonCountResult.error;
-  }
+    if (pokemonCountResult.error) {
+      throw pokemonCountResult.error;
+    }
 
-  if (archetypeCountResult.error) {
-    throw archetypeCountResult.error;
-  }
+    if (archetypeCountResult.error) {
+      throw archetypeCountResult.error;
+    }
 
-  if (excludedCountResult.error) {
-    throw excludedCountResult.error;
-  }
+    if (excludedCountResult.error) {
+      throw excludedCountResult.error;
+    }
 
-  if (pokemonLastSyncedResult.error) {
-    throw pokemonLastSyncedResult.error;
-  }
+    if (pokemonLastSyncedResult.error) {
+      throw pokemonLastSyncedResult.error;
+    }
 
-  if (archetypeLastSyncedResult.error) {
-    throw archetypeLastSyncedResult.error;
-  }
+    if (archetypeLastSyncedResult.error) {
+      throw archetypeLastSyncedResult.error;
+    }
 
-  return {
-    pokemonCatalogCount: pokemonCountResult.count ?? 0,
-    archetypeCatalogCount: archetypeCountResult.count ?? 0,
-    pokemonLastSyncedAt:
-      pokemonLastSyncedResult.data?.last_synced_at
-        ? String(pokemonLastSyncedResult.data.last_synced_at)
-        : undefined,
-    archetypeLastSyncedAt:
-      archetypeLastSyncedResult.data?.last_synced_at
-        ? String(archetypeLastSyncedResult.data.last_synced_at)
-        : undefined,
-    excludedArchetypeCount: excludedCountResult.count ?? 0
-  };
+    return {
+      pokemonCatalogCount: pokemonCountResult.count ?? 0,
+      archetypeCatalogCount: archetypeCountResult.count ?? 0,
+      pokemonLastSyncedAt:
+        pokemonLastSyncedResult.data?.last_synced_at
+          ? String(pokemonLastSyncedResult.data.last_synced_at)
+          : undefined,
+      archetypeLastSyncedAt:
+        archetypeLastSyncedResult.data?.last_synced_at
+          ? String(archetypeLastSyncedResult.data.last_synced_at)
+          : undefined,
+      excludedArchetypeCount: excludedCountResult.count ?? 0
+    };
+  });
 }
 
 export async function updateAdminUserRole(userId: string, role: Role) {

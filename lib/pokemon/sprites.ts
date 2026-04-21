@@ -1,5 +1,8 @@
 import type { PokemonOption } from "@/types/index";
 
+const normalizedPokemonOptionLookupCache = new WeakMap<PokemonOption[], Map<string, string>>();
+const pokemonOptionsBySlugCache = new WeakMap<PokemonOption[], Map<string, PokemonOption>>();
+
 const EXPLICIT_NAME_TO_SLUG: Record<string, string> = {
   "teal mask ogerpon": "ogerpon",
   "cornerstone mask ogerpon": "ogerpon-cornerstone",
@@ -145,6 +148,45 @@ function buildPokemonNameCandidates(name: string) {
   return Array.from(candidates);
 }
 
+function getNormalizedPokemonOptionLookup(pokemonOptions: PokemonOption[]) {
+  const cachedLookup = normalizedPokemonOptionLookupCache.get(pokemonOptions);
+  if (cachedLookup) {
+    return cachedLookup;
+  }
+
+  const normalizedLookup = new Map<string, string>();
+
+  pokemonOptions.forEach((option) => {
+    const normalizedLabel = normalizePokemonText(option.label);
+    const normalizedSlug = normalizePokemonText(option.slug.replace(/-/g, " "));
+
+    if (normalizedLabel) {
+      normalizedLookup.set(normalizedLabel, option.slug);
+    }
+    if (normalizedSlug) {
+      normalizedLookup.set(normalizedSlug, option.slug);
+    }
+  });
+
+  normalizedPokemonOptionLookupCache.set(pokemonOptions, normalizedLookup);
+  return normalizedLookup;
+}
+
+function getPokemonOptionsBySlug(pokemonOptions: PokemonOption[]) {
+  const cachedLookup = pokemonOptionsBySlugCache.get(pokemonOptions);
+  if (cachedLookup) {
+    return cachedLookup;
+  }
+
+  const optionsBySlug = new Map<string, PokemonOption>();
+  pokemonOptions.forEach((option) => {
+    optionsBySlug.set(option.slug, option);
+  });
+
+  pokemonOptionsBySlugCache.set(pokemonOptions, optionsBySlug);
+  return optionsBySlug;
+}
+
 export function resolvePokemonSpriteSlug(name: string, pokemonOptions?: PokemonOption[]) {
   const normalizedName = normalizePokemonText(name);
   if (EXPLICIT_NAME_TO_SLUG[normalizedName]) {
@@ -152,19 +194,7 @@ export function resolvePokemonSpriteSlug(name: string, pokemonOptions?: PokemonO
   }
 
   if (pokemonOptions?.length) {
-    const normalizedLookup = new Map<string, string>();
-
-    pokemonOptions.forEach((option) => {
-      const normalizedLabel = normalizePokemonText(option.label);
-      const normalizedSlug = normalizePokemonText(option.slug.replace(/-/g, " "));
-
-      if (normalizedLabel) {
-        normalizedLookup.set(normalizedLabel, option.slug);
-      }
-      if (normalizedSlug) {
-        normalizedLookup.set(normalizedSlug, option.slug);
-      }
-    });
+    const normalizedLookup = getNormalizedPokemonOptionLookup(pokemonOptions);
 
     for (const candidate of buildPokemonNameCandidates(name)) {
       const matchedSlug = normalizedLookup.get(candidate);
@@ -186,7 +216,7 @@ export function findPokemonOptionBySlug(slug: string, pokemonOptions?: PokemonOp
     return undefined;
   }
 
-  return pokemonOptions.find((option) => option.slug === slug);
+  return getPokemonOptionsBySlug(pokemonOptions).get(slug);
 }
 
 export function getPokemonSpriteUrl(name: string, pokemonOptions?: PokemonOption[]) {

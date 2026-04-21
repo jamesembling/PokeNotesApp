@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import { AdminUsersTable } from "@/components/ui/AdminUsersTable";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { getAdminUsers, getCatalogHealth } from "@/lib/db/admin";
+import { getAdminUserSummary, getAdminUsers, getCatalogHealth } from "@/lib/db/admin";
 
 function formatDateTime(value: string | undefined) {
   if (!value) {
@@ -19,11 +20,10 @@ function formatDateTime(value: string | undefined) {
 }
 
 export default async function AdminDashboardPage() {
-  const [{ users, roleUpdatesEnabled, warning }, catalogHealth] = await Promise.all([
-    getAdminUsers(),
+  const [userSummary, catalogHealth] = await Promise.all([
+    getAdminUserSummary(),
     getCatalogHealth()
   ]);
-  const adminCount = users.filter((user) => user.role === "admin").length;
 
   return (
     <>
@@ -40,8 +40,8 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="space-y-1">
           <p className="ui-eyebrow">Users</p>
-          <p className="text-3xl font-semibold text-[var(--text-primary)]">{users.length}</p>
-          <p className="text-sm text-[var(--text-muted)]">{adminCount} admin accounts</p>
+          <p className="text-3xl font-semibold text-[var(--text-primary)]">{userSummary.userCount}</p>
+          <p className="text-sm text-[var(--text-muted)]">{userSummary.adminCount} admin accounts</p>
         </Card>
         <Card className="space-y-1">
           <p className="ui-eyebrow">Pokemon Catalog</p>
@@ -72,24 +72,57 @@ export default async function AdminDashboardPage() {
         </Card>
       </div>
 
-      <Card className="space-y-6">
-        <div className="space-y-2">
-          <p className="ui-eyebrow">User Management</p>
-          <h2 className="ui-section-title">Accounts and Roles</h2>
-          <p className="text-sm text-[var(--text-muted)]">
-            Review trainer accounts, see recent activity, and change access levels.
-            {roleUpdatesEnabled
-              ? " Changes apply immediately."
-              : " Role changes are currently disabled until the service role key is configured."}
-          </p>
-        </div>
-
-        <AdminUsersTable
-          roleUpdatesEnabled={roleUpdatesEnabled}
-          users={users}
-          warning={warning}
-        />
-      </Card>
+      <Suspense fallback={<AdminUsersSectionFallback />}>
+        <AdminUsersSection />
+      </Suspense>
     </>
+  );
+}
+
+async function AdminUsersSection() {
+  const { users, roleUpdatesEnabled, warning } = await getAdminUsers();
+
+  return (
+    <Card className="space-y-6">
+      <div className="space-y-2">
+        <p className="ui-eyebrow">User Management</p>
+        <h2 className="ui-section-title">Accounts and Roles</h2>
+        <p className="text-sm text-[var(--text-muted)]">
+          Review trainer accounts, see recent activity, and change access levels.
+          {roleUpdatesEnabled
+            ? " Changes apply immediately."
+            : " Role changes are currently disabled until the service role key is configured."}
+        </p>
+      </div>
+
+      <AdminUsersTable
+        roleUpdatesEnabled={roleUpdatesEnabled}
+        users={users}
+        warning={warning}
+      />
+    </Card>
+  );
+}
+
+function AdminUsersSectionFallback() {
+  return (
+    <Card className="space-y-6">
+      <div className="space-y-2">
+        <p className="ui-eyebrow">User Management</p>
+        <h2 className="ui-section-title">Accounts and Roles</h2>
+        <p className="text-sm text-[var(--text-muted)]">
+          Loading trainer accounts and role controls...
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            className="h-20 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
+            key={index}
+          />
+        ))}
+      </div>
+    </Card>
   );
 }

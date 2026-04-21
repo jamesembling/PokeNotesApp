@@ -1,37 +1,24 @@
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/ui/Sidebar";
-import { requireUser } from "@/lib/auth";
+import { getAdminAccessContext } from "@/lib/db/admin";
 import { getDeckSelectionOptions } from "@/lib/db/decks";
 import { getCurrentProfile } from "@/lib/db/profile";
-import { createClient } from "@/lib/supabase/server";
-
-type ProfileRoleRow = {
-  role: "user" | "admin";
-};
 
 export default async function AdminLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await requireUser();
+  const { role, user } = await getAdminAccessContext();
+
+  if (role !== "admin") {
+    redirect("/logs");
+  }
+
   const [currentProfile, userDecks] = await Promise.all([
     getCurrentProfile(),
     getDeckSelectionOptions(user.id)
   ]);
-  const supabase = await createClient();
-
-  const { data: roleProfile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  const profileRole = (roleProfile as ProfileRoleRow | null)?.role;
-
-  if (profileRole !== "admin") {
-    redirect("/logs");
-  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)]">
