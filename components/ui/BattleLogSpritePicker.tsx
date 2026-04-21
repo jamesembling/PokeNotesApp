@@ -130,6 +130,7 @@ function SpriteSearchSlot({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const floatingPanelRef = useRef<HTMLDivElement | null>(null);
+  const mobilePanelFrameRef = useRef<number | null>(null);
   const slotOptions = useMemo(
     () => buildOptionsForSlot(currentSlug, sprites, pokemonOptions),
     [currentSlug, pokemonOptions, sprites]
@@ -245,34 +246,45 @@ function SpriteSearchSlot({
       return;
     }
 
+    function clearPendingFrame() {
+      if (mobilePanelFrameRef.current !== null) {
+        window.cancelAnimationFrame(mobilePanelFrameRef.current);
+        mobilePanelFrameRef.current = null;
+      }
+    }
+
     function syncMobilePanelPosition() {
       const container = containerRef.current;
       if (!container) {
         return;
       }
 
-      const visualViewport = window.visualViewport;
-      const viewportPadding = 12;
-      const viewportTop = visualViewport?.offsetTop ?? 0;
-      const viewportHeight = visualViewport?.height ?? window.innerHeight;
-      const viewportBottom = viewportTop + viewportHeight;
-      const rect = container.getBoundingClientRect();
-      const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
-      const left = clamp(rect.left, viewportPadding, window.innerWidth - width - viewportPadding);
-      const top = rect.bottom + 6;
-      const availableBelow = viewportBottom - top - viewportPadding;
-      const maxHeight = Math.max(180, Math.min(320, availableBelow));
+      clearPendingFrame();
+      container.scrollIntoView({ block: "nearest", inline: "nearest" });
+      mobilePanelFrameRef.current = window.requestAnimationFrame(() => {
+        const visualViewport = window.visualViewport;
+        const viewportPadding = 12;
+        const viewportTop = visualViewport?.offsetTop ?? 0;
+        const viewportHeight = visualViewport?.height ?? window.innerHeight;
+        const viewportBottom = viewportTop + viewportHeight;
+        const rect = container.getBoundingClientRect();
+        const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+        const left = clamp(rect.left, viewportPadding, window.innerWidth - width - viewportPadding);
+        const preferredTop = rect.bottom + 6;
+        const top = clamp(preferredTop, viewportTop + viewportPadding, viewportBottom - 180 - viewportPadding);
+        const availableBelow = viewportBottom - top - viewportPadding;
+        const maxHeight = Math.max(180, Math.min(320, availableBelow));
 
-      setMobilePanelStyle({
-        left,
-        maxHeight,
-        position: "fixed",
-        top,
-        width
+        setMobilePanelStyle({
+          left,
+          maxHeight,
+          position: "fixed",
+          top,
+          width
+        });
       });
     }
 
-    containerRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
     syncMobilePanelPosition();
     window.addEventListener("resize", syncMobilePanelPosition);
     window.addEventListener("orientationchange", syncMobilePanelPosition);
@@ -280,6 +292,7 @@ function SpriteSearchSlot({
     window.visualViewport?.addEventListener("scroll", syncMobilePanelPosition);
 
     return () => {
+      clearPendingFrame();
       window.removeEventListener("resize", syncMobilePanelPosition);
       window.removeEventListener("orientationchange", syncMobilePanelPosition);
       window.visualViewport?.removeEventListener("resize", syncMobilePanelPosition);
