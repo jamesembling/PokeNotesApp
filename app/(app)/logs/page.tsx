@@ -1,13 +1,13 @@
+import { Suspense } from "react";
 import { Card } from "@/components/ui/Card";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LogsManager } from "@/components/ui/LogsManager";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
-import { getDeckSelectionOptions } from "@/lib/db/decks";
+import { getDeckSelectionAndLinkCandidates } from "@/lib/db/decks";
 import { getLogsWindow, getLogSummaryStats } from "@/lib/db/logs";
 import {
-  getDeckLinkCandidates,
   resolveLinkedDeck,
   type DeckLinkCandidate
 } from "@/lib/log-import/deck-linking";
@@ -55,14 +55,8 @@ function attachLinkedDeckListNames(
 
 export default async function LogsPage() {
   const user = await requireUser();
-
-  const [stats, page, userDecks, deckLinkCandidates] = await Promise.all([
-    getLogSummaryStats(user.id),
-    getLogsWindow(user.id),
-    getDeckSelectionOptions(user.id),
-    getDeckLinkCandidates(user.id)
-  ]);
-  const logs = attachLinkedDeckListNames(page.logs, userDecks, deckLinkCandidates);
+  const userId = user.id;
+  const deckContextPromise = getDeckSelectionAndLinkCandidates(userId);
 
   return (
     <>
@@ -73,41 +67,103 @@ export default async function LogsPage() {
         ]}
         title="Battle Logs"
         action={
-          <LazyImportLogButton
-            className="w-full justify-center sm:w-auto"
-            initialUserDecks={userDecks}
-          />
+          <LazyImportLogButton className="w-full justify-center sm:w-auto" />
         }
       />
 
-      <Card>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <StatCard
-            label="Total Logs"
-            value={stats.total}
-          />
-          <StatCard
-            label="Wins"
-            value={stats.wins}
-            valueColor="win"
-          />
-          <StatCard
-            label="Losses"
-            value={stats.losses}
-            valueColor="loss"
-          />
-        </div>
-      </Card>
-      <Card>
-        <LogsManager
-          initialCanLoadMore={page.hasMore}
-          initialLogs={logs}
-          initialNextWindowEndDate={page.nextWindowEndDate}
-          initialWindowEndDate={page.windowEndDate}
-          initialWindowStartDate={page.windowStartDate}
-          userDecks={userDecks}
+      <Suspense fallback={<LogsSummaryFallback />}>
+        <LogsSummaryCards userId={userId} />
+      </Suspense>
+
+      <Suspense fallback={<LogsManagerFallback />}>
+        <LogsWorkspace
+          deckContextPromise={deckContextPromise}
+          userId={userId}
         />
-      </Card>
+      </Suspense>
     </>
+  );
+}
+
+async function LogsSummaryCards({ userId }: { userId: string }) {
+  const stats = await getLogSummaryStats(userId);
+
+  return (
+    <Card>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Total Logs"
+          value={stats.total}
+        />
+        <StatCard
+          label="Wins"
+          value={stats.wins}
+          valueColor="win"
+        />
+        <StatCard
+          label="Losses"
+          value={stats.losses}
+          valueColor="loss"
+        />
+      </div>
+    </Card>
+  );
+}
+
+async function LogsWorkspace({
+  deckContextPromise,
+  userId
+}: {
+  deckContextPromise: ReturnType<typeof getDeckSelectionAndLinkCandidates>;
+  userId: string;
+}) {
+  const [{ deckLinkCandidates, userDecks }, page] = await Promise.all([
+    deckContextPromise,
+    getLogsWindow(userId)
+  ]);
+  const logs = attachLinkedDeckListNames(page.logs, userDecks, deckLinkCandidates);
+
+  return (
+    <Card>
+      <LogsManager
+        initialCanLoadMore={page.hasMore}
+        initialLogs={logs}
+        initialNextWindowEndDate={page.nextWindowEndDate}
+        initialWindowEndDate={page.windowEndDate}
+        initialWindowStartDate={page.windowStartDate}
+        userDecks={userDecks}
+      />
+    </Card>
+  );
+}
+
+function LogsSummaryFallback() {
+  return (
+    <Card>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            className="h-24 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
+            key={index}
+          />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function LogsManagerFallback() {
+  return (
+    <Card>
+      <div className="flex flex-col gap-4">
+        <div className="h-5 w-32 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            className="h-20 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
+            key={index}
+          />
+        ))}
+      </div>
+    </Card>
   );
 }

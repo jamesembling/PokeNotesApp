@@ -337,6 +337,28 @@ function uniqueStrings(values) {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
+function validateRequiredMatchGroups(requiredMatchGroups, context) {
+  const slugToGroupIndexes = new Map();
+
+  requiredMatchGroups.forEach((group, groupIndex) => {
+    group.forEach((slug) => {
+      const seenInGroups = slugToGroupIndexes.get(slug) ?? [];
+      seenInGroups.push(groupIndex + 1);
+      slugToGroupIndexes.set(slug, seenInGroups);
+    });
+  });
+
+  const overlappingEntries = Array.from(slugToGroupIndexes.entries())
+    .filter(([, groupIndexes]) => groupIndexes.length > 1)
+    .map(([slug, groupIndexes]) => `${slug} (groups ${groupIndexes.join(", ")})`);
+
+  if (overlappingEntries.length > 0) {
+    throw new Error(
+      `Row ${context.rowNumber} (${context.label}) has overlapping required match groups: ${overlappingEntries.join("; ")}`
+    );
+  }
+}
+
 function buildArchetypeId(sprites) {
   return uniqueStrings(
     sprites
@@ -424,6 +446,11 @@ function parseArchetypeSheet(csvText, pokemonLookup) {
       .map((value) => parseNameListCell(value))
       .filter((group) => group.length > 0)
       .map((group) => uniqueStrings(group.map((name) => resolvePokemonSlug(name, pokemonLookup))));
+
+    validateRequiredMatchGroups(requiredMatchGroups, {
+      rowNumber: rowIndex + 2,
+      label: spriteLabels.join(" / "),
+    });
 
     const fallbackGroups =
       requiredMatchGroups.length > 0

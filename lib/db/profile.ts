@@ -252,8 +252,7 @@ export async function getCurrentProfile(): Promise<UserProfile> {
     };
 
     after(async () => {
-      const activityClient = await createClient();
-      const { error: activityError } = await activityClient
+      const { error: activityError } = await supabase
         .from("profiles")
         .update({ last_active_at: nextLastActiveAt })
         .eq("id", user.id);

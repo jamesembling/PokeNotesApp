@@ -23,6 +23,8 @@ function createCatalog(): IdentificationCatalog {
         ["pidgeotto", ["pidgey"]],
         ["blaziken", ["combusken", "torchic"]],
         ["combusken", ["torchic"]],
+        ["dusknoir", ["dusclops", "duskull"]],
+        ["dusclops", ["duskull"]],
         ["dragapult", ["drakloak", "dreepy"]],
         ["drakloak", ["dreepy"]]
       ]),
@@ -36,6 +38,9 @@ function createCatalog(): IdentificationCatalog {
         ["blaziken", "torchic"],
         ["combusken", "torchic"],
         ["torchic", "torchic"],
+        ["dusknoir", "duskull"],
+        ["dusclops", "duskull"],
+        ["duskull", "duskull"],
         ["dragapult", "dreepy"],
         ["drakloak", "dreepy"],
         ["dreepy", "dreepy"]
@@ -78,6 +83,19 @@ function createCatalog(): IdentificationCatalog {
           }
         ],
         [
+          "dragapult+dusknoir",
+          {
+            id: "dragapult+dusknoir",
+            label: "Dragapult / Dusknoir",
+            sprites: ["dragapult", "dusknoir"],
+            detectionSprites: ["dragapult", "dusknoir", "dreepy", "drakloak", "duskull", "dusclops"],
+            requiredMatchGroups: [
+              ["dreepy", "drakloak", "dragapult"],
+              ["duskull", "dusclops", "dusknoir"]
+            ]
+          }
+        ],
+        [
           "snorlax",
           {
             id: "snorlax",
@@ -93,9 +111,12 @@ function createCatalog(): IdentificationCatalog {
         ["charizard", ["charizard-pidgeot"]],
         ["pidgeot", ["charizard-pidgeot"]],
         ["dragapult", ["dragapult", "blaziken+dragapult"]],
+        ["dusknoir", ["dragapult+dusknoir"]],
         ["blaziken", ["blaziken+dragapult"]],
         ["dreepy", ["dragapult", "blaziken+dragapult"]],
         ["drakloak", ["dragapult", "blaziken+dragapult"]],
+        ["duskull", ["dragapult+dusknoir"]],
+        ["dusclops", ["dragapult+dusknoir"]],
         ["snorlax", ["snorlax"]],
         ["torchic", ["blaziken+dragapult"]],
         ["combusken", ["blaziken+dragapult"]]
@@ -104,6 +125,7 @@ function createCatalog(): IdentificationCatalog {
         ["charmander", ["charizard-pidgeot"]],
         ["pidgey", ["charizard-pidgeot"]],
         ["dreepy", ["dragapult", "blaziken+dragapult"]],
+        ["duskull", ["dragapult+dusknoir"]],
         ["torchic", ["blaziken+dragapult"]]
       ])
     }
@@ -160,6 +182,30 @@ test("identifyLikelyArchetype counts pre-evolutions toward required match groups
     label: "Charizard / Pidgeot",
     sprites: ["charizard", "pidgeot"],
     confidence: 66
+  });
+});
+
+test("identifyLikelyArchetype does not satisfy Dusknoir evidence with Dragapult pre-evolutions", () => {
+  const catalog = createCatalog();
+
+  const result = identifyLikelyArchetype({
+    evidence: {
+      lines: [],
+      normalizedText: "dragapult ex",
+      mentionCounts: new Map([
+        ["dreepy", 3],
+        ["drakloak", 5],
+        ["dragapult", 1]
+      ])
+    },
+    catalog
+  });
+
+  assert.deepEqual(result, {
+    archetypeId: "dragapult",
+    label: "Dragapult",
+    sprites: ["dragapult"],
+    confidence: 166
   });
 });
 

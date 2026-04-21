@@ -4,12 +4,6 @@ import type { User } from "@supabase/supabase-js";
 import { measureServerCall } from "@/lib/server/perf";
 import { createClient } from "@/lib/supabase/server";
 
-/*
- * Perf pass summary:
- * - Was slow: protected requests refreshed auth in middleware and then fetched the user again in SSR.
- * - Changed: middleware + server auth now use verified claims, while hot DB stats use count-only queries.
- * - Better: fewer round trips and less row materialization, with the same server-first protection model.
- */
 type AuthenticatedUser = Pick<
   User,
   "id" | "email" | "app_metadata" | "user_metadata" | "role"

@@ -4,10 +4,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
-import { getDeckSelectionOptions, getDeckWithList } from "@/lib/db/decks";
+import { getDeckSelectionAndLinkCandidates, getDeckWithList } from "@/lib/db/decks";
 import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogById } from "@/lib/db/logs";
-import { getDeckLinkCandidates, resolveLinkedDeck } from "@/lib/log-import/deck-linking";
+import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 import { getAppOrigin } from "@/lib/server/app-url";
 
 type LogDetailPageProps = {
@@ -32,11 +32,11 @@ function formatImportedAt(value: string) {
 export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const user = await requireUser();
   const { id } = await params;
+  const userId = user.id;
 
-  const [log, userDecks, deckLinkCandidates, appOrigin] = await Promise.all([
-    getLogById(user.id, id),
-    getDeckSelectionOptions(user.id),
-    getDeckLinkCandidates(user.id),
+  const [log, { userDecks, deckLinkCandidates }, appOrigin] = await Promise.all([
+    getLogById(userId, id),
+    getDeckSelectionAndLinkCandidates(userId),
     getAppOrigin()
   ]);
 
@@ -92,13 +92,13 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const linkedDeckList = linkedDeck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
   const linkedDeckWithList =
     resolvedLinkedDeckId && log.linkedDeckListId
-      ? await getDeckWithList(user.id, resolvedLinkedDeckId, log.linkedDeckListId)
+      ? await getDeckWithList(userId, resolvedLinkedDeckId, log.linkedDeckListId)
       : null;
   const linkedDeckListSortedCards = linkedDeckWithList?.deckList.sortedCards ?? [];
   const linkedStrategyLabel =
     linkedDeckWithList?.deckList.name ?? linkedDeck?.deckName ?? "No strategy linked";
   const timestampLabel = formatImportedAt(log.importedAt);
-  const [activeShare] = await listActiveSharesForOwnerLog(user.id, log.id);
+  const [activeShare] = await listActiveSharesForOwnerLog(userId, log.id);
   const activeShareState = activeShare
     ? {
         expiresAt: activeShare.expiresAt,

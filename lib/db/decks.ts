@@ -12,6 +12,7 @@ import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import { normalizeText } from "@/lib/log-import/normalization";
 import { getAllLogsForDeck, getBattleLogSummaryStats } from "@/lib/db/logs";
+import type { DeckLinkCandidate } from "@/lib/log-import/deck-linking";
 import { measureServerCall } from "@/lib/server/perf";
 import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
 import type { IdentificationCatalog } from "@/lib/log-import/types";
@@ -126,6 +127,10 @@ type DeckListLookupRow = {
 };
 
 type DeckSelectionRow = Pick<DeckSummaryRow, "id" | "deck_name" | "deck_lists">;
+type DeckSelectionAndLinkRow = Pick<
+  DeckSummaryRow,
+  "id" | "deck_name" | "deck_lists" | "deck_pokemon"
+>;
 
 type DeckMappingContext = {
   catalog: IdentificationCatalog;
@@ -558,6 +563,14 @@ function mapDeckSelection(row: DeckSelectionRow): DeckSelectionOption {
   };
 }
 
+function mapDeckLinkCandidate(row: DeckSelectionAndLinkRow): DeckLinkCandidate {
+  return {
+    id: row.id,
+    deckName: row.deck_name,
+    deckPokemon: parseStringArray(row.deck_pokemon)
+  };
+}
+
 async function mapDeck(row: DeckRow, context: DeckMappingContext): Promise<Deck> {
   const deckSummary = await mapDeckSummary(row, context);
   const hydratedDeckLists = parseDeckLists(row.deck_lists).map((deckList) => ({
@@ -627,6 +640,33 @@ export const getDeckSelectionOptions = cache(async function getDeckSelectionOpti
   }
 
   return (((data ?? []) as unknown) as DeckSelectionRow[]).map(mapDeckSelection);
+});
+
+export const getDeckSelectionAndLinkCandidates = cache(async function getDeckSelectionAndLinkCandidates(
+  userId: string
+): Promise<{
+  userDecks: DeckSelectionOption[];
+  deckLinkCandidates: DeckLinkCandidate[];
+}> {
+  const supabase = await createClient();
+  const { data, error } = await measureServerCall("db.decks.selectionAndLinkCandidates", async () =>
+    await supabase
+      .from("decks")
+      .select(["id", "deck_name", "deck_lists", "deck_pokemon"].join(","))
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = (((data ?? []) as unknown) as DeckSelectionAndLinkRow[]).map((row) => row);
+
+  return {
+    userDecks: rows.map(mapDeckSelection),
+    deckLinkCandidates: rows.map(mapDeckLinkCandidate)
+  };
 });
 
 export const getDeckById = cache(async function getDeckById(
