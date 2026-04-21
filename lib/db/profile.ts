@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
@@ -234,19 +235,23 @@ export async function getCurrentProfile(): Promise<UserProfile> {
 
   if (profileRow && shouldRefreshLastActive(profileRow.last_active_at)) {
     const nextLastActiveAt = new Date().toISOString();
-    const { error: activityError } = await supabase
-      .from("profiles")
-      .update({ last_active_at: nextLastActiveAt })
-      .eq("id", user.id);
-
-    if (activityError) {
-      throw activityError;
-    }
 
     profileRow = {
       ...profileRow,
       last_active_at: nextLastActiveAt
     };
+
+    after(async () => {
+      const activityClient = await createClient();
+      const { error: activityError } = await activityClient
+        .from("profiles")
+        .update({ last_active_at: nextLastActiveAt })
+        .eq("id", user.id);
+
+      if (activityError) {
+        console.error("[profile] failed to refresh last_active_at", activityError);
+      }
+    });
   }
 
   return mapProfileRowToUserProfile(user, profileRow);

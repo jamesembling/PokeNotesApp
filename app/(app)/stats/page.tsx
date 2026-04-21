@@ -1,7 +1,7 @@
+import { Suspense } from "react";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { requireUser } from "@/lib/auth";
 import { getLogStatsOverview } from "@/lib/db/logs";
 
 function formatMetric(value: number) {
@@ -9,8 +9,29 @@ function formatMetric(value: number) {
 }
 
 export default async function StatsPage() {
-  const user = await requireUser();
-  const overview = await getLogStatsOverview(user.id);
+  return (
+    <>
+      <PageHeader
+        breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Stats" }]}
+        title="Stats"
+      />
+
+      <Card className="grid gap-5">
+        <div className="space-y-2">
+          <p className="ui-eyebrow">Overview</p>
+          <h2 className="ui-section-title">Battle Log Totals</h2>
+        </div>
+
+        <Suspense fallback={<StatsOverviewFallback />}>
+          <StatsOverviewGrid />
+        </Suspense>
+      </Card>
+    </>
+  );
+}
+
+async function StatsOverviewGrid() {
+  const overview = await getLogStatsOverview();
   const metrics = [
     {
       label: "Games Played",
@@ -49,29 +70,28 @@ export default async function StatsPage() {
   ];
 
   return (
-    <>
-      <PageHeader
-        breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Stats" }]}
-        title="Stats"
-      />
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {metrics.map((metric) => (
+        <StatCard
+          key={metric.label}
+          label={metric.label}
+          value={metric.value}
+          valueColor={metric.valueColor}
+        />
+      ))}
+    </div>
+  );
+}
 
-      <Card className="grid gap-5">
-        <div className="space-y-2">
-          <p className="ui-eyebrow">Overview</p>
-          <h2 className="ui-section-title">Battle Log Totals</h2>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((metric) => (
-            <StatCard
-              key={metric.label}
-              label={metric.label}
-              value={metric.value}
-              valueColor={metric.valueColor}
-            />
-          ))}
-        </div>
-      </Card>
-    </>
+function StatsOverviewFallback() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div
+          className="h-24 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
+          key={index}
+        />
+      ))}
+    </div>
   );
 }

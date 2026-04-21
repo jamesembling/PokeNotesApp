@@ -1,4 +1,6 @@
+import { cache } from "react";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth";
 import { measureServerCall } from "@/lib/server/perf";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 import type { DeckLinkCandidate } from "@/lib/log-import/deck-linking";
@@ -272,7 +274,9 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
   };
 }
 
-export async function getLogStatsOverview(userId: string): Promise<LogStatsOverview> {
+export const getLogStatsOverview = cache(async function getLogStatsOverview(
+  userId?: string
+): Promise<LogStatsOverview> {
   const supabase = await logsDbTestHooks.createClient();
   const { data, error } = await measureServerCall("db.logs.statsOverviewRpc", async () =>
     await supabase.rpc("get_log_stats_overview")
@@ -301,8 +305,10 @@ export async function getLogStatsOverview(userId: string): Promise<LogStatsOverv
 
   const { data: fallbackData, error: fallbackError } = await measureServerCall(
     "db.logs.statsOverviewFallback",
-    async () =>
-      await supabase
+    async () => {
+      const resolvedUserId = userId || (await requireUser()).id;
+
+      return await supabase
         .from("logs")
         .select(
           [
@@ -315,7 +321,8 @@ export async function getLogStatsOverview(userId: string): Promise<LogStatsOverv
             "self_mulligans"
           ].join(",")
         )
-        .eq("user_id", userId)
+        .eq("user_id", resolvedUserId);
+    }
   );
 
   if (fallbackError) {
@@ -360,7 +367,7 @@ export async function getLogStatsOverview(userId: string): Promise<LogStatsOverv
       trackedPrizes: 0
     }
   );
-}
+});
 
 export async function getLogsWindow(
   userId: string,

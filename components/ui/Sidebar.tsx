@@ -17,7 +17,7 @@ type SidebarProfile = {
 };
 
 type SidebarProps = {
-  userDecks: DeckSelectionOption[];
+  userDecks?: DeckSelectionOption[];
   profile: SidebarProfile;
 };
 
@@ -47,7 +47,7 @@ function SectionLabel({ children }: { children: string }) {
   return <p className="ui-eyebrow">{children}</p>;
 }
 
-export function Sidebar({ profile, userDecks }: SidebarProps) {
+export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
