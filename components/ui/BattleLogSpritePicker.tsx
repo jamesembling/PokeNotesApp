@@ -59,7 +59,7 @@ function SpriteThumb({
       alt={label}
       className="h-12 w-12 shrink-0 object-contain"
       height={48}
-      onError={(event) => {
+      onError={() => {
         setHasError(true);
       }}
       sizes="48px"
@@ -125,6 +125,7 @@ function SpriteSearchSlot({
   const [isEditingSearch, setIsEditingSearch] = useState(false);
   const [isDesktopFloatingPanel, setIsDesktopFloatingPanel] = useState(false);
   const [floatingPanelStyle, setFloatingPanelStyle] = useState<CSSProperties | null>(null);
+  const [mobilePanelStyle, setMobilePanelStyle] = useState<CSSProperties | null>(null);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -235,6 +236,44 @@ function SpriteSearchSlot({
     return () => {
       window.removeEventListener("resize", syncFloatingPanelPosition);
       window.removeEventListener("scroll", syncFloatingPanelPosition, true);
+    };
+  }, [isDesktopFloatingPanel, isEditingSearch]);
+
+  useEffect(() => {
+    if (!isEditingSearch || isDesktopFloatingPanel) {
+      setMobilePanelStyle(null);
+      return;
+    }
+
+    function syncMobilePanelPosition() {
+      const visualViewport = window.visualViewport;
+      const viewportPadding = 12;
+      const viewportTop = visualViewport?.offsetTop ?? 0;
+      const viewportHeight = visualViewport?.height ?? window.innerHeight;
+      const maxHeight = Math.max(220, Math.min(420, viewportHeight - viewportPadding * 2));
+      const top =
+        viewportTop + Math.max(viewportPadding, viewportHeight - maxHeight - viewportPadding);
+
+      setMobilePanelStyle({
+        left: viewportPadding,
+        maxHeight,
+        position: "fixed",
+        right: viewportPadding,
+        top
+      });
+    }
+
+    syncMobilePanelPosition();
+    window.addEventListener("resize", syncMobilePanelPosition);
+    window.addEventListener("orientationchange", syncMobilePanelPosition);
+    window.visualViewport?.addEventListener("resize", syncMobilePanelPosition);
+    window.visualViewport?.addEventListener("scroll", syncMobilePanelPosition);
+
+    return () => {
+      window.removeEventListener("resize", syncMobilePanelPosition);
+      window.removeEventListener("orientationchange", syncMobilePanelPosition);
+      window.visualViewport?.removeEventListener("resize", syncMobilePanelPosition);
+      window.visualViewport?.removeEventListener("scroll", syncMobilePanelPosition);
     };
   }, [isDesktopFloatingPanel, isEditingSearch]);
 
@@ -367,6 +406,30 @@ function SpriteSearchSlot({
         )
       : null;
 
+  const mobileSearchPanel =
+    isEditingSearch &&
+    !isDesktopFloatingPanel &&
+    mobilePanelStyle &&
+    typeof document !== "undefined"
+      ? createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-[89] bg-transparent"
+              onClick={closeSearchEditor}
+            />
+            <div
+              className="z-[90]"
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+              style={mobilePanelStyle}
+            >
+              {searchPanelContent}
+            </div>
+          </>,
+          document.body
+        )
+      : null;
+
   return (
     <div
       className={`relative grid min-w-0 gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${isEditingSearch ? "z-30" : ""}`}
@@ -410,14 +473,8 @@ function SpriteSearchSlot({
           </button>
         ) : null}
       </div>
-      {isEditingSearch && !isDesktopFloatingPanel ? (
-        <div
-          className="absolute left-0 right-0 top-full z-20 mt-2"
-        >
-          {searchPanelContent}
-        </div>
-      ) : null}
       {floatingSearchPanel}
+      {mobileSearchPanel}
     </div>
   );
 }
