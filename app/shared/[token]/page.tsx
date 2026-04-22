@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName,
@@ -108,13 +109,17 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
     sharedLog.payload.log.importedAt || sharedLog.createdAt
   );
   const expiryLabel = formatExpiry(sharedLog.expiresAt);
-  const linkedDeckListSortedCards =
+  const [linkedDeckListSortedCards, actionTagOverrides] = await Promise.all([
     sharedLog.payload.linkedDeckListRawList?.trim()
-      ? await sortDeckListCards(parseDeckList(sharedLog.payload.linkedDeckListRawList))
-      : sharedLog.payload.linkedDeckListSortedCards &&
-          sharedLog.payload.linkedDeckListSortedCards.length > 0
-        ? sharedLog.payload.linkedDeckListSortedCards
-        : [];
+      ? sortDeckListCards(parseDeckList(sharedLog.payload.linkedDeckListRawList))
+      : Promise.resolve(
+          sharedLog.payload.linkedDeckListSortedCards &&
+            sharedLog.payload.linkedDeckListSortedCards.length > 0
+            ? sharedLog.payload.linkedDeckListSortedCards
+            : []
+        ),
+    resolveBattleLogActionTagOverrides(sharedLog.payload.log.sections)
+  ]);
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -125,6 +130,7 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
         />
 
         <BattleLogDetailView
+          actionTagOverrides={actionTagOverrides}
           linkedDeckListFormat={sharedLog.payload.linkedDeckListFormat}
           linkedDeckListName={sharedLog.payload.linkedDeckListName}
           linkedDeckListNotes={sharedLog.payload.linkedDeckListNotes}

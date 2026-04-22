@@ -3,6 +3,7 @@ import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
+import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import { getDeckSelectionAndLinkCandidates, getDeckWithList } from "@/lib/db/decks";
 import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
@@ -98,7 +99,10 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const linkedStrategyLabel =
     linkedDeckWithList?.deckList.name ?? linkedDeck?.deckName ?? "No strategy linked";
   const timestampLabel = formatImportedAt(log.importedAt);
-  const [activeShare] = await listActiveSharesForOwnerLog(userId, log.id);
+  const [[activeShare], actionTagOverrides] = await Promise.all([
+    listActiveSharesForOwnerLog(userId, log.id),
+    resolveBattleLogActionTagOverrides(log.sections)
+  ]);
   const activeShareState = activeShare
     ? {
         expiresAt: activeShare.expiresAt,
@@ -114,13 +118,14 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
           breadcrumb={[
             { label: "Poke Notes", href: "/" },
             { label: "Battle Logs", href: "/logs" },
-            { label: opponentDeckName }
+            { label: `VS ${opponentDeckName}` }
           ]}
           title=" "
         />
 
         <BattleLogDetailShell
           activeShare={activeShareState}
+          actionTagOverrides={actionTagOverrides}
           linkedDeckId={linkedDeck?.id}
           linkedDeckListFormat={linkedDeckWithList?.deckList.format}
           linkedDeckListId={linkedDeckList?.id}

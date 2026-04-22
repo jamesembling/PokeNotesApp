@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { revokeLogShareAction } from "@/app/(app)/logs/actions";
+import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Button } from "@/components/ui/Button";
 import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
@@ -20,6 +21,7 @@ type ShareFeedback = {
 
 type BattleLogDetailShellProps = {
   activeShare?: ShareLinkState | null;
+  actionTagOverrides?: BattleLogActionTagOverrides;
   linkedDeckId?: string;
   linkedDeckListFormat?: string;
   linkedDeckListId?: string;
@@ -50,6 +52,7 @@ const feedbackClassName: Record<ShareTone, string> = {
 
 export function BattleLogDetailShell({
   activeShare = null,
+  actionTagOverrides,
   linkedDeckId,
   linkedDeckListFormat,
   linkedDeckListId,
@@ -95,6 +98,7 @@ export function BattleLogDetailShell({
 
   return (
     <BattleLogDetailView
+      actionTagOverrides={actionTagOverrides}
       actions={
         <>
           <LazyEditLogButton log={log} userDecks={userDecks} />
