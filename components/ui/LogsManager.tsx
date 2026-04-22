@@ -408,7 +408,7 @@ export function LogsManager({
         </Card>
       ) : null}
 
-      <section className="grid gap-5 rounded-[22px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-center">
+      <section className="grid gap-5 py-2 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-center">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <p className="ui-eyebrow">Workspace Tools</p>
@@ -522,10 +522,10 @@ export function LogsManager({
       />
 
       {groups.length > 0 ? (
-        <div className="divide-y divide-[var(--border)] rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface)]">
+        <div>
           {groups.map((group, index) => (
             <details
-              className="group px-4 py-1 first:rounded-t-[24px] last:rounded-b-[24px] sm:px-5"
+              className="group border-b border-[var(--border)] last:border-b-0"
               key={group.date}
               onToggle={(event) => toggleGroup(group.date, event.currentTarget.open)}
               open={openGroupDates.includes(group.date) || (index === 0 && openGroupDates.length === 0)}
@@ -534,58 +534,56 @@ export function LogsManager({
                 containIntrinsicSize: "128px"
               }}
             >
-              <summary className="grid cursor-pointer list-none gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center [&::-webkit-details-marker]:hidden">
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                  <div>
-                    <div className="flex items-start justify-between gap-3 sm:block">
-                      <div>
-                        <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
-                          {formatDayDate(group.date)}
-                        </h3>
-                        <p className="mt-1 text-sm text-[var(--text-muted)]">
-                          <span className="sm:hidden">
+              <summary className="cursor-pointer list-none py-5 [&::-webkit-details-marker]:hidden">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                    <div>
+                      <div className="flex items-start justify-between gap-3 sm:block">
+                        <div>
+                          <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                            {formatDayDate(group.date)}
+                          </h3>
+                          <p className="mt-1 text-sm text-[var(--text-muted)]">
                             {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
-                          </span>
-                          <span className="hidden sm:inline">
-                            {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
-                          </span>
-                        </p>
-                      </div>
+                          </p>
+                        </div>
 
-                      <div className="text-right sm:hidden">
-                        <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
-                          {group.wins}-{group.losses}
-                        </p>
-                        <div className="mt-1 flex justify-end">
-                          <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180" />
+                        <div className="text-right sm:hidden">
+                          <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
+                            {group.wins}-{group.losses}
+                          </p>
+                          <div className="mt-1 flex items-center justify-end gap-2 text-[0.8rem] text-[var(--text-muted)]">
+                            <span>{group.logs.length} total</span>
+                            <ChevronIcon className="h-4 w-4 shrink-0 transition group-open:rotate-180" />
+                          </div>
                         </div>
                       </div>
                     </div>
+                    <div className="hidden w-[13rem] grid-cols-2 gap-2 self-center sm:grid">
+                      <Badge className="w-full justify-center self-center" variant="win">
+                        {group.wins} wins
+                      </Badge>
+                      <Badge className="w-full justify-center self-center" variant="loss">
+                        {group.losses} losses
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="hidden w-[13rem] grid-cols-2 gap-2 self-center sm:grid">
-                    <Badge className="w-full justify-center self-center" variant="win">
-                      {group.wins} wins
-                    </Badge>
-                    <Badge className="w-full justify-center self-center" variant="loss">
-                      {group.losses} losses
-                    </Badge>
+                  <div className="hidden items-center self-center lg:flex lg:gap-2.5">
+                    <div className="text-right">
+                      <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
+                        {group.wins}-{group.losses}
+                      </p>
+                      <p className="mt-1 text-[0.95rem] leading-none text-[var(--text-muted)]">
+                        {group.logs.length} total
+                      </p>
+                    </div>
+                    <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180" />
                   </div>
-                </div>
-                <div className="hidden items-center self-center lg:flex lg:gap-2.5">
-                  <div className="text-right">
-                    <p className="hidden font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)] lg:block">
-                      {group.wins}-{group.losses}
-                    </p>
-                    <p className="mt-1 hidden text-[0.95rem] leading-none text-[var(--text-muted)] lg:block">
-                      {group.logs.length} total
-                    </p>
-                  </div>
-                  <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180" />
                 </div>
               </summary>
 
               {openGroupDates.includes(group.date) ? (
-                <div className="flex flex-col gap-3 pb-5 pt-2">
+                <div className="flex flex-col gap-3 border-t border-[var(--border)] pb-5 pt-4">
                   {group.logs.map((log) => (
                     <div className="flex flex-col gap-3" key={log.id}>
                       <LogRow
