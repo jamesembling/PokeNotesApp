@@ -47,7 +47,7 @@ test("classifyBattleLogActionTitle normalizes accents before matching conservati
   );
 });
 
-test("getBattleLogActionTagLabel keeps recognized labels short and gives useful verb fallbacks", () => {
+test("getBattleLogActionTagLabel keeps recognized labels short and gives useful fallbacks", () => {
   assert.equal(getBattleLogActionTagLabel("James drew a card."), "Draw");
   assert.equal(getBattleLogActionTagLabel("James played Buddy-Buddy Poffin."), "Play");
   assert.equal(getBattleLogActionTagLabel("James attached Darkness Energy to Munkidori."), "Attach");

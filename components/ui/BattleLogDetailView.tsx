@@ -15,8 +15,21 @@ import type { BattleLog, DeckCard, LogSection } from "@/types/index";
 
 const SETUP_SECTION_LABELS = new Set(["setup"]);
 
-function SectionKicker({ children }: { children: ReactNode }) {
-  return <p className="ui-eyebrow">{children}</p>;
+function ChevronIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-4 w-4 transition group-open:rotate-180"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
 }
 
 const actionTagToneClassNames: Record<BattleLogActionTag, string> = {
@@ -71,57 +84,6 @@ function stripTerminalPeriod(value: string) {
   return String(value || "").trim().replace(/\.$/, "");
 }
 
-function normalizeBattleLogActionDetails(details: string[]) {
-  return details
-    .map((detail) =>
-      stripTerminalPeriod(
-        String(detail || "")
-          .trim()
-          .replace(/^[-•]\s*/, "")
-      )
-        .trim()
-    )
-    .filter(Boolean);
-}
-
-function isCardListDetail(detail: string) {
-  return detail.split(",").map((part) => part.trim()).filter(Boolean).length >= 3;
-}
-
-function isCardCountDetail(detail: string) {
-  return /\b(?:drew|drawn|shuffled)\s+\d+\s+cards?\b/i.test(detail);
-}
-
-function splitBattleLogActionDetails(details: string[]) {
-  const normalized = normalizeBattleLogActionDetails(details);
-  if (normalized.length === 0) {
-    return {
-      inlineSummary: null,
-      subtextLines: [] as string[]
-    };
-  }
-
-  const inlineParts: string[] = [];
-  const subtextLines: string[] = [];
-
-  normalized.forEach((detail, index) => {
-    const previousDetail = normalized[index - 1] ?? "";
-    const shouldMoveToSubtext = isCardListDetail(detail) && isCardCountDetail(previousDetail);
-
-    if (shouldMoveToSubtext) {
-      subtextLines.push(detail);
-      return;
-    }
-
-    inlineParts.push(detail);
-  });
-
-  return {
-    inlineSummary: inlineParts.length > 0 ? inlineParts.join(" · ") : null,
-    subtextLines
-  };
-}
-
 function ActionRow({
   children,
   resolved,
@@ -137,6 +99,92 @@ function ActionRow({
       <div className="min-w-0">{children}</div>
     </div>
   );
+}
+
+function renderIndentedLine(text: string, level = 1, keyValue?: string) {
+  return (
+    <div
+      className={level === 1 ? "pl-5" : "ml-6 border-l border-[var(--border)] pl-6"}
+      key={keyValue}
+    >
+      <p className="m-0 flex items-start gap-3">
+        <span className="text-[var(--text-muted)]">{level === 1 ? "•" : "◦"}</span>
+        <span>{text}</span>
+      </p>
+    </div>
+  );
+}
+
+function renderBattleLogActionDetails(details: string[]) {
+  const chunks: ReactNode[] = [];
+  let bullets: string[] = [];
+  let chunkIndex = 0;
+
+  function renderNestedBulletGroup(items: string[], groupIndex: number) {
+    if (!items.length) {
+      return null;
+    }
+
+    const first = String(items[0] || "").trim();
+    const rest = items.slice(1).map((item) => String(item || "").trim()).filter(Boolean);
+    const supportsNestedCards =
+      /\b\d+\s+drawn cards?\.?$/i.test(first) || /\b\d+\s+cards? drawn\.?$/i.test(first);
+
+    if (supportsNestedCards && rest.length > 0) {
+      return (
+        <div className="grid gap-2" key={`group-${groupIndex}`}>
+          {renderIndentedLine(first, 1)}
+          <div className="grid gap-1">
+            {rest.map((item, index) =>
+              renderIndentedLine(item, 2, `group-${groupIndex}-nested-${index}`)
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid gap-2" key={`group-${groupIndex}`}>
+        {items.map((item, index) =>
+          renderIndentedLine(item, 1, `group-${groupIndex}-item-${index}`)
+        )}
+      </div>
+    );
+  }
+
+  function flushBullets() {
+    if (!bullets.length) {
+      return;
+    }
+
+    chunks.push(renderNestedBulletGroup(bullets, chunkIndex));
+    chunkIndex += 1;
+    bullets = [];
+  }
+
+  details.forEach((detail) => {
+    const value = stripTerminalPeriod(String(detail || "").trim());
+    if (!value) {
+      return;
+    }
+
+    const bulletMatch = value.match(/^[-•]\s*(.+)$/);
+    if (bulletMatch) {
+      bullets.push(bulletMatch[1]);
+      return;
+    }
+
+    flushBullets();
+    chunks.push(
+      <p className="m-0" key={`detail-${chunkIndex}`}>
+        {value}
+      </p>
+    );
+    chunkIndex += 1;
+  });
+
+  flushBullets();
+  return chunks;
 }
 
 function getOrderedPlayerNames(
@@ -236,8 +284,34 @@ function LogSectionCard({
       <div className="grid gap-1">
         {actions.map((action, actionIndex) => {
           const resolvedActionTag = actionTagOverrides?.[actionIndex] ?? undefined;
-          const displayTitle = stripTerminalPeriod(action.title);
-          const { inlineSummary, subtextLines } = splitBattleLogActionDetails(action.details);
+
+          if (action.details.length > 0) {
+            return (
+              <details
+                className="group border-b border-[var(--border)] py-3 last:border-b-0"
+                key={`${action.title}-${actionIndex}`}
+              >
+                <summary className="cursor-pointer list-none px-1 [&::-webkit-details-marker]:hidden">
+                  <div className="flex items-start justify-between gap-4">
+                    <ActionRow resolved={resolvedActionTag} title={action.title}>
+                      <div className="text-[0.98rem] leading-7 text-[var(--text-primary)]">
+                        {stripTerminalPeriod(action.title)}
+                      </div>
+                    </ActionRow>
+                    <span className="pt-1 text-[var(--text-muted)]">
+                      <ChevronIcon />
+                    </span>
+                  </div>
+                </summary>
+                <div className="mt-2 grid gap-2 px-1 sm:grid-cols-[5.35rem_minmax(0,1fr)] sm:gap-3">
+                  <div className="hidden sm:block" />
+                  <div className="grid gap-2 text-[0.92rem] leading-6 text-[var(--text-muted)]">
+                    {renderBattleLogActionDetails(action.details)}
+                  </div>
+                </div>
+              </details>
+            );
+          }
 
           return (
             <div
@@ -245,18 +319,8 @@ function LogSectionCard({
               key={`${action.title}-${actionIndex}`}
             >
               <ActionRow resolved={resolvedActionTag} title={action.title}>
-                <div className="min-w-0">
-                  <div className="text-[0.98rem] leading-7 text-[var(--text-primary)]">
-                    {displayTitle}
-                    {inlineSummary ? ` → ${inlineSummary}` : ""}
-                  </div>
-                  {subtextLines.length > 0 ? (
-                    <div className="mt-0.5 grid gap-0.5 text-[0.88rem] leading-6 text-[var(--text-muted)]">
-                      {subtextLines.map((line, subtextIndex) => (
-                        <div key={`${action.title}-${actionIndex}-subtext-${subtextIndex}`}>{line}</div>
-                      ))}
-                    </div>
-                  ) : null}
+                <div className="text-[0.98rem] leading-7 text-[var(--text-primary)]">
+                  {stripTerminalPeriod(action.title)}
                 </div>
               </ActionRow>
             </div>
@@ -316,12 +380,13 @@ export function BattleLogDetailView({
   linkedDeckListNotes,
   linkedDeckListRawList,
   linkedDeckListSortedCards,
-  linkedStrategyLabel,
+  linkedStrategyLabel: _linkedStrategyLabel,
   log,
   mobileNavigation,
   notice,
   timestampLabel
 }: BattleLogDetailViewProps) {
+  void _linkedStrategyLabel;
   const sections = Array.isArray(log.sections) ? log.sections : [];
   const turnNumbers = getSectionTurnNumbers(sections);
 
