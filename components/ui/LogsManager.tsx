@@ -41,7 +41,11 @@ type LogsManagerProps = {
   initialNextWindowEndDate: string;
   initialWindowEndDate: string;
   initialWindowStartDate: string;
-  userDecks: DeckSelectionOption[];
+  initialUserDecks?: DeckSelectionOption[];
+};
+
+type DeckSelectionOptionsResponse = {
+  userDecks?: DeckSelectionOption[];
 };
 
 function summarizeVisibleLogs(logs: BattleLogSummary[]) {
@@ -164,7 +168,7 @@ export function LogsManager({
   initialNextWindowEndDate,
   initialWindowEndDate,
   initialWindowStartDate,
-  userDecks
+  initialUserDecks = []
 }: LogsManagerProps) {
   const router = useRouter();
   const [isMutating, startMutationTransition] = useTransition();
@@ -179,8 +183,11 @@ export function LogsManager({
   const [windowStartDate, setWindowStartDate] = useState(initialWindowStartDate);
   const [windowEndDate, setWindowEndDate] = useState(initialWindowEndDate);
   const [loadMoreError, setLoadMoreError] = useState("");
+  const [deckOptionsError, setDeckOptionsError] = useState("");
+  const [isLoadingDeckOptions, setIsLoadingDeckOptions] = useState(false);
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [deletePrompt, setDeletePrompt] = useState<DeletePrompt | null>(null);
+  const [userDecks, setUserDecks] = useState(initialUserDecks);
   const [openGroupDates, setOpenGroupDates] = useState<string[]>(() =>
     initialLogs.length > 0 ? [initialLogs[0].date] : []
   );
@@ -201,7 +208,7 @@ export function LogsManager({
   const deletePromptCount = deletePrompt?.ids.length ?? 0;
 
   useEffect(() => {
-    setVisibleLogs(initialLogs);
+    setVisibleLogs(userDecks.length > 0 ? attachLinkedDeckListNames(initialLogs, userDecks) : initialLogs);
     setCanLoadMore(initialCanLoadMore);
     setNextWindowEndDate(initialNextWindowEndDate);
     setWindowStartDate(initialWindowStartDate);
@@ -215,8 +222,55 @@ export function LogsManager({
     initialLogs,
     initialNextWindowEndDate,
     initialWindowEndDate,
-    initialWindowStartDate
+    initialWindowStartDate,
+    userDecks
   ]);
+
+  useEffect(() => {
+    if (initialUserDecks.length > 0) {
+      setUserDecks(initialUserDecks);
+    }
+  }, [initialUserDecks]);
+
+  async function loadDeckOptions() {
+    if (userDecks.length > 0 || isLoadingDeckOptions) {
+      return;
+    }
+
+    setIsLoadingDeckOptions(true);
+    setDeckOptionsError("");
+
+    try {
+      const response = await fetch("/api/deck-selection-options", {
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error("Could not load deck strategies.");
+      }
+
+      const payload = (await response.json()) as DeckSelectionOptionsResponse;
+      setUserDecks(Array.isArray(payload.userDecks) ? payload.userDecks : []);
+    } catch (error) {
+      console.error(error);
+      setDeckOptionsError("Couldn't load deck strategies right now.");
+    } finally {
+      setIsLoadingDeckOptions(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadDeckOptions();
+  }, []);
+
+  useEffect(() => {
+    if (userDecks.length === 0) {
+      return;
+    }
+
+    setVisibleLogs((current) => attachLinkedDeckListNames(current, userDecks));
+  }, [userDecks]);
 
   useEffect(() => {
     if (!managementModeActive && selectedLogIds.length > 0) {
@@ -443,6 +497,11 @@ export function LogsManager({
 
           {managementModeActive ? (
             <div className="grid gap-3 border-t border-[var(--border)] pt-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
+              {deckOptionsError ? (
+                <p className="text-sm text-[var(--color-loss)] md:col-span-2 xl:col-span-3">
+                  {deckOptionsError}
+                </p>
+              ) : null}
               <label className="grid gap-2">
                 <span className="text-sm font-semibold text-[var(--text-muted)]">Deck Strategy</span>
                 <select
@@ -450,7 +509,9 @@ export function LogsManager({
                   onChange={(event) => setSelectedDeckId(event.target.value)}
                   value={selectedDeckId}
                 >
-                  <option value="">Select deck strategy</option>
+                  <option value="">
+                    {isLoadingDeckOptions ? "Loading deck strategies..." : "Select deck strategy"}
+                  </option>
                   {userDecks.map((deck) => (
                     <option key={deck.id} value={deck.id}>
                       {deck.deckName}

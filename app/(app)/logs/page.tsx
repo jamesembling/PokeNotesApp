@@ -5,36 +5,11 @@ import { LogsManager } from "@/components/ui/LogsManager";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
-import { getDeckSelectionOptions } from "@/lib/db/decks";
 import { getLogsWindow, getLogSummaryStats } from "@/lib/db/logs";
-import type { BattleLogSummary, DeckSelectionOption } from "@/types/index";
-
-function attachLinkedDeckListNames(
-  logs: BattleLogSummary[],
-  userDecks: DeckSelectionOption[]
-) {
-  return logs.map((log) => {
-    if (!log.linkedDeckId || !log.linkedDeckListId) {
-      return {
-        ...log,
-        linkedDeckListName: undefined
-      };
-    }
-
-    const deck = userDecks.find((candidate) => candidate.id === log.linkedDeckId);
-    const linkedDeckList = deck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
-
-    return {
-      ...log,
-      linkedDeckListName: linkedDeckList?.name
-    };
-  });
-}
 
 export default async function LogsPage() {
   const user = await requireUser();
   const userId = user.id;
-  const userDecksPromise = getDeckSelectionOptions(userId);
   const logsWindowPromise = getLogsWindow(userId);
 
   return (
@@ -55,10 +30,7 @@ export default async function LogsPage() {
       </Suspense>
 
       <Suspense fallback={<LogsManagerFallback />}>
-        <LogsWorkspace
-          logsWindowPromise={logsWindowPromise}
-          userDecksPromise={userDecksPromise}
-        />
+        <LogsWorkspace logsWindowPromise={logsWindowPromise} />
       </Suspense>
     </>
   );
@@ -90,27 +62,20 @@ async function LogsSummaryCards({ userId }: { userId: string }) {
 }
 
 async function LogsWorkspace({
-  logsWindowPromise,
-  userDecksPromise
+  logsWindowPromise
 }: {
   logsWindowPromise: ReturnType<typeof getLogsWindow>;
-  userDecksPromise: ReturnType<typeof getDeckSelectionOptions>;
 }) {
-  const [userDecks, page] = await Promise.all([
-    userDecksPromise,
-    logsWindowPromise
-  ]);
-  const logs = attachLinkedDeckListNames(page.logs, userDecks);
+  const page = await logsWindowPromise;
 
   return (
     <Card>
       <LogsManager
         initialCanLoadMore={page.hasMore}
-        initialLogs={logs}
+        initialLogs={page.logs}
         initialNextWindowEndDate={page.nextWindowEndDate}
         initialWindowEndDate={page.windowEndDate}
         initialWindowStartDate={page.windowStartDate}
-        userDecks={userDecks}
       />
     </Card>
   );
