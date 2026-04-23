@@ -4,11 +4,12 @@ import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import type { DeckSummary } from "@/types/index";
 
 export type DeckCardView = "tile" | "list";
+type DeckCardDeck = Pick<DeckSummary, "id" | "deckName" | "deckPokemon" | "updatedAt">;
 
 const listSpriteLaneClassName = "min-h-12 w-[82px] shrink-0 sm:w-[98px]";
 
 type DeckCardProps = {
-  deck: DeckSummary;
+  deck: DeckCardDeck;
   deckListCount: number;
   gamesPlayed: number;
   recordLabel: string;

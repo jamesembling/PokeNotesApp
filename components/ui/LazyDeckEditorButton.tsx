@@ -1,9 +1,10 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { DeckEditorDialog } from "@/components/ui/DeckEditorDialog";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
+import type { DeckEditorDialogProps } from "@/components/ui/DeckEditorDialog";
 import type { Deck, PokemonOption } from "@/types/index";
 
 type LazyDeckEditorButtonProps = {
@@ -11,6 +12,13 @@ type LazyDeckEditorButtonProps = {
   triggerLabel: string;
   triggerVariant?: "primary" | "secondary" | "ghost";
 };
+
+const DynamicDeckEditorDialog = dynamic<DeckEditorDialogProps>(
+  () => import("@/components/ui/DeckEditorDialog").then((module) => module.DeckEditorDialog),
+  {
+    ssr: false
+  }
+);
 
 export function LazyDeckEditorButton({
   deck,
@@ -20,11 +28,10 @@ export function LazyDeckEditorButton({
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [mountDialogOpen, setMountDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   async function handleOpen() {
     if (pokemonOptions) {
-      setMountDialogOpen(true);
       return;
     }
 
@@ -33,7 +40,6 @@ export function LazyDeckEditorButton({
 
     try {
       setPokemonOptions(await loadPokemonOptions());
-      setMountDialogOpen(true);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Could not load Pokemon options.");
     } finally {
@@ -44,9 +50,9 @@ export function LazyDeckEditorButton({
   if (pokemonOptions) {
     return (
       <>
-        <DeckEditorDialog
+        <DynamicDeckEditorDialog
           deck={deck}
-          initialOpen={mountDialogOpen}
+          initialOpen={dialogOpen}
           pokemonOptions={pokemonOptions}
           triggerLabel={triggerLabel}
           triggerVariant={triggerVariant}
@@ -62,7 +68,14 @@ export function LazyDeckEditorButton({
 
   return (
     <>
-      <Button disabled={isLoading} onClick={handleOpen} variant={triggerVariant}>
+      <Button
+        disabled={isLoading}
+        onClick={() => {
+          setDialogOpen(true);
+          void handleOpen();
+        }}
+        variant={triggerVariant}
+      >
         {isLoading ? "Loading Editor..." : triggerLabel}
       </Button>
       {loadError ? (

@@ -13,7 +13,7 @@ import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import type { Deck, PokemonOption } from "@/types/index";
 
-type DeckEditorDialogProps = {
+export type DeckEditorDialogProps = {
   deck?: Deck;
   initialOpen?: boolean;
   pokemonOptions: PokemonOption[];

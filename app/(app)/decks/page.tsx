@@ -5,12 +5,12 @@ import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { getDeckStatsForIndex } from "@/lib/db/logs";
-import { getDecks } from "@/lib/db/decks";
+import { getDeckIndexSummaries } from "@/lib/db/decks";
 import { measureServerCall } from "@/lib/server/perf";
 
 export default async function DecksPage() {
   const user = await requireUser();
-  const decksPromise = getDecks(user.id);
+  const decksPromise = getDeckIndexSummaries(user.id);
 
   return (
     <>
@@ -32,7 +32,7 @@ async function DecksContent({
   decksPromise,
   userId
 }: {
-  decksPromise: ReturnType<typeof getDecks>;
+  decksPromise: ReturnType<typeof getDeckIndexSummaries>;
   userId: string;
 }) {
   const decks = await decksPromise;
@@ -50,7 +50,7 @@ async function DecksContent({
     return {
       deck,
       gamesPlayed: stats.total,
-      deckListCount: deck.deckLists.length,
+      deckListCount: deck.deckListCount,
       losses: stats.losses,
       winRate: stats.total > 0 ? winRate : null
     };

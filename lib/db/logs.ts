@@ -588,7 +588,8 @@ export async function getLogById(
 async function getLogsIndexedByDeck(
   userId: string,
   decks: DeckLinkCandidate[],
-  targetDeckIdsInput?: string[]
+  targetDeckIdsInput?: string[],
+  options: { includeUnlinkedFallback?: boolean } = {}
 ) {
   const knownDeckIds = new Set(decks.map((deck) => deck.id));
   const targetDeckIds = (targetDeckIdsInput?.length ? targetDeckIdsInput : decks.map((deck) => deck.id))
@@ -599,62 +600,51 @@ async function getLogsIndexedByDeck(
   }
 
   const supabase = await logsDbTestHooks.createClient();
-  const [explicitResult, unlinkedResult] = await Promise.all([
-    measureServerCall("db.logs.forDecks.explicit", async () =>
-      await supabase
-        .from("logs")
-        .select(
-          [
-            "id",
-            "date",
-            "result",
-            "format",
-            "go_order",
-            "self_player_name",
-            "self_deck_name",
-            "self_deck_sprites",
-            "opponent_player_name",
-            "opponent_deck_name",
-            "opponent_deck_sprites",
-            "total_turns",
-            "linked_deck_id",
-            "linked_deck_list_id",
-            "imported_at"
-          ].join(",")
-        )
-        .eq("user_id", userId)
-        .in("linked_deck_id", targetDeckIds)
-    ),
-    measureServerCall("db.logs.forDecks.unlinked", async () =>
-      await supabase
-        .from("logs")
-        .select(
-          [
-            "id",
-            "date",
-            "result",
-            "format",
-            "go_order",
-            "self_player_name",
-            "self_deck_name",
-            "self_deck_sprites",
-            "opponent_player_name",
-            "opponent_deck_name",
-            "opponent_deck_sprites",
-            "total_turns",
-            "linked_deck_id",
-            "linked_deck_list_id",
-            "imported_at"
-          ].join(",")
-        )
-        .eq("user_id", userId)
-        .is("linked_deck_id", null)
-    )
-  ]);
+  const logSummarySelect = [
+    "id",
+    "date",
+    "result",
+    "format",
+    "go_order",
+    "self_player_name",
+    "self_deck_name",
+    "self_deck_sprites",
+    "opponent_player_name",
+    "opponent_deck_name",
+    "opponent_deck_sprites",
+    "total_turns",
+    "linked_deck_id",
+    "linked_deck_list_id",
+    "imported_at"
+  ].join(",");
+  const explicitResult = await measureServerCall("db.logs.forDecks.explicit", async () =>
+    await supabase
+      .from("logs")
+      .select(logSummarySelect)
+      .eq("user_id", userId)
+      .in("linked_deck_id", targetDeckIds)
+  );
 
   if (explicitResult.error) {
     throw explicitResult.error;
   }
+
+  if (!options.includeUnlinkedFallback) {
+    return groupLogsByDeck({
+      decks,
+      explicitRows: (((explicitResult.data ?? []) as unknown) as LogsTableRow[]),
+      targetDeckIds,
+      unlinkedRows: []
+    });
+  }
+
+  const unlinkedResult = await measureServerCall("db.logs.forDecks.unlinked", async () =>
+    await supabase
+      .from("logs")
+      .select(logSummarySelect)
+      .eq("user_id", userId)
+      .is("linked_deck_id", null)
+  );
 
   if (unlinkedResult.error) {
     throw unlinkedResult.error;
@@ -720,7 +710,9 @@ export async function getAllLogsByDeck(
   decks: DeckLinkCandidate[],
   targetDeckIdsInput?: string[]
 ) {
-  return await getLogsIndexedByDeck(userId, decks, targetDeckIdsInput);
+  return await getLogsIndexedByDeck(userId, decks, targetDeckIdsInput, {
+    includeUnlinkedFallback: true
+  });
 }
 
 export async function getDeckLogSnapshots(
@@ -728,7 +720,9 @@ export async function getDeckLogSnapshots(
   decks: DeckLinkCandidate[],
   targetDeckIdsInput?: string[]
 ) {
-  const logsByDeck = await getLogsIndexedByDeck(userId, decks, targetDeckIdsInput);
+  const logsByDeck = await getLogsIndexedByDeck(userId, decks, targetDeckIdsInput, {
+    includeUnlinkedFallback: true
+  });
 
   return new Map<string, DeckLogSnapshot>(
     Array.from(logsByDeck.entries()).map(([deckId, logs]) => [

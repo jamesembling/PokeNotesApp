@@ -1,32 +1,80 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { TournamentEditorDialog } from "@/components/ui/TournamentEditorDialog";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
+import type { TournamentEditorDialogProps } from "@/components/ui/TournamentEditorDialog";
 import type { PokemonOption, Tournament, TournamentDeckChoice } from "@/types/index";
 
 type LazyTournamentEditorButtonProps = {
-  decks: TournamentDeckChoice[];
+  decks?: TournamentDeckChoice[];
   tournament?: Tournament;
   triggerLabel: string;
   triggerVariant?: "primary" | "secondary" | "ghost";
 };
 
+type TournamentEditorDataResponse = {
+  decks?: TournamentDeckChoice[];
+  pokemonOptions?: PokemonOption[];
+};
+
+let tournamentEditorDataCache: TournamentEditorDataResponse | null = null;
+let tournamentEditorDataPromise: Promise<TournamentEditorDataResponse> | null = null;
+
+const DynamicTournamentEditorDialog = dynamic<TournamentEditorDialogProps>(
+  () =>
+    import("@/components/ui/TournamentEditorDialog").then((module) => module.TournamentEditorDialog),
+  {
+    ssr: false
+  }
+);
+
+async function loadTournamentEditorData() {
+  if (tournamentEditorDataCache) {
+    return tournamentEditorDataCache;
+  }
+
+  if (!tournamentEditorDataPromise) {
+    tournamentEditorDataPromise = fetch("/api/tournament-editor-data", {
+      credentials: "same-origin",
+      cache: "no-store"
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Could not load tournament editor data.");
+        }
+
+        const payload = (await response.json()) as TournamentEditorDataResponse;
+        tournamentEditorDataCache = payload;
+        return payload;
+      })
+      .catch(() => {
+        tournamentEditorDataPromise = null;
+        throw new Error("Could not load tournament editor data.");
+      })
+      .finally(() => {
+        tournamentEditorDataPromise = null;
+      });
+  }
+
+  return tournamentEditorDataPromise;
+}
+
 export function LazyTournamentEditorButton({
-  decks,
+  decks: initialDecks = [],
   tournament,
   triggerLabel,
   triggerVariant = "primary"
 }: LazyTournamentEditorButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
+  const [decks, setDecks] = useState<TournamentDeckChoice[]>(initialDecks);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [mountDialogOpen, setMountDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   async function handleOpen() {
-    if (pokemonOptions) {
-      setMountDialogOpen(true);
+    if (pokemonOptions && decks.length > 0) {
       return;
     }
 
@@ -34,10 +82,17 @@ export function LazyTournamentEditorButton({
     setLoadError("");
 
     try {
-      setPokemonOptions(await loadPokemonOptions());
-      setMountDialogOpen(true);
+      const [nextPokemonOptions, payload] = await Promise.all([
+        loadPokemonOptions(),
+        decks.length > 0 ? Promise.resolve<TournamentEditorDataResponse>({}) : loadTournamentEditorData()
+      ]);
+
+      setPokemonOptions(Array.isArray(payload.pokemonOptions) ? payload.pokemonOptions : nextPokemonOptions);
+      if (Array.isArray(payload.decks)) {
+        setDecks(payload.decks);
+      }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not load Pokemon options.");
+      setLoadError(error instanceof Error ? error.message : "Could not load tournament editor.");
     } finally {
       setIsLoading(false);
     }
@@ -46,9 +101,9 @@ export function LazyTournamentEditorButton({
   if (pokemonOptions) {
     return (
       <>
-        <TournamentEditorDialog
+        <DynamicTournamentEditorDialog
           decks={decks}
-          initialOpen={mountDialogOpen}
+          initialOpen={dialogOpen}
           pokemonOptions={pokemonOptions}
           tournament={tournament}
           triggerLabel={triggerLabel}
@@ -65,7 +120,14 @@ export function LazyTournamentEditorButton({
 
   return (
     <>
-      <Button disabled={isLoading} onClick={handleOpen} variant={triggerVariant}>
+      <Button
+        disabled={isLoading}
+        onClick={() => {
+          setDialogOpen(true);
+          void handleOpen();
+        }}
+        variant={triggerVariant}
+      >
         {isLoading ? "Loading Editor..." : triggerLabel}
       </Button>
       {loadError ? (

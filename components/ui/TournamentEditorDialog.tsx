@@ -19,7 +19,7 @@ import {
 } from "@/lib/tournaments/options";
 import type { PokemonOption, Tournament, TournamentDeckChoice } from "@/types/index";
 
-type TournamentEditorDialogProps = {
+export type TournamentEditorDialogProps = {
   decks: TournamentDeckChoice[];
   initialOpen?: boolean;
   pokemonOptions: PokemonOption[];

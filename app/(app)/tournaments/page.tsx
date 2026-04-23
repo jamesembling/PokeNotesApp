@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -7,7 +6,6 @@ import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { TournamentSummaryList } from "@/components/ui/TournamentSummaryList";
 import { requireUser } from "@/lib/auth";
 import {
-  getTournamentDeckChoices,
   getTournamentSummaries,
   TournamentSchemaMissingError
 } from "@/lib/db/tournaments";
@@ -24,14 +22,7 @@ export default async function TournamentsPage() {
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Tournaments" }]}
         showDivider={false}
         title="Tournaments"
-        action={(
-          <Suspense fallback={<TournamentEditorButtonFallback />}>
-            <TournamentPageAction
-              tournamentsPromise={tournamentsPromise}
-              userId={user.id}
-            />
-          </Suspense>
-        )}
+        action={<LazyTournamentEditorButton triggerLabel="New Tournament" />}
       />
 
       <Suspense fallback={<TournamentsContentFallback />}>
@@ -97,40 +88,6 @@ async function TournamentsContent({
   }
 
   return <TournamentSummaryList tournaments={tournaments} />;
-}
-
-async function TournamentPageAction({
-  tournamentsPromise,
-  userId
-}: {
-  tournamentsPromise: Promise<TournamentSummary[]>;
-  userId: string;
-}) {
-  try {
-    await tournamentsPromise;
-  } catch (error) {
-    if (error instanceof TournamentSchemaMissingError) {
-      return null;
-    }
-
-    throw error;
-  }
-
-  return <TournamentCreateAction userId={userId} />;
-}
-
-async function TournamentCreateAction({ userId }: { userId: string }) {
-  const decks = await getTournamentDeckChoices(userId);
-
-  return <LazyTournamentEditorButton decks={decks} triggerLabel="New Tournament" />;
-}
-
-function TournamentEditorButtonFallback() {
-  return (
-    <Button disabled variant="primary">
-      New Tournament
-    </Button>
-  );
 }
 
 function TournamentsContentFallback() {

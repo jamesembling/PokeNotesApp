@@ -10,10 +10,11 @@ const STORAGE_KEY = "poke-notes.deck-strategy-view";
 
 type SortKey = "deck" | "winRate" | "record" | "lists" | "updated";
 type SortDirection = "asc" | "desc";
+type DeckStrategyDeck = Pick<DeckSummary, "id" | "deckName" | "deckPokemon" | "updatedAt">;
 
 type DeckStrategyCollectionProps = {
   decks: Array<{
-    deck: DeckSummary;
+    deck: DeckStrategyDeck;
     deckListCount: number;
     gamesPlayed: number;
     losses: number;

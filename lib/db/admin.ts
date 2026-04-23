@@ -55,6 +55,13 @@ type AdminDashboardOverviewRpcRow = {
   archetype_last_synced_at: string | null;
 };
 
+type AdminUsersOverviewRpcRow = ProfileRow & {
+  deck_count: number | null;
+  deck_list_count: number | null;
+  tournament_count: number | null;
+  log_count: number | null;
+};
+
 function sortUsers(users: AdminUser[]) {
   return [...users].sort((left, right) => {
     if (left.role !== right.role) {
@@ -116,6 +123,24 @@ function mapLogStatsCounts(rows: UserLogStatsCountRow[] | null) {
   }
 
   return counts;
+}
+
+function mapAdminUsersOverviewRow(row: AdminUsersOverviewRpcRow): AdminUser {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    ptcglUsername: row.ptcgl_username,
+    role: row.role,
+    accountCreatedAt: row.auth_account_created_at || row.created_at,
+    lastLoginAt: row.last_login_at ?? undefined,
+    lastActiveAt: row.last_active_at ?? undefined,
+    loginCount: Number.isFinite(row.login_count) ? row.login_count : 0,
+    deckCount: Math.max(0, Number(row.deck_count ?? 0)),
+    deckListCount: Math.max(0, Number(row.deck_list_count ?? 0)),
+    tournamentCount: Math.max(0, Number(row.tournament_count ?? 0)),
+    logCount: Math.max(0, Number(row.log_count ?? 0))
+  };
 }
 
 function mapAdminUser(
@@ -254,8 +279,26 @@ export async function getAdminUserSummary(): Promise<AdminUserSummary> {
 export async function getAdminUsers(): Promise<AdminUsersResult> {
   await requireAdminAccess();
 
+  const roleUpdatesEnabled = hasAdminSupabaseAccess();
+  const supabase = await createClient();
+  const rpcResult = await measureServerCall("db.admin.usersOverviewRpc", async () =>
+    await supabase.rpc("get_admin_users_overview")
+  );
+
+  if (!rpcResult.error) {
+    return {
+      users: ((((rpcResult.data ?? null) as unknown) as AdminUsersOverviewRpcRow[] | null) ?? []).map(
+        mapAdminUsersOverviewRow
+      ),
+      roleUpdatesEnabled,
+      warning: roleUpdatesEnabled
+        ? undefined
+        : "Admin role updates are disabled until SUPABASE_SERVICE_ROLE_KEY is configured on the app."
+    };
+  }
+
   return await measureServerCall("db.admin.users", async () => {
-    if (hasAdminSupabaseAccess()) {
+    if (roleUpdatesEnabled) {
       const supabase = createAdminClient();
       const [profilesResult, decksResult, tournamentsResult, logStatsResult] = await Promise.all([
         supabase

@@ -1,10 +1,11 @@
 "use client";
 
 import { cloneElement, isValidElement, type ReactElement } from "react";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { EditLogDialog } from "@/components/ui/EditLogDialog";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
+import type { EditLogDialogProps } from "@/components/ui/EditLogDialog";
 import type { BattleLog, DeckSelectionOption, PokemonOption } from "@/types/index";
 
 type LazyEditLogButtonProps = {
@@ -13,15 +14,21 @@ type LazyEditLogButtonProps = {
   userDecks: DeckSelectionOption[];
 };
 
+const DynamicEditLogDialog = dynamic<EditLogDialogProps>(
+  () => import("@/components/ui/EditLogDialog").then((module) => module.EditLogDialog),
+  {
+    ssr: false
+  }
+);
+
 export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [mountDialogOpen, setMountDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   async function handleOpen() {
     if (pokemonOptions) {
-      setMountDialogOpen(true);
       return;
     }
 
@@ -30,7 +37,6 @@ export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButton
 
     try {
       setPokemonOptions(await loadPokemonOptions());
-      setMountDialogOpen(true);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Could not load Pokemon options.");
     } finally {
@@ -41,10 +47,11 @@ export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButton
   if (pokemonOptions) {
     return (
       <>
-        <EditLogDialog
-          initialOpen={mountDialogOpen}
+        <DynamicEditLogDialog
+          initialOpen={dialogOpen}
           log={log}
           pokemonOptions={pokemonOptions}
+          trigger={trigger}
           userDecks={userDecks}
         />
         {loadError ? (
@@ -59,10 +66,20 @@ export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButton
   const triggerElement = isValidElement(trigger) ? (
     cloneElement(trigger, {
       ...trigger.props,
-      onClick: handleOpen
+      onClick: () => {
+        setDialogOpen(true);
+        void handleOpen();
+      }
     })
   ) : (
-    <Button disabled={isLoading} onClick={handleOpen} variant="secondary">
+    <Button
+      disabled={isLoading}
+      onClick={() => {
+        setDialogOpen(true);
+        void handleOpen();
+      }}
+      variant="secondary"
+    >
       Edit Log
     </Button>
   );

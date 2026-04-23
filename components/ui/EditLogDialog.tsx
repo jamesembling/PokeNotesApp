@@ -21,7 +21,7 @@ import {
 } from "@/lib/battle-log/display";
 import type { BattleLog, DeckListOption, DeckSelectionOption, PokemonOption } from "@/types/index";
 
-type EditLogDialogProps = {
+export type EditLogDialogProps = {
   initialOpen?: boolean;
   log: BattleLog;
   pokemonOptions: PokemonOption[];

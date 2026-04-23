@@ -118,6 +118,14 @@ type DeckLogStats = {
   losses: number;
 };
 
+export type DeckIndexSummary = Omit<DeckSummary, "deckLists"> & {
+  deckListCount: number;
+};
+
+type DeckIndexRow = Omit<DeckSummaryRow, "deck_lists"> & {
+  deck_list_count: number | null;
+};
+
 type DeckListLookupRow = {
   id: string;
   user_id: string;
@@ -563,6 +571,25 @@ function mapDeckSelection(row: DeckSelectionRow): DeckSelectionOption {
   };
 }
 
+async function mapDeckIndexRow(row: DeckIndexRow, context: DeckMappingContext): Promise<DeckIndexSummary> {
+  const storedDeckPokemon = parseStringArray(row.deck_pokemon);
+  const deckPokemon = await normalizeDeckPokemon(storedDeckPokemon, context.slugIndex);
+  const archetypeId = String(row.archetype_id || "").trim() || buildDeckArchetypeId(deckPokemon);
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    deckName: row.deck_name,
+    archetypeId,
+    format: row.format,
+    goPreference: row.go_preference ?? "",
+    deckPokemon,
+    deckListCount: Math.max(0, Number(row.deck_list_count ?? 0)),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
 function mapDeckLinkCandidate(row: DeckSelectionAndLinkRow): DeckLinkCandidate {
   return {
     id: row.id,
@@ -621,6 +648,41 @@ export const getDecks = cache(async function getDecks(userId: string): Promise<D
 
   const mappingContext = await loadDeckMappingContext();
   return await Promise.all(rows.map((row) => mapDeckSummary(row, mappingContext)));
+});
+
+export const getDeckIndexSummaries = cache(async function getDeckIndexSummaries(
+  userId: string
+): Promise<DeckIndexSummary[]> {
+  const supabase = await createClient();
+  const { data, error } = await measureServerCall("db.decks.indexRpc", async () =>
+    await supabase.rpc("get_deck_index")
+  );
+
+  if (error) {
+    const decks = await getDecks(userId);
+    return decks.map(({ deckLists, ...deck }) => ({
+      ...deck,
+      deckListCount: deckLists.length
+    }));
+  }
+
+  const rows = (((data ?? []) as unknown) as DeckIndexRow[]);
+  if (rows.length === 0) {
+    return [];
+  }
+
+  if (
+    rows.some((row) => parseStringArray(row.deck_pokemon).length === 0 && Number(row.deck_list_count ?? 0) > 0)
+  ) {
+    const decks = await getDecks(userId);
+    return decks.map(({ deckLists, ...deck }) => ({
+      ...deck,
+      deckListCount: deckLists.length
+    }));
+  }
+
+  const mappingContext = await loadDeckMappingContext();
+  return await Promise.all(rows.map((row) => mapDeckIndexRow(row, mappingContext)));
 });
 
 export const getDeckSelectionOptions = cache(async function getDeckSelectionOptions(
