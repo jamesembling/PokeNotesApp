@@ -12,7 +12,7 @@ export const logsDbTestHooks = {
 
 const DEFAULT_LOG_WINDOW_DAYS = 7;
 
-type LogSummaryStats = {
+export type LogSummaryStats = {
   total: number;
   wins: number;
   losses: number;
@@ -25,6 +25,13 @@ type LogSummaryStatsRow = {
 };
 
 type DeckStatsExplicitRow = Pick<LogsTableRow, "id" | "result" | "linked_deck_id">;
+
+type DeckIndexStatsRpcRow = {
+  deck_id: string | null;
+  total: number | null;
+  wins: number | null;
+  losses: number | null;
+};
 
 export type DeckLogSnapshot = {
   logs: BattleLogSummary[];
@@ -445,31 +452,15 @@ export async function getLogsWindow(
     throw error;
   }
 
-  const { data: olderRows, error: olderError } = await measureServerCall(
-    "db.logs.window.hasOlder",
-    async () =>
-      await supabase
-        .from("logs")
-        .select("id")
-        .eq("user_id", userId)
-        .lt("date", windowStartDate)
-        .limit(1)
-  );
-
-  if (olderError) {
-    throw olderError;
-  }
-
   const logs = (((data ?? []) as unknown) as LogsTableRow[]).map(mapLogSummary);
-  const hasOlder = (olderRows?.length ?? 0) > 0;
 
   return {
     logs,
-    hasMore: hasOlder,
+    hasMore: logs.length > 0,
     windowDays,
     windowStartDate,
     windowEndDate,
-    nextWindowEndDate: hasOlder ? shiftDateString(windowStartDate, -1) : ""
+    nextWindowEndDate: logs.length > 0 ? shiftDateString(windowStartDate, -1) : ""
   };
 }
 
@@ -752,6 +743,27 @@ export async function getDeckStatsForIndex(
     targetDeckIds.map((deckId) => [deckId, createEmptyLogSummaryStats()])
   );
   const supabase = await logsDbTestHooks.createClient();
+  const rpcResult = await measureServerCall("db.logs.statsForDecks.rpc", async () =>
+    await supabase.rpc("get_deck_index_stats", { target_deck_ids: targetDeckIds })
+  );
+
+  if (!rpcResult.error) {
+    ((((rpcResult.data ?? []) as unknown) as DeckIndexStatsRpcRow[])).forEach((row) => {
+      const deckId = row.deck_id ?? "";
+      const deckStats = statsByDeck.get(deckId);
+
+      if (!deckStats) {
+        return;
+      }
+
+      deckStats.total = Number(row.total ?? 0);
+      deckStats.wins = Number(row.wins ?? 0);
+      deckStats.losses = Number(row.losses ?? 0);
+    });
+
+    return statsByDeck;
+  }
+
   const explicitResult = await measureServerCall("db.logs.statsForDecks.explicit", async () =>
     await supabase
       .from("logs")

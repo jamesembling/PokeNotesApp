@@ -2,10 +2,10 @@ import { Suspense } from "react";
 import { Card } from "@/components/ui/Card";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LogsManager } from "@/components/ui/LogsManager";
+import { LogsSummaryCardsClient } from "@/components/ui/LogsSummaryCardsClient";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
-import { getLogsWindow, getLogSummaryStats } from "@/lib/db/logs";
+import { getLogsWindow } from "@/lib/db/logs";
 
 export default async function LogsPage() {
   const user = await requireUser();
@@ -25,39 +25,12 @@ export default async function LogsPage() {
         }
       />
 
-      <Suspense fallback={<LogsSummaryFallback />}>
-        <LogsSummaryCards userId={userId} />
-      </Suspense>
+      <LogsSummaryCardsClient />
 
       <Suspense fallback={<LogsManagerFallback />}>
         <LogsWorkspace logsWindowPromise={logsWindowPromise} />
       </Suspense>
     </>
-  );
-}
-
-async function LogsSummaryCards({ userId }: { userId: string }) {
-  const stats = await getLogSummaryStats(userId);
-
-  return (
-    <Card>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Total Logs"
-          value={stats.total}
-        />
-        <StatCard
-          label="Wins"
-          value={stats.wins}
-          valueColor="win"
-        />
-        <StatCard
-          label="Losses"
-          value={stats.losses}
-          valueColor="loss"
-        />
-      </div>
-    </Card>
   );
 }
 
@@ -77,21 +50,6 @@ async function LogsWorkspace({
         initialWindowEndDate={page.windowEndDate}
         initialWindowStartDate={page.windowStartDate}
       />
-    </Card>
-  );
-}
-
-function LogsSummaryFallback() {
-  return (
-    <Card>
-      <div className="grid gap-4 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div
-            className="h-24 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
-            key={index}
-          />
-        ))}
-      </div>
     </Card>
   );
 }
