@@ -127,14 +127,9 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Keep the matcher intentionally narrow so auth refresh only runs on
-  // protected app surfaces, not public or static routes.
+  // admin surfaces that need the signed claims handoff. Regular app routes
+  // are still protected by their server layouts via requireUser().
   matcher: [
-    "/logs/:path*",
-    "/decks/:path*",
-    "/tournaments/:path*",
-    "/profile/:path*",
-    "/stats/:path*",
-    "/calculator/:path*",
     "/admin/:path*"
   ]
 };
