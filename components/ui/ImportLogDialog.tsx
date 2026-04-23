@@ -21,12 +21,14 @@ import type {
   PokemonOption
 } from "@/types/index";
 
-type ImportLogDialogProps = {
+export type ImportLogDialogProps = {
   className?: string;
   initialOpen?: boolean;
   importDataError?: string;
   onOpen?: () => void | Promise<void>;
+  onClose?: () => void;
   pokemonOptions: PokemonOption[];
+  renderTrigger?: boolean;
   ptcglUsername?: string;
   triggerLabel?: string;
   userDecks: DeckSelectionOption[];
@@ -82,8 +84,10 @@ export function ImportLogDialog({
   className,
   initialOpen = false,
   importDataError = "",
+  onClose,
   onOpen,
   pokemonOptions,
+  renderTrigger = true,
   ptcglUsername = "",
   triggerLabel = "Import PTCGL Log",
   userDecks
@@ -248,6 +252,7 @@ export function ImportLogDialog({
     clearNavigationTimer();
     setIsOpen(false);
     resetImportState();
+    onClose?.();
   }
 
   const moveToReviewStage = useCallback(
@@ -440,9 +445,11 @@ export function ImportLogDialog({
 
   return (
     <>
-      <Button className={className} onClick={openDialog}>
-        {triggerLabel}
-      </Button>
+      {renderTrigger ? (
+        <Button className={className} onClick={openDialog}>
+          {triggerLabel}
+        </Button>
+      ) : null}
 
       {isOpen && typeof document !== "undefined"
         ? createPortal(

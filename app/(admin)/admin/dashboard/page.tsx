@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { AdminUsersTable } from "@/components/ui/AdminUsersTable";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { getAdminUserSummary, getAdminUsers, getCatalogHealth } from "@/lib/db/admin";
+import { getAdminDashboardOverview, getAdminUsers } from "@/lib/db/admin";
 
 function formatDateTime(value: string | undefined) {
   if (!value) {
@@ -20,10 +20,7 @@ function formatDateTime(value: string | undefined) {
 }
 
 export default async function AdminDashboardPage() {
-  const [userSummary, catalogHealth] = await Promise.all([
-    getAdminUserSummary(),
-    getCatalogHealth()
-  ]);
+  const dashboardOverviewPromise = getAdminDashboardOverview();
 
   return (
     <>
@@ -37,45 +34,59 @@ export default async function AdminDashboardPage() {
         subtitle="Manage account access and monitor the imported catalog data that powers battle log identification."
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="space-y-1">
-          <p className="ui-eyebrow">Users</p>
-          <p className="text-3xl font-semibold text-[var(--text-primary)]">{userSummary.userCount}</p>
-          <p className="text-sm text-[var(--text-muted)]">{userSummary.adminCount} admin accounts</p>
-        </Card>
-        <Card className="space-y-1">
-          <p className="ui-eyebrow">Pokemon Catalog</p>
-          <p className="text-3xl font-semibold text-[var(--text-primary)]">
-            {catalogHealth.pokemonCatalogCount}
-          </p>
-          <p className="text-sm text-[var(--text-muted)]">
-            Synced {formatDateTime(catalogHealth.pokemonLastSyncedAt)}
-          </p>
-        </Card>
-        <Card className="space-y-1">
-          <p className="ui-eyebrow">Archetypes</p>
-          <p className="text-3xl font-semibold text-[var(--text-primary)]">
-            {catalogHealth.archetypeCatalogCount}
-          </p>
-          <p className="text-sm text-[var(--text-muted)]">
-            Synced {formatDateTime(catalogHealth.archetypeLastSyncedAt)}
-          </p>
-        </Card>
-        <Card className="space-y-1">
-          <p className="ui-eyebrow">Excluded Archetypes</p>
-          <p className="text-3xl font-semibold text-[var(--text-primary)]">
-            {catalogHealth.excludedArchetypeCount}
-          </p>
-          <p className="text-sm text-[var(--text-muted)]">
-            Hidden from automatic deck identification
-          </p>
-        </Card>
-      </div>
+      <Suspense fallback={<AdminSummaryCardsFallback />}>
+        <AdminSummaryCards dashboardOverviewPromise={dashboardOverviewPromise} />
+      </Suspense>
 
       <Suspense fallback={<AdminUsersSectionFallback />}>
         <AdminUsersSection />
       </Suspense>
     </>
+  );
+}
+
+async function AdminSummaryCards({
+  dashboardOverviewPromise
+}: {
+  dashboardOverviewPromise: ReturnType<typeof getAdminDashboardOverview>;
+}) {
+  const overview = await dashboardOverviewPromise;
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <Card className="space-y-1">
+        <p className="ui-eyebrow">Users</p>
+        <p className="text-3xl font-semibold text-[var(--text-primary)]">{overview.userCount}</p>
+        <p className="text-sm text-[var(--text-muted)]">{overview.adminCount} admin accounts</p>
+      </Card>
+      <Card className="space-y-1">
+        <p className="ui-eyebrow">Pokemon Catalog</p>
+        <p className="text-3xl font-semibold text-[var(--text-primary)]">
+          {overview.pokemonCatalogCount}
+        </p>
+        <p className="text-sm text-[var(--text-muted)]">
+          Synced {formatDateTime(overview.pokemonLastSyncedAt)}
+        </p>
+      </Card>
+      <Card className="space-y-1">
+        <p className="ui-eyebrow">Archetypes</p>
+        <p className="text-3xl font-semibold text-[var(--text-primary)]">
+          {overview.archetypeCatalogCount}
+        </p>
+        <p className="text-sm text-[var(--text-muted)]">
+          Synced {formatDateTime(overview.archetypeLastSyncedAt)}
+        </p>
+      </Card>
+      <Card className="space-y-1">
+        <p className="ui-eyebrow">Excluded Archetypes</p>
+        <p className="text-3xl font-semibold text-[var(--text-primary)]">
+          {overview.excludedArchetypeCount}
+        </p>
+        <p className="text-sm text-[var(--text-muted)]">
+          Hidden from automatic deck identification
+        </p>
+      </Card>
+    </div>
   );
 }
 
@@ -101,6 +112,20 @@ async function AdminUsersSection() {
         warning={warning}
       />
     </Card>
+  );
+}
+
+function AdminSummaryCardsFallback() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Card className="space-y-3" key={index}>
+          <div className="h-3 w-24 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
+          <div className="h-9 w-16 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
+          <div className="h-4 w-40 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
+        </Card>
+      ))}
+    </div>
   );
 }
 

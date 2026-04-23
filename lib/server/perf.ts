@@ -1,5 +1,5 @@
 const PERF_LOGGING_ENABLED =
-  process.env.NODE_ENV === "development" && process.env.POKE_NOTES_DEBUG_PERF === "1";
+  process.env.POKE_NOTES_DEBUG_PERF === "1";
 
 function logPerf(label: string, startedAt: number) {
   const duration = (performance.now() - startedAt).toFixed(1);

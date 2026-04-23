@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
+import { AUTH_CLAIMS_HEADER, readAuthClaimsHeader } from "@/lib/server/auth-claim-header";
 import { measureServerCall } from "@/lib/server/perf";
 import { createClient } from "@/lib/supabase/server";
 
@@ -30,6 +32,15 @@ function mapClaimsToUser(claims: Record<string, unknown>): AuthenticatedUser | n
 }
 
 export const getCurrentUser = cache(async (): Promise<AuthenticatedUser | null> => {
+  const requestHeaders = await headers();
+  const headerUser = await measureServerCall("auth.claimsHeader", async () =>
+    await readAuthClaimsHeader(requestHeaders.get(AUTH_CLAIMS_HEADER))
+  );
+
+  if (headerUser) {
+    return headerUser;
+  }
+
   const supabase = await createClient();
   const { data, error } = await measureServerCall("auth.getClaims", () =>
     supabase.auth.getClaims()

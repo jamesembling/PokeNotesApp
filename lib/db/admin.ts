@@ -27,6 +27,11 @@ type DeckCountRow = {
   deck_lists: unknown;
 };
 
+type UserLogStatsCountRow = {
+  user_id: string;
+  games_played: number | null;
+};
+
 type AdminUsersResult = {
   users: AdminUser[];
   roleUpdatesEnabled: boolean;
@@ -36,6 +41,18 @@ type AdminUsersResult = {
 type AdminUserSummary = {
   userCount: number;
   adminCount: number;
+};
+
+type AdminDashboardOverview = AdminUserSummary & CatalogHealth;
+
+type AdminDashboardOverviewRpcRow = {
+  user_count: number | null;
+  admin_count: number | null;
+  pokemon_catalog_count: number | null;
+  archetype_catalog_count: number | null;
+  excluded_archetype_count: number | null;
+  pokemon_last_synced_at: string | null;
+  archetype_last_synced_at: string | null;
 };
 
 function sortUsers(users: AdminUser[]) {
@@ -86,6 +103,21 @@ function mapDeckCounts(rows: DeckCountRow[] | null) {
   };
 }
 
+function mapLogStatsCounts(rows: UserLogStatsCountRow[] | null) {
+  const counts = new Map<string, number>();
+
+  for (const row of rows ?? []) {
+    const userId = String(row.user_id || "").trim();
+    if (!userId) {
+      continue;
+    }
+
+    counts.set(userId, Math.max(0, Number(row.games_played ?? 0)));
+  }
+
+  return counts;
+}
+
 function mapAdminUser(
   row: ProfileRow,
   deckCounts: Map<string, number>,
@@ -107,6 +139,22 @@ function mapAdminUser(
     deckListCount: deckListCounts.get(row.id) ?? 0,
     tournamentCount: tournamentCounts.get(row.id) ?? 0,
     logCount: logCounts.get(row.id) ?? 0
+  };
+}
+
+function mapAdminDashboardOverview(row: AdminDashboardOverviewRpcRow): AdminDashboardOverview {
+  return {
+    userCount: Number(row.user_count ?? 0),
+    adminCount: Number(row.admin_count ?? 0),
+    pokemonCatalogCount: Number(row.pokemon_catalog_count ?? 0),
+    archetypeCatalogCount: Number(row.archetype_catalog_count ?? 0),
+    excludedArchetypeCount: Number(row.excluded_archetype_count ?? 0),
+    pokemonLastSyncedAt: row.pokemon_last_synced_at
+      ? String(row.pokemon_last_synced_at)
+      : undefined,
+    archetypeLastSyncedAt: row.archetype_last_synced_at
+      ? String(row.archetype_last_synced_at)
+      : undefined
   };
 }
 
@@ -149,6 +197,35 @@ export const requireAdminAccess = cache(async () => {
   return user;
 });
 
+export async function getAdminDashboardOverview(): Promise<AdminDashboardOverview> {
+  await requireAdminAccess();
+
+  const supabase = await createClient();
+  const { data, error } = await measureServerCall("db.admin.dashboardOverviewRpc", async () =>
+    await supabase.rpc("get_admin_dashboard_overview")
+  );
+
+  if (!error) {
+    const row = Array.isArray(data)
+      ? (((data[0] ?? null) as unknown) as AdminDashboardOverviewRpcRow | null)
+      : (((data ?? null) as unknown) as AdminDashboardOverviewRpcRow | null);
+
+    if (row) {
+      return mapAdminDashboardOverview(row);
+    }
+  }
+
+  const [userSummary, catalogHealth] = await Promise.all([
+    getAdminUserSummary(),
+    getCatalogHealth()
+  ]);
+
+  return {
+    ...userSummary,
+    ...catalogHealth
+  };
+}
+
 export async function getAdminUserSummary(): Promise<AdminUserSummary> {
   await requireAdminAccess();
 
@@ -180,7 +257,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
   return await measureServerCall("db.admin.users", async () => {
     if (hasAdminSupabaseAccess()) {
       const supabase = createAdminClient();
-      const [profilesResult, decksResult, tournamentsResult, logsResult] = await Promise.all([
+      const [profilesResult, decksResult, tournamentsResult, logStatsResult] = await Promise.all([
         supabase
           .from("profiles")
           .select(
@@ -199,7 +276,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
           ),
         supabase.from("decks").select("user_id,deck_lists"),
         supabase.from("tournaments").select("user_id"),
-        supabase.from("logs").select("user_id")
+        supabase.from("user_log_stats").select("user_id,games_played")
       ]);
 
       if (profilesResult.error) {
@@ -214,8 +291,8 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
         throw tournamentsResult.error;
       }
 
-      if (logsResult.error) {
-        throw logsResult.error;
+      if (logStatsResult.error) {
+        throw logStatsResult.error;
       }
 
       const { deckCounts, deckListCounts } = mapDeckCounts(
@@ -224,7 +301,9 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
       const tournamentCounts = mapCountRows(
         (tournamentsResult.data as UserCountRow[] | null) ?? null
       );
-      const logCounts = mapCountRows((logsResult.data as UserCountRow[] | null) ?? null);
+      const logCounts = mapLogStatsCounts(
+        (logStatsResult.data as UserLogStatsCountRow[] | null) ?? null
+      );
       const users = (((profilesResult.data ?? null) as unknown as ProfileRow[] | null) ?? []).map(
         (row) => mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts)
       );

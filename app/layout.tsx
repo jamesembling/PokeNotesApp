@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { SiteFormatsProvider } from "@/components/ui/SiteFormatsProvider";
 import { getInitialSiteFormats } from "@/lib/formats/catalog";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
@@ -65,8 +64,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
-  const initialTheme = parseTheme(cookieStore.get(THEME_COOKIE_KEY)?.value);
+  const initialTheme = parseTheme(undefined);
   const initialSiteFormats = getInitialSiteFormats();
 
   return (

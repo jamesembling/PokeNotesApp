@@ -18,6 +18,12 @@ type LogSummaryStats = {
   losses: number;
 };
 
+type LogSummaryStatsRow = {
+  games_played: number | null;
+  games_won: number | null;
+  games_lost: number | null;
+};
+
 type DeckStatsExplicitRow = Pick<LogsTableRow, "id" | "result" | "linked_deck_id">;
 
 export type DeckLogSnapshot = {
@@ -234,7 +240,7 @@ function shiftDateString(date: string, dayOffset: number) {
   return shifted.toISOString().slice(0, 10);
 }
 
-export async function getLogSummaryStats(userId: string): Promise<LogSummaryStats> {
+async function countLogSummaryStats(userId: string): Promise<LogSummaryStats> {
   const supabase = await logsDbTestHooks.createClient();
   const [total, wins, losses] = await measureServerCall("db.logs.summaryStats", async () => {
     const [{ count: totalCount, error: totalError }, { count: winsCount, error: winsError }, { count: lossesCount, error: lossesError }] =
@@ -271,6 +277,29 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
     total,
     wins,
     losses
+  };
+}
+
+export async function getLogSummaryStats(userId: string): Promise<LogSummaryStats> {
+  const supabase = await logsDbTestHooks.createClient();
+  const { data, error } = await measureServerCall("db.logs.summaryStatsRollup", async () =>
+    await supabase
+      .from("user_log_stats")
+      .select("games_played,games_won,games_lost")
+      .eq("user_id", userId)
+      .maybeSingle()
+  );
+
+  if (error) {
+    return await countLogSummaryStats(userId);
+  }
+
+  const row = ((data ?? null) as unknown) as LogSummaryStatsRow | null;
+
+  return {
+    total: Number(row?.games_played ?? 0),
+    wins: Number(row?.games_won ?? 0),
+    losses: Number(row?.games_lost ?? 0)
   };
 }
 

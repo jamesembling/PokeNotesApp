@@ -1,7 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
-import { ImportLogDialog } from "@/components/ui/ImportLogDialog";
+import { Button } from "@/components/ui/Button";
+import type { ImportLogDialogProps } from "@/components/ui/ImportLogDialog";
 import type { DeckSelectionOption, PokemonOption } from "@/types/index";
 
 type LazyImportLogButtonProps = {
@@ -16,6 +18,14 @@ type ImportDialogDataResponse = {
   userDecks?: DeckSelectionOption[];
 };
 
+const DynamicImportLogDialog = dynamic<ImportLogDialogProps>(
+  () =>
+    import("@/components/ui/ImportLogDialog").then((module) => module.ImportLogDialog),
+  {
+    ssr: false
+  }
+);
+
 export function LazyImportLogButton({
   className,
   initialUserDecks = [],
@@ -26,6 +36,7 @@ export function LazyImportLogButton({
   const [userDecks, setUserDecks] = useState<DeckSelectionOption[]>(initialUserDecks);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   async function handleImporterOpen() {
     if (pokemonOptions && ptcglUsername && userDecks.length > 0) {
@@ -64,15 +75,27 @@ export function LazyImportLogButton({
 
   return (
     <>
-      <ImportLogDialog
+      <Button
         className={className}
-        importDataError={loadError}
-        onOpen={handleImporterOpen}
-        pokemonOptions={pokemonOptions ?? []}
-        ptcglUsername={ptcglUsername}
-        triggerLabel={label}
-        userDecks={userDecks}
-      />
+        disabled={isLoading}
+        onClick={() => {
+          setDialogOpen(true);
+          void handleImporterOpen();
+        }}
+      >
+        {isLoading ? "Loading..." : label}
+      </Button>
+      {dialogOpen ? (
+        <DynamicImportLogDialog
+          importDataError={loadError}
+          initialOpen
+          onClose={() => setDialogOpen(false)}
+          pokemonOptions={pokemonOptions ?? []}
+          ptcglUsername={ptcglUsername}
+          renderTrigger={false}
+          userDecks={userDecks}
+        />
+      ) : null}
       {loadError ? (
         <p className="text-sm text-[var(--color-loss)]" role="status">
           {loadError}
