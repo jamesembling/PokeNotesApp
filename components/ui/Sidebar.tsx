@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { MobileSidebar } from "@/components/ui/MobileSidebar";
 import { SidebarNavLink } from "@/components/ui/SidebarNavLink";
@@ -76,6 +79,42 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
 }
 
 export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
+  const [resolvedProfile, setResolvedProfile] = useState(profile);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSidebarProfile() {
+      try {
+        const response = await fetch("/api/sidebar-profile", {
+          credentials: "same-origin"
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const nextProfile = (await response.json()) as SidebarProfile;
+
+        if (active) {
+          setResolvedProfile({
+            displayName: nextProfile.displayName || profile.displayName,
+            email: nextProfile.email || profile.email,
+            isAdmin: Boolean(nextProfile.isAdmin)
+          });
+        }
+      } catch {
+        // Keep the auth-derived fallback profile; the sidebar should never block the page.
+      }
+    }
+
+    loadSidebarProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [profile.displayName, profile.email]);
+
   return (
     <>
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[var(--border)] bg-[var(--bg-surface)] min-[860px]:flex">
@@ -105,11 +144,11 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
             </div>
           </div>
 
-          <AccountBlock profile={profile} />
+          <AccountBlock profile={resolvedProfile} />
         </div>
       </aside>
 
-      <MobileSidebar navItems={navItems} profile={profile} userDecks={userDecks} />
+      <MobileSidebar navItems={navItems} profile={resolvedProfile} userDecks={userDecks} />
     </>
   );
 }
