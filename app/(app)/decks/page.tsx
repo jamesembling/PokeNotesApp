@@ -4,9 +4,7 @@ import { DeckStrategyCollection } from "@/components/ui/DeckStrategyCollection";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
-import { getDeckStatsForIndex } from "@/lib/db/logs";
 import { getDeckIndexSummaries } from "@/lib/db/decks";
-import { measureServerCall } from "@/lib/server/perf";
 
 export default async function DecksPage() {
   const user = await requireUser();
@@ -22,37 +20,25 @@ export default async function DecksPage() {
       />
 
       <Suspense fallback={<DecksContentFallback />}>
-        <DecksContent decksPromise={decksPromise} userId={user.id} />
+        <DecksContent decksPromise={decksPromise} />
       </Suspense>
     </>
   );
 }
 
 async function DecksContent({
-  decksPromise,
-  userId
+  decksPromise
 }: {
   decksPromise: ReturnType<typeof getDeckIndexSummaries>;
-  userId: string;
 }) {
   const decks = await decksPromise;
-  const deckStatsByDeck = await measureServerCall("page.decks.data", async () =>
-    await getDeckStatsForIndex(userId, decks)
-  );
   const deckCardData = decks.map((deck) => {
-    const stats = deckStatsByDeck.get(deck.id) ?? {
-      total: 0,
-      wins: 0,
-      losses: 0
-    };
-    const winRate = stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0;
-
     return {
       deck,
-      gamesPlayed: stats.total,
+      gamesPlayed: 0,
       deckListCount: deck.deckListCount,
-      losses: stats.losses,
-      winRate: stats.total > 0 ? winRate : null
+      losses: 0,
+      winRate: null
     };
   });
 
