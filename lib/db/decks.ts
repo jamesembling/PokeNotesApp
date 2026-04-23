@@ -12,6 +12,7 @@ import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import { normalizeText } from "@/lib/log-import/normalization";
 import { getAllLogsForDeck, getBattleLogSummaryStats } from "@/lib/db/logs";
+import { resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
 import type { DeckLinkCandidate } from "@/lib/log-import/deck-linking";
 import { measureServerCall } from "@/lib/server/perf";
 import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
@@ -571,9 +572,11 @@ function mapDeckSelection(row: DeckSelectionRow): DeckSelectionOption {
   };
 }
 
-async function mapDeckIndexRow(row: DeckIndexRow, context: DeckMappingContext): Promise<DeckIndexSummary> {
+function mapDeckIndexRow(row: DeckIndexRow): DeckIndexSummary {
   const storedDeckPokemon = parseStringArray(row.deck_pokemon);
-  const deckPokemon = await normalizeDeckPokemon(storedDeckPokemon, context.slugIndex);
+  const deckPokemon = Array.from(
+    new Set(storedDeckPokemon.map((entry) => resolvePokemonSpriteSlug(entry)).filter(Boolean))
+  );
   const archetypeId = String(row.archetype_id || "").trim() || buildDeckArchetypeId(deckPokemon);
 
   return {
@@ -681,8 +684,7 @@ export const getDeckIndexSummaries = cache(async function getDeckIndexSummaries(
     }));
   }
 
-  const mappingContext = await loadDeckMappingContext();
-  return await Promise.all(rows.map((row) => mapDeckIndexRow(row, mappingContext)));
+  return rows.map(mapDeckIndexRow);
 });
 
 export const getDeckSelectionOptions = cache(async function getDeckSelectionOptions(
