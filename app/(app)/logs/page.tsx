@@ -5,50 +5,28 @@ import { LogsManager } from "@/components/ui/LogsManager";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { requireUser } from "@/lib/auth";
-import { getDeckSelectionAndLinkCandidates } from "@/lib/db/decks";
+import { getDeckSelectionOptions } from "@/lib/db/decks";
 import { getLogsWindow, getLogSummaryStats } from "@/lib/db/logs";
-import {
-  resolveLinkedDeck,
-  type DeckLinkCandidate
-} from "@/lib/log-import/deck-linking";
 import type { BattleLogSummary, DeckSelectionOption } from "@/types/index";
 
 function attachLinkedDeckListNames(
   logs: BattleLogSummary[],
-  userDecks: DeckSelectionOption[],
-  deckLinkCandidates: DeckLinkCandidate[]
+  userDecks: DeckSelectionOption[]
 ) {
   return logs.map((log) => {
-    const resolvedLinkedDeckId =
-      log.linkedDeckId ??
-      resolveLinkedDeck(deckLinkCandidates, {
-        linkedDeckId: log.linkedDeckId,
-        selfDeckName: log.selfDeckName,
-        selfDeckSprites: log.selfDeckSprites
-      }) ??
-      undefined;
-
-    if (!resolvedLinkedDeckId || !log.linkedDeckListId) {
+    if (!log.linkedDeckId || !log.linkedDeckListId) {
       return {
         ...log,
-        linkedDeckId: resolvedLinkedDeckId
+        linkedDeckListName: undefined
       };
     }
 
-    const deck = userDecks.find((candidate) => candidate.id === resolvedLinkedDeckId);
+    const deck = userDecks.find((candidate) => candidate.id === log.linkedDeckId);
     const linkedDeckList = deck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
-
-    if (!linkedDeckList?.name) {
-      return {
-        ...log,
-        linkedDeckId: resolvedLinkedDeckId
-      };
-    }
 
     return {
       ...log,
-      linkedDeckId: resolvedLinkedDeckId,
-      linkedDeckListName: linkedDeckList.name
+      linkedDeckListName: linkedDeckList?.name
     };
   });
 }
@@ -56,7 +34,7 @@ function attachLinkedDeckListNames(
 export default async function LogsPage() {
   const user = await requireUser();
   const userId = user.id;
-  const deckContextPromise = getDeckSelectionAndLinkCandidates(userId);
+  const userDecksPromise = getDeckSelectionOptions(userId);
   const logsWindowPromise = getLogsWindow(userId);
 
   return (
@@ -78,9 +56,8 @@ export default async function LogsPage() {
 
       <Suspense fallback={<LogsManagerFallback />}>
         <LogsWorkspace
-          deckContextPromise={deckContextPromise}
           logsWindowPromise={logsWindowPromise}
-          userId={userId}
+          userDecksPromise={userDecksPromise}
         />
       </Suspense>
     </>
@@ -113,19 +90,17 @@ async function LogsSummaryCards({ userId }: { userId: string }) {
 }
 
 async function LogsWorkspace({
-  deckContextPromise,
   logsWindowPromise,
-  userId
+  userDecksPromise
 }: {
-  deckContextPromise: ReturnType<typeof getDeckSelectionAndLinkCandidates>;
   logsWindowPromise: ReturnType<typeof getLogsWindow>;
-  userId: string;
+  userDecksPromise: ReturnType<typeof getDeckSelectionOptions>;
 }) {
-  const [{ deckLinkCandidates, userDecks }, page] = await Promise.all([
-    deckContextPromise,
+  const [userDecks, page] = await Promise.all([
+    userDecksPromise,
     logsWindowPromise
   ]);
-  const logs = attachLinkedDeckListNames(page.logs, userDecks, deckLinkCandidates);
+  const logs = attachLinkedDeckListNames(page.logs, userDecks);
 
   return (
     <Card>

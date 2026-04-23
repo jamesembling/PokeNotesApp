@@ -16,7 +16,6 @@ import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LogRow } from "@/components/ui/LogRow";
 import { formatDayDate } from "@/lib/client/date-format";
-import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { BattleLog, BattleLogSummary, DeckSelectionOption } from "@/types/index";
 
 type LogGroup = {
@@ -185,8 +184,6 @@ export function LogsManager({
   const [openGroupDates, setOpenGroupDates] = useState<string[]>(() =>
     initialLogs.length > 0 ? [initialLogs[0].date] : []
   );
-  const pokemonOptions = usePokemonOptions();
-
   const visibleSummary = useMemo(() => summarizeVisibleLogs(visibleLogs), [visibleLogs]);
   const groups = visibleSummary.groups;
   const selectedDeck = useMemo(
@@ -606,7 +603,6 @@ export function LogsManager({
                         managementMode={managementModeActive}
                         onDelete={() => handleDeleteSingle(log.id)}
                         onToggleSelected={() => toggleSelectedLog(log.id)}
-                        pokemonOptions={pokemonOptions}
                         selected={selectedLogIdSet.has(log.id)}
                       />
 

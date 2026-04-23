@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { useState } from "react";
 import { buildPokemonSpriteUrlFromSlug, findPokemonOptionBySlug, prettifyPokemonSlug } from "@/lib/pokemon/sprites";
-import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { PokemonOption } from "@/types/index";
 
 type SpriteStripProps = {
@@ -117,16 +116,6 @@ function SpriteStripContent({
   );
 }
 
-function SpriteStripWithHook(props: Omit<SpriteStripProps, "pokemonOptions">) {
-  const pokemonOptions = usePokemonOptions();
-
-  return <SpriteStripContent {...props} pokemonOptions={pokemonOptions} />;
-}
-
 export function SpriteStrip({ pokemonOptions, ...props }: SpriteStripProps) {
-  if (pokemonOptions !== undefined) {
-    return <SpriteStripContent {...props} pokemonOptions={pokemonOptions} />;
-  }
-
-  return <SpriteStripWithHook {...props} />;
+  return <SpriteStripContent {...props} pokemonOptions={pokemonOptions ?? null} />;
 }
