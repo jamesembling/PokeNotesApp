@@ -49,6 +49,27 @@ type DeckSelectionOptionsResponse = {
   userDecks?: DeckSelectionOption[];
 };
 
+let battleLogDetailAssetsWarmed = false;
+
+function warmBattleLogDetailAssets() {
+  if (battleLogDetailAssetsWarmed || typeof window === "undefined") {
+    return;
+  }
+
+  battleLogDetailAssetsWarmed = true;
+
+  const warm = () => {
+    void import("@/components/ui/BattleLogDetailClientPage");
+  };
+
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(warm, { timeout: 1500 });
+    return;
+  }
+
+  globalThis.setTimeout(warm, 250);
+}
+
 function summarizeVisibleLogs(logs: BattleLogSummary[]) {
   const groups = new Map<string, LogGroup>();
   let totalWins = 0;
@@ -317,6 +338,7 @@ export function LogsManager({
       .flatMap((group) => group.logs.map((log) => log.id));
 
     warmLogDetailCache(visibleOpenLogIds);
+    warmBattleLogDetailAssets();
   }, [groups, openGroupDates]);
 
   function toggleSelectedLog(logId: string) {
