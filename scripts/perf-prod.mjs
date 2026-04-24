@@ -29,6 +29,7 @@ const viewport = String(args.get("--viewport") || process.env.PERF_VIEWPORT || "
 const cold = args.get("--cold") !== "false";
 const saveAuth = args.has("--save-auth");
 const authWaitMs = Number(args.get("--auth-wait-ms") || process.env.PERF_AUTH_WAIT_MS || 120000);
+const testLoginSecret = String(args.get("--test-login-secret") || process.env.PERF_TEST_LOGIN_SECRET || "");
 
 const routePath = String(
   args.get("--log-path") ||
@@ -50,6 +51,7 @@ Options:
   --viewport=1647x894
   --cold=false
   --auth-wait-ms=120000
+  --test-login-secret=<secret>
   --save-auth
 `);
   process.exit(0);
@@ -105,8 +107,9 @@ function evalJson(expression) {
   return jsonLine ? JSON.parse(jsonLine) : null;
 }
 
-function waitForRouteSettled() {
-  runWithState([
+function waitForRouteSettled(useSavedState = true) {
+  const runner = useSavedState ? runWithState : runAgentBrowser;
+  runner([
     "wait",
     "--fn",
     "document.readyState === 'complete' && !document.querySelector('[data-route-loading]')"
@@ -198,6 +201,18 @@ function printTable(rows) {
 
 function saveAuthState() {
   mkdirSync(dirname(statePath), { recursive: true });
+
+  if (testLoginSecret) {
+    const testLoginUrl = new URL("/auth/test-login", baseUrl);
+    testLoginUrl.searchParams.set("secret", testLoginSecret);
+    console.log(`Opening secret-gated test login with session "${session}".`);
+    runAgentBrowser(["open", testLoginUrl.toString()], { stdio: "inherit" });
+    waitForRouteSettled(false);
+    runAgentBrowser(["state", "save", statePath], { stdio: "inherit" });
+    console.log(`Saved auth state to ${statePath}`);
+    return;
+  }
+
   console.log(`Opening ${baseUrl}/logs with session "${session}". Log in if needed, then come back here.`);
   runAgentBrowser(["open", `${baseUrl}/logs`], { stdio: "inherit" });
   runAgentBrowser(["wait", String(authWaitMs)], { stdio: "inherit" });
