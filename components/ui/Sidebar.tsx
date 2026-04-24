@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { MobileSidebar } from "@/components/ui/MobileSidebar";
 import { SidebarNavLink } from "@/components/ui/SidebarNavLink";
@@ -79,60 +78,6 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
 }
 
 export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
-  const [resolvedProfile, setResolvedProfile] = useState(profile);
-
-  useEffect(() => {
-    let active = true;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    let idleCallbackId: number | undefined;
-
-    async function loadSidebarProfile() {
-      try {
-        const response = await fetch("/api/sidebar-profile", {
-          credentials: "same-origin"
-        });
-
-        if (!response.ok) {
-          return;
-        }
-
-        const nextProfile = (await response.json()) as SidebarProfile;
-
-        if (active) {
-          setResolvedProfile({
-            displayName: nextProfile.displayName || profile.displayName,
-            email: nextProfile.email || profile.email,
-            isAdmin: Boolean(nextProfile.isAdmin)
-          });
-        }
-      } catch {
-        // Keep the auth-derived fallback profile; the sidebar should never block the page.
-      }
-    }
-
-    const scheduleProfileLoad = () => {
-      void loadSidebarProfile();
-    };
-
-    if ("requestIdleCallback" in window) {
-      idleCallbackId = window.requestIdleCallback(scheduleProfileLoad, { timeout: 4000 });
-    } else {
-      timeoutId = globalThis.setTimeout(scheduleProfileLoad, 3500);
-    }
-
-    return () => {
-      active = false;
-
-      if (idleCallbackId !== undefined) {
-        window.cancelIdleCallback(idleCallbackId);
-      }
-
-      if (timeoutId !== undefined) {
-        globalThis.clearTimeout(timeoutId);
-      }
-    };
-  }, [profile.displayName, profile.email]);
-
   return (
     <>
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[var(--border)] bg-[var(--bg-surface)] min-[860px]:flex">
@@ -162,11 +107,11 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
             </div>
           </div>
 
-          <AccountBlock profile={resolvedProfile} />
+          <AccountBlock profile={profile} />
         </div>
       </aside>
 
-      <MobileSidebar navItems={navItems} profile={resolvedProfile} userDecks={userDecks} />
+      <MobileSidebar navItems={navItems} profile={profile} userDecks={userDecks} />
     </>
   );
 }
