@@ -56,17 +56,20 @@ function SpriteStripItem({
   }
 
   return (
-    <Image
-      alt={prettifyPokemonSlug(slug)}
-      className={[sizeClasses[size], "object-contain"].join(" ")}
-      height={sizeValues[size]}
-      onError={(event) => {
-        setHasError(true);
-      }}
-      sizes={`${sizeValues[size]}px`}
-      src={src}
-      width={sizeValues[size]}
-    />
+    <span className={["relative block shrink-0", sizeClasses[size]].join(" ")}>
+      <Image
+        alt={prettifyPokemonSlug(slug)}
+        className="h-full w-full object-contain"
+        height={sizeValues[size]}
+        onError={() => {
+          setHasError(true);
+        }}
+        sizes={`${sizeValues[size]}px`}
+        src={src}
+        style={{ height: "100%", width: "100%" }}
+        width={sizeValues[size]}
+      />
+    </span>
   );
 }
 

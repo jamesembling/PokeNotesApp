@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import type { BattleLog, Result } from "@/types/index";
 
@@ -8,13 +8,6 @@ type SummaryStat = {
   opponentValue: number;
   userValue: number;
 };
-
-const COLORS = {
-  blue: "#2f72f5",
-  blueTint: "#eef4ff",
-  red: "#d4524a",
-  track: "#eef1f6"
-} as const;
 
 function formatStatValue(value: number) {
   return new Intl.NumberFormat("en-GB").format(value);
@@ -47,28 +40,23 @@ function getOpponentPlacement(goOrder: BattleLog["goOrder"]) {
 function getResultStyles(result: Result) {
   if (result === "Win") {
     return {
-      backgroundColor: "#edf9f1",
-      borderColor: "#d8eadf",
-      color: "#1f8a4c"
+      className: "text-[var(--color-win)]",
+      label: "WIN"
     };
   }
 
   return {
-    backgroundColor: "#fdf1f0",
-    borderColor: "#f0d7d4",
-    color: "#c5443e"
+    className: "text-[var(--color-loss)]",
+    label: "LOSS"
   };
 }
 
-
 export function IconCircle({
   children,
-  className = "",
-  style
+  className = ""
 }: {
   children: ReactNode;
   className?: string;
-  style?: CSSProperties;
 }) {
   return (
     <span
@@ -78,7 +66,6 @@ export function IconCircle({
       ]
         .filter(Boolean)
         .join(" ")}
-      style={style}
     >
       {children}
     </span>
@@ -102,8 +89,8 @@ export function ProgressBar({
   const rightRatio = max > 0 ? Math.max(0, Math.min(50, (rightValue / max) * 50)) : 0;
 
   return (
-    <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#eef1f6]">
-      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/80" />
+    <div className="relative h-2 w-full overflow-hidden rounded-full bg-[var(--bg-surface-alt)]">
+      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--border)]" />
       <div
         className="absolute inset-y-0 right-1/2 rounded-l-full"
         style={{
@@ -126,23 +113,23 @@ export function StatRow({ stat }: { stat: SummaryStat }) {
   const maxValue = Math.max(stat.userValue, stat.opponentValue);
 
   return (
-    <div className="relative z-10 space-y-2 py-4">
+    <div className="relative z-10 space-y-2 py-3.5">
       <div className="grid grid-cols-[auto_1fr_auto] items-end gap-4">
-        <p className="text-[1.45rem] font-semibold leading-none tracking-[-0.03em] text-[#d4524a]">
+        <p className="text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-[var(--color-loss)]">
           {formatStatValue(stat.userValue)}
         </p>
-        <p className="text-center text-[0.72rem] font-semibold uppercase tracking-[0.3em] text-[#7b8799]">
+        <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)] sm:text-[0.72rem]">
           {stat.label}
         </p>
-        <p className="text-right text-[1.45rem] font-semibold leading-none tracking-[-0.03em] text-[#2f72f5]">
+        <p className="text-right text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-[var(--color-brand)]">
           {formatStatValue(stat.opponentValue)}
         </p>
       </div>
       <ProgressBar
-        leftColor={COLORS.red}
+        leftColor="var(--color-loss)"
         leftValue={stat.userValue}
         max={maxValue}
-        rightColor={COLORS.blue}
+        rightColor="var(--color-brand)"
         rightValue={stat.opponentValue}
       />
     </div>
@@ -169,10 +156,10 @@ function PlayerPanel({
     >
       <SpriteStrip className="gap-1.5" maxVisible={2} size="lg" sprites={sprites} />
       <div className="space-y-1">
-        <p className="truncate text-[0.98rem] font-semibold tracking-[-0.02em] text-[#132238] sm:text-[1rem]">
+        <p className="truncate text-[0.98rem] font-semibold tracking-[-0.02em] text-[var(--text-primary)] sm:text-[1rem]">
           {label}
         </p>
-        <p className="text-[0.72rem] uppercase tracking-[0.14em] text-[#7b8799] sm:text-sm">
+        <p className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--text-muted)] sm:text-sm">
           {placement}
         </p>
       </div>
@@ -189,7 +176,7 @@ export function MatchSummary({
   log: BattleLog;
   timestampLabel: string;
 }) {
-  const resultLabel = log.result.toUpperCase();
+  const resultStyles = getResultStyles(log.result);
   const stats: SummaryStat[] = [
     {
       id: "attack-damage",
@@ -212,33 +199,27 @@ export function MatchSummary({
   ];
 
   return (
-    <section className="overflow-hidden rounded-[30px] border border-[#e7ebf2] bg-white px-5 py-6 shadow-[0_12px_32px_rgba(15,23,42,0.05)] sm:px-7 sm:py-7 lg:px-8">
-      <div className="flex flex-col gap-6">
+    <section className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-5 sm:px-6 sm:py-6 lg:px-7">
+      <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-2">
-            <h2 className="text-[2rem] font-semibold tracking-[-0.05em] text-[#132238] sm:text-[2.35rem]">
+          <div className="space-y-1.5">
+            <h2 className="text-[1.85rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)] sm:text-[2.15rem]">
               Match Summary
             </h2>
-            <p className="max-w-[42rem] text-[1rem] text-[#64748b] sm:text-[1.05rem]">
-              Overview of your performance in this match.
-            </p>
           </div>
 
           <div className="flex flex-col items-start gap-3 lg:items-end">
-            <p
-              className="text-[1.35rem] font-semibold leading-none tracking-[0.14em]"
-              style={{ color: getResultStyles(log.result).color }}
-            >
-              {resultLabel}
+            <p className={`text-[1.1rem] font-semibold leading-none tracking-[0.14em] ${resultStyles.className}`}>
+              {resultStyles.label}
             </p>
             <div className="flex flex-col items-start gap-3 lg:items-end">
-              <p className="text-sm text-[#64748b]">{timestampLabel}</p>
+              <p className="text-sm text-[var(--text-muted)]">{timestampLabel}</p>
               {actions ? <div className="flex flex-wrap items-center gap-3 lg:justify-end">{actions}</div> : null}
             </div>
           </div>
         </div>
 
-        <div className="border-t border-[#edf1f6] pt-6">
+        <div className="border-t border-[var(--border)] pt-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-4 sm:gap-6 lg:flex lg:flex-row lg:items-center lg:gap-10">
             <PlayerPanel
               label={log.selfPlayerName}
@@ -247,14 +228,14 @@ export function MatchSummary({
             />
 
             <div className="flex flex-col items-center justify-center gap-1.5 self-center lg:gap-2">
-              <IconCircle className="h-9 w-9 border border-[#e7ebf2] bg-[#f8fafc] text-[0.72rem] font-semibold tracking-[0.12em] text-[#64748b] sm:h-11 sm:w-11 sm:text-sm">
+              <IconCircle className="h-9 w-9 border border-[var(--border)] bg-[var(--bg-surface-alt)] text-[0.72rem] font-semibold tracking-[0.12em] text-[var(--text-muted)] sm:h-11 sm:w-11 sm:text-sm">
                 VS
               </IconCircle>
               <div className="text-center">
-                <p className="text-[2rem] font-semibold leading-none tracking-[-0.06em] text-[#132238] sm:text-[2.8rem]">
+                <p className="text-[2rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)] sm:text-[2.55rem]">
                   {log.totalTurns}
                 </p>
-                <p className="mt-1 text-[0.65rem] font-medium uppercase tracking-[0.14em] text-[#7b8799] sm:mt-1.5 sm:text-sm">
+                <p className="mt-1 text-[0.65rem] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)] sm:mt-1.5 sm:text-sm">
                   Total Turns
                 </p>
               </div>
@@ -269,9 +250,9 @@ export function MatchSummary({
           </div>
         </div>
 
-        <div className="relative border-t border-[#edf1f6] pt-2">
-          <div className="absolute bottom-0 left-1/2 top-0 hidden w-px -translate-x-1/2 bg-[#eef2f7] lg:block" />
-          <div className="divide-y divide-[#edf1f6]">
+        <div className="relative border-t border-[var(--border)] pt-1">
+          <div className="absolute bottom-0 left-1/2 top-0 hidden w-px -translate-x-1/2 bg-[var(--border)] lg:block" />
+          <div className="divide-y divide-[var(--border)]">
             {stats.map((stat) => (
               <StatRow key={stat.id} stat={stat} />
             ))}

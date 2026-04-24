@@ -55,11 +55,18 @@ async function DecksContent({
 
 function DecksContentFallback() {
   return (
-    <Card>
+    <Card className="grid gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-2">
+          <div className="h-3 w-20 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
+          <div className="h-5 w-44 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
+        </div>
+        <div className="h-10 w-36 animate-pulse rounded-xl bg-[var(--bg-surface-alt)]" />
+      </div>
       <div className="grid gap-4">
         {Array.from({ length: 3 }).map((_, index) => (
           <div
-            className="h-32 animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
+            className="h-28 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
             key={index}
           />
         ))}

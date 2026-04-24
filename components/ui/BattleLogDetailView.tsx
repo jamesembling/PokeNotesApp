@@ -229,8 +229,8 @@ function LogSectionCard({
   const toneClassName = !effectivePlayer
     ? "bg-[var(--bg-surface)]"
     : effectivePlayer === selfPlayerName
-      ? "bg-[rgba(191,219,254,0.72)]"
-      : "bg-[rgba(251,207,232,0.6)]";
+      ? "bg-[rgba(37,99,235,0.08)] dark:bg-[rgba(37,99,235,0.13)]"
+      : "bg-[rgba(220,38,38,0.06)] dark:bg-[rgba(220,38,38,0.12)]";
   const orderedPlayerNames = getOrderedPlayerNames(section, previousSection, selfPlayerName);
   const actions = section.actions.filter(
     (action) => !SETUP_SECTION_LABELS.has(String(action.title || "").trim().toLowerCase())
@@ -239,7 +239,7 @@ function LogSectionCard({
   return (
     <article
       className={[
-        "rounded-[24px] border border-[var(--border)] px-4 py-4 text-[var(--text-primary)] shadow-[var(--shadow-sm)] sm:px-6",
+        "rounded-xl border border-[var(--border)] px-4 py-4 text-[var(--text-primary)] sm:px-6",
         toneClassName
       ].join(" ")}
       style={{
@@ -275,7 +275,7 @@ function LogSectionCard({
         </div>
 
         {!isSetupSection && turnNumber ? (
-          <span className="inline-flex items-center rounded-full bg-[rgba(22,32,51,0.08)] px-4 py-1.5 text-[0.98rem] font-semibold text-[var(--text-muted)]">
+          <span className="inline-flex items-center rounded-lg bg-[var(--bg-surface-alt)] px-3 py-1.5 text-[0.9rem] font-semibold text-[var(--text-muted)]">
             Turn {turnNumber}
           </span>
         ) : null}

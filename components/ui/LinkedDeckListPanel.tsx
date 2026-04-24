@@ -41,7 +41,7 @@ export function LinkedDeckListPanel({
   sortedCards
 }: LinkedDeckListPanelProps) {
   return (
-    <Card className="rounded-[24px] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
+    <Card className="p-4 sm:p-5">
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-display m-0 text-[1.28rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
