@@ -3,6 +3,8 @@ import { requireUser } from "@/lib/auth";
 import { getLogDetailBodyById } from "@/lib/db/logs";
 import { reportError } from "@/lib/server/report-error";
 
+export const runtime = "edge";
+
 export async function GET(request: NextRequest) {
   try {
     const logId = request.nextUrl.searchParams.get("id");
