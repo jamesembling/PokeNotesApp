@@ -126,7 +126,7 @@ function LogRowComponent({
 
   if (!managementMode) {
     return (
-      <Link className={cardClasses} href={`/logs/${log.id}`} style={cardStyle}>
+      <Link className={cardClasses} href={`/logs/${log.id}`} prefetch={false} style={cardStyle}>
         {content}
       </Link>
     );
@@ -134,7 +134,7 @@ function LogRowComponent({
 
   return (
     <div className="group/row grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" style={cardStyle}>
-      <Link className={cardClasses} href={`/logs/${log.id}`}>
+      <Link className={cardClasses} href={`/logs/${log.id}`} prefetch={false}>
         {content}
       </Link>
 
