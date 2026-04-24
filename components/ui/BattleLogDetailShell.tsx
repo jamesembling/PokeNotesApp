@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { revokeLogShareAction } from "@/app/(app)/logs/actions";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Button } from "@/components/ui/Button";
@@ -68,6 +67,19 @@ const feedbackClassName: Record<ShareTone, string> = {
   error:
     "rounded-[18px] border border-[rgba(213,87,75,0.22)] bg-[linear-gradient(180deg,rgba(213,87,75,0.18),rgba(213,87,75,0.1))] px-4 py-3 text-sm font-semibold text-[var(--color-loss)] shadow-[var(--shadow-sm)]"
 };
+
+async function revokeLogShare(shareId: string) {
+  const response = await fetch(`/api/log-shares?shareId=${encodeURIComponent(shareId)}`, {
+    cache: "no-store",
+    credentials: "same-origin",
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(payload.error || "Could not revoke this share link right now.");
+  }
+}
 
 export function BattleLogDetailShell({
   activeShare = null,
@@ -177,7 +189,7 @@ export function BattleLogDetailShell({
     setIsRevoking(true);
 
     try {
-      await revokeLogShareAction(currentShare.shareId);
+      await revokeLogShare(currentShare.shareId);
       setCurrentShare(null);
       setShareFeedback({
         tone: "success",

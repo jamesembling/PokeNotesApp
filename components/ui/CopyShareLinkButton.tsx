@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createLogShareAction } from "@/app/(app)/logs/actions";
 import { Button } from "@/components/ui/Button";
 
 type CopyShareLinkButtonProps = {
@@ -82,6 +81,36 @@ async function shareOrCopyLink(shareUrl: string): Promise<ShareMethod> {
   return copyTextToClipboard(shareUrl);
 }
 
+async function createLogShare(logId: string) {
+  const response = await fetch("/api/log-shares", {
+    body: JSON.stringify({ logId }),
+    cache: "no-store",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+
+  const payload = (await response.json().catch(() => ({}))) as Partial<ShareLinkState> & {
+    error?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(payload.error || "Could not create a share link for this battle log.");
+  }
+
+  if (!payload.shareId || !payload.shareUrl || !payload.expiresAt) {
+    throw new Error("Could not create a share link for this battle log.");
+  }
+
+  return {
+    expiresAt: payload.expiresAt,
+    shareId: payload.shareId,
+    shareUrl: payload.shareUrl
+  };
+}
+
 export function CopyShareLinkButton({
   initialShare = null,
   logId,
@@ -94,7 +123,7 @@ export function CopyShareLinkButton({
     setIsBusy(true);
 
     try {
-      const share = initialShare ?? (await createLogShareAction(logId));
+      const share = initialShare ?? (await createLogShare(logId));
       onShareReady?.(share);
       const { shareUrl } = share;
       const shareMethod = await shareOrCopyLink(shareUrl);
