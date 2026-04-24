@@ -11,6 +11,10 @@ function getFallbackDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
   );
 }
 
+function getAuthClaimIsAdmin(user: Awaited<ReturnType<typeof requireUser>>) {
+  return user.app_metadata?.role === "admin";
+}
+
 export default async function AppLayout({
   children
 }: Readonly<{
@@ -24,7 +28,7 @@ export default async function AppLayout({
         profile={{
           displayName: getFallbackDisplayName(user),
           email: user.email ?? "",
-          isAdmin: false
+          isAdmin: getAuthClaimIsAdmin(user)
         }}
       />
       <main className="min-[860px]:pl-64">
