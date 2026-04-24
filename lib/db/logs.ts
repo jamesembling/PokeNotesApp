@@ -223,6 +223,61 @@ export function mapBattleLog(row: LogDetailTableRow): BattleLog {
   };
 }
 
+const logDetailSummarySelect = [
+  "id",
+  "user_id",
+  "date",
+  "result",
+  "format",
+  "go_order",
+  "self_player_name",
+  "self_deck_name",
+  "self_deck_slug",
+  "self_deck_sprites",
+  "opponent_player_name",
+  "opponent_deck_name",
+  "opponent_deck_slug",
+  "opponent_deck_sprites",
+  "total_turns",
+  "coin_toss_won",
+  "self_prizes_taken",
+  "opponent_prizes_taken",
+  "self_attack_damage",
+  "opponent_attack_damage",
+  "self_mulligans",
+  "opponent_mulligans",
+  "linked_deck_id",
+  "linked_deck_list_id",
+  "reason",
+  "imported_at",
+  "created_at",
+  "updated_at"
+].join(",");
+
+const logDetailBodySelect = ["id", "user_id", "raw_log", "sections"].join(",");
+
+type LogDetailBodyTableRow = Pick<LogDetailTableRow, "id" | "user_id" | "raw_log" | "sections">;
+
+export type LogDetailBody = {
+  rawLog: string;
+  sections: LogSection[];
+};
+
+function mapBattleLogSummary(row: Omit<LogDetailTableRow, "raw_log" | "sections">): BattleLog {
+  return mapBattleLog({
+    ...row,
+    raw_log: "",
+    sections: []
+  });
+}
+
+function mapLogDetailBody(row: LogDetailBodyTableRow): LogDetailBody {
+  return {
+    rawLog: row.raw_log ?? "",
+    sections: parseSections(row.sections)
+  };
+}
+
 function normalizeWindowDays(value?: number) {
   if (!Number.isFinite(value) || Number(value) <= 0) {
     return DEFAULT_LOG_WINDOW_DAYS;
@@ -574,6 +629,58 @@ export async function getLogById(
   }
 
   return mapBattleLog((data as unknown) as LogDetailTableRow);
+}
+
+export async function getLogDetailSummaryById(
+  userId: string,
+  logId: string
+): Promise<BattleLog | null> {
+  const supabase = await logsDbTestHooks.createClient();
+
+  const { data, error } = await measureServerCall("db.logs.byId.summary", async () =>
+    await supabase
+      .from("logs")
+      .select(logDetailSummarySelect)
+      .eq("user_id", userId)
+      .eq("id", logId)
+      .maybeSingle()
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapBattleLogSummary((data as unknown) as Omit<LogDetailTableRow, "raw_log" | "sections">);
+}
+
+export async function getLogDetailBodyById(
+  userId: string,
+  logId: string
+): Promise<LogDetailBody | null> {
+  const supabase = await logsDbTestHooks.createClient();
+
+  const { data, error } = await measureServerCall("db.logs.byId.body", async () =>
+    await supabase
+      .from("logs")
+      .select(logDetailBodySelect)
+      .eq("user_id", userId)
+      .eq("id", logId)
+      .maybeSingle()
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapLogDetailBody((data as unknown) as LogDetailBodyTableRow);
 }
 
 async function getLogsIndexedByDeck(

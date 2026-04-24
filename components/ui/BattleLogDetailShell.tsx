@@ -37,7 +37,6 @@ type BattleLogDetailShellProps = {
 
 type LogDetailContextResponse = {
   activeShare?: ShareLinkState | null;
-  actionTagOverrides?: BattleLogActionTagOverrides;
   linkedDeckId?: string;
   linkedDeckListFormat?: string;
   linkedDeckListId?: string;
@@ -47,6 +46,12 @@ type LogDetailContextResponse = {
   linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel?: string;
   userDecks?: DeckSelectionOption[];
+};
+
+type LogDetailBodyResponse = {
+  actionTagOverrides?: BattleLogActionTagOverrides;
+  rawLog?: string;
+  sections?: BattleLog["sections"];
 };
 
 const backLinkClassName =
@@ -83,6 +88,7 @@ export function BattleLogDetailShell({
   const [shareFeedback, setShareFeedback] = useState<ShareFeedback | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
   const [deferredContext, setDeferredContext] = useState<LogDetailContextResponse | null>(null);
+  const [deferredBody, setDeferredBody] = useState<LogDetailBodyResponse | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,9 +125,48 @@ export function BattleLogDetailShell({
     };
   }, [log.id]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadDeferredBody() {
+      try {
+        const response = await fetch(`/api/log-detail-body?id=${encodeURIComponent(log.id)}`, {
+          cache: "no-store",
+          credentials: "same-origin",
+          signal: controller.signal
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as LogDetailBodyResponse;
+        setDeferredBody(payload);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      }
+    }
+
+    void loadDeferredBody();
+
+    return () => {
+      controller.abort();
+    };
+  }, [log.id]);
+
   const resolvedUserDecks = useMemo(
     () => deferredContext?.userDecks ?? userDecks,
     [deferredContext?.userDecks, userDecks]
+  );
+  const resolvedLog = useMemo(
+    () => ({
+      ...log,
+      rawLog: deferredBody?.rawLog ?? log.rawLog,
+      sections: deferredBody?.sections ?? log.sections
+    }),
+    [deferredBody?.rawLog, deferredBody?.sections, log]
   );
 
   async function handleRevoke() {
@@ -153,7 +198,7 @@ export function BattleLogDetailShell({
 
   return (
     <BattleLogDetailView
-      actionTagOverrides={deferredContext?.actionTagOverrides ?? actionTagOverrides}
+      actionTagOverrides={deferredBody?.actionTagOverrides ?? actionTagOverrides}
       actions={
         <>
           <LazyEditLogButton log={log} userDecks={resolvedUserDecks} />
@@ -183,7 +228,8 @@ export function BattleLogDetailShell({
         deferredContext?.linkedDeckListSortedCards ?? linkedDeckListSortedCards
       }
       linkedStrategyLabel={deferredContext?.linkedStrategyLabel ?? linkedStrategyLabel}
-      log={log}
+      isBodyLoading={!deferredBody}
+      log={resolvedLog}
       mobileNavigation={
         <div className="grid grid-cols-2 gap-3 sm:hidden">
           <Link className={mobileBackLinkClassName} href="/logs">

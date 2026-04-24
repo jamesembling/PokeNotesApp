@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { getDeckSelectionAndLinkCandidates, getDeckWithList } from "@/lib/db/decks";
 import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
-import { getLogById } from "@/lib/db/logs";
+import { getLogDetailSummaryById } from "@/lib/db/logs";
 import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
 import { getAppOrigin } from "@/lib/server/app-url";
 import { reportError } from "@/lib/server/report-error";
@@ -17,17 +16,16 @@ export async function GET(request: NextRequest) {
     }
 
     const user = await requireUser();
-    const log = await getLogById(user.id, logId);
+    const log = await getLogDetailSummaryById(user.id, logId);
 
     if (!log) {
       return NextResponse.json({ error: "Log not found." }, { status: 404 });
     }
 
-    const [{ userDecks, deckLinkCandidates }, [activeShare], actionTagOverrides, appOrigin] =
+    const [{ userDecks, deckLinkCandidates }, [activeShare], appOrigin] =
       await Promise.all([
         getDeckSelectionAndLinkCandidates(user.id),
         listActiveSharesForOwnerLog(user.id, log.id),
-        resolveBattleLogActionTagOverrides(log.sections),
         getAppOrigin()
       ]);
 
@@ -57,7 +55,6 @@ export async function GET(request: NextRequest) {
               shareUrl: `${appOrigin}/shared/${activeShare.id}`
             }
           : null,
-        actionTagOverrides,
         linkedDeckId: linkedDeck?.id,
         linkedDeckListFormat: linkedDeckWithList?.deckList.format,
         linkedDeckListId: linkedDeckList?.id,

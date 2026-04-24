@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
-import { getLogById } from "@/lib/db/logs";
+import { getLogDetailSummaryById } from "@/lib/db/logs";
 
 type LogDetailPageProps = {
   params: Promise<{
@@ -30,7 +30,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const { id } = await params;
   const userId = user.id;
 
-  const log = await getLogById(userId, id);
+  const log = await getLogDetailSummaryById(userId, id);
 
   if (!log) {
     return (

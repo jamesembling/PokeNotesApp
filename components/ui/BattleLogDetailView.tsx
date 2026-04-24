@@ -363,6 +363,7 @@ type BattleLogDetailViewProps = {
   linkedDeckListRawList?: string;
   linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel: string;
+  isBodyLoading?: boolean;
   log: BattleLog;
   mobileNavigation?: ReactNode;
   notice?: ReactNode;
@@ -381,6 +382,7 @@ export function BattleLogDetailView({
   linkedDeckListRawList,
   linkedDeckListSortedCards,
   linkedStrategyLabel: _linkedStrategyLabel,
+  isBodyLoading = false,
   log,
   mobileNavigation,
   notice,
@@ -421,6 +423,15 @@ export function BattleLogDetailView({
             turnNumber={turnNumbers[index] ?? null}
           />
         ))
+      ) : isBodyLoading ? (
+        <Card>
+          <div className="flex flex-col gap-3" role="status">
+            <div className="h-4 w-40 rounded bg-[var(--bg-surface-alt)]" />
+            <div className="h-3 w-full rounded bg-[var(--bg-surface-alt)]" />
+            <div className="h-3 w-11/12 rounded bg-[var(--bg-surface-alt)]" />
+            <div className="h-3 w-4/5 rounded bg-[var(--bg-surface-alt)]" />
+          </div>
+        </Card>
       ) : (
         <Card>
           <div className="whitespace-pre-wrap font-mono text-[0.92rem] leading-6 text-[var(--text-primary)]">
