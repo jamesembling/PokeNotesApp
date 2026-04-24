@@ -11,6 +11,7 @@ type LogDetailDataResponse = {
 
 const CACHE_PREFIX = "poke-notes:log-detail:";
 const CACHE_TTL_MS = 60_000;
+const MAX_WARMED_LOG_DETAILS = 2;
 const warmedLogIds = new Set<string>();
 
 function getCacheKey(logId: string) {
@@ -87,9 +88,14 @@ export function warmLogDetailCache(logIds: string[]) {
     return;
   }
 
+  const remainingWarmSlots = Math.max(0, MAX_WARMED_LOG_DETAILS - warmedLogIds.size);
+  if (remainingWarmSlots === 0) {
+    return;
+  }
+
   const idsToWarm = logIds
     .filter((logId) => !warmedLogIds.has(logId) && !readCachedLogDetail(logId))
-    .slice(0, 4);
+    .slice(0, remainingWarmSlots);
 
   if (idsToWarm.length === 0) {
     return;
