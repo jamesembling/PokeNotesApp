@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { getLogDetailBodyById } from "@/lib/db/logs";
 import { reportError } from "@/lib/server/report-error";
 
@@ -19,11 +18,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Log not found." }, { status: 404 });
     }
 
-    const actionTagOverrides = await resolveBattleLogActionTagOverrides(body.sections);
-
     return NextResponse.json(
       {
-        actionTagOverrides,
         rawLog: body.rawLog,
         sections: body.sections
       },
