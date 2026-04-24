@@ -213,7 +213,7 @@ export function BattleLogDetailShell({
               {isRevoking ? "Revoking..." : "Revoke Link"}
             </Button>
           ) : null}
-          <Link className={`${backLinkClassName} hidden sm:inline-flex`} href="/logs">
+          <Link className={`${backLinkClassName} hidden sm:inline-flex`} href="/logs" prefetch={false}>
             Back to Logs
           </Link>
         </>
@@ -232,7 +232,7 @@ export function BattleLogDetailShell({
       log={resolvedLog}
       mobileNavigation={
         <div className="grid grid-cols-2 gap-3 sm:hidden">
-          <Link className={mobileBackLinkClassName} href="/logs">
+          <Link className={mobileBackLinkClassName} href="/logs" prefetch={false}>
             Back to Logs
           </Link>
           <LazyImportLogButton

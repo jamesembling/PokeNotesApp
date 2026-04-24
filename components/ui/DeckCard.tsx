@@ -63,6 +63,7 @@ export function DeckCard({
       <Link
         className="group block px-4 py-4 transition hover:bg-[var(--bg-surface-alt)] sm:px-6"
         href={`/decks/${deck.id}`}
+        prefetch={false}
       >
         <div className="md:hidden">
           <div className="flex min-w-0 items-center gap-4">
@@ -120,7 +121,7 @@ export function DeckCard({
   }
 
   return (
-    <Link className="block h-full" href={`/decks/${deck.id}`}>
+    <Link className="block h-full" href={`/decks/${deck.id}`} prefetch={false}>
       <Card className="flex h-full flex-col gap-5 transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[var(--shadow-sm)]">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-3">

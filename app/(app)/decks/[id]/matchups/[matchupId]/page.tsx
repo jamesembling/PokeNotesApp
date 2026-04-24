@@ -40,7 +40,7 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
             <p className="text-sm text-[var(--text-secondary)]">
               The requested matchup is unavailable.
             </p>
-            <Link href={`/decks/${id}`}>
+            <Link href={`/decks/${id}`} prefetch={false}>
               <Button variant="secondary">Back to Deck</Button>
             </Link>
           </div>
@@ -80,7 +80,7 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
                   triggerLabel="Edit Matchup"
                   triggerVariant="secondary"
                 />
-                <Link href={`/decks/${id}`}>
+                <Link href={`/decks/${id}`} prefetch={false}>
                   <Button variant="secondary">Back to Deck</Button>
                 </Link>
               </div>

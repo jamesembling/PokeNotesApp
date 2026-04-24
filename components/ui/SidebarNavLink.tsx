@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 export function SidebarNavLink({
   href,
@@ -15,13 +15,7 @@ export function SidebarNavLink({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const active = pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
-  const prefetchRoute = () => {
-    if (!active) {
-      router.prefetch(href);
-    }
-  };
 
   return (
     <Link
@@ -34,8 +28,6 @@ export function SidebarNavLink({
       ].join(" ")}
       href={href}
       onClick={onNavigate}
-      onFocus={prefetchRoute}
-      onPointerEnter={prefetchRoute}
       prefetch={false}
     >
       {active ? (

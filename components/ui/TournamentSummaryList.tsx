@@ -38,6 +38,7 @@ function TournamentSummaryRow({
         <Link
           className="group relative grid w-full grid-cols-1 gap-3 overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-4 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)] sm:grid-cols-[4rem_minmax(0,1.7fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_4.5rem_4.5rem] sm:items-center sm:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
           href={`/tournaments/${tournament.id}`}
+          prefetch={false}
           style={{
             contentVisibility: "auto",
             containIntrinsicSize: "88px"

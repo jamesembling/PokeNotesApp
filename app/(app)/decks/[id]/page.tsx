@@ -44,7 +44,7 @@ function DeckMatchupTile({
   matchup: DeckMatchup;
 }) {
   return (
-    <Link className="group block h-full" href={`/decks/${deckId}/matchups/${matchup.id}`}>
+    <Link className="group block h-full" href={`/decks/${deckId}/matchups/${matchup.id}`} prefetch={false}>
       <Card className="flex h-full flex-col gap-4 transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[var(--shadow-sm)]">
         <div className="flex items-start justify-between gap-3">
           <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={matchup.deckPokemon} />
@@ -96,6 +96,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
             <Link
               className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
               href="/decks"
+              prefetch={false}
             >
               Back to Decks
             </Link>
@@ -117,6 +118,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       <Link
         className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
         href="/decks"
+        prefetch={false}
       >
         Back to Decks
       </Link>
@@ -216,6 +218,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                   <Link
                     className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
                     href={`/decks/${deck.id}/lists/${deckList.id}`}
+                    prefetch={false}
                   >
                     View List
                   </Link>

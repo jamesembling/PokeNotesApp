@@ -53,6 +53,7 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
       <Link
         className="flex items-center gap-3 rounded-lg px-1 py-1 transition hover:bg-[var(--bg-surface-alt)]"
         href="/profile"
+        prefetch={false}
       >
         <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] text-sm font-semibold text-[var(--text-primary)]">
           {initials}
@@ -68,6 +69,7 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
         <Link
           className="mt-3 flex items-center rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
           href="/admin/dashboard"
+          prefetch={false}
         >
           Admin Dashboard
         </Link>
@@ -87,6 +89,7 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
               aria-label="Go to Poke Notes home"
               className="inline-flex items-center"
               href="/logs"
+              prefetch={false}
             >
               <img alt="Poke Notes" className="h-12 w-12" src="/pokeball-icon.svg" />
             </Link>

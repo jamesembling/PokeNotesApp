@@ -37,6 +37,7 @@ export function PageHeader({
                   <Link
                     className="transition hover:text-[var(--color-brand)]"
                     href={item.href}
+                    prefetch={false}
                   >
                     {item.label}
                   </Link>

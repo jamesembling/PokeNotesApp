@@ -81,6 +81,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
             <Link
               className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
               href="/tournaments"
+              prefetch={false}
             >
               Back to Tournaments
             </Link>
@@ -114,6 +115,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
             <Link
               className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
               href="/tournaments"
+              prefetch={false}
             >
               Back to Tournaments
             </Link>

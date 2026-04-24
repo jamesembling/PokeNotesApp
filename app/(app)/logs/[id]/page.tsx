@@ -43,7 +43,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
           ]}
           title="Battle Log"
           action={
-            <Link className={backLinkClassName} href="/logs">
+            <Link className={backLinkClassName} href="/logs" prefetch={false}>
               Back to Logs
             </Link>
           }
@@ -58,7 +58,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
               This battle log is unavailable or you do not have access to it.
             </p>
             <div>
-              <Link className={backLinkClassName} href="/logs">
+              <Link className={backLinkClassName} href="/logs" prefetch={false}>
                 Back to Logs
               </Link>
             </div>

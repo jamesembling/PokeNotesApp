@@ -47,6 +47,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
             <Link
               className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
               href={`/decks/${id}`}
+              prefetch={false}
             >
               Back to Deck
             </Link>
@@ -79,7 +80,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
               triggerLabel="Edit List"
               triggerVariant="secondary"
             />
-            <Link href={`/decks/${id}`}>
+            <Link href={`/decks/${id}`} prefetch={false}>
               <Button variant="secondary">Back to Deck</Button>
             </Link>
           </div>

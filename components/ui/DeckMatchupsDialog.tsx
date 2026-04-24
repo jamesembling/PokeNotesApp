@@ -94,6 +94,7 @@ export function DeckMatchupsDialog({
                       href={`/decks/${deckId}/matchups/${matchup.id}`}
                       key={matchup.id}
                       onClick={() => setIsOpen(false)}
+                      prefetch={false}
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <SpriteStrip

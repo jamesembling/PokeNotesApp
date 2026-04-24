@@ -51,6 +51,7 @@ export function LinkedDeckListPanel({
             <Link
               className="ui-control-text inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)]"
               href={`/decks/${deckId}`}
+              prefetch={false}
             >
               Jump to Deck
             </Link>

@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 type PendingNavigation = {
   fromPath: string;
   loadingStartedAt: number | null;
+  resourceStartedAt: number;
   sawLoading: boolean;
   startedAt: number;
   toPath: string;
@@ -24,6 +25,7 @@ type NavigatorWithHints = Navigator & {
 };
 
 const REPORT_ENDPOINT = "/api/performance-events";
+const NAVIGATION_RESOURCE_LOOKBACK_MS = 1200;
 const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -186,7 +188,7 @@ export function RoutePerformanceReporter() {
       }
 
       const finishedAt = performance.now();
-      const resourceSnapshot = getSlowestResourceSince(pendingNavigation.startedAt);
+      const resourceSnapshot = getSlowestResourceSince(pendingNavigation.resourceStartedAt);
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
@@ -248,11 +250,14 @@ export function RoutePerformanceReporter() {
         return;
       }
 
+      const startedAt = performance.now();
+
       pendingNavigationRef.current = {
         fromPath,
         loadingStartedAt: getLoadingElement() ? performance.now() : null,
+        resourceStartedAt: Math.max(0, startedAt - NAVIGATION_RESOURCE_LOOKBACK_MS),
         sawLoading: Boolean(getLoadingElement()),
-        startedAt: performance.now(),
+        startedAt,
         toPath
       };
     }
@@ -276,7 +281,7 @@ export function RoutePerformanceReporter() {
       }
 
       const finishedAt = performance.now();
-      const resourceSnapshot = getSlowestResourceSince(pendingNavigation.startedAt);
+      const resourceSnapshot = getSlowestResourceSince(pendingNavigation.resourceStartedAt);
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),

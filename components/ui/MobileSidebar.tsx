@@ -52,6 +52,7 @@ export function MobileSidebar({
               aria-label="Go to Poke Notes home"
               className="inline-flex items-center"
               href="/logs"
+              prefetch={false}
             >
               <img alt="Poke Notes" className="h-12 w-12" src="/pokeball-icon.svg" />
             </Link>
@@ -74,6 +75,7 @@ export function MobileSidebar({
                 aria-label="Go to Poke Notes home"
                 className="inline-flex items-center"
                 href="/logs"
+                prefetch={false}
               >
                 <img alt="Poke Notes" className="h-12 w-12" src="/pokeball-icon.svg" />
               </Link>
