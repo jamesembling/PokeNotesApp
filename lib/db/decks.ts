@@ -795,16 +795,16 @@ export async function getDeckWithList(
   }
 
   const row = (data as unknown) as DeckListLookupRow;
-  const deckLists = await Promise.all(parseDeckLists(row.deck_lists).map(hydrateDeckListVisualOrder));
-  const deckList = deckLists.find((entry) => entry.id === listId);
+  const deckList = parseDeckLists(row.deck_lists).find((entry) => entry.id === listId);
 
   if (!deckList) {
     return null;
   }
+  const hydratedDeckList = await hydrateDeckListVisualOrder(deckList);
 
   return {
     deckName: row.deck_name,
-    deckList
+    deckList: hydratedDeckList
   };
 }
 
