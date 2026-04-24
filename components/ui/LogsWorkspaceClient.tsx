@@ -1,9 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { LogsManager } from "@/components/ui/LogsManager";
+import { StatCard } from "@/components/ui/StatCard";
+import type { LogsManagerProps } from "@/components/ui/LogsManager";
 import type { BattleLogSummary } from "@/types/index";
+
+type LogSummaryStats = {
+  losses: number;
+  total: number;
+  wins: number;
+};
 
 type LogsWindowPayload = {
   hasMore: boolean;
@@ -12,6 +20,34 @@ type LogsWindowPayload = {
   windowEndDate: string;
   windowStartDate: string;
 };
+
+type LogsPagePayload = {
+  stats: LogSummaryStats;
+  window: LogsWindowPayload;
+};
+
+const LogsManager = dynamic<LogsManagerProps>(
+  () => import("@/components/ui/LogsManager").then((module) => module.LogsManager),
+  {
+    loading: () => <LogsManagerFallback />,
+    ssr: false
+  }
+);
+
+function LogsSummarySkeleton() {
+  return (
+    <Card>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            className="h-24 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
+            key={index}
+          />
+        ))}
+      </div>
+    </Card>
+  );
+}
 
 function LogsManagerFallback() {
   return (
@@ -30,7 +66,7 @@ function LogsManagerFallback() {
 }
 
 export function LogsWorkspaceClient() {
-  const [page, setPage] = useState<LogsWindowPayload | null>(null);
+  const [pageData, setPageData] = useState<LogsPagePayload | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -38,7 +74,7 @@ export function LogsWorkspaceClient() {
 
     async function loadLogsWindow() {
       try {
-        const response = await fetch("/api/logs-window", {
+        const response = await fetch("/api/logs-page-data", {
           credentials: "same-origin",
           cache: "no-store"
         });
@@ -47,10 +83,10 @@ export function LogsWorkspaceClient() {
           throw new Error("Could not load logs.");
         }
 
-        const payload = (await response.json()) as LogsWindowPayload;
+        const payload = (await response.json()) as LogsPagePayload;
 
         if (active) {
-          setPage(payload);
+          setPageData(payload);
         }
       } catch (loadError) {
         console.error(loadError);
@@ -69,25 +105,45 @@ export function LogsWorkspaceClient() {
 
   if (error) {
     return (
-      <Card>
-        <p className="text-sm text-[var(--color-loss)]">{error}</p>
-      </Card>
+      <>
+        <LogsSummarySkeleton />
+        <Card>
+          <p className="text-sm text-[var(--color-loss)]">{error}</p>
+        </Card>
+      </>
     );
   }
 
-  if (!page) {
-    return <LogsManagerFallback />;
+  if (!pageData) {
+    return (
+      <>
+        <LogsSummarySkeleton />
+        <LogsManagerFallback />
+      </>
+    );
   }
 
+  const page = pageData.window;
+
   return (
-    <Card>
-      <LogsManager
-        initialCanLoadMore={page.hasMore}
-        initialLogs={page.logs}
-        initialNextWindowEndDate={page.nextWindowEndDate}
-        initialWindowEndDate={page.windowEndDate}
-        initialWindowStartDate={page.windowStartDate}
-      />
-    </Card>
+    <>
+      <Card>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard label="Total Logs" value={pageData.stats.total} />
+          <StatCard label="Wins" value={pageData.stats.wins} valueColor="win" />
+          <StatCard label="Losses" value={pageData.stats.losses} valueColor="loss" />
+        </div>
+      </Card>
+
+      <Card>
+        <LogsManager
+          initialCanLoadMore={page.hasMore}
+          initialLogs={page.logs}
+          initialNextWindowEndDate={page.nextWindowEndDate}
+          initialWindowEndDate={page.windowEndDate}
+          initialWindowStartDate={page.windowStartDate}
+        />
+      </Card>
+    </>
   );
 }

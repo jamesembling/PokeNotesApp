@@ -35,7 +35,7 @@ type DeletePrompt = {
   message: string;
 };
 
-type LogsManagerProps = {
+export type LogsManagerProps = {
   initialCanLoadMore: boolean;
   initialLogs: BattleLogSummary[];
   initialNextWindowEndDate: string;

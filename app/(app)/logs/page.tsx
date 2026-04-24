@@ -1,5 +1,4 @@
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
-import { LogsSummaryCardsClient } from "@/components/ui/LogsSummaryCardsClient";
 import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -16,8 +15,6 @@ export default function LogsPage() {
           <LazyImportLogButton className="w-full justify-center sm:w-auto" />
         }
       />
-
-      <LogsSummaryCardsClient />
 
       <LogsWorkspaceClient />
     </>
