@@ -59,7 +59,11 @@ function warmBattleLogDetailAssets() {
   battleLogDetailAssetsWarmed = true;
 
   const warm = () => {
-    void import("@/components/ui/BattleLogDetailClientPage");
+    void Promise.all([
+      import("@/components/ui/BattleLogDetailClientPage"),
+      import("@/components/ui/BattleLogDetailShell"),
+      import("@/components/ui/BattleLogDetailView")
+    ]);
   };
 
   if ("requestIdleCallback" in window) {
