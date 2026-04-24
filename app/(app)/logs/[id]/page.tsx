@@ -3,13 +3,8 @@ import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
-import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
-import { getDeckSelectionAndLinkCandidates, getDeckWithList } from "@/lib/db/decks";
-import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogById } from "@/lib/db/logs";
-import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
-import { getAppOrigin } from "@/lib/server/app-url";
 
 type LogDetailPageProps = {
   params: Promise<{
@@ -35,11 +30,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const { id } = await params;
   const userId = user.id;
 
-  const [log, { userDecks, deckLinkCandidates }, appOrigin] = await Promise.all([
-    getLogById(userId, id),
-    getDeckSelectionAndLinkCandidates(userId),
-    getAppOrigin()
-  ]);
+  const log = await getLogById(userId, id);
 
   if (!log) {
     return (
@@ -81,35 +72,7 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
     log.opponentDeckName,
     log.opponentDeckSprites
   );
-  const resolvedLinkedDeckId =
-    resolveLinkedDeck(deckLinkCandidates, {
-      linkedDeckId: log.linkedDeckId,
-      selfDeckName: log.selfDeckName,
-      selfDeckSprites: log.selfDeckSprites
-    }) ?? undefined;
-  const linkedDeck = resolvedLinkedDeckId
-    ? userDecks.find((deck) => deck.id === resolvedLinkedDeckId) ?? null
-    : null;
-  const linkedDeckList = linkedDeck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
-  const linkedDeckWithList =
-    resolvedLinkedDeckId && log.linkedDeckListId
-      ? await getDeckWithList(userId, resolvedLinkedDeckId, log.linkedDeckListId)
-      : null;
-  const linkedDeckListSortedCards = linkedDeckWithList?.deckList.sortedCards ?? [];
-  const linkedStrategyLabel =
-    linkedDeckWithList?.deckList.name ?? linkedDeck?.deckName ?? "No strategy linked";
   const timestampLabel = formatImportedAt(log.importedAt);
-  const [[activeShare], actionTagOverrides] = await Promise.all([
-    listActiveSharesForOwnerLog(userId, log.id),
-    resolveBattleLogActionTagOverrides(log.sections)
-  ]);
-  const activeShareState = activeShare
-    ? {
-        expiresAt: activeShare.expiresAt,
-        shareId: activeShare.id,
-        shareUrl: `${appOrigin}/shared/${activeShare.id}`
-      }
-    : null;
 
   return (
     <PageWidth size="standard">
@@ -124,19 +87,13 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
         />
 
         <BattleLogDetailShell
-          activeShare={activeShareState}
-          actionTagOverrides={actionTagOverrides}
-          linkedDeckId={linkedDeck?.id}
-          linkedDeckListFormat={linkedDeckWithList?.deckList.format}
-          linkedDeckListId={linkedDeckList?.id}
-          linkedDeckListName={linkedDeckList?.name}
-          linkedDeckListNotes={linkedDeckWithList?.deckList.notes}
-          linkedDeckListRawList={linkedDeckWithList?.deckList.rawList}
-          linkedDeckListSortedCards={linkedDeckListSortedCards}
-          linkedStrategyLabel={linkedStrategyLabel}
+          activeShare={null}
+          linkedDeckId={log.linkedDeckId ?? undefined}
+          linkedDeckListId={log.linkedDeckListId ?? undefined}
+          linkedStrategyLabel={log.linkedDeckId ? "Linked strategy" : "No strategy linked"}
           log={log}
           timestampLabel={timestampLabel}
-          userDecks={userDecks}
+          userDecks={[]}
         />
       </div>
     </PageWidth>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { revokeLogShareAction } from "@/app/(app)/logs/actions";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
@@ -33,6 +33,20 @@ type BattleLogDetailShellProps = {
   log: BattleLog;
   timestampLabel: string;
   userDecks: DeckSelectionOption[];
+};
+
+type LogDetailContextResponse = {
+  activeShare?: ShareLinkState | null;
+  actionTagOverrides?: BattleLogActionTagOverrides;
+  linkedDeckId?: string;
+  linkedDeckListFormat?: string;
+  linkedDeckListId?: string;
+  linkedDeckListName?: string;
+  linkedDeckListNotes?: string;
+  linkedDeckListRawList?: string;
+  linkedDeckListSortedCards?: DeckCard[];
+  linkedStrategyLabel?: string;
+  userDecks?: DeckSelectionOption[];
 };
 
 const backLinkClassName =
@@ -68,6 +82,47 @@ export function BattleLogDetailShell({
   const [currentShare, setCurrentShare] = useState<ShareLinkState | null>(activeShare);
   const [shareFeedback, setShareFeedback] = useState<ShareFeedback | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [deferredContext, setDeferredContext] = useState<LogDetailContextResponse | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadDeferredContext() {
+      try {
+        const response = await fetch(`/api/log-detail-context?id=${encodeURIComponent(log.id)}`, {
+          cache: "no-store",
+          credentials: "same-origin",
+          signal: controller.signal
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as LogDetailContextResponse;
+        setDeferredContext(payload);
+
+        if (payload.activeShare !== undefined) {
+          setCurrentShare(payload.activeShare);
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      }
+    }
+
+    void loadDeferredContext();
+
+    return () => {
+      controller.abort();
+    };
+  }, [log.id]);
+
+  const resolvedUserDecks = useMemo(
+    () => deferredContext?.userDecks ?? userDecks,
+    [deferredContext?.userDecks, userDecks]
+  );
 
   async function handleRevoke() {
     if (!currentShare) {
@@ -98,10 +153,10 @@ export function BattleLogDetailShell({
 
   return (
     <BattleLogDetailView
-      actionTagOverrides={actionTagOverrides}
+      actionTagOverrides={deferredContext?.actionTagOverrides ?? actionTagOverrides}
       actions={
         <>
-          <LazyEditLogButton log={log} userDecks={userDecks} />
+          <LazyEditLogButton log={log} userDecks={resolvedUserDecks} />
           <CopyShareLinkButton
             initialShare={currentShare}
             logId={log.id}
@@ -118,14 +173,16 @@ export function BattleLogDetailShell({
           </Link>
         </>
       }
-      linkedDeckId={linkedDeckId}
-      linkedDeckListFormat={linkedDeckListFormat}
-      linkedDeckListId={linkedDeckListId}
-      linkedDeckListName={linkedDeckListName}
-      linkedDeckListNotes={linkedDeckListNotes}
-      linkedDeckListRawList={linkedDeckListRawList}
-      linkedDeckListSortedCards={linkedDeckListSortedCards}
-      linkedStrategyLabel={linkedStrategyLabel}
+      linkedDeckId={deferredContext?.linkedDeckId ?? linkedDeckId}
+      linkedDeckListFormat={deferredContext?.linkedDeckListFormat ?? linkedDeckListFormat}
+      linkedDeckListId={deferredContext?.linkedDeckListId ?? linkedDeckListId}
+      linkedDeckListName={deferredContext?.linkedDeckListName ?? linkedDeckListName}
+      linkedDeckListNotes={deferredContext?.linkedDeckListNotes ?? linkedDeckListNotes}
+      linkedDeckListRawList={deferredContext?.linkedDeckListRawList ?? linkedDeckListRawList}
+      linkedDeckListSortedCards={
+        deferredContext?.linkedDeckListSortedCards ?? linkedDeckListSortedCards
+      }
+      linkedStrategyLabel={deferredContext?.linkedStrategyLabel ?? linkedStrategyLabel}
       log={log}
       mobileNavigation={
         <div className="grid grid-cols-2 gap-3 sm:hidden">
@@ -134,7 +191,7 @@ export function BattleLogDetailShell({
           </Link>
           <LazyImportLogButton
             className="w-full justify-center"
-            initialUserDecks={userDecks}
+            initialUserDecks={resolvedUserDecks}
             label="Import New Log"
           />
         </div>
