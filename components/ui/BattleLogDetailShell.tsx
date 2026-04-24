@@ -138,6 +138,10 @@ export function BattleLogDetailShell({
   }, [log.id]);
 
   useEffect(() => {
+    if (log.rawLog || log.sections.length > 0) {
+      return;
+    }
+
     const controller = new AbortController();
 
     async function loadDeferredBody() {
@@ -166,7 +170,7 @@ export function BattleLogDetailShell({
     return () => {
       controller.abort();
     };
-  }, [log.id]);
+  }, [log.id, log.rawLog, log.sections.length]);
 
   const resolvedUserDecks = useMemo(
     () => deferredContext?.userDecks ?? userDecks,
