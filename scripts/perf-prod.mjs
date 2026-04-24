@@ -104,7 +104,12 @@ function parseViewport(value) {
 function evalJson(expression) {
   const output = runWithState(["eval", `JSON.stringify(${expression})`]).trim();
   const jsonLine = output.split("\n").find((line) => line.trim().startsWith("{") || line.trim().startsWith("[") || line.trim().startsWith("\""));
-  return jsonLine ? JSON.parse(jsonLine) : null;
+  if (!jsonLine) {
+    return null;
+  }
+
+  const parsed = JSON.parse(jsonLine);
+  return typeof parsed === "string" ? JSON.parse(parsed) : parsed;
 }
 
 function waitForRouteSettled(useSavedState = true) {
@@ -164,7 +169,15 @@ function clickPath(path) {
   }
 
   const startedAt = performance.now();
-  runWithState(["click", selector]);
+  runWithState([
+    "eval",
+    `(() => {
+      const link = document.querySelector(${JSON.stringify(selector)});
+      if (!link) return false;
+      return link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    })()`
+  ]);
+  runWithState(["wait", "--fn", `location.pathname === ${JSON.stringify(path)}`]);
   waitForRouteSettled();
   const endedAt = performance.now();
 
