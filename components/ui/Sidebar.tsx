@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { MobileSidebar } from "@/components/ui/MobileSidebar";
 import { SidebarNavLink } from "@/components/ui/SidebarNavLink";
@@ -79,7 +80,35 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
 }
 
 export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
+  const router = useRouter();
   const [resolvedProfile, setResolvedProfile] = useState(profile);
+
+  useEffect(() => {
+    const routesToPrefetch = [
+      ...navItems.map((item) => item.href),
+      "/profile",
+      ...(profile.isAdmin ? ["/admin/dashboard"] : [])
+    ];
+    const prefetchRoutes = () => {
+      for (const href of routesToPrefetch) {
+        router.prefetch(href);
+      }
+    };
+
+    if ("requestIdleCallback" in window) {
+      const idleCallbackId = window.requestIdleCallback(prefetchRoutes, { timeout: 1200 });
+
+      return () => {
+        window.cancelIdleCallback(idleCallbackId);
+      };
+    }
+
+    const timeoutId = globalThis.setTimeout(prefetchRoutes, 250);
+
+    return () => {
+      globalThis.clearTimeout(timeoutId);
+    };
+  }, [profile.isAdmin, router]);
 
   useEffect(() => {
     let active = true;
