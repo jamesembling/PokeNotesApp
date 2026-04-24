@@ -261,10 +261,6 @@ export function LogsManager({
   }
 
   useEffect(() => {
-    void loadDeckOptions();
-  }, []);
-
-  useEffect(() => {
     if (userDecks.length === 0) {
       return;
     }
@@ -321,6 +317,18 @@ export function LogsManager({
 
   function toggleSelectAll() {
     setSelectedLogIds(allSelected ? [] : visibleLogs.map((log) => log.id));
+  }
+
+  function toggleManagementMode() {
+    setIsManagementMode((current) => {
+      const next = !current;
+
+      if (next) {
+        void loadDeckOptions();
+      }
+
+      return next;
+    });
   }
 
   function toggleGroup(date: string, isOpen: boolean) {
@@ -564,7 +572,7 @@ export function LogsManager({
         <div className="flex flex-col gap-3 xl:items-end xl:self-center">
           <Button
             className="gap-2 justify-center xl:min-w-[12rem]"
-            onClick={() => setIsManagementMode((current) => !current)}
+            onClick={toggleManagementMode}
             variant="secondary"
           >
             <PencilIcon className="h-4 w-4" />
