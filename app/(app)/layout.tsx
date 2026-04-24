@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/ui/Sidebar";
+import { RoutePerformanceReporter } from "@/components/ui/RoutePerformanceReporter";
 import { requireUser } from "@/lib/auth";
 
 function getFallbackDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
@@ -31,6 +32,7 @@ export default async function AppLayout({
           <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6">{children}</div>
         </div>
       </main>
+      <RoutePerformanceReporter />
     </div>
   );
 }

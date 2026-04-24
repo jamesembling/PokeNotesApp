@@ -15,7 +15,7 @@ function LoadingBlock({
 
 export default function AppLoading() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" data-route-loading>
       <div className="flex flex-col gap-3">
         <LoadingBlock className="h-4 w-24" />
         <LoadingBlock className="h-10 w-56" />

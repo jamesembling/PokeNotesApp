@@ -10,7 +10,7 @@ function LoadingBlock({ className }: { className: string }) {
 
 export default function LogDetailLoading() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" data-route-loading>
       <div className="flex flex-col gap-3">
         <LoadingBlock className="h-4 w-32" />
         <LoadingBlock className="h-10 w-72" />
