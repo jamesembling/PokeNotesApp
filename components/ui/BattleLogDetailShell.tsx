@@ -244,7 +244,7 @@ export function BattleLogDetailShell({
         deferredContext?.linkedDeckListSortedCards ?? linkedDeckListSortedCards
       }
       linkedStrategyLabel={deferredContext?.linkedStrategyLabel ?? linkedStrategyLabel}
-      isBodyLoading={!deferredBody}
+      isBodyLoading={!deferredBody && !resolvedLog.rawLog && resolvedLog.sections.length === 0}
       log={resolvedLog}
       mobileNavigation={
         <div className="grid grid-cols-2 gap-3 sm:hidden">

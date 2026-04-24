@@ -16,6 +16,7 @@ import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LogRow } from "@/components/ui/LogRow";
 import { formatDayDate } from "@/lib/client/date-format";
+import { warmLogDetailCache } from "@/lib/client/log-detail-cache";
 import type { BattleLog, BattleLogSummary, DeckSelectionOption } from "@/types/index";
 
 type LogGroup = {
@@ -308,6 +309,15 @@ export function LogsManager({
       return [groups[0].date];
     });
   }, [groups]);
+
+  useEffect(() => {
+    const openDates = new Set(openGroupDates);
+    const visibleOpenLogIds = groups
+      .filter((group, index) => openDates.has(group.date) || (index === 0 && openDates.size === 0))
+      .flatMap((group) => group.logs.map((log) => log.id));
+
+    warmLogDetailCache(visibleOpenLogIds);
+  }, [groups, openGroupDates]);
 
   function toggleSelectedLog(logId: string) {
     setSelectedLogIds((current) =>

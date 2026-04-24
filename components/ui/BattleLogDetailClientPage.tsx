@@ -7,14 +7,11 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
+import { fetchLogDetail, readCachedLogDetail } from "@/lib/client/log-detail-cache";
 import type { BattleLog } from "@/types/index";
 
 type BattleLogDetailClientPageProps = {
   logId: string;
-};
-
-type LogDetailDataResponse = {
-  log?: BattleLog;
 };
 
 const backLinkClassName =
@@ -117,31 +114,25 @@ function DetailError() {
 }
 
 export function BattleLogDetailClientPage({ logId }: BattleLogDetailClientPageProps) {
-  const [log, setLog] = useState<BattleLog | null>(null);
+  const [log, setLog] = useState<BattleLog | null>(() => readCachedLogDetail(logId));
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    const cachedLog = readCachedLogDetail(logId);
+    if (cachedLog) {
+      setLog(cachedLog);
+      setFailed(false);
+      return;
+    }
+
+    setLog(null);
+    setFailed(false);
+
     const controller = new AbortController();
 
     async function loadLog() {
       try {
-        const response = await fetch(`/api/log-detail-data?id=${encodeURIComponent(logId)}`, {
-          cache: "no-store",
-          credentials: "same-origin",
-          signal: controller.signal
-        });
-
-        if (!response.ok) {
-          throw new Error("Could not load battle log.");
-        }
-
-        const payload = (await response.json()) as LogDetailDataResponse;
-
-        if (!payload.log) {
-          throw new Error("Battle log not found.");
-        }
-
-        setLog(payload.log);
+        setLog(await fetchLogDetail(logId, controller.signal));
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
