@@ -50,11 +50,25 @@ function getNavigationTiming() {
   return performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
 }
 
-function getSlowestResourceSince(startedAt: number) {
+function shouldIncludeResource(entry: PerformanceEntry, endedAt: number) {
+  if (entry.startTime > endedAt || !entry.name.startsWith(window.location.origin)) {
+    return false;
+  }
+
+  const pathname = normalizePath(new URL(entry.name).pathname);
+  return pathname !== REPORT_ENDPOINT;
+}
+
+function getSlowestResourceSince(startedAt: number, endedAt = performance.now()) {
   const sameOriginPrefix = window.location.origin;
   const resources = performance
     .getEntriesByType("resource")
-    .filter((entry) => entry.startTime >= startedAt && entry.name.startsWith(sameOriginPrefix));
+    .filter(
+      (entry) =>
+        entry.startTime >= startedAt &&
+        entry.name.startsWith(sameOriginPrefix) &&
+        shouldIncludeResource(entry, endedAt)
+    );
   const slowest = resources.reduce<PerformanceResourceTiming | null>((current, entry) => {
     const resource = entry as PerformanceResourceTiming;
 
@@ -151,7 +165,8 @@ export function RoutePerformanceReporter() {
 
     const hardLoadTimeoutId = window.setTimeout(() => {
       const nav = getNavigationTiming();
-      const resourceSnapshot = getSlowestResourceSince(0);
+      const measuredAt = performance.now();
+      const resourceSnapshot = getSlowestResourceSince(0, measuredAt);
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
@@ -188,7 +203,10 @@ export function RoutePerformanceReporter() {
       }
 
       const finishedAt = performance.now();
-      const resourceSnapshot = getSlowestResourceSince(pendingNavigation.resourceStartedAt);
+      const resourceSnapshot = getSlowestResourceSince(
+        pendingNavigation.resourceStartedAt,
+        finishedAt
+      );
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
@@ -281,7 +299,10 @@ export function RoutePerformanceReporter() {
       }
 
       const finishedAt = performance.now();
-      const resourceSnapshot = getSlowestResourceSince(pendingNavigation.resourceStartedAt);
+      const resourceSnapshot = getSlowestResourceSince(
+        pendingNavigation.resourceStartedAt,
+        finishedAt
+      );
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
