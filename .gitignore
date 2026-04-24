@@ -72,6 +72,7 @@ web_modules/
 
 # Local agent/editor tooling
 .agents/
+.agent-browser/
 .codex/
 SKILLS/
 plugins/

@@ -12,6 +12,8 @@
     "dev:reset": "rm -rf .next && next dev",
     "build": "next build",
     "lint": "eslint . --quiet",
+    "perf:prod": "node scripts/perf-prod.mjs",
+    "perf:prod:auth": "node scripts/perf-prod.mjs --save-auth",
     "seed:archetypes": "node seed-archetypes.mjs",
     "sync:pokemon-catalog": "node seed-pokemon.mjs",
     "start": "next start",
