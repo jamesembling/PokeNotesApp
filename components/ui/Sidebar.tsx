@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { MobileSidebar } from "@/components/ui/MobileSidebar";
 import { SidebarNavLink } from "@/components/ui/SidebarNavLink";
@@ -26,6 +27,20 @@ const navItems = [
   { label: "Stats", href: "/stats" },
   { label: "Probability Calculator", href: "/calculator" }
 ];
+
+function isSidebarProfile(value: unknown): value is SidebarProfile {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const profile = value as Record<string, unknown>;
+
+  return (
+    typeof profile.displayName === "string" &&
+    typeof profile.email === "string" &&
+    (typeof profile.isAdmin === "boolean" || typeof profile.isAdmin === "undefined")
+  );
+}
 
 function getInitials(value: string) {
   const trimmed = value.trim();
@@ -80,6 +95,45 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
 }
 
 export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
+  const [resolvedProfile, setResolvedProfile] = useState(profile);
+
+  useEffect(() => {
+    setResolvedProfile(profile);
+  }, [profile]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadProfile() {
+      try {
+        const response = await fetch("/api/sidebar-profile", {
+          cache: "no-store",
+          signal: controller.signal
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const nextProfile: unknown = await response.json();
+
+        if (isSidebarProfile(nextProfile)) {
+          setResolvedProfile(nextProfile);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error("[sidebar] failed to load profile", error);
+        }
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
   return (
     <>
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[var(--border)] bg-[var(--bg-surface)] min-[860px]:flex">
@@ -110,11 +164,11 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
             </div>
           </div>
 
-          <AccountBlock profile={profile} />
+          <AccountBlock profile={resolvedProfile} />
         </div>
       </aside>
 
-      <MobileSidebar navItems={navItems} profile={profile} userDecks={userDecks} />
+      <MobileSidebar navItems={navItems} profile={resolvedProfile} userDecks={userDecks} />
     </>
   );
 }
