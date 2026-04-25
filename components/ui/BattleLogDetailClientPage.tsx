@@ -7,8 +7,11 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
-import { fetchLogDetail, readCachedLogDetail } from "@/lib/client/log-detail-cache";
-import type { BattleLog } from "@/types/index";
+import {
+  fetchLogDetail,
+  type LogDetailPayload,
+  readCachedLogDetail
+} from "@/lib/client/log-detail-cache";
 
 type BattleLogDetailClientPageProps = {
   logId: string;
@@ -114,25 +117,27 @@ function DetailError() {
 }
 
 export function BattleLogDetailClientPage({ logId }: BattleLogDetailClientPageProps) {
-  const [log, setLog] = useState<BattleLog | null>(() => readCachedLogDetail(logId));
+  const [detail, setDetail] = useState<LogDetailPayload | null>(() =>
+    readCachedLogDetail(logId)
+  );
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    const cachedLog = readCachedLogDetail(logId);
-    if (cachedLog) {
-      setLog(cachedLog);
+    const cachedDetail = readCachedLogDetail(logId);
+    if (cachedDetail) {
+      setDetail(cachedDetail);
       setFailed(false);
       return;
     }
 
-    setLog(null);
+    setDetail(null);
     setFailed(false);
 
     const controller = new AbortController();
 
     async function loadLog() {
       try {
-        setLog(await fetchLogDetail(logId, controller.signal));
+        setDetail(await fetchLogDetail(logId, controller.signal));
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -154,10 +159,11 @@ export function BattleLogDetailClientPage({ logId }: BattleLogDetailClientPagePr
     return <DetailError />;
   }
 
-  if (!log) {
+  if (!detail) {
     return <DetailLoading />;
   }
 
+  const { context, log } = detail;
   const opponentDeckName = getBattleLogOpponentDisplayName(
     log.opponentDeckName,
     log.opponentDeckSprites
@@ -177,9 +183,17 @@ export function BattleLogDetailClientPage({ logId }: BattleLogDetailClientPagePr
 
         <BattleLogDetailShell
           activeShare={null}
-          linkedDeckId={log.linkedDeckId ?? undefined}
-          linkedDeckListId={log.linkedDeckListId ?? undefined}
-          linkedStrategyLabel={log.linkedDeckId ? "Linked strategy" : "No strategy linked"}
+          linkedDeckId={context?.linkedDeckId ?? log.linkedDeckId ?? undefined}
+          linkedDeckListFormat={context?.linkedDeckListFormat}
+          linkedDeckListId={context?.linkedDeckListId ?? log.linkedDeckListId ?? undefined}
+          linkedDeckListName={context?.linkedDeckListName}
+          linkedDeckListNotes={context?.linkedDeckListNotes}
+          linkedDeckListRawList={context?.linkedDeckListRawList}
+          linkedDeckListSortedCards={context?.linkedDeckListSortedCards}
+          linkedStrategyLabel={
+            context?.linkedStrategyLabel ??
+            (log.linkedDeckId ? "Linked strategy" : "No strategy linked")
+          }
           log={log}
           timestampLabel={formatImportedAt(log.importedAt)}
           userDecks={[]}

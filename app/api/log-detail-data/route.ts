@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { getDeckWithList } from "@/lib/db/decks";
 import { getLogById } from "@/lib/db/logs";
 import { reportError } from "@/lib/server/report-error";
 
@@ -20,8 +21,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Log not found." }, { status: 404 });
     }
 
+    const linkedDeckId = log.linkedDeckId ?? undefined;
+    const linkedDeckWithList =
+      linkedDeckId && log.linkedDeckListId
+        ? await getDeckWithList(user.id, linkedDeckId, log.linkedDeckListId)
+        : null;
+
     return NextResponse.json(
-      { log },
+      {
+        context: {
+          linkedDeckId,
+          linkedDeckListFormat: linkedDeckWithList?.deckList.format,
+          linkedDeckListId: linkedDeckWithList?.deckList.id,
+          linkedDeckListName: linkedDeckWithList?.deckList.name,
+          linkedDeckListNotes: linkedDeckWithList?.deckList.notes,
+          linkedDeckListRawList: linkedDeckWithList?.deckList.rawList,
+          linkedDeckListSortedCards: linkedDeckWithList?.deckList.sortedCards ?? [],
+          linkedStrategyLabel:
+            linkedDeckWithList?.deckList.name ??
+            linkedDeckWithList?.deckName ??
+            (linkedDeckId ? "Linked strategy" : "No strategy linked")
+        },
+        log
+      },
       {
         headers: {
           "Cache-Control": "private, no-store, max-age=0"

@@ -1,12 +1,25 @@
 import type { BattleLog } from "@/types/index";
+import type { DeckCard } from "@/types/index";
 
 type CachedLogDetail = {
   cachedAt: number;
-  log: BattleLog;
+  detail: LogDetailPayload;
 };
 
-type LogDetailDataResponse = {
-  log?: BattleLog;
+export type LogDetailContext = {
+  linkedDeckId?: string;
+  linkedDeckListFormat?: string;
+  linkedDeckListId?: string;
+  linkedDeckListName?: string;
+  linkedDeckListNotes?: string;
+  linkedDeckListRawList?: string;
+  linkedDeckListSortedCards?: DeckCard[];
+  linkedStrategyLabel?: string;
+};
+
+export type LogDetailPayload = {
+  context?: LogDetailContext;
+  log: BattleLog;
 };
 
 const CACHE_PREFIX = "poke-notes:log-detail:";
@@ -34,28 +47,28 @@ export function readCachedLogDetail(logId: string) {
     }
 
     const cached = JSON.parse(raw) as CachedLogDetail;
-    if (!cached.log || Date.now() - cached.cachedAt > CACHE_TTL_MS) {
+    if (!cached.detail?.log || Date.now() - cached.cachedAt > CACHE_TTL_MS) {
       window.sessionStorage.removeItem(getCacheKey(logId));
       return null;
     }
 
-    return cached.log;
+    return cached.detail;
   } catch {
     return null;
   }
 }
 
-export function writeCachedLogDetail(log: BattleLog) {
+export function writeCachedLogDetail(detail: LogDetailPayload) {
   if (!canUseStorage()) {
     return;
   }
 
   try {
     window.sessionStorage.setItem(
-      getCacheKey(log.id),
+      getCacheKey(detail.log.id),
       JSON.stringify({
         cachedAt: Date.now(),
-        log
+        detail
       } satisfies CachedLogDetail)
     );
   } catch {
@@ -74,13 +87,17 @@ export async function fetchLogDetail(logId: string, signal?: AbortSignal) {
     throw new Error("Could not load battle log.");
   }
 
-  const payload = (await response.json()) as LogDetailDataResponse;
+  const payload = (await response.json()) as Partial<LogDetailPayload>;
   if (!payload.log) {
     throw new Error("Battle log not found.");
   }
 
-  writeCachedLogDetail(payload.log);
-  return payload.log;
+  const detail = {
+    context: payload.context,
+    log: payload.log
+  };
+  writeCachedLogDetail(detail);
+  return detail;
 }
 
 export function warmLogDetailCache(logIds: string[]) {
