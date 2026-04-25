@@ -104,6 +104,8 @@ export function BattleLogDetailShell({
 
   useEffect(() => {
     const controller = new AbortController();
+    let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+    let idleCallbackId: number | null = null;
 
     async function loadDeferredContext() {
       try {
@@ -130,9 +132,23 @@ export function BattleLogDetailShell({
       }
     }
 
-    void loadDeferredContext();
+    const scheduleContextLoad = () => {
+      void loadDeferredContext();
+    };
+
+    if ("requestIdleCallback" in window) {
+      idleCallbackId = window.requestIdleCallback(scheduleContextLoad, { timeout: 2000 });
+    } else {
+      timeoutId = globalThis.setTimeout(scheduleContextLoad, 1000);
+    }
 
     return () => {
+      if (idleCallbackId !== null) {
+        window.cancelIdleCallback(idleCallbackId);
+      }
+      if (timeoutId !== null) {
+        globalThis.clearTimeout(timeoutId);
+      }
       controller.abort();
     };
   }, [log.id]);
