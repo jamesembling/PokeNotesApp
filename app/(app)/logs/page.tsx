@@ -3,13 +3,16 @@ import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { getLogSummaryStats, getLogsWindow } from "@/lib/db/logs";
+import { measureServerCall } from "@/lib/server/perf";
 
 export default async function LogsPage() {
   const user = await requireUser();
-  const [stats, window] = await Promise.all([
-    getLogSummaryStats(user.id),
-    getLogsWindow(user.id)
-  ]);
+  const [stats, window] = await measureServerCall("page.logs.initialData", () =>
+    Promise.all([
+      getLogSummaryStats(user.id),
+      getLogsWindow(user.id)
+    ])
+  );
 
   return (
     <>

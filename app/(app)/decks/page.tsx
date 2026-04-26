@@ -5,10 +5,13 @@ import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { getDeckIndexSummaries } from "@/lib/db/decks";
+import { measureServerCall } from "@/lib/server/perf";
 
 export default async function DecksPage() {
   const user = await requireUser();
-  const decksPromise = getDeckIndexSummaries(user.id);
+  const decksPromise = measureServerCall("page.decks.initialData", () =>
+    getDeckIndexSummaries(user.id)
+  );
 
   return (
     <>

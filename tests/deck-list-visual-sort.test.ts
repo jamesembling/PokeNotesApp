@@ -212,6 +212,23 @@ test("deck list read paths do not call the external canonical sorter during rend
   }
 });
 
+test("deck and logs pages do not use client hydration stat patches", () => {
+  const files = [
+    "app/(app)/decks/page.tsx",
+    "components/ui/DeckStrategyCollection.tsx",
+    "app/(app)/logs/page.tsx",
+    "components/ui/LogsWorkspaceClient.tsx"
+  ];
+
+  for (const filePath of files) {
+    const source = readFileSync(join(process.cwd(), filePath), "utf8");
+
+    assert.equal(source.includes("/api/deck-index-stats"), false, `${filePath} must not fetch deck stats after hydration`);
+    assert.equal(source.includes("/api/logs-page-data"), false, `${filePath} must not fetch log page data after hydration`);
+    assert.equal(source.includes("/api/log-summary-stats"), false, `${filePath} must not fetch log summary stats after hydration`);
+  }
+});
+
 test("shared log page does not call Limitless-backed action tag resolution during render", () => {
   const source = readFileSync(join(process.cwd(), "app/shared/[token]/page.tsx"), "utf8");
 
