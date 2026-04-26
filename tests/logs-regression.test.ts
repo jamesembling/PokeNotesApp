@@ -4,8 +4,11 @@ import {
   getAllLogsByDeck,
   getDeckLogSnapshots,
   getDeckStatsForIndex,
+  getLatestLogsForDeck,
   getLogById,
+  getLogDetailSummaryById,
   getLogStatsOverview,
+  getLogsWindow,
   logsDbTestHooks
 } from "@/lib/db/logs";
 import type { DeckSummary, Result } from "@/types/index";
@@ -38,6 +41,7 @@ type QueryChain = {
   gte(...args: unknown[]): QueryChain;
   lte(...args: unknown[]): QueryChain;
   lt(...args: unknown[]): QueryChain;
+  or(...args: unknown[]): QueryChain;
   order(...args: unknown[]): QueryChain;
   limit(...args: unknown[]): QueryChain;
   maybeSingle(): Promise<QueryResult>;
@@ -82,6 +86,10 @@ function createFakeSupabaseClient(
       },
       lt(...args: unknown[]) {
         ctx.operations.push({ method: "lt", args });
+        return chain;
+      },
+      or(...args: unknown[]) {
+        ctx.operations.push({ method: "or", args });
         return chain;
       },
       order(...args: unknown[]) {
@@ -194,6 +202,101 @@ test("getLogById falls back to an empty raw log when the stored value is missing
   const log = await getLogById("user-1", "log-1");
 
   assert.equal(log?.rawLog, "");
+});
+
+test("getLogDetailSummaryById reads only summary columns for server-rendered detail", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries } = createFakeSupabaseClient(() => ({
+    data: buildLogRow({
+      coin_toss_won: true,
+      opponent_deck_slug: "gardevoir-ex",
+      opponent_mulligans: 1,
+      opponent_prizes_taken: 4,
+      reason: "Prizes",
+      self_deck_slug: "dragapult-ex",
+      self_mulligans: 0,
+      self_prizes_taken: 6
+    }),
+    error: null
+  }));
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const log = await getLogDetailSummaryById("user-1", "log-1");
+  const select = String(queries[0]?.operations.find((op) => op.method === "select")?.args[0] ?? "");
+
+  assert.equal(log?.id, "log-1");
+  assert.equal(log?.rawLog, "");
+  assert.deepEqual(log?.sections, []);
+  assert.doesNotMatch(select, /\braw_log\b/);
+  assert.doesNotMatch(select, /\bsections\b/);
+});
+
+test("getLogsWindow limits the initial window and orders by stable keyset columns", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries } = createFakeSupabaseClient(() => ({
+    data: [
+      buildLogRow({ id: "log-c", date: "2026-04-26", imported_at: "2026-04-26T10:00:00.000Z" }),
+      buildLogRow({ id: "log-b", date: "2026-04-26", imported_at: "2026-04-26T09:00:00.000Z" }),
+      buildLogRow({ id: "log-a", date: "2026-04-25", imported_at: "2026-04-25T09:00:00.000Z" })
+    ],
+    error: null
+  }));
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const window = await getLogsWindow("user-1", { limit: 2 });
+
+  assert.deepEqual(window.logs.map((log) => log.id), ["log-c", "log-b"]);
+  assert.equal(window.hasMore, true);
+  assert.ok(window.nextWindowEndDate);
+  assert.deepEqual(
+    queries[0]?.operations.filter((op) => op.method === "order").map((op) => op.args[0]),
+    ["date", "imported_at", "id"]
+  );
+  assert.deepEqual(queries[0]?.operations.find((op) => op.method === "limit")?.args, [3]);
+  assert.equal(queries[0]?.operations.some((op) => op.method === "gte" || op.method === "lte"), false);
+});
+
+test("getLogsWindow uses the full keyset cursor across same-date logs", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries } = createFakeSupabaseClient((ctx) => {
+    const hasCursor = ctx.operations.some((op) => op.method === "or");
+
+    return {
+      data: hasCursor
+        ? [buildLogRow({ id: "log-a", date: "2026-04-26", imported_at: "2026-04-26T08:00:00.000Z" })]
+        : [
+            buildLogRow({ id: "log-c", date: "2026-04-26", imported_at: "2026-04-26T10:00:00.000Z" }),
+            buildLogRow({ id: "log-b", date: "2026-04-26", imported_at: "2026-04-26T09:00:00.000Z" })
+          ],
+      error: null
+    };
+  });
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const firstPage = await getLogsWindow("user-1", { limit: 1 });
+  const secondPage = await getLogsWindow("user-1", {
+    cursor: firstPage.nextWindowEndDate,
+    limit: 1
+  });
+  const cursorFilter = String(queries[1]?.operations.find((op) => op.method === "or")?.args[0] ?? "");
+
+  assert.deepEqual(firstPage.logs.map((log) => log.id), ["log-c"]);
+  assert.deepEqual(secondPage.logs.map((log) => log.id), ["log-a"]);
+  assert.match(cursorFilter, /date\.eq\.2026-04-26/);
+  assert.match(cursorFilter, /imported_at\.eq\.2026-04-26T10:00:00\.000Z/);
+  assert.match(cursorFilter, /id\.lt\.log-c/);
 });
 
 test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (t) => {
@@ -366,7 +469,14 @@ test("getDeckLogSnapshots preserves grouped stats parity without extra unresolve
 
     if (hasExplicitDeckFilter) {
       return {
-        data: [buildLogRow({ id: "deck-b-explicit", linked_deck_id: "deck-b", result: "Win" })],
+        data: [
+          buildLogRow({
+            id: "deck-b-explicit",
+            imported_at: "2026-04-15T11:00:00.000Z",
+            linked_deck_id: "deck-b",
+            result: "Win"
+          })
+        ],
         error: null
       };
     }
@@ -488,4 +598,37 @@ test("getDeckStatsForIndex returns zeroes for decks missing read-model rows", as
     wins: 0,
     losses: 0
   });
+});
+
+test("getLatestLogsForDeck fetches only a bounded latest linked-log preview", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries } = createFakeSupabaseClient((ctx) => {
+    const hasLinkedDeckFilter = ctx.operations.some(
+      (op) => op.method === "eq" && op.args[0] === "linked_deck_id"
+    );
+
+    if (hasLinkedDeckFilter) {
+      return {
+        data: [buildLogRow({ id: "deck-b-latest", linked_deck_id: "deck-b" })],
+        error: null
+      };
+    }
+
+    throw new Error(`Unexpected query: ${JSON.stringify(ctx.operations)}`);
+  });
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const logs = await getLatestLogsForDeck("user-1", "deck-b", 5);
+
+  assert.deepEqual(logs.map((log) => log.id), ["deck-b-latest"]);
+  assert.deepEqual(
+    queries[0]?.operations.filter((op) => op.method === "order").map((op) => op.args[0]),
+    ["date", "imported_at", "id"]
+  );
+  assert.deepEqual(queries[0]?.operations.find((op) => op.method === "limit")?.args, [5]);
+  assert.equal(queries[0]?.operations.some((op) => op.method === "in"), false);
 });

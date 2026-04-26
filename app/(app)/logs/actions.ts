@@ -463,10 +463,10 @@ export async function bulkAssignDeckListAction(input: {
   }
 }
 
-export async function loadMoreLogsAction(windowEndDate?: string) {
+export async function loadMoreLogsAction(cursor?: string) {
   const user = await requireUser();
   return getLogsWindow(user.id, {
-    windowEndDate
+    cursor
   });
 }
 

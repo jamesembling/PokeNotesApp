@@ -7,6 +7,14 @@ const migrationSql = readFileSync(
   join(process.cwd(), "sql/2026-04-26-deck-log-stats-read-model.sql"),
   "utf8"
 );
+const userLogStatsSql = readFileSync(
+  join(process.cwd(), "sql/2026-04-16-user-log-stats-rollup.sql"),
+  "utf8"
+);
+const hardeningSql = readFileSync(
+  join(process.cwd(), "sql/2026-04-26-read-model-permissions-and-log-window-index.sql"),
+  "utf8"
+);
 
 function compactSql(value: string) {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
@@ -87,6 +95,32 @@ test("deck_log_stats backfill is sourced from linked logs and existing decks", (
   assert.match(sql, /insert into public\.deck_log_stats/);
   assert.match(sql, /from public\.logs l join public\.decks d on d\.id = l\.linked_deck_id and d\.user_id = l\.user_id/);
   assert.match(sql, /where l\.linked_deck_id is not null group by l\.user_id, l\.linked_deck_id/);
+});
+
+test("read-model security definer maintenance functions are not executable by normal users", () => {
+  const sql = compactSql(`${migrationSql}\n${userLogStatsSql}\n${hardeningSql}`);
+
+  assert.match(sql, /revoke all on function public\.refresh_deck_log_stats\(uuid, text\) from public/);
+  assert.match(sql, /revoke all on function public\.refresh_deck_log_stats\(uuid, text\) from anon/);
+  assert.match(sql, /revoke all on function public\.refresh_deck_log_stats\(uuid, text\) from authenticated/);
+  assert.match(sql, /revoke all on function public\.sync_deck_log_stats_from_log_row\(\) from public/);
+  assert.match(sql, /revoke all on function public\.sync_deck_log_stats_from_log_row\(\) from anon/);
+  assert.match(sql, /revoke all on function public\.sync_deck_log_stats_from_log_row\(\) from authenticated/);
+  assert.match(sql, /revoke all on function public\.refresh_user_log_stats\(uuid\) from public/);
+  assert.match(sql, /revoke all on function public\.refresh_user_log_stats\(uuid\) from anon/);
+  assert.match(sql, /revoke all on function public\.refresh_user_log_stats\(uuid\) from authenticated/);
+  assert.match(sql, /revoke all on function public\.sync_user_log_stats_from_log_row\(\) from public/);
+  assert.match(sql, /revoke all on function public\.sync_user_log_stats_from_log_row\(\) from anon/);
+  assert.match(sql, /revoke all on function public\.sync_user_log_stats_from_log_row\(\) from authenticated/);
+});
+
+test("logs initial window has a stable keyset pagination index", () => {
+  const sql = compactSql(hardeningSql);
+
+  assert.match(
+    sql,
+    /create index if not exists logs_user_date_imported_id on public\.logs \(user_id, date desc, imported_at desc, id desc\)/
+  );
 });
 
 test("log import, edit, bulk relink, and delete actions write through logs table", () => {

@@ -92,6 +92,13 @@ begin
 end;
 $$;
 
+revoke all on function public.refresh_user_log_stats(uuid) from public;
+revoke all on function public.refresh_user_log_stats(uuid) from anon;
+revoke all on function public.refresh_user_log_stats(uuid) from authenticated;
+revoke all on function public.sync_user_log_stats_from_log_row() from public;
+revoke all on function public.sync_user_log_stats_from_log_row() from anon;
+revoke all on function public.sync_user_log_stats_from_log_row() from authenticated;
+
 drop trigger if exists refresh_user_log_stats_after_insert on public.logs;
 create trigger refresh_user_log_stats_after_insert
   after insert on public.logs

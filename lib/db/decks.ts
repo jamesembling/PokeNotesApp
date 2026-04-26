@@ -7,7 +7,6 @@ import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes"
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import { normalizeText } from "@/lib/log-import/normalization";
-import { getAllLogsForDeck, getBattleLogSummaryStats } from "@/lib/db/logs";
 import { resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
 import type { DeckLinkCandidate } from "@/lib/log-import/deck-linking";
 import { measureServerCall } from "@/lib/server/perf";
@@ -893,6 +892,33 @@ export async function getDeckLogStats(
   userId: string,
   deckId: string
 ): Promise<DeckLogStats> {
-  const decks = await getDecks(userId);
-  return getBattleLogSummaryStats(await getAllLogsForDeck(userId, deckId, decks));
+  if (!deckId) {
+    return {
+      total: 0,
+      wins: 0,
+      losses: 0
+    };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await measureServerCall("db.decks.detailStatsReadModel", async () =>
+    await supabase
+      .from("deck_log_stats")
+      .select("games_played,games_won,games_lost")
+      .eq("user_id", userId)
+      .eq("deck_id", deckId)
+      .maybeSingle()
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const row = ((data ?? null) as unknown) as Omit<DeckLogStatsRow, "deck_id"> | null;
+
+  return {
+    total: Number(row?.games_played ?? 0),
+    wins: Number(row?.games_won ?? 0),
+    losses: Number(row?.games_lost ?? 0)
+  };
 }

@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/Card";
 import { DeckLinkedLogsDialog } from "@/components/ui/DeckLinkedLogsDialog";
 import { LogRow } from "@/components/ui/LogRow";
 import { StatCard } from "@/components/ui/StatCard";
-import { getBattleLogSummaryStats } from "@/lib/db/logs";
+import type { LogSummaryStats } from "@/lib/db/logs";
 import type { BattleLogSummary, Deck } from "@/types/index";
 
 function attachLinkedDeckListNames(logs: BattleLogSummary[], deck: Deck) {
@@ -50,11 +50,11 @@ export function DeckLogStatsGridFallback() {
 }
 
 export async function DeckLogStatsGrid({
-  logsPromise
+  statsPromise
 }: {
-  logsPromise: Promise<BattleLogSummary[]>;
+  statsPromise: Promise<LogSummaryStats>;
 }) {
-  const stats = getBattleLogSummaryStats(await logsPromise);
+  const stats = await statsPromise;
 
   return (
     <div className="grid grid-cols-3 gap-2 sm:gap-4">
@@ -67,13 +67,12 @@ export async function DeckLogStatsGrid({
 
 export async function DeckRelatedLogsSection({
   deck,
-  logsPromise
+  latestLogsPromise
 }: {
   deck: Deck;
-  logsPromise: Promise<BattleLogSummary[]>;
+  latestLogsPromise: Promise<BattleLogSummary[]>;
 }) {
-  const allRelatedLogs = attachLinkedDeckListNames(await logsPromise, deck);
-  const relatedLogs = allRelatedLogs.slice(0, 5);
+  const relatedLogs = attachLinkedDeckListNames(await latestLogsPromise, deck);
 
   return (
     <Card className="space-y-5">
@@ -95,13 +94,12 @@ export async function DeckRelatedLogsSection({
 
           <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-[var(--text-muted)]">
-              {allRelatedLogs.length > relatedLogs.length
-                ? `Showing the latest ${relatedLogs.length} linked logs.`
-                : `Showing all ${relatedLogs.length} linked logs.`}
+              Showing the latest {relatedLogs.length} linked log
+              {relatedLogs.length === 1 ? "" : "s"}.
             </p>
 
             <div className="sm:ml-auto">
-              <DeckLinkedLogsDialog logs={allRelatedLogs} />
+              <DeckLinkedLogsDialog deckId={deck.id} />
             </div>
           </div>
         </>

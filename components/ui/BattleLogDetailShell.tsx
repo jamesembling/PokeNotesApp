@@ -103,6 +103,10 @@ export function BattleLogDetailShell({
   const [deferredBody, setDeferredBody] = useState<LogDetailBodyResponse | null>(null);
 
   useEffect(() => {
+    performance.mark("logs-detail-summary-visible");
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
     let timeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
     let idleCallbackId: number | null = null;
@@ -155,6 +159,7 @@ export function BattleLogDetailShell({
 
   useEffect(() => {
     if (log.rawLog || log.sections.length > 0) {
+      performance.mark("logs-detail-body-visible");
       return;
     }
 
@@ -174,6 +179,7 @@ export function BattleLogDetailShell({
 
         const payload = (await response.json()) as LogDetailBodyResponse;
         setDeferredBody(payload);
+        performance.mark("logs-detail-body-visible");
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;

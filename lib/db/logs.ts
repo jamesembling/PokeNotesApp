@@ -11,6 +11,7 @@ export const logsDbTestHooks = {
 };
 
 const DEFAULT_LOG_WINDOW_DAYS = 7;
+const DEFAULT_LOG_WINDOW_LIMIT = 50;
 
 export type LogSummaryStats = {
   total: number;
@@ -169,7 +170,11 @@ function sortLogsByBattleDate(logs: BattleLogSummary[]) {
       return right.date.localeCompare(left.date);
     }
 
-    return right.importedAt.localeCompare(left.importedAt);
+    if (left.importedAt !== right.importedAt) {
+      return right.importedAt.localeCompare(left.importedAt);
+    }
+
+    return right.id.localeCompare(left.id);
   });
 }
 
@@ -295,6 +300,63 @@ function shiftDateString(date: string, dayOffset: number) {
   return shifted.toISOString().slice(0, 10);
 }
 
+type LogsCursor = {
+  date: string;
+  id: string;
+  importedAt: string;
+};
+
+function encodeLogsCursor(log: BattleLogSummary) {
+  return Buffer.from(
+    JSON.stringify({
+      date: log.date,
+      id: log.id,
+      importedAt: log.importedAt
+    } satisfies LogsCursor)
+  ).toString("base64url");
+}
+
+function decodeLogsCursor(value: string | undefined): LogsCursor | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Partial<LogsCursor>;
+    if (
+      typeof decoded.date === "string" &&
+      typeof decoded.importedAt === "string" &&
+      typeof decoded.id === "string"
+    ) {
+      return {
+        date: decoded.date,
+        id: decoded.id,
+        importedAt: decoded.importedAt
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function escapePostgrestFilterValue(value: string) {
+  return value.replaceAll(",", "%2C");
+}
+
+function buildLogsCursorFilter(cursor: LogsCursor) {
+  const date = escapePostgrestFilterValue(cursor.date);
+  const importedAt = escapePostgrestFilterValue(cursor.importedAt);
+  const id = escapePostgrestFilterValue(cursor.id);
+
+  return [
+    `date.lt.${date}`,
+    `and(date.eq.${date},imported_at.lt.${importedAt})`,
+    `and(date.eq.${date},imported_at.eq.${importedAt},id.lt.${id})`
+  ].join(",");
+}
+
 export async function getLogSummaryStats(userId: string): Promise<LogSummaryStats> {
   const supabase = await logsDbTestHooks.createClient();
   const { data, error } = await measureServerCall("db.logs.summaryStatsRollup", async () =>
@@ -372,6 +434,8 @@ export const getLogStatsOverview = cache(async function getLogStatsOverview(
 export async function getLogsWindow(
   userId: string,
   options?: {
+    cursor?: string;
+    limit?: number;
     windowDays?: number;
     windowEndDate?: string;
   }
@@ -380,55 +444,8 @@ export async function getLogsWindow(
   const windowDays = normalizeWindowDays(options?.windowDays);
   const windowEndDate = normalizeDateString(options?.windowEndDate);
   const windowStartDate = shiftDateString(windowEndDate, -(windowDays - 1));
-
-  const { data, error } = await measureServerCall("db.logs.window", async () =>
-    await supabase
-      .from("logs")
-      .select(
-        [
-          "id",
-          "date",
-          "result",
-          "format",
-          "go_order",
-          "self_player_name",
-          "self_deck_name",
-          "self_deck_sprites",
-          "opponent_player_name",
-          "opponent_deck_name",
-          "opponent_deck_sprites",
-          "total_turns",
-          "linked_deck_id",
-          "linked_deck_list_id",
-          "imported_at"
-        ].join(",")
-      )
-      .eq("user_id", userId)
-      .gte("date", windowStartDate)
-      .lte("date", windowEndDate)
-      .order("date", { ascending: false })
-      .order("imported_at", { ascending: false })
-  );
-
-  if (error) {
-    throw error;
-  }
-
-  const logs = (((data ?? []) as unknown) as LogsTableRow[]).map(mapLogSummary);
-
-  return {
-    logs,
-    hasMore: logs.length > 0,
-    windowDays,
-    windowStartDate,
-    windowEndDate,
-    nextWindowEndDate: logs.length > 0 ? shiftDateString(windowStartDate, -1) : ""
-  };
-}
-
-export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
-  const supabase = await logsDbTestHooks.createClient();
-  const pageSize = Math.max(1, limit);
+  const cursor = decodeLogsCursor(options?.cursor ?? options?.windowEndDate);
+  const pageSize = Math.max(1, Math.min(100, options?.limit ?? DEFAULT_LOG_WINDOW_LIMIT));
 
   let query = supabase
     .from("logs")
@@ -454,10 +471,69 @@ export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
     .eq("user_id", userId)
     .order("date", { ascending: false })
     .order("imported_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(pageSize + 1);
 
   if (cursor) {
-    query = query.lte("date", cursor);
+    query = query.or(buildLogsCursorFilter(cursor));
+  }
+
+  const { data, error } = await measureServerCall("db.logs.window", async () => await query);
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = ((data ?? []) as unknown) as LogsTableRow[];
+  const hasMore = rows.length > pageSize;
+  const pageRows = hasMore ? rows.slice(0, pageSize) : rows;
+  const logs = pageRows.map(mapLogSummary);
+  const nextCursor = hasMore && logs.length > 0 ? encodeLogsCursor(logs[logs.length - 1]) : "";
+
+  return {
+    logs,
+    hasMore,
+    windowDays,
+    windowStartDate: logs.at(-1)?.date ?? windowStartDate,
+    windowEndDate: logs.at(0)?.date ?? windowEndDate,
+    nextWindowEndDate: nextCursor
+  };
+}
+
+export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
+  const supabase = await logsDbTestHooks.createClient();
+  const pageSize = Math.max(1, limit);
+  const decodedCursor = decodeLogsCursor(cursor);
+
+  let query = supabase
+    .from("logs")
+    .select(
+      [
+        "id",
+        "date",
+        "result",
+        "format",
+        "go_order",
+        "self_player_name",
+        "self_deck_name",
+        "self_deck_sprites",
+        "opponent_player_name",
+        "opponent_deck_name",
+        "opponent_deck_sprites",
+        "total_turns",
+        "linked_deck_id",
+        "linked_deck_list_id",
+        "imported_at"
+      ].join(",")
+    )
+    .eq("user_id", userId)
+    .order("date", { ascending: false })
+    .order("imported_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(pageSize + 1);
+
+  if (decodedCursor) {
+    query = query.or(buildLogsCursorFilter(decodedCursor));
   }
 
   const { data, error } = await measureServerCall("db.logs.page", async () => await query);
@@ -470,7 +546,7 @@ export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
   const hasMore = rows.length > pageSize;
   const pageRows = hasMore ? rows.slice(0, pageSize) : rows;
   const logs = pageRows.map(mapLogSummary);
-  const nextCursor = hasMore ? logs.at(-1)?.date : undefined;
+  const nextCursor = hasMore && logs.length > 0 ? encodeLogsCursor(logs[logs.length - 1]) : undefined;
 
   return {
     logs,
@@ -791,8 +867,59 @@ export async function getLogsForDeck(
   decks: DeckLinkCandidate[],
   limit = 10
 ): Promise<BattleLogSummary[]> {
-  const logs = await getAllLogsForDeck(userId, deckId, decks);
-  return logs.slice(0, Math.max(1, limit));
+  if (!decks.some((candidate) => candidate.id === deckId)) {
+    return [];
+  }
+
+  return getLatestLogsForDeck(userId, deckId, limit);
+}
+
+export async function getLatestLogsForDeck(
+  userId: string,
+  deckId: string,
+  limit = 5
+): Promise<BattleLogSummary[]> {
+  if (!deckId) {
+    return [];
+  }
+
+  const supabase = await logsDbTestHooks.createClient();
+  const pageSize = Math.max(1, Math.min(25, limit));
+  const { data, error } = await measureServerCall("db.logs.forDeck.latest", async () =>
+    await supabase
+      .from("logs")
+      .select(
+        [
+          "id",
+          "date",
+          "result",
+          "format",
+          "go_order",
+          "self_player_name",
+          "self_deck_name",
+          "self_deck_sprites",
+          "opponent_player_name",
+          "opponent_deck_name",
+          "opponent_deck_sprites",
+          "total_turns",
+          "linked_deck_id",
+          "linked_deck_list_id",
+          "imported_at"
+        ].join(",")
+      )
+      .eq("user_id", userId)
+      .eq("linked_deck_id", deckId)
+      .order("date", { ascending: false })
+      .order("imported_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(pageSize)
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return (((data ?? []) as unknown) as LogsTableRow[]).map(mapLogSummary);
 }
 
 export async function getAllLogsForDeck(

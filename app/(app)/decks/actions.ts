@@ -7,6 +7,8 @@ import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { CANONICAL_DECK_LIST_SORT_VERSION } from "@/lib/deck-lists/version";
 import { parseDeckList, parseLines } from "@/lib/decks/deck-list-parse";
 import { getDefaultSyncedSiteFormat } from "@/lib/formats/catalog";
+import { getAllLogsForDeck } from "@/lib/db/logs";
+import { getDeckLinkCandidates } from "@/lib/log-import/deck-linking";
 import {
   resolveActionFailure,
   userFacingActionError
@@ -83,6 +85,12 @@ type PostgrestLikeError = {
 function revalidateDeckWorkspace() {
   revalidatePath("/decks", "layout");
   revalidatePath("/logs", "layout");
+}
+
+export async function loadDeckLinkedLogsAction(deckId: string) {
+  const user = await requireUser();
+  const deckLinkCandidates = await getDeckLinkCandidates(user.id);
+  return getAllLogsForDeck(user.id, deckId, deckLinkCandidates);
 }
 
 function isMissingDeckArchetypeColumn(error: PostgrestLikeError | null) {

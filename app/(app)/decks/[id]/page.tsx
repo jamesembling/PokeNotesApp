@@ -17,9 +17,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { requireUser } from "@/lib/auth";
-import { getDeckById } from "@/lib/db/decks";
-import { getAllLogsForDeck } from "@/lib/db/logs";
-import { getDeckLinkCandidates } from "@/lib/log-import/deck-linking";
+import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
+import { getLatestLogsForDeck } from "@/lib/db/logs";
+import { measureServerCall } from "@/lib/server/perf";
 import type { DeckMatchup } from "@/types/index";
 
 type DeckDetailPageProps = {
@@ -65,10 +65,7 @@ function DeckMatchupTile({
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const user = await requireUser();
   const { id } = await params;
-  const [deck, deckLinkCandidates] = await Promise.all([
-    getDeckById(user.id, id),
-    getDeckLinkCandidates(user.id)
-  ]);
+  const deck = await getDeckById(user.id, id);
   const defaultCreatedBy =
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||
@@ -106,7 +103,10 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     );
   }
 
-  const relatedLogsPromise = getAllLogsForDeck(user.id, deck.id, deckLinkCandidates);
+  const [deckStatsPromise, latestLogsPromise] = [
+    getDeckLogStats(user.id, deck.id),
+    getLatestLogsForDeck(user.id, deck.id, 5)
+  ];
   const previewMatchups = deck.matchups.slice(0, 4);
   const deckActions = (
     <div className="flex flex-wrap items-center gap-3">
@@ -125,7 +125,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     </div>
   );
 
-  return (
+  return await measureServerCall("page.decks.detail.initialData", async () => (
     <PageWidth size="standard">
       <PageHeader
         breadcrumb={[
@@ -150,7 +150,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           </div>
 
           <Suspense fallback={<DeckLogStatsGridFallback />}>
-            <DeckLogStatsGrid logsPromise={relatedLogsPromise} />
+            <DeckLogStatsGrid statsPromise={deckStatsPromise} />
           </Suspense>
         </div>
       </Card>
@@ -230,8 +230,8 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       </Card>
 
       <Suspense fallback={<DeckRelatedLogsSectionFallback />}>
-        <DeckRelatedLogsSection deck={deck} logsPromise={relatedLogsPromise} />
+        <DeckRelatedLogsSection deck={deck} latestLogsPromise={latestLogsPromise} />
       </Suspense>
     </PageWidth>
-  );
+  ));
 }

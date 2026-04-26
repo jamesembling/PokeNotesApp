@@ -406,6 +406,13 @@ begin
 end;
 $$;
 
+revoke all on function public.refresh_deck_log_stats(uuid, text) from public;
+revoke all on function public.refresh_deck_log_stats(uuid, text) from anon;
+revoke all on function public.refresh_deck_log_stats(uuid, text) from authenticated;
+revoke all on function public.sync_deck_log_stats_from_log_row() from public;
+revoke all on function public.sync_deck_log_stats_from_log_row() from anon;
+revoke all on function public.sync_deck_log_stats_from_log_row() from authenticated;
+
 drop trigger if exists refresh_deck_log_stats_after_insert on public.logs;
 create trigger refresh_deck_log_stats_after_insert
   after insert on public.logs
@@ -804,6 +811,9 @@ comment on table public.route_performance_events is
 create index logs_user_date
   on public.logs (user_id, date desc);
 
+create index logs_user_date_imported_id
+  on public.logs (user_id, date desc, imported_at desc, id desc);
+
 create index logs_user_result
   on public.logs (user_id, result);
 
@@ -955,6 +965,13 @@ begin
   return new;
 end;
 $$;
+
+revoke all on function public.refresh_user_log_stats(uuid) from public;
+revoke all on function public.refresh_user_log_stats(uuid) from anon;
+revoke all on function public.refresh_user_log_stats(uuid) from authenticated;
+revoke all on function public.sync_user_log_stats_from_log_row() from public;
+revoke all on function public.sync_user_log_stats_from_log_row() from anon;
+revoke all on function public.sync_user_log_stats_from_log_row() from authenticated;
 
 create trigger set_logs_updated_at
   before update on public.logs
