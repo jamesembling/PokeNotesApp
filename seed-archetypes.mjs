@@ -218,7 +218,7 @@ async function loadPokemonLookup() {
     const to = from + LOOKUP_BATCH_SIZE - 1;
     const { data, error } = await supabase
       .from("pokemon_catalog")
-      .select("slug,label,name_de,name_es,name_fr,name_it,name_pt_br")
+      .select("slug,label,evolves_from,name_de,name_es,name_fr,name_it,name_pt_br")
       .range(from, to);
 
     if (error) {
@@ -235,12 +235,15 @@ async function loadPokemonLookup() {
 
   const nameToSlug = new Map();
   const knownSlugs = new Set();
+  const slugToAncestors = new Map();
+  const bySlug = new Map();
 
   for (const row of rows) {
     if (typeof row?.slug !== "string" || !row.slug) {
       continue;
     }
 
+    bySlug.set(row.slug, row);
     knownSlugs.add(row.slug);
     buildPokemonVariants(row).forEach((variant) => {
       if (!nameToSlug.has(variant)) {
@@ -249,9 +252,20 @@ async function loadPokemonLookup() {
     });
   }
 
+  for (const row of bySlug.values()) {
+    const ancestors = [];
+    let cursor = row.evolves_from;
+    while (cursor) {
+      ancestors.push(cursor);
+      cursor = bySlug.get(cursor)?.evolves_from ?? null;
+    }
+    slugToAncestors.set(row.slug, ancestors);
+  }
+
   return {
     knownSlugs,
     nameToSlug,
+    slugToAncestors,
   };
 }
 
@@ -456,13 +470,24 @@ function parseArchetypeSheet(csvText, pokemonLookup) {
       requiredMatchGroups.length > 0
         ? requiredMatchGroups
         : spriteLabels.map((label) => [resolvePokemonSlug(label, pokemonLookup)]);
+    const completedRequiredMatchGroups =
+      spriteSlugs.length > 1
+        ? spriteSlugs.reduce((groups, sprite) => {
+            const ancestors = pokemonLookup.slugToAncestors.get(sprite) ?? [];
+            const isCovered = groups.some(
+              (group) =>
+                group.includes(sprite) || ancestors.some((ancestor) => group.includes(ancestor)),
+            );
+            return isCovered ? groups : [...groups, uniqueStrings([sprite, ...ancestors])];
+          }, fallbackGroups)
+        : fallbackGroups;
 
     parsedEntries.push({
       id,
       label: spriteLabels.join(" / "),
       sprites: spriteSlugs,
-      detectionSprites: uniqueStrings([...spriteSlugs, ...fallbackGroups.flat()]),
-      requiredMatchGroups: fallbackGroups,
+      detectionSprites: uniqueStrings([...spriteSlugs, ...completedRequiredMatchGroups.flat()]),
+      requiredMatchGroups: completedRequiredMatchGroups,
       is_excluded: EXCLUDED_ARCHETYPE_IDS.has(id),
     });
   }

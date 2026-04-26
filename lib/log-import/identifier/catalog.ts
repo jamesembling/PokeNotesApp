@@ -35,6 +35,43 @@ function parseStringMatrix(value: unknown) {
     .filter((entry) => entry.length > 0);
 }
 
+function includesSpriteOrAncestor(
+  group: string[],
+  sprite: string,
+  pokemonIndex: ReturnType<typeof buildPokemonIndex>
+) {
+  if (group.includes(sprite)) {
+    return true;
+  }
+
+  const ancestors = pokemonIndex.slugToAncestors.get(sprite) ?? [];
+  return ancestors.some((ancestor) => group.includes(ancestor));
+}
+
+function completeRequiredMatchGroups(args: {
+  sprites: string[];
+  requiredMatchGroups: string[][];
+  pokemonIndex: ReturnType<typeof buildPokemonIndex>;
+}) {
+  if (args.sprites.length < 2 || args.requiredMatchGroups.length === 0) {
+    return args.requiredMatchGroups;
+  }
+
+  const completedGroups = args.requiredMatchGroups.map((group) => [...group]);
+
+  args.sprites.forEach((sprite) => {
+    const isCovered = completedGroups.some((group) =>
+      includesSpriteOrAncestor(group, sprite, args.pokemonIndex)
+    );
+
+    if (!isCovered) {
+      completedGroups.push([sprite, ...(args.pokemonIndex.slugToAncestors.get(sprite) ?? [])]);
+    }
+  });
+
+  return completedGroups;
+}
+
 function buildPokemonIndex(rows: PokemonCatalogRow[]) {
   const bySlug = new Map(rows.map((row) => [row.slug, row]));
   const normalizedNameToSlug = new Map<string, string>();
@@ -83,7 +120,12 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnTy
     }))
     .map((row) => ({
       ...row,
-      detectionSprites: row.detectionSprites.length > 0 ? row.detectionSprites : row.sprites
+      detectionSprites: row.detectionSprites.length > 0 ? row.detectionSprites : row.sprites,
+      requiredMatchGroups: completeRequiredMatchGroups({
+        sprites: row.sprites,
+        requiredMatchGroups: row.requiredMatchGroups,
+        pokemonIndex
+      })
     }))
     .filter((row) => row.id && row.label && row.sprites.length > 0);
 

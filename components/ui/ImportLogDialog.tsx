@@ -126,6 +126,7 @@ export function ImportLogDialog({
   const resultLabel = review?.result === "Loss" ? "L" : "W";
   const trimmedRawLog = rawLog.trim();
   const isTrainingCourtUrl = isTrainingCourtLogUrl(trimmedRawLog);
+  const canReviewRawLog = trimmedRawLog.length > 0 && !isParsing;
   const detectedSelfLabel = useMemo(
     () =>
       review ? getBattleLogDeckDisplayName(review.selfDeckName, selectedSelfSprites) : undefined,
@@ -336,6 +337,7 @@ export function ImportLogDialog({
       clearCloseTimer();
       closeTimerRef.current = window.setTimeout(() => {
         setIsOpen(false);
+        onClose?.();
         clearNavigationTimer();
         navigationTimerRef.current = window.setTimeout(() => {
           resetImportState();
@@ -400,14 +402,18 @@ export function ImportLogDialog({
             <Button className="w-full sm:w-auto" onClick={closeDialog} type="button" variant="secondary">
               Close
             </Button>
-            {isTrainingCourtUrl ? (
+            {trimmedRawLog ? (
               <Button
                 className="w-full whitespace-normal text-center leading-5 sm:w-auto sm:whitespace-nowrap"
-                disabled={isParsing || trimmedRawLog.length === 0}
+                disabled={!canReviewRawLog}
                 onClick={handleReviewLog}
                 type="button"
               >
-                {isParsing ? "Reviewing..." : "Import Training Court URL"}
+                {isParsing
+                  ? "Reviewing..."
+                  : isTrainingCourtUrl
+                    ? "Import Training Court URL"
+                    : "Review PTCGL Log"}
               </Button>
             ) : null}
           </div>

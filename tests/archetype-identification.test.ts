@@ -26,7 +26,11 @@ function createCatalog(): IdentificationCatalog {
         ["dusknoir", ["dusclops", "duskull"]],
         ["dusclops", ["duskull"]],
         ["dragapult", ["drakloak", "dreepy"]],
-        ["drakloak", ["dreepy"]]
+        ["drakloak", ["dreepy"]],
+        ["zoroark", ["zorua"]],
+        ["darmanitan", ["darumaka"]],
+        ["hydreigon", ["zweilous", "deino"]],
+        ["zweilous", ["deino"]]
       ]),
       slugToFamilyRoot: new Map([
         ["charizard", "charmander"],
@@ -43,7 +47,14 @@ function createCatalog(): IdentificationCatalog {
         ["duskull", "duskull"],
         ["dragapult", "dreepy"],
         ["drakloak", "dreepy"],
-        ["dreepy", "dreepy"]
+        ["dreepy", "dreepy"],
+        ["zoroark", "zorua"],
+        ["zorua", "zorua"],
+        ["darmanitan", "darumaka"],
+        ["darumaka", "darumaka"],
+        ["hydreigon", "deino"],
+        ["zweilous", "deino"],
+        ["deino", "deino"]
       ]),
       maxNameTokens: 1
     },
@@ -104,6 +115,16 @@ function createCatalog(): IdentificationCatalog {
             detectionSprites: ["snorlax"],
             requiredMatchGroups: []
           }
+        ],
+        [
+          "darmanitan+zoroark",
+          {
+            id: "darmanitan+zoroark",
+            label: "Zoroark / Darmanitan",
+            sprites: ["zoroark", "darmanitan"],
+            detectionSprites: ["zoroark", "darmanitan", "zorua", "darumaka"],
+            requiredMatchGroups: [["zorua", "zoroark"], ["darumaka", "darmanitan"]]
+          }
         ]
       ]),
       normalizedLabelToIds: new Map(),
@@ -119,14 +140,19 @@ function createCatalog(): IdentificationCatalog {
         ["dusclops", ["dragapult+dusknoir"]],
         ["snorlax", ["snorlax"]],
         ["torchic", ["blaziken+dragapult"]],
-        ["combusken", ["blaziken+dragapult"]]
+        ["combusken", ["blaziken+dragapult"]],
+        ["zoroark", ["darmanitan+zoroark"]],
+        ["zorua", ["darmanitan+zoroark"]],
+        ["darmanitan", ["darmanitan+zoroark"]]
       ]),
       familyRootToCandidateArchetypes: new Map([
         ["charmander", ["charizard-pidgeot"]],
         ["pidgey", ["charizard-pidgeot"]],
         ["dreepy", ["dragapult", "blaziken+dragapult"]],
         ["duskull", ["dragapult+dusknoir"]],
-        ["torchic", ["blaziken+dragapult"]]
+        ["torchic", ["blaziken+dragapult"]],
+        ["zorua", ["darmanitan+zoroark"]],
+        ["darumaka", ["darmanitan+zoroark"]]
       ])
     }
   };
@@ -222,5 +248,32 @@ test("identifyLikelyArchetype preserves legacy matching for archetypes without r
     label: "Snorlax",
     sprites: ["snorlax"],
     confidence: 21
+  });
+});
+
+test("identifyLikelyArchetype does not match two-piece archetypes from one populated identify group", () => {
+  const catalog = createCatalog();
+
+  const result = identifyLikelyArchetype({
+    evidence: createEvidence(["zorua", "zoroark", "deino", "zweilous", "hydreigon"]),
+    catalog
+  });
+
+  assert.equal(result, null);
+});
+
+test("identifyLikelyArchetype matches two-piece archetypes when both pieces are present", () => {
+  const catalog = createCatalog();
+
+  const result = identifyLikelyArchetype({
+    evidence: createEvidence(["zorua", "darmanitan"]),
+    catalog
+  });
+
+  assert.deepEqual(result, {
+    archetypeId: "darmanitan+zoroark",
+    label: "Zoroark / Darmanitan",
+    sprites: ["zoroark", "darmanitan"],
+    confidence: 81
   });
 });
