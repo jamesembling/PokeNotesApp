@@ -2,13 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName,
   getBattleLogSpriteDisplayName
 } from "@/lib/battle-log/display";
-import { sortDeckListCards } from "@/lib/deck-lists/sort";
+import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
 import { parseDeckList } from "@/lib/decks/deck-list-parse";
 import { getSharedLogSnapshot } from "@/lib/db/log-shares";
 import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
@@ -109,17 +108,13 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
     sharedLog.payload.log.importedAt || sharedLog.createdAt
   );
   const expiryLabel = formatExpiry(sharedLog.expiresAt);
-  const [linkedDeckListSortedCards, actionTagOverrides] = await Promise.all([
-    sharedLog.payload.linkedDeckListRawList?.trim()
-      ? sortDeckListCards(parseDeckList(sharedLog.payload.linkedDeckListRawList))
-      : Promise.resolve(
-          sharedLog.payload.linkedDeckListSortedCards &&
-            sharedLog.payload.linkedDeckListSortedCards.length > 0
-            ? sharedLog.payload.linkedDeckListSortedCards
-            : []
-        ),
-    resolveBattleLogActionTagOverrides(sharedLog.payload.log.sections)
-  ]);
+  const linkedDeckListSortedCards =
+    sharedLog.payload.linkedDeckListSortedCards &&
+    sharedLog.payload.linkedDeckListSortedCards.length > 0
+      ? sharedLog.payload.linkedDeckListSortedCards
+      : sharedLog.payload.linkedDeckListRawList?.trim()
+        ? sortDeckListCardsLocally(parseDeckList(sharedLog.payload.linkedDeckListRawList))
+        : [];
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -130,7 +125,6 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
         />
 
         <BattleLogDetailView
-          actionTagOverrides={actionTagOverrides}
           linkedDeckListFormat={sharedLog.payload.linkedDeckListFormat}
           linkedDeckListName={sharedLog.payload.linkedDeckListName}
           linkedDeckListNotes={sharedLog.payload.linkedDeckListNotes}

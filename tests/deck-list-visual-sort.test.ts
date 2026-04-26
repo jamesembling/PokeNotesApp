@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 import {
   hasCanonicalDeckListVisualGrouping,
   sortDeckListCardsLocally
 } from "@/lib/deck-lists/local-sort";
+import { getReadSortedDeckCards } from "@/lib/deck-lists/read-sort";
 import {
   CANONICAL_DECK_LIST_SORT_VERSION,
   shouldRebuildDeckListVisualSort
@@ -125,5 +128,96 @@ test("legacy grouped deck visuals still rebuild when they predate the canonical 
       sortedCardsVersion: CANONICAL_DECK_LIST_SORT_VERSION
     }),
     false
+  );
+});
+
+test("current stored deck visuals are returned without local re-sorting", () => {
+  const currentStoredOrder: DeckCard[] = [
+    {
+      count: 2,
+      name: "Rare Candy",
+      set: "PAF",
+      number: "89",
+      category: "trainer",
+      trainerType: "item"
+    },
+    {
+      count: 4,
+      name: "Buddy-Buddy Poffin",
+      set: "TEF",
+      number: "144",
+      category: "trainer",
+      trainerType: "item"
+    },
+    {
+      count: 1,
+      name: "Counter Catcher",
+      set: "PAR",
+      number: "160",
+      category: "trainer",
+      trainerType: "item"
+    }
+  ];
+
+  const resolved = getReadSortedDeckCards({
+    parsedCards: [...currentStoredOrder].reverse(),
+    sortedCards: currentStoredOrder,
+    sortedCardsVersion: CANONICAL_DECK_LIST_SORT_VERSION
+  });
+
+  assert.deepEqual(
+    resolved.map((card) => `${card.count} ${card.name}`),
+    ["2 Rare Candy", "4 Buddy-Buddy Poffin", "1 Counter Catcher"]
+  );
+});
+
+test("legacy missing deck visuals use the deterministic local fallback", () => {
+  const resolved = getReadSortedDeckCards({
+    parsedCards: cards,
+    sortedCards: [],
+    sortedCardsVersion: undefined
+  });
+
+  assert.deepEqual(
+    resolved.map((card) => `${card.category}:${card.name}`),
+    [
+      "pokemon:Dreepy",
+      "pokemon:Dragapult ex",
+      "trainer:Lillie's Determination",
+      "trainer:Buddy-Buddy Poffin",
+      "energy:Psychic Energy"
+    ]
+  );
+});
+
+test("deck list read paths do not call the external canonical sorter during render", () => {
+  const readPathFiles = [
+    "lib/db/decks.ts",
+    "app/shared/[token]/page.tsx"
+  ];
+
+  for (const filePath of readPathFiles) {
+    const source = readFileSync(join(process.cwd(), filePath), "utf8");
+
+    assert.equal(
+      source.includes("@/lib/deck-lists/sort"),
+      false,
+      `${filePath} must not import the external deck-list sorter`
+    );
+    assert.equal(
+      /\bsortDeckListCards\s*\(/.test(source),
+      false,
+      `${filePath} must not call sortDeckListCards during reads`
+    );
+  }
+});
+
+test("shared log page does not call Limitless-backed action tag resolution during render", () => {
+  const source = readFileSync(join(process.cwd(), "app/shared/[token]/page.tsx"), "utf8");
+
+  assert.equal(
+    source.includes("@/lib/battle-log/action-tags"),
+    false,
+    "shared page must not import the Limitless-backed action tag resolver"
   );
 });

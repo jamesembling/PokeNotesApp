@@ -22,15 +22,6 @@ type DeckStrategyCollectionProps = {
   }>;
 };
 
-type DeckIndexStatsResponse = {
-  stats?: Array<{
-    deckId: string;
-    total: number;
-    wins: number;
-    losses: number;
-  }>;
-};
-
 function getNextSortDirection(key: SortKey, currentSort: { key: SortKey; direction: SortDirection } | null) {
   if (currentSort?.key === key) {
     return currentSort.direction === "desc" ? "asc" : "desc";
@@ -108,23 +99,7 @@ function SortHeaderButton({
 export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
   const [view, setView] = useState<DeckCardView>("tile");
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
-  const [deckStatsById, setDeckStatsById] = useState<
-    Record<string, { gamesPlayed: number; losses: number; winRate: number | null }>
-  >({});
-  const resolvedDecks = decks.map((deckEntry) => {
-    const stats = deckStatsById[deckEntry.deck.id];
-
-    if (!stats) {
-      return deckEntry;
-    }
-
-    return {
-      ...deckEntry,
-      gamesPlayed: stats.gamesPlayed,
-      losses: stats.losses,
-      winRate: stats.winRate
-    };
-  });
+  const resolvedDecks = decks;
   const totalDeckLists = resolvedDecks.reduce((sum, { deckListCount }) => sum + deckListCount, 0);
   const totalMatches = resolvedDecks.reduce((sum, { gamesPlayed }) => sum + gamesPlayed, 0);
   const trackedDecks = resolvedDecks.filter(({ gamesPlayed }) => gamesPlayed > 0).length;
@@ -188,54 +163,6 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, view);
   }, [view]);
-
-  useEffect(() => {
-    if (decks.length === 0) {
-      return;
-    }
-
-    let active = true;
-    const ids = decks.map(({ deck }) => deck.id).join(",");
-
-    async function loadDeckStats() {
-      try {
-        const response = await fetch(`/api/deck-index-stats?ids=${encodeURIComponent(ids)}`, {
-          credentials: "same-origin",
-          cache: "no-store"
-        });
-
-        if (!response.ok) {
-          return;
-        }
-
-        const payload = (await response.json()) as DeckIndexStatsResponse;
-        const nextStats: Record<string, { gamesPlayed: number; losses: number; winRate: number | null }> = {};
-
-        for (const row of payload.stats ?? []) {
-          const total = Math.max(0, Number(row.total ?? 0));
-          const wins = Math.max(0, Number(row.wins ?? 0));
-          const losses = Math.max(0, Number(row.losses ?? 0));
-          nextStats[row.deckId] = {
-            gamesPlayed: total,
-            losses,
-            winRate: total > 0 ? Math.round((wins / total) * 100) : null
-          };
-        }
-
-        if (active) {
-          setDeckStatsById(nextStats);
-        }
-      } catch {
-        // Stats are secondary to opening the deck index.
-      }
-    }
-
-    loadDeckStats();
-
-    return () => {
-      active = false;
-    };
-  }, [decks]);
 
   return (
     <section className="grid gap-5">

@@ -35,10 +35,10 @@ async function DecksContent({
   const deckCardData = decks.map((deck) => {
     return {
       deck,
-      gamesPlayed: 0,
+      gamesPlayed: deck.gamesPlayed,
       deckListCount: deck.deckListCount,
-      losses: 0,
-      winRate: null
+      losses: deck.losses,
+      winRate: deck.winRate
     };
   });
 

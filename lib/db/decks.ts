@@ -1,10 +1,6 @@
 import { cache } from "react";
 import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
-import { sortDeckListCards } from "@/lib/deck-lists/sort";
-import {
-  CANONICAL_DECK_LIST_SORT_VERSION,
-  shouldRebuildDeckListVisualSort
-} from "@/lib/deck-lists/version";
+import { getReadSortedDeckCards } from "@/lib/deck-lists/read-sort";
 import { createClient } from "@/lib/supabase/server";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
@@ -121,10 +117,21 @@ type DeckLogStats = {
 
 export type DeckIndexSummary = Omit<DeckSummary, "deckLists"> & {
   deckListCount: number;
+  gamesPlayed: number;
+  losses: number;
+  winRate: number | null;
+  wins: number;
 };
 
 type DeckIndexRow = Omit<DeckSummaryRow, "deck_lists"> & {
   deck_list_count: number | null;
+};
+
+type DeckLogStatsRow = {
+  deck_id: string | null;
+  games_played: number | null;
+  games_won: number | null;
+  games_lost: number | null;
 };
 
 type DeckListLookupRow = {
@@ -368,40 +375,6 @@ function parseDeckMatchups(value: unknown): DeckMatchup[] {
     .filter((entry): entry is DeckMatchup => entry !== null);
 }
 
-function getReadSortedDeckCards(parsedCards: DeckCard[], storedSortedCards: DeckCard[]) {
-  if (storedSortedCards.length > 0) {
-    return sortDeckListCardsLocally(storedSortedCards);
-  }
-
-  return sortDeckListCardsLocally(parsedCards);
-}
-
-async function hydrateDeckListVisualOrder(deckList: DeckList): Promise<DeckList> {
-  if (!shouldRebuildDeckListVisualSort(deckList) && deckList.sortedCards.length > 0) {
-    return deckList;
-  }
-
-  if (deckList.parsedCards.length === 0) {
-    return {
-      ...deckList,
-      sortedCards: getReadSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
-    };
-  }
-
-  try {
-    return {
-      ...deckList,
-      sortedCards: await sortDeckListCards(deckList.parsedCards),
-      sortedCardsVersion: CANONICAL_DECK_LIST_SORT_VERSION
-    };
-  } catch {
-    return {
-      ...deckList,
-      sortedCards: getReadSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
-    };
-  }
-}
-
 function stripDeckListCards(deckList: DeckList): DeckList {
   return {
     ...deckList,
@@ -588,9 +561,71 @@ function mapDeckIndexRow(row: DeckIndexRow): DeckIndexSummary {
     goPreference: row.go_preference ?? "",
     deckPokemon,
     deckListCount: Math.max(0, Number(row.deck_list_count ?? 0)),
+    gamesPlayed: 0,
+    losses: 0,
+    winRate: null,
+    wins: 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+function applyDeckLogStats(
+  decks: DeckIndexSummary[],
+  statsRows: DeckLogStatsRow[]
+): DeckIndexSummary[] {
+  const statsByDeckId = new Map(
+    statsRows
+      .filter((row): row is DeckLogStatsRow & { deck_id: string } => Boolean(row.deck_id))
+      .map((row) => [
+        row.deck_id,
+        {
+          gamesPlayed: Number(row.games_played ?? 0),
+          losses: Number(row.games_lost ?? 0),
+          wins: Number(row.games_won ?? 0)
+        }
+      ])
+  );
+
+  return decks.map((deck) => {
+    const stats = statsByDeckId.get(deck.id);
+
+    if (!stats) {
+      return deck;
+    }
+
+    return {
+      ...deck,
+      gamesPlayed: stats.gamesPlayed,
+      losses: stats.losses,
+      winRate: stats.gamesPlayed > 0 ? Math.round((stats.wins / stats.gamesPlayed) * 100) : null,
+      wins: stats.wins
+    };
+  });
+}
+
+async function getDeckLogStatsForIndex(
+  userId: string,
+  deckIds: string[]
+): Promise<DeckLogStatsRow[]> {
+  if (deckIds.length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await measureServerCall("db.decks.indexStatsReadModel", async () =>
+    await supabase
+      .from("deck_log_stats")
+      .select("deck_id,games_played,games_won,games_lost")
+      .eq("user_id", userId)
+      .in("deck_id", deckIds)
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return (((data ?? []) as unknown) as DeckLogStatsRow[]);
 }
 
 function mapDeckLinkCandidate(row: DeckSelectionAndLinkRow): DeckLinkCandidate {
@@ -605,7 +640,7 @@ async function mapDeck(row: DeckRow, context: DeckMappingContext): Promise<Deck>
   const deckSummary = await mapDeckSummary(row, context);
   const hydratedDeckLists = parseDeckLists(row.deck_lists).map((deckList) => ({
     ...deckList,
-    sortedCards: getReadSortedDeckCards(deckList.parsedCards, deckList.sortedCards)
+    sortedCards: getReadSortedDeckCards(deckList)
   }));
 
   return {
@@ -663,10 +698,19 @@ export const getDeckIndexSummaries = cache(async function getDeckIndexSummaries(
 
   if (error) {
     const decks = await getDecks(userId);
-    return decks.map(({ deckLists, ...deck }) => ({
+    const deckIndexSummaries = decks.map(({ deckLists, ...deck }) => ({
       ...deck,
-      deckListCount: deckLists.length
+      deckListCount: deckLists.length,
+      gamesPlayed: 0,
+      losses: 0,
+      winRate: null,
+      wins: 0
     }));
+
+    return applyDeckLogStats(
+      deckIndexSummaries,
+      await getDeckLogStatsForIndex(userId, deckIndexSummaries.map((deck) => deck.id))
+    );
   }
 
   const rows = (((data ?? []) as unknown) as DeckIndexRow[]);
@@ -678,13 +722,26 @@ export const getDeckIndexSummaries = cache(async function getDeckIndexSummaries(
     rows.some((row) => parseStringArray(row.deck_pokemon).length === 0 && Number(row.deck_list_count ?? 0) > 0)
   ) {
     const decks = await getDecks(userId);
-    return decks.map(({ deckLists, ...deck }) => ({
+    const deckIndexSummaries = decks.map(({ deckLists, ...deck }) => ({
       ...deck,
-      deckListCount: deckLists.length
+      deckListCount: deckLists.length,
+      gamesPlayed: 0,
+      losses: 0,
+      winRate: null,
+      wins: 0
     }));
+
+    return applyDeckLogStats(
+      deckIndexSummaries,
+      await getDeckLogStatsForIndex(userId, deckIndexSummaries.map((deck) => deck.id))
+    );
   }
 
-  return rows.map(mapDeckIndexRow);
+  const decks = rows.map(mapDeckIndexRow);
+  return applyDeckLogStats(
+    decks,
+    await getDeckLogStatsForIndex(userId, decks.map((deck) => deck.id))
+  );
 });
 
 export const getDeckSelectionOptions = cache(async function getDeckSelectionOptions(
@@ -800,11 +857,12 @@ export async function getDeckWithList(
   if (!deckList) {
     return null;
   }
-  const hydratedDeckList = await hydrateDeckListVisualOrder(deckList);
-
   return {
     deckName: row.deck_name,
-    deckList: hydratedDeckList
+    deckList: {
+      ...deckList,
+      sortedCards: getReadSortedDeckCards(deckList)
+    }
   };
 }
 

@@ -24,28 +24,16 @@ type LogSummaryStatsRow = {
   games_lost: number | null;
 };
 
-type DeckStatsExplicitRow = Pick<LogsTableRow, "id" | "result" | "linked_deck_id">;
-
-type DeckIndexStatsRpcRow = {
+type DeckLogStatsReadModelRow = {
   deck_id: string | null;
-  total: number | null;
-  wins: number | null;
-  losses: number | null;
+  games_played: number | null;
+  games_won: number | null;
+  games_lost: number | null;
 };
 
 export type DeckLogSnapshot = {
   logs: BattleLogSummary[];
   stats: LogSummaryStats;
-};
-
-type StatsOverviewRow = {
-  result: Result;
-  coin_toss_won: boolean | null;
-  self_prizes_taken: number;
-  opponent_prizes_taken: number;
-  self_attack_damage: number;
-  opponent_attack_damage: number;
-  self_mulligans: number;
 };
 
 export type LogStatsOverview = {
@@ -73,6 +61,21 @@ type LogStatsOverviewRpcRow = {
   tracked_damage: number | null;
   tracked_prizes: number | null;
 };
+
+function mapLogStatsOverviewRow(row: LogStatsOverviewRpcRow | null): LogStatsOverview {
+  return {
+    gamesPlayed: Number(row?.games_played ?? 0),
+    gamesWon: Number(row?.games_won ?? 0),
+    gamesLost: Number(row?.games_lost ?? 0),
+    attackDamage: Number(row?.attack_damage ?? 0),
+    opponentAttackDamage: Number(row?.opponent_attack_damage ?? 0),
+    coinFlipsWon: Number(row?.coin_flips_won ?? 0),
+    mulligansTaken: Number(row?.mulligans_taken ?? 0),
+    prizesTaken: Number(row?.prizes_taken ?? 0),
+    trackedDamage: Number(row?.tracked_damage ?? 0),
+    trackedPrizes: Number(row?.tracked_prizes ?? 0)
+  };
+}
 
 type LogsTableRow = {
   id: string;
@@ -176,16 +179,6 @@ function createEmptyLogSummaryStats(): LogSummaryStats {
     wins: 0,
     losses: 0
   };
-}
-
-function addResultToSummaryStats(stats: LogSummaryStats, result: Result) {
-  stats.total += 1;
-
-  if (result === "Win") {
-    stats.wins += 1;
-  } else if (result === "Loss") {
-    stats.losses += 1;
-  }
 }
 
 export function mapBattleLog(row: LogDetailTableRow): BattleLog {
@@ -302,46 +295,6 @@ function shiftDateString(date: string, dayOffset: number) {
   return shifted.toISOString().slice(0, 10);
 }
 
-async function countLogSummaryStats(userId: string): Promise<LogSummaryStats> {
-  const supabase = await logsDbTestHooks.createClient();
-  const [total, wins, losses] = await measureServerCall("db.logs.summaryStats", async () => {
-    const [{ count: totalCount, error: totalError }, { count: winsCount, error: winsError }, { count: lossesCount, error: lossesError }] =
-      await Promise.all([
-        supabase.from("logs").select("id", { count: "exact", head: true }).eq("user_id", userId),
-        supabase
-          .from("logs")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("result", "Win"),
-        supabase
-          .from("logs")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId)
-          .eq("result", "Loss")
-      ]);
-
-    if (totalError) {
-      throw totalError;
-    }
-
-    if (winsError) {
-      throw winsError;
-    }
-
-    if (lossesError) {
-      throw lossesError;
-    }
-
-    return [totalCount ?? 0, winsCount ?? 0, lossesCount ?? 0] as const;
-  });
-
-  return {
-    total,
-    wins,
-    losses
-  };
-}
-
 export async function getLogSummaryStats(userId: string): Promise<LogSummaryStats> {
   const supabase = await logsDbTestHooks.createClient();
   const { data, error } = await measureServerCall("db.logs.summaryStatsRollup", async () =>
@@ -353,7 +306,7 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
   );
 
   if (error) {
-    return await countLogSummaryStats(userId);
+    throw error;
   }
 
   const row = ((data ?? null) as unknown) as LogSummaryStatsRow | null;
@@ -379,87 +332,41 @@ export const getLogStatsOverview = cache(async function getLogStatsOverview(
       : (((data ?? null) as unknown) as LogStatsOverviewRpcRow | null);
 
     if (row) {
-      return {
-        gamesPlayed: Number(row.games_played ?? 0),
-        gamesWon: Number(row.games_won ?? 0),
-        gamesLost: Number(row.games_lost ?? 0),
-        attackDamage: Number(row.attack_damage ?? 0),
-        opponentAttackDamage: Number(row.opponent_attack_damage ?? 0),
-        coinFlipsWon: Number(row.coin_flips_won ?? 0),
-        mulligansTaken: Number(row.mulligans_taken ?? 0),
-        prizesTaken: Number(row.prizes_taken ?? 0),
-        trackedDamage: Number(row.tracked_damage ?? 0),
-        trackedPrizes: Number(row.tracked_prizes ?? 0)
-      };
+      return mapLogStatsOverviewRow(row);
     }
   }
 
+  const resolvedUserId = userId || (await measureServerCall("db.logs.statsOverviewReadModel.requireUser", async () =>
+    await requireUser()
+  )).id;
   const { data: fallbackData, error: fallbackError } = await measureServerCall(
-    "db.logs.statsOverviewFallback",
-    async () => {
-      const resolvedUserId = userId || (await measureServerCall("db.logs.statsOverviewFallback.requireUser", async () =>
-        await requireUser()
-      )).id;
-
-      return await supabase
-        .from("logs")
+    "db.logs.statsOverviewReadModelFallback",
+    async () =>
+      await supabase
+        .from("user_log_stats")
         .select(
           [
-            "result",
-            "coin_toss_won",
-            "self_prizes_taken",
-            "opponent_prizes_taken",
-            "self_attack_damage",
+            "games_played",
+            "games_won",
+            "games_lost",
+            "attack_damage",
             "opponent_attack_damage",
-            "self_mulligans"
+            "coin_flips_won",
+            "mulligans_taken",
+            "prizes_taken",
+            "tracked_damage",
+            "tracked_prizes"
           ].join(",")
         )
-        .eq("user_id", resolvedUserId);
-    }
+        .eq("user_id", resolvedUserId)
+        .maybeSingle()
   );
 
   if (fallbackError) {
     throw fallbackError;
   }
 
-  return (((fallbackData ?? []) as unknown) as StatsOverviewRow[]).reduce<LogStatsOverview>(
-    (totals, row) => {
-      totals.gamesPlayed += 1;
-
-      if (row.result === "Win") {
-        totals.gamesWon += 1;
-      } else if (row.result === "Loss") {
-        totals.gamesLost += 1;
-      }
-
-      if (row.coin_toss_won) {
-        totals.coinFlipsWon += 1;
-      }
-
-      totals.attackDamage += Number(row.self_attack_damage || 0);
-      totals.opponentAttackDamage += Number(row.opponent_attack_damage || 0);
-      totals.mulligansTaken += Number(row.self_mulligans || 0);
-      totals.prizesTaken += Number(row.self_prizes_taken || 0);
-      totals.trackedDamage +=
-        Number(row.self_attack_damage || 0) + Number(row.opponent_attack_damage || 0);
-      totals.trackedPrizes +=
-        Number(row.self_prizes_taken || 0) + Number(row.opponent_prizes_taken || 0);
-
-      return totals;
-    },
-    {
-      gamesPlayed: 0,
-      gamesWon: 0,
-      gamesLost: 0,
-      attackDamage: 0,
-      opponentAttackDamage: 0,
-      coinFlipsWon: 0,
-      mulligansTaken: 0,
-      prizesTaken: 0,
-      trackedDamage: 0,
-      trackedPrizes: 0
-    }
-  );
+  return mapLogStatsOverviewRow(((fallbackData ?? null) as unknown) as LogStatsOverviewRpcRow | null);
 });
 
 export async function getLogsWindow(
@@ -850,48 +757,29 @@ export async function getDeckStatsForIndex(
     targetDeckIds.map((deckId) => [deckId, createEmptyLogSummaryStats()])
   );
   const supabase = await logsDbTestHooks.createClient();
-  const rpcResult = await measureServerCall("db.logs.statsForDecks.rpc", async () =>
-    await supabase.rpc("get_deck_index_stats", { target_deck_ids: targetDeckIds })
-  );
-
-  if (!rpcResult.error) {
-    ((((rpcResult.data ?? []) as unknown) as DeckIndexStatsRpcRow[])).forEach((row) => {
-      const deckId = row.deck_id ?? "";
-      const deckStats = statsByDeck.get(deckId);
-
-      if (!deckStats) {
-        return;
-      }
-
-      deckStats.total = Number(row.total ?? 0);
-      deckStats.wins = Number(row.wins ?? 0);
-      deckStats.losses = Number(row.losses ?? 0);
-    });
-
-    return statsByDeck;
-  }
-
-  const explicitResult = await measureServerCall("db.logs.statsForDecks.explicit", async () =>
+  const statsResult = await measureServerCall("db.logs.statsForDecks.readModel", async () =>
     await supabase
-      .from("logs")
-      .select(["id", "result", "linked_deck_id"].join(","))
+      .from("deck_log_stats")
+      .select(["deck_id", "games_played", "games_won", "games_lost"].join(","))
       .eq("user_id", userId)
-      .in("linked_deck_id", targetDeckIds)
+      .in("deck_id", targetDeckIds)
   );
 
-  if (explicitResult.error) {
-    throw explicitResult.error;
+  if (statsResult.error) {
+    throw statsResult.error;
   }
 
-  ((((explicitResult.data ?? []) as unknown) as DeckStatsExplicitRow[])).forEach((row) => {
-    const deckId = row.linked_deck_id ?? "";
+  ((((statsResult.data ?? []) as unknown) as DeckLogStatsReadModelRow[])).forEach((row) => {
+    const deckId = row.deck_id ?? "";
     const deckStats = statsByDeck.get(deckId);
 
     if (!deckStats) {
       return;
     }
 
-    addResultToSummaryStats(deckStats, row.result);
+    deckStats.total = Number(row.games_played ?? 0);
+    deckStats.wins = Number(row.games_won ?? 0);
+    deckStats.losses = Number(row.games_lost ?? 0);
   });
 
   return statsByDeck;

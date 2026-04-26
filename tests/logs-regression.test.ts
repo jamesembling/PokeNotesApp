@@ -247,32 +247,22 @@ test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (
   assert.equal(queries.length, 0);
 });
 
-test("getLogStatsOverview falls back to aggregating log rows if the RPC errors", async (t) => {
+test("getLogStatsOverview falls back to the user_log_stats read model if the RPC errors", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const { client, queries, rpcCalls } = createFakeSupabaseClient(
     () => ({
-      data: [
-        buildLogRow({
-          id: "log-win",
-          result: "Win",
-          coin_toss_won: true,
-          self_prizes_taken: 6,
-          opponent_prizes_taken: 4,
-          self_attack_damage: 240,
-          opponent_attack_damage: 180,
-          self_mulligans: 1
-        }),
-        buildLogRow({
-          id: "log-loss",
-          result: "Loss",
-          coin_toss_won: false,
-          self_prizes_taken: 2,
-          opponent_prizes_taken: 6,
-          self_attack_damage: 80,
-          opponent_attack_damage: 250,
-          self_mulligans: 0
-        })
-      ],
+      data: {
+        games_played: 12,
+        games_won: 7,
+        games_lost: 5,
+        attack_damage: 1820,
+        opponent_attack_damage: 1660,
+        coin_flips_won: 8,
+        mulligans_taken: 3,
+        prizes_taken: 29,
+        tracked_damage: 3480,
+        tracked_prizes: 54
+      },
       error: null
     }),
     () => ({
@@ -289,20 +279,20 @@ test("getLogStatsOverview falls back to aggregating log rows if the RPC errors",
   const overview = await getLogStatsOverview("user-1");
 
   assert.deepEqual(overview, {
-    gamesPlayed: 2,
-    gamesWon: 1,
-    gamesLost: 1,
-    attackDamage: 320,
-    opponentAttackDamage: 430,
-    coinFlipsWon: 1,
-    mulligansTaken: 1,
-    prizesTaken: 8,
-    trackedDamage: 750,
-    trackedPrizes: 18
+    gamesPlayed: 12,
+    gamesWon: 7,
+    gamesLost: 5,
+    attackDamage: 1820,
+    opponentAttackDamage: 1660,
+    coinFlipsWon: 8,
+    mulligansTaken: 3,
+    prizesTaken: 29,
+    trackedDamage: 3480,
+    trackedPrizes: 54
   });
   assert.deepEqual(rpcCalls, ["get_log_stats_overview"]);
   assert.equal(queries.length, 1);
-  assert.deepEqual(queries[0]?.table, "logs");
+  assert.deepEqual(queries[0]?.table, "user_log_stats");
 });
 
 test("getAllLogsByDeck keeps the overview query grouped into one explicit and one unlinked fetch", async (t) => {
@@ -417,17 +407,17 @@ test("getDeckLogSnapshots preserves grouped stats parity without extra unresolve
   );
 });
 
-test("getDeckStatsForIndex preserves explicit linked stats without materializing log lists", async (t) => {
+test("getDeckStatsForIndex reads the deck_log_stats read model", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
   const { client, queries } = createFakeSupabaseClient((ctx) => {
-    const hasExplicitDeckFilter = ctx.operations.some(
-      (op) => op.method === "in" && op.args[0] === "linked_deck_id"
+    const hasDeckStatsFilter = ctx.operations.some(
+      (op) => op.method === "in" && op.args[0] === "deck_id"
     );
 
-    if (hasExplicitDeckFilter) {
+    if (hasDeckStatsFilter) {
       return {
-        data: [buildLogRow({ id: "deck-b-explicit", linked_deck_id: "deck-b", result: "Win" })],
+        data: [{ deck_id: "deck-b", games_played: 3, games_won: 2, games_lost: 1 }],
         error: null
       };
     }
@@ -446,35 +436,28 @@ test("getDeckStatsForIndex preserves explicit linked stats without materializing
   assert.equal(queries.length, 1);
   assert.deepEqual(
     queries.map((query) => query.operations.find((op) => op.method === "select")?.args[0]),
-    ["id,result,linked_deck_id"]
+    ["deck_id,games_played,games_won,games_lost"]
   );
   assert.deepEqual(deckBStats, {
-    total: 1,
-    wins: 1,
-    losses: 0
+    total: 3,
+    wins: 2,
+    losses: 1
   });
 });
 
-test("getDeckStatsForIndex ignores unlinked logs that were not explicitly mapped", async (t) => {
+test("getDeckStatsForIndex returns zeroes for decks missing read-model rows", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
   const { client } = createFakeSupabaseClient((ctx) => {
-    const hasExplicitDeckFilter = ctx.operations.some(
-      (op) => op.method === "in" && op.args[0] === "linked_deck_id"
+    const hasDeckStatsFilter = ctx.operations.some(
+      (op) => op.method === "in" && op.args[0] === "deck_id"
     );
 
-    if (hasExplicitDeckFilter) {
+    if (hasDeckStatsFilter) {
       return {
         data: [
-          buildLogRow({ id: "deck-a-explicit", linked_deck_id: "deck-a", result: "Win" }),
-          buildLogRow({ id: "deck-b-explicit", linked_deck_id: "deck-b", result: "Loss" }),
-          buildLogRow({
-            id: "deck-b-legacy",
-            linked_deck_id: null,
-            self_deck_name: "Deck deck-b",
-            self_deck_sprites: "",
-            result: "Win"
-          })
+          { deck_id: "deck-a", games_played: 1, games_won: 1, games_lost: 0 },
+          { deck_id: "deck-b", games_played: 1, games_won: 0, games_lost: 1 }
         ],
         error: null
       };
