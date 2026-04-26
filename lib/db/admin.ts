@@ -479,6 +479,34 @@ export async function updateAdminUserRole(userId: string, role: Role) {
 
   const supabase = createAdminClient();
 
+  const syncAuthRoleMetadata = async () => {
+    const { data: authUser, error: authUserError } = await supabase.auth.admin.getUserById(userId);
+
+    if (authUserError) {
+      throw authUserError;
+    }
+
+    const appMetadata =
+      authUser.user?.app_metadata && typeof authUser.user.app_metadata === "object"
+        ? authUser.user.app_metadata
+        : {};
+
+    if (appMetadata.role === role) {
+      return;
+    }
+
+    const { error: updateAuthError } = await supabase.auth.admin.updateUserById(userId, {
+      app_metadata: {
+        ...appMetadata,
+        role
+      }
+    });
+
+    if (updateAuthError) {
+      throw updateAuthError;
+    }
+  };
+
   if (actingUser.id === userId && role !== "admin") {
     const { data, error } = await supabase.from("profiles").select("id,role");
     if (error) {
@@ -517,6 +545,8 @@ export async function updateAdminUserRole(userId: string, role: Role) {
   if (error) {
     throw error;
   }
+
+  await syncAuthRoleMetadata();
 
   return mapAdminUser(
     data as unknown as ProfileRow,
