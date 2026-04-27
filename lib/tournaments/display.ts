@@ -46,21 +46,19 @@ export function getTournamentRecord(rounds: TournamentRound[]) {
 export function getTournamentRecordBreakdown(rounds: TournamentRound[]) {
   const totals = rounds.reduce(
     (accumulator, round) => {
-      const gameResults = getRoundResultGameTokens(round.result);
+      const roundOutcome = getRoundResultVariant(round.result);
 
-      gameResults.forEach((gameResult) => {
-        if (gameResult === "W") {
-          accumulator.wins += 1;
-          return;
-        }
+      if (roundOutcome === "win") {
+        accumulator.wins += 1;
+        return accumulator;
+      }
 
-        if (gameResult === "L") {
-          accumulator.losses += 1;
-          return;
-        }
+      if (roundOutcome === "loss") {
+        accumulator.losses += 1;
+        return accumulator;
+      }
 
-        accumulator.ties += 1;
-      });
+      accumulator.ties += 1;
 
       return accumulator;
     },

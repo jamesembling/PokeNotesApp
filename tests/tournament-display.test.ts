@@ -37,7 +37,18 @@ test("special round results are detected for row display", () => {
   assert.equal(getRoundSpecialResult("WL"), null);
 });
 
-test("tournament record counts ID as a tie and NO SHOW as a win", () => {
+test("tournament record counts match outcomes instead of individual games", () => {
+  const record = getTournamentRecord([
+    buildRound({ id: "round-1", roundNumber: 1, result: "WLW" }),
+    buildRound({ id: "round-2", roundNumber: 2, result: "WW" }),
+    buildRound({ id: "round-3", roundNumber: 3, result: "LWW" }),
+    buildRound({ id: "round-4", roundNumber: 4, result: "WLL" })
+  ]);
+
+  assert.equal(record, "3-1");
+});
+
+test("tournament record counts tied and special round outcomes once per round", () => {
   const record = getTournamentRecord([
     buildRound({ id: "round-1", roundNumber: 1, result: "BYE" }),
     buildRound({ id: "round-2", roundNumber: 2, result: "ID" }),
@@ -45,5 +56,5 @@ test("tournament record counts ID as a tie and NO SHOW as a win", () => {
     buildRound({ id: "round-4", roundNumber: 4, result: "WL" })
   ]);
 
-  assert.equal(record, "3-1-1");
+  assert.equal(record, "2-0-2");
 });
