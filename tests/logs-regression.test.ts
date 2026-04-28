@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getArchetypeMatchupStats,
   getAllLogsByDeck,
   getDeckLogSnapshots,
   getDeckStatsForIndex,
@@ -396,6 +397,56 @@ test("getLogStatsOverview falls back to the user_log_stats read model if the RPC
   assert.deepEqual(rpcCalls, ["get_log_stats_overview"]);
   assert.equal(queries.length, 1);
   assert.deepEqual(queries[0]?.table, "user_log_stats");
+});
+
+test("getArchetypeMatchupStats reads the opponent archetype read model", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries } = createFakeSupabaseClient(() => ({
+    data: [
+      {
+        matchup_key: "gardevoir",
+        opponent_deck_name: "Gardevoir ex",
+        opponent_deck_sprites: "gardevoir",
+        source_deck_slugs: "gardevoir-ex,gardevoir",
+        games_played: 4,
+        games_won: 3,
+        games_lost: 1,
+        last_played_date: "2026-04-28"
+      }
+    ],
+    error: null
+  }));
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const stats = await getArchetypeMatchupStats("user-1");
+
+  assert.deepEqual(stats, [
+    {
+      matchupKey: "gardevoir",
+      opponentDeckName: "Gardevoir ex",
+      opponentDeckSprites: ["gardevoir"],
+      sourceDeckSlugs: ["gardevoir-ex", "gardevoir"],
+      gamesPlayed: 4,
+      gamesWon: 3,
+      gamesLost: 1,
+      lastPlayedDate: "2026-04-28",
+      winRate: 75
+    }
+  ]);
+  assert.equal(queries.length, 1);
+  assert.equal(queries[0]?.table, "user_archetype_matchup_stats");
+  assert.deepEqual(
+    queries[0]?.operations.filter((op) => op.method === "order").map((op) => op.args[0]),
+    ["games_played", "games_won", "opponent_deck_name"]
+  );
+  assert.equal(
+    queries[0]?.operations.some((op) => op.method === "select" && String(op.args[0]).includes("raw_log")),
+    false
+  );
 });
 
 test("getAllLogsByDeck keeps the overview query grouped into one explicit and one unlinked fetch", async (t) => {

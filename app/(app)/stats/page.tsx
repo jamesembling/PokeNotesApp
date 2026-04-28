@@ -1,12 +1,22 @@
 import { Suspense } from "react";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
-import { getLogStatsOverview } from "@/lib/db/logs";
+import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
+import { getArchetypeMatchupStats, getLogStatsOverview } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
 
 function formatMetric(value: number) {
   return value.toLocaleString();
+}
+
+function formatRecord(wins: number, losses: number) {
+  return `${formatMetric(wins)}-${formatMetric(losses)}`;
+}
+
+function formatWinRate(value: number | null) {
+  return value === null ? "-" : `${value}%`;
 }
 
 export default async function StatsPage() {
@@ -25,6 +35,17 @@ export default async function StatsPage() {
 
         <Suspense fallback={<StatsOverviewFallback />}>
           <StatsOverviewGrid />
+        </Suspense>
+      </Card>
+
+      <Card className="mt-5 grid gap-4">
+        <div className="space-y-2">
+          <p className="ui-eyebrow">Matchups</p>
+          <h2 className="ui-section-title">Win % vs Archetypes</h2>
+        </div>
+
+        <Suspense fallback={<ArchetypeMatchupsFallback />}>
+          <ArchetypeMatchupsTable />
         </Suspense>
       </Card>
     </>
@@ -92,6 +113,86 @@ function StatsOverviewFallback() {
       {Array.from({ length: 8 }).map((_, index) => (
         <div
           className="h-24 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
+          key={index}
+        />
+      ))}
+    </div>
+  );
+}
+
+async function ArchetypeMatchupsTable() {
+  const matchups = await measureServerCall("page.stats.archetypeMatchups", async () =>
+    await getArchetypeMatchupStats()
+  );
+
+  if (matchups.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-6 text-sm text-[var(--text-muted)]">
+        No matchup stats yet. Import battle logs with identified opponent archetypes to build this table.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[520px] border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-[var(--border)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+            <th className="py-2 pr-3">Archetype</th>
+            <th className="px-3 py-2 text-right">Record</th>
+            <th className="px-3 py-2 text-right">Win Rate</th>
+            <th className="py-2 pl-3 text-right">Games</th>
+          </tr>
+        </thead>
+        <tbody>
+          {matchups.map((matchup) => {
+            const displayName = getBattleLogOpponentDisplayName(
+              matchup.opponentDeckName,
+              matchup.opponentDeckSprites
+            );
+
+            return (
+              <tr
+                className="border-b border-[var(--border)] last:border-b-0"
+                key={matchup.matchupKey}
+              >
+                <td className="py-2.5 pr-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <SpriteStrip
+                      className="shrink-0"
+                      maxVisible={2}
+                      size="xs"
+                      sprites={matchup.opponentDeckSprites}
+                    />
+                    <span className="truncate font-medium text-[var(--text-primary)]">
+                      {displayName || matchup.matchupKey}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-3 py-2.5 text-right font-mono text-[var(--text-primary)]">
+                  {formatRecord(matchup.gamesWon, matchup.gamesLost)}
+                </td>
+                <td className="px-3 py-2.5 text-right font-mono font-semibold text-[var(--text-primary)]">
+                  {formatWinRate(matchup.winRate)}
+                </td>
+                <td className="py-2.5 pl-3 text-right font-mono text-[var(--text-muted)]">
+                  {formatMetric(matchup.gamesPlayed)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ArchetypeMatchupsFallback() {
+  return (
+    <div className="grid gap-2">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          className="h-10 animate-pulse rounded-lg bg-[var(--bg-surface-alt)]"
           key={index}
         />
       ))}

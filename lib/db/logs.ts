@@ -50,6 +50,18 @@ export type LogStatsOverview = {
   trackedPrizes: number;
 };
 
+export type ArchetypeMatchupStats = {
+  matchupKey: string;
+  opponentDeckName: string;
+  opponentDeckSprites: string[];
+  sourceDeckSlugs: string[];
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+  lastPlayedDate: string | null;
+  winRate: number | null;
+};
+
 type LogStatsOverviewRpcRow = {
   games_played: number | null;
   games_won: number | null;
@@ -61,6 +73,17 @@ type LogStatsOverviewRpcRow = {
   prizes_taken: number | null;
   tracked_damage: number | null;
   tracked_prizes: number | null;
+};
+
+type ArchetypeMatchupStatsRow = {
+  matchup_key: string | null;
+  opponent_deck_name: string | null;
+  opponent_deck_sprites: string | null;
+  source_deck_slugs: string | null;
+  games_played: number | null;
+  games_won: number | null;
+  games_lost: number | null;
+  last_played_date: string | null;
 };
 
 function mapLogStatsOverviewRow(row: LogStatsOverviewRpcRow | null): LogStatsOverview {
@@ -75,6 +98,23 @@ function mapLogStatsOverviewRow(row: LogStatsOverviewRpcRow | null): LogStatsOve
     prizesTaken: Number(row?.prizes_taken ?? 0),
     trackedDamage: Number(row?.tracked_damage ?? 0),
     trackedPrizes: Number(row?.tracked_prizes ?? 0)
+  };
+}
+
+function mapArchetypeMatchupStatsRow(row: ArchetypeMatchupStatsRow): ArchetypeMatchupStats {
+  const gamesPlayed = Number(row.games_played ?? 0);
+  const gamesWon = Number(row.games_won ?? 0);
+
+  return {
+    matchupKey: String(row.matchup_key ?? ""),
+    opponentDeckName: String(row.opponent_deck_name ?? ""),
+    opponentDeckSprites: splitSprites(String(row.opponent_deck_sprites ?? "")),
+    sourceDeckSlugs: splitSprites(String(row.source_deck_slugs ?? "")),
+    gamesPlayed,
+    gamesWon,
+    gamesLost: Number(row.games_lost ?? 0),
+    lastPlayedDate: row.last_played_date ? String(row.last_played_date) : null,
+    winRate: gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : null
   };
 }
 
@@ -429,6 +469,41 @@ export const getLogStatsOverview = cache(async function getLogStatsOverview(
   }
 
   return mapLogStatsOverviewRow(((fallbackData ?? null) as unknown) as LogStatsOverviewRpcRow | null);
+});
+
+export const getArchetypeMatchupStats = cache(async function getArchetypeMatchupStats(
+  userId?: string
+): Promise<ArchetypeMatchupStats[]> {
+  const supabase = await logsDbTestHooks.createClient();
+  const resolvedUserId = userId || (await measureServerCall("db.logs.archetypeMatchups.requireUser", async () =>
+    await requireUser()
+  )).id;
+  const { data, error } = await measureServerCall("db.logs.archetypeMatchupsReadModel", async () =>
+    await supabase
+      .from("user_archetype_matchup_stats")
+      .select(
+        [
+          "matchup_key",
+          "opponent_deck_name",
+          "opponent_deck_sprites",
+          "source_deck_slugs",
+          "games_played",
+          "games_won",
+          "games_lost",
+          "last_played_date"
+        ].join(",")
+      )
+      .eq("user_id", resolvedUserId)
+      .order("games_played", { ascending: false })
+      .order("games_won", { ascending: false })
+      .order("opponent_deck_name", { ascending: true })
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return (((data ?? []) as unknown) as ArchetypeMatchupStatsRow[]).map(mapArchetypeMatchupStatsRow);
 });
 
 export async function getLogsWindow(

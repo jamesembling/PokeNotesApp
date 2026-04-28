@@ -5,6 +5,7 @@
   "scripts": {
     "audit:pokemon-catalog": "tsx audit-pokemon-catalog.ts",
     "audit:pokemon-options": "node audit-pokemon-options.mjs",
+    "backfill:deck-list-visual-sort": "tsx backfill-deck-list-visual-sort.ts",
     "backfill:log-links": "tsx backfill-log-links.ts",
     "clean": "rm -rf .next",
     "dev": "next dev",

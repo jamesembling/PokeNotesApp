@@ -193,6 +193,7 @@ test("legacy missing deck visuals use the deterministic local fallback", () => {
 test("deck list read paths do not call the external canonical sorter during render", () => {
   const readPathFiles = [
     "lib/db/decks.ts",
+    "app/(app)/tournaments/[id]/page.tsx",
     "app/shared/[token]/page.tsx"
   ];
 
@@ -210,6 +211,16 @@ test("deck list read paths do not call the external canonical sorter during rend
       `${filePath} must not call sortDeckListCards during reads`
     );
   }
+});
+
+test("tournament detail deck visuals use the hydrated deck-list read path", () => {
+  const source = readFileSync(
+    join(process.cwd(), "app/(app)/tournaments/[id]/page.tsx"),
+    "utf8"
+  );
+
+  assert.equal(source.includes("getDeckWithList"), true);
+  assert.equal(source.includes("sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}"), true);
 });
 
 test("deck and logs pages do not use client hydration stat patches", () => {

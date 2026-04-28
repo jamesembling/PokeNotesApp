@@ -58,3 +58,13 @@ test("dead sidebar profile endpoint and sidebar client fetch stay removed", () =
   assert.doesNotMatch(source("app/(app)/layout.tsx"), /sidebar-profile/);
   assert.doesNotMatch(source("components/ui/Sidebar.tsx"), /sidebar-profile|fetch\(/);
 });
+
+test("/stats renders archetype matchup stats from the read model", () => {
+  const page = source("app/(app)/stats/page.tsx");
+  const logsDb = source("lib/db/logs.ts");
+
+  assert.match(page, /getArchetypeMatchupStats/);
+  assert.match(page, /Win % vs Archetypes/);
+  assert.match(logsDb, /from\("user_archetype_matchup_stats"\)/);
+  assert.doesNotMatch(logsDb, /from\("logs"\)[\s\S]{0,300}opponent_deck_slug[\s\S]{0,300}group/);
+});

@@ -6,6 +6,7 @@ import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
 } from "@/lib/battle-log/display";
+import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
 import { linkDeckConservatively } from "@/lib/log-import/deck-linking";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
@@ -64,6 +65,13 @@ function joinSprites(slugs: string[]) {
         .filter(Boolean)
     )
   ).join(",");
+}
+
+function splitJoinedSprites(value: string) {
+  return String(value || "")
+    .split(",")
+    .map((slug) => slug.trim())
+    .filter(Boolean);
 }
 
 async function getImportContext(): Promise<ImportContext> {
@@ -366,6 +374,25 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
     const format = String(formData.get("format") || "").trim();
     const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
     const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
+    const nextSelfSprites = joinSprites(parseStringArray(formData.getAll("selfSprites")));
+    const nextOpponentSprites = joinSprites(parseStringArray(formData.getAll("opponentSprites")));
+    const { data: existingLog, error: existingLogError } = await supabase
+      .from("logs")
+      .select("self_deck_name,self_deck_sprites,opponent_deck_name,opponent_deck_sprites")
+      .eq("user_id", user.id)
+      .eq("id", logId)
+      .maybeSingle();
+
+    if (existingLogError) {
+      throw existingLogError;
+    }
+
+    const existingSelfSprites = String(existingLog?.self_deck_sprites ?? "");
+    const existingOpponentSprites = String(existingLog?.opponent_deck_sprites ?? "");
+    const selfSpritesChanged = nextSelfSprites !== existingSelfSprites;
+    const opponentSpritesChanged = nextOpponentSprites !== existingOpponentSprites;
+    const nextSelfSpriteList = splitJoinedSprites(nextSelfSprites);
+    const nextOpponentSpriteList = splitJoinedSprites(nextOpponentSprites);
 
     const { error } = await supabase
       .from("logs")
@@ -374,8 +401,20 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
         format,
         linked_deck_id: linkedDeckId || null,
         linked_deck_list_id: linkedDeckListId || null,
-        self_deck_sprites: joinSprites(parseStringArray(formData.getAll("selfSprites"))),
-        opponent_deck_sprites: joinSprites(parseStringArray(formData.getAll("opponentSprites")))
+        self_deck_sprites: nextSelfSprites,
+        opponent_deck_sprites: nextOpponentSprites,
+        ...(selfSpritesChanged
+          ? {
+              self_deck_name: getBattleLogDeckDisplayName("", nextSelfSpriteList),
+              self_deck_slug: buildDeckArchetypeId(nextSelfSpriteList)
+            }
+          : {}),
+        ...(opponentSpritesChanged
+          ? {
+              opponent_deck_name: getBattleLogOpponentDisplayName("", nextOpponentSpriteList),
+              opponent_deck_slug: buildDeckArchetypeId(nextOpponentSpriteList)
+            }
+          : {})
       })
       .eq("user_id", user.id)
       .eq("id", logId);
