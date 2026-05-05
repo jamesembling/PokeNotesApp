@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
 import { Checkbox } from "@/components/shadcn/checkbox";
@@ -220,6 +221,9 @@ export function TournamentRoundEditorDialog({
                 <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                   {isEditing ? `Edit Round ${round?.roundNumber}` : "Add Round"}
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  {isEditing ? "Update this tournament round result, Pokemon, and notes." : "Add a tournament round result, Pokemon, and notes."}
+                </DialogDescription>
               </div>
 
               <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">

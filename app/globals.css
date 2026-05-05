@@ -4,19 +4,52 @@
 
 :root {
   --font-body: "IBM Plex Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --bg-page: #f0f2f5;
-  --bg-surface: #ffffff;
-  --bg-surface-alt: #f7f8fa;
+
+  --background: #f0f2f5;
+  --foreground: #374151;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f7f8fa;
+  --secondary-foreground: #374151;
+  --muted: #f7f8fa;
+  --muted-foreground: #6b7280;
+  --accent: #f7f8fa;
+  --accent-foreground: #111827;
+  --destructive: #dc2626;
   --border: #e4e7eb;
-  --text-primary: #111827;
-  --text-secondary: #374151;
-  --text-muted: #6b7280;
+  --input: #e4e7eb;
+  --ring: #2563eb;
+  --radius: 0.5rem;
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  --chart-1: var(--primary);
+  --chart-2: #16a34a;
+  --chart-3: var(--destructive);
+  --chart-4: #b45309;
+  --chart-5: var(--muted-foreground);
+
+  --bg-page: var(--background);
+  --bg-surface: var(--card);
+  --bg-surface-alt: var(--muted);
+  --text-primary: var(--card-foreground);
+  --text-secondary: var(--foreground);
+  --text-muted: var(--muted-foreground);
   --text-kicker: #6b7280;
-  --color-win: #16a34a;
+  --color-win: var(--chart-2);
   --color-win-strong: #15803d;
   --color-win-bg: rgba(22, 163, 74, 0.1);
   --color-win-border: rgba(22, 163, 74, 0.2);
-  --color-loss: #dc2626;
+  --color-loss: var(--destructive);
   --color-loss-strong: #b91c1c;
   --color-loss-bg: rgba(220, 38, 38, 0.08);
   --color-loss-border: rgba(220, 38, 38, 0.16);
@@ -24,10 +57,10 @@
   --color-warning-strong: #92400e;
   --color-warning-bg: rgba(180, 83, 9, 0.12);
   --color-warning-border: rgba(180, 83, 9, 0.2);
-  --color-brand: #2563eb;
+  --color-brand: var(--primary);
   --color-brand-hover: #1d4ed8;
-  --color-danger: #dc2626;
-  --text-inverse: #ffffff;
+  --color-danger: var(--destructive);
+  --text-inverse: var(--primary-foreground);
   --bg-overlay: rgba(17, 24, 39, 0.44);
   --shadow-sm: 0 10px 24px rgba(17, 24, 39, 0.08);
   --shadow-card: 0 18px 42px rgba(17, 24, 39, 0.12);
@@ -35,19 +68,50 @@
 }
 
 .dark {
-  --bg-page: #0f1117;
-  --bg-surface: #1a1d27;
-  --bg-surface-alt: #14161f;
+  --background: #0f1117;
+  --foreground: #d1d5db;
+  --card: #1a1d27;
+  --card-foreground: #f9fafb;
+  --popover: #1a1d27;
+  --popover-foreground: #f9fafb;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #14161f;
+  --secondary-foreground: #d1d5db;
+  --muted: #14161f;
+  --muted-foreground: #6b7280;
+  --accent: #14161f;
+  --accent-foreground: #f9fafb;
+  --destructive: #dc2626;
   --border: #2a2d3a;
-  --text-primary: #f9fafb;
-  --text-secondary: #d1d5db;
-  --text-muted: #6b7280;
+  --input: #2a2d3a;
+  --ring: #2563eb;
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  --chart-1: var(--primary);
+  --chart-2: #16a34a;
+  --chart-3: var(--destructive);
+  --chart-4: #f59e0b;
+  --chart-5: var(--muted-foreground);
+
+  --bg-page: var(--background);
+  --bg-surface: var(--card);
+  --bg-surface-alt: var(--muted);
+  --text-primary: var(--card-foreground);
+  --text-secondary: var(--foreground);
+  --text-muted: var(--muted-foreground);
   --text-kicker: #4b5563;
-  --color-win: #16a34a;
+  --color-win: var(--chart-2);
   --color-win-strong: #22c55e;
   --color-win-bg: rgba(22, 163, 74, 0.1);
   --color-win-border: rgba(22, 163, 74, 0.2);
-  --color-loss: #dc2626;
+  --color-loss: var(--destructive);
   --color-loss-strong: #f87171;
   --color-loss-bg: rgba(220, 38, 38, 0.08);
   --color-loss-border: rgba(220, 38, 38, 0.16);
@@ -55,10 +119,10 @@
   --color-warning-strong: #d97706;
   --color-warning-bg: rgba(251, 146, 60, 0.12);
   --color-warning-border: rgba(251, 146, 60, 0.24);
-  --color-brand: #2563eb;
+  --color-brand: var(--primary);
   --color-brand-hover: #1d4ed8;
-  --color-danger: #dc2626;
-  --text-inverse: #ffffff;
+  --color-danger: var(--destructive);
+  --text-inverse: var(--primary-foreground);
   --bg-overlay: rgba(15, 17, 23, 0.6);
   --shadow-sm: 0 12px 28px rgba(0, 0, 0, 0.18);
   --shadow-card: 0 20px 48px rgba(0, 0, 0, 0.24);
@@ -181,38 +245,5 @@ a {
   .theme {
     --font-heading: var(--font-body);
     --font-sans: var(--font-body);
-  }
-  :root {
-    --background: var(--bg-page);
-    --foreground: var(--text-secondary);
-    --card: var(--bg-surface);
-    --card-foreground: var(--text-primary);
-    --popover: var(--bg-surface);
-    --popover-foreground: var(--text-primary);
-    --primary: var(--color-brand);
-    --primary-foreground: var(--text-inverse);
-    --secondary: var(--bg-surface-alt);
-    --secondary-foreground: var(--text-secondary);
-    --muted: var(--bg-surface-alt);
-    --muted-foreground: var(--text-muted);
-    --accent: var(--bg-surface-alt);
-    --accent-foreground: var(--text-primary);
-    --destructive: var(--color-danger);
-    --input: var(--border);
-    --ring: var(--color-brand);
-    --chart-1: var(--color-brand);
-    --chart-2: var(--color-win);
-    --chart-3: var(--color-loss);
-    --chart-4: var(--color-warning);
-    --chart-5: var(--text-muted);
-    --radius: 0.5rem;
-    --sidebar: var(--bg-surface);
-    --sidebar-foreground: var(--text-secondary);
-    --sidebar-primary: var(--color-brand);
-    --sidebar-primary-foreground: var(--text-inverse);
-    --sidebar-accent: var(--bg-surface-alt);
-    --sidebar-accent-foreground: var(--text-primary);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--color-brand);
   }
 }

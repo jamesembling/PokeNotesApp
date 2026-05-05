@@ -1,21 +1,14 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { ComponentProps } from "react";
+import { Card as ShadcnCard } from "@/components/shadcn/card";
+import { cn } from "@/lib/utils";
 
-type CardProps = HTMLAttributes<HTMLDivElement> & {
-  children: ReactNode;
-};
+type CardProps = ComponentProps<typeof ShadcnCard>;
 
-export function Card({ children, className, ...props }: CardProps) {
+export function Card({ className, ...props }: CardProps) {
   return (
-    <div
-      className={[
-        "rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 sm:p-6",
-        className
-      ]
-        .filter(Boolean)
-        .join(" ")}
+    <ShadcnCard
+      className={cn("p-4 sm:p-6", className)}
       {...props}
-    >
-      {children}
-    </div>
+    />
   );
 }

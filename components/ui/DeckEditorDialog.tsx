@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
 import { Input } from "@/components/shadcn/input";
@@ -239,6 +240,9 @@ export function DeckEditorDialog({
                 <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                   {isEditing ? "Edit Deck" : "New Deck"}
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  {isEditing ? "Update this deck's details, Pokemon, and strategy notes." : "Create a deck with Pokemon, format, and strategy notes."}
+                </DialogDescription>
               </div>
               <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
                 <Button onClick={closeDialog} type="button" variant="secondary">

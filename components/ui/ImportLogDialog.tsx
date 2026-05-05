@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
 import { Input } from "@/components/shadcn/input";
@@ -384,6 +385,9 @@ export function ImportLogDialog({
             <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
               Import PTCGL Log
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Paste a PTCGL battle log URL or raw log text to review before saving.
+            </DialogDescription>
           </div>
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
             <Button className="w-full sm:w-auto" onClick={closeDialog} type="button" variant="secondary">
@@ -422,9 +426,9 @@ export function ImportLogDialog({
           <DialogTitle className="text-[1.3rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.55rem] md:text-[1.9rem]">
             Review Battle Log
           </DialogTitle>
-          <p className="mt-2 text-sm leading-6 text-[var(--text-muted)] md:hidden">
+          <DialogDescription className="mt-2 text-sm leading-6 text-[var(--text-muted)] md:hidden">
             Confirm the parsed result, then save it to your battle logs.
-          </p>
+          </DialogDescription>
         </div>
         <div className="hidden flex-wrap gap-2.5 md:flex">
           <Button onClick={closeDialog} type="button" variant="secondary">

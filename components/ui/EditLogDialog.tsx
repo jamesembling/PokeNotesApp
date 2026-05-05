@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/Button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
 import { Input } from "@/components/shadcn/input";
@@ -246,6 +247,9 @@ export function EditLogDialog({
                 <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                   Edit Battle Log
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Update the battle log date, format, linked deck, deck list, and Pokemon.
+                </DialogDescription>
               </div>
             </div>
             <form

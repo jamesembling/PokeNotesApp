@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogTitle,
   DialogTrigger
 } from "@/components/shadcn/dialog";
@@ -74,6 +75,9 @@ export function MobileSidebar({
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Mobile navigation</DialogTitle>
+        <DialogDescription className="sr-only">
+          Navigate between Poke Notes pages and account actions.
+        </DialogDescription>
         <div className="flex h-full flex-col px-4 py-6">
           <div className="flex items-center justify-between gap-3">
             <Link

@@ -9,6 +9,7 @@ import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
 import { Input } from "@/components/shadcn/input";
@@ -291,9 +292,9 @@ export function DeckListEditorDialog({
                   <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                     {isEditing ? "Edit Deck List" : "New Deck List"}
                   </DialogTitle>
-                  <p className="text-sm text-[var(--text-muted)]">
+                  <DialogDescription className="text-sm text-[var(--text-muted)]">
                     {step === "list" ? "Step 1 of 2 · Paste deck list" : "Step 2 of 2 · List details"}
-                  </p>
+                  </DialogDescription>
                 </div>
                 <div className="flex w-full flex-wrap gap-2.5 sm:w-auto sm:flex-nowrap sm:justify-end">
                   <Button onClick={closeDialog} type="button" variant="secondary">

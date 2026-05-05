@@ -1,45 +1,48 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ComponentProps } from "react";
+import {
+  Button as ShadcnButton,
+  type buttonVariants
+} from "@/components/shadcn/button";
+import { cn } from "@/lib/utils";
+import type { VariantProps } from "class-variance-authority";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ShadcnVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
+type LegacyButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonVariant = LegacyButtonVariant | ShadcnVariant;
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  children: ReactNode;
+type ButtonProps = Omit<ComponentProps<typeof ShadcnButton>, "variant"> & {
   variant?: ButtonVariant;
 };
 
-const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    "bg-[var(--color-brand)] text-[var(--text-inverse)] hover:bg-[var(--color-brand-hover)]",
-  secondary:
-    "border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface-alt)]",
-  ghost:
-    "bg-transparent px-3 py-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface-alt)]",
-  danger:
-    "bg-[var(--color-loss)] text-[var(--text-inverse)] hover:opacity-90"
+const variantMap: Record<ButtonVariant, ShadcnVariant> = {
+  default: "default",
+  primary: "default",
+  secondary: "outline",
+  ghost: "ghost",
+  danger: "destructive",
+  destructive: "destructive",
+  outline: "outline",
+  link: "link"
 };
 
 export function Button({
-  children,
   className,
   type = "button",
   variant = "primary",
   ...props
 }: ButtonProps) {
   return (
-    <button
-      className={[
-        "ui-control-text inline-flex items-center justify-center rounded-lg px-4 py-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-60",
-        variantClasses[variant],
+    <ShadcnButton
+      className={cn(
+        "h-auto min-h-9 px-4 py-2 text-[0.95rem] font-semibold",
+        variant === "ghost" && "px-3 py-1.5",
         className
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      )}
       type={type}
+      variant={variantMap[variant]}
       {...props}
-    >
-      {children}
-    </button>
+    />
   );
 }
