@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/shadcn/dialog";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
-import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import type { DeckMatchup } from "@/types/index";
 
 type DeckMatchupsDialogProps = {
@@ -28,52 +34,25 @@ export function DeckMatchupsDialog({
   const [isOpen, setIsOpen] = useState(false);
   const orderedMatchups = useMemo(() => [...matchups].reverse(), [matchups]);
 
-  useBodyScrollLock(isOpen);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
-
   return (
-    <>
-      <Button onClick={() => setIsOpen(true)} variant="secondary">
-        View All Matchups
-      </Button>
+    <Dialog onOpenChange={setIsOpen} open={isOpen}>
+      <DialogTrigger asChild>
+        <Button variant="secondary">View All Matchups</Button>
+      </DialogTrigger>
 
-      {isOpen ? (
-        <div
-          aria-modal="true"
-          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
-          onClick={() => setIsOpen(false)}
-          role="dialog"
-        >
-          <div
-            className="mx-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)]"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-0 shadow-[var(--shadow-lg)] sm:max-w-4xl"
+        showCloseButton={false}
+      >
             <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-5 lg:px-8">
               <div className="min-w-0 space-y-2">
                 <p className="ui-eyebrow">Matchup Notes</p>
-                <h2 className="text-[1.45rem] font-bold tracking-[-0.04em] text-[var(--text-primary)] sm:text-[1.8rem]">
+                <DialogTitle className="text-[1.45rem] font-bold tracking-[-0.04em] text-[var(--text-primary)] sm:text-[1.8rem]">
                   All Matchups
-                </h2>
-                <p className="text-sm text-[var(--text-secondary)]">
+                </DialogTitle>
+                <DialogDescription className="text-sm text-[var(--text-secondary)]">
                   {matchups.length} saved matchup{matchups.length === 1 ? "" : "s"} for this deck.
-                </p>
+                </DialogDescription>
               </div>
 
               <Button onClick={() => setIsOpen(false)} variant="secondary">
@@ -122,9 +101,7 @@ export function DeckMatchupsDialog({
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }

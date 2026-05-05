@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateDeckMatchupAction } from "@/app/(app)/decks/actions";
+import { AppSelect } from "@/components/ui/AppSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import type { DeckMatchup, GoPreference, MatchupFavorability } from "@/types/index";
 
@@ -146,70 +147,72 @@ export function InlineDeckMatchupHeaderControls({
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
           Matchup Favour
         </span>
-        <select
-          className="min-h-[48px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-          onBlur={() => saveHeader(headerState)}
-          onChange={(event) =>
-            setHeaderState((current) => ({
-              ...current,
-              matchupFavor: event.target.value as MatchupFavorability
+        <AppSelect
+          className="min-h-[48px] rounded-xl px-4 py-3"
+          onChange={(value) => {
+            const nextState = {
+              ...headerState,
+              matchupFavor: value as MatchupFavorability
+            };
+            setHeaderState(nextState);
+            saveHeader(nextState);
+          }}
+          options={[
+            { label: "Select favour", value: "" },
+            ...MATCHUP_FAVOR_OPTIONS.map((option) => ({
+              label: option,
+              value: option
             }))
-          }
+          ]}
+          placeholder="Select favour"
           value={headerState.matchupFavor}
-        >
-          <option value="">Select favour</option>
-          {MATCHUP_FAVOR_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        />
       </label>
 
       <label className="grid gap-1.5">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
           Turn Preference
         </span>
-        <select
-          className="min-h-[48px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-          onBlur={() => saveHeader(headerState)}
-          onChange={(event) => {
+        <AppSelect
+          className="min-h-[48px] rounded-xl px-4 py-3"
+          onChange={(value) => {
             const nextState = {
               ...headerState,
-              goPreference: event.target.value as GoPreference
+              goPreference: value as GoPreference
             };
             setHeaderState(nextState);
             saveHeader(nextState);
           }}
+          options={[
+            { label: "Select order", value: "" },
+            { label: "Go First", value: "First" },
+            { label: "Go Second", value: "Second" }
+          ]}
+          placeholder="Select order"
           value={headerState.goPreference}
-        >
-          <option value="">Select order</option>
-          <option value="First">Go First</option>
-          <option value="Second">Go Second</option>
-        </select>
+        />
       </label>
 
       <label className="grid gap-1.5">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
           Format
         </span>
-        <select
-          className="min-h-[48px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-          onBlur={() => saveHeader(headerState)}
-          onChange={(event) =>
-            setHeaderState((current) => ({
-              ...current,
-              format: event.target.value
-            }))
-          }
+        <AppSelect
+          className="min-h-[48px] rounded-xl px-4 py-3"
+          onChange={(value) => {
+            const nextState = {
+              ...headerState,
+              format: value
+            };
+            setHeaderState(nextState);
+            saveHeader(nextState);
+          }}
+          options={formatOptions.map((option) => ({
+            label: option,
+            value: option
+          }))}
           value={headerState.format || defaultFormat}
-        >
-          {formatOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        />
       </label>
 
       {statusLabel ? (

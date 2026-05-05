@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Input } from "@/components/shadcn/input";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
@@ -307,7 +308,7 @@ function SpriteSearchSlot({
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <input
+        <Input
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 md:text-sm"
           onChange={(event) => {
             setQuery(event.target.value);

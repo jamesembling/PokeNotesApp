@@ -3,10 +3,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createDeckMatchupAction, updateDeckMatchupAction } from "@/app/(app)/decks/actions";
+import { AppSelect } from "@/components/ui/AppSelect";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle
+} from "@/components/shadcn/dialog";
+import { Input } from "@/components/shadcn/input";
+import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
-import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import type { DeckMatchup, GoPreference, MatchupFavorability, PokemonOption } from "@/types/index";
 
 type DeckMatchupEditorDialogProps = {
@@ -63,28 +70,9 @@ export function DeckMatchupEditorDialog({
   const navigationTimerRef = useRef<number | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  useBodyScrollLock(isOpen);
-
   useEffect(() => {
     setSelectedFormat((current) => current || matchup?.format || defaultFormat);
   }, [defaultFormat, matchup?.format]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     return () => {
@@ -174,7 +162,14 @@ export function DeckMatchupEditorDialog({
   }
 
   return (
-    <>
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          closeDialog();
+        }
+      }}
+      open={isOpen}
+    >
       {usePlainButton ? (
         <button className={className} onClick={openDialog} type="button">
           {children ?? triggerLabel}
@@ -185,23 +180,16 @@ export function DeckMatchupEditorDialog({
         </Button>
       )}
 
-      {isOpen ? (
-        <div
-          aria-modal="true"
-          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
-          onClick={closeDialog}
-          role="dialog"
-        >
-          <div
-            className="mx-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+        showCloseButton={false}
+      >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
               <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                  <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                  <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                     {isEditing ? "Edit Matchup" : "New Matchup"}
-                  </h2>
+                  </DialogTitle>
                 </div>
                 <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
                   <Button onClick={closeDialog} type="button" variant="secondary">
@@ -247,7 +235,7 @@ export function DeckMatchupEditorDialog({
                 <section className="grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2">
                     <span className="text-sm font-semibold text-[var(--text-muted)]">Deck Name</span>
-                    <input
+                    <Input
                       className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                       name="deckName"
                       onChange={(event) => setDeckName(event.target.value)}
@@ -258,20 +246,16 @@ export function DeckMatchupEditorDialog({
 
                   <label className="grid gap-2">
                     <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
-                    <select
-                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                      onChange={(event) => setSelectedFormat(event.target.value)}
+                    <FormatSelect
+                      className="rounded-xl px-4 py-3"
+                      onChange={setSelectedFormat}
+                      options={
+                        selectedFormat && !siteFormatOptions.includes(selectedFormat)
+                          ? [selectedFormat, ...siteFormatOptions]
+                          : siteFormatOptions
+                      }
                       value={selectedFormat}
-                    >
-                      {(selectedFormat && !siteFormatOptions.includes(selectedFormat)
-                        ? [selectedFormat, ...siteFormatOptions]
-                        : siteFormatOptions
-                      ).map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </label>
 
                   <section className="grid gap-2 md:col-span-2">
@@ -347,18 +331,19 @@ export function DeckMatchupEditorDialog({
 
                   <label className="grid gap-2 md:col-span-2">
                     <span className="text-sm font-semibold text-[var(--text-muted)]">Matchup Favour</span>
-                    <select
-                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                      onChange={(event) => setMatchupFavor(event.target.value as MatchupFavorability)}
+                    <AppSelect
+                      className="min-h-[3rem] rounded-xl px-4 py-3"
+                      onChange={(value) => setMatchupFavor(value as MatchupFavorability)}
+                      options={[
+                        { label: "Select favour", value: "" },
+                        ...MATCHUP_FAVOR_OPTIONS.map((option) => ({
+                          label: option,
+                          value: option
+                        }))
+                      ]}
+                      placeholder="Select favour"
                       value={matchupFavor}
-                    >
-                      <option value="">Select favour</option>
-                      {MATCHUP_FAVOR_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </label>
                 </section>
 
@@ -376,9 +361,7 @@ export function DeckMatchupEditorDialog({
                 ) : null}
               </form>
             </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }

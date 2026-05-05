@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   createTournamentAction,
   deleteTournamentAction,
   updateTournamentAction
 } from "@/app/(app)/tournaments/actions";
+import { AppSelect } from "@/components/ui/AppSelect";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
-import { ChevronIcon } from "@/components/ui/icons";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle
+} from "@/components/shadcn/dialog";
+import { Input } from "@/components/shadcn/input";
+import { Textarea } from "@/components/shadcn/textarea";
+import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
-import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS
@@ -76,145 +82,6 @@ function getPlacementOptionsForCategory(category: string): SelectOption[] {
   }, []);
 }
 
-function TournamentSelectField({
-  id,
-  label,
-  name,
-  onChange,
-  options,
-  placeholder,
-  value
-}: {
-  id: string;
-  label: string;
-  name: string;
-  onChange: (value: string) => void;
-  options: SelectOption[];
-  placeholder: string;
-  value: string;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const fieldRef = useRef<HTMLDivElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
-  const selectedOption = options.find((option) => option.value === value);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    function syncMenuPosition() {
-      const button = buttonRef.current;
-      if (!button) {
-        return;
-      }
-
-      const rect = button.getBoundingClientRect();
-      setMenuStyle({
-        left: rect.left,
-        maxHeight: Math.max(160, Math.min(288, window.innerHeight - rect.bottom - 16)),
-        position: "fixed",
-        top: rect.bottom,
-        width: rect.width
-      });
-    }
-
-    function handlePointerDown(event: PointerEvent) {
-      if (fieldRef.current?.contains(event.target as Node)) {
-        return;
-      }
-
-      if (menuRef.current?.contains(event.target as Node)) {
-        return;
-      }
-
-      setIsOpen(false);
-    }
-
-    syncMenuPosition();
-    window.addEventListener("resize", syncMenuPosition);
-    window.addEventListener("scroll", syncMenuPosition, true);
-    window.addEventListener("pointerdown", handlePointerDown);
-
-    return () => {
-      window.removeEventListener("resize", syncMenuPosition);
-      window.removeEventListener("scroll", syncMenuPosition, true);
-      window.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isOpen]);
-
-  const menu = isOpen && menuStyle
-    ? createPortal(
-        <div
-          className="z-[60] overflow-y-auto rounded-b-xl border border-t-0 border-[var(--color-brand)] bg-[var(--bg-surface-alt)] shadow-[var(--shadow-sm)]"
-          ref={menuRef}
-          role="listbox"
-          style={menuStyle}
-        >
-          {options.map((option) => (
-            <button
-              aria-selected={option.value === value}
-              className="block w-full px-4 py-2.5 text-left text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-surface)] aria-selected:bg-[var(--bg-surface)]"
-              key={option.value}
-              onClick={() => {
-                onChange(option.value);
-                setIsOpen(false);
-              }}
-              role="option"
-              type="button"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>,
-        document.body
-      )
-    : null;
-
-  return (
-    <div ref={fieldRef}>
-      <input name={name} type="hidden" value={value} />
-      <div
-        className={[
-          "rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] transition",
-          isOpen ? "rounded-b-none border-[var(--color-brand)]" : ""
-        ].join(" ")}
-      >
-        <label
-          className="block px-4 pt-3 text-xs font-semibold uppercase leading-tight tracking-wide text-[var(--text-muted)]"
-          htmlFor={id}
-        >
-          {label}
-        </label>
-        <button
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          className="flex w-full items-center justify-between gap-3 px-4 pb-3 pt-1 text-left text-sm font-semibold text-[var(--text-primary)] outline-none"
-          id={id}
-          onClick={() => setIsOpen((current) => !current)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              setIsOpen(false);
-            }
-          }}
-          ref={buttonRef}
-          type="button"
-        >
-          <span>{selectedOption?.label ?? placeholder}</span>
-          <ChevronIcon
-            className={`h-4 w-4 shrink-0 text-[var(--text-muted)] transition ${
-              isOpen ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-      </div>
-      {menu}
-    </div>
-  );
-}
-
 function normalizeRedirectPath(value: string) {
   return value.split("?")[0] || value;
 }
@@ -275,7 +142,6 @@ export function TournamentEditorDialog({
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  useBodyScrollLock(isOpen);
   const placementOptions = useMemo(() => getPlacementOptionsForCategory(category), [category]);
   const selectedDeck = useMemo(
     () => decks.find((deck) => deck.id === linkedDeckId) ?? null,
@@ -365,23 +231,6 @@ export function TournamentEditorDialog({
   }
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeDialog();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
     return () => {
       clearCloseTimer();
       clearNavigationTimer();
@@ -461,7 +310,14 @@ export function TournamentEditorDialog({
   const isBusy = saveState === "saving" || deleteState === "deleting";
 
   return (
-    <>
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          closeDialog();
+        }
+      }}
+      open={isOpen}
+    >
       <Button
         disabled={deleteState === "deleting"}
         onClick={() => {
@@ -473,23 +329,16 @@ export function TournamentEditorDialog({
         {triggerLabel}
       </Button>
 
-      {isOpen ? (
-        <div
-          aria-modal="true"
-          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
-          onClick={closeDialog}
-          role="dialog"
-        >
-          <div
-            className="mx-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+        showCloseButton={false}
+      >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
             <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                   {isEditing ? "Edit Tournament" : "New Tournament"}
-                </h2>
+                </DialogTitle>
               </div>
 
               <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
@@ -556,7 +405,7 @@ export function TournamentEditorDialog({
                 <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-name">
                   Tournament information
                 </label>
-                <input
+                <Input
                   className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
                   defaultValue={tournament?.name ?? ""}
                   id="tournament-name"
@@ -566,35 +415,43 @@ export function TournamentEditorDialog({
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <TournamentSelectField
-                  id="tournament-category"
-                  label="Category"
-                  name="category"
-                  onChange={setCategory}
-                  options={TOURNAMENT_CATEGORY_OPTIONS}
-                  placeholder="Select category"
-                  value={category}
-                />
+                <label className="grid gap-2">
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">Category</span>
+                  <AppSelect
+                    className="min-h-[3rem] rounded-xl px-4 py-3"
+                    id="tournament-category"
+                    name="category"
+                    onChange={setCategory}
+                    options={TOURNAMENT_CATEGORY_OPTIONS}
+                    placeholder="Select category"
+                    value={category}
+                  />
+                </label>
 
-                <TournamentSelectField
-                  id="tournament-placement"
-                  label="Placement"
-                  name="placement"
-                  onChange={setPlacement}
-                  options={placementOptions}
-                  placeholder="Select placement"
-                  value={placement}
-                />
+                <label className="grid gap-2">
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">Placement</span>
+                  <AppSelect
+                    className="min-h-[3rem] rounded-xl px-4 py-3"
+                    id="tournament-placement"
+                    name="placement"
+                    onChange={setPlacement}
+                    options={placementOptions}
+                    placeholder="Select placement"
+                    value={placement}
+                  />
+                </label>
 
-                <TournamentSelectField
-                  id="tournament-format"
-                  label="Format"
-                  name="format"
-                  onChange={setFormat}
-                  options={formatOptions}
-                  placeholder="Select format"
-                  value={format}
-                />
+                <label className="grid gap-2">
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">Format</span>
+                  <FormatSelect
+                    id="tournament-format"
+                    name="format"
+                    onChange={setFormat}
+                    options={formatOptions.map((option) => option.value)}
+                    placeholder="Select format"
+                    value={format}
+                  />
+                </label>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -602,7 +459,7 @@ export function TournamentEditorDialog({
                   <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-date-from">
                     Start date
                   </label>
-                  <input
+                  <Input
                     className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
                     defaultValue={tournament?.dateFrom ?? ""}
                     id="tournament-date-from"
@@ -615,7 +472,7 @@ export function TournamentEditorDialog({
                   <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-date-to">
                     End date
                   </label>
-                  <input
+                  <Input
                     className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
                     defaultValue={tournament?.dateTo ?? ""}
                     id="tournament-date-to"
@@ -630,45 +487,47 @@ export function TournamentEditorDialog({
                   <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-linked-deck">
                     Link to deck strategy
                   </label>
-                  <select
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
+                  <AppSelect
+                    className="min-h-[3rem] rounded-xl px-4 py-3"
                     id="tournament-linked-deck"
                     name="linkedDeckId"
-                    onChange={(event) => handleLinkedDeckChange(event.target.value)}
+                    onChange={handleLinkedDeckChange}
+                    options={[
+                      { label: "No linked deck", value: "" },
+                      ...decks.map((deck) => ({
+                        label: deck.deckName,
+                        value: deck.id
+                      }))
+                    ]}
                     value={linkedDeckId}
-                  >
-                    <option value="">No linked deck</option>
-                    {decks.map((deck) => (
-                      <option key={deck.id} value={deck.id}>
-                        {deck.deckName}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div className="grid gap-2">
                   <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-linked-deck-list">
                     Saved deck list
                   </label>
-                  <select
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-60"
+                  <AppSelect
+                    className="min-h-[3rem] rounded-xl px-4 py-3"
                     disabled={availableDeckLists.length === 0}
                     id="tournament-linked-deck-list"
                     name="linkedDeckListId"
-                    onChange={(event) => setLinkedDeckListId(event.target.value)}
+                    onChange={setLinkedDeckListId}
+                    options={[
+                      {
+                        label:
+                          availableDeckLists.length > 0
+                            ? "No linked deck list"
+                            : "Select a deck strategy first",
+                        value: ""
+                      },
+                      ...availableDeckLists.map((deckList) => ({
+                        label: deckList.name,
+                        value: deckList.id
+                      }))
+                    ]}
                     value={linkedDeckListId}
-                  >
-                    <option value="">
-                      {availableDeckLists.length > 0
-                        ? "No linked deck list"
-                        : "Select a deck strategy first"}
-                    </option>
-                    {availableDeckLists.map((deckList) => (
-                      <option key={deckList.id} value={deckList.id}>
-                        {deckList.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               </div>
 
@@ -692,7 +551,7 @@ export function TournamentEditorDialog({
                 <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-notes">
                   Notes
                 </label>
-                <textarea
+                <Textarea
                   className="min-h-32 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
                   defaultValue={tournament?.notes ?? ""}
                   id="tournament-notes"
@@ -702,9 +561,7 @@ export function TournamentEditorDialog({
               </div>
             </form>
             </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }

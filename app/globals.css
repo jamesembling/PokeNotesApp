@@ -176,3 +176,43 @@ a {
   background-color: var(--color-brand);
   color: var(--text-inverse);
 }
+
+@layer base {
+  .theme {
+    --font-heading: var(--font-body);
+    --font-sans: var(--font-body);
+  }
+  :root {
+    --background: var(--bg-page);
+    --foreground: var(--text-secondary);
+    --card: var(--bg-surface);
+    --card-foreground: var(--text-primary);
+    --popover: var(--bg-surface);
+    --popover-foreground: var(--text-primary);
+    --primary: var(--color-brand);
+    --primary-foreground: var(--text-inverse);
+    --secondary: var(--bg-surface-alt);
+    --secondary-foreground: var(--text-secondary);
+    --muted: var(--bg-surface-alt);
+    --muted-foreground: var(--text-muted);
+    --accent: var(--bg-surface-alt);
+    --accent-foreground: var(--text-primary);
+    --destructive: var(--color-danger);
+    --input: var(--border);
+    --ring: var(--color-brand);
+    --chart-1: var(--color-brand);
+    --chart-2: var(--color-win);
+    --chart-3: var(--color-loss);
+    --chart-4: var(--color-warning);
+    --chart-5: var(--text-muted);
+    --radius: 0.5rem;
+    --sidebar: var(--bg-surface);
+    --sidebar-foreground: var(--text-secondary);
+    --sidebar-primary: var(--color-brand);
+    --sidebar-primary-foreground: var(--text-inverse);
+    --sidebar-accent: var(--bg-surface-alt);
+    --sidebar-accent-foreground: var(--text-primary);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--color-brand);
+  }
+}

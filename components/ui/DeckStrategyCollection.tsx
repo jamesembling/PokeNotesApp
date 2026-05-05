@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { DeckCard, type DeckCardView } from "@/components/ui/DeckCard";
 import { ChevronIcon, GridIcon, MenuIcon } from "@/components/ui/icons";
 import type { DeckSummary } from "@/types/index";
 import { Card } from "@/components/ui/Card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 
 const STORAGE_KEY = "poke-notes.deck-strategy-view";
 
@@ -28,35 +29,6 @@ function getNextSortDirection(key: SortKey, currentSort: { key: SortKey; directi
   }
 
   return key === "deck" ? "asc" : "desc";
-}
-
-function ViewToggleButton({
-  active,
-  children,
-  label,
-  onClick
-}: {
-  active: boolean;
-  children: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      aria-pressed={active}
-      className={[
-        "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
-        active
-          ? "bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]"
-          : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-      ].join(" ")}
-      onClick={onClick}
-      type="button"
-    >
-      {children}
-      <span>{label}</span>
-    </button>
-  );
 }
 
 function SortHeaderButton({
@@ -164,6 +136,21 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
     window.localStorage.setItem(STORAGE_KEY, view);
   }, [view]);
 
+  const viewSwitcher = (
+    <Tabs onValueChange={(value) => setView(value as DeckCardView)} value={view}>
+      <TabsList aria-label="Deck view mode">
+        <TabsTrigger value="tile">
+          <GridIcon className="h-4 w-4" />
+          <span>Tiles</span>
+        </TabsTrigger>
+        <TabsTrigger value="list">
+          <MenuIcon className="h-4 w-4" />
+          <span>List</span>
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
+
   return (
     <section className="grid gap-5">
       <div className="flex justify-end lg:block">
@@ -191,26 +178,12 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-              <div className="inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-1">
-                <ViewToggleButton active={view === "tile"} label="Tiles" onClick={() => setView("tile")}>
-                  <GridIcon className="h-4 w-4" />
-                </ViewToggleButton>
-                <ViewToggleButton active={view === "list"} label="List" onClick={() => setView("list")}>
-                  <MenuIcon className="h-4 w-4" />
-                </ViewToggleButton>
-              </div>
+              {viewSwitcher}
             </div>
           </Card>
         </div>
 
-        <div className="inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-1 lg:hidden">
-          <ViewToggleButton active={view === "tile"} label="Tiles" onClick={() => setView("tile")}>
-            <GridIcon className="h-4 w-4" />
-          </ViewToggleButton>
-          <ViewToggleButton active={view === "list"} label="List" onClick={() => setView("list")}>
-            <MenuIcon className="h-4 w-4" />
-          </ViewToggleButton>
-        </div>
+        <div className="lg:hidden">{viewSwitcher}</div>
       </div>
 
       {view === "tile" ? (

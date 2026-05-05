@@ -6,6 +6,7 @@ import {
   initialProfileActionState,
   saveProfileAction
 } from "@/app/(app)/profile/actions";
+import { Input } from "@/components/shadcn/input";
 import { Button } from "@/components/ui/Button";
 import type { UserProfile } from "@/types/index";
 
@@ -43,7 +44,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       <div className="grid gap-4 md:grid-cols-2">
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium text-[var(--text-secondary)]">Display Name</span>
-          <input
+          <Input
             className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             defaultValue={profile.displayName}
             name="displayName"
@@ -53,7 +54,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium text-[var(--text-secondary)]">PTCGL Username</span>
-          <input
+          <Input
             className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             defaultValue={profile.ptcglUsername}
             name="ptcglUsername"
@@ -63,7 +64,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium text-[var(--text-secondary)]">First Name</span>
-          <input
+          <Input
             className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             defaultValue={profile.firstName}
             name="firstName"
@@ -73,7 +74,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium text-[var(--text-secondary)]">Last Name</span>
-          <input
+          <Input
             className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             defaultValue={profile.lastName}
             name="lastName"

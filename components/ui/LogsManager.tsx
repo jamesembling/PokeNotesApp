@@ -8,11 +8,15 @@ import {
   deleteLogsAction,
   loadMoreLogsAction
 } from "@/app/(app)/logs/actions";
+import { Checkbox } from "@/components/shadcn/checkbox";
 import { Badge } from "@/components/ui/Badge";
+import { AppSelect } from "@/components/ui/AppSelect";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
+import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
 import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
+import { DropdownMenuItem } from "@/components/shadcn/dropdown-menu";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LogRow } from "@/components/ui/LogRow";
 import { formatDayDate } from "@/lib/client/date-format";
@@ -459,7 +463,20 @@ export function LogsManager({
   }
 
   return (
-    <div className={`flex flex-col gap-6 ${deletePrompt ? "pb-40 sm:pb-0" : ""}`}>
+    <div className="flex flex-col gap-6">
+      <DeleteConfirmDialog
+        confirmLabel={`Delete${deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}`}
+        description={
+          deletePromptCount > 1
+            ? `${deletePromptCount} logs are selected for removal.`
+            : undefined
+        }
+        message={deletePrompt?.message ?? ""}
+        onCancel={cancelDeletePrompt}
+        onConfirm={confirmDeletePrompt}
+        open={Boolean(deletePrompt)}
+      />
+
       {actionNotice ? (
         <Card
           aria-live="polite"
@@ -467,31 +484,6 @@ export function LogsManager({
         >
           <p className="ui-eyebrow">Action Failed</p>
           <p className="mt-2 text-sm leading-6">{actionNotice.message}</p>
-        </Card>
-      ) : null}
-
-      {deletePrompt && deletePromptCount > 1 ? (
-        <Card className="fixed inset-x-3 bottom-3 z-40 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] shadow-[var(--shadow-lg)] sm:static sm:inset-auto sm:bottom-auto sm:z-auto sm:shadow-none">
-          <div className="flex flex-col gap-4">
-            <div className="space-y-2">
-              <p className="ui-eyebrow">Confirm Delete</p>
-              <p className="text-sm leading-6 text-[var(--text-primary)]">{deletePrompt.message}</p>
-              {deletePromptCount > 1 ? (
-                <p className="text-sm text-[var(--text-secondary)]">
-                  {deletePromptCount} logs are selected for removal.
-                </p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Button className="w-full sm:w-auto" onClick={confirmDeletePrompt} variant="danger">
-                Delete{deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}
-              </Button>
-              <Button className="w-full sm:w-auto" onClick={cancelDeletePrompt} variant="secondary">
-                Cancel
-              </Button>
-            </div>
-          </div>
         </Card>
       ) : null}
 
@@ -519,11 +511,10 @@ export function LogsManager({
 
               {visibleLogs.length > 0 ? (
                 <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-[var(--text-muted)]">
-                  <input
+                  <Checkbox
                     checked={allSelected}
                     className="h-5 w-5 cursor-pointer rounded border-[var(--border)] bg-[var(--bg-surface)]"
-                    onChange={toggleSelectAll}
-                    type="checkbox"
+                    onCheckedChange={toggleSelectAll}
                   />
                   <span>Select All In View</span>
                 </label>
@@ -540,43 +531,45 @@ export function LogsManager({
               ) : null}
               <label className="grid gap-2">
                 <span className="text-sm font-semibold text-[var(--text-muted)]">Deck Strategy</span>
-                <select
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                  onChange={(event) => setSelectedDeckId(event.target.value)}
+                <AppSelect
+                  className="min-h-[3rem] bg-[var(--bg-surface)] px-4 py-3"
+                  onChange={setSelectedDeckId}
+                  options={[
+                    {
+                      label: isLoadingDeckOptions ? "Loading deck strategies..." : "Select deck strategy",
+                      value: ""
+                    },
+                    ...userDecks.map((deck) => ({
+                      label: deck.deckName,
+                      value: deck.id
+                    }))
+                  ]}
                   value={selectedDeckId}
-                >
-                  <option value="">
-                    {isLoadingDeckOptions ? "Loading deck strategies..." : "Select deck strategy"}
-                  </option>
-                  {userDecks.map((deck) => (
-                    <option key={deck.id} value={deck.id}>
-                      {deck.deckName}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
 
               <label className="grid gap-2">
                 <span className="text-sm font-semibold text-[var(--text-muted)]">Deck List</span>
-                <select
-                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+                <AppSelect
+                  className="min-h-[3rem] bg-[var(--bg-surface)] px-4 py-3"
                   disabled={!selectedDeck || availableDeckLists.length === 0}
-                  onChange={(event) => setSelectedDeckListId(event.target.value)}
+                  onChange={setSelectedDeckListId}
+                  options={[
+                    {
+                      label: selectedDeck
+                        ? availableDeckLists.length > 0
+                          ? "Select deck list"
+                          : "No saved deck lists yet"
+                        : "Choose a deck strategy first",
+                      value: ""
+                    },
+                    ...availableDeckLists.map((deckList) => ({
+                      label: deckList.name,
+                      value: deckList.id
+                    }))
+                  ]}
                   value={selectedDeckListId}
-                >
-                  <option value="">
-                    {selectedDeck
-                      ? availableDeckLists.length > 0
-                        ? "Select deck list"
-                        : "No saved deck lists yet"
-                      : "Choose a deck strategy first"}
-                  </option>
-                  {availableDeckLists.map((deckList) => (
-                    <option key={deckList.id} value={deckList.id}>
-                      {deckList.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
 
               <div className="flex md:col-span-2 xl:col-span-1 xl:justify-end">
@@ -685,13 +678,10 @@ export function LogsManager({
                           <LazyEditLogButton
                             log={toEditableLog(log)}
                             trigger={
-                              <button
-                                aria-label="Edit battle log"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--color-brand)]"
-                                type="button"
-                              >
+                              <DropdownMenuItem>
                                 <PencilIcon className="h-4 w-4" />
-                              </button>
+                                Edit
+                              </DropdownMenuItem>
                             }
                             userDecks={userDecks}
                           />
@@ -703,35 +693,6 @@ export function LogsManager({
                         selected={selectedLogIdSet.has(log.id)}
                       />
 
-                      {deletePromptCount === 1 && deletePrompt?.ids[0] === log.id ? (
-                        <Card className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-2.5 sm:p-3">
-                          <div className="flex flex-col gap-2">
-                            <div className="space-y-1">
-                              <p className="ui-eyebrow">Confirm Delete</p>
-                              <p className="text-sm leading-5 text-[var(--text-primary)]">
-                                {deletePrompt.message}
-                              </p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button
-                                className="min-h-[2.5rem] w-full px-3 py-1.5 text-sm"
-                                onClick={confirmDeletePrompt}
-                                variant="danger"
-                              >
-                                Delete Log
-                              </Button>
-                              <Button
-                                className="min-h-[2.5rem] w-full px-3 py-1.5 text-sm"
-                                onClick={cancelDeletePrompt}
-                                variant="secondary"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
-                      ) : null}
                     </div>
                   ))}
                 </div>

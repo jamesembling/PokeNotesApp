@@ -2,14 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { createPortal } from "react-dom";
 import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
+import { AppSelect } from "@/components/ui/AppSelect";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle
+} from "@/components/shadcn/dialog";
+import { Input } from "@/components/shadcn/input";
+import { Textarea } from "@/components/shadcn/textarea";
+import { FormatSelect } from "@/components/ui/FormatSelect";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
-import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
@@ -150,8 +157,6 @@ export function ImportLogDialog({
       : [normalizedFormat, ...siteFormatOptions];
   }, [selectedFormat, siteFormatOptions]);
 
-  useBodyScrollLock(isOpen);
-
   function resetImportState() {
     setStage("raw");
     setRawLog("");
@@ -181,24 +186,6 @@ export function ImportLogDialog({
       navigationTimerRef.current = null;
     }
   }
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeDialog();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -394,9 +381,9 @@ export function ImportLogDialog({
       return (
         <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
-            <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+            <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
               Import PTCGL Log
-            </h2>
+            </DialogTitle>
           </div>
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
             <Button className="w-full sm:w-auto" onClick={closeDialog} type="button" variant="secondary">
@@ -432,9 +419,9 @@ export function ImportLogDialog({
           <CloseIcon className="h-5 w-5" />
         </button>
         <div className="min-w-0 pr-12 text-center md:pr-0 md:text-left">
-          <h2 className="text-[1.3rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.55rem] md:text-[1.9rem]">
+          <DialogTitle className="text-[1.3rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.55rem] md:text-[1.9rem]">
             Review Battle Log
-          </h2>
+          </DialogTitle>
           <p className="mt-2 text-sm leading-6 text-[var(--text-muted)] md:hidden">
             Confirm the parsed result, then save it to your battle logs.
           </p>
@@ -450,25 +437,24 @@ export function ImportLogDialog({
   }
 
   return (
-    <>
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          closeDialog();
+        }
+      }}
+      open={isOpen}
+    >
       {renderTrigger ? (
         <Button className={className} onClick={openDialog}>
           {triggerLabel}
         </Button>
       ) : null}
 
-      {isOpen && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              aria-modal="true"
-              className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-2 sm:p-4"
-              onClick={closeDialog}
-              role="dialog"
-            >
-              <div
-                className="mx-auto flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px]"
-                onClick={(event) => event.stopPropagation()}
-              >
+      <DialogContent
+        className="flex max-h-[calc(100dvh-1rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface)] p-0 shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-3xl sm:rounded-[28px]"
+        showCloseButton={false}
+      >
                 <div className="shrink-0 border-b border-[var(--border)] px-4 py-4 sm:px-6 lg:px-8">
                   {renderHeader()}
                 </div>
@@ -587,17 +573,12 @@ export function ImportLogDialog({
                   <section className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 md:hidden">
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
-                      <select
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                        onChange={(event) => setSelectedFormat(event.target.value)}
+                      <FormatSelect
+                        className="bg-[var(--bg-surface)]"
+                        onChange={setSelectedFormat}
+                        options={formatOptions}
                         value={selectedFormat}
-                      >
-                        {formatOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </label>
 
                     <details className="group rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
@@ -610,7 +591,7 @@ export function ImportLogDialog({
                       <div className="grid gap-3 border-t border-[var(--border)] px-4 py-4">
                         <label className="grid gap-2">
                           <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
-                          <input
+                          <Input
                             className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                             onChange={(event) => setSelectedDate(event.target.value)}
                             type="date"
@@ -622,41 +603,41 @@ export function ImportLogDialog({
                           <span className="text-sm font-semibold text-[var(--text-muted)]">
                             Deck Strategy
                           </span>
-                          <select
-                            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                            onChange={(event) => setSelectedDeckId(event.target.value)}
+                          <AppSelect
+                            onChange={setSelectedDeckId}
+                            options={[
+                              { label: "No linked deck", value: "" },
+                              ...userDecks.map((deck) => ({
+                                label: deck.deckName,
+                                value: deck.id
+                              }))
+                            ]}
                             value={selectedDeckId}
-                          >
-                            <option value="">No linked deck</option>
-                            {userDecks.map((deck) => (
-                              <option key={deck.id} value={deck.id}>
-                                {deck.deckName}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </label>
 
                         <label className="grid gap-2">
                           <span className="text-sm font-semibold text-[var(--text-muted)]">
                             Deck List
                           </span>
-                          <select
-                            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          <AppSelect
                             disabled={availableDeckLists.length === 0}
-                            onChange={(event) => setSelectedDeckListId(event.target.value)}
+                            onChange={setSelectedDeckListId}
+                            options={[
+                              {
+                                label:
+                                  availableDeckLists.length > 0
+                                    ? "No linked deck list"
+                                    : "Select a deck strategy first",
+                                value: ""
+                              },
+                              ...availableDeckLists.map((deckList: DeckListOption) => ({
+                                label: deckList.name,
+                                value: deckList.id
+                              }))
+                            ]}
                             value={selectedDeckListId}
-                          >
-                            <option value="">
-                              {availableDeckLists.length > 0
-                                ? "No linked deck list"
-                                : "Select a deck strategy first"}
-                            </option>
-                            {availableDeckLists.map((deckList: DeckListOption) => (
-                              <option key={deckList.id} value={deckList.id}>
-                                {deckList.name}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </label>
                       </div>
                     </details>
@@ -665,7 +646,7 @@ export function ImportLogDialog({
                   <section className="hidden gap-4 xl:grid-cols-2 md:grid">
                     <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
-                      <input
+                      <Input
                         className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                         onChange={(event) => setSelectedDate(event.target.value)}
                         type="date"
@@ -678,17 +659,11 @@ export function ImportLogDialog({
 
                     <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
-                      <select
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                        onChange={(event) => setSelectedFormat(event.target.value)}
+                      <FormatSelect
+                        onChange={setSelectedFormat}
+                        options={formatOptions}
                         value={selectedFormat}
-                      >
-                        {formatOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       <span className="min-h-[20px] text-xs text-[var(--text-muted)]">
                         Defaulting to Latest Legal Format
                       </span>
@@ -698,41 +673,41 @@ export function ImportLogDialog({
                       <span className="text-sm font-semibold text-[var(--text-muted)]">
                         Deck Strategy
                       </span>
-                      <select
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                        onChange={(event) => setSelectedDeckId(event.target.value)}
+                      <AppSelect
+                        onChange={setSelectedDeckId}
+                        options={[
+                          { label: "No linked deck", value: "" },
+                          ...userDecks.map((deck) => ({
+                            label: deck.deckName,
+                            value: deck.id
+                          }))
+                        ]}
                         value={selectedDeckId}
-                      >
-                        <option value="">No linked deck</option>
-                        {userDecks.map((deck) => (
-                          <option key={deck.id} value={deck.id}>
-                            {deck.deckName}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </label>
 
                     <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">
                         Deck List
                       </span>
-                      <select
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      <AppSelect
                         disabled={availableDeckLists.length === 0}
-                        onChange={(event) => setSelectedDeckListId(event.target.value)}
+                        onChange={setSelectedDeckListId}
+                        options={[
+                          {
+                            label:
+                              availableDeckLists.length > 0
+                                ? "No linked deck list"
+                                : "Select a deck strategy first",
+                            value: ""
+                          },
+                          ...availableDeckLists.map((deckList: DeckListOption) => ({
+                            label: deckList.name,
+                            value: deckList.id
+                          }))
+                        ]}
                         value={selectedDeckListId}
-                      >
-                        <option value="">
-                          {availableDeckLists.length > 0
-                            ? "No linked deck list"
-                            : "Select a deck strategy first"}
-                        </option>
-                        {availableDeckLists.map((deckList: DeckListOption) => (
-                          <option key={deckList.id} value={deckList.id}>
-                            {deckList.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </label>
                   </section>
 
@@ -771,7 +746,7 @@ export function ImportLogDialog({
 
                   <label className="grid gap-2">
                     <span className="text-sm font-semibold text-[var(--text-muted)]">Battle log</span>
-                    <textarea
+                    <Textarea
                       className="min-h-[280px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                       onPaste={() => {
                         shouldAutoParseImmediatelyRef.current = true;
@@ -812,11 +787,7 @@ export function ImportLogDialog({
                 </div>
               )}
                 </div>
-              </div>
-            </div>,
-            document.body
-          )
-        : null}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { startTransition, useEffect, useMemo, useState } from "react";
+import { Textarea } from "@/components/shadcn/textarea";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
@@ -198,7 +199,7 @@ export function ProbabilityCalculator() {
               >
                 Deck List
               </label>
-              <textarea
+              <Textarea
                 className="h-[320px] w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm leading-6 text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                 id="calculator-deck-input"
                 onChange={(event) => setDeckInput(event.target.value)}

@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { memo, type CSSProperties, type ReactNode } from "react";
+import { MoreHorizontalIcon } from "lucide-react";
+import { Checkbox } from "@/components/shadcn/checkbox";
 import { TrashIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/shadcn/dropdown-menu";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import { formatDayDate } from "@/lib/client/date-format";
 import type { BattleLogSummary, PokemonOption } from "@/types/index";
@@ -141,24 +150,36 @@ function LogRowComponent({
       <div className="flex items-center justify-end gap-1 text-[var(--text-muted)]">
         <label className="inline-flex cursor-pointer items-center justify-center p-2">
           <span className="sr-only">Select battle log</span>
-          <input
+          <Checkbox
             checked={selected}
             className="h-5 w-5 cursor-pointer rounded border-[var(--border)] bg-[var(--bg-surface)]"
-            onChange={onToggleSelected}
-            type="checkbox"
+            onCheckedChange={onToggleSelected}
           />
         </label>
 
-        {editAction}
-
-        <button
-          aria-label="Delete battle log"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--color-loss-strong)]"
-          onClick={onDelete}
-          type="button"
-        >
-          <TrashIcon className="h-4 w-4" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label="Open battle log actions"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
+              type="button"
+            >
+              <MoreHorizontalIcon className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40" forceMount>
+            {editAction}
+            {editAction ? <DropdownMenuSeparator /> : null}
+            <DropdownMenuItem
+              className="text-[var(--color-loss-strong)] focus:text-[var(--color-loss-strong)]"
+              onClick={onDelete}
+              variant="destructive"
+            >
+              <TrashIcon className="h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

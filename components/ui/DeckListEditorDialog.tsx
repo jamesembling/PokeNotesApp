@@ -6,8 +6,15 @@ import { saveDeckListAction } from "@/app/(app)/decks/actions";
 import { Button } from "@/components/ui/Button";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle
+} from "@/components/shadcn/dialog";
+import { Input } from "@/components/shadcn/input";
+import { Textarea } from "@/components/shadcn/textarea";
+import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
-import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import { parseDeckList, summarizeDeckList } from "@/lib/decks/deck-list-parse";
 import type { DeckList } from "@/types/index";
 
@@ -146,8 +153,6 @@ export function DeckListEditorDialog({
       : [normalizedFormat, ...siteFormatOptions];
   }, [format, siteFormatOptions]);
 
-  useBodyScrollLock(isOpen);
-
   useEffect(() => {
     if (deckList?.format) {
       return;
@@ -155,23 +160,6 @@ export function DeckListEditorDialog({
 
     setFormat((current) => current || defaultFormat || syncedDefaultFormat);
   }, [deckList?.format, defaultFormat, syncedDefaultFormat]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     return () => {
@@ -281,28 +269,28 @@ export function DeckListEditorDialog({
   }
 
   return (
-    <>
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          closeDialog();
+        }
+      }}
+      open={isOpen}
+    >
       <Button onClick={openDialog} variant={triggerVariant}>
         {triggerLabel}
       </Button>
 
-      {isOpen ? (
-        <div
-          aria-modal="true"
-          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
-          onClick={closeDialog}
-          role="dialog"
-        >
-          <div
-            className="mx-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-4xl sm:p-4 lg:p-5"
+        showCloseButton={false}
+      >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
               <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                  <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                  <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                     {isEditing ? "Edit Deck List" : "New Deck List"}
-                  </h2>
+                  </DialogTitle>
                   <p className="text-sm text-[var(--text-muted)]">
                     {step === "list" ? "Step 1 of 2 · Paste deck list" : "Step 2 of 2 · List details"}
                   </p>
@@ -387,7 +375,7 @@ export function DeckListEditorDialog({
 
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Deck list</span>
-                      <textarea
+                      <Textarea
                         className="min-h-[320px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 font-mono text-[0.95rem] leading-6 text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                         onChange={(event) => setRawList(event.target.value)}
                         required
@@ -400,7 +388,7 @@ export function DeckListEditorDialog({
                   <section className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">List name</span>
-                      <input
+                      <Input
                         className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                         onChange={(event) => setListName(event.target.value)}
                         required
@@ -410,22 +398,12 @@ export function DeckListEditorDialog({
 
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
-                      <select
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                        onChange={(event) => setFormat(event.target.value)}
-                        value={format}
-                      >
-                        {formatOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
+                      <FormatSelect onChange={setFormat} options={formatOptions} value={format} />
                     </label>
 
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
-                      <input
+                      <Input
                         className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                         onChange={(event) => setDate(event.target.value)}
                         type="date"
@@ -435,7 +413,7 @@ export function DeckListEditorDialog({
 
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Created by</span>
-                      <input
+                      <Input
                         className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                         onChange={(event) => setCreatedBy(event.target.value)}
                         value={createdBy}
@@ -444,7 +422,7 @@ export function DeckListEditorDialog({
 
                     <label className="grid gap-2 md:col-span-2">
                       <span className="text-sm font-semibold text-[var(--text-muted)]">Notes</span>
-                      <textarea
+                      <Textarea
                         className="min-h-[100px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                         onChange={(event) => setNotes(event.target.value)}
                         value={notes}
@@ -476,9 +454,7 @@ export function DeckListEditorDialog({
                 )}
               </form>
             </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }

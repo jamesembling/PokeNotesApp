@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { updateDeckStrategyAction } from "@/app/(app)/decks/actions";
+import { Textarea } from "@/components/shadcn/textarea";
 import { Card } from "@/components/ui/Card";
 import type { Deck } from "@/types/index";
 import type { GoPreference } from "@/types/index";
@@ -213,7 +214,7 @@ export function InlineDeckStrategyEditor({
 
         <section className="grid gap-2 md:col-span-2">
           <p className="text-sm font-semibold text-[var(--text-muted)]">Core Strategy</p>
-          <textarea
+          <Textarea
             className="min-h-[240px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("coreStrategy", event.target.value)}
@@ -224,7 +225,7 @@ export function InlineDeckStrategyEditor({
 
         <section className="grid gap-2">
           <p className="text-sm font-semibold text-[var(--text-muted)]">Ideal Bench</p>
-          <textarea
+          <Textarea
             className="min-h-[140px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("setupGoals", event.target.value)}
@@ -237,7 +238,7 @@ export function InlineDeckStrategyEditor({
           <p className="text-sm font-semibold text-[var(--text-muted)]">
             Potential Cuts / Techs / Inclusions
           </p>
-          <textarea
+          <Textarea
             className="min-h-[140px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("resourcePlan", event.target.value)}
@@ -248,7 +249,7 @@ export function InlineDeckStrategyEditor({
 
         <section className="grid gap-2 md:col-span-2">
           <p className="text-sm font-semibold text-[var(--text-muted)]">General Notes</p>
-          <textarea
+          <Textarea
             className="min-h-[140px] rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("generalNotes", event.target.value)}

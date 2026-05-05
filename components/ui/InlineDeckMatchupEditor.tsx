@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { updateDeckMatchupAction } from "@/app/(app)/decks/actions";
+import { Textarea } from "@/components/shadcn/textarea";
 import { Card } from "@/components/ui/Card";
 import type { DeckMatchup } from "@/types/index";
 
@@ -138,7 +139,7 @@ export function InlineDeckMatchupEditor({
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-2">
           <p className="text-sm font-semibold text-[var(--text-muted)]">Ideal Bench</p>
-          <textarea
+          <Textarea
             className="min-h-[160px] w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-5 py-4 text-sm leading-7 text-[var(--text-secondary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             onBlur={() => saveMatchup(matchupState)}
             onChange={(event) =>
@@ -154,7 +155,7 @@ export function InlineDeckMatchupEditor({
 
         <div className="space-y-2">
           <p className="text-sm font-semibold text-[var(--text-muted)]">Tech&apos;s needed</p>
-          <textarea
+          <Textarea
             className="min-h-[160px] w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-5 py-4 text-sm leading-7 text-[var(--text-secondary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
             onBlur={() => saveMatchup(matchupState)}
             onChange={(event) =>
@@ -171,7 +172,7 @@ export function InlineDeckMatchupEditor({
 
       <div className="space-y-2">
         <p className="text-sm font-semibold text-[var(--text-muted)]">Strategy Notes</p>
-        <textarea
+        <Textarea
           className="min-h-[240px] w-full rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-5 py-4 text-sm leading-7 text-[var(--text-secondary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
           onBlur={() => saveMatchup(matchupState)}
           onChange={(event) =>

@@ -7,9 +7,16 @@ import {
   deleteTournamentRoundAction,
   saveTournamentRoundAction
 } from "@/app/(app)/tournaments/actions";
+import { AppSelect } from "@/components/ui/AppSelect";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
-import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle
+} from "@/components/shadcn/dialog";
+import { Checkbox } from "@/components/shadcn/checkbox";
+import { Textarea } from "@/components/shadcn/textarea";
 import {
   TOURNAMENT_ROUND_GAME_RESULT_OPTIONS,
   TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS
@@ -75,8 +82,6 @@ export function TournamentRoundEditorDialog({
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  useBodyScrollLock(isOpen);
-
   function clearCloseTimer() {
     if (closeTimerRef.current !== null) {
       window.clearTimeout(closeTimerRef.current);
@@ -111,23 +116,6 @@ export function TournamentRoundEditorDialog({
     setIsOpen(false);
     resetState();
   }
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeDialog();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     return () => {
@@ -190,21 +178,19 @@ export function TournamentRoundEditorDialog({
   }
 
   const isBusy = saveState === "saving" || deleteState === "deleting";
+  const openDialog = () => {
+    resetState();
+    setIsOpen(true);
+  };
   const triggerElement = isValidElement(trigger) ? (
     cloneElement(trigger, {
       ...trigger.props,
-      onClick: () => {
-        resetState();
-        setIsOpen(true);
-      }
+      onClick: openDialog
     })
   ) : (
     <Button
       disabled={deleteState === "deleting"}
-      onClick={() => {
-        resetState();
-        setIsOpen(true);
-      }}
+      onClick={openDialog}
       variant={triggerVariant}
     >
       {triggerLabel}
@@ -212,26 +198,28 @@ export function TournamentRoundEditorDialog({
   );
 
   return (
-    <>
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) {
+          openDialog();
+        } else {
+          closeDialog();
+        }
+      }}
+      open={isOpen}
+    >
       {triggerElement}
 
-      {isOpen ? (
-        <div
-          aria-modal="true"
-          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
-          onClick={closeDialog}
-          role="dialog"
-        >
-          <div
-            className="mx-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] max-w-2xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-2xl sm:p-4 lg:p-5"
+        showCloseButton={false}
+      >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
             <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                   {isEditing ? `Edit Round ${round?.roundNumber}` : "Add Round"}
-                </h2>
+                </DialogTitle>
               </div>
 
               <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
@@ -325,19 +313,18 @@ export function TournamentRoundEditorDialog({
                             htmlFor={`round-special-${fieldName}`}
                             key={option.value}
                           >
-                            <input
+                            <Checkbox
                               checked={specialResult === option.value}
                               className="h-4 w-4 accent-[var(--color-win)]"
                               id={`round-special-${fieldName}`}
                               name={fieldName}
-                              onChange={(event) => {
-                                const nextSpecialResult = event.target.checked ? option.value : "";
+                              onCheckedChange={(checked) => {
+                                const nextSpecialResult = checked ? option.value : "";
                                 setSpecialResult(nextSpecialResult);
                                 if (nextSpecialResult) {
                                   setGameResults(["", "", ""]);
                                 }
                               }}
-                              type="checkbox"
                             />
                             {option.label}
                           </label>
@@ -352,25 +339,25 @@ export function TournamentRoundEditorDialog({
                           key={index}
                         >
                           Game {index + 1}
-                          <select
-                            className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] disabled:cursor-not-allowed disabled:opacity-55"
+                          <AppSelect
+                            className="min-h-[3rem] rounded-xl px-4 py-3"
                             disabled={Boolean(specialResult)}
                             id={`round-game-${index + 1}`}
                             name={`game${index + 1}`}
-                            onChange={(event) => {
+                            onChange={(value) => {
                               const next = [...gameResults];
-                              next[index] = event.target.value;
+                              next[index] = value;
                               setGameResults(next);
                             }}
+                            options={[
+                              { label: "-", value: "" },
+                              ...TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.map((option) => ({
+                                label: option,
+                                value: option
+                              }))
+                            ]}
                             value={gameResults[index]}
-                          >
-                            <option value="">—</option>
-                            {TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         </label>
                       ))}
                     </div>
@@ -389,7 +376,7 @@ export function TournamentRoundEditorDialog({
                 <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="round-notes">
                   Notes
                 </label>
-                <textarea
+                <Textarea
                   className="min-h-28 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
                   defaultValue={round?.notes ?? ""}
                   id="round-notes"
@@ -399,9 +386,7 @@ export function TournamentRoundEditorDialog({
               </div>
             </form>
             </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }

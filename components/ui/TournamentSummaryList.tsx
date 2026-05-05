@@ -3,9 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { MoreHorizontalIcon } from "lucide-react";
 import { deleteTournamentAction } from "@/app/(app)/tournaments/actions";
+import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { TrashIcon } from "@/components/ui/icons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/shadcn/dropdown-menu";
 import { formatDayDate } from "@/lib/client/date-format";
 import { getTournamentRecord } from "@/lib/tournaments/display";
 import { getTournamentPlacementLabel } from "@/lib/tournaments/options";
@@ -72,43 +80,39 @@ function TournamentSummaryRow({
         </Link>
 
         <div className="flex justify-end transition duration-200 sm:pointer-events-none sm:translate-x-1 sm:opacity-0 sm:pr-1 sm:group-hover/row:pointer-events-auto sm:group-hover/row:translate-x-0 sm:group-hover/row:opacity-100 sm:group-focus-within/row:pointer-events-auto sm:group-focus-within/row:translate-x-0 sm:group-focus-within/row:opacity-100">
-          <button
-            aria-label={`Delete tournament ${tournament.name}`}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isDeleting}
-            onClick={() => onRequestDelete(tournament)}
-            type="button"
-          >
-            <TrashIcon className="h-4 w-4" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                aria-label={`Open actions for ${tournament.name}`}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isDeleting}
+                type="button"
+              >
+                <MoreHorizontalIcon className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                className="text-[var(--color-loss-strong)] focus:text-[var(--color-loss-strong)]"
+                onClick={() => onRequestDelete(tournament)}
+                variant="destructive"
+              >
+                <TrashIcon className="h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {isConfirming ? (
-        <div className="rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4">
-          <p className="text-sm text-[var(--text-primary)]">
-            Delete &quot;{tournament.name}&quot; and all of its rounds? This cannot be undone.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <button
-              className="inline-flex items-center justify-center rounded-xl bg-[var(--color-danger)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isDeleting}
-              onClick={() => onConfirmDelete(tournament)}
-              type="button"
-            >
-              {isDeleting ? "Deleting..." : "Yes, delete"}
-            </button>
-            <button
-              className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-surface-alt)] disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isDeleting}
-              onClick={onCancelDelete}
-              type="button"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <DeleteConfirmDialog
+        confirmLabel={isDeleting ? "Deleting..." : "Yes, delete"}
+        disabled={isDeleting}
+        message={`Delete "${tournament.name}" and all of its rounds? This cannot be undone.`}
+        onCancel={onCancelDelete}
+        onConfirm={() => onConfirmDelete(tournament)}
+        open={isConfirming}
+      />
     </div>
   );
 }

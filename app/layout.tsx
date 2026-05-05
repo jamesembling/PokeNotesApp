@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SiteFormatsProvider } from "@/components/ui/SiteFormatsProvider";
 import { getInitialSiteFormats } from "@/lib/formats/catalog";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
+import { TooltipProvider } from "@/components/shadcn/tooltip";
 import "./globals.css";
 
 type Theme = "light" | "dark";
@@ -78,7 +79,9 @@ export default async function RootLayout({
       </head>
       <body>
         <SiteFormatsProvider initialSiteFormats={initialSiteFormats}>
-          <ThemeProvider initialTheme={initialTheme}>{children}</ThemeProvider>
+          <ThemeProvider initialTheme={initialTheme}>
+            <TooltipProvider>{children}</TooltipProvider>
+          </ThemeProvider>
         </SiteFormatsProvider>
       </body>
     </html>

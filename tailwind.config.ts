@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
 const config: Config = {
   darkMode: "class",
@@ -14,9 +15,14 @@ const config: Config = {
         surface: "var(--bg-surface)",
         "surface-alt": "var(--bg-surface-alt)",
         border: "var(--border)",
-        primary: "var(--text-primary)",
-        secondary: "var(--text-secondary)",
-        muted: "var(--text-muted)",
+        primary: {
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-foreground)"
+        },
+        secondary: {
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)"
+        },
         kicker: "var(--text-kicker)",
         win: "var(--color-win)",
         "win-bg": "var(--color-win-bg)",
@@ -27,7 +33,43 @@ const config: Config = {
         brand: "var(--color-brand)",
         "brand-hover": "var(--color-brand-hover)",
         danger: "var(--color-danger)",
-        inverse: "var(--text-inverse)"
+        inverse: "var(--text-inverse)",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        card: {
+          DEFAULT: "var(--card)",
+          foreground: "var(--card-foreground)"
+        },
+        popover: {
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-foreground)"
+        },
+        destructive: "var(--destructive)",
+        input: "var(--input)",
+        ring: "var(--ring)",
+        accent: {
+          DEFAULT: "var(--accent)",
+          foreground: "var(--accent-foreground)"
+        },
+        muted: {
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-foreground)"
+        },
+        sidebar: {
+          DEFAULT: "var(--sidebar)",
+          foreground: "var(--sidebar-foreground)",
+          primary: "var(--sidebar-primary)",
+          "primary-foreground": "var(--sidebar-primary-foreground)",
+          accent: "var(--sidebar-accent)",
+          "accent-foreground": "var(--sidebar-accent-foreground)",
+          border: "var(--sidebar-border)",
+          ring: "var(--sidebar-ring)"
+        }
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)"
       },
       fontFamily: {
         sans: ["var(--font-body)", "system-ui", "-apple-system", "sans-serif"],
@@ -35,7 +77,7 @@ const config: Config = {
       }
     }
   },
-  plugins: []
+  plugins: [animate]
 };
 
 export default config;

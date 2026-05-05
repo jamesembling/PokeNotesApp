@@ -11,10 +11,17 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { updateLogAction } from "@/app/(app)/logs/actions";
+import { AppSelect } from "@/components/ui/AppSelect";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle
+} from "@/components/shadcn/dialog";
+import { Input } from "@/components/shadcn/input";
+import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
-import { useBodyScrollLock } from "@/lib/client/use-body-scroll-lock";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
@@ -116,8 +123,6 @@ export function EditLogDialog({
 
   const availableDeckLists = selectedDeck?.deckLists ?? [];
 
-  useBodyScrollLock(isOpen);
-
   function resetEditorState() {
     setSelectedSelfSprites(log.selfDeckSprites.slice(0, 2));
     setSelectedOpponentSprites(log.opponentDeckSprites.slice(0, 2));
@@ -129,25 +134,10 @@ export function EditLogDialog({
     setSaveState("idle");
   }
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
+  function openDialog() {
     resetEditorState();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeDialog();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, log]);
+    setIsOpen(true);
+  }
 
   useEffect(() => {
     if (!selectedDeckId) {
@@ -224,46 +214,38 @@ export function EditLogDialog({
   }
 
   return (
-    <>
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          closeDialog();
+        }
+      }}
+      open={isOpen}
+    >
       {isValidElement(trigger) ? (
         cloneElement(trigger, {
           ...trigger.props,
-          onClick: () => {
-            setSaveError("");
-            setSaveState("idle");
-            setIsOpen(true);
-          }
+          onClick: openDialog
         })
       ) : (
         <Button
-          onClick={() => {
-            setSaveError("");
-            setSaveState("idle");
-            setIsOpen(true);
-          }}
+          onClick={openDialog}
           variant="secondary"
         >
           Edit Log
         </Button>
       )}
 
-      {isOpen ? (
-        <div
-          aria-modal="true"
-          className="fixed inset-0 z-50 overflow-x-hidden bg-[var(--bg-overlay)] p-4"
-          onClick={closeDialog}
-          role="dialog"
-        >
-          <div
-            className="mx-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:p-4 lg:p-5"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+        showCloseButton={false}
+      >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
             <div className="mb-6 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <h2 className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
                   Edit Battle Log
-                </h2>
+                </DialogTitle>
               </div>
             </div>
             <form
@@ -318,7 +300,7 @@ export function EditLogDialog({
               <section className="grid gap-4 xl:grid-cols-2">
                 <label className="grid min-w-0 gap-2">
                   <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
-                  <input
+                  <Input
                     className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
                     onChange={(event) => setSelectedDate(event.target.value)}
                     type="date"
@@ -331,17 +313,11 @@ export function EditLogDialog({
 
                 <label className="grid min-w-0 gap-2">
                   <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
-                  <select
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                    onChange={(event) => setSelectedFormat(event.target.value)}
+                  <FormatSelect
+                    onChange={setSelectedFormat}
+                    options={formatOptions}
                     value={selectedFormat}
-                  >
-                    {formatOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                  />
                   <span className="min-h-[20px] text-xs text-[var(--text-muted)]">
                     Update the saved format shown in your battle log history
                   </span>
@@ -351,39 +327,39 @@ export function EditLogDialog({
                   <span className="text-sm font-semibold text-[var(--text-muted)]">
                     Deck Strategy
                   </span>
-                  <select
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                    onChange={(event) => setSelectedDeckId(event.target.value)}
+                  <AppSelect
+                    onChange={setSelectedDeckId}
+                    options={[
+                      { label: "No linked deck", value: "" },
+                      ...userDecks.map((deck) => ({
+                        label: deck.deckName,
+                        value: deck.id
+                      }))
+                    ]}
                     value={selectedDeckId}
-                  >
-                    <option value="">No linked deck</option>
-                    {userDecks.map((deck) => (
-                      <option key={deck.id} value={deck.id}>
-                        {deck.deckName}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
 
                 <label className="grid min-w-0 gap-2">
                   <span className="text-sm font-semibold text-[var(--text-muted)]">Deck List</span>
-                  <select
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  <AppSelect
                     disabled={availableDeckLists.length === 0}
-                    onChange={(event) => setSelectedDeckListId(event.target.value)}
+                    onChange={setSelectedDeckListId}
+                    options={[
+                      {
+                        label:
+                          availableDeckLists.length > 0
+                            ? "No linked deck list"
+                            : "Select a deck strategy first",
+                        value: ""
+                      },
+                      ...availableDeckLists.map((deckList: DeckListOption) => ({
+                        label: deckList.name,
+                        value: deckList.id
+                      }))
+                    ]}
                     value={selectedDeckListId}
-                  >
-                    <option value="">
-                      {availableDeckLists.length > 0
-                        ? "No linked deck list"
-                        : "Select a deck strategy first"}
-                    </option>
-                    {availableDeckLists.map((deckList: DeckListOption) => (
-                      <option key={deckList.id} value={deckList.id}>
-                        {deckList.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
               </section>
 
@@ -395,9 +371,7 @@ export function EditLogDialog({
               </div>
             </form>
             </div>
-          </div>
-        </div>
-      ) : null}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 }

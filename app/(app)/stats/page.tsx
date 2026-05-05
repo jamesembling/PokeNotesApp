@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import { getArchetypeMatchupStats, getLogStatsOverview } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
@@ -27,27 +28,38 @@ export default async function StatsPage() {
         title="Stats"
       />
 
-      <Card className="grid gap-5">
-        <div className="space-y-2">
-          <p className="ui-eyebrow">Overview</p>
-          <h2 className="ui-section-title">Battle Log Totals</h2>
-        </div>
+      <Tabs className="mt-5" defaultValue="overview">
+        <TabsList aria-label="Stats sections">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="matchups">Matchups</TabsTrigger>
+        </TabsList>
 
-        <Suspense fallback={<StatsOverviewFallback />}>
-          <StatsOverviewGrid />
-        </Suspense>
-      </Card>
+        <TabsContent value="overview">
+          <Card className="grid gap-5">
+            <div className="space-y-2">
+              <p className="ui-eyebrow">Overview</p>
+              <h2 className="ui-section-title">Battle Log Totals</h2>
+            </div>
 
-      <Card className="mt-5 grid gap-4">
-        <div className="space-y-2">
-          <p className="ui-eyebrow">Matchups</p>
-          <h2 className="ui-section-title">Win % vs Archetypes</h2>
-        </div>
+            <Suspense fallback={<StatsOverviewFallback />}>
+              <StatsOverviewGrid />
+            </Suspense>
+          </Card>
+        </TabsContent>
 
-        <Suspense fallback={<ArchetypeMatchupsFallback />}>
-          <ArchetypeMatchupsTable />
-        </Suspense>
-      </Card>
+        <TabsContent value="matchups">
+          <Card className="grid gap-4">
+            <div className="space-y-2">
+              <p className="ui-eyebrow">Matchups</p>
+              <h2 className="ui-section-title">Win % vs Archetypes</h2>
+            </div>
+
+            <Suspense fallback={<ArchetypeMatchupsFallback />}>
+              <ArchetypeMatchupsTable />
+            </Suspense>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
