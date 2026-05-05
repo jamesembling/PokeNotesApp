@@ -56,7 +56,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full whitespace-normal pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
+          ? "w-full whitespace-normal pointer-events-none bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
           : isSaving
             ? "w-full whitespace-normal pointer-events-none sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
             : "w-full whitespace-normal sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
@@ -238,13 +238,13 @@ export function EditLogDialog({
       )}
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
         showCloseButton={false}
       >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
-            <div className="mb-6 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="mb-6 flex min-w-0 flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
                   Edit Battle Log
                 </DialogTitle>
                 <DialogDescription className="sr-only">
@@ -303,9 +303,9 @@ export function EditLogDialog({
 
               <section className="grid gap-4 xl:grid-cols-2">
                 <label className="grid min-w-0 gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
+                  <span className="text-sm font-semibold text-muted-foreground">Date</span>
                   <Input
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                    className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                     onChange={(event) => setSelectedDate(event.target.value)}
                     type="date"
                     value={selectedDate}
@@ -316,19 +316,19 @@ export function EditLogDialog({
                 </label>
 
                 <label className="grid min-w-0 gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
+                  <span className="text-sm font-semibold text-muted-foreground">Format</span>
                   <FormatSelect
                     onChange={setSelectedFormat}
                     options={formatOptions}
                     value={selectedFormat}
                   />
-                  <span className="min-h-[20px] text-xs text-[var(--text-muted)]">
+                  <span className="min-h-[20px] text-xs text-muted-foreground">
                     Update the saved format shown in your battle log history
                   </span>
                 </label>
 
                 <label className="grid min-w-0 gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">
+                  <span className="text-sm font-semibold text-muted-foreground">
                     Deck Strategy
                   </span>
                   <AppSelect
@@ -345,7 +345,7 @@ export function EditLogDialog({
                 </label>
 
                 <label className="grid min-w-0 gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">Deck List</span>
+                  <span className="text-sm font-semibold text-muted-foreground">Deck List</span>
                   <AppSelect
                     disabled={availableDeckLists.length === 0}
                     onChange={setSelectedDeckListId}
@@ -367,7 +367,7 @@ export function EditLogDialog({
                 </label>
               </section>
 
-              <div className="grid gap-2.5 border-t border-[var(--border)] pt-4 sm:flex sm:justify-end">
+              <div className="grid gap-2.5 border-t border-border pt-4 sm:flex sm:justify-end">
                 <Button onClick={closeDialog} type="button" variant="secondary">
                   Close
                 </Button>

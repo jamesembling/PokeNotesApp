@@ -23,7 +23,7 @@ export default async function AppLayout({
   const user = await requireUser();
 
   return (
-    <div className="min-h-screen bg-[var(--bg-page)]">
+    <div className="min-h-screen bg-background">
       <Sidebar
         profile={{
           displayName: getFallbackDisplayName(user),

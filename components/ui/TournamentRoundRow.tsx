@@ -43,7 +43,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
     <div className={["group grid w-full gap-4 rounded-2xl border p-4 text-left transition duration-200 hover:brightness-[0.98] md:grid-cols-[auto_1fr_auto_auto] md:items-center lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]", rowTone].join(" ")}>
       <div className="space-y-1">
         <p className="ui-eyebrow">Round</p>
-        <p className="font-display text-[1.12rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+        <p className="font-display text-[1.12rem] font-semibold tracking-[-0.03em] text-card-foreground">
           {round.roundNumber}
         </p>
       </div>
@@ -80,7 +80,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
               </span>
             ))
           ) : (
-            <span className="font-display text-[1.05rem] font-semibold tracking-[-0.04em] text-[var(--text-muted)]">
+            <span className="font-display text-[1.05rem] font-semibold tracking-[-0.04em] text-muted-foreground">
               —
             </span>
           )}
@@ -88,7 +88,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
       </div>
 
       {canEdit ? (
-        <div className="text-[var(--text-secondary)] md:justify-self-end">
+        <div className="text-foreground md:justify-self-end">
           <ChevronIcon className="h-4 w-4 -rotate-90" />
         </div>
       ) : null}

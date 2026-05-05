@@ -37,7 +37,7 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
 
         <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-foreground">
               The requested matchup is unavailable.
             </p>
             <Link href={`/decks/${id}`} prefetch={false}>
@@ -67,7 +67,7 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
               <SpriteStrip maxVisible={2} size="xl" sprites={matchup.deckPokemon} />
-              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--text-primary)] sm:text-4xl">
+              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl">
                 {matchup.deckName}
               </h1>
             </div>

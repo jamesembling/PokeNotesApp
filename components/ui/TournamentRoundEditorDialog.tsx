@@ -212,13 +212,13 @@ export function TournamentRoundEditorDialog({
       {triggerElement}
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-2xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-2xl sm:p-4 lg:p-5"
+        className="flex max-h-[calc(100dvh-2rem)] max-w-2xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-2xl sm:p-4 lg:p-5"
         showCloseButton={false}
       >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
-            <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
                   {isEditing ? `Edit Round ${round?.roundNumber}` : "Add Round"}
                 </DialogTitle>
                 <DialogDescription className="sr-only">
@@ -261,7 +261,7 @@ export function TournamentRoundEditorDialog({
 
             {isEditing && showDeleteConfirmation ? (
               <div className="mb-4 rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4">
-                <p className="text-sm text-[var(--text-primary)]">
+                <p className="text-sm text-card-foreground">
                   Delete this round from the tournament?
                 </p>
                 <div className="mt-3 grid gap-3 sm:flex sm:flex-wrap">
@@ -300,7 +300,7 @@ export function TournamentRoundEditorDialog({
 
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">Result</p>
+                  <p className="text-sm font-semibold text-card-foreground">Result</p>
                   <div className="grid gap-2">
                     <div className="flex flex-wrap gap-x-5 gap-y-2">
                       {TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.map((option) => {
@@ -377,11 +377,11 @@ export function TournamentRoundEditorDialog({
               />
 
               <div className="grid gap-2">
-                <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="round-notes">
+                <label className="text-sm font-semibold text-card-foreground" htmlFor="round-notes">
                   Notes
                 </label>
                 <Textarea
-                  className="min-h-28 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
+                  className="min-h-28 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
                   defaultValue={round?.notes ?? ""}
                   id="round-notes"
                   name="notes"

@@ -14,7 +14,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-page)]">
+    <div className="min-h-screen bg-background">
       <Sidebar
         profile={{
           displayName: profile.displayName,

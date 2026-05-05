@@ -13,7 +13,7 @@ export function SidebarThemeToggle() {
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)]"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition hover:bg-muted"
           onClick={toggleTheme}
           aria-label={label}
         >

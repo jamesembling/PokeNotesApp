@@ -45,16 +45,16 @@ function DeckMatchupTile({
 }) {
   return (
     <Link className="group block h-full" href={`/decks/${deckId}/matchups/${matchup.id}`} prefetch={false}>
-      <Card className="flex h-full flex-col gap-4 transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[var(--shadow-sm)]">
+      <Card className="flex h-full flex-col gap-4 transition hover:-translate-y-0.5 hover:border-primary hover:shadow-[var(--shadow-sm)]">
         <div className="flex items-start justify-between gap-3">
           <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={matchup.deckPokemon} />
-          <span className="inline-flex min-h-10 shrink-0 items-center rounded-2xl border border-[var(--color-brand)] bg-[color-mix(in_oklab,var(--color-brand)_8%,var(--bg-surface))] px-3 py-2 text-[0.76rem] font-semibold tracking-[0.12em] text-[var(--color-brand)]">
+          <span className="inline-flex min-h-10 shrink-0 items-center rounded-2xl border border-primary bg-[color-mix(in_oklab,var(--color-brand)_8%,var(--bg-surface))] px-3 py-2 text-[0.76rem] font-semibold tracking-[0.12em] text-primary">
             OPEN
             <ChevronIcon className="h-4 w-4 -rotate-90" />
           </span>
         </div>
 
-        <h3 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)]">
+        <h3 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground">
           {matchup.deckName}
         </h3>
       </Card>
@@ -87,11 +87,11 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
 
         <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-foreground">
               The requested deck strategy is unavailable.
             </p>
             <Link
-              className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
+              className="text-sm font-medium text-primary transition hover:text-primary/90"
               href="/decks"
               prefetch={false}
             >
@@ -116,7 +116,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         triggerVariant="secondary"
       />
       <Link
-        className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
+        className="text-sm font-medium text-primary transition hover:text-primary/90"
         href="/decks"
         prefetch={false}
       >
@@ -141,7 +141,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
               <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
-              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--text-primary)] sm:text-4xl">
+              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl">
                 {deck.deckName}
               </h1>
             </div>
@@ -188,7 +188,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         </div>
 
         {deck.deckLists.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">No deck lists saved.</p>
+          <p className="text-sm text-foreground">No deck lists saved.</p>
         ) : (
           <div className="divide-y divide-[var(--border)]">
             {deck.deckLists.map((deckList) => (
@@ -197,10 +197,10 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                 key={deckList.id}
               >
                 <div className="space-y-1">
-                  <p className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                  <p className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-card-foreground">
                     {deckList.name}
                   </p>
-                  <p className="text-sm text-[var(--text-muted)]">
+                  <p className="text-sm text-muted-foreground">
                     {deckList.format}
                     {deckList.date ? ` · ${formatDate(deckList.date)}` : ""}
                   </p>
@@ -216,7 +216,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                     triggerVariant="ghost"
                   />
                   <Link
-                    className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
+                    className="text-sm font-medium text-primary transition hover:text-primary/90"
                     href={`/decks/${deck.id}/lists/${deckList.id}`}
                     prefetch={false}
                   >

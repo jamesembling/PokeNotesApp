@@ -52,7 +52,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[110px] sm:shrink-0"
+          ? "w-full pointer-events-none bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[110px] sm:shrink-0"
           : isSaving
             ? "w-full pointer-events-none sm:w-[110px] sm:shrink-0"
             : "w-full sm:w-[110px] sm:shrink-0"
@@ -231,13 +231,13 @@ export function DeckEditorDialog({
       </Button>
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
         showCloseButton={false}
       >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
-            <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
                   {isEditing ? "Edit Deck" : "New Deck"}
                 </DialogTitle>
                 <DialogDescription className="sr-only">
@@ -275,7 +275,7 @@ export function DeckEditorDialog({
                     <p className="text-sm font-semibold text-[var(--color-loss)]">
                       Delete this deck strategy?
                     </p>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-foreground">
                       Saved deck lists will be removed, and linked battle logs will stay in your
                       account as unlinked records.
                     </p>
@@ -334,9 +334,9 @@ export function DeckEditorDialog({
 
               <section className="grid gap-4 md:grid-cols-2">
                 <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">Deck name</span>
+                  <span className="text-sm font-semibold text-muted-foreground">Deck name</span>
                   <Input
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                    className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                     defaultValue={deck?.deckName ?? ""}
                     name="deckName"
                     required
@@ -344,7 +344,7 @@ export function DeckEditorDialog({
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
+                  <span className="text-sm font-semibold text-muted-foreground">Format</span>
                   <FormatSelect
                     name="format"
                     onChange={setSelectedFormat}
@@ -354,7 +354,7 @@ export function DeckEditorDialog({
                 </label>
 
                 <label className="grid gap-2 md:col-span-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">
+                  <span className="text-sm font-semibold text-muted-foreground">
                     Turn preference
                   </span>
                   <AppSelect
@@ -379,22 +379,22 @@ export function DeckEditorDialog({
 
               <section className="grid gap-4 md:grid-cols-2">
                 <label className="grid gap-2 md:col-span-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">
+                  <span className="text-sm font-semibold text-muted-foreground">
                     Core strategy
                   </span>
                   <Textarea
-                    className="min-h-[140px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                     defaultValue={deck?.coreStrategy ?? ""}
                     name="coreStrategy"
                   />
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">
+                  <span className="text-sm font-semibold text-muted-foreground">
                     Ideal bench
                   </span>
                   <Textarea
-                    className="min-h-[140px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                     defaultValue={parseSetupGoals(deck?.setupGoals ?? [])}
                     name="setupGoals"
                     placeholder="One ideal bench note per line"
@@ -402,22 +402,22 @@ export function DeckEditorDialog({
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">
+                  <span className="text-sm font-semibold text-muted-foreground">
                     Potential cuts / techs / inclusions
                   </span>
                   <Textarea
-                    className="min-h-[140px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                     defaultValue={deck?.resourcePlan ?? ""}
                     name="resourcePlan"
                   />
                 </label>
 
                 <label className="grid gap-2 md:col-span-2">
-                  <span className="text-sm font-semibold text-[var(--text-muted)]">
+                  <span className="text-sm font-semibold text-muted-foreground">
                     General notes
                   </span>
                   <Textarea
-                    className="min-h-[160px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                    className="min-h-[160px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                     defaultValue={deck?.generalNotes ?? ""}
                     name="generalNotes"
                   />

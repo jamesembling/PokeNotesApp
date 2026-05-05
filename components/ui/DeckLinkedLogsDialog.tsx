@@ -61,16 +61,16 @@ export function DeckLinkedLogsDialog({ deckId }: DeckLinkedLogsDialogProps) {
       </DialogTrigger>
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-5xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-0 shadow-[var(--shadow-lg)] sm:max-w-5xl"
+        className="flex max-h-[calc(100dvh-2rem)] max-w-5xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-5xl"
         showCloseButton={false}
       >
-            <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-5 lg:px-8">
+            <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5 lg:px-8">
               <div className="min-w-0 space-y-2">
                 <p className="ui-eyebrow">Battle Logs</p>
-                <DialogTitle className="text-[1.45rem] font-bold tracking-[-0.04em] text-[var(--text-primary)] sm:text-[1.8rem]">
+                <DialogTitle className="text-[1.45rem] font-bold tracking-[-0.04em] text-card-foreground sm:text-[1.8rem]">
                   All linked logs
                 </DialogTitle>
-                <DialogDescription className="text-sm text-[var(--text-secondary)]">
+                <DialogDescription className="text-sm text-foreground">
                   {isLoading
                     ? "Loading linked battle logs..."
                     : `${logs.length} linked battle log${logs.length === 1 ? "" : "s"} for this deck.`}
@@ -87,9 +87,9 @@ export function DeckLinkedLogsDialog({ deckId }: DeckLinkedLogsDialogProps) {
                 <p className="text-sm text-[var(--color-loss)]">{error}</p>
               ) : isLoading ? (
                 <div className="flex flex-col gap-3" role="status">
-                  <div className="h-24 rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
-                  <div className="h-24 rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
-                  <div className="h-24 rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
+                  <div className="h-24 rounded-[20px] border border-border bg-muted" />
+                  <div className="h-24 rounded-[20px] border border-border bg-muted" />
+                  <div className="h-24 rounded-[20px] border border-border bg-muted" />
                 </div>
               ) : (
                 <div className="flex min-w-0 flex-col gap-3">

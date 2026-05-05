@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/shadcn/skeleton";
 import { Card } from "@/components/ui/Card";
 
 function LoadingBlock({
@@ -7,12 +8,7 @@ function LoadingBlock({
   className: string;
   style?: React.CSSProperties;
 }) {
-  return (
-    <div
-      className={["animate-pulse rounded-xl bg-[var(--bg-surface-alt)]", className].join(" ")}
-      style={style}
-    />
-  );
+  return <Skeleton className={className} style={style} />;
 }
 
 export default function DeckListLoading() {

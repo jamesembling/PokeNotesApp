@@ -12,10 +12,10 @@ export default function SharedLogNotFound() {
 
         <Card>
           <div className="flex flex-col gap-3">
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+            <h2 className="text-base font-semibold text-card-foreground">
               Shared log not found
             </h2>
-            <p className="text-sm text-[var(--text-muted)]">
+            <p className="text-sm text-muted-foreground">
               This shared battle log link is missing, expired, or no longer available.
             </p>
           </div>

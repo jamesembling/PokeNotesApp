@@ -47,7 +47,7 @@ export function DeleteConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{message}</DialogDescription>
           {description ? (
-            <p className="text-sm text-[var(--text-secondary)]">{description}</p>
+            <p className="text-sm text-foreground">{description}</p>
           ) : null}
         </DialogHeader>
         <DialogFooter>

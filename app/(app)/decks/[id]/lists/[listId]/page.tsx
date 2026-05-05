@@ -41,11 +41,11 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
 
         <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-foreground">
               The requested deck list is unavailable.
             </p>
             <Link
-              className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
+              className="text-sm font-medium text-primary transition hover:text-primary/90"
               href={`/decks/${id}`}
               prefetch={false}
             >
@@ -94,7 +94,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         </div>
 
         {deckList.parsedCards.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-sm text-foreground">
             No parsed cards are available for this deck list yet.
           </p>
         ) : (

@@ -27,7 +27,7 @@ function formatUpdatedDate(date: string) {
 
 function getListWinRateTextClass(winRate: number | null) {
   if (winRate == null) {
-    return "text-[var(--text-muted)]";
+    return "text-muted-foreground";
   }
 
   if (winRate > 60) {
@@ -51,7 +51,7 @@ export function DeckCard({
 }: DeckCardProps) {
   const statusToneClassName =
     winRate == null
-      ? "border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)]"
+      ? "border-border bg-card text-muted-foreground"
       : winRate > 60
         ? "border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win-strong)]"
         : winRate >= 40
@@ -61,7 +61,7 @@ export function DeckCard({
   if (view === "list") {
     return (
       <Link
-        className="group block px-4 py-4 transition hover:bg-[var(--bg-surface-alt)] sm:px-6"
+        className="group block px-4 py-4 transition hover:bg-muted sm:px-6"
         href={`/decks/${deck.id}`}
         prefetch={false}
       >
@@ -73,7 +73,7 @@ export function DeckCard({
               size="lg"
               sprites={deck.deckPokemon}
             />
-            <h2 className="truncate font-display text-[1.02rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)] transition group-hover:text-[var(--color-brand)]">
+            <h2 className="truncate font-display text-[1.02rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground transition group-hover:text-primary">
               {deck.deckName}
             </h2>
           </div>
@@ -88,10 +88,10 @@ export function DeckCard({
               sprites={deck.deckPokemon}
             />
             <div className="min-w-0 space-y-1">
-              <h2 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)] transition group-hover:text-[var(--color-brand)]">
+              <h2 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground transition group-hover:text-primary">
                 {deck.deckName}
               </h2>
-              <p className="text-sm text-[var(--text-muted)]">
+              <p className="text-sm text-muted-foreground">
                 {gamesPlayed > 0 ? `${gamesPlayed} logged matches` : "No linked battle logs"}
               </p>
             </div>
@@ -106,15 +106,15 @@ export function DeckCard({
             {winRate == null ? "--" : `${winRate}%`}
           </div>
 
-          <div className="text-right text-sm font-medium text-[var(--text-primary)]">
+          <div className="text-right text-sm font-medium text-card-foreground">
             {gamesPlayed > 0 ? recordLabel : "No logs yet"}
           </div>
 
-          <div className="text-right text-sm font-medium text-[var(--text-primary)]">{deckListCount}</div>
+          <div className="text-right text-sm font-medium text-card-foreground">{deckListCount}</div>
 
-          <div className="text-right text-sm text-[var(--text-muted)]">{formatUpdatedDate(deck.updatedAt)}</div>
+          <div className="text-right text-sm text-muted-foreground">{formatUpdatedDate(deck.updatedAt)}</div>
 
-          <span className="ui-control-text justify-self-end text-[var(--color-brand)]">Open</span>
+          <span className="ui-control-text justify-self-end text-primary">Open</span>
         </div>
       </Link>
     );
@@ -122,15 +122,15 @@ export function DeckCard({
 
   return (
     <Link className="block h-full" href={`/decks/${deck.id}`} prefetch={false}>
-      <Card className="flex h-full flex-col gap-5 transition hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[var(--shadow-sm)]">
+      <Card className="flex h-full flex-col gap-5 transition hover:-translate-y-0.5 hover:border-primary hover:shadow-[var(--shadow-sm)]">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-3">
             <SpriteStrip className="min-h-12" pokemonOptions={null} size="lg" sprites={deck.deckPokemon} />
             <div className="space-y-2">
-              <h2 className="font-display text-[1.22rem] font-semibold leading-tight tracking-[-0.035em] text-[var(--text-primary)]">
+              <h2 className="font-display text-[1.22rem] font-semibold leading-tight tracking-[-0.035em] text-card-foreground">
                 {deck.deckName}
               </h2>
-              <p className="text-sm leading-6 text-[var(--text-muted)]">
+              <p className="text-sm leading-6 text-muted-foreground">
                 {gamesPlayed > 0
                   ? `${recordLabel} across ${gamesPlayed} logged matches`
                   : "No battle logs linked yet"}
@@ -151,25 +151,25 @@ export function DeckCard({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-[var(--border)] pt-4">
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3">
+        <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
+          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
             <p className="ui-eyebrow">Record</p>
-            <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">
+            <p className="mt-1 text-sm font-medium text-card-foreground">
               {gamesPlayed > 0 ? recordLabel : "No logs yet"}
             </p>
           </div>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3">
+          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
             <p className="ui-eyebrow">Deck lists</p>
-            <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">{deckListCount}</p>
+            <p className="mt-1 text-sm font-medium text-card-foreground">{deckListCount}</p>
           </div>
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-[var(--border)] pt-4">
+        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-4">
           <div className="space-y-1">
             <p className="ui-eyebrow">Last updated</p>
-            <p className="text-sm text-[var(--text-muted)]">{formatUpdatedDate(deck.updatedAt)}</p>
+            <p className="text-sm text-muted-foreground">{formatUpdatedDate(deck.updatedAt)}</p>
           </div>
-          <span className="ui-control-text text-[var(--color-brand)]">Open Deck</span>
+          <span className="ui-control-text text-primary">Open Deck</span>
         </div>
       </Card>
     </Link>

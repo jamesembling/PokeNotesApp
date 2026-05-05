@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
@@ -123,10 +124,7 @@ function StatsOverviewFallback() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: 8 }).map((_, index) => (
-        <div
-          className="h-24 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
-          key={index}
-        />
+        <Skeleton className="h-24 rounded-xl border border-border" key={index} />
       ))}
     </div>
   );
@@ -139,7 +137,7 @@ async function ArchetypeMatchupsTable() {
 
   if (matchups.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-6 text-sm text-[var(--text-muted)]">
+      <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
         No matchup stats yet. Import battle logs with identified opponent archetypes to build this table.
       </div>
     );
@@ -149,7 +147,7 @@ async function ArchetypeMatchupsTable() {
     <div className="overflow-x-auto">
       <table className="w-full min-w-[520px] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-[var(--border)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+          <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <th className="py-2 pr-3">Archetype</th>
             <th className="px-3 py-2 text-right">Record</th>
             <th className="px-3 py-2 text-right">Win Rate</th>
@@ -165,7 +163,7 @@ async function ArchetypeMatchupsTable() {
 
             return (
               <tr
-                className="border-b border-[var(--border)] last:border-b-0"
+                className="border-b border-border last:border-b-0"
                 key={matchup.matchupKey}
               >
                 <td className="py-2.5 pr-3">
@@ -176,18 +174,18 @@ async function ArchetypeMatchupsTable() {
                       size="xs"
                       sprites={matchup.opponentDeckSprites}
                     />
-                    <span className="truncate font-medium text-[var(--text-primary)]">
+                    <span className="truncate font-medium text-card-foreground">
                       {displayName || matchup.matchupKey}
                     </span>
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-[var(--text-primary)]">
+                <td className="px-3 py-2.5 text-right font-mono text-card-foreground">
                   {formatRecord(matchup.gamesWon, matchup.gamesLost)}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono font-semibold text-[var(--text-primary)]">
+                <td className="px-3 py-2.5 text-right font-mono font-semibold text-card-foreground">
                   {formatWinRate(matchup.winRate)}
                 </td>
-                <td className="py-2.5 pl-3 text-right font-mono text-[var(--text-muted)]">
+                <td className="py-2.5 pl-3 text-right font-mono text-muted-foreground">
                   {formatMetric(matchup.gamesPlayed)}
                 </td>
               </tr>
@@ -203,10 +201,7 @@ function ArchetypeMatchupsFallback() {
   return (
     <div className="grid gap-2">
       {Array.from({ length: 5 }).map((_, index) => (
-        <div
-          className="h-10 animate-pulse rounded-lg bg-[var(--bg-surface-alt)]"
-          key={index}
-        />
+        <Skeleton className="h-10 rounded-lg" key={index} />
       ))}
     </div>
   );

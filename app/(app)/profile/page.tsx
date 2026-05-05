@@ -35,7 +35,7 @@ export default async function ProfilePage() {
           <div className="space-y-2">
             <p className="ui-eyebrow">Trainer Profile</p>
             <h2 className="ui-section-title">Account Details</h2>
-            <p className="text-sm text-[var(--text-muted)]">
+            <p className="text-sm text-muted-foreground">
               Your PTCGL username is used to identify your side when importing battle
               logs.
             </p>
@@ -53,16 +53,16 @@ export default async function ProfilePage() {
 
             <dl className="grid gap-3 text-sm">
               <div className="flex items-start justify-between gap-4">
-                <dt className="text-[var(--text-muted)]">Email</dt>
-                <dd className="text-right text-[var(--text-primary)]">{profile.email || "Unknown"}</dd>
+                <dt className="text-muted-foreground">Email</dt>
+                <dd className="text-right text-card-foreground">{profile.email || "Unknown"}</dd>
               </div>
               <div className="flex items-start justify-between gap-4">
-                <dt className="text-[var(--text-muted)]">Role</dt>
-                <dd className="text-right text-[var(--text-primary)]">{profile.role}</dd>
+                <dt className="text-muted-foreground">Role</dt>
+                <dd className="text-right text-card-foreground">{profile.role}</dd>
               </div>
               <div className="flex items-start justify-between gap-4">
-                <dt className="text-[var(--text-muted)]">Avatar Color</dt>
-                <dd className="text-right capitalize text-[var(--text-primary)]">
+                <dt className="text-muted-foreground">Avatar Color</dt>
+                <dd className="text-right capitalize text-card-foreground">
                   {profile.avatarColor}
                 </dd>
               </div>
@@ -77,20 +77,20 @@ export default async function ProfilePage() {
 
             <dl className="grid gap-3 text-sm">
               <div className="flex items-start justify-between gap-4">
-                <dt className="text-[var(--text-muted)]">Account Created</dt>
-                <dd className="text-right text-[var(--text-primary)]">
+                <dt className="text-muted-foreground">Account Created</dt>
+                <dd className="text-right text-card-foreground">
                   {formatDateTime(profile.authAccountCreatedAt || profile.createdAt)}
                 </dd>
               </div>
               <div className="flex items-start justify-between gap-4">
-                <dt className="text-[var(--text-muted)]">Last Login</dt>
-                <dd className="text-right text-[var(--text-primary)]">
+                <dt className="text-muted-foreground">Last Login</dt>
+                <dd className="text-right text-card-foreground">
                   {formatDateTime(profile.lastLoginAt)}
                 </dd>
               </div>
               <div className="flex items-start justify-between gap-4">
-                <dt className="text-[var(--text-muted)]">Last Active</dt>
-                <dd className="text-right text-[var(--text-primary)]">
+                <dt className="text-muted-foreground">Last Active</dt>
+                <dd className="text-right text-card-foreground">
                   {formatDateTime(profile.lastActiveAt)}
                 </dd>
               </div>

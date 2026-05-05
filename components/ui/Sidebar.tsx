@@ -49,25 +49,25 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
   const initials = getInitials(profile.displayName);
 
   return (
-    <div className="border-t border-[var(--border)] pt-4">
+    <div className="border-t border-border pt-4">
       <Link
-        className="flex items-center gap-3 rounded-lg px-1 py-1 transition hover:bg-[var(--bg-surface-alt)]"
+        className="flex items-center gap-3 rounded-lg px-1 py-1 transition hover:bg-muted"
         href="/profile"
         prefetch={false}
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] text-sm font-semibold text-[var(--text-primary)]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-card-foreground">
           {initials}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+          <p className="truncate text-sm font-semibold text-card-foreground">
             {profile.displayName}
           </p>
-          <p className="truncate text-xs text-[var(--text-muted)]">{profile.email}</p>
+          <p className="truncate text-xs text-muted-foreground">{profile.email}</p>
         </div>
       </Link>
       {profile.isAdmin ? (
         <Link
-          className="mt-3 flex items-center rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
+          className="mt-3 flex items-center rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted hover:text-card-foreground"
           href="/admin/dashboard"
           prefetch={false}
         >
@@ -82,7 +82,7 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
 export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-[var(--border)] bg-[var(--bg-surface)] min-[860px]:flex">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-card min-[860px]:flex">
         <div className="flex w-full flex-col px-4 py-6">
           <div className="flex items-center justify-between gap-3">
             <Link

@@ -44,7 +44,7 @@ function TournamentSummaryRow({
     <div className="group/row space-y-2">
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <Link
-          className="group relative grid w-full grid-cols-1 gap-3 overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-4 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)] sm:grid-cols-[4rem_minmax(0,1.7fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_4.5rem_4.5rem] sm:items-center sm:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
+          className="group relative grid w-full grid-cols-1 gap-3 overflow-hidden rounded-[10px] border border-border bg-muted px-4 py-4 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4rem_minmax(0,1.7fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_4.5rem_4.5rem] sm:items-center sm:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
           href={`/tournaments/${tournament.id}`}
           prefetch={false}
           style={{
@@ -57,24 +57,24 @@ function TournamentSummaryRow({
           </div>
 
           <div className="min-w-0">
-            <p className="truncate text-[1.06rem] font-semibold leading-[1.25] tracking-[-0.015em] text-[var(--text-primary)]">
+            <p className="truncate text-[1.06rem] font-semibold leading-[1.25] tracking-[-0.015em] text-card-foreground">
               {tournament.name}
             </p>
           </div>
 
-          <div className="text-sm text-[var(--text-muted)] sm:text-base">
+          <div className="text-sm text-muted-foreground sm:text-base">
             {formatDayDate(tournament.dateFrom)}
           </div>
 
-          <div className="text-sm text-[var(--text-muted)] sm:text-base">
+          <div className="text-sm text-muted-foreground sm:text-base">
             {tournament.format || "No format"}
           </div>
 
-          <div className="text-sm font-semibold text-[var(--text-muted)] sm:text-base sm:text-center">
+          <div className="text-sm font-semibold text-muted-foreground sm:text-base sm:text-center">
             {placementLabel}
           </div>
 
-          <div className="font-display text-[1.05rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)] sm:text-right">
+          <div className="font-display text-[1.05rem] font-semibold tracking-[-0.03em] text-card-foreground sm:text-right">
             {getTournamentRecord(tournament.rounds)}
           </div>
         </Link>
@@ -84,7 +84,7 @@ function TournamentSummaryRow({
             <DropdownMenuTrigger asChild>
               <button
                 aria-label={`Open actions for ${tournament.name}`}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-card-foreground disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isDeleting}
                 type="button"
               >
@@ -148,7 +148,7 @@ export function TournamentSummaryList({
 
   if (tournaments.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface-alt)] p-6 text-sm text-[var(--text-muted)]">
+      <div className="rounded-xl border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">
         No tournaments yet. Create your first tournament to start tracking results.
       </div>
     );

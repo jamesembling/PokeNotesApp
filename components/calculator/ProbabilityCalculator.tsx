@@ -71,7 +71,7 @@ export function ProbabilityCalculator() {
     "h-[9.5rem] overflow-y-auto rounded-xl border p-4",
     analysis?.warnings.length || statusTone === "warn"
       ? "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
-      : "border-[var(--color-brand)]/15 bg-[var(--color-brand)]/5"
+      : "border-primary/15 bg-primary/5"
   ].join(" ");
 
   const setupCards = analysis?.setupRows ?? [];
@@ -186,7 +186,7 @@ export function ProbabilityCalculator() {
               <p className="ui-eyebrow">Deck Input</p>
               <div className="space-y-1">
                 <h2 className="ui-section-title">Paste a deck list</h2>
-                <p className="text-sm text-[var(--text-muted)]">
+                <p className="text-sm text-muted-foreground">
                   Paste a Limitless-format list to calculate opening-hand and prizing probabilities.
                 </p>
               </div>
@@ -200,7 +200,7 @@ export function ProbabilityCalculator() {
                 Deck List
               </label>
               <Textarea
-                className="h-[320px] w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm leading-6 text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                className="h-[320px] w-full resize-none rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
                 id="calculator-deck-input"
                 onChange={(event) => setDeckInput(event.target.value)}
                 placeholder="Paste your deck list here"
@@ -223,7 +223,7 @@ export function ProbabilityCalculator() {
               {showStatus ? (
                 <>
                 {analysis ? (
-                  <p className="text-sm leading-6 text-[var(--text-primary)]">
+                  <p className="text-sm leading-6 text-card-foreground">
                     Parsed {analysis.cards.length} unique cards: {analysis.totals.Pokemon} Pokemon,{" "}
                     {analysis.totals.Trainer} Trainer, {analysis.totals.Energy} Energy,{" "}
                     {analysis.totals.deck} cards total.
@@ -231,7 +231,7 @@ export function ProbabilityCalculator() {
                 ) : null}
 
                 {statusMessage ? (
-                  <p className="mt-2 text-sm font-medium leading-6 text-[var(--text-primary)]">
+                  <p className="mt-2 text-sm font-medium leading-6 text-card-foreground">
                     {statusMessage}
                   </p>
                 ) : null}
@@ -245,19 +245,19 @@ export function ProbabilityCalculator() {
                 ) : null}
                 </>
               ) : (
-                <p className="text-sm leading-6 text-[var(--text-muted)]">
+                <p className="text-sm leading-6 text-muted-foreground">
                   Paste a deck list and click Calculate to review parsed counts, warnings, and setup stats.
                 </p>
               )}
             </section>
           </div>
 
-          <div className="grid gap-5 xl:border-l xl:border-[var(--border)] xl:pl-6">
+          <div className="grid gap-5 xl:border-l xl:border-border xl:pl-6">
             <section className="grid gap-4">
               <div className="space-y-1">
                 <p className="ui-eyebrow">Opening Hand Risk</p>
                 <h2 className="ui-section-title">Mulligan Stats and Deck Visual</h2>
-                <p className="text-sm text-[var(--text-muted)]">
+                <p className="text-sm text-muted-foreground">
                   Review your opening-hand probabilities first, then scan the sorted 60-card visual below.
                 </p>
               </div>
@@ -280,11 +280,11 @@ export function ProbabilityCalculator() {
                 />
               </div>
 
-              <div className="rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 sm:p-5">
+              <div className="rounded-[24px] border border-border bg-muted p-4 sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="ui-eyebrow">Deck Visual</p>
-                    <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+                    <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-card-foreground">
                       60-Card Graphic
                     </h3>
                   </div>
@@ -295,7 +295,7 @@ export function ProbabilityCalculator() {
                   {analysis ? (
                     <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
                   ) : (
-                    <p className="text-sm leading-6 text-[var(--text-muted)]">
+                    <p className="text-sm leading-6 text-muted-foreground">
                       Card images will appear here after calculation.
                     </p>
                   )}
@@ -311,7 +311,7 @@ export function ProbabilityCalculator() {
             <div className="space-y-1">
               <p className="ui-eyebrow">Opening Hand Risk</p>
               <h2 className="ui-section-title">Mulligan Streak Calculator</h2>
-              <p className="text-sm text-[var(--text-muted)]">
+              <p className="text-sm text-muted-foreground">
                 {analysis
                   ? "Odds of repeated no-Basic opening hands."
                   : "Odds of repeated no-Basic opening hands will appear here after calculation."}
@@ -320,12 +320,12 @@ export function ProbabilityCalculator() {
 
             {analysis ? (
               <>
-                <p className="text-sm text-[var(--text-secondary)]">
+                <p className="text-sm text-foreground">
                   Basics in deck: <strong>{analysis.basicPokemonCount}</strong> out of <strong>60</strong>{" "}
                   cards.
                 </p>
-                <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]">
-                  <div className="ui-eyebrow grid grid-cols-3 gap-4 border-b border-[var(--border)] px-4 py-3">
+                <div className="overflow-hidden rounded-xl border border-border bg-muted">
+                  <div className="ui-eyebrow grid grid-cols-3 gap-4 border-b border-border px-4 py-3">
                     <span>Streak</span>
                     <span>Exact</span>
                     <span>At Least</span>
@@ -333,22 +333,22 @@ export function ProbabilityCalculator() {
                   <div className="divide-y divide-[var(--border)]">
                     {analysis.mulliganRows.map((row) => (
                       <div
-                        className="grid grid-cols-3 gap-4 px-4 py-3 text-sm text-[var(--text-secondary)]"
+                        className="grid grid-cols-3 gap-4 px-4 py-3 text-sm text-foreground"
                         key={row.streak}
                       >
-                        <span className="font-semibold text-[var(--text-primary)]">{row.streak}x</span>
+                        <span className="font-semibold text-card-foreground">{row.streak}x</span>
                         <span>{pct(row.exactThenPlayable)}</span>
                         <span>{pct(row.atLeast)}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-                <p className="text-xs text-[var(--text-muted)]">
+                <p className="text-xs text-muted-foreground">
                   Exact means that many mulligans, then your next hand is playable.
                 </p>
               </>
             ) : (
-              <p className="text-sm leading-6 text-[var(--text-muted)]">
+              <p className="text-sm leading-6 text-muted-foreground">
                 Calculate a deck list to populate mulligan streak probabilities.
               </p>
             )}
@@ -365,7 +365,7 @@ export function ProbabilityCalculator() {
 
             <div
               aria-label="Calculator views"
-              className="inline-grid grid-cols-2 gap-1 rounded-full bg-[var(--bg-surface-alt)] p-1"
+              className="inline-grid grid-cols-2 gap-1 rounded-full bg-muted p-1"
               role="tablist"
             >
               <button
@@ -373,8 +373,8 @@ export function ProbabilityCalculator() {
                 className={[
                   "ui-control-text rounded-full px-4 py-2 transition",
                   activeTab === "setup"
-                    ? "bg-[var(--color-brand)] text-[var(--text-inverse)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-card"
                 ].join(" ")}
                 onClick={() => setActiveTab("setup")}
                 role="tab"
@@ -387,8 +387,8 @@ export function ProbabilityCalculator() {
                 className={[
                   "ui-control-text rounded-full px-4 py-2 transition",
                   activeTab === "prizing"
-                    ? "bg-[var(--color-brand)] text-[var(--text-inverse)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-card"
                 ].join(" ")}
                 onClick={() => setActiveTab("prizing")}
                 role="tab"
@@ -417,7 +417,7 @@ export function ProbabilityCalculator() {
                 }))}
               />
             ) : (
-              <p className="text-sm leading-6 text-[var(--text-muted)]">
+              <p className="text-sm leading-6 text-muted-foreground">
                 No Pokemon cards were parsed for setup probabilities.
               </p>
             )
@@ -436,7 +436,7 @@ export function ProbabilityCalculator() {
               }))}
             />
           ) : (
-            <p className="text-sm leading-6 text-[var(--text-muted)]">
+            <p className="text-sm leading-6 text-muted-foreground">
               No cards were parsed for prizing probabilities.
             </p>
           )}
@@ -456,9 +456,9 @@ function ProbabilityComparisonTable({
   rows: Array<{ key: string; card: CalculatorCardGroup; metrics: ComparisonMetric[] }>;
 }) {
   return (
-    <div className="overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface-alt)]">
+    <div className="overflow-hidden rounded-[24px] border border-border bg-muted">
       <div
-        className="hidden border-b border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3 lg:grid lg:items-center lg:gap-4"
+        className="hidden border-b border-border bg-card px-5 py-3 lg:grid lg:items-center lg:gap-4"
         style={{ gridTemplateColumns: `minmax(17rem, 1.6fr) repeat(${columns.length}, minmax(0, 1fr))` }}
       >
         <div className="ui-eyebrow">Card</div>
@@ -509,17 +509,17 @@ function ProbabilityComparisonRow({
             {card.category === "Pokemon" ? (
               <CalculatorPokemonSprite name={card.name} pokemonOptions={pokemonOptions} />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
                 {card.category.slice(0, 1)}
               </div>
             )}
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h4 className="font-display text-[1.05rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                <h4 className="font-display text-[1.05rem] font-semibold tracking-[-0.025em] text-card-foreground">
                   {card.count}x {card.name}
                 </h4>
-                <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1 text-[0.72rem] font-semibold text-[var(--text-secondary)]">
+                <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[0.72rem] font-semibold text-foreground">
                   {card.category === "Pokemon" && card.stage ? card.stage : card.category}
                 </span>
               </div>
@@ -528,7 +528,7 @@ function ProbabilityComparisonRow({
 
           {metrics.map((metric, index) => (
             <div className="text-right" key={`${card.name}-${metric.label}-${index}`}>
-              <p className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+              <p className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-card-foreground">
                 {metric.value}
               </p>
             </div>
@@ -540,17 +540,17 @@ function ProbabilityComparisonRow({
             {card.category === "Pokemon" ? (
               <CalculatorPokemonSprite name={card.name} pokemonOptions={pokemonOptions} />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
                 {card.category.slice(0, 1)}
               </div>
             )}
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h4 className="font-display text-[1.05rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                <h4 className="font-display text-[1.05rem] font-semibold tracking-[-0.025em] text-card-foreground">
                   {card.count}x {card.name}
                 </h4>
-                <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1 text-[0.72rem] font-semibold text-[var(--text-secondary)]">
+                <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[0.72rem] font-semibold text-foreground">
                   {card.category === "Pokemon" && card.stage ? card.stage : card.category}
                 </span>
               </div>
@@ -559,9 +559,9 @@ function ProbabilityComparisonRow({
 
           <dl className={`grid gap-3 ${metrics.length > 2 ? "grid-cols-2" : "grid-cols-2"}`}>
             {metrics.map((metric, index) => (
-              <div className="rounded-[16px] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2.5" key={`${card.name}-${metric.label}-${index}`}>
+              <div className="rounded-[16px] border border-border bg-card px-3 py-2.5" key={`${card.name}-${metric.label}-${index}`}>
                 <dt className="ui-eyebrow">{metric.label}</dt>
-                <dd className="mt-1 font-display text-[1.02rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                <dd className="mt-1 font-display text-[1.02rem] font-semibold tracking-[-0.025em] text-card-foreground">
                   {metric.value}
                 </dd>
               </div>
@@ -584,24 +584,24 @@ function ProbabilityCompactGrid({
     <div className="grid gap-3 xl:grid-cols-2">
       {rows.map((row) => (
         <article
-          className="rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-4"
+          className="rounded-[20px] border border-border bg-muted px-4 py-4"
           key={row.key}
         >
           <div className="flex min-w-0 items-center gap-3">
             {row.card.category === "Pokemon" ? (
               <CalculatorPokemonSprite name={row.card.name} pokemonOptions={pokemonOptions} />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] text-[0.72rem] font-semibold text-[var(--text-muted)]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
                 {row.card.category.slice(0, 1)}
               </div>
             )}
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h4 className="font-display text-[1rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                <h4 className="font-display text-[1rem] font-semibold tracking-[-0.025em] text-card-foreground">
                   {row.card.count}x {row.card.name}
                 </h4>
-                <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1 text-[0.72rem] font-semibold text-[var(--text-secondary)]">
+                <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[0.72rem] font-semibold text-foreground">
                   {row.card.category === "Pokemon" && row.card.stage ? row.card.stage : row.card.category}
                 </span>
               </div>
@@ -611,11 +611,11 @@ function ProbabilityCompactGrid({
           <dl className="mt-4 grid grid-cols-4 gap-2">
             {row.metrics.map((metric, index) => (
               <div
-                className="rounded-[14px] border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-2 text-center"
+                className="rounded-[14px] border border-border bg-card px-2 py-2 text-center"
                 key={`${row.card.name}-${metric.label}-${index}`}
               >
                 <dt className="ui-eyebrow">{metric.label}</dt>
-                <dd className="mt-1 font-display text-[0.94rem] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">
+                <dd className="mt-1 font-display text-[0.94rem] font-semibold tracking-[-0.02em] text-card-foreground">
                   {metric.value}
                 </dd>
               </div>
@@ -644,7 +644,7 @@ function CalculatorPokemonSprite({
     return (
       <div
         aria-label={fallbackLabel}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-1 text-center text-[8px] font-semibold leading-tight text-[var(--text-muted)]"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card px-1 text-center text-[8px] font-semibold leading-tight text-muted-foreground"
       >
         {fallbackLabel}
       </div>
@@ -662,6 +662,7 @@ function CalculatorPokemonSprite({
       }}
       sizes="40px"
       src={src}
+      unoptimized
       width={40}
     />
   );

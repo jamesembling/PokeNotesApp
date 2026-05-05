@@ -9,10 +9,10 @@ export default function NotFound() {
         <Card className="space-y-4">
           <div className="space-y-2">
             <p className="ui-eyebrow">Not Found</p>
-            <h1 className="font-display text-3xl font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
+            <h1 className="font-display text-3xl font-semibold tracking-[-0.04em] text-card-foreground">
               That page does not exist in this workspace.
             </h1>
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-foreground">
               The route may have moved, or you may need to sign in before it becomes available.
             </p>
           </div>

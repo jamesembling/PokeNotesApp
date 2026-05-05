@@ -27,7 +27,7 @@ export function PageHeader({
   return (
     <header className="flex flex-col gap-4">
       <nav aria-label="Breadcrumb">
-        <ol className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
+        <ol className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           {breadcrumb.map((item, index) => {
             const isLast = index === breadcrumb.length - 1;
 
@@ -35,7 +35,7 @@ export function PageHeader({
               <li className="flex items-center gap-2" key={`${item.label}-${index}`}>
                 {item.href && !isLast ? (
                   <Link
-                    className="transition hover:text-[var(--color-brand)]"
+                    className="transition hover:text-primary"
                     href={item.href}
                     prefetch={false}
                   >
@@ -55,12 +55,12 @@ export function PageHeader({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             {hasTitle ? (
-              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--text-primary)] sm:text-4xl">
+              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl">
                 {title}
               </h1>
             ) : null}
             {subtitle ? (
-              <p className="max-w-[65ch] text-base leading-7 text-[var(--text-muted)]">{subtitle}</p>
+              <p className="max-w-[65ch] text-base leading-7 text-muted-foreground">{subtitle}</p>
             ) : null}
           </div>
 
@@ -68,7 +68,7 @@ export function PageHeader({
         </div>
       ) : null}
 
-      {showDivider ? <div className="border-b border-[var(--border)]" /> : null}
+      {showDivider ? <div className="border-b border-border" /> : null}
     </header>
   );
 }

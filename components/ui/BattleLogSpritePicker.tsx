@@ -38,7 +38,7 @@ function SpriteThumb({
 
   if (!slug) {
     return (
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-card text-xs text-muted-foreground">
         -
       </div>
     );
@@ -48,7 +48,7 @@ function SpriteThumb({
     return (
       <div
         aria-label={label}
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--bg-surface)] px-1 text-center text-[10px] font-semibold leading-tight text-[var(--text-muted)]"
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-card px-1 text-center text-[10px] font-semibold leading-tight text-muted-foreground"
       >
         {label}
       </div>
@@ -65,6 +65,7 @@ function SpriteThumb({
       }}
       sizes="48px"
       src={src}
+      unoptimized
       width={48}
     />
   );
@@ -220,7 +221,7 @@ function SpriteSearchSlot({
 
   const searchPanelContent = (
     <div
-      className={`grid gap-2 border border-[var(--border)] bg-[var(--bg-surface)] p-3 ${
+      className={`grid gap-2 border border-border bg-card p-3 ${
         isMobileInlinePanel
           ? "rounded-b-2xl rounded-t-none border-t-0 shadow-none"
           : "rounded-2xl shadow-[var(--shadow-lg)]"
@@ -232,7 +233,7 @@ function SpriteSearchSlot({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <Input
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 md:text-sm"
+          className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-base text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 md:text-sm"
           onChange={(event) => {
             setQuery(event.target.value);
             setIsOpen(true);
@@ -257,7 +258,7 @@ function SpriteSearchSlot({
         />
         <button
           aria-label="Close Pokemon search"
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-card-foreground"
           onClick={closeSearchEditor}
           type="button"
         >
@@ -266,7 +267,7 @@ function SpriteSearchSlot({
       </div>
 
       {isOpen && normalizePokemonSearchValue(query) ? (
-        <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)]">
+        <div className="overflow-hidden rounded-lg border border-border bg-muted">
           {filteredOptions.length > 0 ? (
             <div
               className="touch-pan-y overflow-y-auto py-2"
@@ -278,7 +279,7 @@ function SpriteSearchSlot({
             >
               {filteredOptions.map((option) => (
                 <button
-                  className="flex w-full touch-manipulation items-center gap-3 px-4 py-3 text-left transition hover:bg-[var(--bg-surface)]"
+                  className="flex w-full touch-manipulation items-center gap-3 px-4 py-3 text-left transition hover:bg-card"
                   key={option.slug}
                   onClick={() => {
                     commitQuerySelection(option.slug);
@@ -286,20 +287,20 @@ function SpriteSearchSlot({
                   type="button"
                 >
                   <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
-                  <span className="min-w-0 truncate text-base font-medium text-[var(--text-primary)] md:text-sm">
+                  <span className="min-w-0 truncate text-base font-medium text-card-foreground md:text-sm">
                     {option.label}
                   </span>
                 </button>
               ))}
             </div>
           ) : (
-            <div className="px-4 py-3 text-base text-[var(--text-muted)] md:text-sm">
+            <div className="px-4 py-3 text-base text-muted-foreground md:text-sm">
               No Pokemon found for &quot;{query}&quot;
             </div>
           )}
         </div>
       ) : (
-        <p className="px-1 text-sm text-[var(--text-muted)]">
+        <p className="px-1 text-sm text-muted-foreground">
           Start typing to search the Pokemon list.
         </p>
       )}
@@ -317,7 +318,7 @@ function SpriteSearchSlot({
     >
       <PopoverAnchor asChild>
         <div
-          className={`relative grid min-w-0 gap-2 border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 md:px-4 md:py-3 ${
+          className={`relative grid min-w-0 gap-2 border border-border bg-muted px-3 py-2.5 md:px-4 md:py-3 ${
             isMobileInlinePanel
               ? "z-30 rounded-t-lg rounded-b-none border-b-transparent"
               : isEditingSearch
@@ -339,21 +340,21 @@ function SpriteSearchSlot({
               {currentSlug ? (
                 <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
               ) : (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-card text-xs text-muted-foreground">
                   -
                 </div>
               )}
-              <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-[var(--text-primary)] md:text-sm">
+              <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-card-foreground md:text-sm">
                 {currentSlug ? getPokemonOptionLabel(currentSlug, pokemonOptions) : "Select pokemon..."}
               </span>
               {!currentSlug ? (
-                <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] -rotate-90" />
+                <ChevronIcon className="h-4 w-4 shrink-0 text-muted-foreground -rotate-90" />
               ) : null}
             </button>
             {currentSlug ? (
               <button
                 aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions)}`}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-card hover:text-card-foreground"
                 onClick={() => {
                   onChange(updateSpritesAtIndex(sprites, index, ""));
                   closeSearchEditor();
@@ -391,15 +392,15 @@ export function BattleLogSpritePicker({
     <section className="grid min-w-0 gap-3">
       <div className="flex min-w-0 items-start justify-between gap-3 md:gap-4">
         <div className="grid min-w-0 gap-1">
-          <p className="text-[0.95rem] font-semibold text-[var(--text-muted)] md:text-sm">{title}</p>
+          <p className="text-[0.95rem] font-semibold text-muted-foreground md:text-sm">{title}</p>
           {detectedLabel ? (
-            <p className="text-[0.95rem] leading-5 text-[var(--text-secondary)] md:text-sm">
+            <p className="text-[0.95rem] leading-5 text-foreground md:text-sm">
               Detected: {detectedLabel}
             </p>
           ) : null}
         </div>
         <button
-          className="inline-flex items-center gap-1 text-[0.9rem] font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] md:gap-2 md:text-sm"
+          className="inline-flex items-center gap-1 text-[0.9rem] font-medium text-foreground transition hover:text-card-foreground md:gap-2 md:text-sm"
           onClick={() => onChange(swapSpritePositions(sprites))}
           type="button"
         >

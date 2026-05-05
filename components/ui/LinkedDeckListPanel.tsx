@@ -44,12 +44,12 @@ export function LinkedDeckListPanel({
     <Card className="p-4 sm:p-5">
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-display m-0 text-[1.28rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+          <h3 className="font-display m-0 text-[1.28rem] font-semibold tracking-[-0.03em] text-card-foreground">
             Deck List
           </h3>
           {deckId ? (
             <Link
-              className="ui-control-text inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)]"
+              className="ui-control-text inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               href={`/decks/${deckId}`}
               prefetch={false}
             >
@@ -59,25 +59,25 @@ export function LinkedDeckListPanel({
         </div>
 
         <div className="min-w-0">
-          <h4 className="font-display m-0 text-[1.08rem] font-medium tracking-[-0.025em] text-[var(--text-muted)]">
+          <h4 className="font-display m-0 text-[1.08rem] font-medium tracking-[-0.025em] text-muted-foreground">
             {deckListName}
           </h4>
           {deckListNotes?.trim() ? (
-            <p className="mb-0 mt-2 text-[0.98rem] leading-7 text-[var(--text-muted)]">
+            <p className="mb-0 mt-2 text-[0.98rem] leading-7 text-muted-foreground">
               {deckListNotes.trim()}
             </p>
           ) : null}
           {!deckId && deckListFormat ? (
-            <p className="mb-0 mt-2 text-sm font-semibold text-[var(--text-muted)]">
+            <p className="mb-0 mt-2 text-sm font-semibold text-muted-foreground">
               {deckListFormat}
             </p>
           ) : null}
         </div>
 
         <details className="group pt-1">
-          <summary className="ui-control-text flex cursor-pointer list-none items-center justify-between gap-4 px-0 py-3 text-[var(--color-brand)] [&::-webkit-details-marker]:hidden">
+          <summary className="ui-control-text flex cursor-pointer list-none items-center justify-between gap-4 px-0 py-3 text-primary [&::-webkit-details-marker]:hidden">
             <span>View Full Deck List</span>
-            <span className="text-[var(--text-muted)]">
+            <span className="text-muted-foreground">
               <ChevronIcon />
             </span>
           </summary>
@@ -88,7 +88,7 @@ export function LinkedDeckListPanel({
             {sortedCards.length > 0 ? (
               <DeckListVisualGrid cards={sortedCards} />
             ) : (
-              <p className="text-sm text-[var(--text-secondary)]">
+              <p className="text-sm text-foreground">
                 No parsed cards are available for this deck list yet.
               </p>
             )}

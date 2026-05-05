@@ -144,7 +144,7 @@ export function InlineDeckMatchupHeaderControls({
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <label className="grid gap-1.5">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Matchup Favour
         </span>
         <AppSelect
@@ -170,7 +170,7 @@ export function InlineDeckMatchupHeaderControls({
       </label>
 
       <label className="grid gap-1.5">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Turn Preference
         </span>
         <AppSelect
@@ -194,7 +194,7 @@ export function InlineDeckMatchupHeaderControls({
       </label>
 
       <label className="grid gap-1.5">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Format
         </span>
         <AppSelect
@@ -222,7 +222,7 @@ export function InlineDeckMatchupHeaderControls({
               ? "text-[var(--color-loss)]"
               : saveStatus === "saved"
                 ? "text-[var(--color-win-strong)]"
-                : "text-[var(--text-muted)]"
+                : "text-muted-foreground"
           }`}
         >
           {statusLabel}

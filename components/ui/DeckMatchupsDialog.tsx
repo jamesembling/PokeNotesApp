@@ -41,16 +41,16 @@ export function DeckMatchupsDialog({
       </DialogTrigger>
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-0 shadow-[var(--shadow-lg)] sm:max-w-4xl"
+        className="flex max-h-[calc(100dvh-2rem)] max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-4xl"
         showCloseButton={false}
       >
-            <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-5 lg:px-8">
+            <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5 lg:px-8">
               <div className="min-w-0 space-y-2">
                 <p className="ui-eyebrow">Matchup Notes</p>
-                <DialogTitle className="text-[1.45rem] font-bold tracking-[-0.04em] text-[var(--text-primary)] sm:text-[1.8rem]">
+                <DialogTitle className="text-[1.45rem] font-bold tracking-[-0.04em] text-card-foreground sm:text-[1.8rem]">
                   All Matchups
                 </DialogTitle>
-                <DialogDescription className="text-sm text-[var(--text-secondary)]">
+                <DialogDescription className="text-sm text-foreground">
                   {matchups.length} saved matchup{matchups.length === 1 ? "" : "s"} for this deck.
                 </DialogDescription>
               </div>
@@ -62,14 +62,14 @@ export function DeckMatchupsDialog({
 
             <div className="min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-5 pr-8 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] lg:px-8 lg:pr-10">
               {orderedMatchups.length === 0 ? (
-                <p className="text-sm text-[var(--text-secondary)]">
+                <p className="text-sm text-foreground">
                   No matchups created yet for this deck.
                 </p>
               ) : (
                 <div className="flex min-w-0 flex-col gap-3">
                   {orderedMatchups.map((matchup) => (
                     <Link
-                      className="group flex min-w-0 items-center justify-between gap-4 rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-4 transition hover:border-[var(--color-brand)] hover:bg-[var(--bg-surface-alt)]"
+                      className="group flex min-w-0 items-center justify-between gap-4 rounded-[20px] border border-border bg-card px-4 py-4 transition hover:border-primary hover:bg-muted"
                       href={`/decks/${deckId}/matchups/${matchup.id}`}
                       key={matchup.id}
                       onClick={() => setIsOpen(false)}
@@ -83,16 +83,16 @@ export function DeckMatchupsDialog({
                           sprites={matchup.deckPokemon}
                         />
                         <div className="min-w-0 space-y-1">
-                          <p className="truncate font-display text-[1.02rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                          <p className="truncate font-display text-[1.02rem] font-semibold tracking-[-0.025em] text-card-foreground">
                             {matchup.deckName}
                           </p>
-                          <p className="text-sm text-[var(--text-muted)]">
+                          <p className="text-sm text-muted-foreground">
                             Updated {formatDate(matchup.updatedAt || matchup.createdAt)}
                           </p>
                         </div>
                       </div>
 
-                      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--color-brand)]">
+                      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-primary">
                         Open
                         <ChevronIcon className="h-4 w-4 -rotate-90" />
                       </span>

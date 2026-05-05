@@ -53,7 +53,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)] sm:w-auto sm:shrink-0"
+          ? "w-full whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)] sm:w-auto sm:shrink-0"
           : isDisabled
             ? "w-full whitespace-nowrap pointer-events-none sm:w-auto sm:shrink-0"
             : "w-full whitespace-nowrap sm:w-auto sm:shrink-0"
@@ -283,16 +283,16 @@ export function DeckListEditorDialog({
       </Button>
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-4xl sm:p-4 lg:p-5"
+        className="flex max-h-[calc(100dvh-2rem)] max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-4xl sm:p-4 lg:p-5"
         showCloseButton={false}
       >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
-              <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                  <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                  <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
                     {isEditing ? "Edit Deck List" : "New Deck List"}
                   </DialogTitle>
-                  <DialogDescription className="text-sm text-[var(--text-muted)]">
+                  <DialogDescription className="text-sm text-muted-foreground">
                     {step === "list" ? "Step 1 of 2 · Paste deck list" : "Step 2 of 2 · List details"}
                   </DialogDescription>
                 </div>
@@ -358,26 +358,26 @@ export function DeckListEditorDialog({
                             ? "bg-[rgba(31,138,98,0.14)] text-[var(--color-win-strong)]"
                             : summaryTone === "warning"
                               ? "bg-[rgba(213,87,75,0.12)] text-[var(--color-loss)]"
-                              : "bg-[var(--bg-surface-alt)] text-[var(--text-muted)]"
+                              : "bg-muted text-muted-foreground"
                         ].join(" ")}
                       >
                         {formatSummaryLabel(rawList)}
                       </span>
-                      <span className="text-sm text-[var(--text-muted)]">
+                      <span className="text-sm text-muted-foreground">
                         {formatSummaryMessage(rawList)}
                       </span>
                     </div>
 
                     {!isEditing && summary.total !== 60 ? (
-                      <p className="text-sm text-[var(--text-muted)]">
+                      <p className="text-sm text-muted-foreground">
                         Add Deck List continues once a complete 60-card list is detected.
                       </p>
                     ) : null}
 
                     <label className="grid gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">Deck list</span>
+                      <span className="text-sm font-semibold text-muted-foreground">Deck list</span>
                       <Textarea
-                        className="min-h-[320px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 font-mono text-[0.95rem] leading-6 text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                        className="min-h-[320px] w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-[0.95rem] leading-6 text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) => setRawList(event.target.value)}
                         required
                         spellCheck={false}
@@ -388,9 +388,9 @@ export function DeckListEditorDialog({
                 ) : (
                   <section className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">List name</span>
+                      <span className="text-sm font-semibold text-muted-foreground">List name</span>
                       <Input
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) => setListName(event.target.value)}
                         required
                         value={listName}
@@ -398,14 +398,14 @@ export function DeckListEditorDialog({
                     </label>
 
                     <label className="grid gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
+                      <span className="text-sm font-semibold text-muted-foreground">Format</span>
                       <FormatSelect onChange={setFormat} options={formatOptions} value={format} />
                     </label>
 
                     <label className="grid gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
+                      <span className="text-sm font-semibold text-muted-foreground">Date</span>
                       <Input
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) => setDate(event.target.value)}
                         type="date"
                         value={date}
@@ -413,41 +413,41 @@ export function DeckListEditorDialog({
                     </label>
 
                     <label className="grid gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">Created by</span>
+                      <span className="text-sm font-semibold text-muted-foreground">Created by</span>
                       <Input
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) => setCreatedBy(event.target.value)}
                         value={createdBy}
                       />
                     </label>
 
                     <label className="grid gap-2 md:col-span-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">Notes</span>
+                      <span className="text-sm font-semibold text-muted-foreground">Notes</span>
                       <Textarea
-                        className="min-h-[100px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                        className="min-h-[100px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) => setNotes(event.target.value)}
                         value={notes}
                       />
                     </label>
                     <div className="grid gap-2 md:col-span-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-sm font-semibold text-[var(--text-muted)]">
+                        <span className="text-sm font-semibold text-muted-foreground">
                           Visual deck list
                         </span>
                         <CopyDeckListButton text={rawList} />
                       </div>
                       {parsedCards.length > 0 ? (
-                        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
+                        <div className="rounded-xl border border-border bg-muted p-3">
                           <DeckListVisualGrid cards={parsedCards} />
                         </div>
                       ) : (
-                        <p className="text-sm text-[var(--text-muted)]">
+                        <p className="text-sm text-muted-foreground">
                           Paste card lines with set and number to preview the visual deck list.
                         </p>
                       )}
                     </div>
                     {!canSave ? (
-                      <p className="md:col-span-2 text-sm text-[var(--text-muted)]">
+                      <p className="md:col-span-2 text-sm text-muted-foreground">
                         Add a list name before saving.
                       </p>
                     ) : null}

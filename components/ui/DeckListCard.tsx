@@ -17,13 +17,13 @@ export function DeckListCard({
 
   return (
     <a
-      className="group relative block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)]"
+      className="group relative block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       href={cardUrl}
       rel="noreferrer"
       target="_blank"
     >
       <div className="relative overflow-visible" style={{ aspectRatio: "0.715" }}>
-        <div className="absolute inset-0 rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
+        <div className="absolute inset-0 rounded-lg border border-border bg-muted" />
         <Image
           alt={name}
           fill

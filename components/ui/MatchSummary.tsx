@@ -89,7 +89,7 @@ export function ProgressBar({
   const rightRatio = max > 0 ? Math.max(0, Math.min(50, (rightValue / max) * 50)) : 0;
 
   return (
-    <div className="relative h-2 w-full overflow-hidden rounded-full bg-[var(--bg-surface-alt)]">
+    <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
       <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--border)]" />
       <div
         className="absolute inset-y-0 right-1/2 rounded-l-full"
@@ -118,10 +118,10 @@ export function StatRow({ stat }: { stat: SummaryStat }) {
         <p className="text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-[var(--color-loss)]">
           {formatStatValue(stat.userValue)}
         </p>
-        <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)] sm:text-[0.72rem]">
+        <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[0.72rem]">
           {stat.label}
         </p>
-        <p className="text-right text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-[var(--color-brand)]">
+        <p className="text-right text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-primary">
           {formatStatValue(stat.opponentValue)}
         </p>
       </div>
@@ -156,10 +156,10 @@ function PlayerPanel({
     >
       <SpriteStrip className="gap-1.5" maxVisible={2} size="lg" sprites={sprites} />
       <div className="space-y-1">
-        <p className="truncate text-[0.98rem] font-semibold tracking-[-0.02em] text-[var(--text-primary)] sm:text-[1rem]">
+        <p className="truncate text-[0.98rem] font-semibold tracking-[-0.02em] text-card-foreground sm:text-[1rem]">
           {label}
         </p>
-        <p className="text-[0.72rem] uppercase tracking-[0.14em] text-[var(--text-muted)] sm:text-sm">
+        <p className="text-[0.72rem] uppercase tracking-[0.14em] text-muted-foreground sm:text-sm">
           {placement}
         </p>
       </div>
@@ -199,11 +199,11 @@ export function MatchSummary({
   ];
 
   return (
-    <section className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-5 py-5 sm:px-6 sm:py-6 lg:px-7">
+    <section className="overflow-hidden rounded-xl border border-border bg-card px-5 py-5 sm:px-6 sm:py-6 lg:px-7">
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1.5">
-            <h2 className="text-[1.85rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--text-primary)] sm:text-[2.15rem]">
+            <h2 className="text-[1.85rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground sm:text-[2.15rem]">
               Match Summary
             </h2>
           </div>
@@ -213,13 +213,13 @@ export function MatchSummary({
               {resultStyles.label}
             </p>
             <div className="flex flex-col items-start gap-3 lg:items-end">
-              <p className="text-sm text-[var(--text-muted)]">{timestampLabel}</p>
+              <p className="text-sm text-muted-foreground">{timestampLabel}</p>
               {actions ? <div className="flex flex-wrap items-center gap-3 lg:justify-end">{actions}</div> : null}
             </div>
           </div>
         </div>
 
-        <div className="border-t border-[var(--border)] pt-5">
+        <div className="border-t border-border pt-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-4 sm:gap-6 lg:flex lg:flex-row lg:items-center lg:gap-10">
             <PlayerPanel
               label={log.selfPlayerName}
@@ -228,14 +228,14 @@ export function MatchSummary({
             />
 
             <div className="flex flex-col items-center justify-center gap-1.5 self-center lg:gap-2">
-              <IconCircle className="h-9 w-9 border border-[var(--border)] bg-[var(--bg-surface-alt)] text-[0.72rem] font-semibold tracking-[0.12em] text-[var(--text-muted)] sm:h-11 sm:w-11 sm:text-sm">
+              <IconCircle className="h-9 w-9 border border-border bg-muted text-[0.72rem] font-semibold tracking-[0.12em] text-muted-foreground sm:h-11 sm:w-11 sm:text-sm">
                 VS
               </IconCircle>
               <div className="text-center">
-                <p className="text-[2rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)] sm:text-[2.55rem]">
+                <p className="text-[2rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground sm:text-[2.55rem]">
                   {log.totalTurns}
                 </p>
-                <p className="mt-1 text-[0.65rem] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)] sm:mt-1.5 sm:text-sm">
+                <p className="mt-1 text-[0.65rem] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:mt-1.5 sm:text-sm">
                   Total Turns
                 </p>
               </div>
@@ -250,7 +250,7 @@ export function MatchSummary({
           </div>
         </div>
 
-        <div className="relative border-t border-[var(--border)] pt-1">
+        <div className="relative border-t border-border pt-1">
           <div className="absolute bottom-0 left-1/2 top-0 hidden w-px -translate-x-1/2 bg-[var(--border)] lg:block" />
           <div className="divide-y divide-[var(--border)]">
             {stats.map((stat) => (

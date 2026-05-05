@@ -32,8 +32,8 @@ export function DeckRelatedLogsSectionFallback() {
         </div>
       </div>
       <div className="space-y-3">
-        <div className="h-24 rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
-        <div className="h-24 rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
+        <div className="h-24 rounded-[20px] border border-border bg-muted" />
+        <div className="h-24 rounded-[20px] border border-border bg-muted" />
       </div>
     </Card>
   );
@@ -42,9 +42,9 @@ export function DeckRelatedLogsSectionFallback() {
 export function DeckLogStatsGridFallback() {
   return (
     <div className="grid grid-cols-3 gap-2 sm:gap-4">
-      <div className="h-[86px] rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)] sm:h-[112px]" />
-      <div className="h-[86px] rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)] sm:h-[112px]" />
-      <div className="h-[86px] rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface-alt)] sm:h-[112px]" />
+      <div className="h-[86px] rounded-[20px] border border-border bg-muted sm:h-[112px]" />
+      <div className="h-[86px] rounded-[20px] border border-border bg-muted sm:h-[112px]" />
+      <div className="h-[86px] rounded-[20px] border border-border bg-muted sm:h-[112px]" />
     </div>
   );
 }
@@ -81,7 +81,7 @@ export async function DeckRelatedLogsSection({
       </div>
 
       {relatedLogs.length === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-foreground">
           No linked battle logs yet for this deck.
         </p>
       ) : (
@@ -92,8 +92,8 @@ export async function DeckRelatedLogsSection({
             ))}
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[var(--text-muted)]">
+          <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
               Showing the latest {relatedLogs.length} linked log
               {relatedLogs.length === 1 ? "" : "s"}.
             </p>

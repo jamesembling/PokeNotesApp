@@ -50,8 +50,8 @@ function SortHeaderButton({
         "inline-flex items-center gap-1 text-[0.72rem] font-semibold uppercase tracking-[0.22em] transition",
         align === "right" ? "justify-self-end text-right" : "text-left",
         active
-          ? "text-[var(--text-primary)]"
-          : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          ? "text-card-foreground"
+          : "text-muted-foreground hover:text-card-foreground"
       ].join(" ")}
       onClick={onClick}
       type="button"
@@ -158,20 +158,20 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
           <Card className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="hidden space-y-2 lg:block">
               <p className="ui-eyebrow">Deck Index</p>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--text-muted)]">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
                 <span>
-                  <strong className="font-semibold text-[var(--text-primary)]">{decks.length}</strong> decks
+                  <strong className="font-semibold text-card-foreground">{decks.length}</strong> decks
                 </span>
                 <span>
-                  <strong className="font-semibold text-[var(--text-primary)]">{totalDeckLists}</strong> saved
+                  <strong className="font-semibold text-card-foreground">{totalDeckLists}</strong> saved
                   lists
                 </span>
                 <span>
-                  <strong className="font-semibold text-[var(--text-primary)]">{trackedDecks}</strong> with
+                  <strong className="font-semibold text-card-foreground">{trackedDecks}</strong> with
                   linked logs
                 </span>
                 <span>
-                  <strong className="font-semibold text-[var(--text-primary)]">{totalMatches}</strong> matches
+                  <strong className="font-semibold text-card-foreground">{totalMatches}</strong> matches
                   tracked
                 </span>
               </div>
@@ -202,7 +202,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
         </div>
       ) : (
         <Card className="overflow-hidden p-0">
-          <div className="hidden border-b border-[var(--border)] bg-[var(--bg-surface-alt)] px-6 py-3 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(6.5rem,0.55fr)_minmax(7rem,0.65fr)_minmax(4.5rem,0.4fr)_minmax(7.5rem,0.6fr)_auto] md:items-center md:gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(7rem,0.55fr)_minmax(7.5rem,0.7fr)_minmax(5rem,0.4fr)_minmax(8rem,0.65fr)_auto]">
+          <div className="hidden border-b border-border bg-muted px-6 py-3 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(6.5rem,0.55fr)_minmax(7rem,0.65fr)_minmax(4.5rem,0.4fr)_minmax(7.5rem,0.6fr)_auto] md:items-center md:gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(7rem,0.55fr)_minmax(7.5rem,0.7fr)_minmax(5rem,0.4fr)_minmax(8rem,0.65fr)_auto]">
             <SortHeaderButton
               active={sort?.key === "deck"}
               direction={sort?.key === "deck" ? sort.direction : undefined}

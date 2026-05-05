@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -75,11 +76,11 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
 
         <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-sm text-foreground">
               The requested tournament is unavailable.
             </p>
             <Link
-              className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
+              className="text-sm font-medium text-primary transition hover:text-primary/90"
               href="/tournaments"
               prefetch={false}
             >
@@ -113,7 +114,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
               <TournamentEditAction tournament={tournament} userId={user.id} />
             </Suspense>
             <Link
-              className="text-sm font-medium text-[var(--color-brand)] transition hover:text-[var(--color-brand-hover)]"
+              className="text-sm font-medium text-primary transition hover:text-primary/90"
               href="/tournaments"
               prefetch={false}
             >
@@ -130,7 +131,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
               <SpriteStrip maxVisible={3} size="xl" sprites={tournament.deckSprites} />
               <div className="space-y-1">
                 <p className="ui-eyebrow">Deck</p>
-                <p className="font-display text-[1.15rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+                <p className="font-display text-[1.15rem] font-semibold tracking-[-0.03em] text-card-foreground">
                   {tournament.deckName || "No linked deck"}
                 </p>
               </div>
@@ -147,9 +148,9 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
           </div>
 
           {tournament.notes ? (
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4">
+            <div className="rounded-2xl border border-border bg-muted p-4">
               <p className="ui-eyebrow">Tournament Notes</p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[var(--text-secondary)]">
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
                 {tournament.notes}
               </p>
             </div>
@@ -170,7 +171,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="ui-eyebrow">Rounds</p>
-            <h2 className="font-display text-[1.3rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+            <h2 className="font-display text-[1.3rem] font-semibold tracking-[-0.03em] text-card-foreground">
               Tournament Rounds
             </h2>
           </div>
@@ -183,8 +184,8 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         </div>
 
         {rounds.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-surface-alt)] p-6">
-            <p className="text-sm text-[var(--text-secondary)]">
+          <div className="rounded-2xl border border-dashed border-border bg-muted p-6">
+            <p className="text-sm text-foreground">
               No rounds recorded yet. Add round one to start tracking the run.
             </p>
           </div>
@@ -256,10 +257,10 @@ function TournamentEditButtonFallback() {
 
 function TournamentDeckListPanelFallback() {
   return (
-    <Card className="rounded-[24px] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
+    <Card className="rounded-[24px] bg-card p-4 shadow-[var(--shadow-sm)] sm:p-5">
       <div className="grid gap-4">
-        <div className="h-5 w-28 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
-        <div className="h-16 animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)]" />
+        <Skeleton className="h-5 w-28" />
+        <Skeleton className="h-16 rounded-2xl border border-border" />
       </div>
     </Card>
   );

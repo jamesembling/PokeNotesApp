@@ -54,16 +54,16 @@ type LogDetailBodyResponse = {
 };
 
 const backLinkClassName =
-  "inline-flex items-center justify-center px-1 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--color-brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)]";
+  "inline-flex items-center justify-center px-1 py-2 text-sm font-medium text-muted-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 const mobileBackLinkClassName =
-  "ui-control-text inline-flex min-w-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-center text-[var(--text-secondary)] transition hover:bg-[var(--bg-surface-alt)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)]";
+  "ui-control-text inline-flex min-w-0 items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-center text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 const feedbackClassName: Record<ShareTone, string> = {
   success:
     "rounded-[18px] border border-[rgba(31,138,98,0.22)] bg-[linear-gradient(180deg,rgba(31,138,98,0.18),rgba(31,138,98,0.1))] px-4 py-3 text-sm font-semibold text-[var(--color-win)] shadow-[var(--shadow-sm)]",
   info:
-    "rounded-[18px] border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm font-semibold text-[var(--text-muted)] shadow-[var(--shadow-sm)]",
+    "rounded-[18px] border border-border bg-muted px-4 py-3 text-sm font-semibold text-muted-foreground shadow-[var(--shadow-sm)]",
   error:
     "rounded-[18px] border border-[rgba(213,87,75,0.22)] bg-[linear-gradient(180deg,rgba(213,87,75,0.18),rgba(213,87,75,0.1))] px-4 py-3 text-sm font-semibold text-[var(--color-loss)] shadow-[var(--shadow-sm)]"
 };

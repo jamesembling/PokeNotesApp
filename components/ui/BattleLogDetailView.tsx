@@ -55,7 +55,7 @@ const actionTagToneClassNames: Record<BattleLogActionTag, string> = {
     "border-[rgba(220,38,38,0.18)] bg-[rgba(220,38,38,0.1)] text-[rgb(185,28,28)]",
   ko: "border-[rgba(244,63,94,0.18)] bg-[rgba(244,63,94,0.1)] text-[rgb(190,24,93)]",
   other:
-    "border-[var(--border)] bg-[var(--bg-surface-alt)] text-[var(--text-muted)]"
+    "border-border bg-muted text-muted-foreground"
 };
 
 function ActionTag({
@@ -104,11 +104,11 @@ function ActionRow({
 function renderIndentedLine(text: string, level = 1, keyValue?: string) {
   return (
     <div
-      className={level === 1 ? "pl-5" : "ml-6 border-l border-[var(--border)] pl-6"}
+      className={level === 1 ? "pl-5" : "ml-6 border-l border-border pl-6"}
       key={keyValue}
     >
       <p className="m-0 flex items-start gap-3">
-        <span className="text-[var(--text-muted)]">{level === 1 ? "•" : "◦"}</span>
+        <span className="text-muted-foreground">{level === 1 ? "•" : "◦"}</span>
         <span>{text}</span>
       </p>
     </div>
@@ -227,7 +227,7 @@ function LogSectionCard({
   const isSetupSection = SETUP_SECTION_LABELS.has(String(section.title || "").trim().toLowerCase());
   const effectivePlayer = isSetupSection ? "" : String(section.player || "").trim();
   const toneClassName = !effectivePlayer
-    ? "bg-[var(--bg-surface)]"
+    ? "bg-card"
     : effectivePlayer === selfPlayerName
       ? "bg-[rgba(37,99,235,0.08)] dark:bg-[rgba(37,99,235,0.13)]"
       : "bg-[rgba(220,38,38,0.06)] dark:bg-[rgba(220,38,38,0.12)]";
@@ -239,7 +239,7 @@ function LogSectionCard({
   return (
     <article
       className={[
-        "rounded-xl border border-[var(--border)] px-4 py-4 text-[var(--text-primary)] sm:px-6",
+        "rounded-xl border border-border px-4 py-4 text-card-foreground sm:px-6",
         toneClassName
       ].join(" ")}
       style={{
@@ -249,11 +249,11 @@ function LogSectionCard({
     >
       <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h3 className="font-display m-0 text-[1.34rem] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
+          <h3 className="font-display m-0 text-[1.34rem] font-semibold tracking-[-0.03em] text-card-foreground">
             {effectivePlayer ? `${effectivePlayer}'s Turn` : section.title}
           </h3>
           {orderedPlayerNames.length > 0 ? (
-            <div className="mt-1.5 grid gap-1 text-[0.98rem] leading-6 text-[var(--text-muted)]">
+            <div className="mt-1.5 grid gap-1 text-[0.98rem] leading-6 text-muted-foreground">
               {orderedPlayerNames.map((playerName) => {
                 const prizes = section.prizesAfterTurn?.[playerName];
                 const previousPrizes = previousSection?.prizesAfterTurn?.[playerName];
@@ -275,7 +275,7 @@ function LogSectionCard({
         </div>
 
         {!isSetupSection && turnNumber ? (
-          <span className="inline-flex items-center rounded-lg bg-[var(--bg-surface-alt)] px-3 py-1.5 text-[0.9rem] font-semibold text-[var(--text-muted)]">
+          <span className="inline-flex items-center rounded-lg bg-muted px-3 py-1.5 text-[0.9rem] font-semibold text-muted-foreground">
             Turn {turnNumber}
           </span>
         ) : null}
@@ -288,24 +288,24 @@ function LogSectionCard({
           if (action.details.length > 0) {
             return (
               <details
-                className="group border-b border-[var(--border)] py-3 last:border-b-0"
+                className="group border-b border-border py-3 last:border-b-0"
                 key={`${action.title}-${actionIndex}`}
               >
                 <summary className="cursor-pointer list-none px-1 [&::-webkit-details-marker]:hidden">
                   <div className="flex items-start justify-between gap-4">
                     <ActionRow resolved={resolvedActionTag} title={action.title}>
-                      <div className="text-[0.98rem] leading-7 text-[var(--text-primary)]">
+                      <div className="text-[0.98rem] leading-7 text-card-foreground">
                         {stripTerminalPeriod(action.title)}
                       </div>
                     </ActionRow>
-                    <span className="pt-1 text-[var(--text-muted)]">
+                    <span className="pt-1 text-muted-foreground">
                       <ChevronIcon />
                     </span>
                   </div>
                 </summary>
                 <div className="mt-2 grid gap-2 px-1 sm:grid-cols-[5.35rem_minmax(0,1fr)] sm:gap-3">
                   <div className="hidden sm:block" />
-                  <div className="grid gap-2 text-[0.92rem] leading-6 text-[var(--text-muted)]">
+                  <div className="grid gap-2 text-[0.92rem] leading-6 text-muted-foreground">
                     {renderBattleLogActionDetails(action.details)}
                   </div>
                 </div>
@@ -315,11 +315,11 @@ function LogSectionCard({
 
           return (
             <div
-              className="border-b border-[var(--border)] px-1 py-3 text-[1rem] leading-7 text-[var(--text-primary)] last:border-b-0"
+              className="border-b border-border px-1 py-3 text-[1rem] leading-7 text-card-foreground last:border-b-0"
               key={`${action.title}-${actionIndex}`}
             >
               <ActionRow resolved={resolvedActionTag} title={action.title}>
-                <div className="text-[0.98rem] leading-7 text-[var(--text-primary)]">
+                <div className="text-[0.98rem] leading-7 text-card-foreground">
                   {stripTerminalPeriod(action.title)}
                 </div>
               </ActionRow>
@@ -426,15 +426,15 @@ export function BattleLogDetailView({
       ) : isBodyLoading ? (
         <Card>
           <div className="flex flex-col gap-3" role="status">
-            <div className="h-4 w-40 rounded bg-[var(--bg-surface-alt)]" />
-            <div className="h-3 w-full rounded bg-[var(--bg-surface-alt)]" />
-            <div className="h-3 w-11/12 rounded bg-[var(--bg-surface-alt)]" />
-            <div className="h-3 w-4/5 rounded bg-[var(--bg-surface-alt)]" />
+            <div className="h-4 w-40 rounded bg-muted" />
+            <div className="h-3 w-full rounded bg-muted" />
+            <div className="h-3 w-11/12 rounded bg-muted" />
+            <div className="h-3 w-4/5 rounded bg-muted" />
           </div>
         </Card>
       ) : (
         <Card>
-          <div className="whitespace-pre-wrap font-mono text-[0.92rem] leading-6 text-[var(--text-primary)]">
+          <div className="whitespace-pre-wrap font-mono text-[0.92rem] leading-6 text-card-foreground">
             {log.rawLog || "No parsed battle log stored for this record."}
           </div>
         </Card>

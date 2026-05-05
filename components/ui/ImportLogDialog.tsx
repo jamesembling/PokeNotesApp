@@ -49,7 +49,7 @@ const SUCCESS_CLOSE_DELAY_MS = 250;
 
 function ResultChip({ children }: { children: string }) {
   return (
-    <span className="inline-flex max-w-full items-center truncate rounded-full border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)]">
+    <span className="inline-flex max-w-full items-center truncate rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-foreground">
       {children}
     </span>
   );
@@ -70,7 +70,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)]"
+          ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)]"
           : isSaving
             ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none"
             : "w-full md:w-[148px] md:shrink-0 whitespace-nowrap"
@@ -382,7 +382,7 @@ export function ImportLogDialog({
       return (
         <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
-            <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+            <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
               Import PTCGL Log
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -416,17 +416,17 @@ export function ImportLogDialog({
       <div className="relative flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <button
           aria-label="Close review"
-          className="absolute right-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)] md:hidden"
+          className="absolute right-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-card-foreground md:hidden"
           onClick={closeDialog}
           type="button"
         >
           <CloseIcon className="h-5 w-5" />
         </button>
         <div className="min-w-0 pr-12 text-center md:pr-0 md:text-left">
-          <DialogTitle className="text-[1.3rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.55rem] md:text-[1.9rem]">
+          <DialogTitle className="text-[1.3rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.55rem] md:text-[1.9rem]">
             Review Battle Log
           </DialogTitle>
-          <DialogDescription className="mt-2 text-sm leading-6 text-[var(--text-muted)] md:hidden">
+          <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground md:hidden">
             Confirm the parsed result, then save it to your battle logs.
           </DialogDescription>
         </div>
@@ -456,10 +456,10 @@ export function ImportLogDialog({
       ) : null}
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-1rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--bg-surface)] p-0 shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-3xl sm:rounded-[28px]"
+        className="flex max-h-[calc(100dvh-1rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[24px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-3xl sm:rounded-[28px]"
         showCloseButton={false}
       >
-                <div className="shrink-0 border-b border-[var(--border)] px-4 py-4 sm:px-6 lg:px-8">
+                <div className="shrink-0 border-b border-border px-4 py-4 sm:px-6 lg:px-8">
                   {renderHeader()}
                 </div>
 
@@ -574,29 +574,29 @@ export function ImportLogDialog({
                     title={"Opponent's deck"}
                   />
 
-                  <section className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4 md:hidden">
+                  <section className="grid gap-3 rounded-2xl border border-border bg-muted p-4 md:hidden">
                     <label className="grid gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
+                      <span className="text-sm font-semibold text-muted-foreground">Format</span>
                       <FormatSelect
-                        className="bg-[var(--bg-surface)]"
+                        className="bg-card"
                         onChange={setSelectedFormat}
                         options={formatOptions}
                         value={selectedFormat}
                       />
                     </label>
 
-                    <details className="group rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
-                      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
+                    <details className="group rounded-xl border border-border bg-card">
+                      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-card-foreground [&::-webkit-details-marker]:hidden">
                         <span className="flex items-center justify-between gap-3">
                           More details
-                          <ChevronIcon className="h-4 w-4 text-[var(--text-muted)] transition group-open:rotate-180" />
+                          <ChevronIcon className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
                         </span>
                       </summary>
-                      <div className="grid gap-3 border-t border-[var(--border)] px-4 py-4">
+                      <div className="grid gap-3 border-t border-border px-4 py-4">
                         <label className="grid gap-2">
-                          <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
+                          <span className="text-sm font-semibold text-muted-foreground">Date</span>
                           <Input
-                            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                            className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                             onChange={(event) => setSelectedDate(event.target.value)}
                             type="date"
                             value={selectedDate}
@@ -604,7 +604,7 @@ export function ImportLogDialog({
                         </label>
 
                         <label className="grid gap-2">
-                          <span className="text-sm font-semibold text-[var(--text-muted)]">
+                          <span className="text-sm font-semibold text-muted-foreground">
                             Deck Strategy
                           </span>
                           <AppSelect
@@ -621,7 +621,7 @@ export function ImportLogDialog({
                         </label>
 
                         <label className="grid gap-2">
-                          <span className="text-sm font-semibold text-[var(--text-muted)]">
+                          <span className="text-sm font-semibold text-muted-foreground">
                             Deck List
                           </span>
                           <AppSelect
@@ -649,9 +649,9 @@ export function ImportLogDialog({
 
                   <section className="hidden gap-4 xl:grid-cols-2 md:grid">
                     <label className="grid min-w-0 gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">Date</span>
+                      <span className="text-sm font-semibold text-muted-foreground">Date</span>
                       <Input
-                        className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface-alt)] px-3 py-2.5 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) => setSelectedDate(event.target.value)}
                         type="date"
                         value={selectedDate}
@@ -662,19 +662,19 @@ export function ImportLogDialog({
                     </label>
 
                     <label className="grid min-w-0 gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
+                      <span className="text-sm font-semibold text-muted-foreground">Format</span>
                       <FormatSelect
                         onChange={setSelectedFormat}
                         options={formatOptions}
                         value={selectedFormat}
                       />
-                      <span className="min-h-[20px] text-xs text-[var(--text-muted)]">
+                      <span className="min-h-[20px] text-xs text-muted-foreground">
                         Defaulting to Latest Legal Format
                       </span>
                     </label>
 
                     <label className="grid min-w-0 gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">
+                      <span className="text-sm font-semibold text-muted-foreground">
                         Deck Strategy
                       </span>
                       <AppSelect
@@ -691,7 +691,7 @@ export function ImportLogDialog({
                     </label>
 
                     <label className="grid min-w-0 gap-2">
-                      <span className="text-sm font-semibold text-[var(--text-muted)]">
+                      <span className="text-sm font-semibold text-muted-foreground">
                         Deck List
                       </span>
                       <AppSelect
@@ -715,8 +715,8 @@ export function ImportLogDialog({
                     </label>
                   </section>
 
-                  <section className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)] p-4">
-                    <p className="text-base font-semibold text-[var(--text-primary)]">
+                  <section className="grid gap-3 rounded-2xl border border-border bg-muted p-4">
+                    <p className="text-base font-semibold text-card-foreground">
                       {review.selfPlayerName}&apos;s Result: {resultLabel}
                     </p>
                     <div className="hidden flex-wrap gap-2 md:flex">
@@ -749,9 +749,9 @@ export function ImportLogDialog({
                   ) : null}
 
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">Battle log</span>
+                    <span className="text-sm font-semibold text-muted-foreground">Battle log</span>
                     <Textarea
-                      className="min-h-[280px] w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                      className="min-h-[280px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
                       onPaste={() => {
                         shouldAutoParseImmediatelyRef.current = true;
                       }}
@@ -771,14 +771,14 @@ export function ImportLogDialog({
                     >
                       {isPasting ? "Pasting..." : "Paste From Clipboard"}
                     </Button>
-                    <p className="text-sm text-[var(--text-muted)]">
+                    <p className="text-sm text-muted-foreground">
                       Paste a PTCGL battle log to auto-review, or enter a Training Court URL and use
                       the button above.
                     </p>
                   </div>
 
                   {isParsing && !isTrainingCourtUrl ? (
-                    <p className="rounded-xl border border-[var(--color-brand)]/15 bg-[var(--color-brand)]/5 px-4 py-3 text-sm text-[var(--color-brand)]">
+                    <p className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-primary">
                       Reviewing battle log…
                     </p>
                   ) : null}

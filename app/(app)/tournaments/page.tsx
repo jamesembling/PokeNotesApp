@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import { Card } from "@/components/ui/Card";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -56,10 +57,10 @@ async function TournamentsContent({
         <Card>
           <div className="flex flex-col gap-3">
             <p className="ui-eyebrow">Tournaments Unavailable</p>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+            <h2 className="text-base font-semibold text-card-foreground">
               Tournament tracking is temporarily unavailable
             </h2>
-            <p className="text-sm leading-6 text-[var(--text-secondary)]">
+            <p className="text-sm leading-6 text-foreground">
               We could not load tournament data right now. Please try again later or contact the
               app owner if this keeps happening.
             </p>
@@ -75,10 +76,10 @@ async function TournamentsContent({
     return (
       <Card>
         <div className="flex flex-col gap-3">
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">
+          <h2 className="text-base font-semibold text-card-foreground">
             No tournaments saved yet
           </h2>
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-sm text-foreground">
             Start with an event you already played or set up an upcoming tournament so you can
             track each round as you go.
           </p>
@@ -95,10 +96,7 @@ function TournamentsContentFallback() {
     <Card>
       <div className="grid gap-4">
         {Array.from({ length: 3 }).map((_, index) => (
-          <div
-            className="h-28 animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
-            key={index}
-          />
+          <Skeleton className="h-28 rounded-2xl border border-border" key={index} />
         ))}
       </div>
     </Card>

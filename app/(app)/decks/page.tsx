@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import { Card } from "@/components/ui/Card";
 import { DeckStrategyCollection } from "@/components/ui/DeckStrategyCollection";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
@@ -48,7 +49,7 @@ async function DecksContent({
   if (decks.length === 0) {
     return (
       <Card>
-        <p className="text-sm text-[var(--text-secondary)]">No decks saved yet.</p>
+        <p className="text-sm text-foreground">No decks saved yet.</p>
       </Card>
     );
   }
@@ -61,17 +62,14 @@ function DecksContentFallback() {
     <Card className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-2">
-          <div className="h-3 w-20 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
-          <div className="h-5 w-44 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-5 w-44" />
         </div>
-        <div className="h-10 w-36 animate-pulse rounded-xl bg-[var(--bg-surface-alt)]" />
+        <Skeleton className="h-10 w-36 rounded-xl" />
       </div>
       <div className="grid gap-4">
         {Array.from({ length: 3 }).map((_, index) => (
-          <div
-            className="h-28 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
-            key={index}
-          />
+          <Skeleton className="h-28 rounded-xl border border-border" key={index} />
         ))}
       </div>
     </Card>

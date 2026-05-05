@@ -501,7 +501,7 @@ export function LogsManager({
           {managementModeActive ? (
             <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-3">
               <button
-                className="ui-control-text text-[var(--text-muted)] transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="ui-control-text text-muted-foreground transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!canDeleteSelected}
                 onClick={handleDeleteSelected}
                 type="button"
@@ -510,10 +510,10 @@ export function LogsManager({
               </button>
 
               {visibleLogs.length > 0 ? (
-                <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-[var(--text-muted)]">
+                <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-muted-foreground">
                   <Checkbox
                     checked={allSelected}
-                    className="h-5 w-5 cursor-pointer rounded border-[var(--border)] bg-[var(--bg-surface)]"
+                    className="h-5 w-5 cursor-pointer rounded border-border bg-card"
                     onCheckedChange={toggleSelectAll}
                   />
                   <span>Select All In View</span>
@@ -523,16 +523,16 @@ export function LogsManager({
           ) : null}
 
           {managementModeActive ? (
-            <div className="grid gap-3 border-t border-[var(--border)] pt-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
+            <div className="grid gap-3 border-t border-border pt-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
               {deckOptionsError ? (
                 <p className="text-sm text-[var(--color-loss)] md:col-span-2 xl:col-span-3">
                   {deckOptionsError}
                 </p>
               ) : null}
               <label className="grid gap-2">
-                <span className="text-sm font-semibold text-[var(--text-muted)]">Deck Strategy</span>
+                <span className="text-sm font-semibold text-muted-foreground">Deck Strategy</span>
                 <AppSelect
-                  className="min-h-[3rem] bg-[var(--bg-surface)] px-4 py-3"
+                  className="min-h-[3rem] bg-card px-4 py-3"
                   onChange={setSelectedDeckId}
                   options={[
                     {
@@ -549,9 +549,9 @@ export function LogsManager({
               </label>
 
               <label className="grid gap-2">
-                <span className="text-sm font-semibold text-[var(--text-muted)]">Deck List</span>
+                <span className="text-sm font-semibold text-muted-foreground">Deck List</span>
                 <AppSelect
-                  className="min-h-[3rem] bg-[var(--bg-surface)] px-4 py-3"
+                  className="min-h-[3rem] bg-card px-4 py-3"
                   disabled={!selectedDeck || availableDeckLists.length === 0}
                   onChange={setSelectedDeckListId}
                   options={[
@@ -582,7 +582,7 @@ export function LogsManager({
                 </Button>
               </div>
 
-              <p className="text-sm text-[var(--text-muted)] md:col-span-2 xl:col-span-3">
+              <p className="text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
                 Apply one saved deck list to the {selectedCount} selected battle log
                 {selectedCount === 1 ? "" : "s"}.
               </p>
@@ -612,7 +612,7 @@ export function LogsManager({
         <div>
           {groups.map((group, index) => (
             <details
-              className="group border-b border-[var(--border)] last:border-b-0"
+              className="group border-b border-border last:border-b-0"
               key={group.date}
               onToggle={(event) => toggleGroup(group.date, event.currentTarget.open)}
               open={openGroupDates.includes(group.date) || (index === 0 && openGroupDates.length === 0)}
@@ -627,19 +627,19 @@ export function LogsManager({
                     <div>
                       <div className="flex items-start justify-between gap-3 sm:block">
                         <div>
-                          <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-[var(--text-primary)]">
+                          <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-card-foreground">
                             {formatDayDate(group.date)}
                           </h3>
-                          <p className="mt-1 text-sm text-[var(--text-muted)]">
+                          <p className="mt-1 text-sm text-muted-foreground">
                             {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
                           </p>
                         </div>
 
                         <div className="text-right sm:hidden">
-                          <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
+                          <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
                             {group.wins}-{group.losses}
                           </p>
-                          <div className="mt-1 flex items-center justify-end gap-2 text-[0.8rem] text-[var(--text-muted)]">
+                          <div className="mt-1 flex items-center justify-end gap-2 text-[0.8rem] text-muted-foreground">
                             <span>{group.logs.length} total</span>
                             <ChevronIcon className="h-4 w-4 shrink-0 transition group-open:rotate-180" />
                           </div>
@@ -657,20 +657,20 @@ export function LogsManager({
                   </div>
                   <div className="hidden items-center self-center lg:flex lg:gap-2.5">
                     <div className="text-right">
-                      <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)]">
+                      <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
                         {group.wins}-{group.losses}
                       </p>
-                      <p className="mt-1 text-[0.95rem] leading-none text-[var(--text-muted)]">
+                      <p className="mt-1 text-[0.95rem] leading-none text-muted-foreground">
                         {group.logs.length} total
                       </p>
                     </div>
-                    <ChevronIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition group-open:rotate-180" />
+                    <ChevronIcon className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                   </div>
                 </div>
               </summary>
 
               {openGroupDates.includes(group.date) ? (
-                <div className="flex flex-col gap-3 border-t border-[var(--border)] pb-5 pt-4">
+                <div className="flex flex-col gap-3 border-t border-border pb-5 pt-4">
                   {group.logs.map((log) => (
                     <div className="flex flex-col gap-3" key={log.id}>
                       <LogRow
@@ -701,7 +701,7 @@ export function LogsManager({
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface-alt)] p-6 text-sm text-[var(--text-muted)]">
+        <div className="rounded-xl border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">
           {canLoadMore
             ? "No logs appear in the currently loaded 7-day window yet. Load more logs to keep going further back."
             : "No battle logs yet. Import your first PTCGL log to start tracking results."}

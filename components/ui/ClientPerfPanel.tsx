@@ -149,69 +149,69 @@ export function ClientPerfPanel({
   }
 
   return (
-    <section className="rounded-[20px] border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+    <section className="rounded-[20px] border border-border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="ui-eyebrow">Perf Debug</p>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
+          <p className="mt-1 text-sm text-muted-foreground">
             Enabled by <code>?perf=1</code>. Remove with <code>?perf=0</code>.
           </p>
         </div>
-        <div className="text-right text-xs text-[var(--text-muted)]">
+        <div className="text-right text-xs text-muted-foreground">
           <p>Nav: {snapshot.navigationType ?? "n/a"}</p>
           <p>Renders: {renderCountRef.current}</p>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-[16px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
+        <div className="rounded-[16px] border border-border bg-muted p-3">
           <p className="ui-eyebrow">LCP</p>
-          <p className="mt-2 font-display text-[1.2rem] font-semibold text-[var(--text-primary)]">
+          <p className="mt-2 font-display text-[1.2rem] font-semibold text-card-foreground">
             {formatMetric(snapshot.lcp)}
           </p>
         </div>
-        <div className="rounded-[16px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
+        <div className="rounded-[16px] border border-border bg-muted p-3">
           <p className="ui-eyebrow">Last Long Task</p>
-          <p className="mt-2 font-display text-[1.2rem] font-semibold text-[var(--text-primary)]">
+          <p className="mt-2 font-display text-[1.2rem] font-semibold text-card-foreground">
             {formatMetric(snapshot.lastLongTaskDuration)}
           </p>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
+          <p className="mt-1 text-xs text-muted-foreground">
             Started at {formatMetric(snapshot.lastLongTaskStartedAt)}
           </p>
         </div>
-        <div className="rounded-[16px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
+        <div className="rounded-[16px] border border-border bg-muted p-3">
           <p className="ui-eyebrow">Blocking Estimate</p>
-          <p className="mt-2 font-display text-[1.2rem] font-semibold text-[var(--text-primary)]">
+          <p className="mt-2 font-display text-[1.2rem] font-semibold text-card-foreground">
             {formatMetric(snapshot.totalBlockingTimeEstimate)}
           </p>
         </div>
-        <div className="rounded-[16px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
+        <div className="rounded-[16px] border border-border bg-muted p-3">
           <p className="ui-eyebrow">Device</p>
-          <p className="mt-2 font-display text-[1.2rem] font-semibold text-[var(--text-primary)]">
+          <p className="mt-2 font-display text-[1.2rem] font-semibold text-card-foreground">
             {snapshot.hardwareConcurrency ?? "n/a"} cores
           </p>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
+          <p className="mt-1 text-xs text-muted-foreground">
             Memory: {snapshot.deviceMemory ?? "n/a"} GB
           </p>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-[16px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
+        <div className="rounded-[16px] border border-border bg-muted p-3">
           <p className="ui-eyebrow">Visible Logs</p>
-          <p className="mt-2 font-display text-[1.2rem] font-semibold text-[var(--text-primary)]">
+          <p className="mt-2 font-display text-[1.2rem] font-semibold text-card-foreground">
             {visibleLogCount}
           </p>
         </div>
-        <div className="rounded-[16px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
+        <div className="rounded-[16px] border border-border bg-muted p-3">
           <p className="ui-eyebrow">Expanded Groups</p>
-          <p className="mt-2 font-display text-[1.2rem] font-semibold text-[var(--text-primary)]">
+          <p className="mt-2 font-display text-[1.2rem] font-semibold text-card-foreground">
             {expandedGroupCount}/{totalGroupCount}
           </p>
         </div>
-        <div className="rounded-[16px] border border-[var(--border)] bg-[var(--bg-surface-alt)] p-3">
+        <div className="rounded-[16px] border border-border bg-muted p-3">
           <p className="ui-eyebrow">Interpretation</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             High LCP suggests slow first paint. Large long tasks suggest main-thread jank during
             scrolling or interaction.
           </p>

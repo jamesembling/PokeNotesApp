@@ -133,7 +133,7 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
           linkedStrategyLabel={sharedLog.payload.linkedStrategyLabel}
           log={sharedLog.payload.log}
           notice={
-            <div className="rounded-[20px] border border-[rgba(43,109,246,0.14)] bg-[linear-gradient(180deg,var(--bg-surface),rgba(43,109,246,0.08))] px-4 py-3 text-sm leading-6 text-[var(--text-primary)] shadow-[var(--shadow-sm)]">
+            <div className="rounded-[20px] border border-[rgba(43,109,246,0.14)] bg-[linear-gradient(180deg,var(--bg-surface),rgba(43,109,246,0.08))] px-4 py-3 text-sm leading-6 text-card-foreground shadow-[var(--shadow-sm)]">
               This battle log was opened from a time-limited share link. Linked deck-list details
               are included in this snapshot when they were attached at share time. This link expires
               on {expiryLabel}.

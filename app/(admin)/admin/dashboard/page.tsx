@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import { AdminUsersTable } from "@/components/ui/AdminUsersTable";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -56,33 +57,33 @@ async function AdminSummaryCards({
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <Card className="space-y-1">
         <p className="ui-eyebrow">Users</p>
-        <p className="text-3xl font-semibold text-[var(--text-primary)]">{overview.userCount}</p>
-        <p className="text-sm text-[var(--text-muted)]">{overview.adminCount} admin accounts</p>
+        <p className="text-3xl font-semibold text-card-foreground">{overview.userCount}</p>
+        <p className="text-sm text-muted-foreground">{overview.adminCount} admin accounts</p>
       </Card>
       <Card className="space-y-1">
         <p className="ui-eyebrow">Pokemon Catalog</p>
-        <p className="text-3xl font-semibold text-[var(--text-primary)]">
+        <p className="text-3xl font-semibold text-card-foreground">
           {overview.pokemonCatalogCount}
         </p>
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="text-sm text-muted-foreground">
           Synced {formatDateTime(overview.pokemonLastSyncedAt)}
         </p>
       </Card>
       <Card className="space-y-1">
         <p className="ui-eyebrow">Archetypes</p>
-        <p className="text-3xl font-semibold text-[var(--text-primary)]">
+        <p className="text-3xl font-semibold text-card-foreground">
           {overview.archetypeCatalogCount}
         </p>
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="text-sm text-muted-foreground">
           Synced {formatDateTime(overview.archetypeLastSyncedAt)}
         </p>
       </Card>
       <Card className="space-y-1">
         <p className="ui-eyebrow">Excluded Archetypes</p>
-        <p className="text-3xl font-semibold text-[var(--text-primary)]">
+        <p className="text-3xl font-semibold text-card-foreground">
           {overview.excludedArchetypeCount}
         </p>
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="text-sm text-muted-foreground">
           Hidden from automatic deck identification
         </p>
       </Card>
@@ -98,7 +99,7 @@ async function AdminUsersSection() {
       <div className="space-y-2">
         <p className="ui-eyebrow">User Management</p>
         <h2 className="ui-section-title">Accounts and Roles</h2>
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="text-sm text-muted-foreground">
           Review trainer accounts, see recent activity, and change access levels.
           {roleUpdatesEnabled
             ? " Changes apply immediately."
@@ -120,9 +121,9 @@ function AdminSummaryCardsFallback() {
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: 4 }).map((_, index) => (
         <Card className="space-y-3" key={index}>
-          <div className="h-3 w-24 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
-          <div className="h-9 w-16 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
-          <div className="h-4 w-40 animate-pulse rounded bg-[var(--bg-surface-alt)]" />
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-9 w-16" />
+          <Skeleton className="h-4 w-40" />
         </Card>
       ))}
     </div>
@@ -135,17 +136,14 @@ function AdminUsersSectionFallback() {
       <div className="space-y-2">
         <p className="ui-eyebrow">User Management</p>
         <h2 className="ui-section-title">Accounts and Roles</h2>
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="text-sm text-muted-foreground">
           Loading trainer accounts and role controls...
         </p>
       </div>
 
       <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            className="h-20 animate-pulse rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)]"
-            key={index}
-          />
+          <Skeleton className="h-20 rounded-xl border border-border" key={index} />
         ))}
       </div>
     </Card>

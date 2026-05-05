@@ -7,7 +7,7 @@ type StatCardProps = {
 };
 
 const valueClasses: Record<NonNullable<StatCardProps["valueColor"]>, string> = {
-  default: "text-[var(--text-primary)]",
+  default: "text-card-foreground",
   win: "text-[var(--color-win)]",
   loss: "text-[var(--color-loss)]"
 };
@@ -22,7 +22,7 @@ export function StatCard({
   return (
     <div
       className={[
-        "grid h-full rounded-xl bg-[var(--bg-surface-alt)]",
+        "grid h-full rounded-xl bg-muted",
         size === "compact" ? "p-3 sm:p-4" : "p-4",
         detail
           ? "grid-rows-[2rem_auto_1fr]"
@@ -33,7 +33,7 @@ export function StatCard({
     >
       <p
         className={[
-          "font-medium uppercase leading-tight text-[var(--text-muted)]",
+          "font-medium uppercase leading-tight text-muted-foreground",
           size === "compact" ? "text-[0.68rem] tracking-[0.18em] sm:text-xs sm:tracking-wide" : "text-xs tracking-wide"
         ].join(" ")}
       >
@@ -48,7 +48,7 @@ export function StatCard({
       >
         {value}
       </p>
-      {detail ? <p className="mt-1 self-end text-xs text-[var(--text-muted)]">{detail}</p> : null}
+      {detail ? <p className="mt-1 self-end text-xs text-muted-foreground">{detail}</p> : null}
     </div>
   );
 }

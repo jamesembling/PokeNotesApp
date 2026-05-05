@@ -104,7 +104,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full pointer-events-none whitespace-nowrap bg-[var(--color-win-strong)] text-[var(--text-inverse)] opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[9.5rem] sm:shrink-0"
+          ? "w-full pointer-events-none whitespace-nowrap bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[9.5rem] sm:shrink-0"
           : "w-full whitespace-nowrap sm:w-[9.5rem] sm:shrink-0"
       }
       disabled={isSaving}
@@ -331,13 +331,13 @@ export function TournamentEditorDialog({
       </Button>
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
         showCloseButton={false}
       >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
-            <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
                   {isEditing ? "Edit Tournament" : "New Tournament"}
                 </DialogTitle>
                 <DialogDescription className="sr-only">
@@ -373,7 +373,7 @@ export function TournamentEditorDialog({
 
             {isEditing && showDeleteConfirmation ? (
               <div className="mb-4 rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4">
-                <p className="text-sm text-[var(--text-primary)]">
+                <p className="text-sm text-card-foreground">
                   Delete this tournament and all of its rounds?
                 </p>
                 <div className="mt-3 grid gap-3 sm:flex sm:flex-wrap">
@@ -406,11 +406,11 @@ export function TournamentEditorDialog({
               <input name="redirectTo" type="hidden" value={pathname} />
 
               <div className="grid gap-2">
-                <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-name">
+                <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-name">
                   Tournament information
                 </label>
                 <Input
-                  className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
+                  className="rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
                   defaultValue={tournament?.name ?? ""}
                   id="tournament-name"
                   name="name"
@@ -420,7 +420,7 @@ export function TournamentEditorDialog({
 
               <div className="grid gap-4 md:grid-cols-3">
                 <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">Category</span>
+                  <span className="text-sm font-semibold text-card-foreground">Category</span>
                   <AppSelect
                     className="min-h-[3rem] rounded-xl px-4 py-3"
                     id="tournament-category"
@@ -433,7 +433,7 @@ export function TournamentEditorDialog({
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">Placement</span>
+                  <span className="text-sm font-semibold text-card-foreground">Placement</span>
                   <AppSelect
                     className="min-h-[3rem] rounded-xl px-4 py-3"
                     id="tournament-placement"
@@ -446,7 +446,7 @@ export function TournamentEditorDialog({
                 </label>
 
                 <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">Format</span>
+                  <span className="text-sm font-semibold text-card-foreground">Format</span>
                   <FormatSelect
                     id="tournament-format"
                     name="format"
@@ -460,11 +460,11 @@ export function TournamentEditorDialog({
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-date-from">
+                  <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-date-from">
                     Start date
                   </label>
                   <Input
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
+                    className="rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
                     defaultValue={tournament?.dateFrom ?? ""}
                     id="tournament-date-from"
                     name="dateFrom"
@@ -473,11 +473,11 @@ export function TournamentEditorDialog({
                 </div>
 
                 <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-date-to">
+                  <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-date-to">
                     End date
                   </label>
                   <Input
-                    className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
+                    className="rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
                     defaultValue={tournament?.dateTo ?? ""}
                     id="tournament-date-to"
                     name="dateTo"
@@ -488,7 +488,7 @@ export function TournamentEditorDialog({
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-linked-deck">
+                  <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-linked-deck">
                     Link to deck strategy
                   </label>
                   <AppSelect
@@ -508,7 +508,7 @@ export function TournamentEditorDialog({
                 </div>
 
                 <div className="grid gap-2">
-                  <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-linked-deck-list">
+                  <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-linked-deck-list">
                     Saved deck list
                   </label>
                   <AppSelect
@@ -552,11 +552,11 @@ export function TournamentEditorDialog({
               />
 
               <div className="grid gap-2">
-                <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="tournament-notes">
+                <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-notes">
                   Notes
                 </label>
                 <Textarea
-                  className="min-h-32 rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--color-brand)]"
+                  className="min-h-32 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
                   defaultValue={tournament?.notes ?? ""}
                   id="tournament-notes"
                   name="notes"

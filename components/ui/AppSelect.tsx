@@ -59,7 +59,7 @@ export function AppSelect({
       >
         <SelectTrigger
           className={[
-            "h-auto min-h-[2.75rem] w-full bg-[var(--bg-surface-alt)] px-3 py-2.5 text-[var(--text-primary)]",
+            "h-auto min-h-[2.75rem] w-full bg-muted px-3 py-2.5 text-card-foreground",
             className
           ]
             .filter(Boolean)

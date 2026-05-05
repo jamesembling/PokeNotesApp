@@ -70,7 +70,7 @@ function LogRowComponent({
   const mobileMetadata = formatDayDate(log.date);
 
   const cardClasses = [
-    "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border px-3 py-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)] sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
+    "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border px-3 py-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
     rowClasses
   ].join(" ");
 
@@ -96,19 +96,19 @@ function LogRowComponent({
       </div>
 
       <div className="min-w-0 text-center sm:text-left">
-        <p className="block truncate text-[0.92rem] font-semibold leading-[1.15] tracking-[-0.015em] text-[var(--text-primary)] sm:whitespace-normal sm:text-[1.06rem] sm:leading-[1.25] sm:truncate">
+        <p className="block truncate text-[0.92rem] font-semibold leading-[1.15] tracking-[-0.015em] text-card-foreground sm:whitespace-normal sm:text-[1.06rem] sm:leading-[1.25] sm:truncate">
           {log.result} vs {opponentDeckName}
           {log.opponentPlayerName ? (
             <span className="hidden font-normal sm:inline"> ({log.opponentPlayerName})</span>
           ) : null}
         </p>
-        <p className="mt-0.5 truncate text-[0.8rem] leading-4 text-[var(--text-muted)] sm:mt-1 sm:text-base sm:leading-6">
+        <p className="mt-0.5 truncate text-[0.8rem] leading-4 text-muted-foreground sm:mt-1 sm:text-base sm:leading-6">
           <span className="sm:hidden">{mobileMetadata}</span>
           <span className="hidden sm:inline">{metadata}</span>
         </p>
       </div>
 
-      <div className="hidden w-full text-center text-[0.95rem] font-semibold text-[var(--text-muted)] sm:block sm:text-[1rem]">
+      <div className="hidden w-full text-center text-[0.95rem] font-semibold text-muted-foreground sm:block sm:text-[1rem]">
         {goOrderLabel ?? ""}
       </div>
 
@@ -147,12 +147,12 @@ function LogRowComponent({
         {content}
       </Link>
 
-      <div className="flex items-center justify-end gap-1 text-[var(--text-muted)]">
+      <div className="flex items-center justify-end gap-1 text-muted-foreground">
         <label className="inline-flex cursor-pointer items-center justify-center p-2">
           <span className="sr-only">Select battle log</span>
           <Checkbox
             checked={selected}
-            className="h-5 w-5 cursor-pointer rounded border-[var(--border)] bg-[var(--bg-surface)]"
+            className="h-5 w-5 cursor-pointer rounded border-border bg-card"
             onCheckedChange={onToggleSelected}
           />
         </label>
@@ -161,7 +161,7 @@ function LogRowComponent({
           <DropdownMenuTrigger asChild>
             <button
               aria-label="Open battle log actions"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-surface-alt)] hover:text-[var(--text-primary)]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-card-foreground"
               type="button"
             >
               <MoreHorizontalIcon className="h-4 w-4" />

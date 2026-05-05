@@ -182,13 +182,13 @@ export function DeckMatchupEditorDialog({
       )}
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
         showCloseButton={false}
       >
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
-              <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                  <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-[var(--text-primary)] sm:text-[1.9rem]">
+                  <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
                     {isEditing ? "Edit Matchup" : "New Matchup"}
                   </DialogTitle>
                   <DialogDescription className="sr-only">
@@ -238,9 +238,9 @@ export function DeckMatchupEditorDialog({
 
                 <section className="grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">Deck Name</span>
+                    <span className="text-sm font-semibold text-muted-foreground">Deck Name</span>
                     <Input
-                      className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface-alt)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                      className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
                       name="deckName"
                       onChange={(event) => setDeckName(event.target.value)}
                       placeholder="Dragapult / Dusknoir, Gardevoir ex, Miraidon..."
@@ -249,7 +249,7 @@ export function DeckMatchupEditorDialog({
                   </label>
 
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">Format</span>
+                    <span className="text-sm font-semibold text-muted-foreground">Format</span>
                     <FormatSelect
                       className="rounded-xl px-4 py-3"
                       onChange={setSelectedFormat}
@@ -263,7 +263,7 @@ export function DeckMatchupEditorDialog({
                   </label>
 
                   <section className="grid gap-2 md:col-span-2">
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">
+                    <span className="text-sm font-semibold text-muted-foreground">
                       Turn Preference
                     </span>
                     <div
@@ -275,8 +275,8 @@ export function DeckMatchupEditorDialog({
                         aria-checked={goPreference === "First"}
                         className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                           goPreference === "First"
-                            ? "border-[var(--color-brand)] bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-[var(--text-primary)]"
-                            : "border-[var(--border)] bg-[var(--bg-surface-alt)] text-[var(--text-muted)]"
+                            ? "border-primary bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-card-foreground"
+                            : "border-border bg-muted text-muted-foreground"
                         }`}
                         onClick={() => setGoPreference("First")}
                         role="radio"
@@ -286,14 +286,14 @@ export function DeckMatchupEditorDialog({
                           aria-hidden="true"
                           className={`flex h-5 w-5 items-center justify-center rounded-full border ${
                             goPreference === "First"
-                              ? "border-[var(--color-brand)]"
+                              ? "border-primary"
                               : "border-[var(--border-strong)]"
                           }`}
                         >
                           <span
                             className={`h-2.5 w-2.5 rounded-full ${
                               goPreference === "First"
-                                ? "bg-[var(--color-brand)]"
+                                ? "bg-primary"
                                 : "bg-transparent"
                             }`}
                           />
@@ -305,8 +305,8 @@ export function DeckMatchupEditorDialog({
                         aria-checked={goPreference === "Second"}
                         className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                           goPreference === "Second"
-                            ? "border-[var(--color-brand)] bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-[var(--text-primary)]"
-                            : "border-[var(--border)] bg-[var(--bg-surface-alt)] text-[var(--text-muted)]"
+                            ? "border-primary bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-card-foreground"
+                            : "border-border bg-muted text-muted-foreground"
                         }`}
                         onClick={() => setGoPreference("Second")}
                         role="radio"
@@ -316,14 +316,14 @@ export function DeckMatchupEditorDialog({
                           aria-hidden="true"
                           className={`flex h-5 w-5 items-center justify-center rounded-full border ${
                             goPreference === "Second"
-                              ? "border-[var(--color-brand)]"
+                              ? "border-primary"
                               : "border-[var(--border-strong)]"
                           }`}
                         >
                           <span
                             className={`h-2.5 w-2.5 rounded-full ${
                               goPreference === "Second"
-                                ? "bg-[var(--color-brand)]"
+                                ? "bg-primary"
                                 : "bg-transparent"
                             }`}
                           />
@@ -334,7 +334,7 @@ export function DeckMatchupEditorDialog({
                   </section>
 
                   <label className="grid gap-2 md:col-span-2">
-                    <span className="text-sm font-semibold text-[var(--text-muted)]">Matchup Favour</span>
+                    <span className="text-sm font-semibold text-muted-foreground">Matchup Favour</span>
                     <AppSelect
                       className="min-h-[3rem] rounded-xl px-4 py-3"
                       onChange={(value) => setMatchupFavor(value as MatchupFavorability)}

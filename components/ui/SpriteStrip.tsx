@@ -45,7 +45,7 @@ function SpriteStripItem({
       <div
         aria-label={prettifyPokemonSlug(slug)}
         className={[
-          "flex items-center justify-center rounded-full bg-[var(--bg-surface-alt)] px-1 text-center font-semibold leading-tight text-[var(--text-muted)]",
+          "flex items-center justify-center rounded-full bg-muted px-1 text-center font-semibold leading-tight text-muted-foreground",
           size === "lg" ? "text-[9px]" : size === "xs" ? "text-[7px]" : "text-[8px]",
           sizeClasses[size]
         ].join(" ")}
@@ -67,6 +67,7 @@ function SpriteStripItem({
         sizes={`${sizeValues[size]}px`}
         src={src}
         style={{ height: "100%", width: "100%" }}
+        unoptimized
         width={sizeValues[size]}
       />
     </span>
@@ -92,7 +93,7 @@ function SpriteStripContent({
       <div className={stripClassName}>
         <div
           className={[
-            "flex items-center justify-center rounded-full bg-[var(--bg-surface-alt)] text-xs text-[var(--text-muted)]",
+            "flex items-center justify-center rounded-full bg-muted text-xs text-muted-foreground",
             sizeClasses[size]
           ].join(" ")}
         >
