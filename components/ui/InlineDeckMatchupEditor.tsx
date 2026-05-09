@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { updateDeckMatchupAction } from "@/app/(app)/decks/actions";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Textarea } from "@/components/shadcn/textarea";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import type { DeckMatchup } from "@/types/index";
 
 type InlineDeckMatchupEditorProps = {
@@ -131,9 +132,12 @@ export function InlineDeckMatchupEditor({
       </div>
 
       {errorMessage ? (
-        <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-          {errorMessage}
-        </p>
+        <Alert
+          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+          variant="destructive"
+        >
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">

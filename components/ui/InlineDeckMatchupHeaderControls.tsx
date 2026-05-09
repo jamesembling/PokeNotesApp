@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateDeckMatchupAction } from "@/app/(app)/decks/actions";
-import { AppSelect } from "@/components/ui/AppSelect";
+import { AppSelect } from "@/components/shadcn/app-select";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import type { DeckMatchup, GoPreference, MatchupFavorability } from "@/types/index";
 

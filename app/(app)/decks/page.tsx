@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Skeleton } from "@/components/shadcn/skeleton";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import { DeckStrategyCollection } from "@/components/ui/DeckStrategyCollection";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";

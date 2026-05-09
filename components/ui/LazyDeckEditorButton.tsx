@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { DeckEditorDialogProps } from "@/components/ui/DeckEditorDialog";
 import type { Deck, PokemonOption } from "@/types/index";
@@ -10,7 +10,7 @@ import type { Deck, PokemonOption } from "@/types/index";
 type LazyDeckEditorButtonProps = {
   deck?: Deck;
   triggerLabel: string;
-  triggerVariant?: "primary" | "secondary" | "ghost";
+  triggerVariant?: "default" | "outline" | "ghost";
 };
 
 const DynamicDeckEditorDialog = dynamic<DeckEditorDialogProps>(
@@ -23,7 +23,7 @@ const DynamicDeckEditorDialog = dynamic<DeckEditorDialogProps>(
 export function LazyDeckEditorButton({
   deck,
   triggerLabel,
-  triggerVariant = "primary"
+  triggerVariant = "default"
 }: LazyDeckEditorButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { updateAdminUserRoleAction } from "@/app/(admin)/admin/dashboard/actions";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import type { Role } from "@/types/index";
 
 function RoleButton({
@@ -24,7 +24,7 @@ function RoleButton({
       className="min-w-[7rem] justify-center"
       disabled={disabled || isActive}
       onClick={() => onChange(targetRole)}
-      variant={isActive ? "primary" : "secondary"}
+      variant={isActive ? "default" : "outline"}
     >
       {targetRole === "admin" ? "Admin" : "User"}
     </Button>

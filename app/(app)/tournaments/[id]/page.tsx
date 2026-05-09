@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Skeleton } from "@/components/shadcn/skeleton";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/shadcn/badge";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -242,14 +242,14 @@ async function TournamentEditAction({
       decks={decks}
       tournament={tournament}
       triggerLabel="Edit Tournament"
-      triggerVariant="secondary"
+      triggerVariant="outline"
     />
   );
 }
 
 function TournamentEditButtonFallback() {
   return (
-    <Button disabled variant="secondary">
+    <Button disabled variant="outline">
       Edit Tournament
     </Button>
   );

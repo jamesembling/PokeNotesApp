@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createDeckMatchupAction, updateDeckMatchupAction } from "@/app/(app)/decks/actions";
-import { AppSelect } from "@/components/ui/AppSelect";
+import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,7 @@ type DeckMatchupEditorDialogProps = {
   matchup?: DeckMatchup;
   pokemonOptions: PokemonOption[];
   triggerLabel: string;
-  triggerVariant?: "primary" | "secondary" | "ghost";
+  triggerVariant?: "default" | "outline" | "ghost";
   usePlainButton?: boolean;
 };
 
@@ -52,7 +52,7 @@ export function DeckMatchupEditorDialog({
   matchup,
   pokemonOptions,
   triggerLabel,
-  triggerVariant = "secondary",
+  triggerVariant = "outline",
   usePlainButton = false
 }: DeckMatchupEditorDialogProps) {
   const router = useRouter();
@@ -172,9 +172,9 @@ export function DeckMatchupEditorDialog({
       open={isOpen}
     >
       {usePlainButton ? (
-        <button className={className} onClick={openDialog} type="button">
+        <Button className={className} onClick={openDialog} type="button" variant="ghost">
           {children ?? triggerLabel}
-        </button>
+        </Button>
       ) : (
         <Button className={className} onClick={openDialog} variant={triggerVariant}>
           {children ?? triggerLabel}
@@ -196,7 +196,7 @@ export function DeckMatchupEditorDialog({
                   </DialogDescription>
                 </div>
                 <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-                  <Button onClick={closeDialog} type="button" variant="secondary">
+                  <Button onClick={closeDialog} type="button" variant="outline">
                     Close
                   </Button>
                   <Button
@@ -271,9 +271,9 @@ export function DeckMatchupEditorDialog({
                       className="grid gap-3 sm:grid-cols-2"
                       role="radiogroup"
                     >
-                      <button
+                      <Button
                         aria-checked={goPreference === "First"}
-                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                        className={`h-auto justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                           goPreference === "First"
                             ? "border-primary bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-card-foreground"
                             : "border-border bg-muted text-muted-foreground"
@@ -281,6 +281,7 @@ export function DeckMatchupEditorDialog({
                         onClick={() => setGoPreference("First")}
                         role="radio"
                         type="button"
+                        variant="ghost"
                       >
                         <span
                           aria-hidden="true"
@@ -299,11 +300,11 @@ export function DeckMatchupEditorDialog({
                           />
                         </span>
                         <span className="text-sm font-medium">Go First</span>
-                      </button>
+                      </Button>
 
-                      <button
+                      <Button
                         aria-checked={goPreference === "Second"}
-                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                        className={`h-auto justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                           goPreference === "Second"
                             ? "border-primary bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-card-foreground"
                             : "border-border bg-muted text-muted-foreground"
@@ -311,6 +312,7 @@ export function DeckMatchupEditorDialog({
                         onClick={() => setGoPreference("Second")}
                         role="radio"
                         type="button"
+                        variant="ghost"
                       >
                         <span
                           aria-hidden="true"
@@ -329,7 +331,7 @@ export function DeckMatchupEditorDialog({
                           />
                         </span>
                         <span className="text-sm font-medium">Go Second</span>
-                      </button>
+                      </Button>
                     </div>
                   </section>
 

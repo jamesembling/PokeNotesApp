@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
@@ -52,12 +52,6 @@ type LogDetailBodyResponse = {
   rawLog?: string;
   sections?: BattleLog["sections"];
 };
-
-const backLinkClassName =
-  "inline-flex items-center justify-center px-1 py-2 text-sm font-medium text-muted-foreground transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
-
-const mobileBackLinkClassName =
-  "ui-control-text inline-flex min-w-0 items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-center text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 const feedbackClassName: Record<ShareTone, string> = {
   success:
@@ -251,9 +245,15 @@ export function BattleLogDetailShell({
               {isRevoking ? "Revoking..." : "Revoke Link"}
             </Button>
           ) : null}
-          <Link className={`${backLinkClassName} hidden sm:inline-flex`} href="/logs" prefetch={false}>
-            Back to Logs
-          </Link>
+          <Button
+            asChild
+            className="hidden h-auto px-1 py-2 text-muted-foreground hover:bg-transparent hover:text-primary sm:inline-flex"
+            variant="ghost"
+          >
+            <Link href="/logs" prefetch={false}>
+              Back to Logs
+            </Link>
+          </Button>
         </>
       }
       linkedDeckId={deferredContext?.linkedDeckId ?? linkedDeckId}
@@ -270,9 +270,11 @@ export function BattleLogDetailShell({
       log={resolvedLog}
       mobileNavigation={
         <div className="grid grid-cols-2 gap-3 sm:hidden">
-          <Link className={mobileBackLinkClassName} href="/logs" prefetch={false}>
-            Back to Logs
-          </Link>
+          <Button asChild className="min-w-0" variant="outline">
+            <Link href="/logs" prefetch={false}>
+              Back to Logs
+            </Link>
+          </Button>
           <LazyImportLogButton
             className="w-full justify-center"
             initialUserDecks={resolvedUserDecks}

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
@@ -78,10 +78,10 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
               defaultCreatedBy={defaultCreatedBy}
               defaultFormat={deckList.format}
               triggerLabel="Edit List"
-              triggerVariant="secondary"
+              triggerVariant="outline"
             />
             <Link href={`/decks/${id}`} prefetch={false}>
-              <Button variant="secondary">Back to Deck</Button>
+              <Button variant="outline">Back to Deck</Button>
             </Link>
           </div>
         }

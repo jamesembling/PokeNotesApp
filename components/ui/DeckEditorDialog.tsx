@@ -7,9 +7,10 @@ import {
   deleteDeckAction,
   updateDeckAction
 } from "@/app/(app)/decks/actions";
-import { AppSelect } from "@/components/ui/AppSelect";
+import { Alert, AlertDescription, AlertTitle } from "@/components/shadcn/alert";
+import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +28,7 @@ export type DeckEditorDialogProps = {
   initialOpen?: boolean;
   pokemonOptions: PokemonOption[];
   triggerLabel: string;
-  triggerVariant?: "primary" | "secondary" | "ghost";
+  triggerVariant?: "default" | "outline" | "ghost";
 };
 
 type SaveState = "idle" | "saving" | "success";
@@ -79,7 +80,7 @@ export function DeckEditorDialog({
   initialOpen = false,
   pokemonOptions,
   triggerLabel,
-  triggerVariant = "primary"
+  triggerVariant = "default"
 }: DeckEditorDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -245,7 +246,7 @@ export function DeckEditorDialog({
                 </DialogDescription>
               </div>
               <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-                <Button onClick={closeDialog} type="button" variant="secondary">
+                <Button onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
                 {isEditing ? (
@@ -256,7 +257,7 @@ export function DeckEditorDialog({
                       setShowDeleteConfirmation((currentValue) => !currentValue);
                     }}
                     type="button"
-                    variant="danger"
+                    variant="destructive"
                   >
                     Delete Deck
                   </Button>
@@ -269,23 +270,26 @@ export function DeckEditorDialog({
               </div>
             </div>
             {isEditing && showDeleteConfirmation ? (
-              <section className="mb-5 rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4">
+              <Alert
+                className="mb-5 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
+                variant="destructive"
+              >
                 <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1">
-                    <p className="text-sm font-semibold text-[var(--color-loss)]">
+                    <AlertTitle className="text-[var(--color-loss)]">
                       Delete this deck strategy?
-                    </p>
-                    <p className="text-sm text-foreground">
+                    </AlertTitle>
+                    <AlertDescription className="text-foreground">
                       Saved deck lists will be removed, and linked battle logs will stay in your
                       account as unlinked records.
-                    </p>
+                    </AlertDescription>
                   </div>
                   <div className="grid w-full gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-nowrap">
                     <Button
                       disabled={isBusy}
                       onClick={() => setShowDeleteConfirmation(false)}
                       type="button"
-                      variant="secondary"
+                      variant="outline"
                     >
                       Cancel
                     </Button>
@@ -294,13 +298,13 @@ export function DeckEditorDialog({
                       disabled={isBusy}
                       onClick={() => void handleDelete()}
                       type="button"
-                      variant="danger"
+                      variant="destructive"
                     >
                       {isDeleting ? "Deleting..." : "Confirm Delete"}
                     </Button>
                   </div>
                 </div>
-              </section>
+              </Alert>
             ) : null}
             <form
               className="flex min-w-0 flex-col gap-6"
@@ -327,9 +331,12 @@ export function DeckEditorDialog({
               ))}
 
               {actionError ? (
-                <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-                  {actionError}
-                </p>
+                <Alert
+                  className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                  variant="destructive"
+                >
+                  <AlertDescription>{actionError}</AlertDescription>
+                </Alert>
               ) : null}
 
               <section className="grid gap-4 md:grid-cols-2">

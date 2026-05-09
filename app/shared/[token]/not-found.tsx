@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function SharedLogNotFound() {

@@ -1,6 +1,7 @@
 "use client";
 
 import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
+import { Button } from "@/components/shadcn/button";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import {
@@ -102,9 +103,9 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
         suggestedRoundNumber={round.roundNumber}
         tournamentId={tournamentId}
         trigger={(
-          <button type="button">
+          <Button className="h-auto w-full p-0 hover:bg-transparent" type="button" variant="ghost">
             {rowContent}
-          </button>
+          </Button>
         )}
         triggerLabel="Edit Round"
         triggerVariant="ghost"

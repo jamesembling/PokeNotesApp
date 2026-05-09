@@ -3,7 +3,7 @@ import type {
   BattleLogActionTagOverrides,
   BattleLogResolvedActionTag
 } from "@/lib/battle-log/action-tags";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import { MatchSummary } from "@/components/ui/MatchSummary";
 import { LinkedDeckListPanel } from "@/components/ui/LinkedDeckListPanel";
 import {

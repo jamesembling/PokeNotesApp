@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 
 export default function NotFound() {
   return (
@@ -22,7 +22,7 @@ export default function NotFound() {
               <Button>Back Home</Button>
             </Link>
             <Link href="/login">
-              <Button variant="secondary">Go to Login</Button>
+              <Button variant="outline">Go to Login</Button>
             </Link>
           </div>
         </Card>

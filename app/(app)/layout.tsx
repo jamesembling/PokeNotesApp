@@ -1,5 +1,6 @@
-import { Sidebar } from "@/components/ui/Sidebar";
+import { Sidebar, SidebarMobileTopbar } from "@/components/ui/Sidebar";
 import { RoutePerformanceReporter } from "@/components/ui/RoutePerformanceReporter";
+import { SidebarInset, SidebarProvider } from "@/components/shadcn/sidebar";
 import { requireUser } from "@/lib/auth";
 
 function getFallbackDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
@@ -23,7 +24,7 @@ export default async function AppLayout({
   const user = await requireUser();
 
   return (
-    <div className="min-h-screen bg-background">
+    <SidebarProvider>
       <Sidebar
         profile={{
           displayName: getFallbackDisplayName(user),
@@ -31,12 +32,13 @@ export default async function AppLayout({
           isAdmin: getAuthClaimIsAdmin(user)
         }}
       />
-      <main className="min-[860px]:pl-64">
+      <SidebarInset>
+        <SidebarMobileTopbar />
         <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6">{children}</div>
         </div>
-      </main>
+      </SidebarInset>
       <RoutePerformanceReporter />
-    </div>
+    </SidebarProvider>
   );
 }

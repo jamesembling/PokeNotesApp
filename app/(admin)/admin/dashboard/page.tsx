@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { AdminUsersTable } from "@/components/ui/AdminUsersTable";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getAdminDashboardOverview, getAdminUsers } from "@/lib/db/admin";
 

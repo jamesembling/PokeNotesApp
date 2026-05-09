@@ -3,8 +3,9 @@
 import Image from "next/image";
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { Textarea } from "@/components/shadcn/textarea";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { StatCard } from "@/components/ui/StatCard";
@@ -211,10 +212,10 @@ export function ProbabilityCalculator() {
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               <Button onClick={() => runCalculation(deckInput)}>Calculate</Button>
-              <Button onClick={handleSampleDeck} variant="secondary">
+              <Button onClick={handleSampleDeck} variant="outline">
                 Load Sample Deck
               </Button>
-              <Button onClick={handleClear} variant="secondary">
+              <Button onClick={handleClear} variant="outline">
                 Clear
               </Button>
             </div>
@@ -363,40 +364,20 @@ export function ProbabilityCalculator() {
               <h2 className="ui-section-title">Setup and Prizing Detail</h2>
             </div>
 
-            <div
-              aria-label="Calculator views"
-              className="inline-grid grid-cols-2 gap-1 rounded-full bg-muted p-1"
-              role="tablist"
+            <Tabs
+              className="w-auto"
+              onValueChange={(value) => setActiveTab(value as TabId)}
+              value={activeTab}
             >
-              <button
-                aria-selected={activeTab === "setup"}
-                className={[
-                  "ui-control-text rounded-full px-4 py-2 transition",
-                  activeTab === "setup"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-card"
-                ].join(" ")}
-                onClick={() => setActiveTab("setup")}
-                role="tab"
-                type="button"
-              >
-                Setup
-              </button>
-              <button
-                aria-selected={activeTab === "prizing"}
-                className={[
-                  "ui-control-text rounded-full px-4 py-2 transition",
-                  activeTab === "prizing"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-card"
-                ].join(" ")}
-                onClick={() => setActiveTab("prizing")}
-                role="tab"
-                type="button"
-              >
-                Prizing
-              </button>
-            </div>
+              <TabsList aria-label="Calculator views" className="rounded-full bg-muted p-1">
+                <TabsTrigger className="rounded-full px-4" value="setup">
+                  Setup
+                </TabsTrigger>
+                <TabsTrigger className="rounded-full px-4" value="prizing">
+                  Prizing
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
           {activeTab === "setup" ? (

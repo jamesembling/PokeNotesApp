@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MoreHorizontalIcon } from "lucide-react";
 import { deleteTournamentAction } from "@/app/(app)/tournaments/actions";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Button } from "@/components/shadcn/button";
 import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { TrashIcon } from "@/components/ui/icons";
@@ -82,14 +84,15 @@ function TournamentSummaryRow({
         <div className="flex justify-end transition duration-200 sm:pointer-events-none sm:translate-x-1 sm:opacity-0 sm:pr-1 sm:group-hover/row:pointer-events-auto sm:group-hover/row:translate-x-0 sm:group-hover/row:opacity-100 sm:group-focus-within/row:pointer-events-auto sm:group-focus-within/row:translate-x-0 sm:group-focus-within/row:opacity-100">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
+              <Button
                 aria-label={`Open actions for ${tournament.name}`}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-card-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                className="text-muted-foreground hover:text-card-foreground"
                 disabled={isDeleting}
-                type="button"
+                size="icon-lg"
+                variant="ghost"
               >
                 <MoreHorizontalIcon className="h-4 w-4" />
-              </button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem
@@ -157,9 +160,12 @@ export function TournamentSummaryList({
   return (
     <div className="flex flex-col gap-3">
       {deleteError ? (
-        <div className="rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4 text-sm text-[var(--color-loss)]">
-          {deleteError}
-        </div>
+        <Alert
+          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+          variant="destructive"
+        >
+          <AlertDescription>{deleteError}</AlertDescription>
+        </Alert>
       ) : null}
 
       {tournaments.map((tournament) => (

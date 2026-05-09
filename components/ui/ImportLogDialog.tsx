@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
-import { AppSelect } from "@/components/ui/AppSelect";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
   DialogContent,
@@ -390,7 +391,7 @@ export function ImportLogDialog({
             </DialogDescription>
           </div>
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-            <Button className="w-full sm:w-auto" onClick={closeDialog} type="button" variant="secondary">
+            <Button className="w-full sm:w-auto" onClick={closeDialog} type="button" variant="outline">
               Close
             </Button>
             {trimmedRawLog ? (
@@ -414,14 +415,15 @@ export function ImportLogDialog({
 
     return (
       <div className="relative flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <button
+        <Button
           aria-label="Close review"
-          className="absolute right-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-card-foreground md:hidden"
+          className="absolute right-0 top-0 rounded-full text-muted-foreground hover:text-card-foreground md:hidden"
           onClick={closeDialog}
-          type="button"
+          size="icon-lg"
+          variant="ghost"
         >
           <CloseIcon className="h-5 w-5" />
-        </button>
+        </Button>
         <div className="min-w-0 pr-12 text-center md:pr-0 md:text-left">
           <DialogTitle className="text-[1.3rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.55rem] md:text-[1.9rem]">
             Review Battle Log
@@ -431,7 +433,7 @@ export function ImportLogDialog({
           </DialogDescription>
         </div>
         <div className="hidden flex-wrap gap-2.5 md:flex">
-          <Button onClick={closeDialog} type="button" variant="secondary">
+          <Button onClick={closeDialog} type="button" variant="outline">
             Close
           </Button>
           <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
@@ -553,9 +555,12 @@ export function ImportLogDialog({
                   ))}
 
                   {saveError ? (
-                    <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-                      {saveError}
-                    </p>
+                    <Alert
+                      className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                      variant="destructive"
+                    >
+                      <AlertDescription>{saveError}</AlertDescription>
+                    </Alert>
                   ) : null}
 
                   <BattleLogSpritePicker
@@ -596,7 +601,7 @@ export function ImportLogDialog({
                         <label className="grid gap-2">
                           <span className="text-sm font-semibold text-muted-foreground">Date</span>
                           <Input
-                            className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            className="h-auto min-h-[2.75rem] w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                             onChange={(event) => setSelectedDate(event.target.value)}
                             type="date"
                             value={selectedDate}
@@ -651,7 +656,7 @@ export function ImportLogDialog({
                     <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-muted-foreground">Date</span>
                       <Input
-                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="h-auto min-h-[2.75rem] w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                         onChange={(event) => setSelectedDate(event.target.value)}
                         type="date"
                         value={selectedDate}
@@ -735,7 +740,7 @@ export function ImportLogDialog({
 
                   <div className="grid min-w-0 gap-3 md:hidden">
                     <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
-                    <Button className="w-full" onClick={closeDialog} type="button" variant="secondary">
+                    <Button className="w-full" onClick={closeDialog} type="button" variant="outline">
                       Close
                     </Button>
                   </div>
@@ -743,9 +748,12 @@ export function ImportLogDialog({
               ) : (
                 <div className="flex min-w-0 flex-col gap-6">
                   {importDataError ? (
-                    <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-                      {importDataError}
-                    </p>
+                    <Alert
+                      className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                      variant="destructive"
+                    >
+                      <AlertDescription>{importDataError}</AlertDescription>
+                    </Alert>
                   ) : null}
 
                   <label className="grid gap-2">
@@ -767,7 +775,7 @@ export function ImportLogDialog({
                       disabled={isPasting}
                       onClick={handlePasteFromClipboard}
                       type="button"
-                      variant="secondary"
+                      variant="outline"
                     >
                       {isPasting ? "Pasting..." : "Paste From Clipboard"}
                     </Button>
@@ -778,15 +786,20 @@ export function ImportLogDialog({
                   </div>
 
                   {isParsing && !isTrainingCourtUrl ? (
-                    <p className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-primary">
-                      Reviewing battle log…
-                    </p>
+                    <Alert className="border-primary/15 bg-primary/5 text-primary">
+                      <AlertDescription className="text-primary">
+                        Reviewing battle log…
+                      </AlertDescription>
+                    </Alert>
                   ) : null}
 
                   {parseError ? (
-                    <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-                      {parseError}
-                    </p>
+                    <Alert
+                      className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                      variant="destructive"
+                    >
+                      <AlertDescription>{parseError}</AlertDescription>
+                    </Alert>
                   ) : null}
                 </div>
               )}

@@ -2,7 +2,7 @@
 
 import { cloneElement, isValidElement, type ReactElement } from "react";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import { TournamentRoundEditorDialog } from "@/components/ui/TournamentRoundEditorDialog";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { PokemonOption, TournamentRound } from "@/types/index";
@@ -13,7 +13,7 @@ type LazyTournamentRoundEditorButtonProps = {
   tournamentId: string;
   trigger?: ReactElement<{ onClick?: () => void }>;
   triggerLabel: string;
-  triggerVariant?: "primary" | "secondary" | "ghost";
+  triggerVariant?: "default" | "outline" | "ghost";
 };
 
 export function LazyTournamentRoundEditorButton({
@@ -22,7 +22,7 @@ export function LazyTournamentRoundEditorButton({
   tournamentId,
   trigger,
   triggerLabel,
-  triggerVariant = "secondary"
+  triggerVariant = "outline"
 }: LazyTournamentRoundEditorButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);

@@ -1,11 +1,36 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTransition } from "react";
+import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon, ShieldIcon } from "lucide-react";
+import { signOutAction } from "@/app/actions";
+import { Avatar, AvatarFallback } from "@/components/shadcn/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/shadcn/dropdown-menu";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
-import { MobileSidebar } from "@/components/ui/MobileSidebar";
-import { SidebarNavLink } from "@/components/ui/SidebarNavLink";
 import { SidebarThemeToggle } from "@/components/ui/SidebarThemeToggle";
-import { SignOutButton } from "@/components/ui/SignOutButton";
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarTrigger,
+  useSidebar
+} from "@/components/shadcn/sidebar";
 import type { DeckSelectionOption } from "@/types/index";
 
 type SidebarProfile = {
@@ -41,80 +66,202 @@ function getInitials(value: string) {
     .join("");
 }
 
-function SectionLabel({ children }: { children: string }) {
-  return <p className="ui-eyebrow">{children}</p>;
-}
-
-function AccountBlock({ profile }: { profile: SidebarProfile }) {
-  const initials = getInitials(profile.displayName);
+function AppSidebarLink({ href, label }: { href: string; label: string }) {
+  const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
+  const active = pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
   return (
-    <div className="border-t border-border pt-4">
-      <Link
-        className="flex items-center gap-3 rounded-lg px-1 py-1 transition hover:bg-muted"
-        href="/profile"
-        prefetch={false}
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        className="relative data-[active=true]:font-semibold data-[active=true]:text-primary"
+        isActive={active}
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-card-foreground">
-          {initials}
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-card-foreground">
-            {profile.displayName}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">{profile.email}</p>
-        </div>
-      </Link>
-      {profile.isAdmin ? (
-        <Link
-          className="mt-3 flex items-center rounded-lg px-3 py-2 text-sm text-foreground transition hover:bg-muted hover:text-card-foreground"
-          href="/admin/dashboard"
-          prefetch={false}
-        >
-          Admin Dashboard
+        <Link href={href} onClick={() => setOpenMobile(false)} prefetch={false}>
+          {active ? (
+            <span
+              aria-hidden="true"
+              className="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-primary group-data-[collapsible=icon]:hidden"
+            />
+          ) : null}
+          <span className="pl-2">{label}</span>
         </Link>
-      ) : null}
-      <SignOutButton className="mt-4 w-full justify-center" />
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function SidebarLogo({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <Link
+      aria-label="Go to Poke Notes home"
+      className="inline-flex items-center"
+      href="/logs"
+      onClick={onNavigate}
+      prefetch={false}
+    >
+      <img alt="Poke Notes" className="h-12 w-12" src="/pokeball-icon.svg" />
+    </Link>
+  );
+}
+
+export function SidebarMobileTopbar() {
+  return (
+    <div className="sticky top-0 z-30 border-b border-sidebar-border bg-sidebar px-4 py-3 min-[860px]:hidden">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <SidebarTrigger
+            aria-label="Open navigation menu"
+            className="text-sidebar-foreground"
+            size="icon-lg"
+          />
+          <SidebarLogo />
+        </div>
+        <SidebarThemeToggle />
+      </div>
     </div>
   );
 }
 
-export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
+function SidebarNav({ userDecks }: { userDecks: DeckSelectionOption[] }) {
   return (
-    <>
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-card min-[860px]:flex">
-        <div className="flex w-full flex-col px-4 py-6">
-          <div className="flex items-center justify-between gap-3">
-            <Link
-              aria-label="Go to Poke Notes home"
-              className="inline-flex items-center"
-              href="/logs"
-              prefetch={false}
+    <SidebarContent className="px-2 py-3">
+      <SidebarGroup>
+        <SidebarGroupLabel className="ui-eyebrow h-auto px-2 py-2">
+          NAVIGATE
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu className="gap-1">
+            {navItems.map((item) => (
+              <AppSidebarLink href={item.href} key={item.href} label={item.label} />
+            ))}
+          </SidebarMenu>
+          <div className="px-2 pt-4 group-data-[collapsible=icon]:hidden">
+            <LazyImportLogButton className="w-full justify-center" initialUserDecks={userDecks} />
+          </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+  );
+}
+
+function AccountBlock({ profile }: { profile: SidebarProfile }) {
+  const initials = getInitials(profile.displayName);
+  const { isMobile, setOpenMobile } = useSidebar();
+  const [signOutPending, startSignOutTransition] = useTransition();
+
+  function handleSignOut() {
+    startSignOutTransition(async () => {
+      await signOutAction();
+    });
+  }
+
+  return (
+    <SidebarFooter className="border-t border-sidebar-border p-2">
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                size="lg"
+              >
+                <Avatar className="size-8 rounded-lg">
+                  <AvatarFallback className="rounded-lg text-xs font-semibold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">{profile.displayName}</span>
+                  <span className="truncate text-xs text-muted-foreground">{profile.email}</span>
+                </div>
+                <ChevronsUpDownIcon className="ml-auto" />
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="min-w-56 rounded-lg"
+              side={isMobile ? "bottom" : "right"}
+              sideOffset={4}
             >
-              <img alt="Poke Notes" className="h-12 w-12" src="/pokeball-icon.svg" />
-            </Link>
+              <DropdownMenuLabel className="p-0 font-normal">
+                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                  <Avatar className="size-8 rounded-lg">
+                    <AvatarFallback className="rounded-lg text-xs font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-medium">{profile.displayName}</span>
+                    <span className="truncate text-xs text-muted-foreground">{profile.email}</span>
+                  </div>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/profile"
+                    onClick={() => setOpenMobile(false)}
+                    prefetch={false}
+                  >
+                    <BadgeCheckIcon />
+                    Account
+                  </Link>
+                </DropdownMenuItem>
+                {profile.isAdmin ? (
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/admin/dashboard"
+                      onClick={() => setOpenMobile(false)}
+                      prefetch={false}
+                    >
+                      <ShieldIcon />
+                      Admin Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={signOutPending}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  handleSignOut();
+                }}
+              >
+                <LogOutIcon />
+                {signOutPending ? "Signing Out..." : "Sign Out"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarFooter>
+  );
+}
+
+export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
+  const { setOpenMobile } = useSidebar();
+
+  return (
+    <ShadcnSidebar className="border-sidebar-border" collapsible="offcanvas">
+      <SidebarHeader className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <SidebarLogo onNavigate={() => setOpenMobile(false)} />
+          <div className="flex items-center gap-1">
             <SidebarThemeToggle />
+            <SidebarTrigger
+              aria-label="Close navigation menu"
+              className="text-sidebar-foreground min-[860px]:hidden"
+              size="icon-lg"
+            />
           </div>
-
-          <div className="mt-8 flex flex-1 flex-col gap-6">
-            <div className="space-y-3">
-              <SectionLabel>NAVIGATE</SectionLabel>
-              <nav className="flex flex-col gap-1" aria-label="Primary">
-                {navItems.map((item) => (
-                  <SidebarNavLink href={item.href} key={item.href} label={item.label} />
-                ))}
-              </nav>
-              <div className="pt-3">
-                <LazyImportLogButton className="w-full justify-center" initialUserDecks={userDecks} />
-              </div>
-            </div>
-          </div>
-
-          <AccountBlock profile={profile} />
         </div>
-      </aside>
-
-      <MobileSidebar navItems={navItems} profile={profile} userDecks={userDecks} />
-    </>
+      </SidebarHeader>
+      <SidebarNav userDecks={userDecks} />
+      <AccountBlock profile={profile} />
+    </ShadcnSidebar>
   );
 }

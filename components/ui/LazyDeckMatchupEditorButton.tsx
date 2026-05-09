@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import { DeckMatchupEditorDialog } from "@/components/ui/DeckMatchupEditorDialog";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { DeckMatchup, PokemonOption } from "@/types/index";
@@ -13,7 +13,7 @@ type LazyDeckMatchupEditorButtonProps = {
   loadingLabel?: string;
   matchup?: DeckMatchup;
   triggerLabel: string;
-  triggerVariant?: "primary" | "secondary" | "ghost";
+  triggerVariant?: "default" | "outline" | "ghost";
   usePlainButton?: boolean;
 };
 
@@ -24,7 +24,7 @@ export function LazyDeckMatchupEditorButton({
   loadingLabel = "Loading...",
   matchup,
   triggerLabel,
-  triggerVariant = "secondary",
+  triggerVariant = "outline",
   usePlainButton = false
 }: LazyDeckMatchupEditorButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
@@ -78,9 +78,15 @@ export function LazyDeckMatchupEditorButton({
   return (
     <>
       {usePlainButton ? (
-        <button className={className} disabled={isLoading} onClick={handleOpen} type="button">
+        <Button
+          className={className}
+          disabled={isLoading}
+          onClick={handleOpen}
+          type="button"
+          variant="ghost"
+        >
           {isLoading ? loadingLabel : children ?? triggerLabel}
-        </button>
+        </Button>
       ) : (
         <Button className={className} disabled={isLoading} onClick={handleOpen} variant={triggerVariant}>
           {isLoading ? loadingLabel : children ?? triggerLabel}

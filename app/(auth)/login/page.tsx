@@ -1,4 +1,6 @@
-import { Card } from "@/components/ui/Card";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 type LoginPageProps = {
@@ -26,17 +28,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               Use your Google account to continue into Poke Notes.
             </p>
             {authError ? (
-              <div className="rounded-lg border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-                Google sign-in failed: {authError}
-              </div>
+              <Alert
+                className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                variant="destructive"
+              >
+                <AlertDescription>Google sign-in failed: {authError}</AlertDescription>
+              </Alert>
             ) : null}
             <div>
-              <a
-                className="ui-control-text inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                href="/auth/sign-in/google"
-              >
-                Sign in with Google
-              </a>
+              <Button asChild>
+                <a href="/auth/sign-in/google">Sign in with Google</a>
+              </Button>
             </div>
           </div>
         </Card>

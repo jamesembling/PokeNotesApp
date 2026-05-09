@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { saveDeckListAction } from "@/app/(app)/decks/actions";
-import { Button } from "@/components/ui/Button";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Button } from "@/components/shadcn/button";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import {
@@ -25,7 +26,7 @@ type DeckListEditorDialogProps = {
   defaultFormat?: string;
   defaultCreatedBy: string;
   triggerLabel: string;
-  triggerVariant?: "primary" | "secondary" | "ghost";
+  triggerVariant?: "default" | "outline" | "ghost";
 };
 
 type SaveState = "idle" | "saving" | "success";
@@ -114,7 +115,7 @@ export function DeckListEditorDialog({
   defaultFormat,
   defaultCreatedBy,
   triggerLabel,
-  triggerVariant = "secondary"
+  triggerVariant = "outline"
 }: DeckListEditorDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -297,7 +298,7 @@ export function DeckListEditorDialog({
                   </DialogDescription>
                 </div>
                 <div className="flex w-full flex-wrap gap-2.5 sm:w-auto sm:flex-nowrap sm:justify-end">
-                  <Button onClick={closeDialog} type="button" variant="secondary">
+                  <Button onClick={closeDialog} type="button" variant="outline">
                     Close
                   </Button>
                   {step === "list" ? (
@@ -310,7 +311,7 @@ export function DeckListEditorDialog({
                     </Button>
                   ) : (
                     <>
-                      <Button onClick={() => setStep("list")} type="button" variant="secondary">
+                      <Button onClick={() => setStep("list")} type="button" variant="outline">
                         Back
                       </Button>
                       <SaveButton
@@ -343,9 +344,12 @@ export function DeckListEditorDialog({
                 <input name="rawList" type="hidden" value={rawList} />
 
                 {saveError ? (
-                  <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-                    {saveError}
-                  </p>
+                  <Alert
+                    className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                    variant="destructive"
+                  >
+                    <AlertDescription>{saveError}</AlertDescription>
+                  </Alert>
                 ) : null}
 
                 {step === "list" ? (

@@ -11,9 +11,10 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { updateLogAction } from "@/app/(app)/logs/actions";
-import { AppSelect } from "@/components/ui/AppSelect";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
   DialogContent,
@@ -30,10 +31,14 @@ import {
 import type { BattleLog, DeckListOption, DeckSelectionOption, PokemonOption } from "@/types/index";
 
 export type EditLogDialogProps = {
+  hideTrigger?: boolean;
   initialOpen?: boolean;
   log: BattleLog;
   pokemonOptions: PokemonOption[];
-  trigger?: ReactElement<{ onClick?: () => void }>;
+  trigger?: ReactElement<{
+    onClick?: () => void;
+    onSelect?: (event: Event) => void;
+  }>;
   userDecks: DeckSelectionOption[];
 };
 
@@ -75,6 +80,7 @@ function normalizeRedirectPath(value: string) {
 }
 
 export function EditLogDialog({
+  hideTrigger = false,
   initialOpen = false,
   log,
   pokemonOptions,
@@ -223,15 +229,23 @@ export function EditLogDialog({
       }}
       open={isOpen}
     >
-      {isValidElement(trigger) ? (
+      {hideTrigger ? null : isValidElement(trigger) ? (
         cloneElement(trigger, {
           ...trigger.props,
-          onClick: openDialog
+          onClick: () => {
+            trigger.props.onClick?.();
+            openDialog();
+          },
+          onSelect: (event: Event) => {
+            trigger.props.onSelect?.(event);
+            event.preventDefault();
+            openDialog();
+          }
         })
       ) : (
         <Button
           onClick={openDialog}
-          variant="secondary"
+          variant="outline"
         >
           Edit Log
         </Button>
@@ -280,9 +294,12 @@ export function EditLogDialog({
               ))}
 
               {saveError ? (
-                <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-                  {saveError}
-                </p>
+                <Alert
+                  className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                  variant="destructive"
+                >
+                  <AlertDescription>{saveError}</AlertDescription>
+                </Alert>
               ) : null}
 
               <BattleLogSpritePicker
@@ -305,7 +322,7 @@ export function EditLogDialog({
                 <label className="grid min-w-0 gap-2">
                   <span className="text-sm font-semibold text-muted-foreground">Date</span>
                   <Input
-                    className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="h-auto min-h-[2.75rem] w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                     onChange={(event) => setSelectedDate(event.target.value)}
                     type="date"
                     value={selectedDate}
@@ -368,7 +385,7 @@ export function EditLogDialog({
               </section>
 
               <div className="grid gap-2.5 border-t border-border pt-4 sm:flex sm:justify-end">
-                <Button onClick={closeDialog} type="button" variant="secondary">
+                <Button onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
                 <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />

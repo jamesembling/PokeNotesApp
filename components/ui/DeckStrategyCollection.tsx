@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { DeckCard, type DeckCardView } from "@/components/ui/DeckCard";
 import { ChevronIcon, GridIcon, MenuIcon } from "@/components/ui/icons";
 import type { DeckSummary } from "@/types/index";
-import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 
 const STORAGE_KEY = "poke-notes.deck-strategy-view";
@@ -45,9 +46,9 @@ function SortHeaderButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button
       className={[
-        "inline-flex items-center gap-1 text-[0.72rem] font-semibold uppercase tracking-[0.22em] transition",
+        "h-auto gap-1 p-0 text-[0.72rem] font-semibold uppercase tracking-[0.22em] transition hover:bg-transparent",
         align === "right" ? "justify-self-end text-right" : "text-left",
         active
           ? "text-card-foreground"
@@ -55,6 +56,7 @@ function SortHeaderButton({
       ].join(" ")}
       onClick={onClick}
       type="button"
+      variant="ghost"
     >
       <span>{label}</span>
       <ChevronIcon
@@ -64,7 +66,7 @@ function SortHeaderButton({
           active && direction === "asc" ? "rotate-180" : ""
         ].join(" ")}
       />
-    </button>
+    </Button>
   );
 }
 

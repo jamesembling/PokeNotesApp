@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Button } from "@/components/shadcn/button";
 import { reportError } from "@/lib/server/report-error";
 
 type GlobalErrorProps = {
@@ -86,11 +87,10 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 Error reference: <strong style={{ color: "#f9fafb" }}>{error.digest}</strong>
               </div>
             ) : null}
-            <button
+            <Button
               onClick={reset}
               style={{
                 marginTop: "20px",
-                border: 0,
                 borderRadius: "12px",
                 padding: "10px 16px",
                 background: "#2563eb",
@@ -102,7 +102,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               type="button"
             >
               Try Again
-            </button>
+            </Button>
           </div>
         </main>
       </body>

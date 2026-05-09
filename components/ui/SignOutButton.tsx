@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { signOutAction } from "@/app/actions";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 
 export function SignOutButton({ className }: { className?: string }) {
   const [signOutPending, startSignOutTransition] = useTransition();
@@ -18,7 +18,7 @@ export function SignOutButton({ className }: { className?: string }) {
       className={className}
       disabled={signOutPending}
       onClick={handleSignOut}
-      variant="secondary"
+      variant="outline"
     >
       {signOutPending ? "Signing Out..." : "Sign Out"}
     </Button>

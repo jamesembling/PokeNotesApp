@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Skeleton } from "@/components/shadcn/skeleton";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";

@@ -1,6 +1,6 @@
 "use client";
 
-import { AppSelect } from "@/components/ui/AppSelect";
+import { AppSelect } from "@/components/shadcn/app-select";
 
 type FormatSelectProps = {
   className?: string;

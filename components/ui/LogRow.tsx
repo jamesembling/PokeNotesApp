@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { memo, type CSSProperties, type ReactNode } from "react";
 import { MoreHorizontalIcon } from "lucide-react";
+import { Button } from "@/components/shadcn/button";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import { TrashIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
@@ -159,13 +160,14 @@ function LogRowComponent({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
+            <Button
               aria-label="Open battle log actions"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-card-foreground"
-              type="button"
+              className="text-muted-foreground hover:text-card-foreground"
+              size="icon-lg"
+              variant="ghost"
             >
               <MoreHorizontalIcon className="h-4 w-4" />
-            </button>
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40" forceMount>
             {editAction}

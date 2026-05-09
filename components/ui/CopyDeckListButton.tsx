@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 
 type CopyDeckListButtonProps = {
   className?: string;
@@ -85,7 +85,7 @@ export function CopyDeckListButton({ className, text }: CopyDeckListButtonProps)
       className={className}
       onClick={handleCopy}
       type="button"
-      variant={copyState === "error" ? "danger" : "secondary"}
+      variant={copyState === "error" ? "destructive" : "outline"}
     >
       {label}
     </Button>

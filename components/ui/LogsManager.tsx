@@ -9,10 +9,11 @@ import {
   loadMoreLogsAction
 } from "@/app/(app)/logs/actions";
 import { Checkbox } from "@/components/shadcn/checkbox";
-import { Badge } from "@/components/ui/Badge";
-import { AppSelect } from "@/components/ui/AppSelect";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/shadcn/alert";
+import { Badge } from "@/components/shadcn/badge";
+import { AppSelect } from "@/components/shadcn/app-select";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
 import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
 import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
@@ -215,6 +216,8 @@ export function LogsManager({
   const [isLoadingDeckOptions, setIsLoadingDeckOptions] = useState(false);
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [deletePrompt, setDeletePrompt] = useState<DeletePrompt | null>(null);
+  const [editingLog, setEditingLog] = useState<BattleLog | null>(null);
+  const [editRequestId, setEditRequestId] = useState(0);
   const [userDecks, setUserDecks] = useState(initialUserDecks);
   const [openGroupDates, setOpenGroupDates] = useState<string[]>(() =>
     initialLogs.length > 0 ? [initialLogs[0].date] : []
@@ -478,13 +481,14 @@ export function LogsManager({
       />
 
       {actionNotice ? (
-        <Card
+        <Alert
           aria-live="polite"
           className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+          variant="destructive"
         >
-          <p className="ui-eyebrow">Action Failed</p>
-          <p className="mt-2 text-sm leading-6">{actionNotice.message}</p>
-        </Card>
+          <AlertTitle className="ui-eyebrow">Action Failed</AlertTitle>
+          <AlertDescription>{actionNotice.message}</AlertDescription>
+        </Alert>
       ) : null}
 
       <section className="grid gap-5 py-2 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-center">
@@ -500,14 +504,15 @@ export function LogsManager({
 
           {managementModeActive ? (
             <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-3">
-              <button
-                className="ui-control-text text-muted-foreground transition hover:text-[var(--color-loss-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+              <Button
+                className="h-auto justify-start p-0 text-muted-foreground hover:bg-transparent hover:text-[var(--color-loss-strong)]"
                 disabled={!canDeleteSelected}
                 onClick={handleDeleteSelected}
-                type="button"
+                size="sm"
+                variant="ghost"
               >
                 Delete Selected{selectedCount ? ` (${selectedCount})` : ""}
-              </button>
+              </Button>
 
               {visibleLogs.length > 0 ? (
                 <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-muted-foreground">
@@ -594,7 +599,7 @@ export function LogsManager({
           <Button
             className="gap-2 justify-center xl:min-w-[12rem]"
             onClick={toggleManagementMode}
-            variant="secondary"
+            variant="outline"
           >
             <PencilIcon className="h-4 w-4" />
             {managementModeActive ? "Done Editing" : "Edit Logs"}
@@ -675,16 +680,15 @@ export function LogsManager({
                     <div className="flex flex-col gap-3" key={log.id}>
                       <LogRow
                         editAction={
-                          <LazyEditLogButton
-                            log={toEditableLog(log)}
-                            trigger={
-                              <DropdownMenuItem>
-                                <PencilIcon className="h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                            }
-                            userDecks={userDecks}
-                          />
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              setEditingLog(toEditableLog(log));
+                              setEditRequestId((currentId) => currentId + 1);
+                            }}
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
                         }
                         log={log}
                         managementMode={managementModeActive}
@@ -717,10 +721,19 @@ export function LogsManager({
           {loadMoreError ? (
             <p className="text-sm font-medium text-[var(--color-loss-strong)]">{loadMoreError}</p>
           ) : null}
-          <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="secondary">
+          <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="outline">
             {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}
           </Button>
         </div>
+      ) : null}
+
+      {editingLog ? (
+        <LazyEditLogButton
+          autoOpen
+          key={`${editingLog.id}-${editRequestId}`}
+          log={editingLog}
+          userDecks={userDecks}
+        />
       ) : null}
     </div>
   );

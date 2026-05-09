@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import { DeckLinkedLogsDialog } from "@/components/ui/DeckLinkedLogsDialog";
 import { LogRow } from "@/components/ui/LogRow";
 import { StatCard } from "@/components/ui/StatCard";

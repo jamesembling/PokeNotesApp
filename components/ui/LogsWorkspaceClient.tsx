@@ -1,6 +1,6 @@
 "use client";
 
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import { LogsManager } from "@/components/ui/LogsManager";
 import { StatCard } from "@/components/ui/StatCard";
 import type { BattleLogSummary } from "@/types/index";

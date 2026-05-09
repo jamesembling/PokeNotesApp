@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/shadcn/button";
 import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
@@ -13,9 +14,6 @@ type LogDetailPageProps = {
     id: string;
   }>;
 };
-
-const backLinkClassName =
-  "inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 function formatImportedAt(value: string) {
   return new Intl.DateTimeFormat("en-GB", {
@@ -38,9 +36,11 @@ function DetailError() {
         ]}
         title="Battle Log"
         action={
-          <Link className={backLinkClassName} href="/logs" prefetch={false}>
-            Back to Logs
-          </Link>
+          <Button asChild variant="outline">
+            <Link href="/logs" prefetch={false}>
+              Back to Logs
+            </Link>
+          </Button>
         }
       />
 
@@ -53,9 +53,11 @@ function DetailError() {
             This battle log is unavailable or you do not have access to it.
           </p>
           <div>
-            <Link className={backLinkClassName} href="/logs" prefetch={false}>
-              Back to Logs
-            </Link>
+            <Button asChild variant="outline">
+              <Link href="/logs" prefetch={false}>
+                Back to Logs
+              </Link>
+            </Button>
           </div>
         </div>
       </div>

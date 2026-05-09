@@ -1,3 +1,4 @@
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AdminRoleControls } from "@/components/ui/AdminRoleControls";
 import type { AdminUser } from "@/types/index";
 
@@ -30,9 +31,12 @@ export function AdminUsersTable({
   return (
     <div className="space-y-4">
       {warning ? (
-        <p className="rounded-lg border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss-strong)]">
-          {warning}
-        </p>
+        <Alert
+          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss-strong)]"
+          variant="destructive"
+        >
+          <AlertDescription>{warning}</AlertDescription>
+        </Alert>
       ) : null}
 
       <div className="overflow-x-auto">

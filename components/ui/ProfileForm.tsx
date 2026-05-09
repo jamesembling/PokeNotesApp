@@ -6,8 +6,9 @@ import {
   initialProfileActionState,
   saveProfileAction
 } from "@/app/(app)/profile/actions";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Input } from "@/components/shadcn/input";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import type { UserProfile } from "@/types/index";
 
 type ProfileFormProps = {
@@ -30,15 +31,20 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   return (
     <form action={formAction} className="flex flex-col gap-6">
       {state.error ? (
-        <p className="rounded-lg border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss-strong)]">
-          {state.error}
-        </p>
+        <Alert
+          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss-strong)]"
+          variant="destructive"
+        >
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
       ) : null}
 
       {state.success ? (
-        <p className="rounded-lg border border-[var(--color-win-border)] bg-[var(--color-win-bg)] px-4 py-3 text-sm text-[var(--color-win-strong)]">
-          {state.success}
-        </p>
+        <Alert className="border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win-strong)]">
+          <AlertDescription className="text-[var(--color-win-strong)]">
+            {state.success}
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">

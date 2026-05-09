@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 import { reportError } from "@/lib/server/report-error";
 
 type AppErrorProps = {
@@ -38,7 +38,7 @@ export default function AppError({ error, reset }: AppErrorProps) {
 
           <div className="flex flex-wrap gap-3">
             <Button onClick={reset}>Try Again</Button>
-            <Button onClick={() => window.location.reload()} variant="secondary">
+            <Button onClick={() => window.location.reload()} variant="outline">
               Reload App
             </Button>
           </div>

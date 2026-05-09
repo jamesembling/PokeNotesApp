@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { DeckMatchupsDialog } from "@/components/ui/DeckMatchupsDialog";
 import {
@@ -113,7 +113,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       <LazyDeckEditorButton
         deck={deck}
         triggerLabel="Edit Deck"
-        triggerVariant="secondary"
+        triggerVariant="outline"
       />
       <Link
         className="text-sm font-medium text-primary transition hover:text-primary/90"
@@ -164,7 +164,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
             <LazyDeckMatchupEditorButton
               deckId={deck.id}
               triggerLabel="New Matchup"
-              triggerVariant="secondary"
+              triggerVariant="outline"
             />
           </div>
         </div>
@@ -183,7 +183,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
             defaultCreatedBy={defaultCreatedBy}
             defaultFormat={deck.format}
             triggerLabel="Add Deck List"
-            triggerVariant="secondary"
+            triggerVariant="outline"
           />
         </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/shadcn/popover";
@@ -256,14 +257,16 @@ function SpriteSearchSlot({
           spellCheck={false}
           value={query}
         />
-        <button
+        <Button
           aria-label="Close Pokemon search"
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-card-foreground"
           onClick={closeSearchEditor}
+          size="icon"
           type="button"
+          variant="ghost"
         >
           <CloseIcon className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       {isOpen && normalizePokemonSearchValue(query) ? (
@@ -278,19 +281,20 @@ function SpriteSearchSlot({
               }
             >
               {filteredOptions.map((option) => (
-                <button
-                  className="flex w-full touch-manipulation items-center gap-3 px-4 py-3 text-left transition hover:bg-card"
+                <Button
+                  className="h-auto w-full touch-manipulation justify-start gap-3 rounded-none px-4 py-3 text-left transition hover:bg-card"
                   key={option.slug}
                   onClick={() => {
                     commitQuerySelection(option.slug);
                   }}
                   type="button"
+                  variant="ghost"
                 >
                   <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
                   <span className="min-w-0 truncate text-base font-medium text-card-foreground md:text-sm">
                     {option.label}
                   </span>
-                </button>
+                </Button>
               ))}
             </div>
           ) : (
@@ -329,13 +333,14 @@ function SpriteSearchSlot({
           key={`${title}-${index}`}
         >
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <button
-              className="flex min-h-[60px] w-full min-w-0 items-center gap-3 text-left md:min-h-[54px]"
+            <Button
+              className="flex min-h-[60px] min-w-0 flex-1 justify-start gap-3 p-0 text-left hover:bg-transparent md:min-h-[54px]"
               onClick={() => {
                 setIsEditingSearch(true);
                 setIsOpen(true);
               }}
               type="button"
+              variant="ghost"
             >
               {currentSlug ? (
                 <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
@@ -350,19 +355,21 @@ function SpriteSearchSlot({
               {!currentSlug ? (
                 <ChevronIcon className="h-4 w-4 shrink-0 text-muted-foreground -rotate-90" />
               ) : null}
-            </button>
+            </Button>
             {currentSlug ? (
-              <button
+              <Button
                 aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions)}`}
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-card hover:text-card-foreground"
                 onClick={() => {
                   onChange(updateSpritesAtIndex(sprites, index, ""));
                   closeSearchEditor();
                 }}
+                size="icon"
                 type="button"
+                variant="ghost"
               >
                 <CloseIcon className="h-[18px] w-[18px]" />
-              </button>
+              </Button>
             ) : null}
           </div>
           {isMobileInlinePanel ? searchPanelContent : null}
@@ -399,14 +406,15 @@ export function BattleLogSpritePicker({
             </p>
           ) : null}
         </div>
-        <button
+        <Button
           className="inline-flex items-center gap-1 text-[0.9rem] font-medium text-foreground transition hover:text-card-foreground md:gap-2 md:text-sm"
           onClick={() => onChange(swapSpritePositions(sprites))}
           type="button"
+          variant="ghost"
         >
           ⇄
           <span>Swap</span>
-        </button>
+        </Button>
       </div>
       <div className="grid min-w-0 gap-3 lg:grid-cols-2">
         {[0, 1].map((index) => {

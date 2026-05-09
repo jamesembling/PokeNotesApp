@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { updateDeckStrategyAction } from "@/app/(app)/decks/actions";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Button } from "@/components/shadcn/button";
 import { Textarea } from "@/components/shadcn/textarea";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/shadcn/card";
 import type { Deck } from "@/types/index";
 import type { GoPreference } from "@/types/index";
 
@@ -41,9 +43,9 @@ function StrategyPreferenceRadio({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button
       aria-checked={checked}
-      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+      className={`h-auto justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
         checked
           ? "border-primary bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-card-foreground"
           : "border-border bg-muted text-muted-foreground"
@@ -51,6 +53,7 @@ function StrategyPreferenceRadio({
       onClick={onClick}
       role="radio"
       type="button"
+      variant="ghost"
     >
       <span
         aria-hidden="true"
@@ -65,7 +68,7 @@ function StrategyPreferenceRadio({
         />
       </span>
       <span className="text-sm font-medium">{label}</span>
-    </button>
+    </Button>
   );
 }
 
@@ -172,9 +175,12 @@ export function InlineDeckStrategyEditor({
       </div>
 
       {errorMessage ? (
-        <p className="rounded-xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-3 text-sm text-[var(--color-loss)]">
-          {errorMessage}
-        </p>
+        <Alert
+          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+          variant="destructive"
+        >
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">

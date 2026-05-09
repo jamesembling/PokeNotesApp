@@ -2,6 +2,7 @@
 
 import { MoonIcon, SunIcon } from "@/components/ui/icons";
 import { useTheme } from "@/components/ui/ThemeProvider";
+import { Button } from "@/components/shadcn/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
 
 export function SidebarThemeToggle() {
@@ -11,14 +12,15 @@ export function SidebarThemeToggle() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition hover:bg-muted"
+        <Button
+          className="text-foreground"
+          size="icon-lg"
+          variant="ghost"
           onClick={toggleTheme}
           aria-label={label}
         >
           {theme === "dark" ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
-        </button>
+        </Button>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>

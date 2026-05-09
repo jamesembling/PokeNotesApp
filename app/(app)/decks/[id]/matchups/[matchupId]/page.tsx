@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 import { InlineDeckMatchupHeaderControls } from "@/components/ui/InlineDeckMatchupHeaderControls";
 import { InlineDeckMatchupEditor } from "@/components/ui/InlineDeckMatchupEditor";
 import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEditorButton";
@@ -41,7 +41,7 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
               The requested matchup is unavailable.
             </p>
             <Link href={`/decks/${id}`} prefetch={false}>
-              <Button variant="secondary">Back to Deck</Button>
+              <Button variant="outline">Back to Deck</Button>
             </Link>
           </div>
         </Card>
@@ -78,10 +78,10 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
                   deckId={id}
                   matchup={matchup}
                   triggerLabel="Edit Matchup"
-                  triggerVariant="secondary"
+                  triggerVariant="outline"
                 />
                 <Link href={`/decks/${id}`} prefetch={false}>
-                  <Button variant="secondary">Back to Deck</Button>
+                  <Button variant="outline">Back to Deck</Button>
                 </Link>
               </div>
             </div>

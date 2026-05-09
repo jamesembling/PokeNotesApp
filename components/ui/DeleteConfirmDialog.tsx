@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
   DialogContent,
@@ -51,10 +51,10 @@ export function DeleteConfirmDialog({
           ) : null}
         </DialogHeader>
         <DialogFooter>
-          <Button className="w-full sm:w-auto" disabled={disabled} onClick={onConfirm} variant="danger">
+          <Button className="w-full sm:w-auto" disabled={disabled} onClick={onConfirm} variant="destructive">
             {confirmLabel}
           </Button>
-          <Button className="w-full sm:w-auto" disabled={disabled} onClick={onCancel} variant="secondary">
+          <Button className="w-full sm:w-auto" disabled={disabled} onClick={onCancel} variant="outline">
             {cancelLabel}
           </Button>
         </DialogFooter>

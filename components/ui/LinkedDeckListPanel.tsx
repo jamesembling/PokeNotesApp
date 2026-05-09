@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import type { DeckCard } from "@/types/index";
@@ -48,13 +49,11 @@ export function LinkedDeckListPanel({
             Deck List
           </h3>
           {deckId ? (
-            <Link
-              className="ui-control-text inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              href={`/decks/${deckId}`}
-              prefetch={false}
-            >
-              Jump to Deck
-            </Link>
+            <Button asChild variant="outline">
+              <Link href={`/decks/${deckId}`} prefetch={false}>
+                Jump to Deck
+              </Link>
+            </Button>
           ) : null}
         </div>
 

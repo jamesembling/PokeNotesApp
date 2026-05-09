@@ -7,9 +7,10 @@ import {
   deleteTournamentAction,
   updateTournamentAction
 } from "@/app/(app)/tournaments/actions";
-import { AppSelect } from "@/components/ui/AppSelect";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +33,7 @@ export type TournamentEditorDialogProps = {
   pokemonOptions: PokemonOption[];
   tournament?: Tournament;
   triggerLabel: string;
-  triggerVariant?: "primary" | "secondary" | "ghost";
+  triggerVariant?: "default" | "outline" | "ghost";
 };
 
 type SaveState = "idle" | "saving" | "success";
@@ -122,7 +123,7 @@ export function TournamentEditorDialog({
   pokemonOptions,
   tournament,
   triggerLabel,
-  triggerVariant = "primary"
+  triggerVariant = "default"
 }: TournamentEditorDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -346,7 +347,7 @@ export function TournamentEditorDialog({
               </div>
 
               <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-                <Button className="whitespace-nowrap" onClick={closeDialog} type="button" variant="secondary">
+                <Button className="whitespace-nowrap" onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
                 {isEditing ? (
@@ -358,7 +359,7 @@ export function TournamentEditorDialog({
                       setShowDeleteConfirmation((current) => !current);
                     }}
                     type="button"
-                    variant="danger"
+                    variant="destructive"
                   >
                     Delete
                   </Button>
@@ -372,29 +373,35 @@ export function TournamentEditorDialog({
             </div>
 
             {isEditing && showDeleteConfirmation ? (
-              <div className="mb-4 rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4">
-                <p className="text-sm text-card-foreground">
+              <Alert
+                className="mb-4 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
+                variant="destructive"
+              >
+                <AlertDescription className="text-card-foreground">
                   Delete this tournament and all of its rounds?
-                </p>
+                </AlertDescription>
                 <div className="mt-3 grid gap-3 sm:flex sm:flex-wrap">
-                  <Button disabled={deleteState === "deleting"} onClick={handleDelete} variant="danger">
+                  <Button disabled={deleteState === "deleting"} onClick={handleDelete} variant="destructive">
                     {deleteState === "deleting" ? "Deleting..." : "Yes, delete"}
                   </Button>
                   <Button
                     disabled={deleteState === "deleting"}
                     onClick={() => setShowDeleteConfirmation(false)}
-                    variant="secondary"
+                    variant="outline"
                   >
                     Keep Tournament
                   </Button>
                 </div>
-              </div>
+              </Alert>
             ) : null}
 
             {actionError ? (
-              <div className="mb-4 rounded-2xl border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] p-4 text-sm text-[var(--color-loss)]">
-                {actionError}
-              </div>
+              <Alert
+                className="mb-4 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                variant="destructive"
+              >
+                <AlertDescription>{actionError}</AlertDescription>
+              </Alert>
             ) : null}
 
             <form

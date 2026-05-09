@@ -1,16 +1,20 @@
 "use client";
 
-import { cloneElement, isValidElement, type ReactElement } from "react";
+import { cloneElement, isValidElement, useEffect, type ReactElement } from "react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { EditLogDialogProps } from "@/components/ui/EditLogDialog";
 import type { BattleLog, DeckSelectionOption, PokemonOption } from "@/types/index";
 
 type LazyEditLogButtonProps = {
+  autoOpen?: boolean;
   log: BattleLog;
-  trigger?: ReactElement<{ onClick?: () => void }>;
+  trigger?: ReactElement<{
+    onClick?: () => void;
+    onSelect?: (event: Event) => void;
+  }>;
   userDecks: DeckSelectionOption[];
 };
 
@@ -25,7 +29,7 @@ const DynamicEditLogDialog = dynamic<EditLogDialogProps>(
   }
 );
 
-export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButtonProps) {
+export function LazyEditLogButton({ autoOpen = false, log, trigger, userDecks }: LazyEditLogButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [loadedUserDecks, setLoadedUserDecks] = useState<DeckSelectionOption[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -67,12 +71,24 @@ export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButton
     }
   }
 
+  useEffect(() => {
+    if (!autoOpen) {
+      return;
+    }
+
+    setDialogOpen(true);
+    void handleOpen();
+    // This component is keyed per row-menu edit request when autoOpen is used.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen]);
+
   if (pokemonOptions) {
     const resolvedUserDecks = userDecks.length > 0 ? userDecks : loadedUserDecks ?? [];
 
     return (
       <>
         <DynamicEditLogDialog
+          hideTrigger={autoOpen}
           initialOpen={dialogOpen}
           log={log}
           pokemonOptions={pokemonOptions}
@@ -88,10 +104,25 @@ export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButton
     );
   }
 
+  if (autoOpen) {
+    return loadError ? (
+      <p className="text-sm text-[var(--color-loss)]" role="status">
+        {loadError}
+      </p>
+    ) : null;
+  }
+
   const triggerElement = isValidElement(trigger) ? (
     cloneElement(trigger, {
       ...trigger.props,
       onClick: () => {
+        trigger.props.onClick?.();
+        setDialogOpen(true);
+        void handleOpen();
+      },
+      onSelect: (event: Event) => {
+        trigger.props.onSelect?.(event);
+        event.preventDefault();
         setDialogOpen(true);
         void handleOpen();
       }
@@ -103,7 +134,7 @@ export function LazyEditLogButton({ log, trigger, userDecks }: LazyEditLogButton
         setDialogOpen(true);
         void handleOpen();
       }}
-      variant="secondary"
+      variant="outline"
     >
       Edit Log
     </Button>

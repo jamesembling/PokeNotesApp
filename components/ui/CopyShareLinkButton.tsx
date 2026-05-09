@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 
 type CopyShareLinkButtonProps = {
   initialShare?: ShareLinkState | null;
@@ -159,7 +159,7 @@ export function CopyShareLinkButton({
   }
 
   return (
-    <Button disabled={isBusy} onClick={handleCopy} type="button" variant="secondary">
+    <Button disabled={isBusy} onClick={handleCopy} type="button" variant="outline">
       {isBusy ? "Preparing Share..." : "Share Log"}
     </Button>
   );

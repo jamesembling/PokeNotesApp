@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { TournamentEditorDialogProps } from "@/components/ui/TournamentEditorDialog";
 import type { PokemonOption, Tournament, TournamentDeckChoice } from "@/types/index";
@@ -11,7 +11,7 @@ type LazyTournamentEditorButtonProps = {
   decks?: TournamentDeckChoice[];
   tournament?: Tournament;
   triggerLabel: string;
-  triggerVariant?: "primary" | "secondary" | "ghost";
+  triggerVariant?: "default" | "outline" | "ghost";
 };
 
 type TournamentEditorDataResponse = {
@@ -65,7 +65,7 @@ export function LazyTournamentEditorButton({
   decks: initialDecks = [],
   tournament,
   triggerLabel,
-  triggerVariant = "primary"
+  triggerVariant = "default"
 }: LazyTournamentEditorButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [decks, setDecks] = useState<TournamentDeckChoice[]>(initialDecks);

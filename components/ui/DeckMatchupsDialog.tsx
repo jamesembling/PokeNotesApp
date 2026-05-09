@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,7 @@ export function DeckMatchupsDialog({
   return (
     <Dialog onOpenChange={setIsOpen} open={isOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary">View All Matchups</Button>
+        <Button variant="outline">View All Matchups</Button>
       </DialogTrigger>
 
       <DialogContent
@@ -55,7 +55,7 @@ export function DeckMatchupsDialog({
                 </DialogDescription>
               </div>
 
-              <Button onClick={() => setIsOpen(false)} variant="secondary">
+              <Button onClick={() => setIsOpen(false)} variant="outline">
                 Close
               </Button>
             </div>

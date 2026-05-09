@@ -1,13 +1,21 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from "@/components/shadcn/breadcrumb";
 
-type BreadcrumbItem = {
+type PageBreadcrumbItem = {
   label: string;
   href?: string;
 };
 
 type PageHeaderProps = {
-  breadcrumb: BreadcrumbItem[];
+  breadcrumb: PageBreadcrumbItem[];
   title: string;
   subtitle?: string;
   action?: ReactNode;
@@ -26,30 +34,30 @@ export function PageHeader({
 
   return (
     <header className="flex flex-col gap-4">
-      <nav aria-label="Breadcrumb">
-        <ol className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <Breadcrumb>
+        <BreadcrumbList className="gap-2">
           {breadcrumb.map((item, index) => {
             const isLast = index === breadcrumb.length - 1;
 
             return (
-              <li className="flex items-center gap-2" key={`${item.label}-${index}`}>
-                {item.href && !isLast ? (
-                  <Link
-                    className="transition hover:text-primary"
-                    href={item.href}
-                    prefetch={false}
-                  >
-                    {item.label}
-                  </Link>
-                ) : (
-                  <span>{item.label}</span>
-                )}
-                {!isLast ? <span aria-hidden="true">/</span> : null}
-              </li>
+              <Fragment key={`${item.label}-${index}`}>
+                <BreadcrumbItem>
+                  {item.href && !isLast ? (
+                    <BreadcrumbLink asChild className="hover:text-primary">
+                      <Link href={item.href} prefetch={false}>
+                        {item.label}
+                      </Link>
+                    </BreadcrumbLink>
+                  ) : (
+                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                  )}
+                </BreadcrumbItem>
+                {!isLast ? <BreadcrumbSeparator>/</BreadcrumbSeparator> : null}
+              </Fragment>
             );
           })}
-        </ol>
-      </nav>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       {hasMetaRow ? (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

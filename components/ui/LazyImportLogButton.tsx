@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/shadcn/button";
 import type { ImportLogDialogProps } from "@/components/ui/ImportLogDialog";
 import type { DeckSelectionOption, PokemonOption } from "@/types/index";
 
