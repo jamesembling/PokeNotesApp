@@ -6,6 +6,7 @@ import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { StatCard } from "@/components/ui/StatCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
+import { requireUser } from "@/lib/auth";
 import { getArchetypeMatchupStats, getLogStatsOverview } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
 
@@ -22,6 +23,14 @@ function formatWinRate(value: number | null) {
 }
 
 export default async function StatsPage() {
+  const user = await requireUser();
+  const overviewPromise = measureServerCall("page.stats.overview", async () =>
+    await getLogStatsOverview(user.id)
+  );
+  const matchupsPromise = measureServerCall("page.stats.archetypeMatchups", async () =>
+    await getArchetypeMatchupStats(user.id)
+  );
+
   return (
     <>
       <PageHeader
@@ -43,7 +52,7 @@ export default async function StatsPage() {
             </div>
 
             <Suspense fallback={<StatsOverviewFallback />}>
-              <StatsOverviewGrid />
+              <StatsOverviewGrid overviewPromise={overviewPromise} />
             </Suspense>
           </Card>
         </TabsContent>
@@ -56,7 +65,7 @@ export default async function StatsPage() {
             </div>
 
             <Suspense fallback={<ArchetypeMatchupsFallback />}>
-              <ArchetypeMatchupsTable />
+              <ArchetypeMatchupsTable matchupsPromise={matchupsPromise} />
             </Suspense>
           </Card>
         </TabsContent>
@@ -65,10 +74,12 @@ export default async function StatsPage() {
   );
 }
 
-async function StatsOverviewGrid() {
-  const overview = await measureServerCall("page.stats.overview", async () =>
-    await getLogStatsOverview()
-  );
+async function StatsOverviewGrid({
+  overviewPromise
+}: {
+  overviewPromise: ReturnType<typeof getLogStatsOverview>;
+}) {
+  const overview = await overviewPromise;
   const metrics = [
     {
       label: "Games Played",
@@ -130,11 +141,12 @@ function StatsOverviewFallback() {
   );
 }
 
-async function ArchetypeMatchupsTable() {
-  const matchups = await measureServerCall("page.stats.archetypeMatchups", async () =>
-    await getArchetypeMatchupStats()
-  );
-
+async function ArchetypeMatchupsTable({
+  matchupsPromise
+}: {
+  matchupsPromise: ReturnType<typeof getArchetypeMatchupStats>;
+}) {
+  const matchups = await matchupsPromise;
   if (matchups.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">

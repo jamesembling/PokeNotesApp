@@ -39,7 +39,7 @@ test("/decks/[id] uses read-model stats and only latest linked logs on first ren
   const page = source("app/(app)/decks/[id]/page.tsx");
 
   assert.match(page, /getDeckLogStats/);
-  assert.match(page, /getLatestLogsForDeck\(user\.id, deck\.id, 5\)/);
+  assert.match(page, /getLatestLogsForDeck\(user\.id, (deck\.id|id), 5\)/);
   assert.doesNotMatch(page, /getAllLogsForDeck/);
 });
 

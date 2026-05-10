@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DeckCard, type DeckCardView } from "@/components/ui/DeckCard";
 import { ChevronIcon, GridIcon, MenuIcon } from "@/components/ui/icons";
 import type { DeckSummary } from "@/types/index";
@@ -73,59 +73,76 @@ function SortHeaderButton({
 export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
   const [view, setView] = useState<DeckCardView>("tile");
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
-  const resolvedDecks = decks;
-  const totalDeckLists = resolvedDecks.reduce((sum, { deckListCount }) => sum + deckListCount, 0);
-  const totalMatches = resolvedDecks.reduce((sum, { gamesPlayed }) => sum + gamesPlayed, 0);
-  const trackedDecks = resolvedDecks.filter(({ gamesPlayed }) => gamesPlayed > 0).length;
-  const orderedDecks = [...resolvedDecks].sort((left, right) => {
+  const { totalDeckLists, totalMatches, trackedDecks } = useMemo(
+    () =>
+      decks.reduce(
+        (totals, { deckListCount, gamesPlayed }) => {
+          totals.totalDeckLists += deckListCount;
+          totals.totalMatches += gamesPlayed;
+          if (gamesPlayed > 0) {
+            totals.trackedDecks += 1;
+          }
+          return totals;
+        },
+        {
+          totalDeckLists: 0,
+          totalMatches: 0,
+          trackedDecks: 0
+        }
+      ),
+    [decks]
+  );
+  const orderedDecks = useMemo(() => {
     if (!sort) {
-      return 0;
+      return decks;
     }
 
     const directionMultiplier = sort.direction === "asc" ? 1 : -1;
 
-    switch (sort.key) {
-      case "deck":
-        return left.deck.deckName.localeCompare(right.deck.deckName) * directionMultiplier;
-      case "winRate": {
-        const leftValue = left.winRate ?? -1;
-        const rightValue = right.winRate ?? -1;
-        if (leftValue !== rightValue) {
-          return (leftValue - rightValue) * directionMultiplier;
+    return [...decks].sort((left, right) => {
+      switch (sort.key) {
+        case "deck":
+          return left.deck.deckName.localeCompare(right.deck.deckName) * directionMultiplier;
+        case "winRate": {
+          const leftValue = left.winRate ?? -1;
+          const rightValue = right.winRate ?? -1;
+          if (leftValue !== rightValue) {
+            return (leftValue - rightValue) * directionMultiplier;
+          }
+          return left.deck.deckName.localeCompare(right.deck.deckName);
         }
-        return left.deck.deckName.localeCompare(right.deck.deckName);
+        case "record": {
+          const leftWins = left.gamesPlayed - left.losses;
+          const rightWins = right.gamesPlayed - right.losses;
+          if (leftWins !== rightWins) {
+            return (leftWins - rightWins) * directionMultiplier;
+          }
+          if (left.losses !== right.losses) {
+            return (right.losses - left.losses) * directionMultiplier;
+          }
+          if (left.gamesPlayed !== right.gamesPlayed) {
+            return (left.gamesPlayed - right.gamesPlayed) * directionMultiplier;
+          }
+          return left.deck.deckName.localeCompare(right.deck.deckName);
+        }
+        case "lists":
+          if (left.deckListCount !== right.deckListCount) {
+            return (left.deckListCount - right.deckListCount) * directionMultiplier;
+          }
+          return left.deck.deckName.localeCompare(right.deck.deckName);
+        case "updated": {
+          const leftValue = new Date(left.deck.updatedAt).getTime();
+          const rightValue = new Date(right.deck.updatedAt).getTime();
+          if (leftValue !== rightValue) {
+            return (leftValue - rightValue) * directionMultiplier;
+          }
+          return left.deck.deckName.localeCompare(right.deck.deckName);
+        }
+        default:
+          return 0;
       }
-      case "record": {
-        const leftWins = left.gamesPlayed - left.losses;
-        const rightWins = right.gamesPlayed - right.losses;
-        if (leftWins !== rightWins) {
-          return (leftWins - rightWins) * directionMultiplier;
-        }
-        if (left.losses !== right.losses) {
-          return (right.losses - left.losses) * directionMultiplier;
-        }
-        if (left.gamesPlayed !== right.gamesPlayed) {
-          return (left.gamesPlayed - right.gamesPlayed) * directionMultiplier;
-        }
-        return left.deck.deckName.localeCompare(right.deck.deckName);
-      }
-      case "lists":
-        if (left.deckListCount !== right.deckListCount) {
-          return (left.deckListCount - right.deckListCount) * directionMultiplier;
-        }
-        return left.deck.deckName.localeCompare(right.deck.deckName);
-      case "updated": {
-        const leftValue = new Date(left.deck.updatedAt).getTime();
-        const rightValue = new Date(right.deck.updatedAt).getTime();
-        if (leftValue !== rightValue) {
-          return (leftValue - rightValue) * directionMultiplier;
-        }
-        return left.deck.deckName.localeCompare(right.deck.deckName);
-      }
-      default:
-        return 0;
-    }
-  });
+    });
+  }, [decks, sort]);
 
   useEffect(() => {
     const storedView = window.localStorage.getItem(STORAGE_KEY);

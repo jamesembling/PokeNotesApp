@@ -173,6 +173,8 @@ function mergeLogs(current: BattleLogSummary[], incoming: BattleLogSummary[]) {
 }
 
 function attachLinkedDeckListNames(logs: BattleLogSummary[], userDecks: DeckSelectionOption[]) {
+  const deckOptionsById = new Map(userDecks.map((deck) => [deck.id, deck] as const));
+
   return logs.map((log) => {
     if (!log.linkedDeckId || !log.linkedDeckListId) {
       return {
@@ -181,7 +183,7 @@ function attachLinkedDeckListNames(logs: BattleLogSummary[], userDecks: DeckSele
       };
     }
 
-    const deck = userDecks.find((candidate) => candidate.id === log.linkedDeckId);
+    const deck = deckOptionsById.get(log.linkedDeckId);
     const linkedDeckList = deck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
 
     return {

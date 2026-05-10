@@ -65,9 +65,11 @@ function DeckMatchupTile({
 }
 
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
-  const user = await requireUser();
-  const { id } = await params;
-  const deck = await getDeckById(user.id, id);
+  const [user, { id }] = await Promise.all([requireUser(), params]);
+  const deckPromise = getDeckById(user.id, id);
+  const deckStatsPromise = getDeckLogStats(user.id, id);
+  const latestLogsPromise = getLatestLogsForDeck(user.id, id, 5);
+  const deck = await deckPromise;
   const defaultCreatedBy =
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||
@@ -105,10 +107,6 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     );
   }
 
-  const [deckStatsPromise, latestLogsPromise] = [
-    getDeckLogStats(user.id, deck.id),
-    getLatestLogsForDeck(user.id, deck.id, 5)
-  ];
   const previewMatchups = deck.matchups.slice(0, 4);
   const deckActions = (
     <ButtonGroup className="max-w-full flex-wrap">
