@@ -101,6 +101,12 @@ function isMissingDeckMatchupsColumn(error: PostgrestLikeError | null) {
   return error?.code === "42703";
 }
 
+function assertSingleMutationResult(row: { id?: unknown } | null, message: string) {
+  if (!row?.id) {
+    throw userFacingActionError(message);
+  }
+}
+
 export async function createDeckAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = crypto.randomUUID();
 
@@ -176,7 +182,7 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
     const selectedSprites = parseSelectedSprites(formData);
     const archetypeId = buildDeckArchetypeId(selectedSprites);
 
-    let { error } = await supabase
+    let { data: updatedDeck, error } = await supabase
       .from("decks")
       .update({
         deck_name: deckName,
@@ -192,10 +198,12 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
         updated_at: new Date().toISOString()
       })
       .eq("id", deckId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (isMissingDeckArchetypeColumn(error)) {
-      ({ error } = await supabase
+      ({ data: updatedDeck, error } = await supabase
         .from("decks")
         .update({
           deck_name: deckName,
@@ -210,12 +218,16 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
           updated_at: new Date().toISOString()
         })
         .eq("id", deckId)
-        .eq("user_id", user.id));
+        .eq("user_id", user.id)
+        .select("id")
+        .maybeSingle());
     }
 
     if (error) {
       throw error;
     }
+
+    assertSingleMutationResult(updatedDeck, "Deck could not be found.");
 
     revalidateDeckWorkspace();
 
@@ -245,7 +257,7 @@ export async function updateDeckStrategyAction(formData: FormData): Promise<Save
       throw userFacingActionError("Deck id is required.");
     }
 
-    let { error } = await supabase
+    let { data: updatedDeck, error } = await supabase
       .from("decks")
       .update({
         go_preference: parseGoPreference(formData.get("goPreference")),
@@ -256,10 +268,12 @@ export async function updateDeckStrategyAction(formData: FormData): Promise<Save
         updated_at: new Date().toISOString()
       })
       .eq("id", deckId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (isMissingDeckArchetypeColumn(error)) {
-      ({ error } = await supabase
+      ({ data: updatedDeck, error } = await supabase
         .from("decks")
         .update({
           go_preference: parseGoPreference(formData.get("goPreference")),
@@ -270,12 +284,16 @@ export async function updateDeckStrategyAction(formData: FormData): Promise<Save
           updated_at: new Date().toISOString()
         })
         .eq("id", deckId)
-        .eq("user_id", user.id));
+        .eq("user_id", user.id)
+        .select("id")
+        .maybeSingle());
     }
 
     if (error) {
       throw error;
     }
+
+    assertSingleMutationResult(updatedDeck, "Deck could not be found.");
 
     revalidateDeckWorkspace();
     revalidatePath(`/decks/${deckId}`, "page");
@@ -319,15 +337,19 @@ export async function deleteDeckAction(formData: FormData): Promise<SaveActionRe
       throw unlinkLogsError;
     }
 
-    const { error: deleteError } = await supabase
+    const { data: deletedDeck, error: deleteError } = await supabase
       .from("decks")
       .delete()
       .eq("id", deckId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (deleteError) {
       throw deleteError;
     }
+
+    assertSingleMutationResult(deletedDeck, "Deck could not be found.");
 
     revalidateDeckWorkspace();
 
@@ -411,18 +433,22 @@ export async function createDeckMatchupAction(formData: FormData): Promise<SaveA
       }
     ];
 
-    const { error: updateError } = await supabase
+    const { data: updatedDeck, error: updateError } = await supabase
       .from("decks")
       .update({
         matchups: nextMatchups,
         updated_at: now
       })
       .eq("id", deckId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
       throw updateError;
     }
+
+    assertSingleMutationResult(updatedDeck, "That deck could not be found.");
 
     revalidateDeckWorkspace();
     revalidatePath(`/decks/${deckId}`, "page");
@@ -526,18 +552,22 @@ export async function updateDeckMatchupAction(formData: FormData): Promise<SaveA
       };
     });
 
-    const { error: updateError } = await supabase
+    const { data: updatedDeck, error: updateError } = await supabase
       .from("decks")
       .update({
         matchups: nextMatchups,
         updated_at: now
       })
       .eq("id", deckId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
       throw updateError;
     }
+
+    assertSingleMutationResult(updatedDeck, "That deck could not be found.");
 
     revalidateDeckWorkspace();
     revalidatePath(`/decks/${deckId}`, "page");
@@ -586,8 +616,21 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
     }
 
     const existingDeckLists = Array.isArray(data.deck_lists) ? data.deck_lists : [];
+    const existingDeckList = deckListId
+      ? existingDeckLists.find(
+          (entry) =>
+            entry &&
+            typeof entry === "object" &&
+            "id" in entry &&
+            String((entry as { id?: unknown }).id || "") === deckListId
+        )
+      : null;
     const name = String(formData.get("name") || "").trim();
     const rawList = String(formData.get("rawList") || "").trim();
+
+    if (deckListId && !existingDeckList) {
+      throw userFacingActionError("Deck list could not be found.");
+    }
 
     if (!name) {
       throw userFacingActionError("Enter a deck list name before saving.");
@@ -624,17 +667,7 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
       sortedCardsVersion: CANONICAL_DECK_LIST_SORT_VERSION,
       createdAt:
         String(formData.get("createdAt") || "").trim() ||
-        (deckListId
-          ? String(
-              existingDeckLists.find(
-                (entry) =>
-                  entry &&
-                  typeof entry === "object" &&
-                  "id" in entry &&
-                  String((entry as { id?: unknown }).id || "") === deckListId
-              )?.createdAt || ""
-            ).trim()
-          : "") ||
+        (deckListId ? String(existingDeckList?.createdAt || "").trim() : "") ||
         timestamp,
       updatedAt: timestamp
     };
@@ -651,18 +684,22 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
         })
       : [nextDeckList, ...existingDeckLists];
 
-    const { error: updateError } = await supabase
+    const { data: updatedDeck, error: updateError } = await supabase
       .from("decks")
       .update({
         deck_lists: updatedDeckLists,
         updated_at: timestamp
       })
       .eq("id", deckId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
       throw updateError;
     }
+
+    assertSingleMutationResult(updatedDeck, "Deck could not be found.");
 
     revalidateDeckWorkspace();
 

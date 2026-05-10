@@ -24,8 +24,14 @@ type NavigatorWithHints = Navigator & {
   deviceMemory?: number;
 };
 
+type LongTaskEntry = {
+  duration: number;
+  startTime: number;
+};
+
 const REPORT_ENDPOINT = "/api/performance-events";
 const NAVIGATION_RESOURCE_LOOKBACK_MS = 1200;
+const LONG_TASK_ENTRY_RETENTION_MS = 300000;
 const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -89,6 +95,18 @@ function getSlowestResourceSince(startedAt: number, endedAt = performance.now())
   };
 }
 
+function getLongTaskStatsSince(entries: LongTaskEntry[], startedAt: number, endedAt: number) {
+  return entries
+    .filter((entry) => entry.startTime >= startedAt && entry.startTime <= endedAt)
+    .reduce(
+      (stats, entry) => ({
+        maxLongTaskMs: Math.max(stats.maxLongTaskMs, entry.duration),
+        totalBlockingTimeMs: stats.totalBlockingTimeMs + Math.max(0, entry.duration - 50)
+      }),
+      { maxLongTaskMs: 0, totalBlockingTimeMs: 0 }
+    );
+}
+
 function getDeviceSnapshot() {
   const typedNavigator = navigator as NavigatorWithHints;
   const connection = typedNavigator.connection;
@@ -134,6 +152,7 @@ function sendPerformanceEvent(payload: Record<string, unknown>) {
 export function RoutePerformanceReporter() {
   const pathname = usePathname();
   const currentPathRef = useRef(pathname);
+  const longTaskEntriesRef = useRef<LongTaskEntry[]>([]);
   const longTaskStatsRef = useRef({ maxLongTaskMs: 0, totalBlockingTimeMs: 0 });
   const pendingNavigationRef = useRef<PendingNavigation | null>(null);
 
@@ -151,7 +170,16 @@ export function RoutePerformanceReporter() {
     if (typeof PerformanceObserver !== "undefined") {
       try {
         longTaskObserver = new PerformanceObserver((entryList) => {
+          const retentionStart = Math.max(0, performance.now() - LONG_TASK_ENTRY_RETENTION_MS);
+          longTaskEntriesRef.current = longTaskEntriesRef.current.filter(
+            (entry) => entry.startTime >= retentionStart
+          );
+
           for (const entry of entryList.getEntries()) {
+            longTaskEntriesRef.current.push({
+              duration: entry.duration,
+              startTime: entry.startTime
+            });
             longTaskStatsRef.current.maxLongTaskMs = Math.max(
               longTaskStatsRef.current.maxLongTaskMs,
               entry.duration
@@ -207,6 +235,11 @@ export function RoutePerformanceReporter() {
         pendingNavigation.resourceStartedAt,
         finishedAt
       );
+      const longTaskSnapshot = getLongTaskStatsSince(
+        longTaskEntriesRef.current,
+        pendingNavigation.startedAt,
+        finishedAt
+      );
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
@@ -220,9 +253,9 @@ export function RoutePerformanceReporter() {
           pendingNavigation.sawLoading && pendingNavigation.loadingStartedAt !== null
             ? Math.round(finishedAt - pendingNavigation.loadingStartedAt)
             : null,
-        maxLongTaskMs: Math.round(longTaskStatsRef.current.maxLongTaskMs),
+        maxLongTaskMs: Math.round(longTaskSnapshot.maxLongTaskMs),
         toPath: pendingNavigation.toPath,
-        totalBlockingTimeMs: Math.round(longTaskStatsRef.current.totalBlockingTimeMs),
+        totalBlockingTimeMs: Math.round(longTaskSnapshot.totalBlockingTimeMs),
         ttfbMs: null
       });
       pendingNavigationRef.current = null;

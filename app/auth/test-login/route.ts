@@ -15,12 +15,13 @@ function getSupabaseEnv() {
 }
 
 function getTestLoginConfig() {
+  const enabled = process.env.POKE_NOTES_ENABLE_TEST_LOGIN === "1";
   const secret = process.env.POKE_NOTES_TEST_LOGIN_SECRET || "";
   const email = process.env.POKE_NOTES_TEST_LOGIN_EMAIL || "";
   const password = process.env.POKE_NOTES_TEST_LOGIN_PASSWORD || "";
 
   return {
-    configured: Boolean(secret && email && password),
+    configured: Boolean(enabled && secret && email && password),
     email,
     password,
     secret

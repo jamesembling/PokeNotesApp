@@ -9,6 +9,7 @@ import {
 } from "@/lib/server/action-errors";
 import type { FailedActionResult } from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeTournamentDateRange } from "@/lib/tournaments/date-range";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS,
@@ -140,15 +141,6 @@ function parseSpriteArray(values: FormDataEntryValue[]) {
     .slice(0, 2);
 }
 
-function parseIsoDate(value: FormDataEntryValue | null, fallback?: string) {
-  const normalized = String(value || "").trim() || String(fallback || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-    throw userFacingActionError("Choose a valid date.");
-  }
-
-  return normalized;
-}
-
 async function resolveDeckSnapshot(userId: string, linkedDeckId: string) {
   if (!linkedDeckId) {
     return null;
@@ -238,8 +230,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
     const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
     const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
     const name = String(formData.get("name") || "").trim();
-    const dateFrom = parseIsoDate(formData.get("dateFrom"));
-    const dateTo = parseIsoDate(formData.get("dateTo"), dateFrom);
+    const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
     const resolvedDeckListId =
@@ -324,6 +315,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
     const resolvedDeckListId =
       resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
+    const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
 
     if (!tournamentId) {
       throw userFacingActionError("Tournament id is required.");
@@ -339,8 +331,8 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
 
     const nextTournament = {
       name,
-      date_from: parseIsoDate(formData.get("dateFrom")),
-      date_to: parseIsoDate(formData.get("dateTo")),
+      date_from: dateFrom,
+      date_to: dateTo,
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
       linked_deck_list_id: resolvedDeckListId,
       deck_name: resolvedDeck?.deckName ?? "",
@@ -352,19 +344,21 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       notes: String(formData.get("notes") || "").trim()
     };
 
-    let { error } = await supabase
+    let { data: updatedTournament, error } = await supabase
       .from("tournaments")
       .update(nextTournament)
       .eq("id", tournamentId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (isMissingTournamentDeckListColumns(error)) {
-      ({ error } = await supabase
+      ({ data: updatedTournament, error } = await supabase
         .from("tournaments")
         .update({
           name,
-          date_from: parseIsoDate(formData.get("dateFrom")),
-          date_to: parseIsoDate(formData.get("dateTo")),
+          date_from: dateFrom,
+          date_to: dateTo,
           linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
           deck_name: resolvedDeck?.deckName ?? "",
           deck_sprites:
@@ -377,11 +371,17 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
           notes: String(formData.get("notes") || "").trim()
         })
         .eq("id", tournamentId)
-        .eq("user_id", user.id));
+        .eq("user_id", user.id)
+        .select("id")
+        .maybeSingle());
     }
 
     if (error) {
       throw toUserFacingDatabaseError(error);
+    }
+
+    if (!updatedTournament) {
+      throw userFacingActionError("Tournament could not be found.");
     }
 
     revalidateTournamentWorkspace(tournamentId);
@@ -412,14 +412,20 @@ export async function deleteTournamentAction(formData: FormData): Promise<SaveAc
       throw userFacingActionError("Tournament id is required.");
     }
 
-    const { error } = await supabase
+    const { data: deletedTournament, error } = await supabase
       .from("tournaments")
       .delete()
       .eq("id", tournamentId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       throw toUserFacingDatabaseError(error);
+    }
+
+    if (!deletedTournament) {
+      throw userFacingActionError("Tournament could not be found.");
     }
 
     revalidateTournamentWorkspace();
@@ -467,14 +473,20 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
     };
 
     if (roundId) {
-      const { error } = await supabase
+      const { data: updatedRound, error } = await supabase
         .from("tournament_rounds")
         .update(payload)
         .eq("id", roundId)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select("id")
+        .maybeSingle();
 
       if (error) {
         throw toUserFacingDatabaseError(error);
+      }
+
+      if (!updatedRound) {
+        throw userFacingActionError("Could not find that round.");
       }
     } else {
       const { error } = await supabase.from("tournament_rounds").insert({
@@ -516,14 +528,20 @@ export async function deleteTournamentRoundAction(formData: FormData): Promise<S
       throw userFacingActionError("Round id is required.");
     }
 
-    const { error } = await supabase
+    const { data: deletedRound, error } = await supabase
       .from("tournament_rounds")
       .delete()
       .eq("id", roundId)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       throw toUserFacingDatabaseError(error);
+    }
+
+    if (!deletedRound) {
+      throw userFacingActionError("Could not find that round.");
     }
 
     revalidateTournamentWorkspace(tournamentId);

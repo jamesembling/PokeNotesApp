@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createAdminClient, hasAdminSupabaseAccess } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { AdminUser, CatalogHealth, Role } from "@/types/index";
 
 type ProfileRow = {
@@ -300,55 +301,58 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
   return await measureServerCall("db.admin.users", async () => {
     if (roleUpdatesEnabled) {
       const supabase = createAdminClient();
-      const [profilesResult, decksResult, tournamentsResult, logStatsResult] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select(
-            [
-              "id",
-              "email",
-              "display_name",
-              "ptcgl_username",
-              "role",
-              "auth_account_created_at",
-              "last_login_at",
-              "last_active_at",
-              "login_count",
-              "created_at"
-            ].join(",")
-          ),
-        supabase.from("decks").select("user_id,deck_lists"),
-        supabase.from("tournaments").select("user_id"),
-        supabase.from("user_log_stats").select("user_id,games_played")
+      const profileColumns = [
+        "id",
+        "email",
+        "display_name",
+        "ptcgl_username",
+        "role",
+        "auth_account_created_at",
+        "last_login_at",
+        "last_active_at",
+        "login_count",
+        "created_at"
+      ].join(",");
+      const [profiles, decks, tournaments, logStats] = await Promise.all([
+        fetchAllRows<ProfileRow>(async (from, to) => {
+          const { data, error } = await supabase
+            .from("profiles")
+            .select(profileColumns)
+            .range(from, to);
+
+          return { data: data as ProfileRow[] | null, error };
+        }),
+        fetchAllRows<DeckCountRow>(async (from, to) => {
+          const { data, error } = await supabase
+            .from("decks")
+            .select("user_id,deck_lists")
+            .range(from, to);
+
+          return { data: data as DeckCountRow[] | null, error };
+        }),
+        fetchAllRows<UserCountRow>(async (from, to) => {
+          const { data, error } = await supabase
+            .from("tournaments")
+            .select("user_id")
+            .range(from, to);
+
+          return { data: data as UserCountRow[] | null, error };
+        }),
+        fetchAllRows<UserLogStatsCountRow>(async (from, to) => {
+          const { data, error } = await supabase
+            .from("user_log_stats")
+            .select("user_id,games_played")
+            .range(from, to);
+
+          return { data: data as UserLogStatsCountRow[] | null, error };
+        })
       ]);
 
-      if (profilesResult.error) {
-        throw profilesResult.error;
-      }
-
-      if (decksResult.error) {
-        throw decksResult.error;
-      }
-
-      if (tournamentsResult.error) {
-        throw tournamentsResult.error;
-      }
-
-      if (logStatsResult.error) {
-        throw logStatsResult.error;
-      }
-
-      const { deckCounts, deckListCounts } = mapDeckCounts(
-        (decksResult.data as DeckCountRow[] | null) ?? null
-      );
-      const tournamentCounts = mapCountRows(
-        (tournamentsResult.data as UserCountRow[] | null) ?? null
-      );
-      const logCounts = mapLogStatsCounts(
-        (logStatsResult.data as UserLogStatsCountRow[] | null) ?? null
-      );
-      const users = (((profilesResult.data ?? null) as unknown as ProfileRow[] | null) ?? []).map(
-        (row) => mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts)
+      const { deckCounts, deckListCounts } = mapDeckCounts(decks);
+      const tournamentCounts = mapCountRows(tournaments);
+      const logCounts = mapLogStatsCounts(logStats);
+      const users = profiles.map((row) =>
+        mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts)
       );
 
       return {
@@ -358,28 +362,32 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
     }
 
     const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("profiles")
-      .select(
-        [
-          "id",
-          "email",
-          "display_name",
-          "ptcgl_username",
-          "role",
-          "auth_account_created_at",
-          "last_login_at",
-          "last_active_at",
-          "login_count",
-          "created_at"
-        ].join(",")
-      );
+    const data = await fetchAllRows<ProfileRow>(async (from, to) => {
+      const result = await supabase
+        .from("profiles")
+        .select(
+          [
+            "id",
+            "email",
+            "display_name",
+            "ptcgl_username",
+            "role",
+            "auth_account_created_at",
+            "last_login_at",
+            "last_active_at",
+            "login_count",
+            "created_at"
+          ].join(",")
+        )
+        .range(from, to);
 
-    if (error) {
-      throw error;
-    }
+      return {
+        data: result.data as ProfileRow[] | null,
+        error: result.error
+      };
+    });
 
-    const users = ((((data ?? null) as unknown) as ProfileRow[] | null) ?? []).map((row) =>
+    const users = data.map((row) =>
       mapAdminUser(
         row,
         new Map<string, number>(),
@@ -508,16 +516,16 @@ export async function updateAdminUserRole(userId: string, role: Role) {
   };
 
   if (actingUser.id === userId && role !== "admin") {
-    const { data, error } = await supabase.from("profiles").select("id,role");
+    const { count: adminCount, error } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin");
+
     if (error) {
       throw error;
     }
 
-    const adminCount = ((data as Array<{ role: Role }> | null) ?? []).filter(
-      (profile) => profile.role === "admin"
-    ).length;
-
-    if (adminCount <= 1) {
+    if ((adminCount ?? 0) <= 1) {
       throw new Error("You cannot remove admin access from the only admin account.");
     }
   }

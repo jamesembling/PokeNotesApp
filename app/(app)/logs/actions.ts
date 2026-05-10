@@ -256,6 +256,16 @@ function parseSections(value: FormDataEntryValue | null): LogSection[] {
   }
 }
 
+function assertMutatedRows(
+  rows: Array<{ id?: unknown }> | null,
+  expectedCount: number,
+  message: string
+) {
+  if ((rows ?? []).length !== expectedCount) {
+    throw userFacingActionError(message);
+  }
+}
+
 export async function parseLogAction(formData: FormData): Promise<ParseLogActionResult> {
   try {
     const rawLog = String(formData.get("rawLog") || "");
@@ -394,7 +404,7 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
     const nextSelfSpriteList = splitJoinedSprites(nextSelfSprites);
     const nextOpponentSpriteList = splitJoinedSprites(nextOpponentSprites);
 
-    const { error } = await supabase
+    const { data: updatedLogs, error } = await supabase
       .from("logs")
       .update({
         date,
@@ -417,11 +427,14 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
           : {})
       })
       .eq("user_id", user.id)
-      .eq("id", logId);
+      .eq("id", logId)
+      .select("id");
 
     if (error) {
       throw error;
     }
+
+    assertMutatedRows(updatedLogs, 1, "Battle log not found.");
 
     revalidateWorkspaceViews();
 
@@ -477,18 +490,21 @@ export async function bulkAssignDeckListAction(input: {
       throw userFacingActionError("That deck list could not be found.");
     }
 
-    const { error } = await supabase
+    const { data: updatedLogs, error } = await supabase
       .from("logs")
       .update({
         linked_deck_id: linkedDeckId,
         linked_deck_list_id: linkedDeckListId
       })
       .eq("user_id", user.id)
-      .in("id", logIds);
+      .in("id", logIds)
+      .select("id");
 
     if (error) {
       throw error;
     }
+
+    assertMutatedRows(updatedLogs, logIds.length, "Some selected battle logs could not be found.");
 
     revalidateWorkspaceViews();
   } catch (error) {
@@ -526,15 +542,18 @@ export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
       throw userFacingActionError("Select at least one battle log.");
     }
 
-    const { error } = await supabase
+    const { data: deletedLogs, error } = await supabase
       .from("logs")
       .delete()
       .eq("user_id", user.id)
-      .in("id", logIds);
+      .in("id", logIds)
+      .select("id");
 
     if (error) {
       throw error;
     }
+
+    assertMutatedRows(deletedLogs, logIds.length, "Some selected battle logs could not be found.");
 
     revalidateWorkspaceViews();
   } catch (error) {

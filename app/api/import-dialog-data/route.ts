@@ -5,6 +5,12 @@ import { getCurrentProfile } from "@/lib/db/profile";
 import { getPokemonOptions } from "@/lib/db/pokemon";
 import { reportError } from "@/lib/server/report-error";
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
+  Expires: "0",
+  Pragma: "no-cache"
+};
+
 export async function GET() {
   try {
     const user = await requireUser();
@@ -18,7 +24,7 @@ export async function GET() {
       pokemonOptions,
       userDecks,
       ptcglUsername: profile.ptcglUsername
-    });
+    }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     reportError(error, {
       action: "getImportDialogData",
@@ -31,7 +37,7 @@ export async function GET() {
       {
         error: "We couldn't load import data right now."
       },
-      { status: 500 }
+      { headers: NO_STORE_HEADERS, status: 500 }
     );
   }
 }
