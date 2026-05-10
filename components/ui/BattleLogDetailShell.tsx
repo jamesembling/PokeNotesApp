@@ -2,21 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
 import type { BattleLog, DeckCard, DeckSelectionOption } from "@/types/index";
-
-type ShareTone = "success" | "info" | "error";
-
-type ShareFeedback = {
-  tone: ShareTone;
-  text: string;
-};
 
 type BattleLogDetailShellProps = {
   activeShare?: ShareLinkState | null;
@@ -53,15 +48,6 @@ type LogDetailBodyResponse = {
   sections?: BattleLog["sections"];
 };
 
-const feedbackClassName: Record<ShareTone, string> = {
-  success:
-    "rounded-[18px] border border-[rgba(31,138,98,0.22)] bg-[linear-gradient(180deg,rgba(31,138,98,0.18),rgba(31,138,98,0.1))] px-4 py-3 text-sm font-semibold text-[var(--color-win)] shadow-[var(--shadow-sm)]",
-  info:
-    "rounded-[18px] border border-border bg-muted px-4 py-3 text-sm font-semibold text-muted-foreground shadow-[var(--shadow-sm)]",
-  error:
-    "rounded-[18px] border border-[rgba(213,87,75,0.22)] bg-[linear-gradient(180deg,rgba(213,87,75,0.18),rgba(213,87,75,0.1))] px-4 py-3 text-sm font-semibold text-[var(--color-loss)] shadow-[var(--shadow-sm)]"
-};
-
 async function revokeLogShare(shareId: string) {
   const response = await fetch(`/api/log-shares?shareId=${encodeURIComponent(shareId)}`, {
     cache: "no-store",
@@ -91,7 +77,6 @@ export function BattleLogDetailShell({
   userDecks
 }: BattleLogDetailShellProps) {
   const [currentShare, setCurrentShare] = useState<ShareLinkState | null>(activeShare);
-  const [shareFeedback, setShareFeedback] = useState<ShareFeedback | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
   const [deferredContext, setDeferredContext] = useState<LogDetailContextResponse | null>(null);
   const [deferredBody, setDeferredBody] = useState<LogDetailBodyResponse | null>(null);
@@ -211,14 +196,12 @@ export function BattleLogDetailShell({
     try {
       await revokeLogShare(currentShare.shareId);
       setCurrentShare(null);
-      setShareFeedback({
-        tone: "success",
-        text: "Share link revoked. The previous URL stops working immediately."
+      toast.success("Share link revoked", {
+        description: "The previous URL stops working immediately."
       });
     } catch (error) {
-      setShareFeedback({
-        tone: "error",
-        text:
+      toast.error("Could not revoke share link", {
+        description:
           error instanceof Error
             ? error.message
             : "Could not revoke this share link right now."
@@ -232,29 +215,24 @@ export function BattleLogDetailShell({
     <BattleLogDetailView
       actionTagOverrides={deferredBody?.actionTagOverrides ?? actionTagOverrides}
       actions={
-        <>
+        <ButtonGroup className="max-w-full flex-wrap">
           <LazyEditLogButton log={log} userDecks={resolvedUserDecks} />
           <CopyShareLinkButton
             initialShare={currentShare}
             logId={log.id}
-            onFeedbackChange={setShareFeedback}
             onShareReady={setCurrentShare}
           />
           {currentShare ? (
-            <Button disabled={isRevoking} onClick={handleRevoke} type="button" variant="ghost">
+            <Button disabled={isRevoking} onClick={handleRevoke} type="button" variant="outline">
               {isRevoking ? "Revoking..." : "Revoke Link"}
             </Button>
           ) : null}
-          <Button
-            asChild
-            className="hidden h-auto px-1 py-2 text-muted-foreground hover:bg-transparent hover:text-primary sm:inline-flex"
-            variant="ghost"
-          >
+          <Button asChild className="hidden sm:inline-flex" variant="outline">
             <Link href="/logs" prefetch={false}>
               Back to Logs
             </Link>
           </Button>
-        </>
+        </ButtonGroup>
       }
       linkedDeckId={deferredContext?.linkedDeckId ?? linkedDeckId}
       linkedDeckListFormat={deferredContext?.linkedDeckListFormat ?? linkedDeckListFormat}
@@ -269,23 +247,18 @@ export function BattleLogDetailShell({
       isBodyLoading={!deferredBody && !resolvedLog.rawLog && resolvedLog.sections.length === 0}
       log={resolvedLog}
       mobileNavigation={
-        <div className="grid grid-cols-2 gap-3 sm:hidden">
-          <Button asChild className="min-w-0" variant="outline">
+        <ButtonGroup className="w-full sm:hidden">
+          <Button asChild className="min-w-0 flex-1" variant="outline">
             <Link href="/logs" prefetch={false}>
               Back to Logs
             </Link>
           </Button>
           <LazyImportLogButton
-            className="w-full justify-center"
+            className="min-w-0 flex-1 justify-center"
             initialUserDecks={resolvedUserDecks}
             label="Import New Log"
           />
-        </div>
-      }
-      notice={
-        shareFeedback ? (
-          <p className={feedbackClassName[shareFeedback.tone]}>{shareFeedback.text}</p>
-        ) : null
+        </ButtonGroup>
       }
       timestampLabel={timestampLabel}
     />

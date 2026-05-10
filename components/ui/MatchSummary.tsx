@@ -41,13 +41,13 @@ function getResultStyles(result: Result) {
   if (result === "Win") {
     return {
       className: "text-[var(--color-win)]",
-      label: "WIN"
+      label: "W"
     };
   }
 
   return {
     className: "text-[var(--color-loss)]",
-    label: "LOSS"
+    label: "L"
   };
 }
 
@@ -201,22 +201,21 @@ export function MatchSummary({
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card px-5 py-5 sm:px-6 sm:py-6 lg:px-7">
       <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-1.5">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-start">
+          <div className="space-y-2">
             <h2 className="text-[1.85rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground sm:text-[2.15rem]">
               Match Summary
             </h2>
+            <p className="text-sm text-muted-foreground">{timestampLabel}</p>
           </div>
 
-          <div className="flex flex-col items-start gap-3 lg:items-end">
-            <p className={`text-[1.1rem] font-semibold leading-none tracking-[0.14em] ${resultStyles.className}`}>
+          <div className="flex justify-start lg:justify-center">
+            <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-current/20 text-[1.1rem] font-semibold leading-none ${resultStyles.className}`}>
               {resultStyles.label}
-            </p>
-            <div className="flex flex-col items-start gap-3 lg:items-end">
-              <p className="text-sm text-muted-foreground">{timestampLabel}</p>
-              {actions ? <div className="flex flex-wrap items-center gap-3 lg:justify-end">{actions}</div> : null}
-            </div>
+            </span>
           </div>
+
+          {actions ? <div className="flex flex-wrap items-center gap-3 lg:justify-end">{actions}</div> : null}
         </div>
 
         <div className="border-t border-border pt-5">

@@ -15,13 +15,14 @@ import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
-import { Input } from "@/components/shadcn/input";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import {
@@ -321,12 +322,7 @@ export function EditLogDialog({
               <section className="grid gap-4 xl:grid-cols-2">
                 <label className="grid min-w-0 gap-2">
                   <span className="text-sm font-semibold text-muted-foreground">Date</span>
-                  <Input
-                    className="h-auto min-h-[2.75rem] w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    onChange={(event) => setSelectedDate(event.target.value)}
-                    type="date"
-                    value={selectedDate}
-                  />
+                  <DatePicker onChange={setSelectedDate} value={selectedDate} />
                   <span aria-hidden="true" className="min-h-[20px] text-xs opacity-0">
                     Placeholder
                   </span>
@@ -384,12 +380,12 @@ export function EditLogDialog({
                 </label>
               </section>
 
-              <div className="grid gap-2.5 border-t border-border pt-4 sm:flex sm:justify-end">
+              <ButtonGroup className="w-full border-t border-border pt-4 sm:ml-auto sm:w-auto sm:justify-end">
                 <Button onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
                 <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
-              </div>
+              </ButtonGroup>
             </form>
             </div>
       </DialogContent>

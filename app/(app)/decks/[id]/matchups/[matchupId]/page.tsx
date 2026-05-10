@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { InlineDeckMatchupHeaderControls } from "@/components/ui/InlineDeckMatchupHeaderControls";
 import { InlineDeckMatchupEditor } from "@/components/ui/InlineDeckMatchupEditor";
@@ -73,17 +74,19 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
             </div>
 
             <div className="lg:shrink-0">
-              <div className="flex flex-wrap items-center gap-3">
+              <ButtonGroup className="max-w-full flex-wrap">
                 <LazyDeckMatchupEditorButton
                   deckId={id}
                   matchup={matchup}
                   triggerLabel="Edit Matchup"
                   triggerVariant="outline"
                 />
-                <Link href={`/decks/${id}`} prefetch={false}>
-                  <Button variant="outline">Back to Deck</Button>
-                </Link>
-              </div>
+                <Button asChild variant="outline">
+                  <Link href={`/decks/${id}`} prefetch={false}>
+                    Back to Deck
+                  </Link>
+                </Button>
+              </ButtonGroup>
             </div>
           </div>
 

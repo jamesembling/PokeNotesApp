@@ -1,21 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/shadcn/button";
 
 type CopyShareLinkButtonProps = {
   initialShare?: ShareLinkState | null;
   logId: string;
-  onFeedbackChange?: (feedback: ShareFeedback | null) => void;
   onShareReady?: (share: ShareLinkState) => void;
 };
 
 type ShareMethod = "native-share" | "clipboard" | "prompt" | "cancelled";
-
-export type ShareFeedback = {
-  tone: "success" | "info" | "error";
-  text: string;
-};
 
 export type ShareLinkState = {
   expiresAt: string;
@@ -111,10 +106,32 @@ async function createLogShare(logId: string) {
   };
 }
 
+function showShareConfirmation(shareMethod: ShareMethod) {
+  const description =
+    "Anyone with the link can open this battle log snapshot, including linked deck-list details when present, for 30 days.";
+
+  if (shareMethod === "cancelled") {
+    toast.info("Share cancelled", {
+      description: "Tap Share Log again when you are ready."
+    });
+    return;
+  }
+
+  if (shareMethod === "prompt") {
+    toast.info("Share link ready to copy", {
+      description
+    });
+    return;
+  }
+
+  toast.success(shareMethod === "native-share" ? "Share link ready" : "Share link copied", {
+    description
+  });
+}
+
 export function CopyShareLinkButton({
   initialShare = null,
   logId,
-  onFeedbackChange,
   onShareReady
 }: CopyShareLinkButtonProps) {
   const [isBusy, setIsBusy] = useState(false);
@@ -127,28 +144,10 @@ export function CopyShareLinkButton({
       onShareReady?.(share);
       const { shareUrl } = share;
       const shareMethod = await shareOrCopyLink(shareUrl);
-
-      if (shareMethod === "cancelled") {
-        onFeedbackChange?.({
-          tone: "info",
-          text: "Share cancelled. Tap Copy Share Link again when you are ready."
-        });
-        return;
-      }
-
-      onFeedbackChange?.({
-        tone: shareMethod === "prompt" ? "info" : "success",
-        text:
-          shareMethod === "native-share"
-            ? "Share link ready. Anyone with the link can open this battle log snapshot, including linked deck-list details when present, for 30 days."
-            : shareMethod === "prompt"
-            ? "Share link ready to copy. Anyone with the link can open this battle log snapshot, including linked deck-list details when present, for 30 days."
-            : "Share link copied. Anyone with the link can open this battle log snapshot, including linked deck-list details when present, for 30 days."
-      });
+      showShareConfirmation(shareMethod);
     } catch (error) {
-      onFeedbackChange?.({
-        tone: "error",
-        text:
+      toast.error("Could not share battle log", {
+        description:
           error instanceof Error
             ? error.message
             : "Could not create a share link for this battle log."

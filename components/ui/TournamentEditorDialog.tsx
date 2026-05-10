@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ import {
 } from "@/components/shadcn/dialog";
 import { Input } from "@/components/shadcn/input";
 import { Textarea } from "@/components/shadcn/textarea";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import {
@@ -346,7 +348,7 @@ export function TournamentEditorDialog({
                 </DialogDescription>
               </div>
 
-              <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+              <ButtonGroup className="w-full sm:w-auto sm:justify-end">
                 <Button className="whitespace-nowrap" onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
@@ -369,7 +371,7 @@ export function TournamentEditorDialog({
                   onClick={() => formRef.current?.requestSubmit()}
                   saveState={saveState}
                 />
-              </div>
+              </ButtonGroup>
             </div>
 
             {isEditing && showDeleteConfirmation ? (
@@ -380,7 +382,7 @@ export function TournamentEditorDialog({
                 <AlertDescription className="text-card-foreground">
                   Delete this tournament and all of its rounds?
                 </AlertDescription>
-                <div className="mt-3 grid gap-3 sm:flex sm:flex-wrap">
+                <ButtonGroup className="mt-3 max-w-full flex-wrap">
                   <Button disabled={deleteState === "deleting"} onClick={handleDelete} variant="destructive">
                     {deleteState === "deleting" ? "Deleting..." : "Yes, delete"}
                   </Button>
@@ -391,7 +393,7 @@ export function TournamentEditorDialog({
                   >
                     Keep Tournament
                   </Button>
-                </div>
+                </ButtonGroup>
               </Alert>
             ) : null}
 
@@ -470,12 +472,10 @@ export function TournamentEditorDialog({
                   <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-date-from">
                     Start date
                   </label>
-                  <Input
-                    className="rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
+                  <DatePicker
                     defaultValue={tournament?.dateFrom ?? ""}
                     id="tournament-date-from"
                     name="dateFrom"
-                    type="date"
                   />
                 </div>
 
@@ -483,12 +483,10 @@ export function TournamentEditorDialog({
                   <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-date-to">
                     End date
                   </label>
-                  <Input
-                    className="rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
+                  <DatePicker
                     defaultValue={tournament?.dateTo ?? ""}
                     id="tournament-date-to"
                     name="dateTo"
-                    type="date"
                   />
                 </div>
               </div>

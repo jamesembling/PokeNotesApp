@@ -7,13 +7,14 @@ import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
-import { Input } from "@/components/shadcn/input";
 import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
@@ -390,13 +391,13 @@ export function ImportLogDialog({
               Paste a PTCGL battle log URL or raw log text to review before saving.
             </DialogDescription>
           </div>
-          <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
-            <Button className="w-full sm:w-auto" onClick={closeDialog} type="button" variant="outline">
+          <ButtonGroup className="w-full sm:w-auto sm:justify-end">
+            <Button className="min-w-0 flex-1 sm:flex-none" onClick={closeDialog} type="button" variant="outline">
               Close
             </Button>
             {trimmedRawLog ? (
               <Button
-                className="w-full whitespace-normal text-center leading-5 sm:w-auto sm:whitespace-nowrap"
+                className="min-w-0 flex-1 whitespace-normal text-center leading-5 sm:flex-none sm:whitespace-nowrap"
                 disabled={!canReviewRawLog}
                 onClick={handleReviewLog}
                 type="button"
@@ -408,7 +409,7 @@ export function ImportLogDialog({
                     : "Review PTCGL Log"}
               </Button>
             ) : null}
-          </div>
+          </ButtonGroup>
         </div>
       );
     }
@@ -432,12 +433,12 @@ export function ImportLogDialog({
             Confirm the parsed result, then save it to your battle logs.
           </DialogDescription>
         </div>
-        <div className="hidden flex-wrap gap-2.5 md:flex">
+        <ButtonGroup className="hidden md:flex">
           <Button onClick={closeDialog} type="button" variant="outline">
             Close
           </Button>
           <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
-        </div>
+        </ButtonGroup>
       </div>
     );
   }
@@ -600,12 +601,7 @@ export function ImportLogDialog({
                       <div className="grid gap-3 border-t border-border px-4 py-4">
                         <label className="grid gap-2">
                           <span className="text-sm font-semibold text-muted-foreground">Date</span>
-                          <Input
-                            className="h-auto min-h-[2.75rem] w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                            onChange={(event) => setSelectedDate(event.target.value)}
-                            type="date"
-                            value={selectedDate}
-                          />
+                          <DatePicker onChange={setSelectedDate} value={selectedDate} />
                         </label>
 
                         <label className="grid gap-2">
@@ -655,12 +651,7 @@ export function ImportLogDialog({
                   <section className="hidden gap-4 xl:grid-cols-2 md:grid">
                     <label className="grid min-w-0 gap-2">
                       <span className="text-sm font-semibold text-muted-foreground">Date</span>
-                      <Input
-                        className="h-auto min-h-[2.75rem] w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        onChange={(event) => setSelectedDate(event.target.value)}
-                        type="date"
-                        value={selectedDate}
-                      />
+                      <DatePicker onChange={setSelectedDate} value={selectedDate} />
                       <span aria-hidden="true" className="min-h-[20px] text-xs opacity-0">
                         Placeholder
                       </span>
@@ -738,12 +729,12 @@ export function ImportLogDialog({
                     </div>
                   </section>
 
-                  <div className="grid min-w-0 gap-3 md:hidden">
+                  <ButtonGroup className="min-w-0 md:hidden" orientation="vertical">
                     <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
                     <Button className="w-full" onClick={closeDialog} type="button" variant="outline">
                       Close
                     </Button>
-                  </div>
+                  </ButtonGroup>
                 </form>
               ) : (
                 <div className="flex min-w-0 flex-col gap-6">

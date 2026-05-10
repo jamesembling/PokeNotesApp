@@ -6,6 +6,7 @@ import { createDeckMatchupAction, updateDeckMatchupAction } from "@/app/(app)/de
 import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import {
   Dialog,
   DialogContent,
@@ -195,7 +196,7 @@ export function DeckMatchupEditorDialog({
                     {isEditing ? "Update this matchup's Pokemon, favorability, and notes." : "Create matchup notes for this deck."}
                   </DialogDescription>
                 </div>
-                <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+                <ButtonGroup className="w-full sm:w-auto sm:justify-end">
                   <Button onClick={closeDialog} type="button" variant="outline">
                     Close
                   </Button>
@@ -212,7 +213,7 @@ export function DeckMatchupEditorDialog({
                           ? "Save Matchup"
                           : "Create Matchup"}
                   </Button>
-                </div>
+                </ButtonGroup>
               </div>
 
               <form

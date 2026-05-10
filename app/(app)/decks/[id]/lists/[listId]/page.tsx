@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
@@ -71,7 +72,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         ]}
         title={deckList.name}
         action={
-          <div className="flex flex-wrap gap-3">
+          <ButtonGroup className="max-w-full flex-wrap">
             <DeckListEditorDialog
               deckId={id}
               deckList={deckList}
@@ -80,10 +81,12 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
               triggerLabel="Edit List"
               triggerVariant="outline"
             />
-            <Link href={`/decks/${id}`} prefetch={false}>
-              <Button variant="outline">Back to Deck</Button>
-            </Link>
-          </div>
+            <Button asChild variant="outline">
+              <Link href={`/decks/${id}`} prefetch={false}>
+                Back to Deck
+              </Link>
+            </Button>
+          </ButtonGroup>
         }
       />
 

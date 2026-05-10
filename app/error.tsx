@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { reportError } from "@/lib/server/report-error";
 
@@ -36,12 +37,12 @@ export default function AppError({ error, reset }: AppErrorProps) {
             </div>
           ) : null}
 
-          <div className="flex flex-wrap gap-3">
+          <ButtonGroup className="max-w-full flex-wrap">
             <Button onClick={reset}>Try Again</Button>
             <Button onClick={() => window.location.reload()} variant="outline">
               Reload App
             </Button>
-          </div>
+          </ButtonGroup>
         </Card>
       </div>
     </main>

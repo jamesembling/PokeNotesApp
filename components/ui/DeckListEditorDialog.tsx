@@ -5,7 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { saveDeckListAction } from "@/app/(app)/decks/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import {
   Dialog,
@@ -297,7 +299,7 @@ export function DeckListEditorDialog({
                     {step === "list" ? "Step 1 of 2 · Paste deck list" : "Step 2 of 2 · List details"}
                   </DialogDescription>
                 </div>
-                <div className="flex w-full flex-wrap gap-2.5 sm:w-auto sm:flex-nowrap sm:justify-end">
+                <ButtonGroup className="w-full sm:w-auto sm:justify-end">
                   <Button onClick={closeDialog} type="button" variant="outline">
                     Close
                   </Button>
@@ -322,7 +324,7 @@ export function DeckListEditorDialog({
                       />
                     </>
                   )}
-                </div>
+                </ButtonGroup>
               </div>
               <form
                 className="flex min-w-0 flex-col gap-6"
@@ -408,12 +410,7 @@ export function DeckListEditorDialog({
 
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-muted-foreground">Date</span>
-                      <Input
-                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                        onChange={(event) => setDate(event.target.value)}
-                        type="date"
-                        value={date}
-                      />
+                      <DatePicker onChange={setDate} value={date} />
                     </label>
 
                     <label className="grid gap-2">

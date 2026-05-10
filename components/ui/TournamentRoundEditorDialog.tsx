@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import {
   Dialog,
   DialogContent,
@@ -227,7 +228,7 @@ export function TournamentRoundEditorDialog({
                 </DialogDescription>
               </div>
 
-              <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+              <ButtonGroup className="w-full sm:w-auto sm:justify-end">
                 <Button onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
@@ -257,7 +258,7 @@ export function TournamentRoundEditorDialog({
                         ? "Save Changes"
                         : "Add Round"}
                 </Button>
-              </div>
+              </ButtonGroup>
             </div>
 
             {isEditing && showDeleteConfirmation ? (
@@ -268,7 +269,7 @@ export function TournamentRoundEditorDialog({
                 <AlertDescription className="text-card-foreground">
                   Delete this round from the tournament?
                 </AlertDescription>
-                <div className="mt-3 grid gap-3 sm:flex sm:flex-wrap">
+                <ButtonGroup className="mt-3 max-w-full flex-wrap">
                   <Button disabled={deleteState === "deleting"} onClick={handleDelete} variant="destructive">
                     {deleteState === "deleting" ? "Deleting..." : "Yes, delete"}
                   </Button>
@@ -279,7 +280,7 @@ export function TournamentRoundEditorDialog({
                   >
                     Keep Round
                   </Button>
-                </div>
+                </ButtonGroup>
               </Alert>
             ) : null}
 

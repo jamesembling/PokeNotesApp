@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { updateAdminUserRoleAction } from "@/app/(admin)/admin/dashboard/actions";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import type { Role } from "@/types/index";
 
 function RoleButton({
@@ -61,7 +62,7 @@ export function AdminRoleControls({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
+      <ButtonGroup className="max-w-full flex-wrap">
         <RoleButton
           currentRole={currentRole}
           disabled={!roleUpdatesEnabled || isPending}
@@ -74,7 +75,7 @@ export function AdminRoleControls({
           onChange={handleRoleChange}
           targetRole="admin"
         />
-      </div>
+      </ButtonGroup>
       {feedback ? (
         <p className="text-xs text-[var(--color-loss-strong)]">{feedback}</p>
       ) : null}

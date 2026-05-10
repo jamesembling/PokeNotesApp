@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import {
   Dialog,
   DialogContent,
@@ -245,7 +246,7 @@ export function DeckEditorDialog({
                   {isEditing ? "Update this deck's details, Pokemon, and strategy notes." : "Create a deck with Pokemon, format, and strategy notes."}
                 </DialogDescription>
               </div>
-              <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+              <ButtonGroup className="w-full sm:w-auto sm:justify-end">
                 <Button onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
@@ -267,7 +268,7 @@ export function DeckEditorDialog({
                   onClick={() => formRef.current?.requestSubmit()}
                   saveState={saveState}
                 />
-              </div>
+              </ButtonGroup>
             </div>
             {isEditing && showDeleteConfirmation ? (
               <Alert
@@ -284,7 +285,7 @@ export function DeckEditorDialog({
                       account as unlinked records.
                     </AlertDescription>
                   </div>
-                  <div className="grid w-full gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-nowrap">
+                  <ButtonGroup className="w-full sm:w-auto sm:shrink-0">
                     <Button
                       disabled={isBusy}
                       onClick={() => setShowDeleteConfirmation(false)}
@@ -302,7 +303,7 @@ export function DeckEditorDialog({
                     >
                       {isDeleting ? "Deleting..." : "Confirm Delete"}
                     </Button>
-                  </div>
+                  </ButtonGroup>
                 </div>
               </Alert>
             ) : null}

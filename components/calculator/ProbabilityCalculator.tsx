@@ -4,6 +4,7 @@ import Image from "next/image";
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { Textarea } from "@/components/shadcn/textarea";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
@@ -210,7 +211,7 @@ export function ProbabilityCalculator() {
               />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <ButtonGroup className="w-full" orientation="vertical">
               <Button onClick={() => runCalculation(deckInput)}>Calculate</Button>
               <Button onClick={handleSampleDeck} variant="outline">
                 Load Sample Deck
@@ -218,7 +219,7 @@ export function ProbabilityCalculator() {
               <Button onClick={handleClear} variant="outline">
                 Clear
               </Button>
-            </div>
+            </ButtonGroup>
 
             <section className={statusClassName}>
               {showStatus ? (

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 
 export default function NotFound() {
@@ -17,14 +18,14 @@ export default function NotFound() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Link href="/">
-              <Button>Back Home</Button>
-            </Link>
-            <Link href="/login">
-              <Button variant="outline">Go to Login</Button>
-            </Link>
-          </div>
+          <ButtonGroup className="max-w-full flex-wrap">
+            <Button asChild>
+              <Link href="/">Back Home</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/login">Go to Login</Link>
+            </Button>
+          </ButtonGroup>
         </Card>
       </div>
     </main>

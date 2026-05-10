@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { DeckMatchupsDialog } from "@/components/ui/DeckMatchupsDialog";
@@ -109,20 +111,18 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   ];
   const previewMatchups = deck.matchups.slice(0, 4);
   const deckActions = (
-    <div className="flex flex-wrap items-center gap-3">
+    <ButtonGroup className="max-w-full flex-wrap">
       <LazyDeckEditorButton
         deck={deck}
         triggerLabel="Edit Deck"
         triggerVariant="outline"
       />
-      <Link
-        className="text-sm font-medium text-primary transition hover:text-primary/90"
-        href="/decks"
-        prefetch={false}
-      >
-        Back to Decks
-      </Link>
-    </div>
+      <Button asChild variant="outline">
+        <Link href="/decks" prefetch={false}>
+          Back to Decks
+        </Link>
+      </Button>
+    </ButtonGroup>
   );
 
   return await measureServerCall("page.decks.detail.initialData", async () => (
@@ -159,14 +159,14 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       <Card className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="ui-eyebrow">Matchup Notes</p>
-          <div className="flex flex-wrap items-center gap-3">
+          <ButtonGroup className="max-w-full flex-wrap">
             <DeckMatchupsDialog deckId={deck.id} matchups={deck.matchups} />
             <LazyDeckMatchupEditorButton
               deckId={deck.id}
               triggerLabel="New Matchup"
               triggerVariant="outline"
             />
-          </div>
+          </ButtonGroup>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {previewMatchups.map((matchup) => (
@@ -206,7 +206,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <ButtonGroup className="max-w-full flex-wrap">
                   <DeckListEditorDialog
                     deckId={deck.id}
                     deckList={deckList}
@@ -215,14 +215,12 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                     triggerLabel="Edit List"
                     triggerVariant="ghost"
                   />
-                  <Link
-                    className="text-sm font-medium text-primary transition hover:text-primary/90"
-                    href={`/decks/${deck.id}/lists/${deckList.id}`}
-                    prefetch={false}
-                  >
-                    View List
-                  </Link>
-                </div>
+                  <Button asChild variant="ghost">
+                    <Link href={`/decks/${deck.id}/lists/${deckList.id}`} prefetch={false}>
+                      View List
+                    </Link>
+                  </Button>
+                </ButtonGroup>
               </div>
             ))}
           </div>

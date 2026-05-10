@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
+import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
@@ -109,18 +110,16 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         title={tournament.name}
         subtitle={formatTournamentDateRange(tournament.dateFrom, tournament.dateTo)}
         action={
-          <div className="flex flex-wrap items-center gap-3">
+          <ButtonGroup className="max-w-full flex-wrap">
             <Suspense fallback={<TournamentEditButtonFallback />}>
               <TournamentEditAction tournament={tournament} userId={user.id} />
             </Suspense>
-            <Link
-              className="text-sm font-medium text-primary transition hover:text-primary/90"
-              href="/tournaments"
-              prefetch={false}
-            >
-              Back to Tournaments
-            </Link>
-          </div>
+            <Button asChild variant="outline">
+              <Link href="/tournaments" prefetch={false}>
+                Back to Tournaments
+              </Link>
+            </Button>
+          </ButtonGroup>
         }
       />
 
