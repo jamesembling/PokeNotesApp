@@ -169,14 +169,7 @@ function clickPath(path) {
   }
 
   const startedAt = performance.now();
-  runWithState([
-    "eval",
-    `(() => {
-      const link = document.querySelector(${JSON.stringify(selector)});
-      if (!link) return false;
-      return link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-    })()`
-  ]);
+  runWithState(["click", selector]);
   runWithState(["wait", "--fn", `location.pathname === ${JSON.stringify(path)}`]);
   waitForRouteSettled();
   const endedAt = performance.now();
