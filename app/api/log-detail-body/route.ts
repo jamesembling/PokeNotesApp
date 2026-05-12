@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { getLogDetailBodyById } from "@/lib/db/logs";
+import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
 import { reportError } from "@/lib/server/report-error";
 
 export const runtime = "edge";
@@ -10,14 +11,20 @@ export async function GET(request: NextRequest) {
     const logId = request.nextUrl.searchParams.get("id");
 
     if (!logId) {
-      return NextResponse.json({ error: "Missing log id." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing log id." },
+        { headers: PRIVATE_NO_STORE_HEADERS, status: 400 }
+      );
     }
 
     const user = await requireUser();
     const body = await getLogDetailBodyById(user.id, logId);
 
     if (!body) {
-      return NextResponse.json({ error: "Log not found." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Log not found." },
+        { headers: PRIVATE_NO_STORE_HEADERS, status: 404 }
+      );
     }
 
     return NextResponse.json(
@@ -26,9 +33,7 @@ export async function GET(request: NextRequest) {
         sections: body.sections
       },
       {
-        headers: {
-          "Cache-Control": "private, no-store, max-age=0"
-        }
+        headers: PRIVATE_NO_STORE_HEADERS
       }
     );
   } catch (error) {
@@ -43,7 +48,7 @@ export async function GET(request: NextRequest) {
       {
         error: "We couldn't load this battle log right now."
       },
-      { status: 500 }
+      { headers: PRIVATE_NO_STORE_HEADERS, status: 500 }
     );
   }
 }

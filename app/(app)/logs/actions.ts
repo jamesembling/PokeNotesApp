@@ -22,6 +22,7 @@ import {
   resolveActionFailure,
   userFacingActionError
 } from "@/lib/server/action-errors";
+import { getFormRedirectPath } from "@/lib/server/action-redirect";
 import { measureServerCall, measureServerStep } from "@/lib/server/perf";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportLogRecord } from "@/lib/log-import/types";
@@ -51,10 +52,6 @@ function revalidateWorkspaceViews() {
 
 function buildImportDate() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function getRedirectTarget(formData: FormData, fallbackPath: string) {
-  return String(formData.get("redirectTo") || "").trim() || fallbackPath;
 }
 
 function joinSprites(slugs: string[]) {
@@ -440,7 +437,7 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
 
     return {
       ok: true,
-      redirectTo: getRedirectTarget(formData, `/logs/${logId}`)
+      redirectTo: getFormRedirectPath(formData, `/logs/${logId}`)
     };
   } catch (error) {
     throw resolveActionFailure(error, {

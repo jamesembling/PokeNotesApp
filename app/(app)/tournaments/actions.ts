@@ -7,6 +7,7 @@ import {
   toActionFailureResult,
   userFacingActionError
 } from "@/lib/server/action-errors";
+import { getFormRedirectPath, withRefreshToken } from "@/lib/server/action-redirect";
 import type { FailedActionResult } from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeTournamentDateRange } from "@/lib/tournaments/date-range";
@@ -45,15 +46,6 @@ function revalidateTournamentWorkspace(tournamentId?: string) {
   if (tournamentId) {
     revalidatePath(`/tournaments/${tournamentId}`);
   }
-}
-
-function getRedirectTarget(formData: FormData, fallbackPath: string) {
-  return String(formData.get("redirectTo") || "").trim() || fallbackPath;
-}
-
-function withRefreshToken(path: string) {
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}r=${Date.now()}`;
 }
 
 function toUserFacingDatabaseError(error: PostgrestLikeError) {
@@ -388,7 +380,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
 
     return {
       ok: true,
-      redirectTo: withRefreshToken(getRedirectTarget(formData, `/tournaments/${tournamentId}`))
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`))
     };
   } catch (error) {
     return toActionFailureResult(error, {
@@ -503,7 +495,7 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
 
     return {
       ok: true,
-      redirectTo: withRefreshToken(getRedirectTarget(formData, `/tournaments/${tournamentId}`))
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`))
     };
   } catch (error) {
     return toActionFailureResult(error, {

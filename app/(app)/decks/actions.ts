@@ -13,6 +13,7 @@ import {
   resolveActionFailure,
   userFacingActionError
 } from "@/lib/server/action-errors";
+import { getFormRedirectPath, withRefreshToken } from "@/lib/server/action-redirect";
 import { createClient } from "@/lib/supabase/server";
 
 function normalizeSelectedSprites(values: FormDataEntryValue[]) {
@@ -44,15 +45,6 @@ function parseSelectedSprites(formData: FormData) {
 
 function parseGoPreference(value: FormDataEntryValue | null) {
   return value === "First" || value === "Second" ? value : "";
-}
-
-function getRedirectTarget(formData: FormData, fallbackPath: string) {
-  return String(formData.get("redirectTo") || "").trim() || fallbackPath;
-}
-
-function withRefreshToken(path: string) {
-  const separator = path.includes("?") ? "&" : "?";
-  return `${path}${separator}r=${Date.now()}`;
 }
 
 function getCurrentDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
@@ -233,7 +225,7 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
 
     return {
       ok: true,
-      redirectTo: withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`))
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/decks/${deckId}`))
     };
   } catch (error) {
     throw resolveActionFailure(error, {
@@ -705,7 +697,7 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
 
     return {
       ok: true,
-      redirectTo: withRefreshToken(getRedirectTarget(formData, `/decks/${deckId}`))
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/decks/${deckId}`))
     };
   } catch (error) {
     throw resolveActionFailure(error, {

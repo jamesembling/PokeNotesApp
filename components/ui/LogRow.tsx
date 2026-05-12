@@ -72,6 +72,7 @@ function LogRowComponent({
 
   const cardClasses = [
     "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border px-3 py-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
+    managementMode && selected ? "ring-2 ring-primary/45 ring-offset-2 ring-offset-background" : "",
     rowClasses
   ].join(" ");
 
@@ -143,19 +144,23 @@ function LogRowComponent({
   }
 
   return (
-    <div className="group/row grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" style={cardStyle}>
+    <div
+      className="group/row grid gap-2 rounded-xl transition sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+      style={cardStyle}
+    >
       <Link className={cardClasses} href={`/logs/${log.id}`}>
         {content}
       </Link>
 
-      <div className="flex items-center justify-end gap-1 text-muted-foreground">
-        <label className="inline-flex cursor-pointer items-center justify-center p-2">
+      <div className="flex items-center justify-end gap-1 rounded-lg border border-border bg-card px-1.5 py-1 text-muted-foreground sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <label className="inline-flex min-h-9 cursor-pointer items-center justify-center gap-2 rounded-md px-2 text-sm font-semibold text-card-foreground sm:min-h-0 sm:p-2">
           <span className="sr-only">Select battle log</span>
           <Checkbox
             checked={selected}
             className="h-5 w-5 cursor-pointer rounded border-border bg-card"
             onCheckedChange={onToggleSelected}
           />
+          <span className="sm:hidden">{selected ? "Selected" : "Select"}</span>
         </label>
 
         <DropdownMenu>

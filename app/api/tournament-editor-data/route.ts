@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { getPokemonOptions } from "@/lib/db/pokemon";
 import { getTournamentDeckChoices } from "@/lib/db/tournaments";
+import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
 import { reportError } from "@/lib/server/report-error";
 
 export const dynamic = "force-dynamic";
@@ -21,9 +22,7 @@ export async function GET() {
         pokemonOptions
       },
       {
-        headers: {
-          "Cache-Control": "no-store, max-age=0"
-        }
+        headers: PRIVATE_NO_STORE_HEADERS
       }
     );
   } catch (error) {
@@ -38,7 +37,7 @@ export async function GET() {
       {
         error: "We couldn't load tournament editor data right now."
       },
-      { status: 500 }
+      { headers: PRIVATE_NO_STORE_HEADERS, status: 500 }
     );
   }
 }

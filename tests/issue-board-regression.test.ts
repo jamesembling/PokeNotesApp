@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { getSafeRedirectPath, withRefreshToken } from "@/lib/server/action-redirect";
 import { normalizeTournamentDateRange } from "@/lib/tournaments/date-range";
 
 function source(path: string) {
@@ -57,11 +58,17 @@ test("route performance long tasks are scoped to the completed navigation", () =
 test("private helper endpoints disable caching and map user-facing share errors", () => {
   const importDialogRoute = source("app/api/import-dialog-data/route.ts");
   const sharesRoute = source("app/api/log-shares/route.ts");
+  const logDetailBodyRoute = source("app/api/log-detail-body/route.ts");
+  const logDetailContextRoute = source("app/api/log-detail-context/route.ts");
+  const tournamentEditorRoute = source("app/api/tournament-editor-data/route.ts");
   const testLoginRoute = source("app/auth/test-login/route.ts");
 
-  assert.match(importDialogRoute, /no-cache, no-store/);
+  assert.match(importDialogRoute, /PRIVATE_NO_STORE_HEADERS/);
   assert.match(sharesRoute, /getActionErrorStatus/);
   assert.match(sharesRoute, /message\.includes\("not found"\)/);
+  assert.match(logDetailBodyRoute, /PRIVATE_NO_STORE_HEADERS/);
+  assert.match(logDetailContextRoute, /PRIVATE_NO_STORE_HEADERS/);
+  assert.match(tournamentEditorRoute, /PRIVATE_NO_STORE_HEADERS/);
   assert.match(testLoginRoute, /POKE_NOTES_ENABLE_TEST_LOGIN/);
 });
 
@@ -71,4 +78,36 @@ test("admin fallback reads use paginated Supabase fetches", () => {
   assert.match(adminDb, /fetchAllRows<ProfileRow>/);
   assert.match(adminDb, /fetchAllRows<DeckCountRow>/);
   assert.match(adminDb, /select\("id", \{ count: "exact", head: true \}\)/);
+});
+
+test("server actions clamp editable redirect targets to app paths", () => {
+  assert.equal(getSafeRedirectPath("/logs/abc?tab=summary", "/logs"), "/logs/abc?tab=summary");
+  assert.equal(getSafeRedirectPath("", "/logs"), "/logs");
+  assert.equal(getSafeRedirectPath("https://example.com", "/logs"), "/logs");
+  assert.equal(getSafeRedirectPath("//example.com/path", "/logs"), "/logs");
+  assert.equal(withRefreshToken("/logs?deck=abc", 123), "/logs?deck=abc&r=123");
+
+  const decksActions = source("app/(app)/decks/actions.ts");
+  const logsActions = source("app/(app)/logs/actions.ts");
+  const tournamentsActions = source("app/(app)/tournaments/actions.ts");
+
+  assert.doesNotMatch(decksActions, /function getRedirectTarget/);
+  assert.doesNotMatch(logsActions, /function getRedirectTarget/);
+  assert.doesNotMatch(tournamentsActions, /function getRedirectTarget/);
+  assert.match(decksActions, /getFormRedirectPath\(formData, `\/decks\/\$\{deckId\}`\)/);
+  assert.match(logsActions, /getFormRedirectPath\(formData, `\/logs\/\$\{logId\}`\)/);
+  assert.match(
+    tournamentsActions,
+    /getFormRedirectPath\(formData, `\/tournaments\/\$\{tournamentId\}`\)/
+  );
+});
+
+test("edit-log bulk dock keeps compact selects accessible", () => {
+  const appSelect = source("components/shadcn/app-select.tsx");
+  const logsManager = source("components/ui/LogsManager.tsx");
+
+  assert.match(appSelect, /"aria-label"\?: string/);
+  assert.match(appSelect, /aria-label=\{ariaLabel\}/);
+  assert.match(logsManager, /aria-label="Deck strategy for selected logs"/);
+  assert.match(logsManager, /aria-label="Deck list for selected logs"/);
 });

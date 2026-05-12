@@ -8,6 +8,7 @@ import {
   deleteLogsAction,
   loadMoreLogsAction
 } from "@/app/(app)/logs/actions";
+import { MoreHorizontalIcon } from "lucide-react";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/shadcn/alert";
 import { Badge } from "@/components/shadcn/badge";
@@ -16,8 +17,13 @@ import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
 import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
 import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
-import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
-import { DropdownMenuItem } from "@/components/shadcn/dropdown-menu";
+import { ChevronIcon, PencilIcon, TrashIcon } from "@/components/ui/icons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/shadcn/dropdown-menu";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LogRow } from "@/components/ui/LogRow";
 import { formatDayDate } from "@/lib/client/date-format";
@@ -468,7 +474,7 @@ export function LogsManager({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={`flex flex-col gap-6 ${managementModeActive ? "pb-48 md:pb-28" : ""}`}>
       <DeleteConfirmDialog
         confirmLabel={`Delete${deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}`}
         description={
@@ -493,120 +499,23 @@ export function LogsManager({
         </Alert>
       ) : null}
 
-      <section className="grid gap-5 py-2 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-center">
-        <div className="space-y-3">
+      <section className="flex flex-col gap-3 py-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <p className="ui-eyebrow">Workspace Tools</p>
             {!canLoadMore ? <Badge>Current window complete</Badge> : null}
           </div>
-
-          <div className="space-y-2">
-            <h2 className="ui-section-title">Manage Battle Logs</h2>
-          </div>
-
-          {managementModeActive ? (
-            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-3">
-              <Button
-                className="h-auto justify-start p-0 text-muted-foreground hover:bg-transparent hover:text-[var(--color-loss-strong)]"
-                disabled={!canDeleteSelected}
-                onClick={handleDeleteSelected}
-                size="sm"
-                variant="ghost"
-              >
-                Delete Selected{selectedCount ? ` (${selectedCount})` : ""}
-              </Button>
-
-              {visibleLogs.length > 0 ? (
-                <label className="ui-control-text inline-flex cursor-pointer items-center gap-3 text-muted-foreground">
-                  <Checkbox
-                    checked={allSelected}
-                    className="h-5 w-5 cursor-pointer rounded border-border bg-card"
-                    onCheckedChange={toggleSelectAll}
-                  />
-                  <span>Select All In View</span>
-                </label>
-              ) : null}
-            </div>
-          ) : null}
-
-          {managementModeActive ? (
-            <div className="grid gap-3 border-t border-border pt-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
-              {deckOptionsError ? (
-                <p className="text-sm text-[var(--color-loss)] md:col-span-2 xl:col-span-3">
-                  {deckOptionsError}
-                </p>
-              ) : null}
-              <label className="grid gap-2">
-                <span className="text-sm font-semibold text-muted-foreground">Deck Strategy</span>
-                <AppSelect
-                  className="min-h-[3rem] bg-card px-4 py-3"
-                  onChange={setSelectedDeckId}
-                  options={[
-                    {
-                      label: isLoadingDeckOptions ? "Loading deck strategies..." : "Select deck strategy",
-                      value: ""
-                    },
-                    ...userDecks.map((deck) => ({
-                      label: deck.deckName,
-                      value: deck.id
-                    }))
-                  ]}
-                  value={selectedDeckId}
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-semibold text-muted-foreground">Deck List</span>
-                <AppSelect
-                  className="min-h-[3rem] bg-card px-4 py-3"
-                  disabled={!selectedDeck || availableDeckLists.length === 0}
-                  onChange={setSelectedDeckListId}
-                  options={[
-                    {
-                      label: selectedDeck
-                        ? availableDeckLists.length > 0
-                          ? "Select deck list"
-                          : "No saved deck lists yet"
-                        : "Choose a deck strategy first",
-                      value: ""
-                    },
-                    ...availableDeckLists.map((deckList) => ({
-                      label: deckList.name,
-                      value: deckList.id
-                    }))
-                  ]}
-                  value={selectedDeckListId}
-                />
-              </label>
-
-              <div className="flex md:col-span-2 xl:col-span-1 xl:justify-end">
-                <Button
-                  className="w-full justify-center xl:w-auto"
-                  disabled={!canApplyDeckList}
-                  onClick={handleApplyDeckList}
-                >
-                  {isMutating ? "Applying..." : "Apply to Selected"}
-                </Button>
-              </div>
-
-              <p className="text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
-                Apply one saved deck list to the {selectedCount} selected battle log
-                {selectedCount === 1 ? "" : "s"}.
-              </p>
-            </div>
-          ) : null}
+          <h2 className="ui-section-title">Manage Battle Logs</h2>
         </div>
 
-        <div className="flex flex-col gap-3 xl:items-end xl:self-center">
-          <Button
-            className="gap-2 justify-center xl:min-w-[12rem]"
-            onClick={toggleManagementMode}
-            variant="outline"
-          >
-            <PencilIcon className="h-4 w-4" />
-            {managementModeActive ? "Done Editing" : "Edit Logs"}
-          </Button>
-        </div>
+        <Button
+          className="gap-2 justify-center self-start sm:min-w-[10rem]"
+          onClick={toggleManagementMode}
+          variant={managementModeActive ? "default" : "outline"}
+        >
+          <PencilIcon className="h-4 w-4" />
+          {managementModeActive ? "Done" : "Edit Logs"}
+        </Button>
       </section>
 
       <ClientPerfPanel
@@ -726,6 +635,112 @@ export function LogsManager({
           <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="outline">
             {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}
           </Button>
+        </div>
+      ) : null}
+
+      {managementModeActive ? (
+        <div className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-6">
+          <Card
+            className="mx-auto grid max-w-6xl gap-3 bg-card/95 p-3 shadow-[var(--shadow-lg)] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
+            size="sm"
+          >
+            <div className="flex items-center justify-between gap-3 md:justify-start">
+              <div className="min-w-[5.5rem]">
+                <p className="ui-eyebrow">Selected</p>
+                <p className="mt-0.5 font-display text-[1.55rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
+                  {selectedCount}
+                  <span className="ml-1 text-sm font-medium tracking-normal text-muted-foreground">
+                    / {visibleLogs.length}
+                  </span>
+                </p>
+              </div>
+
+              {visibleLogs.length > 0 ? (
+                <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold text-card-foreground">
+                  <Checkbox
+                    checked={allSelected}
+                    className="h-4 w-4 cursor-pointer rounded border-border bg-card"
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <span>{allSelected ? "Clear" : "All"}</span>
+                </label>
+              ) : null}
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              {deckOptionsError ? (
+                <p className="text-sm font-medium text-[var(--color-loss)] md:col-span-2">
+                  {deckOptionsError}
+                </p>
+              ) : null}
+              <AppSelect
+                aria-label="Deck strategy for selected logs"
+                className="min-h-[2.5rem] bg-background px-3 py-2"
+                onChange={setSelectedDeckId}
+                options={[
+                  {
+                    label: isLoadingDeckOptions ? "Loading deck strategies..." : "Deck strategy",
+                    value: ""
+                  },
+                  ...userDecks.map((deck) => ({
+                    label: deck.deckName,
+                    value: deck.id
+                  }))
+                ]}
+                value={selectedDeckId}
+              />
+
+              <AppSelect
+                aria-label="Deck list for selected logs"
+                className="min-h-[2.5rem] bg-background px-3 py-2"
+                disabled={!selectedDeck || availableDeckLists.length === 0}
+                onChange={setSelectedDeckListId}
+                options={[
+                  {
+                    label: selectedDeck
+                      ? availableDeckLists.length > 0
+                        ? "Deck list"
+                        : "No saved deck lists"
+                      : "Choose strategy first",
+                    value: ""
+                  },
+                  ...availableDeckLists.map((deckList) => ({
+                    label: deckList.name,
+                    value: deckList.id
+                  }))
+                ]}
+                value={selectedDeckListId}
+              />
+            </div>
+
+            <div className="grid grid-cols-[1fr_auto] gap-2 md:flex md:justify-end">
+              <Button disabled={!canApplyDeckList} onClick={handleApplyDeckList}>
+                {isMutating ? "Applying..." : "Apply"}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    aria-label="Open selected log actions"
+                    disabled={!canDeleteSelected}
+                    size="icon-lg"
+                    variant="outline"
+                  >
+                    <MoreHorizontalIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44" forceMount>
+                  <DropdownMenuItem
+                    className="text-[var(--color-loss-strong)] focus:text-[var(--color-loss-strong)]"
+                    onClick={handleDeleteSelected}
+                    variant="destructive"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                    Delete selected
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </Card>
         </div>
       ) : null}
 

@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
 import { getAppOrigin } from "@/lib/server/app-url";
+import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
 import { reportError } from "@/lib/server/report-error";
 
 export async function GET(request: NextRequest) {
@@ -10,14 +11,20 @@ export async function GET(request: NextRequest) {
     const logId = request.nextUrl.searchParams.get("id");
 
     if (!logId) {
-      return NextResponse.json({ error: "Missing log id." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing log id." },
+        { headers: PRIVATE_NO_STORE_HEADERS, status: 400 }
+      );
     }
 
     const user = await requireUser();
     const log = await getLogDetailSummaryById(user.id, logId);
 
     if (!log) {
-      return NextResponse.json({ error: "Log not found." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Log not found." },
+        { headers: PRIVATE_NO_STORE_HEADERS, status: 404 }
+      );
     }
 
     const [[activeShare], appOrigin] = await Promise.all([
@@ -37,9 +44,7 @@ export async function GET(request: NextRequest) {
         userDecks: []
       },
       {
-        headers: {
-          "Cache-Control": "private, no-store, max-age=0"
-        }
+        headers: PRIVATE_NO_STORE_HEADERS
       }
     );
   } catch (error) {
@@ -54,7 +59,7 @@ export async function GET(request: NextRequest) {
       {
         error: "We couldn't load battle log context right now."
       },
-      { status: 500 }
+      { headers: PRIVATE_NO_STORE_HEADERS, status: 500 }
     );
   }
 }

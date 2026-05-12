@@ -17,6 +17,7 @@ export type AppSelectOption = {
 };
 
 type AppSelectProps = {
+  "aria-label"?: string;
   className?: string;
   disabled?: boolean;
   id?: string;
@@ -37,6 +38,7 @@ function fromRadixValue(value: string) {
 }
 
 export function AppSelect({
+  "aria-label": ariaLabel,
   className,
   disabled = false,
   id,
@@ -64,6 +66,7 @@ export function AppSelect({
           ]
             .filter(Boolean)
             .join(" ")}
+          aria-label={ariaLabel}
           id={id}
           onBlur={onBlur}
         >

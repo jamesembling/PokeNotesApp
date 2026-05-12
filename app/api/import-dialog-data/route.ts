@@ -3,13 +3,8 @@ import { requireUser } from "@/lib/auth";
 import { getDeckSelectionOptions } from "@/lib/db/decks";
 import { getCurrentProfile } from "@/lib/db/profile";
 import { getPokemonOptions } from "@/lib/db/pokemon";
+import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
 import { reportError } from "@/lib/server/report-error";
-
-const NO_STORE_HEADERS = {
-  "Cache-Control": "private, no-cache, no-store, must-revalidate, max-age=0",
-  Expires: "0",
-  Pragma: "no-cache"
-};
 
 export async function GET() {
   try {
@@ -24,7 +19,7 @@ export async function GET() {
       pokemonOptions,
       userDecks,
       ptcglUsername: profile.ptcglUsername
-    }, { headers: NO_STORE_HEADERS });
+    }, { headers: PRIVATE_NO_STORE_HEADERS });
   } catch (error) {
     reportError(error, {
       action: "getImportDialogData",
@@ -37,7 +32,7 @@ export async function GET() {
       {
         error: "We couldn't load import data right now."
       },
-      { headers: NO_STORE_HEADERS, status: 500 }
+      { headers: PRIVATE_NO_STORE_HEADERS, status: 500 }
     );
   }
 }
