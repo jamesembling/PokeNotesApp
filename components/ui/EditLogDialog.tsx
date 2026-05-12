@@ -25,10 +25,6 @@ import {
 } from "@/components/shadcn/dialog";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
-import {
-  getBattleLogDeckDisplayName,
-  getBattleLogOpponentDisplayName
-} from "@/lib/battle-log/display";
 import type { BattleLog, DeckListOption, DeckSelectionOption, PokemonOption } from "@/types/index";
 
 export type EditLogDialogProps = {
@@ -109,14 +105,6 @@ export function EditLogDialog({
   const selectedDeck = useMemo(
     () => userDecks.find((deck) => deck.id === selectedDeckId) ?? null,
     [selectedDeckId, userDecks]
-  );
-  const detectedSelfLabel = useMemo(
-    () => getBattleLogDeckDisplayName(log.selfDeckName, selectedSelfSprites),
-    [log.selfDeckName, selectedSelfSprites]
-  );
-  const detectedOpponentLabel = useMemo(
-    () => getBattleLogOpponentDisplayName(log.opponentDeckName, selectedOpponentSprites),
-    [log.opponentDeckName, selectedOpponentSprites]
   );
   const formatOptions = useMemo(() => {
     const normalizedSelectedFormat = String(selectedFormat || "").trim();
@@ -304,7 +292,6 @@ export function EditLogDialog({
               ) : null}
 
               <BattleLogSpritePicker
-                detectedLabel={detectedSelfLabel}
                 onChange={setSelectedSelfSprites}
                 pokemonOptions={pokemonOptions}
                 sprites={selectedSelfSprites}
@@ -312,7 +299,6 @@ export function EditLogDialog({
               />
 
               <BattleLogSpritePicker
-                detectedLabel={detectedOpponentLabel}
                 onChange={setSelectedOpponentSprites}
                 pokemonOptions={pokemonOptions}
                 sprites={selectedOpponentSprites}

@@ -17,7 +17,6 @@ import type { PokemonOption } from "@/types/index";
 
 type BattleLogSpritePickerProps = {
   title: string;
-  detectedLabel?: string;
   sprites: string[];
   onChange: (nextSprites: string[]) => void;
   pokemonOptions: PokemonOption[];
@@ -390,7 +389,6 @@ function SpriteSearchSlot({
 
 export function BattleLogSpritePicker({
   title,
-  detectedLabel,
   sprites,
   onChange,
   pokemonOptions
@@ -400,11 +398,6 @@ export function BattleLogSpritePicker({
       <div className="flex min-w-0 items-start justify-between gap-3 md:gap-4">
         <div className="grid min-w-0 gap-1">
           <p className="text-[0.95rem] font-semibold text-muted-foreground md:text-sm">{title}</p>
-          {detectedLabel ? (
-            <p className="text-[0.95rem] leading-5 text-foreground md:text-sm">
-              Detected: {detectedLabel}
-            </p>
-          ) : null}
         </div>
         <Button
           className="inline-flex items-center gap-1 text-[0.9rem] font-medium text-foreground transition hover:text-card-foreground md:gap-2 md:text-sm"

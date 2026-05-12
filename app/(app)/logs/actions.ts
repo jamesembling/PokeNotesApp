@@ -12,6 +12,11 @@ import { linkDeckConservatively } from "@/lib/log-import/deck-linking";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
+import {
+  LEARNED_SELF_ARCHETYPE_THRESHOLD,
+  resolveLearnedSelfArchetype,
+  resolveLearnedSelfArchetypeFromCandidates
+} from "@/lib/log-import/learned-self-archetypes";
 import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
@@ -26,6 +31,8 @@ import { getFormRedirectPath } from "@/lib/server/action-redirect";
 import { measureServerCall, measureServerStep } from "@/lib/server/perf";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportLogRecord } from "@/lib/log-import/types";
+import type { LearnedSelfArchetype } from "@/lib/log-import/learned-self-archetypes";
+import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
 import type { LogSection, ParsedLogReview, Result } from "@/types/index";
 
 type ProfileRow = {
@@ -69,6 +76,38 @@ function splitJoinedSprites(value: string) {
     .split(",")
     .map((slug) => slug.trim())
     .filter(Boolean);
+}
+
+function buildLearnedSelfSpriteCandidates(args: {
+  primarySprites: string[];
+  evidence: PlayerPokemonEvidence;
+}) {
+  const candidates: string[][] = [];
+  const primarySprites = args.primarySprites.filter(Boolean);
+  if (primarySprites.length > 0) {
+    candidates.push(primarySprites);
+  }
+
+  const rankedEvidenceSlugs = Array.from(args.evidence.mentionCounts.entries())
+    .filter(([, count]) => count > 0)
+    .sort((left, right) => {
+      if (right[1] !== left[1]) {
+        return right[1] - left[1];
+      }
+
+      return left[0].localeCompare(right[0]);
+    })
+    .map(([slug]) => slug)
+    .slice(0, 10);
+
+  rankedEvidenceSlugs.forEach((slug) => candidates.push([slug]));
+  for (let leftIndex = 0; leftIndex < rankedEvidenceSlugs.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < rankedEvidenceSlugs.length; rightIndex += 1) {
+      candidates.push([rankedEvidenceSlugs[leftIndex], rankedEvidenceSlugs[rightIndex]]);
+    }
+  }
+
+  return candidates;
 }
 
 async function getImportContext(): Promise<ImportContext> {
@@ -172,9 +211,62 @@ async function buildParsedLogReview(
       catalog
     })
   );
+  const selfLearnedCandidateSprites = selfArchetype
+    ? measureServerStep("logs.import.selectLearnedCandidateSprites.self", () =>
+        selectDeckSprites({
+          archetype: null,
+          evidence: parsed.pokemonEvidence.self,
+          catalog
+        })
+      )
+    : selfSprites;
+  const selfLearnedCandidateSlug = buildDeckArchetypeId(selfLearnedCandidateSprites.slugs);
+  const shouldCheckLearnedSelfArchetype =
+    selfLearnedCandidateSprites.slugs.length > 0 &&
+    (!selfArchetype || selfArchetype.archetypeId !== selfLearnedCandidateSlug);
+  let learnedSelfArchetype: LearnedSelfArchetype | null = null;
+  if (shouldCheckLearnedSelfArchetype) {
+    const [learningUser, learningSupabase] =
+      importContext.user && importContext.supabase
+        ? [importContext.user, importContext.supabase]
+        : await Promise.all([
+            measureServerCall("logs.import.requireUserForLearnedSelfArchetype", () => requireUser()),
+            measureServerCall("logs.import.createClientForLearnedSelfArchetype", () => createClient())
+          ]);
 
-  const selfDeckName = getBattleLogDeckDisplayName(selfArchetype?.label ?? "", selfSprites.slugs);
-  const selfDeckSlug = selfArchetype?.archetypeId ?? "";
+    learnedSelfArchetype = await measureServerCall(
+      "logs.import.resolveLearnedSelfArchetype.self",
+      () =>
+        resolveLearnedSelfArchetype({
+          supabase: learningSupabase,
+          userId: learningUser.id,
+          sprites: selfLearnedCandidateSprites.slugs
+        })
+    );
+
+    if (!learnedSelfArchetype) {
+      learnedSelfArchetype = await measureServerCall(
+        "logs.import.resolveLearnedSelfArchetypeCandidates.self",
+        () =>
+          resolveLearnedSelfArchetypeFromCandidates({
+            supabase: learningSupabase,
+            userId: learningUser.id,
+            candidates: buildLearnedSelfSpriteCandidates({
+              primarySprites: selfLearnedCandidateSprites.slugs,
+              evidence: parsed.pokemonEvidence.self
+            })
+          })
+      );
+    }
+  }
+  const resolvedSelfArchetype = learnedSelfArchetype ?? selfArchetype;
+  const resolvedSelfSprites = learnedSelfArchetype?.sprites ?? selfSprites.slugs;
+
+  const selfDeckName = getBattleLogDeckDisplayName(
+    resolvedSelfArchetype?.label ?? "",
+    resolvedSelfSprites
+  );
+  const selfDeckSlug = resolvedSelfArchetype?.archetypeId ?? "";
 
   return {
     selfPlayerName: parsed.players.selfPlayerName,
@@ -184,7 +276,7 @@ async function buildParsedLogReview(
       opponentArchetype?.label ?? "",
       opponentSprites.slugs
     ),
-    selfSprites: selfSprites.slugs,
+    selfSprites: resolvedSelfSprites,
     opponentSprites: opponentSprites.slugs,
     selfDeckSlug,
     opponentDeckSlug: opponentArchetype?.archetypeId ?? "",
@@ -301,14 +393,30 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
     const selectedDeckId = String(formData.get("linkedDeckId") || "").trim();
     const selectedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
     const sections = parseSections(formData.get("sections"));
+    const selectedSelfSprites = parseStringArray(formData.getAll("selfSprites"));
+    const selectedOpponentSprites = parseStringArray(formData.getAll("opponentSprites"));
+    const submittedSelfDeckSlug = String(formData.get("selfDeckSlug") || "").trim();
+    const submittedSelfDeckName = String(formData.get("selfDeckName") || "").trim();
+    const selectedSelfSpriteSlug = buildDeckArchetypeId(selectedSelfSprites);
+    const learnedSelfArchetype =
+      selectedSelfSprites.length === 0 || submittedSelfDeckSlug === selectedSelfSpriteSlug
+      ? null
+      : await measureServerCall("logs.import.resolveLearnedSelfArchetypeForSave.self", () =>
+          resolveLearnedSelfArchetype({
+            supabase,
+            userId: user.id,
+            sprites: selectedSelfSprites,
+            minimumExistingMatches: LEARNED_SELF_ARCHETYPE_THRESHOLD - 1
+          })
+        );
     const suggestedLinkedDeckId = selectedDeckId
       ? ""
       : (await measureServerCall("logs.import.linkDeckConservatively", () =>
           linkDeckConservatively({
             userId: user.id,
-            identifiedDeckName: String(formData.get("selfDeckName") || "").trim(),
-            identifiedDeckSlug: String(formData.get("selfDeckSlug") || "").trim(),
-            identifiedSprites: parseStringArray(formData.getAll("selfSprites"))
+            identifiedDeckName: learnedSelfArchetype?.label ?? submittedSelfDeckName,
+            identifiedDeckSlug: learnedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
+            identifiedSprites: selectedSelfSprites
           })
         )) ?? "";
 
@@ -319,13 +427,13 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       format: String(formData.get("format") || "").trim(),
       go_order: parseGoOrder(formData.get("goOrder")),
       self_player_name: String(formData.get("selfPlayerName") || "").trim(),
-      self_deck_name: String(formData.get("selfDeckName") || "").trim(),
-      self_deck_slug: String(formData.get("selfDeckSlug") || "").trim(),
-      self_deck_sprites: joinSprites(parseStringArray(formData.getAll("selfSprites"))),
+      self_deck_name: learnedSelfArchetype?.label ?? submittedSelfDeckName,
+      self_deck_slug: learnedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
+      self_deck_sprites: joinSprites(selectedSelfSprites),
       opponent_player_name: String(formData.get("opponentPlayerName") || "").trim(),
       opponent_deck_name: String(formData.get("opponentDeckName") || "").trim(),
       opponent_deck_slug: String(formData.get("opponentDeckSlug") || "").trim(),
-      opponent_deck_sprites: joinSprites(parseStringArray(formData.getAll("opponentSprites"))),
+      opponent_deck_sprites: joinSprites(selectedOpponentSprites),
       total_turns: Number(formData.get("totalTurns")) || 0,
       coin_toss_won: parseBoolean(formData.get("coinTossWon")),
       self_prizes_taken: Number(formData.get("selfPrizesTaken")) || 0,

@@ -565,7 +565,6 @@ export function ImportLogDialog({
                   ) : null}
 
                   <BattleLogSpritePicker
-                    detectedLabel={detectedSelfLabel}
                     onChange={setSelectedSelfSprites}
                     pokemonOptions={pokemonOptions}
                     sprites={selectedSelfSprites}
@@ -573,7 +572,6 @@ export function ImportLogDialog({
                   />
 
                   <BattleLogSpritePicker
-                    detectedLabel={detectedOpponentLabel}
                     onChange={setSelectedOpponentSprites}
                     pokemonOptions={pokemonOptions}
                     sprites={selectedOpponentSprites}

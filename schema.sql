@@ -1012,6 +1012,10 @@ create index logs_user_format
 create index logs_user_opponent_deck
   on public.logs (user_id, opponent_deck_slug);
 
+create index logs_user_self_deck_sprites
+  on public.logs (user_id, self_deck_sprites)
+  where nullif(trim(self_deck_sprites), '') is not null;
+
 create index logs_user_go_order
   on public.logs (user_id, go_order);
 
