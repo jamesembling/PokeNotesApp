@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
+import {
+  CalculatorIcon,
+  CardsIcon,
+  ChartLineIcon,
+  ClipboardTextIcon,
+  TrophyIcon,
+  type Icon
+} from "@phosphor-icons/react";
 import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon, ShieldIcon } from "lucide-react";
 import { signOutAction } from "@/app/actions";
 import { Avatar, AvatarFallback } from "@/components/shadcn/avatar";
@@ -44,12 +52,12 @@ type SidebarProps = {
   profile: SidebarProfile;
 };
 
-const navItems = [
-  { label: "Battle Logs", href: "/logs" },
-  { label: "Deck Strategy", href: "/decks" },
-  { label: "Tournaments", href: "/tournaments" },
-  { label: "Stats", href: "/stats" },
-  { label: "Probability Calculator", href: "/calculator" }
+const navItems: Array<{ label: string; href: string; icon: Icon }> = [
+  { label: "Battle Logs", href: "/logs", icon: ClipboardTextIcon },
+  { label: "Deck Strategy", href: "/decks", icon: CardsIcon },
+  { label: "Tournaments", href: "/tournaments", icon: TrophyIcon },
+  { label: "Stats", href: "/stats", icon: ChartLineIcon },
+  { label: "Probability Calculator", href: "/calculator", icon: CalculatorIcon }
 ];
 
 function getInitials(value: string) {
@@ -66,7 +74,7 @@ function getInitials(value: string) {
     .join("");
 }
 
-function AppSidebarLink({ href, label }: { href: string; label: string }) {
+function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon; label: string }) {
   const pathname = usePathname();
   const { setOpenMobile } = useSidebar();
   const active = pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
@@ -85,7 +93,12 @@ function AppSidebarLink({ href, label }: { href: string; label: string }) {
               className="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-primary group-data-[collapsible=icon]:hidden"
             />
           ) : null}
-          <span className="pl-2">{label}</span>
+          <Icon
+            aria-hidden="true"
+            className={active ? "ml-2 text-primary" : "ml-2 text-muted-foreground"}
+            weight={active ? "fill" : "regular"}
+          />
+          <span>{label}</span>
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -134,7 +147,12 @@ function SidebarNav({ userDecks }: { userDecks: DeckSelectionOption[] }) {
         <SidebarGroupContent>
           <SidebarMenu className="gap-1">
             {navItems.map((item) => (
-              <AppSidebarLink href={item.href} key={item.href} label={item.label} />
+              <AppSidebarLink
+                href={item.href}
+                icon={item.icon}
+                key={item.href}
+                label={item.label}
+              />
             ))}
           </SidebarMenu>
           <div className="px-2 pt-4 group-data-[collapsible=icon]:hidden">
