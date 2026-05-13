@@ -762,6 +762,38 @@ export const getDeckSelectionOptions = cache(async function getDeckSelectionOpti
   return (((data ?? []) as unknown) as DeckSelectionRow[]).map(mapDeckSelection);
 });
 
+export const getDeckSelectionOptionsByIds = cache(async function getDeckSelectionOptionsByIds(
+  userId: string,
+  deckIds: string[]
+): Promise<DeckSelectionOption[]> {
+  const resolvedDeckIds = Array.from(
+    new Set(
+      deckIds
+        .map((deckId) => String(deckId || "").trim())
+        .filter(Boolean)
+    )
+  );
+
+  if (resolvedDeckIds.length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await measureServerCall("db.decks.selectionOptionsByIds", async () =>
+    await supabase
+      .from("decks")
+      .select(["id", "deck_name", "deck_lists"].join(","))
+      .eq("user_id", userId)
+      .in("id", resolvedDeckIds)
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return (((data ?? []) as unknown) as DeckSelectionRow[]).map(mapDeckSelection);
+});
+
 export const getDeckSelectionAndLinkCandidates = cache(async function getDeckSelectionAndLinkCandidates(
   userId: string
 ): Promise<{

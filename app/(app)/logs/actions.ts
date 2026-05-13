@@ -20,6 +20,7 @@ import {
 import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
+import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
 import { getOrCreateLogShareSnapshot, revokeLogShare } from "@/lib/db/log-shares";
 import { getLogById, getLogsWindow } from "@/lib/db/logs";
 import { getAppOrigin } from "@/lib/server/app-url";
@@ -625,9 +626,11 @@ export async function bulkAssignDeckListAction(input: {
 
 export async function loadMoreLogsAction(cursor?: string) {
   const user = await requireUser();
-  return getLogsWindow(user.id, {
+  const window = await getLogsWindow(user.id, {
     cursor
   });
+
+  return hydrateLogWindowDeckListNames(user.id, window);
 }
 
 export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {

@@ -214,7 +214,11 @@ export function LogsManager({
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState("");
   const [selectedDeckListId, setSelectedDeckListId] = useState("");
-  const [visibleLogs, setVisibleLogs] = useState(initialLogs);
+  const [visibleLogs, setVisibleLogs] = useState(() =>
+    initialUserDecks.length > 0
+      ? attachLinkedDeckListNames(initialLogs, initialUserDecks)
+      : initialLogs
+  );
   const [canLoadMore, setCanLoadMore] = useState(initialCanLoadMore);
   const [nextWindowEndDate, setNextWindowEndDate] = useState(initialNextWindowEndDate);
   const [windowStartDate, setWindowStartDate] = useState(initialWindowStartDate);

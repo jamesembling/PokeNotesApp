@@ -2,6 +2,7 @@ import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
+import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
 import { getLogSummaryStats, getLogsWindow } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
 
@@ -12,6 +13,9 @@ export default async function LogsPage() {
       getLogSummaryStats(user.id),
       getLogsWindow(user.id)
     ])
+  );
+  const hydratedWindow = await measureServerCall("page.logs.linkedDeckListNames", () =>
+    hydrateLogWindowDeckListNames(user.id, window)
   );
 
   return (
@@ -27,7 +31,7 @@ export default async function LogsPage() {
         }
       />
 
-      <LogsWorkspaceClient stats={stats} window={window} />
+      <LogsWorkspaceClient stats={stats} window={hydratedWindow} />
     </>
   );
 }
