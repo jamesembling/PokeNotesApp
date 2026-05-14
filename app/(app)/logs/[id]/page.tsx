@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
-import { getDeckWithList } from "@/lib/db/decks";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
 
@@ -76,12 +75,6 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
     return <DetailError />;
   }
 
-  const linkedDeckWithList =
-    log.linkedDeckId && log.linkedDeckListId
-      ? await measureServerCall("page.logs.detail.linkedDeckList", () =>
-          getDeckWithList(user.id, log.linkedDeckId as string, log.linkedDeckListId as string)
-        )
-      : null;
   const opponentDeckName = getBattleLogOpponentDisplayName(
     log.opponentDeckName,
     log.opponentDeckSprites
@@ -102,16 +95,9 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
         <BattleLogDetailShell
           activeShare={null}
           linkedDeckId={log.linkedDeckId}
-          linkedDeckListFormat={linkedDeckWithList?.deckList.format}
-          linkedDeckListId={linkedDeckWithList?.deckList.id ?? log.linkedDeckListId}
-          linkedDeckListName={linkedDeckWithList?.deckList.name}
-          linkedDeckListNotes={linkedDeckWithList?.deckList.notes}
-          linkedDeckListRawList={linkedDeckWithList?.deckList.rawList}
-          linkedDeckListSortedCards={linkedDeckWithList?.deckList.sortedCards ?? []}
+          linkedDeckListId={log.linkedDeckListId}
           linkedStrategyLabel={
-            linkedDeckWithList?.deckList.name ??
-            linkedDeckWithList?.deckName ??
-            (log.linkedDeckId ? "Linked strategy" : "No strategy linked")
+            log.linkedDeckId ? "Linked strategy" : "No strategy linked"
           }
           log={log}
           timestampLabel={formatImportedAt(log.importedAt)}

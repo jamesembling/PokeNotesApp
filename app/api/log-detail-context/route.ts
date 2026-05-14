@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { getDeckWithList } from "@/lib/db/decks";
 import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
 import { getAppOrigin } from "@/lib/server/app-url";
@@ -27,9 +28,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [[activeShare], appOrigin] = await Promise.all([
+    const linkedDeckWithList =
+      log.linkedDeckId && log.linkedDeckListId
+        ? getDeckWithList(user.id, log.linkedDeckId, log.linkedDeckListId)
+        : Promise.resolve(null);
+    const [[activeShare], appOrigin, linkedDeck] = await Promise.all([
       listActiveSharesForOwnerLog(user.id, log.id),
-      getAppOrigin()
+      getAppOrigin(),
+      linkedDeckWithList
     ]);
 
     return NextResponse.json(
@@ -41,6 +47,17 @@ export async function GET(request: NextRequest) {
               shareUrl: `${appOrigin}/shared/${activeShare.id}`
             }
           : null,
+        linkedDeckId: log.linkedDeckId,
+        linkedDeckListFormat: linkedDeck?.deckList.format,
+        linkedDeckListId: linkedDeck?.deckList.id ?? log.linkedDeckListId,
+        linkedDeckListName: linkedDeck?.deckList.name,
+        linkedDeckListNotes: linkedDeck?.deckList.notes,
+        linkedDeckListRawList: linkedDeck?.deckList.rawList,
+        linkedDeckListSortedCards: linkedDeck?.deckList.sortedCards ?? [],
+        linkedStrategyLabel:
+          linkedDeck?.deckList.name ??
+          linkedDeck?.deckName ??
+          (log.linkedDeckId ? "Linked strategy" : "No strategy linked"),
         userDecks: []
       },
       {

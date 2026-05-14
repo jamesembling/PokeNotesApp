@@ -28,6 +28,17 @@ test("battle-log detail keeps raw body data out of the initial route and removes
   assert.doesNotMatch(source("components/ui/LogsManager.tsx"), /warmLogDetailCache|sessionStorage|log-detail-data/);
 });
 
+test("battle-log detail defers linked deck list data out of the blocking route response", () => {
+  const page = source("app/(app)/logs/[id]/page.tsx");
+  const contextRoute = source("app/api/log-detail-context/route.ts");
+  const shell = source("components/ui/BattleLogDetailShell.tsx");
+
+  assert.doesNotMatch(page, /getDeckWithList|page\.logs\.detail\.linkedDeckList/);
+  assert.match(contextRoute, /getDeckWithList/);
+  assert.match(contextRoute, /linkedDeckListSortedCards/);
+  assert.match(shell, /deferredContext\?\.linkedDeckListSortedCards/);
+});
+
 test("/logs/[id] loading state is visible to users and route timing", () => {
   const loading = source("app/(app)/logs/[id]/loading.tsx");
 
