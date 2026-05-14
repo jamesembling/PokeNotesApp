@@ -17,6 +17,9 @@ create table if not exists public.user_log_stats (
 comment on table public.user_log_stats is
   'Per-user rollup totals for the stats page. Updated whenever logs are inserted, deleted, or stat fields change.';
 
+grant select on table public.user_log_stats to authenticated;
+grant all privileges on table public.user_log_stats to service_role;
+
 create or replace function public.refresh_user_log_stats(target_user_id uuid)
 returns void
 language plpgsql

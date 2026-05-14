@@ -34,6 +34,9 @@ comment on column public.user_archetype_matchup_stats.matchup_key is
 comment on column public.user_archetype_matchup_stats.source_deck_slugs is
   'Comma-separated raw opponent_deck_slug values that contributed to this visible matchup row.';
 
+grant select on table public.user_archetype_matchup_stats to authenticated;
+grant all privileges on table public.user_archetype_matchup_stats to service_role;
+
 create index if not exists user_archetype_matchup_stats_user_sort
   on public.user_archetype_matchup_stats (user_id, games_played desc, games_won desc, opponent_deck_name);
 

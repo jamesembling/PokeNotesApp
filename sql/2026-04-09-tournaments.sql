@@ -73,6 +73,12 @@ create index if not exists tournament_rounds_tournament
 create index if not exists tournament_rounds_user
   on public.tournament_rounds (user_id, created_at desc);
 
+grant select, insert, update, delete on table public.tournaments to authenticated;
+grant all privileges on table public.tournaments to service_role;
+
+grant select, insert, update, delete on table public.tournament_rounds to authenticated;
+grant all privileges on table public.tournament_rounds to service_role;
+
 
 create or replace function set_updated_at()
 returns trigger as $$

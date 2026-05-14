@@ -32,6 +32,9 @@ create table if not exists public.route_performance_events (
 comment on table public.route_performance_events is
   'Real-user route timing events captured from authenticated app sessions.';
 
+grant select, insert on table public.route_performance_events to authenticated;
+grant all privileges on table public.route_performance_events to service_role;
+
 create index if not exists route_performance_events_created_at
   on public.route_performance_events (created_at desc);
 

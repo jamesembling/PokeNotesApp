@@ -19,6 +19,9 @@ create table if not exists public.user_archetype_matchup_stats (
 comment on table public.user_archetype_matchup_stats is
   'Per-user opponent archetype matchup rollup for the stats page. Updated whenever battle-log matchup fields change.';
 
+grant select on table public.user_archetype_matchup_stats to authenticated;
+grant all privileges on table public.user_archetype_matchup_stats to service_role;
+
 create index if not exists user_archetype_matchup_stats_user_sort
   on public.user_archetype_matchup_stats (user_id, games_played desc, games_won desc, opponent_deck_name);
 

@@ -29,6 +29,7 @@ cp .env.example .env
 
 - For a new Supabase project, run [`schema.sql`](./schema.sql) in the SQL editor.
 - For an existing project that already has the base schema, apply any newer files in [`sql/`](./sql).
+- Codex can apply a SQL file for you when a database connection string or linked Supabase CLI session is available locally. Ask it to run the specific migration, for example `sql/2026-05-14-data-api-grants.sql`.
 
 5. Configure Supabase Auth redirect URLs for each environment:
 
@@ -86,7 +87,7 @@ Deployments are intended for Vercel.
 2. Add the same runtime env vars used locally.
 3. Set `NEXT_PUBLIC_APP_URL` to the deployed origin.
 4. In Supabase Auth, add the deployed `/auth/callback` URL to the allow list.
-5. Run [`schema.sql`](./schema.sql) for a fresh database or apply any required files in [`sql/`](./sql) before using the app in production.
+5. Run [`schema.sql`](./schema.sql) for a fresh database or apply any required files in [`sql/`](./sql) before using the app in production. This can be done in the Supabase SQL editor, or by asking Codex to run the SQL when local Supabase/database credentials are configured.
 6. Set `CRON_SECRET` in Vercel so the scheduled catalog sync route can authenticate requests.
 
 `vercel.json` schedules `/api/cron/sync-pokemon-catalog` to run daily at `05:00` UTC. The job refreshes `pokemon_catalog` from the upstream sources, then invalidates the cached Pokemon options and identification catalog so UI menus and lookup paths see the new rows without a manual reseed.

@@ -16,6 +16,9 @@ create table if not exists public.deck_log_stats (
 comment on table public.deck_log_stats is
   'Per-deck linked-log rollup for the deck index. Updated whenever linked log records change.';
 
+grant select on table public.deck_log_stats to authenticated;
+grant all privileges on table public.deck_log_stats to service_role;
+
 create or replace function public.refresh_deck_log_stats(
   target_user_id uuid,
   target_deck_id text
