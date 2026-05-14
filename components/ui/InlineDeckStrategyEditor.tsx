@@ -9,8 +9,18 @@ import { Card } from "@/components/shadcn/card";
 import type { Deck } from "@/types/index";
 import type { GoPreference } from "@/types/index";
 
+type InlineDeckStrategy = Pick<
+  Deck,
+  | "coreStrategy"
+  | "generalNotes"
+  | "goPreference"
+  | "id"
+  | "resourcePlan"
+  | "setupGoals"
+>;
+
 type InlineDeckStrategyEditorProps = {
-  deck: Deck;
+  deck: InlineDeckStrategy;
 };
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -23,7 +33,7 @@ type StrategyState = {
   setupGoals: string;
 };
 
-function buildStrategyState(deck: Deck): StrategyState {
+function buildStrategyState(deck: InlineDeckStrategy): StrategyState {
   return {
     coreStrategy: deck.coreStrategy || "",
     generalNotes: deck.generalNotes || "",

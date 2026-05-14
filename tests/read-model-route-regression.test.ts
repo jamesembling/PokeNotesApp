@@ -54,6 +54,16 @@ test("/decks/[id] uses read-model stats and only latest linked logs on first ren
   assert.doesNotMatch(page, /getAllLogsForDeck/);
 });
 
+test("/decks/[id] keeps full deck-list editor payload out of the initial client props", () => {
+  const page = source("app/(app)/decks/[id]/page.tsx");
+  const lazyButton = source("components/ui/LazyDeckListEditorButton.tsx");
+
+  assert.match(page, /getDeckListRowPayload/);
+  assert.match(page, /deckListId=\{deckList\.id\}/);
+  assert.doesNotMatch(page, /deckList=\{deckList\}/);
+  assert.match(lazyButton, /\/api\/deck-list/);
+});
+
 test("full related deck logs are fetched only from the opened dialog path", () => {
   const page = source("app/(app)/decks/[id]/page.tsx");
   const dialog = source("components/ui/DeckLinkedLogsDialog.tsx");
@@ -70,12 +80,23 @@ test("dead sidebar profile endpoint and sidebar client fetch stay removed", () =
   assert.doesNotMatch(source("components/ui/Sidebar.tsx"), /sidebar-profile|fetch\(/);
 });
 
+test("authenticated app routes cache verified Supabase claims briefly across hot navigations", () => {
+  const auth = source("lib/auth.ts");
+
+  assert.match(auth, /AUTH_CLAIMS_CACHE_TTL_MS/);
+  assert.match(auth, /authClaimsCache/);
+  assert.match(auth, /readCachedAuthClaims/);
+  assert.match(auth, /writeCachedAuthClaims/);
+});
+
 test("/stats renders archetype matchup stats from the read model", () => {
   const page = source("app/(app)/stats/page.tsx");
+  const apiRoute = source("app/api/stats-matchups/route.ts");
   const logsDb = source("lib/db/logs.ts");
 
-  assert.match(page, /getArchetypeMatchupStats/);
-  assert.match(page, /Win % vs Archetypes/);
+  assert.doesNotMatch(page, /getArchetypeMatchupStats/);
+  assert.match(apiRoute, /getArchetypeMatchupStats/);
+  assert.match(source("components/ui/StatsTabsClient.tsx"), /\/api\/stats-matchups/);
   assert.match(logsDb, /from\("user_archetype_matchup_stats"\)/);
   assert.doesNotMatch(logsDb, /from\("logs"\)[\s\S]{0,300}opponent_deck_slug[\s\S]{0,300}group/);
 });

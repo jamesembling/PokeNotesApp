@@ -24,8 +24,10 @@ import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import type { Deck, PokemonOption } from "@/types/index";
 
+export type DeckEditorDeck = Omit<Deck, "deckLists" | "matchups">;
+
 export type DeckEditorDialogProps = {
-  deck?: Deck;
+  deck?: DeckEditorDeck;
   initialOpen?: boolean;
   pokemonOptions: PokemonOption[];
   triggerLabel: string;

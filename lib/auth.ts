@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
 import { AUTH_CLAIMS_HEADER, readAuthClaimsHeader } from "@/lib/server/auth-claim-header";
@@ -10,6 +10,14 @@ type AuthenticatedUser = Pick<
   User,
   "id" | "email" | "app_metadata" | "user_metadata" | "role"
 >;
+
+type CachedAuthClaims = {
+  expiresAt: number;
+  user: AuthenticatedUser;
+};
+
+const AUTH_CLAIMS_CACHE_TTL_MS = 30_000;
+const authClaimsCache = new Map<string, CachedAuthClaims>();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -31,6 +39,52 @@ function mapClaimsToUser(claims: Record<string, unknown>): AuthenticatedUser | n
   };
 }
 
+async function getAuthCookieCacheKey() {
+  const cookieStore = await cookies();
+  const authCookie = cookieStore
+    .getAll()
+    .find((cookie) => /^sb-.+-auth-token$/.test(cookie.name));
+
+  if (!authCookie?.value) {
+    return "";
+  }
+
+  return `${authCookie.name}:${authCookie.value}`;
+}
+
+function readCachedAuthClaims(cacheKey: string) {
+  if (!cacheKey) {
+    return null;
+  }
+
+  const cached = authClaimsCache.get(cacheKey);
+  if (!cached) {
+    return null;
+  }
+
+  if (cached.expiresAt <= Date.now()) {
+    authClaimsCache.delete(cacheKey);
+    return null;
+  }
+
+  return cached.user;
+}
+
+function writeCachedAuthClaims(cacheKey: string, user: AuthenticatedUser | null) {
+  if (!cacheKey || !user) {
+    return;
+  }
+
+  authClaimsCache.set(cacheKey, {
+    expiresAt: Date.now() + AUTH_CLAIMS_CACHE_TTL_MS,
+    user
+  });
+
+  if (authClaimsCache.size > 100) {
+    authClaimsCache.delete(authClaimsCache.keys().next().value ?? "");
+  }
+}
+
 export const getCurrentUser = cache(async (): Promise<AuthenticatedUser | null> => {
   const requestHeaders = await headers();
   const headerUser = await measureServerCall("auth.claimsHeader", async () =>
@@ -39,6 +93,12 @@ export const getCurrentUser = cache(async (): Promise<AuthenticatedUser | null> 
 
   if (headerUser) {
     return headerUser;
+  }
+
+  const authCookieCacheKey = await getAuthCookieCacheKey();
+  const cachedUser = readCachedAuthClaims(authCookieCacheKey);
+  if (cachedUser) {
+    return cachedUser;
   }
 
   const supabase = await createClient();
@@ -54,7 +114,9 @@ export const getCurrentUser = cache(async (): Promise<AuthenticatedUser | null> 
     return null;
   }
 
-  return mapClaimsToUser(data.claims);
+  const user = mapClaimsToUser(data.claims);
+  writeCachedAuthClaims(authCookieCacheKey, user);
+  return user;
 });
 
 export const requireUser = cache(async () => {

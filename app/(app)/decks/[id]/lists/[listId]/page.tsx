@@ -3,8 +3,8 @@ import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
-import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
+import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { requireUser } from "@/lib/auth";
@@ -73,7 +73,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         title={deckList.name}
         action={
           <ButtonGroup className="max-w-full flex-wrap">
-            <DeckListEditorDialog
+            <LazyDeckListEditorButton
               deckId={id}
               deckList={deckList}
               defaultCreatedBy={defaultCreatedBy}

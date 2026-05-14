@@ -22,11 +22,12 @@ import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { parseDeckList, summarizeDeckList } from "@/lib/decks/deck-list-parse";
 import type { DeckList } from "@/types/index";
 
-type DeckListEditorDialogProps = {
+export type DeckListEditorDialogProps = {
   deckId: string;
   deckList?: DeckList;
   defaultFormat?: string;
   defaultCreatedBy: string;
+  initialOpen?: boolean;
   triggerLabel: string;
   triggerVariant?: "default" | "outline" | "ghost";
 };
@@ -116,6 +117,7 @@ export function DeckListEditorDialog({
   deckList,
   defaultFormat,
   defaultCreatedBy,
+  initialOpen = false,
   triggerLabel,
   triggerVariant = "outline"
 }: DeckListEditorDialogProps) {
@@ -124,7 +126,7 @@ export function DeckListEditorDialog({
   const { defaultFormat: syncedDefaultFormat, options: siteFormatOptions } = useSiteFormats();
   const isEditing = Boolean(deckList?.id);
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [step, setStep] = useState<DialogStep>("list");
   const [rawList, setRawList] = useState(deckList?.rawList ?? "");
   const [listName, setListName] = useState(deckList?.name ?? "");

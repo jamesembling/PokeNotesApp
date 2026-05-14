@@ -4,11 +4,11 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
-import type { DeckEditorDialogProps } from "@/components/ui/DeckEditorDialog";
-import type { Deck, PokemonOption } from "@/types/index";
+import type { DeckEditorDeck, DeckEditorDialogProps } from "@/components/ui/DeckEditorDialog";
+import type { PokemonOption } from "@/types/index";
 
 type LazyDeckEditorButtonProps = {
-  deck?: Deck;
+  deck?: DeckEditorDeck;
   triggerLabel: string;
   triggerVariant?: "default" | "outline" | "ghost";
 };

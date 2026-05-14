@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
-import { DeckListEditorDialog } from "@/components/ui/DeckListEditorDialog";
 import { DeckMatchupsDialog } from "@/components/ui/DeckMatchupsDialog";
 import {
   DeckLogStatsGrid,
@@ -14,6 +13,7 @@ import {
 import { ChevronIcon } from "@/components/ui/icons";
 import { InlineDeckStrategyEditor } from "@/components/ui/InlineDeckStrategyEditor";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
+import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
 import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
@@ -22,7 +22,7 @@ import { requireUser } from "@/lib/auth";
 import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
 import { getLatestLogsForDeck } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
-import type { DeckMatchup } from "@/types/index";
+import type { Deck, DeckList, DeckMatchup } from "@/types/index";
 
 type DeckDetailPageProps = {
   params: Promise<{
@@ -62,6 +62,22 @@ function DeckMatchupTile({
       </Card>
     </Link>
   );
+}
+
+function getDeckEditorPayload(deck: Deck) {
+  const { deckLists: _deckLists, matchups: _matchups, ...editorDeck } = deck;
+  return editorDeck;
+}
+
+function getDeckListRowPayload(deckList: DeckList) {
+  const {
+    parsedCards: _parsedCards,
+    rawList: _rawList,
+    sortedCards: _sortedCards,
+    ...deckListRow
+  } = deckList;
+
+  return deckListRow;
 }
 
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
@@ -108,10 +124,12 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   }
 
   const previewMatchups = deck.matchups.slice(0, 4);
+  const deckEditorPayload = getDeckEditorPayload(deck);
+  const deckListRows = deck.deckLists.map(getDeckListRowPayload);
   const deckActions = (
     <ButtonGroup className="max-w-full flex-wrap">
       <LazyDeckEditorButton
-        deck={deck}
+        deck={deckEditorPayload}
         triggerLabel="Edit Deck"
         triggerVariant="outline"
       />
@@ -152,7 +170,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           </Suspense>
         </div>
       </Card>
-      <InlineDeckStrategyEditor deck={deck} />
+      <InlineDeckStrategyEditor deck={deckEditorPayload} />
 
       <Card className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -176,7 +194,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       <Card className="space-y-4" id="deck-lists">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="ui-eyebrow">Deck Lists</p>
-          <DeckListEditorDialog
+          <LazyDeckListEditorButton
             deckId={deck.id}
             defaultCreatedBy={defaultCreatedBy}
             defaultFormat={deck.format}
@@ -185,11 +203,11 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           />
         </div>
 
-        {deck.deckLists.length === 0 ? (
+        {deckListRows.length === 0 ? (
           <p className="text-sm text-foreground">No deck lists saved.</p>
         ) : (
           <div className="divide-y divide-[var(--border)]">
-            {deck.deckLists.map((deckList) => (
+            {deckListRows.map((deckList) => (
               <div
                 className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                 key={deckList.id}
@@ -205,9 +223,9 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                 </div>
 
                 <ButtonGroup className="max-w-full flex-wrap">
-                  <DeckListEditorDialog
+                  <LazyDeckListEditorButton
                     deckId={deck.id}
-                    deckList={deckList}
+                    deckListId={deckList.id}
                     defaultCreatedBy={defaultCreatedBy}
                     defaultFormat={deck.format}
                     triggerLabel="Edit List"
