@@ -107,12 +107,13 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full pointer-events-none whitespace-nowrap bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[9.5rem] sm:shrink-0"
-          : "w-full whitespace-nowrap sm:w-[9.5rem] sm:shrink-0"
+          ? "pointer-events-none whitespace-nowrap border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win-strong)] opacity-100 hover:bg-[var(--color-win-bg)] sm:w-[9.5rem] sm:shrink-0"
+          : "border-border bg-background whitespace-nowrap text-foreground hover:bg-muted hover:text-foreground sm:w-[9.5rem] sm:shrink-0"
       }
       disabled={isSaving}
       onClick={onClick}
       type="button"
+      variant="outline"
     >
       {isSaving ? "Saving..." : isSuccess ? "Saved" : isEditing ? "Save Changes" : "Create"}
     </Button>
@@ -131,6 +132,7 @@ export function TournamentEditorDialog({
   const pathname = usePathname();
   const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const formRef = useRef<HTMLFormElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const isEditing = Boolean(tournament?.id);
@@ -234,6 +236,14 @@ export function TournamentEditorDialog({
     resetState();
   }
 
+  function resetHorizontalScroll() {
+    window.requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollLeft = 0;
+      }
+    });
+  }
+
   useEffect(() => {
     return () => {
       clearCloseTimer();
@@ -334,10 +344,20 @@ export function TournamentEditorDialog({
       </Button>
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
         showCloseButton={false}
       >
-            <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
+            <div
+              className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2"
+              onFocusCapture={resetHorizontalScroll}
+              onInputCapture={resetHorizontalScroll}
+              onScroll={(event) => {
+                if (event.currentTarget.scrollLeft !== 0) {
+                  event.currentTarget.scrollLeft = 0;
+                }
+              }}
+              ref={scrollContainerRef}
+            >
             <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
@@ -348,20 +368,20 @@ export function TournamentEditorDialog({
                 </DialogDescription>
               </div>
 
-              <ButtonGroup className="w-full sm:w-auto sm:justify-end">
+              <ButtonGroup className="max-w-full flex-wrap sm:justify-end">
                 <Button className="whitespace-nowrap" onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
                 {isEditing ? (
                   <Button
-                    className="whitespace-nowrap"
+                    className="whitespace-nowrap text-destructive hover:bg-destructive/10 hover:text-destructive"
                     disabled={isBusy}
                     onClick={() => {
                       setActionError("");
                       setShowDeleteConfirmation((current) => !current);
                     }}
                     type="button"
-                    variant="destructive"
+                    variant="outline"
                   >
                     Delete
                   </Button>

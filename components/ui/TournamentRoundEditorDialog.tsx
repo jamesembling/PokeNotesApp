@@ -69,6 +69,7 @@ export function TournamentRoundEditorDialog({
   const router = useRouter();
   const pathname = usePathname();
   const formRef = useRef<HTMLFormElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const isEditing = Boolean(round?.id);
@@ -118,6 +119,14 @@ export function TournamentRoundEditorDialog({
     clearNavigationTimer();
     setIsOpen(false);
     resetState();
+  }
+
+  function resetHorizontalScroll() {
+    window.requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollLeft = 0;
+      }
+    });
   }
 
   useEffect(() => {
@@ -214,10 +223,20 @@ export function TournamentRoundEditorDialog({
       {triggerElement}
 
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-2xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-2xl sm:p-4 lg:p-5"
+        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
         showCloseButton={false}
       >
-            <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2">
+            <div
+              className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2"
+              onFocusCapture={resetHorizontalScroll}
+              onInputCapture={resetHorizontalScroll}
+              onScroll={(event) => {
+                if (event.currentTarget.scrollLeft !== 0) {
+                  event.currentTarget.scrollLeft = 0;
+                }
+              }}
+              ref={scrollContainerRef}
+            >
             <div className="mb-2 flex min-w-0 flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
@@ -228,27 +247,30 @@ export function TournamentRoundEditorDialog({
                 </DialogDescription>
               </div>
 
-              <ButtonGroup className="w-full sm:w-auto sm:justify-end">
+              <ButtonGroup className="max-w-full flex-wrap sm:justify-end">
                 <Button onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
                 {isEditing ? (
                   <Button
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     disabled={isBusy}
                     onClick={() => {
                       setActionError("");
                       setShowDeleteConfirmation((current) => !current);
                     }}
                     type="button"
-                    variant="destructive"
+                    variant="outline"
                   >
                     Delete
                   </Button>
                 ) : null}
                 <Button
+                  className="border-border bg-background text-foreground hover:bg-muted hover:text-foreground"
                   disabled={saveState === "saving"}
                   onClick={() => formRef.current?.requestSubmit()}
                   type="button"
+                  variant="outline"
                 >
                   {saveState === "saving"
                     ? "Saving..."

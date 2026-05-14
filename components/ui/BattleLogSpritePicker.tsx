@@ -166,9 +166,7 @@ function SpriteSearchSlot({
   }, [currentSlug]);
 
   useEffect(() => {
-    const desktopFloatingPanelQuery = window.matchMedia(
-      "(min-width: 1024px) and (hover: hover) and (pointer: fine)"
-    );
+    const desktopFloatingPanelQuery = window.matchMedia("(min-width: 640px)");
 
     function syncDesktopMode() {
       setIsDesktopFloatingPanel(desktopFloatingPanelQuery.matches);
@@ -377,7 +375,6 @@ function SpriteSearchSlot({
       <PopoverContent
         align="start"
         className="z-[90] w-[min(420px,calc(100vw-2rem))] bg-transparent p-0 shadow-none ring-0"
-        container={containerRef.current}
         onOpenAutoFocus={(event) => event.preventDefault()}
         sideOffset={8}
       >
