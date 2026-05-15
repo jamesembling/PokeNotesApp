@@ -22,7 +22,7 @@
   --destructive: #dc2626;
   --border: #e4e7eb;
   --input: #e4e7eb;
-  --ring: #2563eb;
+  --ring: #6b7280;
   --radius: 0.5rem;
   --sidebar: var(--card);
   --sidebar-foreground: var(--foreground);
@@ -85,7 +85,7 @@
   --destructive: #dc2626;
   --border: #2a2d3a;
   --input: #2a2d3a;
-  --ring: #2563eb;
+  --ring: #9ca3af;
   --sidebar: var(--card);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
