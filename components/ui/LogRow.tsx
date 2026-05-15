@@ -75,6 +75,13 @@ function LogRowComponent({
     managementMode && selected ? "ring-2 ring-ring/45 ring-offset-2 ring-offset-background" : "",
     rowClasses
   ].join(" ");
+  const managementRowClasses = [
+    "group/row grid overflow-hidden rounded-[10px] border text-left transition duration-200 hover:brightness-[0.98] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
+    selected ? "ring-2 ring-ring/45 ring-offset-2 ring-offset-background" : "",
+    rowClasses
+  ].join(" ");
+  const managementLinkClasses =
+    "grid min-w-0 grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 px-3 py-3 text-left outline-none sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5";
 
   const content = (
     <>
@@ -145,14 +152,14 @@ function LogRowComponent({
 
   return (
     <div
-      className="group/row grid gap-2 rounded-xl transition sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+      className={managementRowClasses}
       style={cardStyle}
     >
-      <Link className={cardClasses} href={`/logs/${log.id}`}>
+      <Link className={managementLinkClasses} href={`/logs/${log.id}`}>
         {content}
       </Link>
 
-      <div className="flex items-center justify-end gap-1 rounded-lg border border-[var(--rim)] bg-card px-1.5 py-1 text-muted-foreground sm:bg-card sm:px-1.5 sm:py-1">
+      <div className="flex items-center justify-end gap-1 border-t border-current/10 bg-card/70 px-1.5 py-1 text-muted-foreground sm:border-l sm:border-t-0 sm:bg-card/60">
         <label className="inline-flex min-h-9 cursor-pointer items-center justify-center gap-2 rounded-md px-2 text-sm font-semibold text-card-foreground sm:min-h-0 sm:p-2">
           <span className="sr-only">Select battle log</span>
           <Checkbox
