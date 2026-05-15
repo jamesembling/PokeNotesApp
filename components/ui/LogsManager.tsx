@@ -478,7 +478,7 @@ export function LogsManager({
   }
 
   return (
-    <div className={`flex flex-col gap-6 ${managementModeActive ? "pb-48 md:pb-28" : ""}`}>
+    <div className={`flex flex-col gap-6 ${managementModeActive ? "pb-36 md:pb-20" : ""}`}>
       <DeleteConfirmDialog
         confirmLabel={`Delete${deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}`}
         description={
