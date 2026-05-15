@@ -617,6 +617,7 @@ export function LogsManager({
               ) : null}
             </details>
           ))}
+          {canLoadMore ? <div className="border-t border-border" /> : null}
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">
@@ -628,7 +629,7 @@ export function LogsManager({
 
       {canLoadMore ? (
         <div
-          className={`flex flex-wrap items-center gap-3 border-t border-border pt-4 ${
+          className={`flex flex-wrap items-center gap-3 pt-4 ${
             loadMoreError ? "justify-between" : "justify-end"
           }`}
         >
