@@ -645,7 +645,7 @@ export function LogsManager({
       {managementModeActive ? (
         <div className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-6">
           <Card
-            className="mx-auto grid max-w-6xl gap-3 bg-card/95 p-3 shadow-[var(--shadow-lg)] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
+            className="mx-auto grid max-w-6xl gap-3 bg-popover p-3 shadow-[var(--shadow-lg)] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
             size="sm"
           >
             <div className="flex items-center justify-between gap-3 md:justify-start">
