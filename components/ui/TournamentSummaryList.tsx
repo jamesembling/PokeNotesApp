@@ -46,7 +46,7 @@ function TournamentSummaryRow({
     <div className="group/row space-y-2">
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <Link
-          className="group relative grid w-full grid-cols-1 gap-3 overflow-hidden rounded-[10px] border border-border bg-muted px-4 py-4 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4rem_minmax(0,1.7fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_4.5rem_4.5rem] sm:items-center sm:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
+          className="group relative grid w-full grid-cols-1 gap-3 overflow-hidden rounded-[10px] border border-border bg-muted px-4 py-4 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4rem_minmax(0,1.7fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_4.5rem_4.5rem] sm:items-center sm:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
           href={`/tournaments/${tournament.id}`}
           prefetch={false}
           style={{

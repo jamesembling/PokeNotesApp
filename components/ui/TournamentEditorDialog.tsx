@@ -439,7 +439,7 @@ export function TournamentEditorDialog({
                   Tournament information
                 </label>
                 <Input
-                  className="rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
+                  className="rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring"
                   defaultValue={tournament?.name ?? ""}
                   id="tournament-name"
                   name="name"
@@ -581,7 +581,7 @@ export function TournamentEditorDialog({
                   Notes
                 </label>
                 <Textarea
-                  className="min-h-32 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
+                  className="min-h-32 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring"
                   defaultValue={tournament?.notes ?? ""}
                   id="tournament-notes"
                   name="notes"

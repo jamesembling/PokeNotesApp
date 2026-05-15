@@ -73,7 +73,7 @@ export function ProbabilityCalculator() {
     "h-[9.5rem] overflow-y-auto rounded-xl border p-4",
     analysis?.warnings.length || statusTone === "warn"
       ? "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
-      : "border-primary/15 bg-primary/5"
+      : "border-ring/20 bg-muted"
   ].join(" ");
 
   const setupCards = analysis?.setupRows ?? [];
@@ -202,7 +202,7 @@ export function ProbabilityCalculator() {
                 Deck List
               </label>
               <Textarea
-                className="h-[320px] w-full resize-none rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="h-[320px] w-full resize-none rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
                 id="calculator-deck-input"
                 onChange={(event) => setDeckInput(event.target.value)}
                 placeholder="Paste your deck list here"

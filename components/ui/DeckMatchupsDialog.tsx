@@ -69,7 +69,7 @@ export function DeckMatchupsDialog({
                 <div className="flex min-w-0 flex-col gap-3">
                   {orderedMatchups.map((matchup) => (
                     <Link
-                      className="group flex min-w-0 items-center justify-between gap-4 rounded-[20px] border border-border bg-card px-4 py-4 transition hover:border-primary hover:bg-muted"
+                      className="group flex min-w-0 items-center justify-between gap-4 rounded-[20px] border border-border bg-card px-4 py-4 transition hover:border-ring hover:bg-muted"
                       href={`/decks/${deckId}/matchups/${matchup.id}`}
                       key={matchup.id}
                       onClick={() => setIsOpen(false)}

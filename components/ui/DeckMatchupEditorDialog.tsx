@@ -241,7 +241,7 @@ export function DeckMatchupEditorDialog({
                   <label className="grid gap-2">
                     <span className="text-sm font-semibold text-muted-foreground">Deck Name</span>
                     <Input
-                      className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
                       name="deckName"
                       onChange={(event) => setDeckName(event.target.value)}
                       placeholder="Dragapult / Dusknoir, Gardevoir ex, Miraidon..."
@@ -276,7 +276,7 @@ export function DeckMatchupEditorDialog({
                         aria-checked={goPreference === "First"}
                         className={`h-auto justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                           goPreference === "First"
-                            ? "border-primary bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-card-foreground"
+                            ? "border-ring bg-[color-mix(in_oklab,var(--ring)_10%,var(--bg-surface-alt))] text-card-foreground"
                             : "border-border bg-muted text-muted-foreground"
                         }`}
                         onClick={() => setGoPreference("First")}
@@ -288,7 +288,7 @@ export function DeckMatchupEditorDialog({
                           aria-hidden="true"
                           className={`flex h-5 w-5 items-center justify-center rounded-full border ${
                             goPreference === "First"
-                              ? "border-primary"
+                              ? "border-ring"
                               : "border-[var(--border-strong)]"
                           }`}
                         >
@@ -307,7 +307,7 @@ export function DeckMatchupEditorDialog({
                         aria-checked={goPreference === "Second"}
                         className={`h-auto justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                           goPreference === "Second"
-                            ? "border-primary bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-card-foreground"
+                            ? "border-ring bg-[color-mix(in_oklab,var(--ring)_10%,var(--bg-surface-alt))] text-card-foreground"
                             : "border-border bg-muted text-muted-foreground"
                         }`}
                         onClick={() => setGoPreference("Second")}
@@ -319,7 +319,7 @@ export function DeckMatchupEditorDialog({
                           aria-hidden="true"
                           className={`flex h-5 w-5 items-center justify-center rounded-full border ${
                             goPreference === "Second"
-                              ? "border-primary"
+                              ? "border-ring"
                               : "border-[var(--border-strong)]"
                           }`}
                         >

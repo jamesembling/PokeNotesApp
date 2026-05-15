@@ -231,7 +231,7 @@ function SpriteSearchSlot({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <Input
-          className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-base text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 md:text-sm"
+          className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-base text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50 md:text-sm"
           onChange={(event) => {
             setQuery(event.target.value);
             setIsOpen(true);

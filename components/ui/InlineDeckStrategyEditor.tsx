@@ -57,7 +57,7 @@ function StrategyPreferenceRadio({
       aria-checked={checked}
       className={`h-auto justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
         checked
-          ? "border-primary bg-[color-mix(in_oklab,var(--color-brand)_10%,var(--bg-surface-alt))] text-card-foreground"
+          ? "border-ring bg-[color-mix(in_oklab,var(--ring)_10%,var(--bg-surface-alt))] text-card-foreground"
           : "border-border bg-muted text-muted-foreground"
       }`}
       onClick={onClick}
@@ -68,7 +68,7 @@ function StrategyPreferenceRadio({
       <span
         aria-hidden="true"
         className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-          checked ? "border-primary" : "border-[var(--border-strong)]"
+          checked ? "border-ring" : "border-[var(--border-strong)]"
         }`}
       >
         <span
@@ -231,7 +231,7 @@ export function InlineDeckStrategyEditor({
         <section className="grid gap-2 md:col-span-2">
           <p className="text-sm font-semibold text-muted-foreground">Core Strategy</p>
           <Textarea
-            className="min-h-[240px] rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="min-h-[240px] rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("coreStrategy", event.target.value)}
             placeholder="Outline the main plan, sequencing, and key pressure points."
@@ -242,7 +242,7 @@ export function InlineDeckStrategyEditor({
         <section className="grid gap-2">
           <p className="text-sm font-semibold text-muted-foreground">Ideal Bench</p>
           <Textarea
-            className="min-h-[140px] rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="min-h-[140px] rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("setupGoals", event.target.value)}
             placeholder="One ideal bench note per line"
@@ -255,7 +255,7 @@ export function InlineDeckStrategyEditor({
             Potential Cuts / Techs / Inclusions
           </p>
           <Textarea
-            className="min-h-[140px] rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="min-h-[140px] rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("resourcePlan", event.target.value)}
             placeholder="Track likely swaps, flex slots, and format calls."
@@ -266,7 +266,7 @@ export function InlineDeckStrategyEditor({
         <section className="grid gap-2 md:col-span-2">
           <p className="text-sm font-semibold text-muted-foreground">General Notes</p>
           <Textarea
-            className="min-h-[140px] rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="min-h-[140px] rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("generalNotes", event.target.value)}
             placeholder="Add matchup trends, testing reminders, and loose notes."

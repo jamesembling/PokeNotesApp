@@ -748,7 +748,7 @@ export function ImportLogDialog({
                   <label className="grid gap-2">
                     <span className="text-sm font-semibold text-muted-foreground">Battle log</span>
                     <Textarea
-                      className="min-h-[280px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className="min-h-[280px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
                       onPaste={() => {
                         shouldAutoParseImmediatelyRef.current = true;
                       }}
@@ -775,7 +775,7 @@ export function ImportLogDialog({
                   </div>
 
                   {isParsing && !isTrainingCourtUrl ? (
-                    <Alert className="border-primary/15 bg-primary/5 text-primary">
+                    <Alert className="border-ring/20 bg-muted text-primary">
                       <AlertDescription className="text-primary">
                         Reviewing battle log…
                       </AlertDescription>

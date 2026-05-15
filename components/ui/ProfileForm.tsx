@@ -51,7 +51,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium text-foreground">Display Name</span>
           <Input
-            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
             defaultValue={profile.displayName}
             name="displayName"
             placeholder="How you want to appear in Poke Notes"
@@ -61,7 +61,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium text-foreground">PTCGL Username</span>
           <Input
-            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
             defaultValue={profile.ptcglUsername}
             name="ptcglUsername"
             placeholder="Your in-game username"
@@ -71,7 +71,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium text-foreground">First Name</span>
           <Input
-            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
             defaultValue={profile.firstName}
             name="firstName"
             placeholder="Optional"
@@ -81,7 +81,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium text-foreground">Last Name</span>
           <Input
-            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
             defaultValue={profile.lastName}
             name="lastName"
             placeholder="Optional"

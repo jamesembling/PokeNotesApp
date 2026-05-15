@@ -346,7 +346,7 @@ export function DeckEditorDialog({
                 <label className="grid gap-2">
                   <span className="text-sm font-semibold text-muted-foreground">Deck name</span>
                   <Input
-                    className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                     defaultValue={deck?.deckName ?? ""}
                     name="deckName"
                     required
@@ -393,7 +393,7 @@ export function DeckEditorDialog({
                     Core strategy
                   </span>
                   <Textarea
-                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                     defaultValue={deck?.coreStrategy ?? ""}
                     name="coreStrategy"
                   />
@@ -404,7 +404,7 @@ export function DeckEditorDialog({
                     Ideal bench
                   </span>
                   <Textarea
-                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                     defaultValue={parseSetupGoals(deck?.setupGoals ?? [])}
                     name="setupGoals"
                     placeholder="One ideal bench note per line"
@@ -416,7 +416,7 @@ export function DeckEditorDialog({
                     Potential cuts / techs / inclusions
                   </span>
                   <Textarea
-                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                     defaultValue={deck?.resourcePlan ?? ""}
                     name="resourcePlan"
                   />
@@ -427,7 +427,7 @@ export function DeckEditorDialog({
                     General notes
                   </span>
                   <Textarea
-                    className="min-h-[160px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="min-h-[160px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                     defaultValue={deck?.generalNotes ?? ""}
                     name="generalNotes"
                   />

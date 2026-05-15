@@ -385,7 +385,7 @@ export function DeckListEditorDialog({
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-muted-foreground">Deck list</span>
                       <Textarea
-                        className="min-h-[320px] w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-[0.95rem] leading-6 text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="min-h-[320px] w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-[0.95rem] leading-6 text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setRawList(event.target.value)}
                         required
                         spellCheck={false}
@@ -398,7 +398,7 @@ export function DeckListEditorDialog({
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-muted-foreground">List name</span>
                       <Input
-                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setListName(event.target.value)}
                         required
                         value={listName}
@@ -418,7 +418,7 @@ export function DeckListEditorDialog({
                     <label className="grid gap-2">
                       <span className="text-sm font-semibold text-muted-foreground">Created by</span>
                       <Input
-                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setCreatedBy(event.target.value)}
                         value={createdBy}
                       />
@@ -427,7 +427,7 @@ export function DeckListEditorDialog({
                     <label className="grid gap-2 md:col-span-2">
                       <span className="text-sm font-semibold text-muted-foreground">Notes</span>
                       <Textarea
-                        className="min-h-[100px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        className="min-h-[100px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setNotes(event.target.value)}
                         value={notes}
                       />

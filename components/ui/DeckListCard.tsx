@@ -17,7 +17,7 @@ export function DeckListCard({
 
   return (
     <a
-      className="group relative block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="group relative block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       href={cardUrl}
       rel="noreferrer"
       target="_blank"

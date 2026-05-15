@@ -411,7 +411,7 @@ export function TournamentRoundEditorDialog({
                   Notes
                 </label>
                 <Textarea
-                  className="min-h-28 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-primary"
+                  className="min-h-28 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring"
                   defaultValue={round?.notes ?? ""}
                   id="round-notes"
                   name="notes"

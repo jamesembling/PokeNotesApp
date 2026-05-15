@@ -144,7 +144,7 @@ export function InlineDeckMatchupEditor({
         <div className="space-y-2">
           <p className="text-sm font-semibold text-muted-foreground">Ideal Bench</p>
           <Textarea
-            className="min-h-[160px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="min-h-[160px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             onBlur={() => saveMatchup(matchupState)}
             onChange={(event) =>
               setMatchupState((current) => ({
@@ -160,7 +160,7 @@ export function InlineDeckMatchupEditor({
         <div className="space-y-2">
           <p className="text-sm font-semibold text-muted-foreground">Tech&apos;s needed</p>
           <Textarea
-            className="min-h-[160px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="min-h-[160px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             onBlur={() => saveMatchup(matchupState)}
             onChange={(event) =>
               setMatchupState((current) => ({
@@ -177,7 +177,7 @@ export function InlineDeckMatchupEditor({
       <div className="space-y-2">
         <p className="text-sm font-semibold text-muted-foreground">Strategy Notes</p>
         <Textarea
-          className="min-h-[240px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="min-h-[240px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
           onBlur={() => saveMatchup(matchupState)}
           onChange={(event) =>
             setMatchupState((current) => ({
