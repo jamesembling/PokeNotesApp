@@ -152,7 +152,7 @@ function LogRowComponent({
         {content}
       </Link>
 
-      <div className="flex items-center justify-end gap-1 rounded-lg border border-border bg-card px-1.5 py-1 text-muted-foreground sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+      <div className="flex items-center justify-end gap-1 rounded-lg border border-[var(--rim)] bg-card px-1.5 py-1 text-muted-foreground sm:bg-card sm:px-1.5 sm:py-1">
         <label className="inline-flex min-h-9 cursor-pointer items-center justify-center gap-2 rounded-md px-2 text-sm font-semibold text-card-foreground sm:min-h-0 sm:p-2">
           <span className="sr-only">Select battle log</span>
           <Checkbox
@@ -169,7 +169,7 @@ function LogRowComponent({
               aria-label="Open battle log actions"
               className="text-muted-foreground hover:text-card-foreground"
               size="icon-lg"
-              variant="ghost"
+              variant="outline"
             >
               <MoreHorizontalIcon className="h-4 w-4" />
             </Button>
