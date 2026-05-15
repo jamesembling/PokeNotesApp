@@ -531,7 +531,7 @@ export function LogsManager({
         <div>
           {groups.map((group, index) => (
             <details
-              className="group border-b border-border last:border-b-0"
+              className="group border-b border-border"
               key={group.date}
               onToggle={(event) => toggleGroup(group.date, event.currentTarget.open)}
               open={openGroupDates.includes(group.date) || (index === 0 && openGroupDates.length === 0)}
@@ -617,7 +617,6 @@ export function LogsManager({
               ) : null}
             </details>
           ))}
-          {canLoadMore ? <div className="border-t border-border" /> : null}
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">
