@@ -513,11 +513,10 @@ export function LogsManager({
         </div>
 
         <Button
-          className="gap-2 justify-center self-start sm:min-w-[10rem]"
+          className="justify-center self-start sm:min-w-[10rem]"
           onClick={toggleManagementMode}
           variant={managementModeActive ? "default" : "outline"}
         >
-          <PencilIcon className="h-4 w-4" />
           {managementModeActive ? "Done" : "Edit Logs"}
         </Button>
       </section>
