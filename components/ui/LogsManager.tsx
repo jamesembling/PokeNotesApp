@@ -589,7 +589,7 @@ export function LogsManager({
               </summary>
 
               {openGroupDates.includes(group.date) ? (
-                <div className="flex flex-col gap-3 border-t border-border pb-5 pt-4">
+                <div className="flex flex-col gap-3 border-t border-border pb-2 pt-4">
                   {group.logs.map((log) => (
                     <div className="flex flex-col gap-3" key={log.id}>
                       <LogRow
@@ -628,7 +628,7 @@ export function LogsManager({
 
       {canLoadMore ? (
         <div
-          className={`flex flex-wrap items-center gap-3 ${
+          className={`flex flex-wrap items-center gap-3 border-t border-border pt-4 ${
             loadMoreError ? "justify-between" : "justify-end"
           }`}
         >
