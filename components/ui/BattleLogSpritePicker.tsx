@@ -374,7 +374,7 @@ function SpriteSearchSlot({
       </PopoverAnchor>
       <PopoverContent
         align="start"
-        className="z-[90] w-[min(420px,calc(100vw-2rem))] bg-transparent p-0 shadow-none ring-0"
+        className="z-[90] w-[min(420px,calc(100vw-2rem))] bg-popover p-0 shadow-[var(--shadow-lg)]"
         onOpenAutoFocus={(event) => event.preventDefault()}
         sideOffset={8}
       >
