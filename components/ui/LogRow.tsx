@@ -76,7 +76,7 @@ function LogRowComponent({
     rowClasses
   ].join(" ");
   const managementRowClasses = [
-    "group/row grid overflow-hidden rounded-[10px] border text-left transition duration-200 hover:brightness-[0.98] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
+    "group/row grid overflow-hidden rounded-[10px] border text-left transition duration-200 hover:brightness-[0.98] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
     selected ? "ring-2 ring-ring/45 ring-offset-2 ring-offset-background" : "",
     rowClasses
   ].join(" ");
