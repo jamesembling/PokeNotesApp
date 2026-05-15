@@ -23,6 +23,7 @@
   --border: #e4e7eb;
   --input: #e4e7eb;
   --ring: #6b7280;
+  --rim: rgba(107, 114, 128, 0.32);
   --radius: 0.5rem;
   --sidebar: var(--card);
   --sidebar-foreground: var(--foreground);
@@ -86,6 +87,7 @@
   --border: #2a2d3a;
   --input: #2a2d3a;
   --ring: #9ca3af;
+  --rim: rgba(156, 163, 175, 0.34);
   --sidebar: var(--card);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
