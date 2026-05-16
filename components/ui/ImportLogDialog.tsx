@@ -17,7 +17,7 @@ import {
 } from "@/components/shadcn/dialog";
 import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
-import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
+import { ChevronIcon } from "@/components/ui/icons";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
 import {
@@ -416,15 +416,6 @@ export function ImportLogDialog({
 
     return (
       <div className="relative flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <Button
-          aria-label="Close review"
-          className="absolute right-0 top-0 rounded-full text-muted-foreground hover:text-card-foreground md:hidden"
-          onClick={closeDialog}
-          size="icon-lg"
-          variant="ghost"
-        >
-          <CloseIcon className="h-5 w-5" />
-        </Button>
         <div className="min-w-0 pr-12 text-center md:pr-0 md:text-left">
           <DialogTitle className="text-[1.3rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.55rem] md:text-[1.9rem]">
             Review Battle Log
@@ -460,6 +451,7 @@ export function ImportLogDialog({
 
       <DialogContent
         className="flex max-h-[calc(100dvh-1rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[24px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-3xl sm:rounded-[28px]"
+        showMobileCloseButton
         showCloseButton={false}
       >
                 <div className="shrink-0 border-b border-border px-4 py-4 sm:px-6 lg:px-8">

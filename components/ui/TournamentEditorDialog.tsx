@@ -345,6 +345,7 @@ export function TournamentEditorDialog({
 
       <DialogContent
         className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-3 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+        showMobileCloseButton
         showCloseButton={false}
       >
             <div

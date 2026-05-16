@@ -51,9 +51,11 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  showMobileCloseButton = false,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  showMobileCloseButton?: boolean
 }) {
   return (
     <DialogPortal>
@@ -76,6 +78,19 @@ function DialogContent({
             >
               <XIcon
               />
+              <span className="sr-only">Close</span>
+            </Button>
+          </DialogPrimitive.Close>
+        )}
+        {!showCloseButton && showMobileCloseButton && (
+          <DialogPrimitive.Close data-slot="dialog-close" asChild>
+            <Button
+              aria-label="Close dialog"
+              className="absolute right-3 top-3 z-10 sm:hidden"
+              size="icon-lg"
+              variant="ghost"
+            >
+              <XIcon />
               <span className="sr-only">Close</span>
             </Button>
           </DialogPrimitive.Close>

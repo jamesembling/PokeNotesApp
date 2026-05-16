@@ -62,6 +62,7 @@ export function DeckLinkedLogsDialog({ deckId }: DeckLinkedLogsDialogProps) {
 
       <DialogContent
         className="flex max-h-[calc(100dvh-2rem)] max-w-5xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-5xl"
+        showMobileCloseButton
         showCloseButton={false}
       >
             <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5 lg:px-8">
