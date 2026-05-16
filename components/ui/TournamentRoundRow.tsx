@@ -41,19 +41,19 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
         : "border-[var(--color-warning-border)] bg-[var(--color-warning-bg)]";
 
   const rowContent = (
-    <div className={["group grid w-full gap-4 rounded-2xl border p-4 text-left transition duration-200 hover:brightness-[0.98] md:grid-cols-[auto_1fr_auto_auto] md:items-center lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]", rowTone].join(" ")}>
-      <div className="space-y-1">
+    <div className={["group relative grid w-full grid-cols-[minmax(4rem,1fr)_auto_auto] items-center gap-x-3 gap-y-2 rounded-2xl border p-4 text-left transition duration-200 hover:brightness-[0.98] md:grid-cols-[auto_1fr_auto_auto] md:gap-4 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]", rowTone].join(" ")}>
+      <div className="space-y-1 text-center max-md:pointer-events-none max-md:absolute max-md:left-1/2 max-md:top-1/2 max-md:-translate-x-1/2 max-md:-translate-y-1/2 md:col-start-1">
         <p className="ui-eyebrow">Round</p>
         <p className="font-display text-[1.12rem] font-semibold tracking-[-0.03em] text-card-foreground">
           {round.roundNumber}
         </p>
       </div>
 
-      <div className="md:justify-self-start">
+      <div className="justify-self-start max-md:col-start-1 max-md:row-start-1 md:col-start-2">
         <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={round.opponentDeckSprites} />
       </div>
 
-      <div className="md:justify-self-end">
+      <div className="justify-self-end max-md:col-start-2 max-md:row-start-1 md:col-start-3">
         <div className="flex items-center justify-end gap-0.5">
           {specialResult ? (
             <span
@@ -89,7 +89,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
       </div>
 
       {canEdit ? (
-        <div className="text-foreground md:justify-self-end">
+        <div className="justify-self-end text-foreground max-md:col-start-3 max-md:row-start-1 md:col-start-4">
           <ChevronIcon className="h-4 w-4 -rotate-90" />
         </div>
       ) : null}

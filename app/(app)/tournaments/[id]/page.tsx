@@ -23,6 +23,7 @@ import {
 } from "@/lib/db/tournaments";
 import { formatTournamentDateRange, getTournamentRecord } from "@/lib/tournaments/display";
 import { getTournamentCategoryLabel, getTournamentPlacementLabel } from "@/lib/tournaments/options";
+import { getTournamentPlacementPillClassName } from "@/lib/tournaments/placement-pill";
 
 type TournamentDetailPageProps = {
   params: Promise<{
@@ -94,6 +95,13 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   }
 
   const record = getTournamentRecord(rounds);
+  const tournamentSubheading = [
+    formatTournamentDateRange(tournament.dateFrom, tournament.dateTo),
+    tournament.category ? getTournamentCategoryLabel(tournament.category) : "",
+    tournament.format
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const linkedDeckWithListPromise =
     tournament.linkedDeckId && tournament.linkedDeckListId
       ? getDeckWithList(user.id, tournament.linkedDeckId, tournament.linkedDeckListId)
@@ -108,7 +116,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
           { label: tournament.name }
         ]}
         title={tournament.name}
-        subtitle={formatTournamentDateRange(tournament.dateFrom, tournament.dateTo)}
+        subtitle={tournamentSubheading}
         action={
           <ButtonGroup className="max-w-full flex-wrap">
             <Suspense fallback={<TournamentEditButtonFallback />}>
@@ -138,11 +146,11 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
 
             <div className="flex flex-wrap items-center gap-2">
               <Badge>{record}</Badge>
-              {tournament.category ? <Badge>{getTournamentCategoryLabel(tournament.category)}</Badge> : null}
               {tournament.placement ? (
-                <Badge>{getTournamentPlacementLabel(tournament.placement)}</Badge>
+                <Badge className={getTournamentPlacementPillClassName(tournament.placement)}>
+                  {getTournamentPlacementLabel(tournament.placement)}
+                </Badge>
               ) : null}
-              {tournament.format ? <Badge>{tournament.format}</Badge> : null}
             </div>
           </div>
 
