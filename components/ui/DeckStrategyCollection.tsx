@@ -141,11 +141,11 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
     <Tabs onValueChange={(value) => setView(value as DeckCardView)} value={view}>
       <TabsList aria-label="Deck view mode" className="h-9 rounded-lg border border-border bg-card p-1">
         <TabsTrigger className="h-7 w-10 flex-none px-0" value="tile">
-          <GridIcon className="h-4 w-4" />
+          <GridIcon />
           <span className="sr-only">Tiles</span>
         </TabsTrigger>
         <TabsTrigger className="h-7 w-10 flex-none px-0" value="list">
-          <MenuIcon className="h-4 w-4" />
+          <MenuIcon />
           <span className="sr-only">Decklist view</span>
         </TabsTrigger>
       </TabsList>

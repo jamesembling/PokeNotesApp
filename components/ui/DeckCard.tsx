@@ -32,14 +32,14 @@ function getListWinRateTextClass(winRate: number | null) {
   }
 
   if (winRate > 60) {
-    return "text-[var(--color-win-strong)]";
+    return "text-win";
   }
 
   if (winRate >= 40) {
     return "text-[rgb(180,83,9)] dark:text-[rgb(251,191,36)]";
   }
 
-  return "text-[var(--color-loss-strong)]";
+  return "text-loss";
 }
 
 export function DeckCard({
@@ -54,10 +54,10 @@ export function DeckCard({
     winRate == null
       ? "border-border bg-card text-muted-foreground"
       : winRate > 60
-        ? "border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win-strong)]"
+        ? "border-win-border bg-win-bg text-win"
         : winRate >= 40
         ? "border-[rgba(217,119,6,0.22)] bg-[rgba(217,119,6,0.1)] text-[rgb(180,83,9)] dark:border-[rgba(251,191,36,0.22)] dark:bg-[rgba(245,158,11,0.12)] dark:text-[rgb(251,191,36)]"
-        : "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss-strong)]";
+        : "border-loss-border bg-loss-bg text-loss";
 
   if (view === "list") {
     return (

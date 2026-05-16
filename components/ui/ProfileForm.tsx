@@ -9,6 +9,7 @@ import {
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Input } from "@/components/shadcn/input";
 import { Button } from "@/components/shadcn/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import type { UserProfile } from "@/types/index";
 
 type ProfileFormProps = {
@@ -31,63 +32,58 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   return (
     <form action={formAction} className="flex flex-col gap-6">
       {state.error ? (
-        <Alert
-          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss-strong)]"
-          variant="destructive"
-        >
+        <Alert variant="loss">
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
 
       {state.success ? (
-        <Alert className="border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win-strong)]">
-          <AlertDescription className="text-[var(--color-win-strong)]">
-            {state.success}
-          </AlertDescription>
+        <Alert variant="win">
+          <AlertDescription>{state.success}</AlertDescription>
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Display Name</span>
+      <FieldGroup className="grid gap-4 md:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor="display-name">Display Name</FieldLabel>
           <Input
-            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
             defaultValue={profile.displayName}
+            id="display-name"
             name="displayName"
             placeholder="How you want to appear in Poke Notes"
           />
-        </label>
+        </Field>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">PTCGL Username</span>
+        <Field>
+          <FieldLabel htmlFor="ptcgl-username">PTCGL Username</FieldLabel>
           <Input
-            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
             defaultValue={profile.ptcglUsername}
+            id="ptcgl-username"
             name="ptcglUsername"
             placeholder="Your in-game username"
           />
-        </label>
+        </Field>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">First Name</span>
+        <Field>
+          <FieldLabel htmlFor="first-name">First Name</FieldLabel>
           <Input
-            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
             defaultValue={profile.firstName}
+            id="first-name"
             name="firstName"
             placeholder="Optional"
           />
-        </label>
+        </Field>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Last Name</span>
+        <Field>
+          <FieldLabel htmlFor="last-name">Last Name</FieldLabel>
           <Input
-            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
             defaultValue={profile.lastName}
+            id="last-name"
             name="lastName"
             placeholder="Optional"
           />
-        </label>
-      </div>
+        </Field>
+      </FieldGroup>
 
       <div className="flex items-center justify-end">
         <SaveProfileButton />

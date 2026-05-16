@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { ChevronIcon } from "@/components/ui/icons";
@@ -72,7 +73,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)]"
+          ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none bg-win-strong text-primary-foreground opacity-100 hover:bg-win-strong"
           : isSaving
             ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none"
             : "w-full md:w-[148px] md:shrink-0 whitespace-nowrap"
@@ -548,10 +549,7 @@ export function ImportLogDialog({
                   ))}
 
                   {saveError ? (
-                    <Alert
-                      className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
-                      variant="destructive"
-                    >
+                    <Alert variant="loss">
                       <AlertDescription>{saveError}</AlertDescription>
                     </Alert>
                   ) : null}
@@ -570,16 +568,17 @@ export function ImportLogDialog({
                     title={"Opponent's deck"}
                   />
 
-                  <section className="grid gap-3 rounded-2xl border border-border bg-muted p-4 md:hidden">
-                    <label className="grid gap-2">
-                      <span className="text-sm font-semibold text-muted-foreground">Format</span>
+                  <FieldGroup className="grid gap-3 rounded-2xl border border-border bg-muted p-4 md:hidden">
+                    <Field>
+                      <FieldLabel htmlFor="import-format-mobile">Format</FieldLabel>
                       <FormatSelect
                         className="bg-card"
+                        id="import-format-mobile"
                         onChange={setSelectedFormat}
                         options={formatOptions}
                         value={selectedFormat}
                       />
-                    </label>
+                    </Field>
 
                     <details className="group rounded-xl border border-border bg-card">
                       <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-card-foreground [&::-webkit-details-marker]:hidden">
@@ -589,16 +588,19 @@ export function ImportLogDialog({
                         </span>
                       </summary>
                       <div className="grid gap-3 border-t border-border px-4 py-4">
-                        <label className="grid gap-2">
-                          <span className="text-sm font-semibold text-muted-foreground">Date</span>
-                          <DatePicker onChange={setSelectedDate} value={selectedDate} />
-                        </label>
+                        <Field>
+                          <FieldLabel htmlFor="import-date-mobile">Date</FieldLabel>
+                          <DatePicker
+                            id="import-date-mobile"
+                            onChange={setSelectedDate}
+                            value={selectedDate}
+                          />
+                        </Field>
 
-                        <label className="grid gap-2">
-                          <span className="text-sm font-semibold text-muted-foreground">
-                            Deck Strategy
-                          </span>
+                        <Field>
+                          <FieldLabel htmlFor="import-deck-mobile">Deck Strategy</FieldLabel>
                           <AppSelect
+                            id="import-deck-mobile"
                             onChange={setSelectedDeckId}
                             options={[
                               { label: "No linked deck", value: "" },
@@ -609,14 +611,13 @@ export function ImportLogDialog({
                             ]}
                             value={selectedDeckId}
                           />
-                        </label>
+                        </Field>
 
-                        <label className="grid gap-2">
-                          <span className="text-sm font-semibold text-muted-foreground">
-                            Deck List
-                          </span>
+                        <Field>
+                          <FieldLabel htmlFor="import-deck-list-mobile">Deck List</FieldLabel>
                           <AppSelect
                             disabled={availableDeckLists.length === 0}
+                            id="import-deck-list-mobile"
                             onChange={setSelectedDeckListId}
                             options={[
                               {
@@ -633,23 +634,24 @@ export function ImportLogDialog({
                             ]}
                             value={selectedDeckListId}
                           />
-                        </label>
+                        </Field>
                       </div>
                     </details>
-                  </section>
+                  </FieldGroup>
 
-                  <section className="hidden gap-4 xl:grid-cols-2 md:grid">
-                    <label className="grid min-w-0 gap-2">
-                      <span className="text-sm font-semibold text-muted-foreground">Date</span>
-                      <DatePicker onChange={setSelectedDate} value={selectedDate} />
+                  <FieldGroup className="hidden gap-4 xl:grid-cols-2 md:grid">
+                    <Field className="min-w-0">
+                      <FieldLabel htmlFor="import-date">Date</FieldLabel>
+                      <DatePicker id="import-date" onChange={setSelectedDate} value={selectedDate} />
                       <span aria-hidden="true" className="min-h-[20px] text-xs opacity-0">
                         Placeholder
                       </span>
-                    </label>
+                    </Field>
 
-                    <label className="grid min-w-0 gap-2">
-                      <span className="text-sm font-semibold text-muted-foreground">Format</span>
+                    <Field className="min-w-0">
+                      <FieldLabel htmlFor="import-format">Format</FieldLabel>
                       <FormatSelect
+                        id="import-format"
                         onChange={setSelectedFormat}
                         options={formatOptions}
                         value={selectedFormat}
@@ -657,13 +659,12 @@ export function ImportLogDialog({
                       <span aria-hidden="true" className="min-h-[20px] text-xs opacity-0">
                         Placeholder
                       </span>
-                    </label>
+                    </Field>
 
-                    <label className="grid min-w-0 gap-2">
-                      <span className="text-sm font-semibold text-muted-foreground">
-                        Deck Strategy
-                      </span>
+                    <Field className="min-w-0">
+                      <FieldLabel htmlFor="import-deck">Deck Strategy</FieldLabel>
                       <AppSelect
+                        id="import-deck"
                         onChange={setSelectedDeckId}
                         options={[
                           { label: "No linked deck", value: "" },
@@ -674,14 +675,13 @@ export function ImportLogDialog({
                         ]}
                         value={selectedDeckId}
                       />
-                    </label>
+                    </Field>
 
-                    <label className="grid min-w-0 gap-2">
-                      <span className="text-sm font-semibold text-muted-foreground">
-                        Deck List
-                      </span>
+                    <Field className="min-w-0">
+                      <FieldLabel htmlFor="import-deck-list">Deck List</FieldLabel>
                       <AppSelect
                         disabled={availableDeckLists.length === 0}
+                        id="import-deck-list"
                         onChange={setSelectedDeckListId}
                         options={[
                           {
@@ -698,8 +698,8 @@ export function ImportLogDialog({
                         ]}
                         value={selectedDeckListId}
                       />
-                    </label>
-                  </section>
+                    </Field>
+                  </FieldGroup>
 
                   <section className="grid gap-3 rounded-2xl border border-border bg-muted p-4">
                     <p className="text-base font-semibold text-card-foreground">
@@ -729,18 +729,16 @@ export function ImportLogDialog({
               ) : (
                 <div className="flex min-w-0 flex-col gap-6">
                   {importDataError ? (
-                    <Alert
-                      className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
-                      variant="destructive"
-                    >
+                    <Alert variant="loss">
                       <AlertDescription>{importDataError}</AlertDescription>
                     </Alert>
                   ) : null}
 
-                  <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-muted-foreground">Battle log</span>
+                  <Field>
+                    <FieldLabel htmlFor="battle-log">Battle log</FieldLabel>
                     <Textarea
-                      className="min-h-[280px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
+                      className="min-h-[280px]"
+                      id="battle-log"
                       onPaste={() => {
                         shouldAutoParseImmediatelyRef.current = true;
                       }}
@@ -749,7 +747,7 @@ export function ImportLogDialog({
                       spellCheck={false}
                       value={rawLog}
                     />
-                  </label>
+                  </Field>
 
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <Button
@@ -776,7 +774,7 @@ export function ImportLogDialog({
 
                   {parseError ? (
                     <Alert
-                      className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                      className="border-loss-border bg-loss-bg text-loss"
                       variant="destructive"
                     >
                       <AlertDescription>{parseError}</AlertDescription>

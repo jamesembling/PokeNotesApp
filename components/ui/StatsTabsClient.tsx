@@ -59,7 +59,7 @@ function getDamageComparison(overview: LogStatsOverview) {
       detail: `You dealt ${percentage}% more damage than opponents`,
       label: "Damage Advantage",
       value: `+${formatMetric(advantage)}`,
-      valueClassName: "text-[var(--color-win)]"
+      valueClassName: "text-win"
     };
   }
 
@@ -68,7 +68,7 @@ function getDamageComparison(overview: LogStatsOverview) {
       detail: `Opponents dealt ${percentage}% more damage than you`,
       label: "Damage Deficit",
       value: `-${formatMetric(absoluteAdvantage)}`,
-      valueClassName: "text-[var(--color-loss)]"
+      valueClassName: "text-loss"
     };
   }
 
@@ -98,21 +98,21 @@ function getWinRateTone(value: number | null) {
 
   if (value >= 75) {
     return {
-      barClassName: "bg-[var(--color-win)]",
-      textClassName: "text-[var(--color-win-strong)]"
+      barClassName: "bg-win",
+      textClassName: "text-win"
     };
   }
 
   if (value >= 50) {
     return {
-      barClassName: "bg-[var(--color-warning)]",
-      textClassName: "text-[var(--color-warning-strong)]"
+      barClassName: "bg-warning",
+      textClassName: "text-warning"
     };
   }
 
   return {
-    barClassName: "bg-[var(--color-loss)]",
-    textClassName: "text-[var(--color-loss-strong)]"
+    barClassName: "bg-loss",
+    textClassName: "text-loss"
   };
 }
 
@@ -200,17 +200,17 @@ function StatsOverviewGrid({ overview }: { overview: LogStatsOverview }) {
           <OverviewTile
             label="Win Rate"
             value={formatWinRate(winRate)}
-            valueClassName="text-[var(--color-win)]"
+            valueClassName="text-win"
           />
           <OverviewTile
             label="Won"
             value={formatMetric(overview.gamesWon)}
-            valueClassName="text-[var(--color-win)]"
+            valueClassName="text-win"
           />
           <OverviewTile
             label="Lost"
             value={formatMetric(overview.gamesLost)}
-            valueClassName="text-[var(--color-loss)]"
+            valueClassName="text-loss"
           />
         </div>
       </OverviewSection>
@@ -569,7 +569,7 @@ export function StatsTabsClient({ matchups: initialMatchups, overview }: StatsTa
   const matchupContent = useMemo(() => {
     if (matchupsError) {
       return (
-        <div className="rounded-lg border border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] px-4 py-6 text-sm text-[var(--color-loss)]">
+        <div className="rounded-lg border border-loss-border bg-loss-bg px-4 py-6 text-sm text-loss">
           {matchupsError}
         </div>
       );

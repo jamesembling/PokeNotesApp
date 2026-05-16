@@ -123,7 +123,7 @@ export function LazyImportLogButton({
         />
       ) : null}
       {loadError ? (
-        <p className="text-sm text-[var(--color-loss)]" role="status">
+        <p className="text-sm text-loss" role="status">
           {loadError}
         </p>
       ) : null}

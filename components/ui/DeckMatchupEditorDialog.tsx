@@ -363,7 +363,7 @@ export function DeckMatchupEditorDialog({
                 />
 
                 {actionError ? (
-                  <p className="text-sm text-[var(--color-loss)]" role="status">
+                  <p className="text-sm text-loss" role="status">
                     {actionError}
                   </p>
                 ) : null}

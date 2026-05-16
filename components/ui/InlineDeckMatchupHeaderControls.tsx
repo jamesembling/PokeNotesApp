@@ -219,9 +219,9 @@ export function InlineDeckMatchupHeaderControls({
         <p
           className={`text-xs font-medium sm:col-span-3 ${
             saveStatus === "error"
-              ? "text-[var(--color-loss)]"
+              ? "text-loss"
               : saveStatus === "saved"
-                ? "text-[var(--color-win-strong)]"
+                ? "text-win"
                 : "text-muted-foreground"
           }`}
         >
@@ -229,7 +229,7 @@ export function InlineDeckMatchupHeaderControls({
         </p>
       ) : null}
       {errorMessage ? (
-        <p className="text-xs text-[var(--color-loss)] sm:col-span-3">{errorMessage}</p>
+        <p className="text-xs text-loss sm:col-span-3">{errorMessage}</p>
       ) : null}
     </div>
   );

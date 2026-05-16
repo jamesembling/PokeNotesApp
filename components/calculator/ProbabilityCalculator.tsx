@@ -72,7 +72,7 @@ export function ProbabilityCalculator() {
   const statusClassName = [
     "h-[9.5rem] overflow-y-auto rounded-xl border p-4",
     analysis?.warnings.length || statusTone === "warn"
-      ? "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
+      ? "border-loss-border bg-loss-bg"
       : "border-ring/20 bg-muted"
   ].join(" ");
 
@@ -239,7 +239,7 @@ export function ProbabilityCalculator() {
                 ) : null}
 
                 {analysis?.warnings.length ? (
-                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-[var(--color-loss)]">
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-loss">
                     {analysis.warnings.map((warning) => (
                       <li key={warning}>{warning}</li>
                     ))}

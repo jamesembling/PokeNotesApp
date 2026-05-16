@@ -173,9 +173,9 @@ export function InlineDeckStrategyEditor({
           <p
             className={`text-sm font-medium ${
               saveStatus === "error"
-                ? "text-[var(--color-loss)]"
+                ? "text-loss"
                 : saveStatus === "saved"
-                  ? "text-[var(--color-win-strong)]"
+                  ? "text-win"
                   : "text-muted-foreground"
             }`}
           >
@@ -186,7 +186,7 @@ export function InlineDeckStrategyEditor({
 
       {errorMessage ? (
         <Alert
-          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+          className="border-loss-border bg-loss-bg text-loss"
           variant="destructive"
         >
           <AlertDescription>{errorMessage}</AlertDescription>

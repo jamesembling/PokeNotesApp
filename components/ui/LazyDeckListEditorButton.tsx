@@ -84,7 +84,7 @@ export function LazyDeckListEditorButton({
           triggerVariant={triggerVariant}
         />
         {loadError ? (
-          <p className="text-sm text-[var(--color-loss)]" role="status">
+          <p className="text-sm text-loss" role="status">
             {loadError}
           </p>
         ) : null}
@@ -98,7 +98,7 @@ export function LazyDeckListEditorButton({
         {isLoading ? "Loading..." : triggerLabel}
       </Button>
       {loadError ? (
-        <p className="text-sm text-[var(--color-loss)]" role="status">
+        <p className="text-sm text-loss" role="status">
           {loadError}
         </p>
       ) : null}

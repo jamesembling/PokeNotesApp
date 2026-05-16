@@ -58,7 +58,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full whitespace-normal pointer-events-none bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
+          ? "w-full whitespace-normal pointer-events-none bg-win-strong text-primary-foreground opacity-100 hover:bg-win-strong sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
           : isSaving
             ? "w-full whitespace-normal pointer-events-none sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
             : "w-full whitespace-normal sm:w-[148px] sm:shrink-0 sm:whitespace-nowrap"
@@ -285,7 +285,7 @@ export function EditLogDialog({
 
               {saveError ? (
                 <Alert
-                  className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                  className="border-loss-border bg-loss-bg text-loss"
                   variant="destructive"
                 >
                   <AlertDescription>{saveError}</AlertDescription>

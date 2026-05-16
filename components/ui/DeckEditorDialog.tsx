@@ -18,6 +18,7 @@ import {
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
 import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
@@ -56,7 +57,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full pointer-events-none bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)] sm:w-[110px] sm:shrink-0"
+          ? "w-full pointer-events-none bg-win-strong text-primary-foreground opacity-100 hover:bg-win-strong sm:w-[110px] sm:shrink-0"
           : isSaving
             ? "w-full pointer-events-none sm:w-[110px] sm:shrink-0"
             : "w-full sm:w-[110px] sm:shrink-0"
@@ -275,12 +276,12 @@ export function DeckEditorDialog({
             </div>
             {isEditing && showDeleteConfirmation ? (
               <Alert
-                className="mb-5 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
+                className="mb-5 border-loss-border bg-loss-bg"
                 variant="destructive"
               >
                 <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1">
-                    <AlertTitle className="text-[var(--color-loss)]">
+                    <AlertTitle className="text-loss">
                       Delete this deck strategy?
                     </AlertTitle>
                     <AlertDescription className="text-foreground">
@@ -335,40 +336,37 @@ export function DeckEditorDialog({
               ))}
 
               {actionError ? (
-                <Alert
-                  className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
-                  variant="destructive"
-                >
+                <Alert variant="loss">
                   <AlertDescription>{actionError}</AlertDescription>
                 </Alert>
               ) : null}
 
-              <section className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-muted-foreground">Deck name</span>
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="deck-name">Deck name</FieldLabel>
                   <Input
-                    className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                     defaultValue={deck?.deckName ?? ""}
+                    id="deck-name"
                     name="deckName"
                     required
                   />
-                </label>
+                </Field>
 
-                <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-muted-foreground">Format</span>
+                <Field>
+                  <FieldLabel htmlFor="deck-format">Format</FieldLabel>
                   <FormatSelect
+                    id="deck-format"
                     name="format"
                     onChange={setSelectedFormat}
                     options={formatOptions}
                     value={selectedFormat}
                   />
-                </label>
+                </Field>
 
-                <label className="grid gap-2 md:col-span-2">
-                  <span className="text-sm font-semibold text-muted-foreground">
-                    Turn preference
-                  </span>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor="deck-go-preference">Turn preference</FieldLabel>
                   <AppSelect
+                    id="deck-go-preference"
                     name="goPreference"
                     onChange={setSelectedGoPreference}
                     options={[
@@ -378,8 +376,8 @@ export function DeckEditorDialog({
                     ]}
                     value={selectedGoPreference}
                   />
-                </label>
-              </section>
+                </Field>
+              </FieldGroup>
 
               <BattleLogSpritePicker
                 onChange={setSelectedSprites}
@@ -388,52 +386,50 @@ export function DeckEditorDialog({
                 title="Featured Pokemon"
               />
 
-              <section className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-2 md:col-span-2">
-                  <span className="text-sm font-semibold text-muted-foreground">
-                    Core strategy
-                  </span>
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor="deck-core-strategy">Core strategy</FieldLabel>
                   <Textarea
-                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+                    className="min-h-[140px]"
                     defaultValue={deck?.coreStrategy ?? ""}
+                    id="deck-core-strategy"
                     name="coreStrategy"
                   />
-                </label>
+                </Field>
 
-                <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-muted-foreground">
-                    Ideal bench
-                  </span>
+                <Field>
+                  <FieldLabel htmlFor="deck-setup-goals">Ideal bench</FieldLabel>
                   <Textarea
-                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+                    className="min-h-[140px]"
                     defaultValue={parseSetupGoals(deck?.setupGoals ?? [])}
+                    id="deck-setup-goals"
                     name="setupGoals"
                     placeholder="One ideal bench note per line"
                   />
-                </label>
+                </Field>
 
-                <label className="grid gap-2">
-                  <span className="text-sm font-semibold text-muted-foreground">
+                <Field>
+                  <FieldLabel htmlFor="deck-resource-plan">
                     Potential cuts / techs / inclusions
-                  </span>
+                  </FieldLabel>
                   <Textarea
-                    className="min-h-[140px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+                    className="min-h-[140px]"
                     defaultValue={deck?.resourcePlan ?? ""}
+                    id="deck-resource-plan"
                     name="resourcePlan"
                   />
-                </label>
+                </Field>
 
-                <label className="grid gap-2 md:col-span-2">
-                  <span className="text-sm font-semibold text-muted-foreground">
-                    General notes
-                  </span>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor="deck-general-notes">General notes</FieldLabel>
                   <Textarea
-                    className="min-h-[160px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+                    className="min-h-[160px]"
                     defaultValue={deck?.generalNotes ?? ""}
+                    id="deck-general-notes"
                     name="generalNotes"
                   />
-                </label>
-              </section>
+                </Field>
+              </FieldGroup>
             </form>
             </div>
       </DialogContent>

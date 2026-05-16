@@ -20,14 +20,14 @@ type TournamentRoundRowProps = {
 
 function getRoundResultTextColor(result: TournamentRoundGameResult) {
   if (result === "W") {
-    return "text-[var(--color-win)]";
+    return "text-win";
   }
 
   if (result === "L") {
-    return "text-[var(--color-loss)]";
+    return "text-loss";
   }
 
-  return "text-[var(--color-warning)]";
+  return "text-warning";
 }
 
 export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentRoundRowProps) {
@@ -40,10 +40,10 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
   const rowVariant = getRoundResultVariant(round.result);
   const rowTone =
     rowVariant === "win"
-      ? "border-[var(--color-win-border)] bg-[var(--color-win-bg)]"
+      ? "border-win-border bg-win-bg"
       : rowVariant === "loss"
-        ? "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
-        : "border-[var(--color-warning-border)] bg-[var(--color-warning-bg)]";
+        ? "border-loss-border bg-loss-bg"
+        : "border-warning-border bg-warning-bg";
 
   const rowContent = (
     <div className={["group relative grid w-full grid-cols-[minmax(4rem,1fr)_auto_auto] items-center gap-x-3 gap-y-2 rounded-2xl border p-4 text-left transition duration-200 hover:brightness-[0.98] md:grid-cols-[auto_1fr_auto_auto] md:gap-4 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]", rowTone].join(" ")}>
@@ -68,10 +68,10 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
               className={[
                 "font-display text-[1rem] font-semibold tracking-[-0.04em]",
                 rowVariant === "win"
-                  ? "text-[var(--color-win)]"
+                  ? "text-win"
                   : rowVariant === "loss"
-                    ? "text-[var(--color-loss)]"
-                    : "text-[var(--color-warning)]"
+                    ? "text-loss"
+                    : "text-warning"
               ].join(" ")}
             >
               {specialResult}

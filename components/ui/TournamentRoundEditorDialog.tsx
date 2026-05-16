@@ -286,7 +286,7 @@ export function TournamentRoundEditorDialog({
 
             {isEditing && showDeleteConfirmation ? (
               <Alert
-                className="mb-4 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
+                className="mb-4 border-loss-border bg-loss-bg"
                 variant="destructive"
               >
                 <AlertDescription className="text-card-foreground">
@@ -309,7 +309,7 @@ export function TournamentRoundEditorDialog({
 
             {actionError ? (
               <Alert
-                className="mb-4 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                className="mb-4 border-loss-border bg-loss-bg text-loss"
                 variant="destructive"
               >
                 <AlertDescription>{actionError}</AlertDescription>
@@ -350,7 +350,7 @@ export function TournamentRoundEditorDialog({
                           >
                             <Checkbox
                               checked={specialResult === option.value}
-                              className="h-4 w-4 accent-[var(--color-win)]"
+                              className="h-4 w-4 accent-win"
                               id={`round-special-${fieldName}`}
                               name={fieldName}
                               onCheckedChange={(checked) => {

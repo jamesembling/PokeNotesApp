@@ -1,4 +1,10 @@
-import { Card } from "@/components/shadcn/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/shadcn/card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { ProfileForm } from "@/components/ui/ProfileForm";
@@ -31,70 +37,76 @@ export default async function ProfilePage() {
       />
 
       <div className="grid gap-6">
-        <Card className="space-y-6">
-          <div className="space-y-2">
+        <Card>
+          <CardHeader>
             <p className="ui-eyebrow">Trainer Profile</p>
-            <h2 className="ui-section-title">Account Details</h2>
-            <p className="text-sm text-muted-foreground">
+            <CardTitle>Account Details</CardTitle>
+            <CardDescription>
               Your PTCGL username is used to identify your side when importing battle
               logs.
-            </p>
-          </div>
+            </CardDescription>
+          </CardHeader>
 
-          <ProfileForm profile={profile} />
+          <CardContent>
+            <ProfileForm profile={profile} />
+          </CardContent>
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Card className="space-y-4">
-            <div className="space-y-1">
+          <Card>
+            <CardHeader>
               <p className="ui-eyebrow">Signed In</p>
-              <h2 className="ui-section-title">Account Snapshot</h2>
-            </div>
+              <CardTitle>Account Snapshot</CardTitle>
+            </CardHeader>
 
-            <dl className="grid gap-3 text-sm">
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">Email</dt>
-                <dd className="text-right text-card-foreground">{profile.email || "Unknown"}</dd>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">Role</dt>
-                <dd className="text-right text-card-foreground">{profile.role}</dd>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">Avatar Color</dt>
-                <dd className="text-right capitalize text-card-foreground">
-                  {profile.avatarColor}
-                </dd>
-              </div>
-            </dl>
+            <CardContent>
+              <dl className="grid gap-3 text-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-muted-foreground">Email</dt>
+                  <dd className="text-right text-card-foreground">{profile.email || "Unknown"}</dd>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-muted-foreground">Role</dt>
+                  <dd className="text-right text-card-foreground">{profile.role}</dd>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-muted-foreground">Avatar Color</dt>
+                  <dd className="text-right capitalize text-card-foreground">
+                    {profile.avatarColor}
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
           </Card>
 
-          <Card className="space-y-4">
-            <div className="space-y-1">
+          <Card>
+            <CardHeader>
               <p className="ui-eyebrow">Activity</p>
-              <h2 className="ui-section-title">Profile Metadata</h2>
-            </div>
+              <CardTitle>Profile Metadata</CardTitle>
+            </CardHeader>
 
-            <dl className="grid gap-3 text-sm">
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">Account Created</dt>
-                <dd className="text-right text-card-foreground">
-                  {formatDateTime(profile.authAccountCreatedAt || profile.createdAt)}
-                </dd>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">Last Login</dt>
-                <dd className="text-right text-card-foreground">
-                  {formatDateTime(profile.lastLoginAt)}
-                </dd>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-muted-foreground">Last Active</dt>
-                <dd className="text-right text-card-foreground">
-                  {formatDateTime(profile.lastActiveAt)}
-                </dd>
-              </div>
-            </dl>
+            <CardContent>
+              <dl className="grid gap-3 text-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-muted-foreground">Account Created</dt>
+                  <dd className="text-right text-card-foreground">
+                    {formatDateTime(profile.authAccountCreatedAt || profile.createdAt)}
+                  </dd>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-muted-foreground">Last Login</dt>
+                  <dd className="text-right text-card-foreground">
+                    {formatDateTime(profile.lastLoginAt)}
+                  </dd>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <dt className="text-muted-foreground">Last Active</dt>
+                  <dd className="text-right text-card-foreground">
+                    {formatDateTime(profile.lastActiveAt)}
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
           </Card>
         </div>
       </div>

@@ -57,7 +57,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full whitespace-nowrap pointer-events-none bg-[var(--color-win-strong)] text-primary-foreground opacity-100 hover:bg-[var(--color-win-strong)] sm:w-auto sm:shrink-0"
+          ? "w-full whitespace-nowrap pointer-events-none bg-win-strong text-primary-foreground opacity-100 hover:bg-win-strong sm:w-auto sm:shrink-0"
           : isDisabled
             ? "w-full whitespace-nowrap pointer-events-none sm:w-auto sm:shrink-0"
             : "w-full whitespace-nowrap sm:w-auto sm:shrink-0"
@@ -350,7 +350,7 @@ export function DeckListEditorDialog({
 
                 {saveError ? (
                   <Alert
-                    className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                    className="border-loss-border bg-loss-bg text-loss"
                     variant="destructive"
                   >
                     <AlertDescription>{saveError}</AlertDescription>
@@ -364,9 +364,9 @@ export function DeckListEditorDialog({
                         className={[
                           "inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold",
                           summaryTone === "success"
-                            ? "bg-[rgba(31,138,98,0.14)] text-[var(--color-win-strong)]"
+                            ? "bg-[rgba(31,138,98,0.14)] text-win"
                             : summaryTone === "warning"
-                              ? "bg-[rgba(213,87,75,0.12)] text-[var(--color-loss)]"
+                              ? "bg-[rgba(213,87,75,0.12)] text-loss"
                               : "bg-muted text-muted-foreground"
                         ].join(" ")}
                       >

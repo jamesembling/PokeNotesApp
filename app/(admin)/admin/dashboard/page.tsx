@@ -1,7 +1,13 @@
 import { Suspense } from "react";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { AdminUsersTable } from "@/components/ui/AdminUsersTable";
-import { Card } from "@/components/shadcn/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/shadcn/card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getAdminDashboardOverview, getAdminUsers } from "@/lib/db/admin";
 
@@ -55,37 +61,37 @@ async function AdminSummaryCards({
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <Card className="space-y-1">
-        <p className="ui-eyebrow">Users</p>
-        <p className="text-3xl font-semibold text-card-foreground">{overview.userCount}</p>
-        <p className="text-sm text-muted-foreground">{overview.adminCount} admin accounts</p>
+      <Card>
+        <CardHeader>
+          <p className="ui-eyebrow">Users</p>
+          <CardTitle className="text-3xl">{overview.userCount}</CardTitle>
+          <CardDescription>{overview.adminCount} admin accounts</CardDescription>
+        </CardHeader>
       </Card>
-      <Card className="space-y-1">
-        <p className="ui-eyebrow">Pokemon Catalog</p>
-        <p className="text-3xl font-semibold text-card-foreground">
-          {overview.pokemonCatalogCount}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Synced {formatDateTime(overview.pokemonLastSyncedAt)}
-        </p>
+      <Card>
+        <CardHeader>
+          <p className="ui-eyebrow">Pokemon Catalog</p>
+          <CardTitle className="text-3xl">{overview.pokemonCatalogCount}</CardTitle>
+          <CardDescription>
+            Synced {formatDateTime(overview.pokemonLastSyncedAt)}
+          </CardDescription>
+        </CardHeader>
       </Card>
-      <Card className="space-y-1">
-        <p className="ui-eyebrow">Archetypes</p>
-        <p className="text-3xl font-semibold text-card-foreground">
-          {overview.archetypeCatalogCount}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Synced {formatDateTime(overview.archetypeLastSyncedAt)}
-        </p>
+      <Card>
+        <CardHeader>
+          <p className="ui-eyebrow">Archetypes</p>
+          <CardTitle className="text-3xl">{overview.archetypeCatalogCount}</CardTitle>
+          <CardDescription>
+            Synced {formatDateTime(overview.archetypeLastSyncedAt)}
+          </CardDescription>
+        </CardHeader>
       </Card>
-      <Card className="space-y-1">
-        <p className="ui-eyebrow">Excluded Archetypes</p>
-        <p className="text-3xl font-semibold text-card-foreground">
-          {overview.excludedArchetypeCount}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Hidden from automatic deck identification
-        </p>
+      <Card>
+        <CardHeader>
+          <p className="ui-eyebrow">Excluded Archetypes</p>
+          <CardTitle className="text-3xl">{overview.excludedArchetypeCount}</CardTitle>
+          <CardDescription>Hidden from automatic deck identification</CardDescription>
+        </CardHeader>
       </Card>
     </div>
   );
@@ -95,23 +101,25 @@ async function AdminUsersSection() {
   const { users, roleUpdatesEnabled, warning } = await getAdminUsers();
 
   return (
-    <Card className="space-y-6">
-      <div className="space-y-2">
+    <Card>
+      <CardHeader>
         <p className="ui-eyebrow">User Management</p>
-        <h2 className="ui-section-title">Accounts and Roles</h2>
-        <p className="text-sm text-muted-foreground">
+        <CardTitle>Accounts and Roles</CardTitle>
+        <CardDescription>
           Review trainer accounts, see recent activity, and change access levels.
           {roleUpdatesEnabled
             ? " Changes apply immediately."
             : " Role changes are currently disabled until the service role key is configured."}
-        </p>
-      </div>
+        </CardDescription>
+      </CardHeader>
 
-      <AdminUsersTable
-        roleUpdatesEnabled={roleUpdatesEnabled}
-        users={users}
-        warning={warning}
-      />
+      <CardContent>
+        <AdminUsersTable
+          roleUpdatesEnabled={roleUpdatesEnabled}
+          users={users}
+          warning={warning}
+        />
+      </CardContent>
     </Card>
   );
 }
@@ -120,10 +128,12 @@ function AdminSummaryCardsFallback() {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: 4 }).map((_, index) => (
-        <Card className="space-y-3" key={index}>
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-9 w-16" />
-          <Skeleton className="h-4 w-40" />
+        <Card key={index}>
+          <CardHeader>
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-9 w-16" />
+            <Skeleton className="h-4 w-40" />
+          </CardHeader>
         </Card>
       ))}
     </div>
@@ -132,20 +142,22 @@ function AdminSummaryCardsFallback() {
 
 function AdminUsersSectionFallback() {
   return (
-    <Card className="space-y-6">
-      <div className="space-y-2">
+    <Card>
+      <CardHeader>
         <p className="ui-eyebrow">User Management</p>
-        <h2 className="ui-section-title">Accounts and Roles</h2>
-        <p className="text-sm text-muted-foreground">
+        <CardTitle>Accounts and Roles</CardTitle>
+        <CardDescription>
           Loading trainer accounts and role controls...
-        </p>
-      </div>
+        </CardDescription>
+      </CardHeader>
 
-      <div className="space-y-3">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton className="h-20 rounded-xl border border-border" key={index} />
-        ))}
-      </div>
+      <CardContent>
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton className="h-20 rounded-xl border border-border" key={index} />
+          ))}
+        </div>
+      </CardContent>
     </Card>
   );
 }

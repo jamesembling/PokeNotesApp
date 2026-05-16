@@ -96,13 +96,13 @@ function TournamentSummaryRow({
 
         <Button
           aria-label={`Delete ${tournament.name}`}
-          className="z-20 bg-muted text-muted-foreground hover:bg-[var(--color-loss-bg)] hover:text-[var(--color-loss-strong)] max-sm:absolute max-sm:right-9 max-sm:top-3 sm:col-start-5"
+          className="z-20 bg-muted text-muted-foreground hover:bg-loss-bg hover:text-loss max-sm:absolute max-sm:right-9 max-sm:top-3 sm:col-start-5"
           disabled={isDeleting}
           onClick={() => onRequestDelete(tournament)}
           size="icon-sm"
           variant="ghost"
         >
-          <XIcon className="h-4 w-4" />
+          <XIcon />
         </Button>
 
         <ChevronRightIcon
@@ -164,7 +164,7 @@ export function TournamentSummaryList({
     <div className="flex flex-col gap-3">
       {deleteError ? (
         <Alert
-          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+          className="border-loss-border bg-loss-bg text-loss"
           variant="destructive"
         >
           <AlertDescription>{deleteError}</AlertDescription>

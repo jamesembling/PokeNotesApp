@@ -40,13 +40,13 @@ function getOpponentPlacement(goOrder: BattleLog["goOrder"]) {
 function getResultStyles(result: Result) {
   if (result === "Win") {
     return {
-      className: "text-[var(--color-win)]",
+      className: "text-win",
       label: "W"
     };
   }
 
   return {
-    className: "text-[var(--color-loss)]",
+    className: "text-loss",
     label: "L"
   };
 }
@@ -115,7 +115,7 @@ export function StatRow({ stat }: { stat: SummaryStat }) {
   return (
     <div className="relative z-10 space-y-2 py-3.5">
       <div className="grid grid-cols-[auto_1fr_auto] items-end gap-4">
-        <p className="text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-[var(--color-loss)]">
+        <p className="text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-loss">
           {formatStatValue(stat.userValue)}
         </p>
         <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[0.72rem]">

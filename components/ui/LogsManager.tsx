@@ -21,6 +21,7 @@ import { ChevronIcon, PencilIcon, TrashIcon } from "@/components/ui/icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/shadcn/dropdown-menu";
@@ -495,7 +496,7 @@ export function LogsManager({
       {actionNotice ? (
         <Alert
           aria-live="polite"
-          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+          className="border-loss-border bg-loss-bg text-loss"
           variant="destructive"
         >
           <AlertTitle className="ui-eyebrow">Action Failed</AlertTitle>
@@ -592,7 +593,7 @@ export function LogsManager({
                               setEditRequestId((currentId) => currentId + 1);
                             }}
                           >
-                            <PencilIcon className="h-4 w-4" />
+                            <PencilIcon />
                             Edit
                           </DropdownMenuItem>
                         }
@@ -625,7 +626,7 @@ export function LogsManager({
             }`}
           >
             {loadMoreError ? (
-              <p className="text-sm font-medium text-[var(--color-loss-strong)]">{loadMoreError}</p>
+              <p className="text-sm font-medium text-loss">{loadMoreError}</p>
             ) : null}
             <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="outline">
               {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}
@@ -655,7 +656,7 @@ export function LogsManager({
                 <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold text-card-foreground">
                   <Checkbox
                     checked={allSelected}
-                    className="h-4 w-4 cursor-pointer rounded border-border bg-card"
+                    className="cursor-pointer rounded border-border bg-card"
                     onCheckedChange={toggleSelectAll}
                   />
                   <span>{allSelected ? "Clear" : "All"}</span>
@@ -665,7 +666,7 @@ export function LogsManager({
 
             <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               {deckOptionsError ? (
-                <p className="text-sm font-medium text-[var(--color-loss)] md:col-span-2">
+                <p className="text-sm font-medium text-loss md:col-span-2">
                   {deckOptionsError}
                 </p>
               ) : null}
@@ -725,14 +726,16 @@ export function LogsManager({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44" forceMount>
-                  <DropdownMenuItem
-                    className="text-[var(--color-loss-strong)] focus:text-[var(--color-loss-strong)]"
-                    onClick={handleDeleteSelected}
-                    variant="destructive"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    Delete selected
-                  </DropdownMenuItem>
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      className="text-loss focus:text-loss"
+                      onClick={handleDeleteSelected}
+                      variant="destructive"
+                    >
+                      <TrashIcon />
+                      Delete selected
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

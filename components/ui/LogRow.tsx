@@ -10,6 +10,7 @@ import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
@@ -56,8 +57,8 @@ function LogRowComponent({
 }: LogRowProps) {
   const rowClasses =
     log.result === "Win"
-      ? "border-[var(--color-win-border)] bg-[var(--color-win-bg)]"
-      : "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]";
+      ? "border-win-border bg-win-bg"
+      : "border-loss-border bg-loss-bg";
 
   const selfSprites = log.selfDeckSprites.slice(0, 2);
   const opponentDeckName = getBattleLogOpponentDisplayName(
@@ -178,20 +179,22 @@ function LogRowComponent({
               size="icon-lg"
               variant="outline"
             >
-              <MoreHorizontalIcon className="h-4 w-4" />
+              <MoreHorizontalIcon />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40" forceMount>
-            {editAction}
+            {editAction ? <DropdownMenuGroup>{editAction}</DropdownMenuGroup> : null}
             {editAction ? <DropdownMenuSeparator /> : null}
-            <DropdownMenuItem
-              className="text-[var(--color-loss-strong)] focus:text-[var(--color-loss-strong)]"
-              onClick={onDelete}
-              variant="destructive"
-            >
-              <TrashIcon className="h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                className="text-loss focus:text-loss"
+                onClick={onDelete}
+                variant="destructive"
+              >
+                <TrashIcon />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

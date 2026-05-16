@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </p>
             {authError ? (
               <Alert
-                className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                className="border-loss-border bg-loss-bg text-loss"
                 variant="destructive"
               >
                 <AlertDescription>Google sign-in failed: {authError}</AlertDescription>

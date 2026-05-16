@@ -44,14 +44,14 @@ export default async function LogsPage() {
             </div>
             <div aria-hidden="true" className="h-5 w-px bg-border" />
             <div className="flex items-baseline gap-2 px-5">
-              <span className="text-[1.35rem] font-semibold leading-none text-[var(--color-win)] [font-variant-numeric:tabular-nums]">
+              <span className="text-[1.35rem] font-semibold leading-none text-win [font-variant-numeric:tabular-nums]">
                 {stats.wins}
               </span>
               <span>wins</span>
             </div>
             <div aria-hidden="true" className="h-5 w-px bg-border" />
             <div className="flex items-baseline gap-2 pl-5">
-              <span className="text-[1.35rem] font-semibold leading-none text-[var(--color-loss)] [font-variant-numeric:tabular-nums]">
+              <span className="text-[1.35rem] font-semibold leading-none text-loss [font-variant-numeric:tabular-nums]">
                 {stats.losses}
               </span>
               <span>losses</span>

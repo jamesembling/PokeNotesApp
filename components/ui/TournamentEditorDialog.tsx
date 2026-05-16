@@ -20,6 +20,7 @@ import {
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
 import { Textarea } from "@/components/shadcn/textarea";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -109,7 +110,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "pointer-events-none w-full whitespace-nowrap border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win-strong)] opacity-100 hover:bg-[var(--color-win-bg)] sm:w-[9.5rem] sm:shrink-0"
+          ? "pointer-events-none w-full whitespace-nowrap border-win-border bg-win-bg text-win opacity-100 hover:bg-win-bg sm:w-[9.5rem] sm:shrink-0"
           : "w-full whitespace-nowrap border-border bg-background text-foreground hover:bg-muted hover:text-foreground sm:w-[9.5rem] sm:shrink-0"
       }
       disabled={isSaving}
@@ -395,7 +396,7 @@ export function TournamentEditorDialog({
                   size="icon-lg"
                   variant="outline"
                 >
-                  <XIcon className="h-4 w-4" />
+                  <XIcon />
                   <span className="sr-only">Close</span>
                 </Button>
               </DialogClose>
@@ -415,7 +416,7 @@ export function TournamentEditorDialog({
 
             {isEditing && showDeleteConfirmation ? (
               <Alert
-                className="mb-4 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)]"
+                className="mb-4 border-loss-border bg-loss-bg"
                 variant="destructive"
               >
                 <AlertDescription className="text-card-foreground">
@@ -438,7 +439,7 @@ export function TournamentEditorDialog({
 
             {actionError ? (
               <Alert
-                className="mb-4 border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss)]"
+                className="mb-4 border-loss-border bg-loss-bg text-loss"
                 variant="destructive"
               >
                 <AlertDescription>{actionError}</AlertDescription>
@@ -454,23 +455,21 @@ export function TournamentEditorDialog({
               <input name="redirectTo" type="hidden" value={pathname} />
 
               <div className="border-b border-border pb-5 sm:border-0 sm:pb-0">
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-name">
-                      Tournament Name
-                    </label>
+                <FieldGroup className="grid gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="tournament-name">Tournament Name</FieldLabel>
                     <Input
-                      className="min-h-[2.75rem] rounded-lg border border-border bg-muted px-3 py-2.5 text-base font-semibold text-card-foreground outline-none transition placeholder:font-semibold focus:border-ring sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
+                      className="min-h-[2.75rem] text-base font-semibold placeholder:font-semibold sm:min-h-[3rem] sm:text-sm"
                       defaultValue={tournament?.name ?? ""}
                       id="tournament-name"
                       name="name"
                       placeholder="Event Name"
                     />
-                  </div>
+                  </Field>
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4">
-                    <label className="grid gap-2">
-                      <span className="text-sm font-semibold text-card-foreground">Category</span>
+                    <Field>
+                      <FieldLabel htmlFor="tournament-category">Category</FieldLabel>
                       <AppSelect
                         className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:min-h-[3rem] sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
                         id="tournament-category"
@@ -480,10 +479,10 @@ export function TournamentEditorDialog({
                         placeholder="Select..."
                         value={category}
                       />
-                    </label>
+                    </Field>
 
-                    <label className="grid gap-2">
-                      <span className="text-sm font-semibold text-card-foreground">Format</span>
+                    <Field>
+                      <FieldLabel htmlFor="tournament-format">Format</FieldLabel>
                       <FormatSelect
                         className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:min-h-[3rem] sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
                         id="tournament-format"
@@ -493,10 +492,10 @@ export function TournamentEditorDialog({
                         placeholder="Select..."
                         value={format}
                       />
-                    </label>
+                    </Field>
 
-                    <label className="col-span-2 grid gap-2 sm:col-span-1">
-                      <span className="text-sm font-semibold text-card-foreground">Placement</span>
+                    <Field className="col-span-2 sm:col-span-1">
+                      <FieldLabel htmlFor="tournament-placement">Placement</FieldLabel>
                       <AppSelect
                         className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:min-h-[3rem] sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
                         id="tournament-placement"
@@ -506,17 +505,15 @@ export function TournamentEditorDialog({
                         placeholder="Select placement..."
                         value={placement}
                       />
-                    </label>
+                    </Field>
                   </div>
-                </div>
+                </FieldGroup>
               </div>
 
               <div className="border-b border-border pb-5 sm:border-0 sm:pb-0">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-date-from">
-                      Date
-                    </label>
+                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="tournament-date-from">Date</FieldLabel>
                     <DatePicker
                       className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:text-sm"
                       defaultValue={tournament?.dateFrom ?? ""}
@@ -524,7 +521,7 @@ export function TournamentEditorDialog({
                       name="dateFrom"
                       placeholder="dd/mm/yyyy"
                     />
-                  </div>
+                  </Field>
 
                   <div className="flex items-center justify-between gap-3 sm:hidden">
                     <span className="text-sm font-semibold text-card-foreground">Multi-Day Event</span>
@@ -551,10 +548,8 @@ export function TournamentEditorDialog({
                     </button>
                   </div>
 
-                  <div className={`${isMultiDay ? "grid" : "hidden"} gap-2 sm:grid`}>
-                    <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-date-to">
-                      End date
-                    </label>
+                  <Field className={isMultiDay ? "grid" : "hidden sm:grid"}>
+                    <FieldLabel htmlFor="tournament-date-to">End date</FieldLabel>
                     <DatePicker
                       className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:text-sm"
                       id="tournament-date-to"
@@ -563,16 +558,14 @@ export function TournamentEditorDialog({
                       placeholder="dd/mm/yyyy"
                       value={dateTo}
                     />
-                  </div>
-                </div>
+                  </Field>
+                </FieldGroup>
               </div>
 
               <div className="border-b border-border pb-5 sm:border-0 sm:pb-0">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-linked-deck">
-                      Deck Strategy
-                    </label>
+                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="tournament-linked-deck">Deck Strategy</FieldLabel>
                     <AppSelect
                       className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:min-h-[3rem] sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
                       id="tournament-linked-deck"
@@ -587,12 +580,10 @@ export function TournamentEditorDialog({
                       ]}
                       value={linkedDeckId}
                     />
-                  </div>
+                  </Field>
 
-                  <div className="grid gap-2">
-                    <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-linked-deck-list">
-                      Saved Decklist
-                    </label>
+                  <Field>
+                    <FieldLabel htmlFor="tournament-linked-deck-list">Saved Decklist</FieldLabel>
                     <AppSelect
                       className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:min-h-[3rem] sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
                       disabled={availableDeckLists.length === 0}
@@ -619,8 +610,8 @@ export function TournamentEditorDialog({
                         Choose a Deck Strategy above to unlock
                       </p>
                     ) : null}
-                  </div>
-                </div>
+                  </Field>
+                </FieldGroup>
               </div>
 
               {selectedSprites.map((slug, index) => (
@@ -639,18 +630,16 @@ export function TournamentEditorDialog({
                 title="Tournament sprites"
               />
 
-              <div className="grid gap-2 border-t border-border pt-5 sm:border-0 sm:pt-0">
-                <label className="text-sm font-semibold text-card-foreground" htmlFor="tournament-notes">
-                  Notes
-                </label>
+              <Field className="border-t border-border pt-5 sm:border-0 sm:pt-0">
+                <FieldLabel htmlFor="tournament-notes">Notes</FieldLabel>
                 <Textarea
-                  className="min-h-32 rounded-lg border border-border bg-muted px-3 py-2.5 text-base font-semibold text-card-foreground outline-none transition focus:border-ring sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
+                  className="min-h-32 text-base font-semibold sm:text-sm"
                   defaultValue={tournament?.notes ?? ""}
                   id="tournament-notes"
                   name="notes"
                   placeholder="Takeaways, matchup notes, prep notes..."
                 />
-              </div>
+              </Field>
 
               <div className="border-t border-border pt-5 sm:hidden">
                 <div className="grid gap-2">
@@ -659,7 +648,7 @@ export function TournamentEditorDialog({
                     className={[
                       "w-full",
                       saveState === "success"
-                        ? "pointer-events-none border-[var(--color-win-border)] bg-[var(--color-win-bg)] text-[var(--color-win-strong)] opacity-100 hover:bg-[var(--color-win-bg)]"
+                        ? "pointer-events-none border-win-border bg-win-bg text-win opacity-100 hover:bg-win-bg"
                         : ""
                     ].join(" ")}
                     disabled={saveState === "saving"}

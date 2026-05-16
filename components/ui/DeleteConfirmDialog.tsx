@@ -43,7 +43,7 @@ export function DeleteConfirmDialog({
         }
       }}
     >
-      <DialogContent className="border border-[var(--color-loss-border)]" showCloseButton={!disabled}>
+      <DialogContent className="border border-loss-border" showCloseButton={!disabled}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{message}</DialogDescription>

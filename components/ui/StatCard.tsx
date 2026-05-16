@@ -8,8 +8,8 @@ type StatCardProps = {
 
 const valueClasses: Record<NonNullable<StatCardProps["valueColor"]>, string> = {
   default: "text-card-foreground",
-  win: "text-[var(--color-win)]",
-  loss: "text-[var(--color-loss)]"
+  win: "text-win",
+  loss: "text-loss"
 };
 
 export function StatCard({

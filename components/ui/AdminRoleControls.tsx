@@ -77,7 +77,7 @@ export function AdminRoleControls({
         />
       </ButtonGroup>
       {feedback ? (
-        <p className="text-xs text-[var(--color-loss-strong)]">{feedback}</p>
+        <p className="text-xs text-loss">{feedback}</p>
       ) : null}
     </div>
   );

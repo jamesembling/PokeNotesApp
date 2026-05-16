@@ -32,7 +32,7 @@ export function AdminUsersTable({
     <div className="space-y-4">
       {warning ? (
         <Alert
-          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-[var(--color-loss-strong)]"
+          className="border-loss-border bg-loss-bg text-loss"
           variant="destructive"
         >
           <AlertDescription>{warning}</AlertDescription>

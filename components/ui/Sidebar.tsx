@@ -129,7 +129,7 @@ export function SidebarMobileTopbar() {
             className="text-sidebar-foreground"
             size="icon-lg"
           >
-            <MenuIcon className="h-5 w-5" />
+            <MenuIcon />
           </SidebarTrigger>
           <SidebarLogo />
         </div>
@@ -244,16 +244,18 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
                 ) : null}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                disabled={signOutPending}
-                onSelect={(event) => {
-                  event.preventDefault();
-                  handleSignOut();
-                }}
-              >
-                <LogOutIcon />
-                {signOutPending ? "Signing Out..." : "Sign Out"}
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  disabled={signOutPending}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    handleSignOut();
+                  }}
+                >
+                  <LogOutIcon />
+                  {signOutPending ? "Signing Out..." : "Sign Out"}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </SidebarMenuItem>
@@ -277,7 +279,7 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
               className="text-sidebar-foreground min-[860px]:hidden"
               size="icon-lg"
             >
-              <MenuIcon className="h-5 w-5" />
+              <MenuIcon />
             </SidebarTrigger>
           </div>
         </div>

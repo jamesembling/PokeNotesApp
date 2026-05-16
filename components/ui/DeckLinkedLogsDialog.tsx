@@ -85,7 +85,7 @@ export function DeckLinkedLogsDialog({ deckId }: DeckLinkedLogsDialogProps) {
 
             <div className="min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-5 pr-8 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] lg:px-8 lg:pr-10">
               {error ? (
-                <p className="text-sm text-[var(--color-loss)]">{error}</p>
+                <p className="text-sm text-loss">{error}</p>
               ) : isLoading ? (
                 <div className="flex flex-col gap-3" role="status">
                   <div className="h-24 rounded-[20px] border border-border bg-muted" />
