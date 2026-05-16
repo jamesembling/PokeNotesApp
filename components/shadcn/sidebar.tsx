@@ -244,6 +244,7 @@ function Sidebar({
 }
 
 function SidebarTrigger({
+  children,
   className,
   onClick,
   ...props
@@ -263,7 +264,7 @@ function SidebarTrigger({
       variant="ghost"
       {...props}
     >
-      <PanelLeftIcon />
+      {children ?? <PanelLeftIcon />}
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )

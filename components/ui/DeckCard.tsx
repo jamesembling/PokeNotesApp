@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/shadcn/card";
+import { CalendarIcon, ClockIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import type { DeckSummary } from "@/types/index";
 
@@ -122,54 +123,47 @@ export function DeckCard({
 
   return (
     <Link className="block h-full" href={`/decks/${deck.id}`} prefetch={false}>
-      <Card className="flex h-full flex-col gap-5 transition hover:-translate-y-0.5 hover:border-ring hover:shadow-[var(--shadow-sm)]">
+      <Card className="flex h-full flex-col gap-3 rounded-lg p-5 transition hover:-translate-y-0.5 hover:border-primary hover:shadow-[var(--shadow-sm)] sm:p-5">
         <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 space-y-3">
-            <SpriteStrip className="min-h-12" pokemonOptions={null} size="lg" sprites={deck.deckPokemon} />
-            <div className="space-y-2">
-              <h2 className="font-display text-[1.22rem] font-semibold leading-tight tracking-[-0.035em] text-card-foreground">
-                {deck.deckName}
-              </h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                {gamesPlayed > 0
-                  ? `${recordLabel} across ${gamesPlayed} logged matches`
-                  : "No battle logs linked yet"}
-              </p>
-            </div>
+          <div className="min-w-0">
+            <SpriteStrip className="min-h-10" pokemonOptions={null} size="md" sprites={deck.deckPokemon} />
           </div>
 
           <div
             className={[
-              "shrink-0 rounded-2xl border px-3 py-2 text-center",
+              "shrink-0 rounded-lg border px-3 py-1.5 text-center",
               statusToneClassName
             ].join(" ")}
           >
-            <p className="ui-eyebrow text-current/80">Win rate</p>
-            <p className="mt-1 font-display text-[1.3rem] font-semibold tracking-[-0.04em] text-current">
+            <p className="text-[0.68rem] font-semibold uppercase leading-none text-current/80">Win rate</p>
+            <p className="mt-1 font-display text-[1.05rem] font-semibold leading-none tracking-[-0.02em] text-current">
               {winRate == null ? "--" : `${winRate}%`}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
-            <p className="ui-eyebrow">Record</p>
-            <p className="mt-1 text-sm font-medium text-card-foreground">
-              {gamesPlayed > 0 ? recordLabel : "No logs yet"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3">
-            <p className="ui-eyebrow">Deck lists</p>
-            <p className="mt-1 text-sm font-medium text-card-foreground">{deckListCount}</p>
-          </div>
+        <div className="min-w-0">
+          <h2 className="truncate font-display text-[1.02rem] font-semibold leading-tight tracking-[-0.01em] text-card-foreground">
+            {deck.deckName}
+          </h2>
+          <p className="mt-0.5 text-sm font-medium leading-5 text-muted-foreground">
+            {gamesPlayed > 0
+              ? `Record ${recordLabel} · ${gamesPlayed} matches`
+              : "No linked battle logs"}
+          </p>
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-4">
-          <div className="space-y-1">
-            <p className="ui-eyebrow">Last updated</p>
-            <p className="text-sm text-muted-foreground">{formatUpdatedDate(deck.updatedAt)}</p>
-          </div>
-          <span className="ui-control-text text-primary">Open Deck</span>
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-3 text-xs font-medium text-muted-foreground">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <ClockIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{formatUpdatedDate(deck.updatedAt)}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            <CalendarIcon className="h-3.5 w-3.5" />
+            <span>
+              {deckListCount} {deckListCount === 1 ? "decklist" : "decklists"}
+            </span>
+          </span>
         </div>
       </Card>
     </Link>

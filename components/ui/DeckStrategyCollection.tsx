@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DeckCard, type DeckCardView } from "@/components/ui/DeckCard";
 import { ChevronIcon, GridIcon, MenuIcon } from "@/components/ui/icons";
+import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import type { DeckSummary } from "@/types/index";
 import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
@@ -73,25 +74,6 @@ function SortHeaderButton({
 export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
   const [view, setView] = useState<DeckCardView>("tile");
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
-  const { totalDeckLists, totalMatches, trackedDecks } = useMemo(
-    () =>
-      decks.reduce(
-        (totals, { deckListCount, gamesPlayed }) => {
-          totals.totalDeckLists += deckListCount;
-          totals.totalMatches += gamesPlayed;
-          if (gamesPlayed > 0) {
-            totals.trackedDecks += 1;
-          }
-          return totals;
-        },
-        {
-          totalDeckLists: 0,
-          totalMatches: 0,
-          trackedDecks: 0
-        }
-      ),
-    [decks]
-  );
   const orderedDecks = useMemo(() => {
     if (!sort) {
       return decks;
@@ -157,14 +139,14 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
 
   const viewSwitcher = (
     <Tabs onValueChange={(value) => setView(value as DeckCardView)} value={view}>
-      <TabsList aria-label="Deck view mode">
-        <TabsTrigger value="tile">
+      <TabsList aria-label="Deck view mode" className="h-9 rounded-lg border border-border bg-card p-1">
+        <TabsTrigger className="h-7 w-10 flex-none px-0" value="tile">
           <GridIcon className="h-4 w-4" />
-          <span>Tiles</span>
+          <span className="sr-only">Tiles</span>
         </TabsTrigger>
-        <TabsTrigger value="list">
+        <TabsTrigger className="h-7 w-10 flex-none px-0" value="list">
           <MenuIcon className="h-4 w-4" />
-          <span>List</span>
+          <span className="sr-only">Decklist view</span>
         </TabsTrigger>
       </TabsList>
     </Tabs>
@@ -172,41 +154,15 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
 
   return (
     <section className="grid gap-5">
-      <div className="flex justify-end lg:block">
-        <div className="hidden lg:block">
-          <Card className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="hidden space-y-2 lg:block">
-              <p className="ui-eyebrow">Deck Index</p>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                <span>
-                  <strong className="font-semibold text-card-foreground">{decks.length}</strong> decks
-                </span>
-                <span>
-                  <strong className="font-semibold text-card-foreground">{totalDeckLists}</strong> saved
-                  lists
-                </span>
-                <span>
-                  <strong className="font-semibold text-card-foreground">{trackedDecks}</strong> with
-                  linked logs
-                </span>
-                <span>
-                  <strong className="font-semibold text-card-foreground">{totalMatches}</strong> matches
-                  tracked
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-              {viewSwitcher}
-            </div>
-          </Card>
+      <div className="flex items-center justify-between gap-3 sm:justify-end">
+        <div className="sm:hidden">
+          <LazyDeckEditorButton triggerLabel="+ New deck" />
         </div>
-
-        <div className="lg:hidden">{viewSwitcher}</div>
+        {viewSwitcher}
       </div>
 
       {view === "tile" ? (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
             <DeckCard
               deck={deck}
@@ -250,7 +206,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
               active={sort?.key === "lists"}
               align="right"
               direction={sort?.key === "lists" ? sort.direction : undefined}
-              label="Lists"
+              label="Decklists"
               onClick={() => setSort({ key: "lists", direction: getNextSortDirection("lists", sort) })}
             />
             <SortHeaderButton

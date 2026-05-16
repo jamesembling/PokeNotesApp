@@ -46,7 +46,7 @@ function TournamentSummaryRow({
   return (
     <div className="group/row space-y-2">
       <div
-        className="group/card relative grid w-full grid-cols-[minmax(0,1fr)_2rem_1.25rem] gap-3 overflow-hidden rounded-[10px] border border-border bg-muted px-4 py-4 text-left transition duration-200 hover:brightness-[0.98] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background sm:grid-cols-[4rem_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)_2rem_1.25rem] sm:items-center sm:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
+        className="group/card relative grid w-full grid-cols-[minmax(0,1fr)_1.25rem] gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-muted px-4 py-4 pr-12 text-left transition duration-200 hover:brightness-[0.98] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background sm:grid-cols-[4rem_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)_2rem_1.25rem] sm:items-center sm:gap-4 sm:pr-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
         style={{
           contentVisibility: "auto",
           containIntrinsicSize: "88px"
@@ -96,7 +96,7 @@ function TournamentSummaryRow({
 
         <Button
           aria-label={`Delete ${tournament.name}`}
-          className="z-20 bg-muted text-muted-foreground hover:bg-[var(--color-loss-bg)] hover:text-[var(--color-loss-strong)] max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 max-sm:self-center sm:col-start-5"
+          className="z-20 bg-muted text-muted-foreground hover:bg-[var(--color-loss-bg)] hover:text-[var(--color-loss-strong)] max-sm:absolute max-sm:right-9 max-sm:top-3 sm:col-start-5"
           disabled={isDeleting}
           onClick={() => onRequestDelete(tournament)}
           size="icon-sm"
@@ -107,7 +107,7 @@ function TournamentSummaryRow({
 
         <ChevronRightIcon
           aria-hidden="true"
-          className="pointer-events-none z-10 h-4 w-4 self-center justify-self-end text-muted-foreground transition group-hover/card:translate-x-0.5 group-hover/card:text-card-foreground max-sm:col-start-3 max-sm:row-span-2 max-sm:row-start-1 sm:col-start-6"
+          className="pointer-events-none z-10 h-4 w-4 self-center justify-self-end text-muted-foreground transition group-hover/card:translate-x-0.5 group-hover/card:text-card-foreground max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 sm:col-start-6"
         />
       </div>
 

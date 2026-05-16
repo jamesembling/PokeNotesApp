@@ -11,7 +11,7 @@ import {
   TrophyIcon,
   type Icon
 } from "@phosphor-icons/react";
-import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon, ShieldIcon } from "lucide-react";
+import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon, MenuIcon, ShieldIcon } from "lucide-react";
 import { signOutAction } from "@/app/actions";
 import { Avatar, AvatarFallback } from "@/components/shadcn/avatar";
 import {
@@ -128,7 +128,9 @@ export function SidebarMobileTopbar() {
             aria-label="Open navigation menu"
             className="text-sidebar-foreground"
             size="icon-lg"
-          />
+          >
+            <MenuIcon className="h-5 w-5" />
+          </SidebarTrigger>
           <SidebarLogo />
         </div>
         <SidebarThemeToggle />
@@ -274,7 +276,9 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
               aria-label="Close navigation menu"
               className="text-sidebar-foreground min-[860px]:hidden"
               size="icon-lg"
-            />
+            >
+              <MenuIcon className="h-5 w-5" />
+            </SidebarTrigger>
           </div>
         </div>
       </SidebarHeader>

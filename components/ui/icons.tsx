@@ -70,6 +70,48 @@ export function GridIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+export function CalendarIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M8 3v4" />
+      <path d="M16 3v4" />
+      <path d="M4 10h16" />
+    </svg>
+  );
+}
+
+export function ClockIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l2.5 1.5" />
+    </svg>
+  );
+}
+
 export function CloseIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg
