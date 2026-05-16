@@ -6,19 +6,21 @@ import type { LogSummaryStats } from "@/lib/db/logs";
 import type { BattleLogSummary, Deck } from "@/types/index";
 
 function attachLinkedDeckListNames(logs: BattleLogSummary[], deck: Deck) {
+  const deckListNamesById = new Map(deck.deckLists.map((deckList) => [deckList.id, deckList.name] as const));
+
   return logs.map((log) => {
     if (log.linkedDeckId !== deck.id || !log.linkedDeckListId) {
       return log;
     }
 
-    const linkedDeckList = deck.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
-    if (!linkedDeckList?.name) {
+    const linkedDeckListName = deckListNamesById.get(log.linkedDeckListId);
+    if (!linkedDeckListName) {
       return log;
     }
 
     return {
       ...log,
-      linkedDeckListName: linkedDeckList.name
+      linkedDeckListName
     };
   });
 }

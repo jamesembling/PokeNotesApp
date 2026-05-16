@@ -1,5 +1,21 @@
 import type { PokemonOption } from "@/types/index";
 
+type PokemonSearchEntry = {
+  compactLabel: string;
+  compactSlug: string;
+  normalizedCompactSlug: string;
+  normalizedLabel: string;
+  normalizedLabelParts: string[];
+  normalizedSlug: string;
+  normalizedSlugParts: string[];
+  option: PokemonOption;
+};
+
+export type PokemonSearchIndex = {
+  entries: PokemonSearchEntry[];
+  optionsBySlug: Map<string, PokemonOption>;
+};
+
 export function normalizePokemonSearchValue(value: string) {
   return value.trim().toLowerCase();
 }
@@ -8,51 +24,69 @@ function compactPokemonSearchValue(value: string) {
   return normalizePokemonSearchValue(value).replace(/[^a-z0-9]/g, "");
 }
 
-export function getPokemonSearchRank(option: PokemonOption, normalizedQuery: string) {
+export function buildPokemonSearchIndex(options: PokemonOption[]): PokemonSearchIndex {
+  return {
+    entries: options.map((option) => {
+      const normalizedLabel = option.label.toLowerCase();
+      const normalizedSlug = option.slug.replace(/-/g, " ").toLowerCase();
+
+      return {
+        compactLabel: compactPokemonSearchValue(option.label),
+        compactSlug: compactPokemonSearchValue(option.slug),
+        normalizedCompactSlug: option.slug.toLowerCase(),
+        normalizedLabel,
+        normalizedLabelParts: normalizedLabel.split(/\s+/),
+        normalizedSlug,
+        normalizedSlugParts: normalizedSlug.split(/\s+/),
+        option
+      };
+    }),
+    optionsBySlug: new Map(options.map((option) => [option.slug, option] as const))
+  };
+}
+
+function getPokemonSearchEntryRank(
+  entry: PokemonSearchEntry,
+  normalizedQuery: string,
+  compactQuery: string
+) {
   if (!normalizedQuery) {
     return null;
   }
 
-  const normalizedLabel = option.label.toLowerCase();
-  const normalizedSlug = option.slug.replace(/-/g, " ").toLowerCase();
-  const normalizedCompactSlug = option.slug.toLowerCase();
-  const compactLabel = compactPokemonSearchValue(option.label);
-  const compactSlug = compactPokemonSearchValue(option.slug);
-  const compactQuery = compactPokemonSearchValue(normalizedQuery);
-
   if (
-    normalizedLabel === normalizedQuery ||
-    normalizedSlug === normalizedQuery ||
-    normalizedCompactSlug === normalizedQuery ||
-    compactLabel === compactQuery ||
-    compactSlug === compactQuery
+    entry.normalizedLabel === normalizedQuery ||
+    entry.normalizedSlug === normalizedQuery ||
+    entry.normalizedCompactSlug === normalizedQuery ||
+    entry.compactLabel === compactQuery ||
+    entry.compactSlug === compactQuery
   ) {
     return 0;
   }
 
   if (
-    normalizedLabel.startsWith(normalizedQuery) ||
-    normalizedSlug.startsWith(normalizedQuery) ||
-    normalizedCompactSlug.startsWith(normalizedQuery) ||
-    compactLabel.startsWith(compactQuery) ||
-    compactSlug.startsWith(compactQuery)
+    entry.normalizedLabel.startsWith(normalizedQuery) ||
+    entry.normalizedSlug.startsWith(normalizedQuery) ||
+    entry.normalizedCompactSlug.startsWith(normalizedQuery) ||
+    entry.compactLabel.startsWith(compactQuery) ||
+    entry.compactSlug.startsWith(compactQuery)
   ) {
     return 1;
   }
 
   if (
-    normalizedLabel.split(/\s+/).some((part) => part.startsWith(normalizedQuery)) ||
-    normalizedSlug.split(/\s+/).some((part) => part.startsWith(normalizedQuery))
+    entry.normalizedLabelParts.some((part) => part.startsWith(normalizedQuery)) ||
+    entry.normalizedSlugParts.some((part) => part.startsWith(normalizedQuery))
   ) {
     return 2;
   }
 
   if (
-    normalizedLabel.includes(normalizedQuery) ||
-    normalizedSlug.includes(normalizedQuery) ||
-    normalizedCompactSlug.includes(normalizedQuery) ||
-    compactLabel.includes(compactQuery) ||
-    compactSlug.includes(compactQuery)
+    entry.normalizedLabel.includes(normalizedQuery) ||
+    entry.normalizedSlug.includes(normalizedQuery) ||
+    entry.normalizedCompactSlug.includes(normalizedQuery) ||
+    entry.compactLabel.includes(compactQuery) ||
+    entry.compactSlug.includes(compactQuery)
   ) {
     return 3;
   }
@@ -60,33 +94,52 @@ export function getPokemonSearchRank(option: PokemonOption, normalizedQuery: str
   return null;
 }
 
+export function getPokemonSearchRank(option: PokemonOption, normalizedQuery: string) {
+  const index = buildPokemonSearchIndex([option]);
+  return getPokemonSearchEntryRank(
+    index.entries[0],
+    normalizedQuery,
+    compactPokemonSearchValue(normalizedQuery)
+  );
+}
+
 export function findPokemonSearchMatches(options: PokemonOption[], query: string, limit = 8) {
+  return findPokemonSearchMatchesInIndex(buildPokemonSearchIndex(options), query, limit);
+}
+
+export function findPokemonSearchMatchesInIndex(index: PokemonSearchIndex, query: string, limit = 8) {
   const normalizedQuery = normalizePokemonSearchValue(query);
 
   if (!normalizedQuery) {
     return [];
   }
 
-  return options
-    .map((option) => ({
-      option,
-      rank: getPokemonSearchRank(option, normalizedQuery)
+  const compactQuery = compactPokemonSearchValue(normalizedQuery);
+
+  return index.entries
+    .map((entry) => ({
+      entry,
+      rank: getPokemonSearchEntryRank(entry, normalizedQuery, compactQuery)
     }))
     .filter(
-      (entry): entry is { option: PokemonOption; rank: number } => entry.rank !== null
+      (entry): entry is { entry: PokemonSearchEntry; rank: number } => entry.rank !== null
     )
     .sort((left, right) => {
       if (left.rank !== right.rank) {
         return left.rank - right.rank;
       }
 
-      return left.option.label.localeCompare(right.option.label);
+      return left.entry.option.label.localeCompare(right.entry.option.label);
     })
     .slice(0, limit)
-    .map((entry) => entry.option);
+    .map((entry) => entry.entry.option);
 }
 
 export function findBestPokemonSearchMatch(options: PokemonOption[], query: string) {
+  return findBestPokemonSearchMatchInIndex(buildPokemonSearchIndex(options), query);
+}
+
+export function findBestPokemonSearchMatchInIndex(index: PokemonSearchIndex, query: string) {
   const normalizedQuery = normalizePokemonSearchValue(query);
   if (!normalizedQuery) {
     return null;
@@ -95,20 +148,28 @@ export function findBestPokemonSearchMatch(options: PokemonOption[], query: stri
   const compactQuery = compactPokemonSearchValue(normalizedQuery);
 
   const exactMatch =
-    options.find((option) => normalizePokemonSearchValue(option.label) === normalizedQuery) ??
-    options.find(
-      (option) => normalizePokemonSearchValue(option.slug.replace(/-/g, " ")) === normalizedQuery
-    ) ??
-    options.find((option) => normalizePokemonSearchValue(option.slug) === normalizedQuery) ??
-    options.find((option) => compactPokemonSearchValue(option.label) === compactQuery) ??
-    options.find((option) => compactPokemonSearchValue(option.slug) === compactQuery);
+    index.entries.find((entry) => entry.normalizedLabel === normalizedQuery)?.option ??
+    index.entries.find((entry) => entry.normalizedSlug === normalizedQuery)?.option ??
+    index.entries.find((entry) => entry.normalizedCompactSlug === normalizedQuery)?.option ??
+    index.entries.find((entry) => entry.compactLabel === compactQuery)?.option ??
+    index.entries.find((entry) => entry.compactSlug === compactQuery)?.option;
 
   if (exactMatch) {
     return exactMatch;
   }
 
-  const filteredOptions = options.filter(
-    (option) => getPokemonSearchRank(option, normalizedQuery) !== null
-  );
-  return filteredOptions.length === 1 ? filteredOptions[0] : null;
+  let singleMatch: PokemonOption | null = null;
+  for (const entry of index.entries) {
+    if (getPokemonSearchEntryRank(entry, normalizedQuery, compactQuery) === null) {
+      continue;
+    }
+
+    if (singleMatch) {
+      return null;
+    }
+
+    singleMatch = entry.option;
+  }
+
+  return singleMatch;
 }

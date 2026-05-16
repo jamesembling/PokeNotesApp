@@ -13,6 +13,15 @@ export type DeckLinkCandidate = {
   deckPokemon: string[];
 };
 
+type IndexedDeckLinkCandidate = DeckLinkCandidate & {
+  normalizedDeckName: string;
+};
+
+export type DeckLinkCandidateIndex = {
+  deckIds: Set<string>;
+  indexedCandidates: IndexedDeckLinkCandidate[];
+};
+
 export type LinkableLogDeck = {
   linkedDeckId?: string;
   selfDeckName: string;
@@ -61,15 +70,30 @@ function mapDeckLinkCandidate(row: DeckLinkCandidateRow): DeckLinkCandidate {
   };
 }
 
-export function getDeckMatchScore(deck: DeckLinkCandidate, identified: {
-  deckName: string;
-  deckSlug?: string;
-  sprites: string[];
-}) {
+export function buildDeckLinkCandidateIndex(candidates: DeckLinkCandidate[]): DeckLinkCandidateIndex {
+  return {
+    deckIds: new Set(candidates.map((candidate) => candidate.id)),
+    indexedCandidates: candidates.map((candidate) => ({
+      ...candidate,
+      normalizedDeckName: normalizeText(candidate.deckName)
+    }))
+  };
+}
+
+function getDeckMatchScoreForIndexedCandidate(
+  deck: IndexedDeckLinkCandidate,
+  identified: {
+    deckName: string;
+    deckSlug?: string;
+    logNames: string[];
+    spriteSet: Set<string>;
+    sprites: string[];
+  }
+) {
   const deckSprites = deck.deckPokemon;
   const logSprites = identified.sprites;
   if (deckSprites.length && logSprites.length) {
-    const overlap = deckSprites.filter((slug) => logSprites.includes(slug)).length;
+    const overlap = deckSprites.filter((slug) => identified.spriteSet.has(slug)).length;
     const requiredOverlap = Math.min(deckSprites.length, 2);
 
     if (overlap >= requiredOverlap) {
@@ -77,21 +101,17 @@ export function getDeckMatchScore(deck: DeckLinkCandidate, identified: {
     }
   }
 
-  const deckKey = normalizeText(deck.deckName);
+  const deckKey = deck.normalizedDeckName;
   if (!deckKey) {
     return 0;
   }
 
-  const logNames = [identified.deckName, identified.deckSlug || ""]
-    .map((value) => normalizeText(value))
-    .filter(Boolean);
-
-  const exactMatch = logNames.find((value) => value === deckKey);
+  const exactMatch = identified.logNames.find((value) => value === deckKey);
   if (exactMatch) {
     return 200;
   }
 
-  const fuzzyMatch = logNames.find((value) => value.includes(deckKey) || deckKey.includes(value));
+  const fuzzyMatch = identified.logNames.find((value) => value.includes(deckKey) || deckKey.includes(value));
   if (fuzzyMatch) {
     return 160;
   }
@@ -99,13 +119,35 @@ export function getDeckMatchScore(deck: DeckLinkCandidate, identified: {
   return 0;
 }
 
-function getDeckLinkScore(deck: DeckLinkCandidate, identified: {
+export function getDeckMatchScore(deck: DeckLinkCandidate, identified: {
   deckName: string;
-  deckSlug: string;
+  deckSlug?: string;
   sprites: string[];
 }) {
-  const baseScore = getDeckMatchScore(deck, identified);
-  const spriteOverlap = deck.deckPokemon.filter((slug) => identified.sprites.includes(slug)).length;
+  return getDeckMatchScoreForIndexedCandidate(
+    {
+      ...deck,
+      normalizedDeckName: normalizeText(deck.deckName)
+    },
+    {
+      ...identified,
+      logNames: [identified.deckName, identified.deckSlug || ""]
+        .map((value) => normalizeText(value))
+        .filter(Boolean),
+      spriteSet: new Set(identified.sprites)
+    }
+  );
+}
+
+function getDeckLinkScoreForIndexedCandidate(deck: IndexedDeckLinkCandidate, identified: {
+  deckName: string;
+  deckSlug: string;
+  logNames: string[];
+  spriteSet: Set<string>;
+  sprites: string[];
+}) {
+  const baseScore = getDeckMatchScoreForIndexedCandidate(deck, identified);
+  const spriteOverlap = deck.deckPokemon.filter((slug) => identified.spriteSet.has(slug)).length;
 
   if (baseScore >= 200) {
     return 220;
@@ -187,10 +229,19 @@ export function resolveConservativeDeckLink(
     sprites: string[];
   }
 ) {
+  const index = buildDeckLinkCandidateIndex(candidates);
+  const identifiedForScoring = {
+    ...identified,
+    logNames: [identified.deckName, identified.deckSlug || ""]
+      .map((value) => normalizeText(value))
+      .filter(Boolean),
+    spriteSet: new Set(identified.sprites)
+  };
+
   return getUniqueBestCandidate(
-    candidates.map((deck) => ({
+    index.indexedCandidates.map((deck) => ({
       id: deck.id,
-      score: getDeckLinkScore(deck, identified)
+      score: getDeckLinkScoreForIndexedCandidate(deck, identifiedForScoring)
     })),
     170
   );
@@ -210,16 +261,48 @@ export function resolvePersistableLogDeckLink(
     };
   }
 
+  const index = buildDeckLinkCandidateIndex(candidates);
+  const identified = {
+    deckName: log.selfDeckName,
+    deckSlug: log.selfDeckSlug,
+    logNames: [log.selfDeckName, log.selfDeckSlug || ""]
+      .map((value) => normalizeText(value))
+      .filter(Boolean),
+    spriteSet: new Set(log.selfDeckSprites),
+    sprites: log.selfDeckSprites
+  };
+
   return getUniqueBestCandidateDecision(
-    candidates.map((deck) => ({
+    index.indexedCandidates.map((deck) => ({
       id: deck.id,
-      score: getDeckLinkScore(deck, {
-        deckName: log.selfDeckName,
-        deckSlug: log.selfDeckSlug,
-        sprites: log.selfDeckSprites
-      })
+      score: getDeckLinkScoreForIndexedCandidate(deck, identified)
     })),
     170
+  );
+}
+
+export function resolveLinkedDeckFromIndex(
+  index: DeckLinkCandidateIndex,
+  log: LinkableLogDeck
+) {
+  const explicitDeckId = String(log.linkedDeckId || "").trim();
+  if (explicitDeckId && index.deckIds.has(explicitDeckId)) {
+    return explicitDeckId;
+  }
+
+  const identified = {
+    deckName: log.selfDeckName,
+    logNames: [log.selfDeckName].map((value) => normalizeText(value)).filter(Boolean),
+    spriteSet: new Set(log.selfDeckSprites),
+    sprites: log.selfDeckSprites
+  };
+
+  return getUniqueBestCandidate(
+    index.indexedCandidates.map((deck) => ({
+      id: deck.id,
+      score: getDeckMatchScoreForIndexedCandidate(deck, identified)
+    })),
+    120
   );
 }
 
@@ -227,21 +310,7 @@ export function resolveLinkedDeck(
   decks: DeckLinkCandidate[],
   log: LinkableLogDeck
 ) {
-  const explicitDeckId = String(log.linkedDeckId || "").trim();
-  if (explicitDeckId && decks.some((deck) => deck.id === explicitDeckId)) {
-    return explicitDeckId;
-  }
-
-  return getUniqueBestCandidate(
-    decks.map((deck) => ({
-      id: deck.id,
-      score: getDeckMatchScore(deck, {
-        deckName: log.selfDeckName,
-        sprites: log.selfDeckSprites
-      })
-    })),
-    120
-  );
+  return resolveLinkedDeckFromIndex(buildDeckLinkCandidateIndex(decks), log);
 }
 
 export async function linkDeckConservatively(args: {

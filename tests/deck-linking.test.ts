@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildDeckLinkCandidateIndex,
   resolveConservativeDeckLink,
   resolveLinkedDeck,
+  resolveLinkedDeckFromIndex,
   resolvePersistableLogDeckLink
 } from "@/lib/log-import/deck-linking";
 
@@ -31,26 +33,27 @@ test("resolveLinkedDeck prefers an explicit linked deck when it still exists", (
 });
 
 test("resolveLinkedDeck infers a deck from sprite overlap when no explicit link exists", () => {
-  const resolved = resolveLinkedDeck(
-    [
-      {
-        id: "deck-a",
-        deckName: "Gardevoir ex",
-        deckPokemon: ["gardevoir", "kirlia"]
-      },
-      {
-        id: "deck-b",
-        deckName: "Dragapult ex",
-        deckPokemon: ["dragapult", "dusknoir"]
-      }
-    ],
+  const decks = [
     {
-      selfDeckName: "Dragapult ex",
-      selfDeckSprites: ["dragapult", "dusknoir"]
+      id: "deck-a",
+      deckName: "Gardevoir ex",
+      deckPokemon: ["gardevoir", "kirlia"]
+    },
+    {
+      id: "deck-b",
+      deckName: "Dragapult ex",
+      deckPokemon: ["dragapult", "dusknoir"]
     }
-  );
+  ];
+  const log = {
+    selfDeckName: "Dragapult ex",
+    selfDeckSprites: ["dragapult", "dusknoir"]
+  };
+  const resolved = resolveLinkedDeck(decks, log);
+  const resolvedFromIndex = resolveLinkedDeckFromIndex(buildDeckLinkCandidateIndex(decks), log);
 
   assert.equal(resolved, "deck-b");
+  assert.equal(resolvedFromIndex, resolved);
 });
 
 test("resolveConservativeDeckLink returns a unique conservative match", () => {

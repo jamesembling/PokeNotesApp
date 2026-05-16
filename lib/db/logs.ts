@@ -2,7 +2,10 @@ import { cache } from "react";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { measureServerCall } from "@/lib/server/perf";
-import { resolveLinkedDeck } from "@/lib/log-import/deck-linking";
+import {
+  buildDeckLinkCandidateIndex,
+  resolveLinkedDeckFromIndex
+} from "@/lib/log-import/deck-linking";
 import type { DeckLinkCandidate } from "@/lib/log-import/deck-linking";
 import type { BattleLog, BattleLogSummary, LogSection, Result } from "@/types/index";
 
@@ -825,6 +828,7 @@ export function groupLogsByDeck(input: {
   const groupedLogs = new Map<string, Map<string, BattleLogSummary>>(
     targetDeckIds.map((deckId) => [deckId, new Map<string, BattleLogSummary>()])
   );
+  const deckLinkIndex = buildDeckLinkCandidateIndex(decks);
 
   const addLogToDeck = (deckId: string, log: BattleLogSummary) => {
     const deckLogs = groupedLogs.get(deckId);
@@ -842,7 +846,7 @@ export function groupLogsByDeck(input: {
     });
 
   unlinkedRows.map(mapLogSummary).forEach((log) => {
-      const resolvedDeckId = resolveLinkedDeck(decks, {
+      const resolvedDeckId = resolveLinkedDeckFromIndex(deckLinkIndex, {
         linkedDeckId: log.linkedDeckId,
         selfDeckName: log.selfDeckName,
         selfDeckSprites: log.selfDeckSprites

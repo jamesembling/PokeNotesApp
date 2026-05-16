@@ -180,7 +180,13 @@ function mergeLogs(current: BattleLogSummary[], incoming: BattleLogSummary[]) {
 }
 
 function attachLinkedDeckListNames(logs: BattleLogSummary[], userDecks: DeckSelectionOption[]) {
-  const deckOptionsById = new Map(userDecks.map((deck) => [deck.id, deck] as const));
+  const deckListNamesByKey = new Map<string, string>();
+
+  userDecks.forEach((deck) => {
+    deck.deckLists.forEach((deckList) => {
+      deckListNamesByKey.set(`${deck.id}:${deckList.id}`, deckList.name);
+    });
+  });
 
   return logs.map((log) => {
     if (!log.linkedDeckId || !log.linkedDeckListId) {
@@ -190,12 +196,9 @@ function attachLinkedDeckListNames(logs: BattleLogSummary[], userDecks: DeckSele
       };
     }
 
-    const deck = deckOptionsById.get(log.linkedDeckId);
-    const linkedDeckList = deck?.deckLists.find((deckList) => deckList.id === log.linkedDeckListId);
-
     return {
       ...log,
-      linkedDeckListName: linkedDeckList?.name
+      linkedDeckListName: deckListNamesByKey.get(`${log.linkedDeckId}:${log.linkedDeckListId}`)
     };
   });
 }

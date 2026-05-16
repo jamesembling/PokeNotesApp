@@ -8,8 +8,9 @@ import { Popover, PopoverAnchor, PopoverContent } from "@/components/shadcn/popo
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { prettifyPokemonSlug } from "@/lib/battle-log/display";
 import {
-  findBestPokemonSearchMatch,
-  findPokemonSearchMatches,
+  buildPokemonSearchIndex,
+  findBestPokemonSearchMatchInIndex,
+  findPokemonSearchMatchesInIndex,
   normalizePokemonSearchValue
 } from "@/lib/pokemon/search";
 import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
@@ -23,18 +24,18 @@ type BattleLogSpritePickerProps = {
 };
 
 function SpriteThumb({
+  pokemonOptionsBySlug,
   pokemonOptions,
   slug
 }: {
+  pokemonOptionsBySlug?: Map<string, PokemonOption>;
   pokemonOptions: PokemonOption[];
   slug: string;
 }) {
   const [hasError, setHasError] = useState(false);
-  const label =
-    pokemonOptions.find((option) => option.slug === slug)?.label ?? prettifyPokemonSlug(slug);
-  const src =
-    pokemonOptions.find((option) => option.slug === slug)?.spriteUrl ??
-    buildPokemonSpriteUrlFromSlug(slug);
+  const pokemonOption = pokemonOptionsBySlug?.get(slug) ?? pokemonOptions.find((option) => option.slug === slug);
+  const label = pokemonOption?.label ?? prettifyPokemonSlug(slug);
+  const src = pokemonOption?.spriteUrl ?? buildPokemonSpriteUrlFromSlug(slug);
 
   if (!slug) {
     return (
@@ -76,13 +77,20 @@ function buildOptionsForSlot(
   allSelected: string[],
   pokemonOptions: PokemonOption[]
 ) {
+  const selectedSlugs = new Set(allSelected);
   return pokemonOptions.filter(
-    (option) => option.slug === currentSlug || !allSelected.includes(option.slug)
+    (option) => option.slug === currentSlug || !selectedSlugs.has(option.slug)
   );
 }
 
-function getPokemonOptionLabel(slug: string, pokemonOptions: PokemonOption[]) {
-  return pokemonOptions.find((option) => option.slug === slug)?.label ?? prettifyPokemonSlug(slug);
+function getPokemonOptionLabel(
+  slug: string,
+  pokemonOptions: PokemonOption[],
+  pokemonOptionsBySlug?: Map<string, PokemonOption>
+) {
+  return pokemonOptionsBySlug?.get(slug)?.label ??
+    pokemonOptions.find((option) => option.slug === slug)?.label ??
+    prettifyPokemonSlug(slug);
 }
 
 function updateSpritesAtIndex(currentSprites: string[], index: number, nextSlug: string) {
@@ -108,6 +116,7 @@ function SpriteSearchSlot({
   currentSlug,
   index,
   onChange,
+  pokemonOptionsBySlug,
   pokemonOptions,
   sprites,
   title
@@ -115,6 +124,7 @@ function SpriteSearchSlot({
   currentSlug: string;
   index: number;
   onChange: (nextSprites: string[]) => void;
+  pokemonOptionsBySlug: Map<string, PokemonOption>;
   pokemonOptions: PokemonOption[];
   sprites: string[];
   title: string;
@@ -129,14 +139,15 @@ function SpriteSearchSlot({
     () => buildOptionsForSlot(currentSlug, sprites, pokemonOptions),
     [currentSlug, pokemonOptions, sprites]
   );
+  const slotSearchIndex = useMemo(() => buildPokemonSearchIndex(slotOptions), [slotOptions]);
 
   const filteredOptions = useMemo(() => {
     if (!normalizePokemonSearchValue(query)) {
       return [];
     }
 
-    return findPokemonSearchMatches(slotOptions, query, 8);
-  }, [query, slotOptions]);
+    return findPokemonSearchMatchesInIndex(slotSearchIndex, query, 8);
+  }, [query, slotSearchIndex]);
   const isMobileInlinePanel = isEditingSearch && !isDesktopFloatingPanel;
 
   function closeSearchEditor() {
@@ -148,7 +159,7 @@ function SpriteSearchSlot({
   function commitQuerySelection(preferredSlug?: string) {
     const nextOption =
       (preferredSlug ? slotOptions.find((option) => option.slug === preferredSlug) : null) ??
-      findBestPokemonSearchMatch(slotOptions, query);
+      findBestPokemonSearchMatchInIndex(slotSearchIndex, query);
 
     if (!nextOption) {
       return false;
@@ -287,7 +298,11 @@ function SpriteSearchSlot({
                   type="button"
                   variant="ghost"
                 >
-                  <SpriteThumb pokemonOptions={pokemonOptions} slug={option.slug} />
+                  <SpriteThumb
+                    pokemonOptions={pokemonOptions}
+                    pokemonOptionsBySlug={pokemonOptionsBySlug}
+                    slug={option.slug}
+                  />
                   <span className="min-w-0 truncate text-base font-medium text-card-foreground md:text-sm">
                     {option.label}
                   </span>
@@ -340,14 +355,20 @@ function SpriteSearchSlot({
               variant="ghost"
             >
               {currentSlug ? (
-                <SpriteThumb pokemonOptions={pokemonOptions} slug={currentSlug} />
+                <SpriteThumb
+                  pokemonOptions={pokemonOptions}
+                  pokemonOptionsBySlug={pokemonOptionsBySlug}
+                  slug={currentSlug}
+                />
               ) : (
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-card text-xs text-muted-foreground">
                   -
                 </div>
               )}
               <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-card-foreground md:text-sm">
-                {currentSlug ? getPokemonOptionLabel(currentSlug, pokemonOptions) : "Select pokemon..."}
+                {currentSlug
+                  ? getPokemonOptionLabel(currentSlug, pokemonOptions, pokemonOptionsBySlug)
+                  : "Select pokemon..."}
               </span>
               {!currentSlug ? (
                 <ChevronIcon className="h-4 w-4 shrink-0 text-muted-foreground -rotate-90" />
@@ -355,7 +376,7 @@ function SpriteSearchSlot({
             </Button>
             {currentSlug ? (
               <Button
-                aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions)}`}
+                aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions, pokemonOptionsBySlug)}`}
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-card hover:text-card-foreground"
                 onClick={() => {
                   onChange(updateSpritesAtIndex(sprites, index, ""));
@@ -390,6 +411,8 @@ export function BattleLogSpritePicker({
   onChange,
   pokemonOptions
 }: BattleLogSpritePickerProps) {
+  const pokemonSearchIndex = useMemo(() => buildPokemonSearchIndex(pokemonOptions), [pokemonOptions]);
+
   return (
     <section className="grid min-w-0 gap-3">
       <div className="flex min-w-0 items-start justify-between gap-3 md:gap-4">
@@ -416,6 +439,7 @@ export function BattleLogSpritePicker({
               index={index}
               key={`${title}-${index}`}
               onChange={onChange}
+              pokemonOptionsBySlug={pokemonSearchIndex.optionsBySlug}
               pokemonOptions={pokemonOptions}
               sprites={sprites}
               title={title}
