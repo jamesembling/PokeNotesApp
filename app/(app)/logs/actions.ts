@@ -112,8 +112,13 @@ function buildLearnedSelfSpriteCandidates(args: {
 }
 
 async function getImportContext(): Promise<ImportContext> {
-  const user = await measureServerCall("logs.import.requireUser", () => requireUser());
-  const supabase = await measureServerCall("logs.import.createClient", () => createClient());
+  const [user, supabase, catalog] = await Promise.all([
+    measureServerCall("logs.import.requireUser", () => requireUser()),
+    measureServerCall("logs.import.createClient", () => createClient()),
+    measureServerCall("logs.import.loadIdentificationCatalog", () =>
+      loadIdentificationCatalog()
+    )
+  ]);
   const { data: profile, error: profileError } = await measureServerCall(
     "logs.import.loadProfile",
     async () =>
@@ -135,10 +140,6 @@ async function getImportContext(): Promise<ImportContext> {
       "Set your PTCGL username in your profile before importing battle logs."
     );
   }
-
-  const catalog = await measureServerCall("logs.import.loadIdentificationCatalog", () =>
-    loadIdentificationCatalog()
-  );
 
   return {
     user,

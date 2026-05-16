@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import type { ImportLogDialogProps } from "@/components/ui/ImportLogDialog";
 import type { DeckSelectionOption, PokemonOption } from "@/types/index";
@@ -26,6 +26,17 @@ const DynamicImportLogDialog = dynamic<ImportLogDialogProps>(
   }
 );
 
+let importDialogAssetsWarmed = false;
+
+function warmImportDialogAssets() {
+  if (importDialogAssetsWarmed) {
+    return;
+  }
+
+  importDialogAssetsWarmed = true;
+  void import("@/components/ui/ImportLogDialog");
+}
+
 export function LazyImportLogButton({
   className,
   initialUserDecks = [],
@@ -37,6 +48,18 @@ export function LazyImportLogButton({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const warm = () => warmImportDialogAssets();
+
+    if ("requestIdleCallback" in window) {
+      const idleCallbackId = window.requestIdleCallback(warm, { timeout: 3000 });
+      return () => window.cancelIdleCallback(idleCallbackId);
+    }
+
+    const timeoutId = globalThis.setTimeout(warm, 1500);
+    return () => globalThis.clearTimeout(timeoutId);
+  }, []);
 
   async function handleImporterOpen() {
     if (pokemonOptions && ptcglUsername && userDecks.length > 0) {
@@ -78,10 +101,13 @@ export function LazyImportLogButton({
       <Button
         className={className}
         disabled={isLoading}
+        onFocus={warmImportDialogAssets}
         onClick={() => {
           setDialogOpen(true);
+          warmImportDialogAssets();
           void handleImporterOpen();
         }}
+        onPointerEnter={warmImportDialogAssets}
       >
         {isLoading ? "Loading..." : label}
       </Button>

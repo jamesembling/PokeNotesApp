@@ -1,24 +1,43 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { getDeckSelectionOptions } from "@/lib/db/decks";
-import { getCurrentProfile } from "@/lib/db/profile";
 import { getPokemonOptions } from "@/lib/db/pokemon";
 import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
 import { reportError } from "@/lib/server/report-error";
+import { createClient } from "@/lib/supabase/server";
+
+type ImportProfileRow = {
+  ptcgl_username: string | null;
+};
+
+async function getImportProfileUsername(userId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("ptcgl_username")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return String(((data ?? null) as ImportProfileRow | null)?.ptcgl_username || "").trim();
+}
 
 export async function GET() {
   try {
     const user = await requireUser();
-    const [userDecks, pokemonOptions, profile] = await Promise.all([
+    const [userDecks, pokemonOptions, ptcglUsername] = await Promise.all([
       getDeckSelectionOptions(user.id),
       getPokemonOptions(),
-      getCurrentProfile()
+      getImportProfileUsername(user.id)
     ]);
 
     return NextResponse.json({
       pokemonOptions,
       userDecks,
-      ptcglUsername: profile.ptcglUsername
+      ptcglUsername
     }, { headers: PRIVATE_NO_STORE_HEADERS });
   } catch (error) {
     reportError(error, {

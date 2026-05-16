@@ -8,14 +8,19 @@ import { measureServerCall } from "@/lib/server/perf";
 
 export default async function LogsPage() {
   const user = await requireUser();
-  const [stats, window] = await measureServerCall("page.logs.initialData", () =>
-    Promise.all([
-      getLogSummaryStats(user.id),
-      getLogsWindow(user.id)
-    ])
+  const statsPromise = getLogSummaryStats(user.id);
+  const windowPromise = getLogsWindow(user.id);
+  const hydratedWindowPromise = windowPromise.then((window) =>
+    measureServerCall("page.logs.linkedDeckListNames", () =>
+      hydrateLogWindowDeckListNames(user.id, window)
+    )
   );
-  const hydratedWindow = await measureServerCall("page.logs.linkedDeckListNames", () =>
-    hydrateLogWindowDeckListNames(user.id, window)
+
+  const [stats, hydratedWindow] = await measureServerCall("page.logs.initialData", () =>
+    Promise.all([
+      statsPromise,
+      hydratedWindowPromise
+    ])
   );
 
   return (

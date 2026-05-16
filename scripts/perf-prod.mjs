@@ -23,6 +23,9 @@ for (const arg of process.argv.slice(2)) {
 }
 
 const baseUrl = String(args.get("--base-url") || process.env.PERF_BASE_URL || defaultBaseUrl).replace(/\/$/, "");
+const baseUrlParts = new URL(baseUrl);
+const baseHost = baseUrlParts.host;
+const baseHostname = baseUrlParts.hostname;
 const statePath = resolve(String(args.get("--state") || process.env.PERF_AUTH_STATE || defaultStatePath));
 const session = String(args.get("--session") || process.env.PERF_SESSION || defaultSession);
 const viewport = String(args.get("--viewport") || process.env.PERF_VIEWPORT || "1647x894");
@@ -31,11 +34,7 @@ const saveAuth = args.has("--save-auth");
 const authWaitMs = Number(args.get("--auth-wait-ms") || process.env.PERF_AUTH_WAIT_MS || 120000);
 const testLoginSecret = String(args.get("--test-login-secret") || process.env.PERF_TEST_LOGIN_SECRET || "");
 
-const routePath = String(
-  args.get("--log-path") ||
-    process.env.PERF_LOG_PATH ||
-    "/logs/b39a9631-208a-4899-b765-92e5f1e68740"
-);
+const configuredRoutePath = String(args.get("--log-path") || process.env.PERF_LOG_PATH || "");
 
 if (args.has("--help") || args.has("-h")) {
   console.log(`Usage:
@@ -57,23 +56,32 @@ Options:
   process.exit(0);
 }
 
-const journey = [
-  "/logs",
-  routePath,
-  "/logs",
-  "/decks",
-  "/tournaments",
-  "/stats",
-  "/calculator",
-  "/logs"
-];
+function buildJourney(routePath) {
+  return [
+    "/logs",
+    routePath,
+    "/logs",
+    "/decks",
+    "/tournaments",
+    "/stats",
+    "/calculator",
+    "/logs"
+  ];
+}
 
 function runAgentBrowser(commandArgs, options = {}) {
   const fullArgs = [
     "--session",
     session,
     "--allowed-domains",
-    "poke-notes-app.vercel.app,*.vercel.app,*.supabase.co,*.supabase.in",
+    Array.from(new Set([
+      baseHost,
+      baseHostname,
+      "poke-notes-app.vercel.app",
+      "*.vercel.app",
+      "*.supabase.co",
+      "*.supabase.in"
+    ])).join(","),
     ...commandArgs
   ];
 
@@ -157,6 +165,23 @@ function readPath() {
 function openPath(path) {
   runWithState(["open", `${baseUrl}${path}`]);
   waitForRouteSettled();
+}
+
+function discoverFirstLogPath() {
+  openPath("/logs");
+
+  const discoveredPath = runWithState([
+    "eval",
+    `Array.from(document.querySelectorAll('a[href^="/logs/"]'))
+      .map((anchor) => anchor.getAttribute('href'))
+      .find((href) => href && href !== '/logs') || ''`
+  ]).trim().replace(/^"|"$/g, "");
+
+  if (!discoveredPath) {
+    throw new Error("No battle log detail link found on /logs. Pass --log-path=/logs/<id>.");
+  }
+
+  return discoveredPath;
 }
 
 function clickPath(path) {
@@ -247,11 +272,15 @@ if (cold) {
 
 runWithState(["set", "viewport", String(parsedViewport.width), String(parsedViewport.height), String(parsedViewport.scale ?? 1)]);
 
+const routePath = configuredRoutePath || discoverFirstLogPath();
+const journey = buildJourney(routePath);
+
 console.log(`Production performance journey`);
 console.log(`base: ${baseUrl}`);
 console.log(`viewport: ${viewport}`);
 console.log(`session: ${session}`);
 console.log(`state: ${statePath}`);
+console.log(`log path: ${routePath}`);
 console.log("");
 
 const hardLoads = [];
