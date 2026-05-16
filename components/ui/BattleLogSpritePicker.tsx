@@ -146,7 +146,7 @@ function SpriteSearchSlot({
       return [];
     }
 
-    return findPokemonSearchMatchesInIndex(slotSearchIndex, query, 8);
+    return findPokemonSearchMatchesInIndex(slotSearchIndex, query, 50);
   }, [query, slotSearchIndex]);
   const isMobileInlinePanel = isEditingSearch && !isDesktopFloatingPanel;
 
@@ -281,7 +281,9 @@ function SpriteSearchSlot({
         <div className="overflow-hidden rounded-lg border border-border bg-muted">
           {filteredOptions.length > 0 ? (
             <div
-              className="touch-pan-y overflow-y-auto py-2"
+              className="touch-pan-y overflow-y-auto overscroll-contain py-2 [-webkit-overflow-scrolling:touch]"
+              onWheel={(event) => event.stopPropagation()}
+              onTouchMove={(event) => event.stopPropagation()}
               style={
                 isDesktopFloatingPanel
                   ? { maxHeight: "min(21rem,var(--radix-popover-content-available-height))" }

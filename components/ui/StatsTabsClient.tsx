@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { CoinsIcon, MoreHorizontalIcon, RotateCcwIcon, TrophyIcon } from "lucide-react";
+import { CoinsIcon, RotateCcwIcon, TrophyIcon } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Card } from "@/components/shadcn/card";
@@ -129,15 +129,6 @@ function OverviewSection({
         <h2 className="text-xs font-semibold uppercase leading-none tracking-wide text-muted-foreground">
           {title}
         </h2>
-        {title === "Results" ? (
-          <button
-            aria-label="More stats options"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-muted text-muted-foreground"
-            type="button"
-          >
-            <MoreHorizontalIcon className="h-4 w-4" />
-          </button>
-        ) : null}
       </div>
       {children}
     </section>
