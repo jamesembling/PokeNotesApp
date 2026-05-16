@@ -366,8 +366,8 @@ export function EditLogDialog({
                 </label>
               </section>
 
-              <ButtonGroup className="w-full border-t border-border pt-4 sm:ml-auto sm:w-auto sm:justify-end">
-                <Button onClick={closeDialog} type="button" variant="outline">
+              <ButtonGroup className="w-full flex-col gap-2 border-t border-border pt-4 max-sm:[&>*]:!rounded-lg max-sm:[&>*]:!border max-sm:[&>*]:!border-border sm:ml-auto sm:w-auto sm:flex-row sm:justify-end sm:gap-0">
+                <Button className="w-full sm:w-auto" onClick={closeDialog} type="button" variant="outline">
                   Close
                 </Button>
                 <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />

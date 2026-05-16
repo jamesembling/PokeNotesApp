@@ -243,6 +243,12 @@ a {
   color: var(--text-inverse);
 }
 
+[data-slot="dialog-overlay"] {
+  background-color: var(--bg-overlay);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
 @layer base {
   .theme {
     --font-heading: var(--font-body);
