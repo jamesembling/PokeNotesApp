@@ -30,7 +30,10 @@ function createCatalog(): IdentificationCatalog {
         ["zoroark", ["zorua"]],
         ["darmanitan", ["darumaka"]],
         ["hydreigon", ["zweilous", "deino"]],
-        ["zweilous", ["deino"]]
+        ["zweilous", ["deino"]],
+        ["froslass-mega", ["snorunt"]],
+        ["froslass", ["snorunt"]],
+        ["starmie-mega", ["staryu"]]
       ]),
       slugToFamilyRoot: new Map([
         ["charizard", "charmander"],
@@ -54,7 +57,12 @@ function createCatalog(): IdentificationCatalog {
         ["darumaka", "darumaka"],
         ["hydreigon", "deino"],
         ["zweilous", "deino"],
-        ["deino", "deino"]
+        ["deino", "deino"],
+        ["froslass-mega", "snorunt"],
+        ["froslass", "snorunt"],
+        ["snorunt", "snorunt"],
+        ["starmie-mega", "staryu"],
+        ["staryu", "staryu"]
       ]),
       maxNameTokens: 1
     },
@@ -125,6 +133,19 @@ function createCatalog(): IdentificationCatalog {
             detectionSprites: ["zoroark", "darmanitan", "zorua", "darumaka"],
             requiredMatchGroups: [["zorua", "zoroark"], ["darumaka", "darmanitan"]]
           }
+        ],
+        [
+          "froslass-mega+starmie-mega",
+          {
+            id: "froslass-mega+starmie-mega",
+            label: "Mega Starmie / Mega Froslass",
+            sprites: ["starmie-mega", "froslass-mega"],
+            detectionSprites: ["starmie-mega", "froslass-mega", "staryu", "snorunt", "froslass"],
+            requiredMatchGroups: [
+              ["staryu", "starmie-mega"],
+              ["snorunt", "froslass", "froslass-mega"]
+            ]
+          }
         ]
       ]),
       normalizedLabelToIds: new Map(),
@@ -143,7 +164,12 @@ function createCatalog(): IdentificationCatalog {
         ["combusken", ["blaziken+dragapult"]],
         ["zoroark", ["darmanitan+zoroark"]],
         ["zorua", ["darmanitan+zoroark"]],
-        ["darmanitan", ["darmanitan+zoroark"]]
+        ["darmanitan", ["darmanitan+zoroark"]],
+        ["staryu", ["froslass-mega+starmie-mega"]],
+        ["starmie-mega", ["froslass-mega+starmie-mega"]],
+        ["snorunt", ["froslass-mega+starmie-mega"]],
+        ["froslass", ["froslass-mega+starmie-mega"]],
+        ["froslass-mega", ["froslass-mega+starmie-mega"]]
       ]),
       familyRootToCandidateArchetypes: new Map([
         ["charmander", ["charizard-pidgeot"]],
@@ -152,7 +178,9 @@ function createCatalog(): IdentificationCatalog {
         ["duskull", ["dragapult+dusknoir"]],
         ["torchic", ["blaziken+dragapult"]],
         ["zorua", ["darmanitan+zoroark"]],
-        ["darumaka", ["darmanitan+zoroark"]]
+        ["darumaka", ["darmanitan+zoroark"]],
+        ["staryu", ["froslass-mega+starmie-mega"]],
+        ["snorunt", ["froslass-mega+starmie-mega"]]
       ])
     }
   };
@@ -275,5 +303,31 @@ test("identifyLikelyArchetype matches two-piece archetypes when both pieces are 
     label: "Zoroark / Darmanitan",
     sprites: ["zoroark", "darmanitan"],
     confidence: 81
+  });
+});
+
+test("identifyLikelyArchetype identifies Mega Starmie / Mega Froslass from Staryu and Froslass evidence", () => {
+  const catalog = createCatalog();
+
+  const result = identifyLikelyArchetype({
+    evidence: {
+      lines: [],
+      normalizedText: "",
+      mentionCounts: new Map([
+        ["froslass", 3],
+        ["froslass-mega", 2],
+        ["munkidori", 7],
+        ["snorunt", 5],
+        ["staryu", 2]
+      ])
+    },
+    catalog
+  });
+
+  assert.deepEqual(result, {
+    archetypeId: "froslass-mega+starmie-mega",
+    label: "Mega Starmie / Mega Froslass",
+    sprites: ["starmie-mega", "froslass-mega"],
+    confidence: 104
   });
 });

@@ -14,7 +14,7 @@ The design language is built around **consistency over creativity**. Every page 
 - **Consistent over clever** — no page-specific layouts. Every section uses the same building blocks.
 - **Legible in both modes** — every colour decision is made for light and dark simultaneously.
 - **Mobile is real** — the app is used on phones. Mobile layout is designed, not adapted.
-- **No decorative complexity** — no gradient blurs, no opacity circles, no glass morphism. Surfaces are flat and purposeful.
+- **No decorative complexity** — no gradient blurs, no opacity circles, no glass morphism on content surfaces. Modal overlays may use a restrained backdrop blur to separate focused dialog content from the inert app background.
 
 ---
 
@@ -150,6 +150,20 @@ p-4 sm:p-6
 - Cards do not nest inside other cards
 - Cards do not have coloured backgrounds (except win/loss log rows)
 - No backdrop blur, no opacity effects, no gradient fills on cards
+
+### Dialog
+
+Dialogs follow the shared shadcn/Radix dialog composition and are the only place backdrop blur is part of the core visual language.
+
+```
+overlay: bg-[--bg-overlay] + backdrop-blur-sm
+content: bg-popover, border/ring, rounded-xl
+```
+
+**Rules:**
+- The overlay blur is site-wide for dialogs; individual features should not invent custom modal backdrops
+- Keep blur restrained so the dialog remains the focus, not a glass effect
+- Do not apply backdrop blur to cards, page sections, navigation, or inline panels
 
 ### PageHeader
 Used at the top of every page. No exceptions.
@@ -301,7 +315,7 @@ These are explicitly banned patterns based on the current app's inconsistencies:
 - ❌ Per-page bespoke layouts — every page uses PageHeader + Cards
 - ❌ Inline Tailwind colour values — always use CSS variables
 - ❌ Different stat display patterns on different pages — always use StatCard
-- ❌ Glass morphism or backdrop-filter effects
+- ❌ Glass morphism or backdrop-filter effects outside dialog overlays
 - ❌ Different button styles invented per feature
 - ❌ Coloured sidebar backgrounds or gradient navigation
 - ❌ Tables for data that can be expressed as cards or rows
