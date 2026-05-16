@@ -72,12 +72,12 @@ function LogRowComponent({
 
   const cardClasses = [
     "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border px-3 py-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
-    managementMode && selected ? "ring-2 ring-ring/45 ring-offset-2 ring-offset-background" : "",
+    managementMode && selected ? "ring-2 ring-inset ring-ring/45" : "",
     rowClasses
   ].join(" ");
   const managementRowClasses = [
     "group/row grid overflow-hidden rounded-[10px] border text-left transition duration-200 hover:brightness-[0.98] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
-    selected ? "ring-2 ring-ring/45 ring-offset-2 ring-offset-background" : "",
+    selected ? "ring-2 ring-inset ring-ring/45" : "",
     rowClasses
   ].join(" ");
   const managementLinkClasses =

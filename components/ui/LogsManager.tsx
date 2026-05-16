@@ -478,7 +478,7 @@ export function LogsManager({
   }
 
   return (
-    <div className={`flex flex-col gap-6 ${managementModeActive ? "pb-36 md:pb-20" : ""}`}>
+    <div className={`flex flex-col ${managementModeActive ? "pb-36 md:pb-20" : ""}`}>
       <DeleteConfirmDialog
         confirmLabel={`Delete${deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}`}
         description={
@@ -503,32 +503,32 @@ export function LogsManager({
         </Alert>
       ) : null}
 
-      <section className="flex flex-col gap-3 py-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-2">
+      <section className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="ui-eyebrow">Workspace Tools</p>
+            <h2 className="ui-eyebrow">Battle Logs</h2>
             {!canLoadMore ? <Badge>Current window complete</Badge> : null}
           </div>
-          <h2 className="ui-section-title">Manage Battle Logs</h2>
         </div>
 
         <Button
-          className="justify-center self-start sm:min-w-[10rem]"
+          className="justify-center self-start sm:min-w-[5.5rem]"
           onClick={toggleManagementMode}
           variant={managementModeActive ? "default" : "outline"}
         >
-          {managementModeActive ? "Done" : "Edit Logs"}
+          {managementModeActive ? "Done" : "Edit logs"}
         </Button>
       </section>
 
-      <ClientPerfPanel
-        expandedGroupCount={openGroupDates.length}
-        totalGroupCount={groups.length}
-        visibleLogCount={visibleLogs.length}
-      />
+      <div className="flex flex-col gap-6 p-4 sm:p-5">
+        <ClientPerfPanel
+          expandedGroupCount={openGroupDates.length}
+          totalGroupCount={groups.length}
+          visibleLogCount={visibleLogs.length}
+        />
 
-      {groups.length > 0 ? (
-        <div>
+        {groups.length > 0 ? (
+          <div>
           {groups.map((group, index) => (
             <details
               className="group border-b border-border"
@@ -565,14 +565,6 @@ export function LogsManager({
                         </div>
                       </div>
                     </div>
-                    <div className="hidden w-[13rem] grid-cols-2 gap-2 self-center sm:grid">
-                      <Badge className="w-full justify-center self-center" variant="win">
-                        {group.wins} wins
-                      </Badge>
-                      <Badge className="w-full justify-center self-center" variant="loss">
-                        {group.losses} losses
-                      </Badge>
-                    </div>
                   </div>
                   <div className="hidden items-center self-center lg:flex lg:gap-2.5">
                     <div className="text-right">
@@ -589,7 +581,7 @@ export function LogsManager({
               </summary>
 
               {openGroupDates.includes(group.date) ? (
-                <div className="flex flex-col gap-3 border-t border-border pb-2 pt-4">
+                <div className="flex flex-col gap-3 pb-2 pt-1">
                   {group.logs.map((log) => (
                     <div className="flex flex-col gap-3" key={log.id}>
                       <LogRow
@@ -617,29 +609,30 @@ export function LogsManager({
               ) : null}
             </details>
           ))}
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">
-          {canLoadMore
-            ? "No logs appear in the currently loaded 7-day window yet. Load more logs to keep going further back."
-            : "No battle logs yet. Import your first PTCGL log to start tracking results."}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">
+            {canLoadMore
+              ? "No logs appear in the currently loaded 7-day window yet. Load more logs to keep going further back."
+              : "No battle logs yet. Import your first PTCGL log to start tracking results."}
+          </div>
+        )}
 
-      {canLoadMore ? (
-        <div
-          className={`flex flex-wrap items-center gap-3 pt-4 ${
-            loadMoreError ? "justify-between" : "justify-end"
-          }`}
-        >
-          {loadMoreError ? (
-            <p className="text-sm font-medium text-[var(--color-loss-strong)]">{loadMoreError}</p>
-          ) : null}
-          <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="outline">
-            {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}
-          </Button>
-        </div>
-      ) : null}
+        {canLoadMore ? (
+          <div
+            className={`flex flex-wrap items-center gap-3 pt-4 ${
+              loadMoreError ? "justify-between" : "justify-end"
+            }`}
+          >
+            {loadMoreError ? (
+              <p className="text-sm font-medium text-[var(--color-loss-strong)]">{loadMoreError}</p>
+            ) : null}
+            <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="outline">
+              {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}
+            </Button>
+          </div>
+        ) : null}
+      </div>
 
       {managementModeActive ? (
         <div className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-6">

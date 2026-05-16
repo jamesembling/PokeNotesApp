@@ -18,6 +18,7 @@ type PageHeaderProps = {
   breadcrumb: PageBreadcrumbItem[];
   title: string;
   subtitle?: string;
+  meta?: ReactNode;
   action?: ReactNode;
   showDivider?: boolean;
 };
@@ -26,11 +27,12 @@ export function PageHeader({
   breadcrumb,
   title,
   subtitle,
+  meta,
   action,
   showDivider = true
 }: PageHeaderProps) {
   const hasTitle = title.trim().length > 0;
-  const hasMetaRow = hasTitle || Boolean(subtitle) || Boolean(action);
+  const hasMetaRow = hasTitle || Boolean(subtitle) || Boolean(meta) || Boolean(action);
 
   return (
     <header className="flex flex-col gap-4">
@@ -70,6 +72,7 @@ export function PageHeader({
             {subtitle ? (
               <p className="max-w-[65ch] text-base leading-7 text-muted-foreground">{subtitle}</p>
             ) : null}
+            {meta ? <div>{meta}</div> : null}
           </div>
 
           {action ? <div className="sm:shrink-0">{action}</div> : null}

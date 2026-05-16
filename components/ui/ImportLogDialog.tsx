@@ -654,8 +654,8 @@ export function ImportLogDialog({
                         options={formatOptions}
                         value={selectedFormat}
                       />
-                      <span className="min-h-[20px] text-xs text-muted-foreground">
-                        Defaulting to Latest Legal Format
+                      <span aria-hidden="true" className="min-h-[20px] text-xs opacity-0">
+                        Placeholder
                       </span>
                     </label>
 

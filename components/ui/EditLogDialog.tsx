@@ -322,8 +322,8 @@ export function EditLogDialog({
                     options={formatOptions}
                     value={selectedFormat}
                   />
-                  <span className="min-h-[20px] text-xs text-muted-foreground">
-                    Update the saved format shown in your battle log history
+                  <span aria-hidden="true" className="min-h-[20px] text-xs opacity-0">
+                    Placeholder
                   </span>
                 </label>
 

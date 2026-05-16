@@ -2,14 +2,7 @@
 
 import { Card } from "@/components/shadcn/card";
 import { LogsManager } from "@/components/ui/LogsManager";
-import { StatCard } from "@/components/ui/StatCard";
 import type { BattleLogSummary } from "@/types/index";
-
-type LogSummaryStats = {
-  losses: number;
-  total: number;
-  wins: number;
-};
 
 type LogsWindowPayload = {
   hasMore: boolean;
@@ -20,30 +13,19 @@ type LogsWindowPayload = {
 };
 
 type LogsPagePayload = {
-  stats: LogSummaryStats;
   window: LogsWindowPayload;
 };
 
-export function LogsWorkspaceClient({ stats, window }: LogsPagePayload) {
+export function LogsWorkspaceClient({ window }: LogsPagePayload) {
   return (
-    <>
-      <Card>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <StatCard label="Total Logs" value={stats.total} />
-          <StatCard label="Wins" value={stats.wins} valueColor="win" />
-          <StatCard label="Losses" value={stats.losses} valueColor="loss" />
-        </div>
-      </Card>
-
-      <Card>
-        <LogsManager
-          initialCanLoadMore={window.hasMore}
-          initialLogs={window.logs}
-          initialNextWindowEndDate={window.nextWindowEndDate}
-          initialWindowEndDate={window.windowEndDate}
-          initialWindowStartDate={window.windowStartDate}
-        />
-      </Card>
-    </>
+    <Card className="gap-0 p-0">
+      <LogsManager
+        initialCanLoadMore={window.hasMore}
+        initialLogs={window.logs}
+        initialNextWindowEndDate={window.nextWindowEndDate}
+        initialWindowEndDate={window.windowEndDate}
+        initialWindowStartDate={window.windowStartDate}
+      />
+    </Card>
   );
 }
