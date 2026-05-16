@@ -10,6 +10,7 @@ import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import type { ArchetypeMatchupStats, LogStatsOverview } from "@/lib/db/logs";
 
 type StatsTabsClientProps = {
+  matchups?: ArchetypeMatchupStats[];
   overview: LogStatsOverview;
 };
 
@@ -17,6 +18,8 @@ type MatchupsResponse = {
   error?: string;
   matchups?: ArchetypeMatchupStats[];
 };
+
+const MIN_MATCHUP_GAMES = 3;
 
 function formatMetric(value: number) {
   return value.toLocaleString();
@@ -28,6 +31,42 @@ function formatRecord(wins: number, losses: number) {
 
 function formatWinRate(value: number | null) {
   return value === null ? "-" : `${value}%`;
+}
+
+function getWinRateBarWidth(value: number | null) {
+  if (value === null) {
+    return "0%";
+  }
+
+  return `${Math.min(Math.max(value, 0), 100)}%`;
+}
+
+function getWinRateTone(value: number | null) {
+  if (value === null) {
+    return {
+      barClassName: "bg-muted-foreground",
+      textClassName: "text-muted-foreground"
+    };
+  }
+
+  if (value >= 75) {
+    return {
+      barClassName: "bg-[var(--color-win)]",
+      textClassName: "text-[var(--color-win-strong)]"
+    };
+  }
+
+  if (value >= 50) {
+    return {
+      barClassName: "bg-[var(--color-warning)]",
+      textClassName: "text-[var(--color-warning-strong)]"
+    };
+  }
+
+  return {
+    barClassName: "bg-[var(--color-loss)]",
+    textClassName: "text-[var(--color-loss-strong)]"
+  };
 }
 
 function StatsOverviewGrid({ overview }: { overview: LogStatsOverview }) {
@@ -92,69 +131,149 @@ function ArchetypeMatchupsFallback() {
   );
 }
 
+function MatchupIdentity({
+  matchup,
+  spriteSize = "xs"
+}: {
+  matchup: ArchetypeMatchupStats;
+  spriteSize?: "xs" | "sm";
+}) {
+  const displayName = getBattleLogOpponentDisplayName(
+    matchup.opponentDeckName,
+    matchup.opponentDeckSprites
+  );
+
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <SpriteStrip
+        className="shrink-0"
+        maxVisible={2}
+        size={spriteSize}
+        sprites={matchup.opponentDeckSprites}
+      />
+      <span className="min-w-0 truncate font-medium text-card-foreground">
+        {displayName || matchup.matchupKey}
+      </span>
+    </div>
+  );
+}
+
+function compareMatchupsByWinRate(
+  left: ArchetypeMatchupStats,
+  right: ArchetypeMatchupStats
+) {
+  const leftWinRate = left.winRate ?? -1;
+  const rightWinRate = right.winRate ?? -1;
+
+  if (leftWinRate !== rightWinRate) {
+    return rightWinRate - leftWinRate;
+  }
+
+  if (left.gamesPlayed !== right.gamesPlayed) {
+    return right.gamesPlayed - left.gamesPlayed;
+  }
+
+  return left.matchupKey.localeCompare(right.matchupKey);
+}
+
 function ArchetypeMatchupsTable({ matchups }: { matchups: ArchetypeMatchupStats[] }) {
-  if (matchups.length === 0) {
+  const visibleMatchups = matchups
+    .filter((matchup) => matchup.gamesPlayed >= MIN_MATCHUP_GAMES)
+    .toSorted(compareMatchupsByWinRate);
+
+  if (visibleMatchups.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-        No matchup stats yet. Import battle logs with identified opponent archetypes to build this table.
+        No matchup stats with at least {MIN_MATCHUP_GAMES} games yet. Import more battle logs with
+        identified opponent archetypes to build this table.
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[520px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <th className="py-2 pr-3">Archetype</th>
-            <th className="px-3 py-2 text-right">Record</th>
-            <th className="px-3 py-2 text-right">Win Rate</th>
-            <th className="py-2 pl-3 text-right">Games</th>
-          </tr>
-        </thead>
-        <tbody>
-          {matchups.map((matchup) => {
-            const displayName = getBattleLogOpponentDisplayName(
-              matchup.opponentDeckName,
-              matchup.opponentDeckSprites
-            );
+    <>
+      <div className="grid gap-2 sm:hidden">
+        {visibleMatchups.map((matchup) => {
+          const tone = getWinRateTone(matchup.winRate);
 
-            return (
-              <tr className="border-b border-border last:border-b-0" key={matchup.matchupKey}>
-                <td className="py-2.5 pr-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <SpriteStrip
-                      className="shrink-0"
-                      maxVisible={2}
-                      size="xs"
-                      sprites={matchup.opponentDeckSprites}
-                    />
-                    <span className="truncate font-medium text-card-foreground">
-                      {displayName || matchup.matchupKey}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono text-card-foreground">
-                  {formatRecord(matchup.gamesWon, matchup.gamesLost)}
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono font-semibold text-card-foreground">
+          return (
+            <div className="border-b border-border py-3 last:border-b-0" key={matchup.matchupKey}>
+              <div className="flex items-start justify-between gap-3">
+                <MatchupIdentity matchup={matchup} />
+                <span className={`shrink-0 font-mono text-sm font-semibold ${tone.textClassName}`}>
                   {formatWinRate(matchup.winRate)}
-                </td>
-                <td className="py-2.5 pl-3 text-right font-mono text-muted-foreground">
-                  {formatMetric(matchup.gamesPlayed)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                </span>
+              </div>
+
+              <div className="mt-3 h-1 rounded-full bg-border">
+                <div
+                  className={`h-full rounded-full ${tone.barClassName}`}
+                  style={{ width: getWinRateBarWidth(matchup.winRate) }}
+                />
+              </div>
+
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
+                <span>
+                  <span className="font-mono text-card-foreground">
+                    {formatRecord(matchup.gamesWon, matchup.gamesLost)}
+                  </span>{" "}
+                  record
+                </span>
+                <span>
+                  <span className="font-mono text-card-foreground">
+                    {formatMetric(matchup.gamesPlayed)}
+                  </span>{" "}
+                  games
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden sm:block">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <th className="py-2 pr-3">Archetype</th>
+              <th className="px-3 py-2 text-right">Games</th>
+              <th className="px-3 py-2 text-right">Record</th>
+              <th className="py-2 pl-3 text-right">Win Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleMatchups.map((matchup) => {
+              const tone = getWinRateTone(matchup.winRate);
+
+              return (
+                <tr className="border-b border-border last:border-b-0" key={matchup.matchupKey}>
+                  <td className="py-2.5 pr-3">
+                    <MatchupIdentity matchup={matchup} spriteSize="sm" />
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">
+                    {formatMetric(matchup.gamesPlayed)}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono text-card-foreground">
+                    {formatRecord(matchup.gamesWon, matchup.gamesLost)}
+                  </td>
+                  <td className={`py-2.5 pl-3 text-right font-mono font-semibold ${tone.textClassName}`}>
+                    {formatWinRate(matchup.winRate)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
-export function StatsTabsClient({ overview }: StatsTabsClientProps) {
+export function StatsTabsClient({ matchups: initialMatchups, overview }: StatsTabsClientProps) {
   const [activeTab, setActiveTab] = useState("overview");
-  const [matchups, setMatchups] = useState<ArchetypeMatchupStats[] | null>(null);
+  const [matchups, setMatchups] = useState<ArchetypeMatchupStats[] | null>(
+    initialMatchups ?? null
+  );
   const [isLoadingMatchups, setIsLoadingMatchups] = useState(false);
   const [matchupsError, setMatchupsError] = useState("");
   const shouldLoadMatchups = activeTab === "matchups" && !matchups && !isLoadingMatchups;
@@ -218,7 +337,7 @@ export function StatsTabsClient({ overview }: StatsTabsClientProps) {
   }, [isLoadingMatchups, matchups, matchupsError]);
 
   return (
-    <Tabs className="mt-5" defaultValue="overview" onValueChange={setActiveTab} value={activeTab}>
+    <Tabs className="-mt-2 sm:mt-5" defaultValue="overview" onValueChange={setActiveTab} value={activeTab}>
       <TabsList aria-label="Stats sections">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="matchups">Matchups</TabsTrigger>

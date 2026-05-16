@@ -532,7 +532,7 @@ function buildUpsertRows(entries, existingExcludedIds) {
       label: entry.label,
       sprites: enrichment?.sprites ?? entry.sprites,
       detection_sprites: enrichment?.detectionSprites ?? entry.detectionSprites,
-      required_match_groups: entry.requiredMatchGroups,
+      required_match_groups: enrichment?.requiredMatchGroups ?? entry.requiredMatchGroups,
       is_excluded: entry.is_excluded || existingExcludedIds.has(entry.id),
       last_synced_at: lastSyncedAt,
     };

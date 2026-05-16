@@ -94,7 +94,8 @@ test("/stats renders archetype matchup stats from the read model", () => {
   const apiRoute = source("app/api/stats-matchups/route.ts");
   const logsDb = source("lib/db/logs.ts");
 
-  assert.doesNotMatch(page, /getArchetypeMatchupStats/);
+  assert.match(page, /getArchetypeMatchupStats/);
+  assert.match(page, /<StatsTabsClient matchups=\{matchups\} overview=\{overview\}/);
   assert.match(apiRoute, /getArchetypeMatchupStats/);
   assert.match(source("components/ui/StatsTabsClient.tsx"), /\/api\/stats-matchups/);
   assert.match(logsDb, /from\("user_archetype_matchup_stats"\)/);

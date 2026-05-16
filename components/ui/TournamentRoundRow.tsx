@@ -4,6 +4,7 @@ import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentR
 import { Button } from "@/components/shadcn/button";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import {
   getRoundResultGameTokens,
   getRoundResultVariant,
@@ -32,6 +33,10 @@ function getRoundResultTextColor(result: TournamentRoundGameResult) {
 export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentRoundRowProps) {
   const gameResults = getRoundResultGameTokens(round.result);
   const specialResult = getRoundSpecialResult(round.result);
+  const opponentDeckName = getBattleLogOpponentDisplayName(
+    round.opponentDeckName,
+    round.opponentDeckSprites
+  );
   const rowVariant = getRoundResultVariant(round.result);
   const rowTone =
     rowVariant === "win"
@@ -49,8 +54,11 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
         </p>
       </div>
 
-      <div className="justify-self-start max-md:col-start-1 max-md:row-start-1 md:col-start-2">
+      <div className="flex min-w-0 items-center gap-3 justify-self-start max-md:col-start-1 max-md:row-start-1 md:col-start-2">
         <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={round.opponentDeckSprites} />
+        <span className="hidden min-w-0 truncate text-[0.95rem] font-semibold text-card-foreground md:inline">
+          VS {opponentDeckName}
+        </span>
       </div>
 
       <div className="justify-self-end max-md:col-start-2 max-md:row-start-1 md:col-start-3">

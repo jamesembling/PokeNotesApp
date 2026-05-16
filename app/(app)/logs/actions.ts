@@ -222,10 +222,8 @@ async function buildParsedLogReview(
         })
       )
     : selfSprites;
-  const selfLearnedCandidateSlug = buildDeckArchetypeId(selfLearnedCandidateSprites.slugs);
   const shouldCheckLearnedSelfArchetype =
-    selfLearnedCandidateSprites.slugs.length > 0 &&
-    (!selfArchetype || selfArchetype.archetypeId !== selfLearnedCandidateSlug);
+    selfLearnedCandidateSprites.slugs.length > 0 && !selfArchetype;
   let learnedSelfArchetype: LearnedSelfArchetype | null = null;
   if (shouldCheckLearnedSelfArchetype) {
     const [learningUser, learningSupabase] =
