@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { XIcon } from "lucide-react";
 import {
   createTournamentAction,
   deleteTournamentAction,
@@ -15,7 +14,6 @@ import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle
@@ -352,9 +350,10 @@ export function TournamentEditorDialog({
 
       <DialogContent
         className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-2rem)] max-w-[22.5rem] min-w-0 flex-col overflow-hidden rounded-[10px] border border-border bg-card p-6 shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-3xl sm:rounded-[28px] sm:p-4 lg:p-5"
+        showMobileCloseButton
         showCloseButton={false}
       >
-            <div className="relative mb-5 flex shrink-0 min-w-0 flex-col gap-4 border-b border-border pb-6 pr-14 sm:mb-2 sm:pb-4 sm:pr-0 lg:flex-row lg:items-start lg:justify-between">
+            <div className="relative mb-5 flex shrink-0 min-w-0 flex-col gap-4 border-b border-border pb-6 pr-14 sm:mb-2 sm:pb-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <DialogTitle className="text-[1.25rem] font-bold tracking-[-0.02em] text-card-foreground sm:text-[1.9rem] sm:tracking-[-0.05em]">
                   {isEditing ? "Edit Tournament" : "New Tournament"}
@@ -365,9 +364,6 @@ export function TournamentEditorDialog({
               </div>
 
               <ButtonGroup className="hidden max-w-full flex-wrap sm:flex sm:justify-end">
-                <Button className="whitespace-nowrap" onClick={closeDialog} type="button" variant="outline">
-                  Close
-                </Button>
                 {isEditing ? (
                   <Button
                     className="whitespace-nowrap text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -388,18 +384,6 @@ export function TournamentEditorDialog({
                   saveState={saveState}
                 />
               </ButtonGroup>
-
-              <DialogClose asChild>
-                <Button
-                  aria-label="Close dialog"
-                  className="absolute right-0 top-0 z-20 border-border bg-card text-card-foreground hover:bg-muted sm:hidden"
-                  size="icon-lg"
-                  variant="outline"
-                >
-                  <XIcon />
-                  <span className="sr-only">Close</span>
-                </Button>
-              </DialogClose>
             </div>
 
             <div
@@ -662,9 +646,6 @@ export function TournamentEditorDialog({
                         : isEditing
                           ? "Save Changes"
                           : "Create Tournament"}
-                  </Button>
-                  <Button className="w-full" onClick={closeDialog} type="button" variant="outline">
-                    Close
                   </Button>
                 </div>
               </div>

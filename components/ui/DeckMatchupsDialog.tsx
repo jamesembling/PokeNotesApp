@@ -45,7 +45,7 @@ export function DeckMatchupsDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-            <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5 lg:px-8">
+            <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5 pr-14 lg:px-8 lg:pr-14">
               <div className="min-w-0 space-y-2">
                 <p className="ui-eyebrow">Matchup Notes</p>
                 <DialogTitle className="text-[1.45rem] font-bold tracking-[-0.04em] text-card-foreground sm:text-[1.8rem]">
@@ -55,10 +55,6 @@ export function DeckMatchupsDialog({
                   {matchups.length} saved matchup{matchups.length === 1 ? "" : "s"} for this deck.
                 </DialogDescription>
               </div>
-
-              <Button onClick={() => setIsOpen(false)} variant="outline">
-                Close
-              </Button>
             </div>
 
             <div className="min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-5 pr-8 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] lg:px-8 lg:pr-10">

@@ -86,7 +86,7 @@ function DialogContent({
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button
               aria-label="Close dialog"
-              className="absolute right-3 top-3 z-10 sm:hidden"
+              className="absolute right-3 top-3 z-10"
               size="icon-lg"
               variant="ghost"
             >

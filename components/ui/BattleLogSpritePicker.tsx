@@ -416,14 +416,15 @@ export function BattleLogSpritePicker({
   const pokemonSearchIndex = useMemo(() => buildPokemonSearchIndex(pokemonOptions), [pokemonOptions]);
 
   return (
-    <section className="grid min-w-0 gap-3">
-      <div className="flex min-w-0 items-start justify-between gap-3 md:gap-4">
+    <section className="grid min-w-0 gap-2 md:gap-3">
+      <div className="flex min-w-0 items-center justify-between gap-3 md:gap-4">
         <div className="grid min-w-0 gap-1">
           <p className="text-[0.95rem] font-semibold text-muted-foreground md:text-sm">{title}</p>
         </div>
         <Button
           className="inline-flex items-center gap-1 text-[0.9rem] font-medium text-foreground transition hover:text-card-foreground md:gap-2 md:text-sm"
           onClick={() => onChange(swapSpritePositions(sprites))}
+          size="sm"
           type="button"
           variant="ghost"
         >

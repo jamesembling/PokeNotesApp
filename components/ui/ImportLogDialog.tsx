@@ -392,11 +392,8 @@ export function ImportLogDialog({
               Paste a PTCGL battle log URL or raw log text to review before saving.
             </DialogDescription>
           </div>
-          <ButtonGroup className="w-full sm:w-auto sm:justify-end">
-            <Button className="min-w-0 flex-1 sm:flex-none" onClick={closeDialog} type="button" variant="outline">
-              Close
-            </Button>
-            {trimmedRawLog ? (
+          {trimmedRawLog ? (
+            <ButtonGroup className="w-full sm:w-auto sm:justify-end">
               <Button
                 className="min-w-0 flex-1 whitespace-normal text-center leading-5 sm:flex-none sm:whitespace-nowrap"
                 disabled={!canReviewRawLog}
@@ -409,8 +406,8 @@ export function ImportLogDialog({
                     ? "Import Training Court URL"
                     : "Review PTCGL Log"}
               </Button>
-            ) : null}
-          </ButtonGroup>
+            </ButtonGroup>
+          ) : null}
         </div>
       );
     }
@@ -426,9 +423,6 @@ export function ImportLogDialog({
           </DialogDescription>
         </div>
         <ButtonGroup className="hidden md:flex">
-          <Button onClick={closeDialog} type="button" variant="outline">
-            Close
-          </Button>
           <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
         </ButtonGroup>
       </div>
@@ -455,7 +449,7 @@ export function ImportLogDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-                <div className="shrink-0 border-b border-border px-4 py-4 sm:px-6 lg:px-8">
+                <div className="shrink-0 border-b border-border px-4 py-4 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:pr-14">
                   {renderHeader()}
                 </div>
 
@@ -721,9 +715,6 @@ export function ImportLogDialog({
 
                   <ButtonGroup className="min-w-0 md:hidden" orientation="vertical">
                     <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
-                    <Button className="w-full" onClick={closeDialog} type="button" variant="outline">
-                      Close
-                    </Button>
                   </ButtonGroup>
                 </form>
               ) : (
