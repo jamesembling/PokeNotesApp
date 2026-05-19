@@ -27,6 +27,18 @@ Before opening a pull request, run the relevant checks:
 
 If your change touches production behavior, also run `npm run build` when practical.
 
+## Git Hooks
+
+This repo uses tracked hooks under `.githooks/`. Install them for a checkout with:
+
+- `npm run hooks:install`
+
+The hooks run targeted regression checks for protected deck-list ordering paths,
+read-model routes, and SQL/data changes. On push, changed `sql/*.sql` files are
+deployed to the linked Supabase project before the push continues. Successful
+deployments are tracked in `codex_private.sql_deployments` by file path and
+SHA-256 hash, so unchanged SQL is not re-applied.
+
 ## Pull Requests
 
 - Link the issue or context for the change when possible.
