@@ -1,16 +1,13 @@
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatsTabsClient } from "@/components/ui/StatsTabsClient";
 import { requireUser } from "@/lib/auth";
-import { getArchetypeMatchupStats, getLogStatsOverview } from "@/lib/db/logs";
+import { getLogStatsOverview } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
 
 export default async function StatsPage() {
   const user = await requireUser();
-  const [overview, matchups] = await measureServerCall("page.stats.data", async () =>
-    await Promise.all([
-      getLogStatsOverview(user.id),
-      getArchetypeMatchupStats(user.id)
-    ])
+  const overview = await measureServerCall("page.stats.overview", async () =>
+    await getLogStatsOverview(user.id)
   );
 
   return (
@@ -20,7 +17,7 @@ export default async function StatsPage() {
         title="Stats"
       />
 
-      <StatsTabsClient matchups={matchups} overview={overview} />
+      <StatsTabsClient overview={overview} />
     </>
   );
 }

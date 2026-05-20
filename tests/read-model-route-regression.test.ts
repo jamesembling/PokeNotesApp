@@ -89,13 +89,14 @@ test("authenticated app routes cache verified Supabase claims briefly across hot
   assert.match(auth, /writeCachedAuthClaims/);
 });
 
-test("/stats renders archetype matchup stats from the read model", () => {
+test("/stats renders overview first and defers archetype matchups to the read-model API", () => {
   const page = source("app/(app)/stats/page.tsx");
   const apiRoute = source("app/api/stats-matchups/route.ts");
   const logsDb = source("lib/db/logs.ts");
 
-  assert.match(page, /getArchetypeMatchupStats/);
-  assert.match(page, /<StatsTabsClient matchups=\{matchups\} overview=\{overview\}/);
+  assert.match(page, /getLogStatsOverview/);
+  assert.doesNotMatch(page, /getArchetypeMatchupStats/);
+  assert.match(page, /<StatsTabsClient overview=\{overview\}/);
   assert.match(apiRoute, /getArchetypeMatchupStats/);
   assert.match(source("components/ui/StatsTabsClient.tsx"), /\/api\/stats-matchups/);
   assert.match(logsDb, /from\("user_archetype_matchup_stats"\)/);

@@ -24,6 +24,7 @@ type LogRowProps = {
   log: BattleLogSummary;
   managementMode?: boolean;
   onDelete?: () => void;
+  onWarmDetailAssets?: () => void;
   onToggleSelected?: () => void;
   pokemonOptions?: PokemonOption[] | null;
   selected?: boolean;
@@ -51,6 +52,7 @@ function LogRowComponent({
   log,
   managementMode = false,
   onDelete,
+  onWarmDetailAssets,
   onToggleSelected,
   pokemonOptions,
   selected = false
@@ -145,7 +147,14 @@ function LogRowComponent({
 
   if (!managementMode) {
     return (
-      <Link className={cardClasses} href={`/logs/${log.id}`} style={cardStyle}>
+      <Link
+        className={cardClasses}
+        href={`/logs/${log.id}`}
+        onFocus={onWarmDetailAssets}
+        onPointerEnter={onWarmDetailAssets}
+        prefetch={false}
+        style={cardStyle}
+      >
         {content}
       </Link>
     );
@@ -156,7 +165,13 @@ function LogRowComponent({
       className={managementRowClasses}
       style={cardStyle}
     >
-      <Link className={managementLinkClasses} href={`/logs/${log.id}`}>
+      <Link
+        className={managementLinkClasses}
+        href={`/logs/${log.id}`}
+        onFocus={onWarmDetailAssets}
+        onPointerEnter={onWarmDetailAssets}
+        prefetch={false}
+      >
         {content}
       </Link>
 

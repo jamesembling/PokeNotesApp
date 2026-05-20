@@ -356,10 +356,6 @@ export function LogsManager({
     });
   }, [groups]);
 
-  useEffect(() => {
-    warmBattleLogDetailAssets();
-  }, []);
-
   function toggleSelectedLog(logId: string) {
     setSelectedLogIds((current) =>
       current.includes(logId) ? current.filter((id) => id !== logId) : [...current, logId]
@@ -603,6 +599,7 @@ export function LogsManager({
                         log={log}
                         managementMode={managementModeActive}
                         onDelete={() => handleDeleteSingle(log.id)}
+                        onWarmDetailAssets={warmBattleLogDetailAssets}
                         onToggleSelected={() => toggleSelectedLog(log.id)}
                         selected={selectedLogIdSet.has(log.id)}
                       />
