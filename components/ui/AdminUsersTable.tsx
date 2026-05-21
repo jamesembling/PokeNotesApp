@@ -66,7 +66,7 @@ export function AdminUsersTable({
                 </td>
                 <td className="border-b border-border px-3 py-4">
                   <div className="space-y-1 text-sm text-foreground">
-                    <p>Last active: {formatDateTime(user.lastActiveAt)}</p>
+                    <p>Last activity: {formatDateTime(user.lastActivityAt)}</p>
                     <p>Last login: {formatDateTime(user.lastLoginAt)}</p>
                   </div>
                 </td>

@@ -697,6 +697,7 @@ returns table (
   auth_account_created_at timestamptz,
   last_login_at timestamptz,
   last_active_at timestamptz,
+  last_activity_at timestamptz,
   login_count integer,
   created_at timestamptz,
   deck_count integer,
@@ -727,13 +728,64 @@ as $$
           end
         ),
         0
-      )::integer as deck_list_count
+      )::integer as deck_list_count,
+      max(updated_at) as latest_deck_activity_at
     from public.decks
     group by user_id
   ),
   tournament_counts as (
-    select user_id, count(*)::integer as tournament_count
+    select
+      user_id,
+      count(*)::integer as tournament_count,
+      max(updated_at) as latest_tournament_activity_at
     from public.tournaments
+    group by user_id
+  ),
+  log_activity as (
+    select
+      user_id,
+      max(imported_at) as latest_log_activity_at
+    from public.logs
+    group by user_id
+  ),
+  activity_events as (
+    select id as user_id, last_active_at as activity_at
+    from public.profiles
+    where last_active_at is not null
+
+    union all
+
+    select id as user_id, last_login_at as activity_at
+    from public.profiles
+    where last_login_at is not null
+
+    union all
+
+    select id as user_id, auth_account_created_at as activity_at
+    from public.profiles
+    where auth_account_created_at is not null
+
+    union all
+
+    select user_id, latest_deck_activity_at as activity_at
+    from deck_counts
+    where latest_deck_activity_at is not null
+
+    union all
+
+    select user_id, latest_tournament_activity_at as activity_at
+    from tournament_counts
+    where latest_tournament_activity_at is not null
+
+    union all
+
+    select user_id, latest_log_activity_at as activity_at
+    from log_activity
+    where latest_log_activity_at is not null
+  ),
+  user_activity as (
+    select user_id, max(activity_at) as last_activity_at
+    from activity_events
     group by user_id
   )
   select
@@ -745,6 +797,7 @@ as $$
     p.auth_account_created_at,
     p.last_login_at,
     p.last_active_at,
+    coalesce(ua.last_activity_at, p.created_at) as last_activity_at,
     p.login_count,
     p.created_at,
     coalesce(dc.deck_count, 0) as deck_count,
@@ -755,10 +808,11 @@ as $$
   left join deck_counts dc on dc.user_id = p.id
   left join tournament_counts tc on tc.user_id = p.id
   left join public.user_log_stats uls on uls.user_id = p.id
+  left join user_activity ua on ua.user_id = p.id
   where exists (select 1 from current_profile where role = 'admin')
   order by
     case when p.role = 'admin' then 0 else 1 end,
-    coalesce(p.last_active_at, p.last_login_at, p.auth_account_created_at, p.created_at) desc;
+    coalesce(ua.last_activity_at, p.last_active_at, p.last_login_at, p.auth_account_created_at, p.created_at) desc;
 $$;
 
 create or replace function public.get_deck_index()

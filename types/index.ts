@@ -491,6 +491,7 @@ export type AdminUser = {
   accountCreatedAt: string
   lastLoginAt: string | undefined
   lastActiveAt: string | undefined
+  lastActivityAt: string | undefined
   loginCount: number
   deckCount: number
   deckListCount: number

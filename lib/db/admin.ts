@@ -21,16 +21,19 @@ type ProfileRow = {
 
 type UserCountRow = {
   user_id: string;
+  updated_at?: string | null;
 };
 
 type DeckCountRow = {
   user_id: string;
   deck_lists: unknown;
+  updated_at: string | null;
 };
 
 type UserLogStatsCountRow = {
   user_id: string;
   games_played: number | null;
+  updated_at: string | null;
 };
 
 type AdminUsersResult = {
@@ -57,6 +60,7 @@ type AdminDashboardOverviewRpcRow = {
 };
 
 type AdminUsersOverviewRpcRow = ProfileRow & {
+  last_activity_at: string | null;
   deck_count: number | null;
   deck_list_count: number | null;
   tournament_count: number | null;
@@ -69,8 +73,10 @@ function sortUsers(users: AdminUser[]) {
       return left.role === "admin" ? -1 : 1;
     }
 
-    const leftActivity = left.lastActiveAt || left.lastLoginAt || left.accountCreatedAt;
-    const rightActivity = right.lastActiveAt || right.lastLoginAt || right.accountCreatedAt;
+    const leftActivity =
+      left.lastActivityAt || left.lastActiveAt || left.lastLoginAt || left.accountCreatedAt;
+    const rightActivity =
+      right.lastActivityAt || right.lastActiveAt || right.lastLoginAt || right.accountCreatedAt;
     return rightActivity.localeCompare(leftActivity);
   });
 }
@@ -93,6 +99,7 @@ function mapCountRows(rows: UserCountRow[] | null) {
 function mapDeckCounts(rows: DeckCountRow[] | null) {
   const deckCounts = new Map<string, number>();
   const deckListCounts = new Map<string, number>();
+  const deckActivity = new Map<string, string>();
 
   for (const row of rows ?? []) {
     const userId = String(row.user_id || "").trim();
@@ -103,16 +110,22 @@ function mapDeckCounts(rows: DeckCountRow[] | null) {
     deckCounts.set(userId, (deckCounts.get(userId) ?? 0) + 1);
     const deckLists = Array.isArray(row.deck_lists) ? row.deck_lists : [];
     deckListCounts.set(userId, (deckListCounts.get(userId) ?? 0) + deckLists.length);
+
+    if (row.updated_at && (!deckActivity.get(userId) || row.updated_at > deckActivity.get(userId)!)) {
+      deckActivity.set(userId, row.updated_at);
+    }
   }
 
   return {
     deckCounts,
-    deckListCounts
+    deckListCounts,
+    deckActivity
   };
 }
 
 function mapLogStatsCounts(rows: UserLogStatsCountRow[] | null) {
   const counts = new Map<string, number>();
+  const logActivity = new Map<string, string>();
 
   for (const row of rows ?? []) {
     const userId = String(row.user_id || "").trim();
@@ -121,9 +134,42 @@ function mapLogStatsCounts(rows: UserLogStatsCountRow[] | null) {
     }
 
     counts.set(userId, Math.max(0, Number(row.games_played ?? 0)));
+
+    if (row.updated_at) {
+      logActivity.set(userId, row.updated_at);
+    }
   }
 
-  return counts;
+  return { counts, logActivity };
+}
+
+function mapLatestActivity(rows: UserCountRow[] | null) {
+  const latestActivity = new Map<string, string>();
+
+  for (const row of rows ?? []) {
+    const userId = String(row.user_id || "").trim();
+    if (!userId || !row.updated_at) {
+      continue;
+    }
+
+    if (!latestActivity.get(userId) || row.updated_at > latestActivity.get(userId)!) {
+      latestActivity.set(userId, row.updated_at);
+    }
+  }
+
+  return latestActivity;
+}
+
+function latestTimestamp(...values: Array<string | null | undefined>) {
+  return values
+    .filter((value): value is string => Boolean(value))
+    .reduce<string | undefined>((latest, value) => {
+      if (!latest || value > latest) {
+        return value;
+      }
+
+      return latest;
+    }, undefined);
 }
 
 function mapAdminUsersOverviewRow(row: AdminUsersOverviewRpcRow): AdminUser {
@@ -136,6 +182,7 @@ function mapAdminUsersOverviewRow(row: AdminUsersOverviewRpcRow): AdminUser {
     accountCreatedAt: row.auth_account_created_at || row.created_at,
     lastLoginAt: row.last_login_at ?? undefined,
     lastActiveAt: row.last_active_at ?? undefined,
+    lastActivityAt: row.last_activity_at ?? undefined,
     loginCount: Number.isFinite(row.login_count) ? row.login_count : 0,
     deckCount: Math.max(0, Number(row.deck_count ?? 0)),
     deckListCount: Math.max(0, Number(row.deck_list_count ?? 0)),
@@ -149,7 +196,8 @@ function mapAdminUser(
   deckCounts: Map<string, number>,
   deckListCounts: Map<string, number>,
   tournamentCounts: Map<string, number>,
-  logCounts: Map<string, number>
+  logCounts: Map<string, number>,
+  activityByUser = new Map<string, string>()
 ): AdminUser {
   return {
     id: row.id,
@@ -160,6 +208,13 @@ function mapAdminUser(
     accountCreatedAt: row.auth_account_created_at || row.created_at,
     lastLoginAt: row.last_login_at ?? undefined,
     lastActiveAt: row.last_active_at ?? undefined,
+    lastActivityAt: latestTimestamp(
+      activityByUser.get(row.id),
+      row.last_active_at,
+      row.last_login_at,
+      row.auth_account_created_at,
+      row.created_at
+    ),
     loginCount: Number.isFinite(row.login_count) ? row.login_count : 0,
     deckCount: deckCounts.get(row.id) ?? 0,
     deckListCount: deckListCounts.get(row.id) ?? 0,
@@ -325,7 +380,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
         fetchAllRows<DeckCountRow>(async (from, to) => {
           const { data, error } = await supabase
             .from("decks")
-            .select("user_id,deck_lists")
+            .select("user_id,deck_lists,updated_at")
             .range(from, to);
 
           return { data: data as DeckCountRow[] | null, error };
@@ -333,7 +388,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
         fetchAllRows<UserCountRow>(async (from, to) => {
           const { data, error } = await supabase
             .from("tournaments")
-            .select("user_id")
+            .select("user_id,updated_at")
             .range(from, to);
 
           return { data: data as UserCountRow[] | null, error };
@@ -341,18 +396,31 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
         fetchAllRows<UserLogStatsCountRow>(async (from, to) => {
           const { data, error } = await supabase
             .from("user_log_stats")
-            .select("user_id,games_played")
+            .select("user_id,games_played,updated_at")
             .range(from, to);
 
           return { data: data as UserLogStatsCountRow[] | null, error };
         })
       ]);
 
-      const { deckCounts, deckListCounts } = mapDeckCounts(decks);
+      const { deckCounts, deckListCounts, deckActivity } = mapDeckCounts(decks);
       const tournamentCounts = mapCountRows(tournaments);
-      const logCounts = mapLogStatsCounts(logStats);
+      const tournamentActivity = mapLatestActivity(tournaments);
+      const { counts: logCounts, logActivity } = mapLogStatsCounts(logStats);
+      const activityByUser = new Map<string, string>();
+
+      for (const activityMap of [deckActivity, tournamentActivity, logActivity]) {
+        for (const [userId, activityAt] of activityMap) {
+          const currentActivityAt = activityByUser.get(userId);
+
+          if (!currentActivityAt || activityAt > currentActivityAt) {
+            activityByUser.set(userId, activityAt);
+          }
+        }
+      }
+
       const users = profiles.map((row) =>
-        mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts)
+        mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts, activityByUser)
       );
 
       return {
