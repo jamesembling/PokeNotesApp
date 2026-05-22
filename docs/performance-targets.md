@@ -27,3 +27,14 @@ These are the working benchmarks for production route work on the Vercel app.
 Use production telemetry from `route_performance_events` and browser resource timing
 against `https://poke-notes-app.vercel.app`. Localhost timings are useful for
 regression checks, but they are not the benchmark for this work.
+
+For quick local route/API triage, use:
+
+```sh
+npm run perf:probe
+```
+
+This separates page probes such as `/decks` and `/logs` from JSON API probes such
+as `/api/deck-selection-options` and `/api/stats-matchups`. JSON responses include
+payload size, top-level item count, and parse timing; HTML page routes report TTFB,
+status, response type, and bytes.
