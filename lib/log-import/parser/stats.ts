@@ -77,6 +77,15 @@ function getDamageCountersPlacedFromLine(line: string) {
   return Number.parseInt(normalized.match(/\bput (\d+) damage counters?\b/i)?.[1] ?? "0", 10) || 0;
 }
 
+function getDamageTakenFromLine(line: string) {
+  const normalized = String(line || "").trim();
+  if (!normalized.includes("took") || !normalized.includes("damage")) {
+    return 0;
+  }
+
+  return Number.parseInt(normalized.match(/\btook (\d+) damage\b/i)?.[1] ?? "0", 10) || 0;
+}
+
 function shouldCountDamageCounterDetails(title: string, baseDamage: number) {
   if (baseDamage > 0) {
     return true;
@@ -88,12 +97,17 @@ function shouldCountDamageCounterDetails(title: string, baseDamage: number) {
 function getAttackDamageFromAction(action: { title: string; details: string[] }) {
   const title = String(action.title || "").trim();
   const baseDamage = getAttackDamageFromLine(title);
+  const detailDamage = title.includes(" used ")
+    ? action.details.reduce((total, detail) => total + getDamageTakenFromLine(detail), 0)
+    : 0;
+
   if (!shouldCountDamageCounterDetails(title, baseDamage)) {
-    return baseDamage;
+    return baseDamage + detailDamage;
   }
 
   return (
     baseDamage +
+    detailDamage +
     action.details.reduce((total, detail) => total + getDamageCountersPlacedFromLine(detail) * 10, 0)
   );
 }

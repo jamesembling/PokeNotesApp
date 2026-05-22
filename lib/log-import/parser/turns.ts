@@ -107,6 +107,7 @@ function getTurnActions(bodyLines: string[]): LogAction[] {
     const isSubaction =
       trimmed.startsWith("-") ||
       trimmed.startsWith("•") ||
+      /\btook \d+ damage\b/i.test(trimmed) ||
       SUBACTION_MARKERS.some((marker) => line.includes(marker));
 
     if (isSubaction && actions.length > 0) {

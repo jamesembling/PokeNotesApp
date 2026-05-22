@@ -12,7 +12,7 @@ type PokemonOptionRow = {
   sprite_url: string;
 };
 
-const POKEMON_OPTIONS_CACHE_VERSION = "v5";
+const POKEMON_OPTIONS_CACHE_VERSION = "v6";
 
 const getPokemonOptionsCached = unstable_cache(
   async (): Promise<PokemonOption[]> => {

@@ -17,12 +17,16 @@ export type SearchQueryExpectation = {
 const REQUIRED_ALIASES_BY_SLUG: Record<string, string[]> = {
   "charizard-mega-x": ["Mega Charizard X", "Charizard Mega X", "charizardmegax"],
   "dialga-origin": ["Origin Forme Dialga", "Dialga Origin"],
+  "dragalge-mega": ["Mega Dragalge", "Dragalge Mega"],
+  "floette-mega": ["Mega Floette", "Floette Mega"],
+  "gallade-mega": ["Mega Gallade", "Gallade Mega"],
   "greninja-mega": ["Mega Greninja", "Greninja Mega"],
   "ogerpon": ["Teal Mask Ogerpon"],
   "ogerpon-cornerstone": ["Cornerstone Mask Ogerpon"],
   "ogerpon-hearthflame": ["Hearthflame Mask Ogerpon"],
   "ogerpon-wellspring": ["Wellspring Mask Ogerpon"],
   "palkia-origin": ["Origin Forme Palkia", "Palkia Origin"],
+  "pyroar-mega": ["Mega Pyroar", "Pyroar Mega"],
   "sharpedo-mega": ["Mega Sharpedo", "Sharpedo Mega"],
   "ursaluna-bloodmoon": ["Bloodmoon Ursaluna"],
   "zoroark-hisui": ["Hisuian Zoroark", "Zoroark Hisui"]
@@ -48,6 +52,16 @@ export const SEARCH_QUERY_EXPECTATIONS: SearchQueryExpectation[] = [
     bestMatch: "greninja-mega",
     expectedSlugs: ["greninja-mega"],
     query: "Mega Greninja"
+  },
+  {
+    bestMatch: "floette-mega",
+    expectedSlugs: ["floette-mega"],
+    query: "Mega Floette"
+  },
+  {
+    bestMatch: "dragalge-mega",
+    expectedSlugs: ["dragalge-mega"],
+    query: "Dragalge Mega"
   },
   {
     bestMatch: "sharpedo-mega",

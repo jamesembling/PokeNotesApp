@@ -27,6 +27,12 @@ test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => 
     ["Mega Charizard Y", "charizard-mega-y"],
     ["Charizard Mega X", "charizard-mega-x"],
     ["Mega Greninja", "greninja-mega"],
+    ["Mega Pyroar", "pyroar-mega"],
+    ["Mega Floette", "floette-mega"],
+    ["Mega Dragalge", "dragalge-mega"],
+    ["Pyroar Mega", "pyroar-mega"],
+    ["Floette Mega", "floette-mega"],
+    ["Dragalge Mega", "dragalge-mega"],
   ];
 
   cases.forEach(([name, slug]) => {
