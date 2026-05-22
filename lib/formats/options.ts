@@ -1,4 +1,5 @@
 export const SITE_FORMAT_OPTIONS = [
+  "TEF-CRI",
   "TEF-POR",
   "SVI-ASC",
   "SVI-PFL",
