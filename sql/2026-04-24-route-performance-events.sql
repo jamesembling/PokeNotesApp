@@ -21,6 +21,9 @@ create table if not exists public.route_performance_events (
   screen_height integer,
   hardware_concurrency integer,
   device_memory numeric,
+  source_origin text,
+  source_host text,
+  deployment_env text not null default 'unknown',
   effective_type text,
   downlink numeric,
   rtt integer,
@@ -43,6 +46,9 @@ create index if not exists route_performance_events_user_created_at
 
 create index if not exists route_performance_events_route_created_at
   on public.route_performance_events (to_path, created_at desc);
+
+create index if not exists route_performance_events_env_route_created_at
+  on public.route_performance_events (deployment_env, to_path, created_at desc);
 
 alter table public.route_performance_events enable row level security;
 

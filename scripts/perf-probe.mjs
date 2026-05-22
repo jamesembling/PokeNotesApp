@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { dirname, resolve } from "node:path";
@@ -36,6 +36,7 @@ Options:
   --url=http://...                  Full URL to probe. Can be repeated.
   --header='Name: value'            Request header. Can be repeated.
   --cookie='name=value; ...'        Cookie header for authenticated probes.
+  --state=.agent-browser/auth.json  Browser storage state to load cookies from.
   --method=GET                      HTTP method. Defaults to GET.
   --repeat=1                        Number of times to probe each target.
   --out=.perf/probe                 Save response bodies for inspection.
@@ -53,6 +54,8 @@ const repeat = Math.max(1, Number(readSingle("--repeat") || 1));
 const outDir = readSingle("--out");
 const headers = buildHeaders(args.multi.get("--header") || []);
 const cookie = readSingle("--cookie") || process.env.PERF_PROBE_COOKIE;
+const statePath = readSingle("--state") || process.env.PERF_PROBE_STATE;
+const cookieState = statePath ? readCookieState(resolve(rootDir, String(statePath))) : null;
 
 if (cookie) {
   headers.Cookie = String(cookie);
@@ -74,7 +77,7 @@ console.log("");
 const rows = [];
 for (const target of targets) {
   for (let attempt = 1; attempt <= repeat; attempt += 1) {
-    const result = await probeUrl(target, { headers, method });
+    const result = await probeUrl(target, { cookieState, headers, method });
     if (outDir) {
       const filename = buildBodyFilename(target, attempt, result.contentType);
       const outputPath = resolve(rootDir, outDir, filename);
@@ -147,6 +150,13 @@ function probeUrl(target, options) {
   return new Promise((resolveResult, reject) => {
     const url = new URL(target);
     const requestFn = url.protocol === "https:" ? httpsRequest : httpRequest;
+    const requestHeaders = { ...options.headers };
+    if (!requestHeaders.Cookie && options.cookieState) {
+      const stateCookie = cookieHeaderForUrl(options.cookieState, url);
+      if (stateCookie) {
+        requestHeaders.Cookie = stateCookie;
+      }
+    }
     const startedAt = performance.now();
     let firstByteAt = null;
     const chunks = [];
@@ -154,7 +164,7 @@ function probeUrl(target, options) {
     const req = requestFn(
       url,
       {
-        headers: options.headers,
+        headers: requestHeaders,
         method: options.method
       },
       (res) => {
@@ -186,6 +196,39 @@ function probeUrl(target, options) {
     req.on("error", reject);
     req.end();
   });
+}
+
+function readCookieState(path) {
+  const parsed = JSON.parse(readFileSync(path, "utf8"));
+  return Array.isArray(parsed.cookies) ? parsed.cookies : [];
+}
+
+function cookieHeaderForUrl(cookies, url) {
+  const nowSeconds = Date.now() / 1000;
+  const matchingCookies = cookies.filter((cookie) => {
+    if (!cookie?.name || typeof cookie.value !== "string") {
+      return false;
+    }
+    if (typeof cookie.expires === "number" && cookie.expires > 0 && cookie.expires < nowSeconds) {
+      return false;
+    }
+
+    const domain = String(cookie.domain || "");
+    const normalizedDomain = domain.replace(/^\./, "");
+    const hostMatches =
+      url.hostname === normalizedDomain ||
+      (domain.startsWith(".") && url.hostname.endsWith(`.${normalizedDomain}`));
+    if (!hostMatches) {
+      return false;
+    }
+
+    const path = String(cookie.path || "/");
+    return url.pathname.startsWith(path);
+  });
+
+  return matchingCookies
+    .map((cookie) => `${cookie.name}=${cookie.value}`)
+    .join("; ");
 }
 
 function buildResult({ body, contentType, durationMs, statusCode, target, ttfbMs }) {

@@ -32,6 +32,8 @@ const viewport = String(args.get("--viewport") || process.env.PERF_VIEWPORT || "
 const cold = args.get("--cold") !== "false";
 const saveAuth = args.has("--save-auth");
 const authWaitMs = Number(args.get("--auth-wait-ms") || process.env.PERF_AUTH_WAIT_MS || 120000);
+const commandTimeoutMs = Number(args.get("--command-timeout-ms") || process.env.PERF_COMMAND_TIMEOUT_MS || 30000);
+const routeWaitMs = Number(args.get("--route-wait-ms") || process.env.PERF_ROUTE_WAIT_MS || 15000);
 const testLoginSecret = String(args.get("--test-login-secret") || process.env.PERF_TEST_LOGIN_SECRET || "");
 
 const configuredRoutePath = String(args.get("--log-path") || process.env.PERF_LOG_PATH || "");
@@ -50,6 +52,8 @@ Options:
   --viewport=1647x894
   --cold=false
   --auth-wait-ms=120000
+  --command-timeout-ms=30000
+  --route-wait-ms=15000
   --test-login-secret=<secret>
   --save-auth
 `);
@@ -88,7 +92,8 @@ function runAgentBrowser(commandArgs, options = {}) {
   return execFileSync(agentBrowserBin, fullArgs, {
     cwd: rootDir,
     encoding: "utf8",
-    stdio: options.stdio ?? ["ignore", "pipe", "pipe"]
+    stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
+    timeout: options.timeoutMs ?? commandTimeoutMs
   });
 }
 
@@ -130,36 +135,48 @@ function waitForRouteSettled(useSavedState = true) {
 }
 
 function readNavigationSnapshot() {
-  return evalJson(`(() => {
-    const nav = performance.getEntriesByType('navigation')[0];
-    const origin = location.origin;
-    const resources = performance.getEntriesByType('resource')
-      .filter((entry) => entry.name.startsWith(origin) && !new URL(entry.name).pathname.startsWith('/api/performance-events'))
-      .map((entry) => ({
-        duration: Math.round(entry.duration),
-        path: new URL(entry.name).pathname.replace(/\\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, '/:id'),
-        startTime: Math.round(entry.startTime),
-        transferSize: entry.transferSize || 0
-      }))
-      .sort((left, right) => right.duration - left.duration);
-    const connection = navigator.connection || {};
-    return {
-      currentPath: location.pathname.replace(/\\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, '/:id'),
-      domContentLoadedMs: nav ? Math.round(nav.domContentLoadedEventEnd) : null,
-      durationMs: nav ? Math.round(nav.duration) : null,
-      effectiveType: connection.effectiveType || null,
-      loadEventMs: nav ? Math.round(nav.loadEventEnd) : null,
-      resources: resources.slice(0, 5),
-      rtt: typeof connection.rtt === 'number' ? connection.rtt : null,
-      slowestResource: resources[0] || null,
-      ttfbMs: nav ? Math.round(nav.responseStart) : null,
-      viewport: \`\${innerWidth}x\${innerHeight}\`
-    };
-  })()`);
+  try {
+    return evalJson(`(() => {
+      const nav = performance.getEntriesByType('navigation')[0];
+      const origin = location.origin;
+      const resources = performance.getEntriesByType('resource')
+        .filter((entry) => entry.name.startsWith(origin) && !new URL(entry.name).pathname.startsWith('/api/performance-events'))
+        .map((entry) => ({
+          duration: Math.round(entry.duration),
+          path: new URL(entry.name).pathname.replace(/\\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, '/:id'),
+          startTime: Math.round(entry.startTime),
+          transferSize: entry.transferSize || 0
+        }))
+        .sort((left, right) => right.duration - left.duration);
+      const connection = navigator.connection || {};
+      return {
+        currentPath: location.pathname.replace(/\\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, '/:id'),
+        domContentLoadedMs: nav ? Math.round(nav.domContentLoadedEventEnd) : null,
+        durationMs: nav ? Math.round(nav.duration) : null,
+        effectiveType: connection.effectiveType || null,
+        loadEventMs: nav ? Math.round(nav.loadEventEnd) : null,
+        resources: resources.slice(0, 5),
+        rtt: typeof connection.rtt === 'number' ? connection.rtt : null,
+        slowestResource: resources[0] || null,
+        ttfbMs: nav ? Math.round(nav.responseStart) : null,
+        viewport: \`\${innerWidth}x\${innerHeight}\`
+      };
+    })()`);
+  } catch {
+    return null;
+  }
 }
 
 function readPath() {
   return runWithState(["get", "url"]).trim().replace(baseUrl, "") || "/";
+}
+
+function readPathSafely() {
+  try {
+    return readPath();
+  } catch {
+    return "(unavailable)";
+  }
 }
 
 function openPath(path) {
@@ -186,7 +203,17 @@ function discoverFirstLogPath() {
 
 function clickPath(path) {
   const selector = `a[href="${path}"]`;
-  const countOutput = runWithState(["get", "count", selector]).trim();
+  let countOutput = "";
+  try {
+    countOutput = runWithState(["get", "count", selector]).trim();
+  } catch (countError) {
+    return {
+      currentPath: readPathSafely().replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, "/:id"),
+      durationMs: 0,
+      error: countError instanceof Error ? countError.message.split("\n")[0] : String(countError),
+      status: "count-error"
+    };
+  }
   const count = Number(countOutput.match(/\d+/)?.[0] ?? 0);
 
   if (count < 1) {
@@ -194,12 +221,38 @@ function clickPath(path) {
   }
 
   const startedAt = performance.now();
-  runWithState(["click", selector]);
-  runWithState(["wait", "--fn", `location.pathname === ${JSON.stringify(path)}`]);
-  waitForRouteSettled();
+  try {
+    runWithState(["click", selector]);
+  } catch (clickError) {
+    const endedAt = performance.now();
+    return {
+      currentPath: readPathSafely().replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, "/:id"),
+      durationMs: Math.round(endedAt - startedAt),
+      error: clickError instanceof Error ? clickError.message.split("\n")[0] : String(clickError),
+      status: "click-error"
+    };
+  }
+  let status = "ok";
+  let error = "";
+
+  try {
+    runWithState(["wait", "--fn", `location.pathname === ${JSON.stringify(path)}`], {
+      timeoutMs: routeWaitMs
+    });
+    waitForRouteSettled();
+  } catch (routeError) {
+    status = "wait-timeout";
+    error = routeError instanceof Error ? routeError.message.split("\n")[0] : String(routeError);
+  }
+
   const endedAt = performance.now();
 
-  return Math.round(endedAt - startedAt);
+  return {
+    currentPath: readPathSafely().replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, "/:id"),
+    durationMs: Math.round(endedAt - startedAt),
+    error,
+    status
+  };
 }
 
 function printTable(rows) {
@@ -208,7 +261,8 @@ function printTable(rows) {
     to: Math.max(2, ...rows.map((row) => row.to.length)),
     duration: Math.max(8, ...rows.map((row) => String(row.durationMs).length)),
     slowest: Math.max(7, ...rows.map((row) => row.slowest.length)),
-    slowestMs: Math.max(9, ...rows.map((row) => String(row.slowestMs).length))
+    slowestMs: Math.max(9, ...rows.map((row) => String(row.slowestMs).length)),
+    status: Math.max(6, ...rows.map((row) => String(row.status ?? "ok").length))
   };
 
   console.log([
@@ -216,16 +270,18 @@ function printTable(rows) {
     "to".padEnd(widths.to),
     "duration".padStart(widths.duration),
     "slowest".padEnd(widths.slowest),
-    "slowest ms".padStart(widths.slowestMs)
+    "slowest ms".padStart(widths.slowestMs),
+    "status".padEnd(widths.status)
   ].join("  "));
-  console.log("-".repeat(widths.from + widths.to + widths.duration + widths.slowest + widths.slowestMs + 8));
+  console.log("-".repeat(widths.from + widths.to + widths.duration + widths.slowest + widths.slowestMs + widths.status + 10));
   for (const row of rows) {
     console.log([
       row.from.padEnd(widths.from),
       row.to.padEnd(widths.to),
       String(row.durationMs).padStart(widths.duration),
       row.slowest.padEnd(widths.slowest),
-      String(row.slowestMs).padStart(widths.slowestMs)
+      String(row.slowestMs).padStart(widths.slowestMs),
+      String(row.status ?? "ok").padEnd(widths.status)
     ].join("  "));
   }
 }
@@ -246,7 +302,10 @@ function saveAuthState() {
 
   console.log(`Opening ${baseUrl}/logs with session "${session}". Log in if needed, then come back here.`);
   runAgentBrowser(["open", `${baseUrl}/logs`], { stdio: "inherit" });
-  runAgentBrowser(["wait", String(authWaitMs)], { stdio: "inherit" });
+  runAgentBrowser(["wait", String(authWaitMs)], {
+    stdio: "inherit",
+    timeoutMs: authWaitMs + 5000
+  });
   runAgentBrowser(["state", "save", statePath], { stdio: "inherit" });
   console.log(`Saved auth state to ${statePath}`);
 }
@@ -288,6 +347,7 @@ for (const path of ["/logs", routePath, "/calculator"]) {
   openPath(path);
   hardLoads.push({
     path,
+    status: "ok",
     snapshot: readNavigationSnapshot()
   });
 }
@@ -295,26 +355,28 @@ for (const path of ["/logs", routePath, "/calculator"]) {
 openPath(journey[0]);
 const routeRows = [];
 for (const to of journey.slice(1)) {
-  const from = readPath().replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, "/:id");
-  const durationMs = clickPath(to);
+  const from = readPathSafely().replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, "/:id");
+  const clickResult = clickPath(to);
   const snapshot = readNavigationSnapshot();
   const normalizedTo = to.replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, "/:id");
   routeRows.push({
-    durationMs,
+    durationMs: clickResult.durationMs,
     from,
     slowest: snapshot?.slowestResource?.path ?? "-",
     slowestMs: snapshot?.slowestResource?.duration ?? "-",
+    status: clickResult.status === "ok" ? "ok" : `${clickResult.status}:${clickResult.currentPath}`,
     to: normalizedTo
   });
 }
 
 console.log("Hard loads");
 printTable(
-  hardLoads.map(({ path, snapshot }) => ({
+  hardLoads.map(({ path, snapshot, status }) => ({
     durationMs: snapshot?.durationMs ?? "-",
     from: "hard-load",
     slowest: snapshot?.slowestResource?.path ?? "-",
     slowestMs: snapshot?.slowestResource?.duration ?? "-",
+    status,
     to: path.replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/ig, "/:id")
   }))
 );

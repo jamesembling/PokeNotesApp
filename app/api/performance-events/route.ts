@@ -4,6 +4,7 @@ import { reportError } from "@/lib/server/report-error";
 import { createClient } from "@/lib/supabase/server";
 
 type PerformanceEventPayload = {
+  deploymentEnv?: string | null;
   deviceMemory?: number | null;
   domContentLoadedMs?: number | null;
   downlink?: number | null;
@@ -20,6 +21,8 @@ type PerformanceEventPayload = {
   saveData?: boolean | null;
   screenHeight?: number | null;
   screenWidth?: number | null;
+  sourceHost?: string | null;
+  sourceOrigin?: string | null;
   slowestResourceMs?: number | null;
   slowestResourcePath?: string | null;
   ttfbMs?: number | null;
@@ -32,6 +35,29 @@ type PerformanceEventPayload = {
 };
 
 const MAX_TEXT_LENGTH = 320;
+
+function inferDeploymentEnv(host: string | null, payloadEnv: unknown) {
+  const normalizedHost = host?.toLowerCase() ?? "";
+  const normalizedPayloadEnv = typeof payloadEnv === "string" ? payloadEnv.toLowerCase() : "";
+
+  if (normalizedHost.startsWith("localhost") || normalizedHost.startsWith("127.0.0.1")) {
+    return "local";
+  }
+
+  if (normalizedHost === "poke-notes-app.vercel.app") {
+    return "production";
+  }
+
+  if (normalizedHost.endsWith(".vercel.app")) {
+    return "preview";
+  }
+
+  if (["local", "production", "preview"].includes(normalizedPayloadEnv)) {
+    return normalizedPayloadEnv;
+  }
+
+  return "unknown";
+}
 
 function clampText(value: unknown, maxLength = MAX_TEXT_LENGTH) {
   if (typeof value !== "string") {
@@ -70,6 +96,7 @@ export async function POST(request: NextRequest) {
     const eventType = payload.eventType === "app-route" ? "app-route" : "hard-load";
     const toPath = clampText(payload.toPath, 180);
     const durationMs = clampNumber(payload.durationMs);
+    const sourceHost = clampText(request.headers.get("host") || payload.sourceHost, 180);
 
     if (!toPath || durationMs === null) {
       return NextResponse.json({ error: "Invalid performance event." }, { status: 400 });
@@ -78,6 +105,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.from("route_performance_events").insert({
       device_memory: clampDecimal(payload.deviceMemory, 512),
+      deployment_env: inferDeploymentEnv(sourceHost, payload.deploymentEnv),
       dom_content_loaded_ms: clampNumber(payload.domContentLoadedMs),
       downlink: clampDecimal(payload.downlink),
       duration_ms: durationMs,
@@ -95,6 +123,8 @@ export async function POST(request: NextRequest) {
       screen_width: clampNumber(payload.screenWidth, 100_000),
       slowest_resource_ms: clampNumber(payload.slowestResourceMs),
       slowest_resource_path: clampText(payload.slowestResourcePath, 220),
+      source_host: sourceHost,
+      source_origin: clampText(payload.sourceOrigin, 220),
       to_path: toPath,
       total_blocking_time_ms: clampNumber(payload.totalBlockingTimeMs),
       transfer_size_bytes: clampNumber(payload.transferSizeBytes, 100_000_000),

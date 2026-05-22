@@ -112,6 +112,12 @@ function getDeviceSnapshot() {
   const connection = typedNavigator.connection;
 
   return {
+    deploymentEnv:
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+        ? "local"
+        : window.location.hostname.endsWith(".vercel.app")
+          ? "production"
+          : "unknown",
     deviceMemory: typeof typedNavigator.deviceMemory === "number" ? typedNavigator.deviceMemory : null,
     downlink: typeof connection?.downlink === "number" ? connection.downlink : null,
     effectiveType: connection?.effectiveType ?? null,
@@ -120,6 +126,8 @@ function getDeviceSnapshot() {
     saveData: Boolean(connection?.saveData),
     screenHeight: window.screen.height,
     screenWidth: window.screen.width,
+    sourceHost: window.location.host,
+    sourceOrigin: window.location.origin,
     userAgent: navigator.userAgent,
     viewportHeight: window.innerHeight,
     viewportWidth: window.innerWidth
