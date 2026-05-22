@@ -61,6 +61,7 @@ type DeckSelectionOptionsResponse = {
 };
 
 let battleLogDetailAssetsWarmed = false;
+const warmedBattleLogDetailRoutes = new Set<string>();
 
 function warmBattleLogDetailAssets() {
   if (battleLogDetailAssetsWarmed || typeof window === "undefined") {
@@ -82,6 +83,18 @@ function warmBattleLogDetailAssets() {
   }
 
   globalThis.setTimeout(warm, 250);
+}
+
+function warmBattleLogDetailRoute(router: ReturnType<typeof useRouter>, logId: string) {
+  warmBattleLogDetailAssets();
+
+  const href = `/logs/${logId}`;
+  if (warmedBattleLogDetailRoutes.has(href)) {
+    return;
+  }
+
+  warmedBattleLogDetailRoutes.add(href);
+  router.prefetch(href);
 }
 
 function summarizeVisibleLogs(logs: BattleLogSummary[]) {
@@ -599,7 +612,7 @@ export function LogsManager({
                         log={log}
                         managementMode={managementModeActive}
                         onDelete={() => handleDeleteSingle(log.id)}
-                        onWarmDetailAssets={warmBattleLogDetailAssets}
+                        onWarmDetailAssets={() => warmBattleLogDetailRoute(router, log.id)}
                         onToggleSelected={() => toggleSelectedLog(log.id)}
                         selected={selectedLogIdSet.has(log.id)}
                       />
