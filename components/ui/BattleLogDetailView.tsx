@@ -5,13 +5,12 @@ import type {
 } from "@/lib/battle-log/action-tags";
 import { Card } from "@/components/shadcn/card";
 import { MatchSummary } from "@/components/ui/MatchSummary";
-import { LinkedDeckListPanel } from "@/components/ui/LinkedDeckListPanel";
 import {
   classifyBattleLogActionTitle,
   getBattleLogActionTagLabel,
   type BattleLogActionTag
 } from "@/lib/battle-log/display";
-import type { BattleLog, DeckCard, LogSection } from "@/types/index";
+import type { BattleLog, LogSection } from "@/types/index";
 
 const SETUP_SECTION_LABELS = new Set(["setup"]);
 
@@ -355,13 +354,6 @@ type BattleLogDetailViewProps = {
   actionTagOverrides?: BattleLogActionTagOverrides;
   actions?: ReactNode;
   footerAction?: ReactNode;
-  linkedDeckId?: string;
-  linkedDeckListFormat?: string;
-  linkedDeckListId?: string;
-  linkedDeckListName?: string;
-  linkedDeckListNotes?: string;
-  linkedDeckListRawList?: string;
-  linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel: string;
   isBodyLoading?: boolean;
   log: BattleLog;
@@ -374,13 +366,6 @@ export function BattleLogDetailView({
   actionTagOverrides,
   actions,
   footerAction,
-  linkedDeckId,
-  linkedDeckListFormat,
-  linkedDeckListId,
-  linkedDeckListName,
-  linkedDeckListNotes,
-  linkedDeckListRawList,
-  linkedDeckListSortedCards,
   linkedStrategyLabel: _linkedStrategyLabel,
   isBodyLoading = false,
   log,
@@ -399,18 +384,6 @@ export function BattleLogDetailView({
       <MatchSummary actions={actions} log={log} timestampLabel={timestampLabel} />
 
       {notice ? <div>{notice}</div> : null}
-
-      {linkedDeckListName ? (
-        <LinkedDeckListPanel
-          deckId={linkedDeckId}
-          deckListFormat={linkedDeckListFormat}
-          deckListId={linkedDeckListId ?? "shared-linked-deck-list"}
-          deckListName={linkedDeckListName}
-          deckListNotes={linkedDeckListNotes}
-          rawList={linkedDeckListRawList}
-          sortedCards={linkedDeckListSortedCards ?? []}
-        />
-      ) : null}
 
       {sections.length > 0 ? (
         sections.map((section, index) => (

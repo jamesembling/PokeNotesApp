@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Button } from "@/components/shadcn/button";
@@ -11,16 +10,14 @@ import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
+import { LinkedDeckListDialog } from "@/components/ui/LinkedDeckListPanel";
 import type { BattleLog, DeckCard, DeckSelectionOption } from "@/types/index";
 
 type BattleLogDetailShellProps = {
   activeShare?: ShareLinkState | null;
   actionTagOverrides?: BattleLogActionTagOverrides;
   linkedDeckId?: string;
-  linkedDeckListFormat?: string;
-  linkedDeckListId?: string;
   linkedDeckListName?: string;
-  linkedDeckListNotes?: string;
   linkedDeckListRawList?: string;
   linkedDeckListSortedCards?: DeckCard[];
   linkedStrategyLabel: string;
@@ -48,27 +45,11 @@ type LogDetailBodyResponse = {
   sections?: BattleLog["sections"];
 };
 
-async function revokeLogShare(shareId: string) {
-  const response = await fetch(`/api/log-shares?shareId=${encodeURIComponent(shareId)}`, {
-    cache: "no-store",
-    credentials: "same-origin",
-    method: "DELETE"
-  });
-
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new Error(payload.error || "Could not revoke this share link right now.");
-  }
-}
-
 export function BattleLogDetailShell({
   activeShare = null,
   actionTagOverrides,
   linkedDeckId,
-  linkedDeckListFormat,
-  linkedDeckListId,
   linkedDeckListName,
-  linkedDeckListNotes,
   linkedDeckListRawList,
   linkedDeckListSortedCards,
   linkedStrategyLabel,
@@ -77,7 +58,6 @@ export function BattleLogDetailShell({
   userDecks
 }: BattleLogDetailShellProps) {
   const [currentShare, setCurrentShare] = useState<ShareLinkState | null>(activeShare);
-  const [isRevoking, setIsRevoking] = useState(false);
   const [deferredContext, setDeferredContext] = useState<LogDetailContextResponse | null>(null);
   const [deferredBody, setDeferredBody] = useState<LogDetailBodyResponse | null>(null);
 
@@ -185,31 +165,11 @@ export function BattleLogDetailShell({
     }),
     [deferredBody?.rawLog, deferredBody?.sections, log]
   );
-
-  async function handleRevoke() {
-    if (!currentShare) {
-      return;
-    }
-
-    setIsRevoking(true);
-
-    try {
-      await revokeLogShare(currentShare.shareId);
-      setCurrentShare(null);
-      toast.success("Share link revoked", {
-        description: "The previous URL stops working immediately."
-      });
-    } catch (error) {
-      toast.error("Could not revoke share link", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "Could not revoke this share link right now."
-      });
-    } finally {
-      setIsRevoking(false);
-    }
-  }
+  const resolvedLinkedDeckId = deferredContext?.linkedDeckId ?? linkedDeckId;
+  const resolvedLinkedDeckListName = deferredContext?.linkedDeckListName ?? linkedDeckListName;
+  const resolvedLinkedDeckListRawList = deferredContext?.linkedDeckListRawList ?? linkedDeckListRawList;
+  const resolvedLinkedDeckListSortedCards =
+    deferredContext?.linkedDeckListSortedCards ?? linkedDeckListSortedCards;
 
   return (
     <BattleLogDetailView
@@ -222,10 +182,13 @@ export function BattleLogDetailShell({
             logId={log.id}
             onShareReady={setCurrentShare}
           />
-          {currentShare ? (
-            <Button disabled={isRevoking} onClick={handleRevoke} type="button" variant="outline">
-              {isRevoking ? "Revoking..." : "Revoke Link"}
-            </Button>
+          {resolvedLinkedDeckListName ? (
+            <LinkedDeckListDialog
+              deckId={resolvedLinkedDeckId}
+              deckListName={resolvedLinkedDeckListName}
+              rawList={resolvedLinkedDeckListRawList}
+              sortedCards={resolvedLinkedDeckListSortedCards ?? []}
+            />
           ) : null}
           <Button asChild className="hidden sm:inline-flex" variant="outline">
             <Link href="/logs" prefetch={false}>
@@ -233,15 +196,6 @@ export function BattleLogDetailShell({
             </Link>
           </Button>
         </ButtonGroup>
-      }
-      linkedDeckId={deferredContext?.linkedDeckId ?? linkedDeckId}
-      linkedDeckListFormat={deferredContext?.linkedDeckListFormat ?? linkedDeckListFormat}
-      linkedDeckListId={deferredContext?.linkedDeckListId ?? linkedDeckListId}
-      linkedDeckListName={deferredContext?.linkedDeckListName ?? linkedDeckListName}
-      linkedDeckListNotes={deferredContext?.linkedDeckListNotes ?? linkedDeckListNotes}
-      linkedDeckListRawList={deferredContext?.linkedDeckListRawList ?? linkedDeckListRawList}
-      linkedDeckListSortedCards={
-        deferredContext?.linkedDeckListSortedCards ?? linkedDeckListSortedCards
       }
       linkedStrategyLabel={deferredContext?.linkedStrategyLabel ?? linkedStrategyLabel}
       isBodyLoading={!deferredBody && !resolvedLog.rawLog && resolvedLog.sections.length === 0}

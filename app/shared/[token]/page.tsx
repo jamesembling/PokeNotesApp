@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
+import { LinkedDeckListDialog } from "@/components/ui/LinkedDeckListPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   getBattleLogDeckDisplayName,
@@ -125,11 +126,15 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
         />
 
         <BattleLogDetailView
-          linkedDeckListFormat={sharedLog.payload.linkedDeckListFormat}
-          linkedDeckListName={sharedLog.payload.linkedDeckListName}
-          linkedDeckListNotes={sharedLog.payload.linkedDeckListNotes}
-          linkedDeckListRawList={sharedLog.payload.linkedDeckListRawList}
-          linkedDeckListSortedCards={linkedDeckListSortedCards}
+          actions={
+            sharedLog.payload.linkedDeckListName ? (
+              <LinkedDeckListDialog
+                deckListName={sharedLog.payload.linkedDeckListName}
+                rawList={sharedLog.payload.linkedDeckListRawList}
+                sortedCards={linkedDeckListSortedCards}
+              />
+            ) : null
+          }
           linkedStrategyLabel={sharedLog.payload.linkedStrategyLabel}
           log={sharedLog.payload.log}
           notice={

@@ -95,7 +95,6 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
         <BattleLogDetailShell
           activeShare={null}
           linkedDeckId={log.linkedDeckId}
-          linkedDeckListId={log.linkedDeckListId}
           linkedStrategyLabel={
             log.linkedDeckId ? "Linked strategy" : "No strategy linked"
           }
