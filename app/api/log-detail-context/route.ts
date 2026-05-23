@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { getDeckWithList } from "@/lib/db/decks";
 import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
-import { getAppOrigin } from "@/lib/server/app-url";
+import { getPublicAppOrigin } from "@/lib/server/app-url";
 import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
 import { reportError } from "@/lib/server/report-error";
 
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         : Promise.resolve(null);
     const [[activeShare], appOrigin, linkedDeck] = await Promise.all([
       listActiveSharesForOwnerLog(user.id, log.id),
-      getAppOrigin(),
+      getPublicAppOrigin(),
       linkedDeckWithList
     ]);
 

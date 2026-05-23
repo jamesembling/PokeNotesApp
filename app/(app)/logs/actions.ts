@@ -23,7 +23,7 @@ import { getDeckWithList, getDecks } from "@/lib/db/decks";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
 import { getOrCreateLogShareSnapshot, revokeLogShare } from "@/lib/db/log-shares";
 import { getLogById, getLogsWindow } from "@/lib/db/logs";
-import { getAppOrigin } from "@/lib/server/app-url";
+import { getPublicAppOrigin } from "@/lib/server/app-url";
 import {
   resolveActionFailure,
   userFacingActionError
@@ -736,7 +736,7 @@ export async function createLogShareAction(logId: string): Promise<{
       linkedDeckListSortedCards: hydratedLinkedDeckList?.deckList.sortedCards ?? []
     });
 
-    const shareUrl = `${await getAppOrigin()}/shared/${share.id}`;
+    const shareUrl = `${await getPublicAppOrigin()}/shared/${share.id}`;
 
     return {
       expiresAt: share.expiresAt,
