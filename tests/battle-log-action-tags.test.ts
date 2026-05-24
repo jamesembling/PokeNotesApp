@@ -84,6 +84,14 @@ test("formatBattleLogActionTitle uses subject-first wording for common board act
     "[ABILITY ACTIVATED] Radiant Greninja used Concealed Cards"
   );
   assert.equal(
+    classifyBattleLogActionTitle("Dudunsparce's Run Away Draw was activated."),
+    "ability"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("Dudunsparce's Run Away Draw was activated."),
+    "[ABILITY ACTIVATED] Dudunsparce used Run Away Draw"
+  );
+  assert.equal(
     formatBattleLogActionTitle("JammerUK1993's Greninja ex used Mirage Barrage.", {
       actionTag: "attack"
     }),
@@ -112,6 +120,14 @@ test("formatBattleLogActionTitle uses subject-first wording for common board act
       actionTag: "item"
     }),
     "Played Buddy-Buddy Poffin"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("JammerUK1993 retreated Budew to Bench."),
+    "Budew retreated to Bench"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("JammerUK1993 retreated to Bench."),
+    "Retreated to Bench"
   );
   assert.equal(formatBattleLogActionTitle("JammerUK1993 ended their turn."), "Ended turn");
 });

@@ -119,6 +119,11 @@ export function formatBattleLogActionTitle(
     );
   }
 
+  const activatedMatch = displayTitle.match(/^(.+?)'s\s+(.+?)\s+was activated$/i);
+  if (activatedMatch?.[1] && activatedMatch[2]) {
+    return `[ABILITY ACTIVATED] ${cleanBattleLogDisplayText(activatedMatch[1])} used ${cleanBattleLogDisplayText(activatedMatch[2])}`;
+  }
+
   const abilityMatch = displayTitle.match(/^(.+?)\s+used\s+(.+)$/i);
   if (actionTag === "ability" && abilityMatch?.[1] && abilityMatch[2]) {
     return `[ABILITY ACTIVATED] ${cleanBattleLogDisplayText(abilityMatch[1])} used ${cleanBattleLogDisplayText(abilityMatch[2])}`;
@@ -148,6 +153,24 @@ export function formatBattleLogActionTitle(
     return withOptionalActorPrefix(
       playedMatch[1],
       `Played ${cleanBattleLogDisplayText(playedMatch[2])}`,
+      retainActor
+    );
+  }
+
+  const retreatedPokemonMatch = displayTitle.match(/^(.+?)\s+retreated\s+(.+?)\s+to\s+(.+)$/i);
+  if (retreatedPokemonMatch?.[2] && retreatedPokemonMatch[3]) {
+    return withOptionalActorPrefix(
+      retreatedPokemonMatch[1],
+      `${cleanBattleLogDisplayText(retreatedPokemonMatch[2])} retreated to ${cleanBattleLogDisplayText(retreatedPokemonMatch[3])}`,
+      retainActor
+    );
+  }
+
+  const retreatedMatch = displayTitle.match(/^(.+?)\s+retreated\s+to\s+(.+)$/i);
+  if (retreatedMatch?.[2]) {
+    return withOptionalActorPrefix(
+      retreatedMatch[1],
+      `Retreated to ${cleanBattleLogDisplayText(retreatedMatch[2])}`,
       retainActor
     );
   }
@@ -235,7 +258,7 @@ const BATTLE_LOG_ACTION_TAG_RULES: Array<{
   },
   {
     tag: "ability",
-    patterns: [/\bability\b/, /\babilities\b/, /\bused\b(?!.*\bfor \d+\+? damage\b)/]
+    patterns: [/\bability\b/, /\babilities\b/, /\bwas activated\b/, /\bused\b(?!.*\bfor \d+\+? damage\b)/]
   }
 ];
 

@@ -10,8 +10,7 @@ const SUBACTION_MARKERS = [
   " for the opening coin flip",
   " won the coin toss",
   " took at least 1 mulligan",
-  " drew 7 cards for the opening hand",
-  " was activated."
+  " drew 7 cards for the opening hand"
 ];
 
 export function stripTurnPrefix(line: string) {
@@ -104,6 +103,15 @@ function getTurnActions(bodyLines: string[]): LogAction[] {
 
   bodyLines.forEach((line) => {
     const trimmed = line.trim();
+    const abilityActivationMatch = trimmed.match(/^[-•]?\s*(.+\s+was activated\.)$/i);
+    if (abilityActivationMatch?.[1]) {
+      actions.push({
+        title: abilityActivationMatch[1],
+        details: []
+      });
+      return;
+    }
+
     const isSubaction =
       trimmed.startsWith("-") ||
       trimmed.startsWith("•") ||

@@ -100,3 +100,37 @@ test("divideIntoSections groups unprefixed took-damage lines with the prior acti
     "Self's Psyduck took 120 damage."
   ]);
 });
+
+test("divideIntoSections promotes ability activation lines above their effect details", () => {
+  const sections = divideIntoSections({
+    language: "en",
+    playerNames: ["Self", "Opponent"],
+    getPrizesTakenFromLine,
+    isPrizeTakenLine,
+    lines: [
+      "Turn # 1 - Self's Turn",
+      "Self played Dudunsparce.",
+      "Dudunsparce's Run Away Draw was activated.",
+      "- Self drew 3 cards.",
+      "- Rare Candy, Surfing Beach, Greninja ex",
+      "- Self shuffled 2 cards into their deck.",
+      "- Dudunsparce, Dunsparce"
+    ]
+  });
+
+  assert.deepEqual(sections[0]?.actions, [
+    {
+      title: "Self played Dudunsparce.",
+      details: []
+    },
+    {
+      title: "Dudunsparce's Run Away Draw was activated.",
+      details: [
+        "- Self drew 3 cards.",
+        "- Rare Candy, Surfing Beach, Greninja ex",
+        "- Self shuffled 2 cards into their deck.",
+        "- Dudunsparce, Dunsparce"
+      ]
+    }
+  ]);
+});
