@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CopyIcon, ShuffleIcon, XIcon } from "lucide-react";
 import type {
   BattleLogActionTagOverrides,
   BattleLogResolvedActionTag
@@ -119,6 +120,140 @@ function CollapsibleActionHeader({
   );
 }
 
+function formatDetailOutcome(text: string) {
+  return text.split(/(\d+\s+cards?)/i).map((part, index) =>
+    /\d+\s+cards?/i.test(part) ? (
+      <strong className="font-semibold text-card-foreground" key={`${part}-${index}`}>
+        {part.toUpperCase()}
+      </strong>
+    ) : (
+      part.toUpperCase()
+    )
+  );
+}
+
+function getDetailCardCountLabel(cardCount: number) {
+  return `${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
+}
+
+function getNamedDetailCards(text: string) {
+  const value = cleanDetailActorText(text);
+
+  if (
+    !value ||
+    /\b(?:a\s+card|\d+\s+cards?)\b/i.test(value) ||
+    /\b(?:active|bench|deck|hand|into|from|their|the)\b/i.test(value)
+  ) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((card) => card.trim())
+    .filter(Boolean);
+}
+
+type DetailEvent = {
+  cards?: string[];
+  icon: "discard" | "draw" | "shuffle";
+  label: string;
+  outcome: string;
+};
+
+export function getBattleLogDetailEvent(text: string): DetailEvent | null {
+  const value = String(text || "").trim();
+  const drewMatch = value.match(/^(?:.+?\s+)?drew\s+(.+)$/i);
+
+  if (drewMatch?.[1]) {
+    const namedCards = getNamedDetailCards(drewMatch[1]);
+    const outcome = namedCards.length > 0
+      ? getDetailCardCountLabel(namedCards.length)
+      : cleanDetailActorText(drewMatch[1]).replace(/^a card$/i, "1 card");
+
+    return {
+      cards: namedCards,
+      icon: "draw",
+      label: "Drew",
+      outcome
+    };
+  }
+
+  const shuffledMatch = value.match(/^(?:.+?\s+)?shuffled\s+(.+?)\s+into\s+(?:their|the)\s+deck$/i);
+
+  if (shuffledMatch?.[1]) {
+    return {
+      icon: "shuffle",
+      label: "Shuffled",
+      outcome: cleanDetailActorText(shuffledMatch[1])
+    };
+  }
+
+  const passiveSingleDiscardMatch = value.match(/^(.+?)\s+was\s+discarded\s+from\s+(.+)$/i);
+
+  if (passiveSingleDiscardMatch?.[1] && passiveSingleDiscardMatch[2]) {
+    const discardedCard = cleanDetailActorText(passiveSingleDiscardMatch[1]);
+    const discardSource = cleanDetailActorText(passiveSingleDiscardMatch[2]);
+
+    return {
+      cards: discardedCard ? [discardedCard] : [],
+      icon: "discard",
+      label: "Discarded",
+      outcome: `1 card from ${discardSource}`
+    };
+  }
+
+  const passiveCountDiscardMatch = value.match(/^(\d+)\s+cards?\s+were\s+discarded\s+from\s+(.+)$/i);
+
+  if (passiveCountDiscardMatch?.[1] && passiveCountDiscardMatch[2]) {
+    const discardSource = cleanDetailActorText(passiveCountDiscardMatch[2]);
+
+    return {
+      icon: "discard",
+      label: "Discarded",
+      outcome: `${getDetailCardCountLabel(Number(passiveCountDiscardMatch[1]))} from ${discardSource}`
+    };
+  }
+
+  const discardedMatch = value.match(/^(?:.+?\s+)?discarded\s+(.+)$/i);
+
+  if (discardedMatch?.[1]) {
+    const namedCards = getNamedDetailCards(discardedMatch[1]);
+    const outcome = namedCards.length > 0
+      ? getDetailCardCountLabel(namedCards.length)
+      : cleanDetailActorText(discardedMatch[1]).replace(/^a card$/i, "1 card");
+
+    return {
+      cards: namedCards,
+      icon: "discard",
+      label: "Discarded",
+      outcome
+    };
+  }
+
+  return null;
+}
+
+function cleanDetailActorText(text: string) {
+  return String(text || "")
+    .replace(/\.$/, "")
+    .trim();
+}
+
+function DetailEventRow({ event }: { event: DetailEvent }) {
+  const Icon =
+    event.icon === "shuffle" ? ShuffleIcon : event.icon === "discard" ? XIcon : CopyIcon;
+
+  return (
+    <div className="flex min-w-0 items-center gap-2 text-[0.76rem] font-semibold uppercase leading-5 tracking-[0.05em] text-muted-foreground">
+      <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+      <span className="shrink-0">{event.label}</span>
+      <span className="min-w-0 normal-case tracking-normal text-card-foreground">
+        {formatDetailOutcome(event.outcome)}
+      </span>
+    </div>
+  );
+}
+
 function isCardListDetail(text: string) {
   const value = String(text || "").trim();
 
@@ -140,7 +275,17 @@ function renderCardChips(text: string, keyValue: string) {
   }
 
   return (
-    <div className="flex flex-wrap gap-1.5 pl-5" key={keyValue}>
+    <CardChips cards={cards} keyValue={keyValue} />
+  );
+}
+
+function CardChips({ cards, keyValue }: { cards: string[]; keyValue: string }) {
+  if (cards.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5" key={keyValue}>
       {cards.map((card, index) => (
         <span
           className="rounded-[4px] border border-border bg-background/70 px-2 py-0.5 text-[0.76rem] font-medium leading-5 text-card-foreground/85"
@@ -158,12 +303,24 @@ function renderIndentedLine(text: string, level = 1, keyValue?: string) {
     return renderCardChips(text, keyValue ?? text);
   }
 
+  const detailEvent = getBattleLogDetailEvent(text);
+  if (level === 1 && detailEvent) {
+    return (
+      <div className="grid gap-1.5" key={keyValue}>
+        <DetailEventRow event={detailEvent} />
+        {detailEvent.cards?.length ? (
+          <CardChips cards={detailEvent.cards} keyValue={`${keyValue ?? text}-cards`} />
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div
-      className={level === 1 ? "pl-5" : "ml-6 border-l border-border pl-6"}
+      className={level === 1 ? "" : "ml-5 border-l border-border pl-4"}
       key={keyValue}
     >
-      <p className="m-0 flex items-start gap-3">
+      <p className="m-0 flex items-start gap-2">
         <span className="text-muted-foreground">{level === 1 ? "•" : "◦"}</span>
         <span>{text}</span>
       </p>
@@ -239,7 +396,11 @@ function renderBattleLogActionDetails(details: string[], actionTag: BattleLogAct
             {rest.map((item, index) =>
               isCardListDetail(item)
                 ? renderCardChips(item, `group-${groupIndex}-nested-${index}`)
-                : renderIndentedLine(item, 2, `group-${groupIndex}-nested-${index}`)
+                : renderIndentedLine(
+                    item,
+                    getBattleLogDetailEvent(item) ? 1 : 2,
+                    `group-${groupIndex}-nested-${index}`
+                  )
             )}
           </div>
         </div>
@@ -460,7 +621,7 @@ function LogSectionCard({
         ) : null}
       </div>
 
-      <div className="grid gap-2 px-4 py-4 sm:px-6">
+      <div className="grid px-4 py-4 sm:px-6">
         {actions.map((action, actionIndex) => {
           const displayActionTitle = getBattleLogDisplayActionTitle(action.title, action.details);
           const displayActionDetails = getBattleLogDisplayActionDetails(action.title, action.details);
@@ -479,7 +640,7 @@ function LogSectionCard({
           if (displayActionDetails.length > 0) {
             return (
               <details
-                className="group overflow-hidden rounded-lg border border-border bg-background/35"
+                className="group border-b border-border last:border-b-0"
                 key={`${action.title}-${actionIndex}`}
               >
                 <summary className="cursor-pointer list-none px-1 py-3 [&::-webkit-details-marker]:hidden">
@@ -500,7 +661,7 @@ function LogSectionCard({
                     </span>
                   </div>
                 </summary>
-                <div className="grid gap-2 border-t border-border px-4 py-3 text-[0.92rem] leading-6 text-muted-foreground">
+                <div className="grid gap-2 px-1 pb-3 pl-5 text-[0.92rem] leading-6 text-muted-foreground">
                   {renderBattleLogActionDetails(displayActionDetails, actionTag)}
                 </div>
               </details>
