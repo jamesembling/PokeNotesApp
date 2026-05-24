@@ -78,11 +78,27 @@ test("normalizeLearnedSelfDeckSprites trims, lowercases, dedupes, and caps sprit
   ]);
 });
 
+test("normalizeLearnedSelfDeckSprites applies preferred learned deck sprite order", () => {
+  assert.deepEqual(normalizeLearnedSelfDeckSprites(["Dudunsparce", "Greninja-Mega"]), [
+    "greninja-mega",
+    "dudunsparce"
+  ]);
+});
+
 test("buildLearnedSelfArchetype uses the stable sprite archetype id", () => {
   assert.deepEqual(buildLearnedSelfArchetype(["dusknoir", "dragapult"], 3), {
     archetypeId: "dragapult+dusknoir",
     label: "Dusknoir / Dragapult",
     sprites: ["dusknoir", "dragapult"],
+    matchCount: 3
+  });
+});
+
+test("buildLearnedSelfArchetype displays Mega Greninja before Dudunsparce", () => {
+  assert.deepEqual(buildLearnedSelfArchetype(["dudunsparce", "greninja-mega"], 3), {
+    archetypeId: "dudunsparce+greninja-mega",
+    label: "Mega Greninja / Dudunsparce",
+    sprites: ["greninja-mega", "dudunsparce"],
     matchCount: 3
   });
 });

@@ -28,8 +28,15 @@ function normalizeSprite(value: string) {
   return String(value || "").trim().toLowerCase();
 }
 
+const PREFERRED_LEARNED_SPRITE_ORDERS = new Map<string, string[]>([
+  ["dudunsparce,greninja-mega", ["greninja-mega", "dudunsparce"]]
+]);
+
 export function normalizeLearnedSelfDeckSprites(sprites: string[]) {
-  return Array.from(new Set(sprites.map(normalizeSprite).filter(Boolean))).slice(0, 2);
+  const normalizedSprites = Array.from(new Set(sprites.map(normalizeSprite).filter(Boolean))).slice(0, 2);
+  const sortedKey = [...normalizedSprites].sort((left, right) => left.localeCompare(right)).join(",");
+
+  return PREFERRED_LEARNED_SPRITE_ORDERS.get(sortedKey) ?? normalizedSprites;
 }
 
 function buildStoredSpriteVariants(sprites: string[]) {
