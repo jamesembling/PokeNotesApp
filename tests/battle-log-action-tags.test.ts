@@ -84,6 +84,10 @@ test("formatBattleLogActionTitle uses subject-first wording for common board act
     formatBattleLogActionTitle("James evolved Drakloak to Dragapult ex."),
     "Drakloak evolved into Dragapult ex"
   );
+  assert.equal(
+    formatBattleLogActionTitle("James evolved Froakie to Frogadier on the Bench."),
+    "Froakie evolved into Frogadier on the Bench"
+  );
   assert.equal(formatBattleLogActionTitle("JammerUK1993 drew Froakie."), "Drew Froakie");
   assert.equal(formatBattleLogActionTitle("iBerzrk_Network drew a card."), "Drew a card");
   assert.equal(formatBattleLogActionTitle("JammerUK1993 played Buddy-Buddy Poffin."), "Played Buddy-Buddy Poffin");

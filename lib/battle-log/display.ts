@@ -65,6 +65,10 @@ function cleanAttachmentTarget(value: string) {
     .replace(/\bon Bench\b/i, "on the Bench");
 }
 
+function cleanBoardPositionText(value: string) {
+  return cleanBattleLogDisplayText(value).replace(/\bon Bench\b/i, "on the Bench");
+}
+
 function stripBattleLogPlayerPossessives(value: string) {
   return cleanBattleLogDisplayText(value).replace(/(^|\s)[\p{L}\p{N}_.-]+['’]s\s+/gu, "$1");
 }
@@ -186,8 +190,9 @@ export function formatBattleLogActionTitle(
   if (evolvedMatch?.[2] && evolvedMatch[3]) {
     return withOptionalActorPrefix(
       evolvedMatch[1],
-      `${cleanBattleLogDisplayText(evolvedMatch[2])} evolved into ${cleanBattleLogDisplayText(evolvedMatch[3])}`,
-      retainActor
+      `${cleanBattleLogDisplayText(evolvedMatch[2])} evolved into ${cleanBoardPositionText(evolvedMatch[3])}`,
+      retainActor,
+      { cleanValue: false }
     );
   }
 
