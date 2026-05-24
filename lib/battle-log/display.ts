@@ -49,9 +49,20 @@ function cleanBattleLogDisplayText(value: string) {
     .replace(/\bthe Bench\b/g, "Bench");
 }
 
-function withOptionalActorPrefix(actor: string, value: string, retainActor: boolean) {
-  const cleanedValue = cleanBattleLogDisplayText(value);
+function withOptionalActorPrefix(
+  actor: string,
+  value: string,
+  retainActor: boolean,
+  options: { cleanValue?: boolean } = {}
+) {
+  const cleanedValue = options.cleanValue === false ? value : cleanBattleLogDisplayText(value);
   return retainActor ? `${cleanBattleLogDisplayText(actor)}: ${cleanedValue}` : cleanedValue;
+}
+
+function cleanAttachmentTarget(value: string) {
+  return cleanBattleLogDisplayText(value)
+    .replace(/\bin the Active spot\b/i, "in the Active")
+    .replace(/\bon Bench\b/i, "on the Bench");
 }
 
 function stripBattleLogPlayerPossessives(value: string) {
@@ -141,16 +152,22 @@ export function formatBattleLogActionTitle(
   if (drewAndPlayedMatch?.[2]) {
     return withOptionalActorPrefix(
       drewAndPlayedMatch[1],
-      `${cleanBattleLogDisplayText(drewAndPlayedMatch[2])} → Bench`,
+      `${cleanBattleLogDisplayText(drewAndPlayedMatch[2])} played to Bench`,
       retainActor
     );
   }
 
   const playedToSpotMatch = displayTitle.match(/^(.+?)\s+played\s+(.+?)\s+to\s+(?:the\s+)?(Active spot|Bench)$/i);
   if (playedToSpotMatch?.[2] && playedToSpotMatch[3]) {
+    const target = cleanBattleLogDisplayText(playedToSpotMatch[3]);
+    const actionText =
+      target === "Bench"
+        ? `${cleanBattleLogDisplayText(playedToSpotMatch[2])} played to Bench`
+        : `${cleanBattleLogDisplayText(playedToSpotMatch[2])} played to ${target}`;
+
     return withOptionalActorPrefix(
       playedToSpotMatch[1],
-      `${cleanBattleLogDisplayText(playedToSpotMatch[2])} → ${cleanBattleLogDisplayText(playedToSpotMatch[3])}`,
+      actionText,
       retainActor
     );
   }
@@ -159,8 +176,9 @@ export function formatBattleLogActionTitle(
   if (attachedMatch?.[2] && attachedMatch[3]) {
     return withOptionalActorPrefix(
       attachedMatch[1],
-      `${cleanBattleLogDisplayText(attachedMatch[2])} → ${cleanBattleLogDisplayText(attachedMatch[3])}`,
-      retainActor
+      `${cleanBattleLogDisplayText(attachedMatch[2])} attached to ${cleanAttachmentTarget(attachedMatch[3])}`,
+      retainActor,
+      { cleanValue: false }
     );
   }
 

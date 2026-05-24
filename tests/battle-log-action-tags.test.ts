@@ -62,15 +62,23 @@ test("getBattleLogActionTagLabel keeps recognized labels short and gives useful 
 test("formatBattleLogActionTitle uses subject-first wording for common board actions", () => {
   assert.equal(
     formatBattleLogActionTitle("JammerUK1993 played Froakie to the Active Spot."),
-    "Froakie → Active spot"
+    "Froakie played to Active spot"
   );
   assert.equal(
     formatBattleLogActionTitle("James drew Radiant Greninja and played it to the Bench."),
-    "Radiant Greninja → Bench"
+    "Radiant Greninja played to Bench"
   );
   assert.equal(
     formatBattleLogActionTitle("James attached Darkness Energy to Munkidori."),
-    "Darkness Energy → Munkidori"
+    "Darkness Energy attached to Munkidori"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("James attached Darkness Energy to Munkidori in the Active Spot."),
+    "Darkness Energy attached to Munkidori in the Active"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("James attached Darkness Energy to Munkidori on the Bench."),
+    "Darkness Energy attached to Munkidori on the Bench"
   );
   assert.equal(
     formatBattleLogActionTitle("James evolved Drakloak to Dragapult ex."),
@@ -145,7 +153,7 @@ test("formatBattleLogActionTitle can retain actors for setup actions", () => {
     formatBattleLogActionTitle("JammerUK1993 played Froakie to the Active Spot.", {
       retainActor: true
     }),
-    "JammerUK1993: Froakie → Active spot"
+    "JammerUK1993: Froakie played to Active spot"
   );
   assert.equal(
     formatBattleLogActionTitle("JammerUK1993 played Buddy-Buddy Poffin.", {
