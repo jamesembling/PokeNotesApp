@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   classifyBattleLogActionTitle,
+  formatBattleLogActionDetail,
+  formatBattleLogActionTitle,
   getBattleLogActionTagLabel
 } from "@/lib/battle-log/display";
 
@@ -53,4 +55,94 @@ test("getBattleLogActionTagLabel keeps recognized labels short and gives useful 
   assert.equal(getBattleLogActionTagLabel("James attached Darkness Energy to Munkidori."), "Attach");
   assert.equal(getBattleLogActionTagLabel("James retreated to the Bench."), "Retreat");
   assert.equal(getBattleLogActionTagLabel("A quiet line without a clear action"), "Action");
+});
+
+test("formatBattleLogActionTitle uses subject-first wording for common board actions", () => {
+  assert.equal(
+    formatBattleLogActionTitle("JammerUK1993 played Froakie to the Active Spot."),
+    "Froakie → Active spot"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("James drew Radiant Greninja and played it to the Bench."),
+    "Radiant Greninja → Bench"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("James attached Darkness Energy to Munkidori."),
+    "Darkness Energy → Munkidori"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("James evolved Drakloak to Dragapult ex."),
+    "Drakloak evolved into Dragapult ex"
+  );
+  assert.equal(formatBattleLogActionTitle("JammerUK1993 drew Froakie."), "Drew Froakie");
+  assert.equal(formatBattleLogActionTitle("iBerzrk_Network drew a card."), "Drew a card");
+  assert.equal(formatBattleLogActionTitle("JammerUK1993 played Buddy-Buddy Poffin."), "Played Buddy-Buddy Poffin");
+  assert.equal(
+    formatBattleLogActionTitle("Radiant Greninja used Concealed Cards.", {
+      actionTag: "ability"
+    }),
+    "[ABILITY ACTIVATED] Radiant Greninja used Concealed Cards"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("JammerUK1993's Greninja ex used Mirage Barrage.", {
+      actionTag: "attack"
+    }),
+    "Greninja ex used Mirage Barrage"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("JammerUK1993's Greninja ex used Mirage Barrage on iBerzrk_Network's Active for 120 damage.", {
+      actionTag: "attack"
+    }),
+    "Greninja ex used Mirage Barrage on Active for 120 damage"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("iBerzrk_Network’s Budew used Itchy Pollen on JammerUK1993’s Budew for 10 damage.", {
+      actionTag: "attack"
+    }),
+    "Budew used Itchy Pollen on Budew for 10 damage"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("Dragapult ex used Phantom Dive for 200 damage.", {
+      actionTag: "attack"
+    }),
+    "Dragapult ex used Phantom Dive for 200 damage"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("JammerUK1993 played Buddy-Buddy Poffin.", {
+      actionTag: "item"
+    }),
+    "Played Buddy-Buddy Poffin"
+  );
+  assert.equal(formatBattleLogActionTitle("JammerUK1993 ended their turn."), "Ended turn");
+});
+
+test("formatBattleLogActionTitle can retain actors for setup actions", () => {
+  assert.equal(
+    formatBattleLogActionTitle("JammerUK1993 played Froakie to the Active Spot.", {
+      retainActor: true
+    }),
+    "JammerUK1993: Froakie → Active spot"
+  );
+  assert.equal(
+    formatBattleLogActionTitle("JammerUK1993 played Buddy-Buddy Poffin.", {
+      actionTag: "item",
+      retainActor: true
+    }),
+    "JammerUK1993: Played Buddy-Buddy Poffin"
+  );
+});
+
+test("formatBattleLogActionDetail strips player names from attack details", () => {
+  assert.equal(
+    formatBattleLogActionDetail("iBerzrk_Network's Active Pokemon took 120 damage.", {
+      actionTag: "attack"
+    }),
+    "Active Pokemon took 120 damage"
+  );
+  assert.equal(
+    formatBattleLogActionDetail("- Opponent's Benched Pokemon took 120 damage.", {
+      actionTag: "attack"
+    }),
+    "- Benched Pokemon took 120 damage"
+  );
 });

@@ -41,6 +41,125 @@ function normalizeBattleLogActionTitle(title: string) {
     .trim();
 }
 
+function cleanBattleLogDisplayText(value: string) {
+  return String(value || "")
+    .trim()
+    .replace(/\.$/, "")
+    .replace(/\bActive Spot\b/g, "Active spot")
+    .replace(/\bthe Bench\b/g, "Bench");
+}
+
+function withOptionalActorPrefix(actor: string, value: string, retainActor: boolean) {
+  const cleanedValue = cleanBattleLogDisplayText(value);
+  return retainActor ? `${cleanBattleLogDisplayText(actor)}: ${cleanedValue}` : cleanedValue;
+}
+
+function stripBattleLogPlayerPossessives(value: string) {
+  return cleanBattleLogDisplayText(value).replace(/(^|\s)[\p{L}\p{N}_.-]+['’]s\s+/gu, "$1");
+}
+
+export function formatBattleLogActionDetail(
+  detail: string,
+  options: { actionTag?: BattleLogActionTag } = {}
+) {
+  const displayDetail = cleanBattleLogDisplayText(detail);
+
+  if (options.actionTag === "attack") {
+    return stripBattleLogPlayerPossessives(displayDetail);
+  }
+
+  return displayDetail;
+}
+
+export function formatBattleLogActionTitle(
+  title: string,
+  options: { actionTag?: BattleLogActionTag; retainActor?: boolean } = {}
+) {
+  const displayTitle = cleanBattleLogDisplayText(title);
+  const actionTag = options.actionTag ?? classifyBattleLogActionTitle(title);
+  const retainActor = options.retainActor ?? false;
+
+  if (!displayTitle) {
+    return "";
+  }
+
+  const drewAndPlayedMatch = displayTitle.match(/^(.+?)\s+drew\s+(.+?)\s+and\s+played\s+it\s+to\s+(?:the\s+)?Bench$/i);
+  if (drewAndPlayedMatch?.[2]) {
+    return withOptionalActorPrefix(
+      drewAndPlayedMatch[1],
+      `${cleanBattleLogDisplayText(drewAndPlayedMatch[2])} → Bench`,
+      retainActor
+    );
+  }
+
+  const playedToSpotMatch = displayTitle.match(/^(.+?)\s+played\s+(.+?)\s+to\s+(?:the\s+)?(Active spot|Bench)$/i);
+  if (playedToSpotMatch?.[2] && playedToSpotMatch[3]) {
+    return withOptionalActorPrefix(
+      playedToSpotMatch[1],
+      `${cleanBattleLogDisplayText(playedToSpotMatch[2])} → ${cleanBattleLogDisplayText(playedToSpotMatch[3])}`,
+      retainActor
+    );
+  }
+
+  const attachedMatch = displayTitle.match(/^(.+?)\s+attached\s+(.+?)\s+to\s+(.+)$/i);
+  if (attachedMatch?.[2] && attachedMatch[3]) {
+    return withOptionalActorPrefix(
+      attachedMatch[1],
+      `${cleanBattleLogDisplayText(attachedMatch[2])} → ${cleanBattleLogDisplayText(attachedMatch[3])}`,
+      retainActor
+    );
+  }
+
+  const evolvedMatch = displayTitle.match(/^(.+?)\s+evolved\s+(.+?)\s+to\s+(.+)$/i);
+  if (evolvedMatch?.[2] && evolvedMatch[3]) {
+    return withOptionalActorPrefix(
+      evolvedMatch[1],
+      `${cleanBattleLogDisplayText(evolvedMatch[2])} evolved into ${cleanBattleLogDisplayText(evolvedMatch[3])}`,
+      retainActor
+    );
+  }
+
+  const abilityMatch = displayTitle.match(/^(.+?)\s+used\s+(.+)$/i);
+  if (actionTag === "ability" && abilityMatch?.[1] && abilityMatch[2]) {
+    return `[ABILITY ACTIVATED] ${cleanBattleLogDisplayText(abilityMatch[1])} used ${cleanBattleLogDisplayText(abilityMatch[2])}`;
+  }
+
+  if (actionTag === "attack" && abilityMatch?.[1] && abilityMatch[2]) {
+    const attackingPokemon = stripBattleLogPlayerPossessives(abilityMatch[1]);
+    return `${attackingPokemon} used ${stripBattleLogPlayerPossessives(abilityMatch[2])}`;
+  }
+
+  const drewMatch = displayTitle.match(/^(.+?)\s+drew\s+(.+)$/i);
+  if (drewMatch?.[2]) {
+    const drawnCards = cleanBattleLogDisplayText(drewMatch[2]);
+    if (/^a card$/i.test(drawnCards)) {
+      return withOptionalActorPrefix(drewMatch[1], "Drew a card", retainActor);
+    }
+
+    return withOptionalActorPrefix(
+      drewMatch[1],
+      `Drew ${drawnCards}`,
+      retainActor
+    );
+  }
+
+  const playedMatch = displayTitle.match(/^(.+?)\s+played\s+(.+)$/i);
+  if (playedMatch?.[2]) {
+    return withOptionalActorPrefix(
+      playedMatch[1],
+      `Played ${cleanBattleLogDisplayText(playedMatch[2])}`,
+      retainActor
+    );
+  }
+
+  const endedTurnMatch = displayTitle.match(/^(.+?)\s+ended\s+their\s+turn$/i);
+  if (endedTurnMatch?.[1]) {
+    return retainActor ? `${cleanBattleLogDisplayText(endedTurnMatch[1])}: ended turn` : "Ended turn";
+  }
+
+  return displayTitle;
+}
+
 function isLikelyAttackTitle(normalizedTitle: string) {
   if (!/\bused\b/.test(normalizedTitle)) {
     return false;

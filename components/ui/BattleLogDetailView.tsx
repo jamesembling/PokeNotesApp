@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { TrophyIcon } from "@phosphor-icons/react";
 import type {
   BattleLogActionTagOverrides,
   BattleLogResolvedActionTag
@@ -7,6 +8,8 @@ import { Card } from "@/components/shadcn/card";
 import { MatchSummary } from "@/components/ui/MatchSummary";
 import {
   classifyBattleLogActionTitle,
+  formatBattleLogActionDetail,
+  formatBattleLogActionTitle,
   getBattleLogActionTagLabel,
   type BattleLogActionTag
 } from "@/lib/battle-log/display";
@@ -79,10 +82,6 @@ function ActionTag({
   );
 }
 
-function stripTerminalPeriod(value: string) {
-  return String(value || "").trim().replace(/\.$/, "");
-}
-
 function ActionRow({
   children,
   resolved,
@@ -114,7 +113,49 @@ function renderIndentedLine(text: string, level = 1, keyValue?: string) {
   );
 }
 
-function renderBattleLogActionDetails(details: string[]) {
+function hasDamageDetail(details: string[]) {
+  return details.some((detail) => /\b(?:for|took)\s+\d+\+?\s+damage\b/i.test(String(detail || "")));
+}
+
+function hasPossessivePokemonUsedAction(actionTitle: string) {
+  return /^[A-Za-z0-9_.-]+'s\s+.+\s+used\b/i.test(String(actionTitle || "").trim());
+}
+
+function getDisplayActionTag(
+  actionTitle: string,
+  details: string[],
+  resolvedActionTag?: BattleLogResolvedActionTag
+): BattleLogActionTag {
+  const classifiedActionTag = resolvedActionTag?.tag ?? classifyBattleLogActionTitle(actionTitle);
+
+  if (
+    classifiedActionTag === "ability" &&
+    (hasDamageDetail(details) || hasPossessivePokemonUsedAction(actionTitle))
+  ) {
+    return "attack";
+  }
+
+  return classifiedActionTag;
+}
+
+function getDisplayActionTagOverride(
+  actionTitle: string,
+  details: string[],
+  resolvedActionTag?: BattleLogResolvedActionTag
+): BattleLogResolvedActionTag | undefined {
+  const displayActionTag = getDisplayActionTag(actionTitle, details, resolvedActionTag);
+
+  if (displayActionTag === "attack" && resolvedActionTag?.tag !== "attack") {
+    return {
+      label: "Attack",
+      tag: "attack"
+    };
+  }
+
+  return resolvedActionTag;
+}
+
+function renderBattleLogActionDetails(details: string[], actionTag: BattleLogActionTag) {
   const chunks: ReactNode[] = [];
   let bullets: string[] = [];
   let chunkIndex = 0;
@@ -162,7 +203,7 @@ function renderBattleLogActionDetails(details: string[]) {
   }
 
   details.forEach((detail) => {
-    const value = stripTerminalPeriod(String(detail || "").trim());
+    const value = formatBattleLogActionDetail(detail, { actionTag });
     if (!value) {
       return;
     }
@@ -193,21 +234,78 @@ function getOrderedPlayerNames(
 ) {
   const sectionPlayerNames = Object.keys(section.prizesAfterTurn ?? {});
   const previousPlayerNames = Object.keys(previousSection?.prizesAfterTurn ?? {});
-  const allPlayerNames = Array.from(
+  return Array.from(
     new Set([selfPlayerName, ...sectionPlayerNames, ...previousPlayerNames].filter(Boolean))
   );
-  const effectivePlayer = SETUP_SECTION_LABELS.has(String(section.title || "").trim().toLowerCase())
-    ? ""
-    : String(section.player || "").trim();
+}
 
-  if (!effectivePlayer) {
-    return allPlayerNames;
-  }
+function getPlayerToneClassNames(playerName: string, selfPlayerName: string) {
+  return playerName === selfPlayerName
+    ? {
+        dot: "bg-[rgb(59,130,246)]",
+        name: "text-[rgb(37,99,235)] dark:text-[rgb(96,165,250)]"
+      }
+    : {
+        dot: "bg-[rgb(236,72,153)]",
+        name: "text-[rgb(219,39,119)] dark:text-[rgb(244,114,182)]"
+      };
+}
 
-  return [
-    effectivePlayer,
-    ...allPlayerNames.filter((playerName) => playerName !== effectivePlayer)
-  ];
+function PrizeTracker({
+  playerName,
+  prizes,
+  separated = false,
+  selfPlayerName
+}: {
+  playerName: string;
+  prizes: number;
+  separated?: boolean;
+  selfPlayerName: string;
+}) {
+  const safePrizes = Math.max(0, Math.min(6, prizes));
+  const toneClassNames = getPlayerToneClassNames(playerName, selfPlayerName);
+
+  return (
+    <div
+      className={[
+        "grid min-w-0 grid-cols-[1rem_minmax(0,7.25rem)_4.25rem_1rem] items-center gap-2",
+        "sm:w-fit sm:grid-cols-[1rem_auto_4.25rem_1rem] sm:gap-1.5",
+        separated ? "sm:border-l sm:border-border sm:pl-3" : ""
+      ].join(" ")}
+    >
+      <TrophyIcon
+        aria-hidden="true"
+        className={[
+          "h-4 w-4 shrink-0",
+          toneClassNames.name
+        ].join(" ")}
+        weight="fill"
+      />
+      <span
+        className={[
+          "min-w-0 truncate text-[0.88rem] font-semibold leading-none",
+          toneClassNames.name
+        ].join(" ")}
+        title={playerName}
+      >
+        {playerName}
+      </span>
+      <span aria-hidden="true" className="flex shrink-0 items-center gap-1">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <span
+            className={[
+              "h-2 w-2 rounded-full",
+              index < safePrizes ? toneClassNames.dot : "bg-slate-300 dark:bg-slate-500/60"
+            ].join(" ")}
+            key={index}
+          />
+        ))}
+      </span>
+      <span className="shrink-0 text-[0.82rem] font-semibold leading-none text-card-foreground">
+        {prizes}
+      </span>
+    </div>
+  );
 }
 
 function LogSectionCard({
@@ -225,64 +323,91 @@ function LogSectionCard({
 }) {
   const isSetupSection = SETUP_SECTION_LABELS.has(String(section.title || "").trim().toLowerCase());
   const effectivePlayer = isSetupSection ? "" : String(section.player || "").trim();
-  const toneClassName = !effectivePlayer
+  const bodyToneClassName = !effectivePlayer
     ? "bg-card"
     : effectivePlayer === selfPlayerName
-      ? "bg-[rgba(37,99,235,0.08)] dark:bg-[rgba(37,99,235,0.13)]"
-      : "bg-[rgba(220,38,38,0.06)] dark:bg-[rgba(220,38,38,0.12)]";
+      ? "bg-[rgba(37,99,235,0.045)] dark:bg-[rgba(37,99,235,0.08)]"
+      : "bg-[rgba(220,38,38,0.04)] dark:bg-[rgba(220,38,38,0.075)]";
+  const headerToneClassName = !effectivePlayer
+    ? "bg-muted/55"
+    : effectivePlayer === selfPlayerName
+      ? "bg-[rgba(37,99,235,0.1)] dark:bg-[rgba(37,99,235,0.16)]"
+      : "bg-[rgba(220,38,38,0.08)] dark:bg-[rgba(220,38,38,0.14)]";
   const orderedPlayerNames = getOrderedPlayerNames(section, previousSection, selfPlayerName);
   const actions = section.actions.filter(
     (action) => !SETUP_SECTION_LABELS.has(String(action.title || "").trim().toLowerCase())
   );
+  const titleToneClassName = effectivePlayer
+    ? getPlayerToneClassNames(effectivePlayer, selfPlayerName).name
+    : "text-card-foreground";
 
   return (
     <article
       className={[
-        "rounded-xl border border-border px-4 py-4 text-card-foreground sm:px-6",
-        toneClassName
+        "overflow-hidden rounded-xl border border-border text-card-foreground",
+        bodyToneClassName
       ].join(" ")}
       style={{
         contentVisibility: "auto",
         containIntrinsicSize: "360px"
       }}
     >
-      <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h3 className="font-display m-0 text-[1.34rem] font-semibold tracking-[-0.03em] text-card-foreground">
-            {effectivePlayer ? `${effectivePlayer}'s Turn` : section.title}
+      <div
+        className={[
+          "border-b border-border px-4 py-4 sm:px-6",
+          headerToneClassName
+        ].join(" ")}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h3
+            className={[
+              "min-w-0",
+              "font-display m-0 text-[1.05rem] font-semibold",
+              titleToneClassName
+            ].join(" ")}
+          >
+            {effectivePlayer ? `${effectivePlayer}'s turn` : section.title}
           </h3>
-          {orderedPlayerNames.length > 0 ? (
-            <div className="mt-1.5 grid gap-1 text-[0.98rem] leading-6 text-muted-foreground">
-              {orderedPlayerNames.map((playerName) => {
-                const prizes = section.prizesAfterTurn?.[playerName];
-                const previousPrizes = previousSection?.prizesAfterTurn?.[playerName];
 
-                if (typeof prizes !== "number") {
-                  return null;
-                }
-
-                return (
-                  <p key={playerName}>
-                    {typeof previousPrizes === "number" && previousPrizes !== prizes
-                      ? `${playerName}: ${previousPrizes} → ${prizes} prizes`
-                      : `${playerName}: ${prizes} prizes`}
-                  </p>
-                );
-              })}
-            </div>
+          {!isSetupSection && turnNumber ? (
+            <span className="inline-flex w-fit shrink-0 items-center rounded-full border border-border bg-background/50 px-3 py-1 text-[0.75rem] font-semibold text-muted-foreground">
+              Turn {turnNumber}
+            </span>
           ) : null}
         </div>
 
-        {!isSetupSection && turnNumber ? (
-          <span className="inline-flex items-center rounded-lg bg-muted px-3 py-1.5 text-[0.9rem] font-semibold text-muted-foreground">
-            Turn {turnNumber}
-          </span>
+        {orderedPlayerNames.length > 0 ? (
+          <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+            {orderedPlayerNames.map((playerName, playerIndex) => {
+              const prizes = section.prizesAfterTurn?.[playerName];
+
+              if (typeof prizes !== "number") {
+                return null;
+              }
+
+              return (
+                <PrizeTracker
+                  key={playerName}
+                  playerName={playerName}
+                  prizes={prizes}
+                  separated={playerIndex > 0}
+                  selfPlayerName={selfPlayerName}
+                />
+              );
+            })}
+          </div>
         ) : null}
       </div>
 
-      <div className="grid gap-1">
+      <div className="grid gap-1 px-4 py-4 sm:px-6">
         {actions.map((action, actionIndex) => {
           const resolvedActionTag = actionTagOverrides?.[actionIndex] ?? undefined;
+          const displayResolvedActionTag = getDisplayActionTagOverride(
+            action.title,
+            action.details,
+            resolvedActionTag
+          );
+          const actionTag = getDisplayActionTag(action.title, action.details, displayResolvedActionTag);
 
           if (action.details.length > 0) {
             return (
@@ -292,9 +417,12 @@ function LogSectionCard({
               >
                 <summary className="cursor-pointer list-none px-1 [&::-webkit-details-marker]:hidden">
                   <div className="flex items-start justify-between gap-4">
-                    <ActionRow resolved={resolvedActionTag} title={action.title}>
+                    <ActionRow resolved={displayResolvedActionTag} title={action.title}>
                       <div className="text-[0.98rem] leading-7 text-card-foreground">
-                        {stripTerminalPeriod(action.title)}
+                        {formatBattleLogActionTitle(action.title, {
+                          actionTag,
+                          retainActor: isSetupSection
+                        })}
                       </div>
                     </ActionRow>
                     <span className="pt-1 text-muted-foreground">
@@ -305,7 +433,7 @@ function LogSectionCard({
                 <div className="mt-2 grid gap-2 px-1 sm:grid-cols-[5.35rem_minmax(0,1fr)] sm:gap-3">
                   <div className="hidden sm:block" />
                   <div className="grid gap-2 text-[0.92rem] leading-6 text-muted-foreground">
-                    {renderBattleLogActionDetails(action.details)}
+                    {renderBattleLogActionDetails(action.details, actionTag)}
                   </div>
                 </div>
               </details>
@@ -317,9 +445,12 @@ function LogSectionCard({
               className="border-b border-border px-1 py-3 text-[1rem] leading-7 text-card-foreground last:border-b-0"
               key={`${action.title}-${actionIndex}`}
             >
-              <ActionRow resolved={resolvedActionTag} title={action.title}>
+              <ActionRow resolved={displayResolvedActionTag} title={action.title}>
                 <div className="text-[0.98rem] leading-7 text-card-foreground">
-                  {stripTerminalPeriod(action.title)}
+                  {formatBattleLogActionTitle(action.title, {
+                    actionTag,
+                    retainActor: isSetupSection
+                  })}
                 </div>
               </ActionRow>
             </div>
