@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getBattleLogDamageBreakdown,
   getBattleLogDetailEvent,
   getDisplayActionTag
 } from "@/components/ui/BattleLogDetailView";
@@ -50,6 +51,43 @@ test("passive discard detail events keep owned Pokemon names after display clean
       icon: "discard",
       label: "Discarded",
       outcome: "2 cards from Cynthia's Roserade"
+    }
+  );
+});
+
+test("damage breakdown detail groups are parsed as structured rows", () => {
+  assert.deepEqual(
+    getBattleLogDamageBreakdown([
+      "Damage breakdown:",
+      "Base damage: 40 damage",
+      "(Ability) Cheer On to Glory: 30 damage",
+      "(Item) Premium Power Pro: 30 damage",
+      "Total damage: 100 damage"
+    ]),
+    {
+      items: [
+        {
+          damage: "40 damage",
+          label: "Base damage",
+          tone: "base"
+        },
+        {
+          damage: "30 damage",
+          label: "(Ability) Cheer On to Glory",
+          tone: "modifier"
+        },
+        {
+          damage: "30 damage",
+          label: "(Item) Premium Power Pro",
+          tone: "modifier"
+        },
+        {
+          damage: "100 damage",
+          label: "Total damage",
+          tone: "total"
+        }
+      ],
+      label: "Damage breakdown"
     }
   );
 });

@@ -152,6 +152,90 @@ test("formatBattleLogActionTitle uses subject-first wording for common board act
   assert.equal(formatBattleLogActionTitle("JammerUK1993 ended their turn."), "Ended turn");
 });
 
+test("display action helpers fold retreat promotion details into the title", () => {
+  const details = [
+    "Basic Fighting Energy was discarded from _ndz's Cynthia's Roserade.",
+    "_ndz's Cynthia's Gabite is now in the Active spot."
+  ];
+  const displayTitle = getBattleLogDisplayActionTitle(
+    "_ndz retreated Cynthia's Roserade to Bench.",
+    details
+  );
+
+  assert.equal(
+    displayTitle,
+    "_ndz retreated Cynthia's Roserade to Bench -> Cynthia's Gabite is now in the Active spot"
+  );
+  assert.equal(
+    formatBattleLogActionTitle(displayTitle),
+    "Cynthia's Roserade retreated to Bench -> Cynthia's Gabite is now in the Active spot"
+  );
+  assert.deepEqual(
+    getBattleLogDisplayActionDetails("_ndz retreated Cynthia's Roserade to Bench.", details),
+    ["Basic Fighting Energy was discarded from _ndz's Cynthia's Roserade."]
+  );
+});
+
+test("display action helpers fold multi-target attack damage into the title", () => {
+  const title = "JammerUK1993's Greninja ex used Mirage Barrage on iBerzrk_Network's Active for 120 damage.";
+  const details = [
+    "- iBerzrk_Network's Benched Pokemon took 120 damage.",
+    "Ignition Energy was discarded from JammerUK1993's Greninja ex."
+  ];
+  const displayTitle = getBattleLogDisplayActionTitle(title, details);
+
+  assert.equal(
+    displayTitle,
+    "JammerUK1993's Greninja ex used Mirage Barrage on iBerzrk_Network's Active for 120 damage & Benched Pokemon for 120 damage"
+  );
+  assert.equal(
+    formatBattleLogActionTitle(displayTitle, { actionTag: "attack" }),
+    "Greninja ex used Mirage Barrage on Active for 120 damage & Benched Pokemon for 120 damage"
+  );
+  assert.deepEqual(
+    getBattleLogDisplayActionDetails(title, details),
+    ["Ignition Energy was discarded from JammerUK1993's Greninja ex."]
+  );
+});
+
+test("display action helpers fold detail-only spread attack damage into the title", () => {
+  const title = "JammerUK1993's Greninja ex used Mirage Barrage.";
+  const details = [
+    "- iBerzrk_Network's Cynthia's Gabite took 120 damage.",
+    "- iBerzrk_Network's Cynthia's Roserade took 120 damage."
+  ];
+  const displayTitle = getBattleLogDisplayActionTitle(title, details);
+
+  assert.equal(
+    displayTitle,
+    "JammerUK1993's Greninja ex used Mirage Barrage on Cynthia's Gabite for 120 damage & Cynthia's Roserade for 120 damage"
+  );
+  assert.equal(
+    formatBattleLogActionTitle(displayTitle, { actionTag: "attack" }),
+    "Greninja ex used Mirage Barrage on Cynthia's Gabite for 120 damage & Cynthia's Roserade for 120 damage"
+  );
+  assert.deepEqual(getBattleLogDisplayActionDetails(title, details), []);
+});
+
+test("display action helpers fold Boss's Orders switch details into the title", () => {
+  const title = "JammerUK1993 played Boss's Orders.";
+  const details = [
+    "- Cynthia's Roselia was switched with _ndz's Cynthia's Gible to become the Active Pokémon",
+    "Cynthia's Roselia is now in the Active spot"
+  ];
+  const displayTitle = getBattleLogDisplayActionTitle(title, details);
+
+  assert.equal(
+    displayTitle,
+    "JammerUK1993 played Boss's Orders - Active Cynthia's Gible was switched with Benched Cynthia's Roselia"
+  );
+  assert.equal(
+    formatBattleLogActionTitle(displayTitle, { actionTag: "supporter" }),
+    "Played Boss's Orders - Active Cynthia's Gible was switched with Benched Cynthia's Roselia"
+  );
+  assert.deepEqual(getBattleLogDisplayActionDetails(title, details), []);
+});
+
 test("formatBattleLogActionTitle can retain actors for setup actions", () => {
   assert.equal(
     formatBattleLogActionTitle("JammerUK1993 played Froakie to the Active Spot.", {
@@ -180,6 +264,12 @@ test("formatBattleLogActionDetail strips player names from attack details", () =
       actionTag: "attack"
     }),
     "- Benched Pokemon took 120 damage"
+  );
+  assert.equal(
+    formatBattleLogActionDetail("_ndz's Cynthia's Gabite took 120 damage.", {
+      actionTag: "attack"
+    }),
+    "Cynthia's Gabite took 120 damage"
   );
 });
 

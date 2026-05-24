@@ -73,6 +73,13 @@ function stripBattleLogPlayerPossessives(value: string) {
   return cleanBattleLogDisplayText(value).replace(/(^|\s)[\p{L}\p{N}_.-]+['’]s\s+/gu, "$1");
 }
 
+function stripBattleLogPlayerReferences(value: string) {
+  return cleanBattleLogDisplayText(value).replace(
+    /(^|\s)(?:Opponent|Self|[\p{L}\p{N}_.-]*[\p{N}_.-][\p{L}\p{N}_.-]*)['’]s\s+/gu,
+    "$1"
+  );
+}
+
 function stripLeadingBattleLogPlayerPossessive(value: string) {
   return cleanBattleLogDisplayText(value).replace(/^[-•]?\s*[\p{L}\p{N}_.-]+['’]s\s+/u, (match) =>
     match.startsWith("-") || match.startsWith("•") ? match.slice(0, 2) : ""
@@ -86,7 +93,7 @@ export function formatBattleLogActionDetail(
   const displayDetail = stripLeadingBattleLogPlayerPossessive(detail);
 
   if (options.actionTag === "attack") {
-    return stripBattleLogPlayerPossessives(displayDetail);
+    return stripBattleLogPlayerReferences(displayDetail);
   }
 
   return displayDetail;
@@ -123,6 +130,106 @@ function isDudunsparceRunAwayDrawShape(title: string, details: string[]) {
   );
 }
 
+function getRetreatPromotionDetail(details: string[]) {
+  for (const detail of details) {
+    const value = stripLeadingBattleLogPlayerPossessive(cleanLeadingBullet(detail));
+    const promotedMatch = value.match(/^(.+?)\s+is now in the Active spot$/i);
+
+    if (promotedMatch?.[1]) {
+      return `${cleanBattleLogDisplayText(promotedMatch[1])} is now in the Active spot`;
+    }
+  }
+
+  return "";
+}
+
+function isRetreatPromotionDetail(detail: string) {
+  return /^.+?\s+is now in the Active spot$/i.test(
+    stripLeadingBattleLogPlayerPossessive(cleanLeadingBullet(detail))
+  );
+}
+
+type AttackDamageDetail = {
+  damage: string;
+  target: string;
+};
+
+function getAttackDamageDetail(detail: string): AttackDamageDetail | null {
+  const value = formatBattleLogActionDetail(cleanLeadingBullet(detail), { actionTag: "attack" });
+  const damageMatch = value.match(/^(.+?)\s+took\s+(\d+\+?)\s+damage$/i);
+
+  if (damageMatch?.[1] && damageMatch[2]) {
+    return {
+      damage: damageMatch[2],
+      target: cleanBattleLogDisplayText(damageMatch[1])
+    };
+  }
+
+  return null;
+}
+
+function getAttackDamageDetails(details: string[]) {
+  return details
+    .map(getAttackDamageDetail)
+    .filter((detail): detail is AttackDamageDetail => detail !== null);
+}
+
+function shouldPromoteAttackDamageDetails(title: string, details: string[]) {
+  return (
+    getAttackDamageDetails(details).length > 0 &&
+    (classifyBattleLogActionTitle(title) === "attack" || /\bused\b/i.test(title))
+  );
+}
+
+function formatAttackDamageTarget(detail: AttackDamageDetail) {
+  return `${detail.target} for ${detail.damage} damage`;
+}
+
+function getPromotedAttackDamageTitle(title: string, details: string[]) {
+  const displayTitle = cleanBattleLogDisplayText(title);
+  const damageDetails = getAttackDamageDetails(details);
+
+  if (/\bon\s+.+?\s+for\s+\d+\+?\s+damage$/i.test(displayTitle)) {
+    return [
+      displayTitle,
+      ...damageDetails.map((detail) => `& ${formatAttackDamageTarget(detail)}`)
+    ].join(" ");
+  }
+
+  const [firstDamageDetail, ...restDamageDetails] = damageDetails;
+  if (!firstDamageDetail) {
+    return displayTitle;
+  }
+
+  return [
+    `${displayTitle} on ${formatAttackDamageTarget(firstDamageDetail)}`,
+    ...restDamageDetails.map((detail) => `& ${formatAttackDamageTarget(detail)}`)
+  ].join(" ");
+}
+
+function getBossOrdersSwitchDetail(details: string[]) {
+  for (const detail of details) {
+    const value = stripBattleLogPlayerReferences(cleanLeadingBullet(detail));
+    const switchMatch = value.match(/^(.+?)\s+was switched with\s+(.+?)\s+to become the Active Pok[eé]mon$/i);
+
+    if (switchMatch?.[1] && switchMatch[2]) {
+      const nextActivePokemon = cleanBattleLogDisplayText(switchMatch[1]);
+      const previousActivePokemon = cleanBattleLogDisplayText(switchMatch[2]);
+      return `Active ${previousActivePokemon} was switched with Benched ${nextActivePokemon}`;
+    }
+  }
+
+  return "";
+}
+
+function isBossOrdersSwitchDetail(detail: string) {
+  const value = stripBattleLogPlayerReferences(cleanLeadingBullet(detail));
+  return (
+    /^.+?\s+was switched with\s+.+?\s+to become the Active Pok[eé]mon$/i.test(value) ||
+    /^.+?\s+is now in the Active spot$/i.test(value)
+  );
+}
+
 export function getBattleLogDisplayActionTitle(title: string, details: string[] = []) {
   const promotedAbilityTitle = getPromotedAbilityActivationTitle(details);
 
@@ -134,6 +241,20 @@ export function getBattleLogDisplayActionTitle(title: string, details: string[] 
     return "Dudunsparce's Run Away Draw was activated.";
   }
 
+  const retreatPromotionDetail = /\bretreated\b/i.test(title) ? getRetreatPromotionDetail(details) : "";
+  if (retreatPromotionDetail) {
+    return `${cleanBattleLogDisplayText(title)} -> ${retreatPromotionDetail}`;
+  }
+
+  if (shouldPromoteAttackDamageDetails(title, details)) {
+    return getPromotedAttackDamageTitle(title, details);
+  }
+
+  const bossOrdersSwitchDetail = /\bBoss's Orders\b/i.test(title) ? getBossOrdersSwitchDetail(details) : "";
+  if (bossOrdersSwitchDetail) {
+    return `${cleanBattleLogDisplayText(title)} - ${bossOrdersSwitchDetail}`;
+  }
+
   return title;
 }
 
@@ -142,7 +263,11 @@ export function getBattleLogDisplayActionDetails(title: string, details: string[
   const normalizedDisplayTitle = cleanBattleLogDisplayText(displayTitle);
 
   return details.filter(
-    (detail) => cleanBattleLogDisplayText(cleanLeadingBullet(detail)) !== normalizedDisplayTitle
+    (detail) =>
+      cleanBattleLogDisplayText(cleanLeadingBullet(detail)) !== normalizedDisplayTitle &&
+      !(/\bretreated\b/i.test(displayTitle) && isRetreatPromotionDetail(detail)) &&
+      !(shouldPromoteAttackDamageDetails(title, details) && getAttackDamageDetail(detail) !== null) &&
+      !(/\bBoss's Orders\b/i.test(displayTitle) && isBossOrdersSwitchDetail(detail))
   );
 }
 
@@ -207,14 +332,14 @@ export function formatBattleLogActionTitle(
     return `${cleanBattleLogDisplayText(activatedMatch[1])} used ${cleanBattleLogDisplayText(activatedMatch[2])}`;
   }
 
-  const abilityMatch = displayTitle.match(/^(.+?)\s+used\s+(.+)$/i);
+  const abilityMatch = displayTitle.match(/^(.+?)\s+used\s+([\s\S]+)$/i);
   if (actionTag === "ability" && abilityMatch?.[1] && abilityMatch[2]) {
     return `${stripBattleLogPlayerPossessives(abilityMatch[1])} used ${cleanBattleLogDisplayText(abilityMatch[2])}`;
   }
 
   if (actionTag === "attack" && abilityMatch?.[1] && abilityMatch[2]) {
-    const attackingPokemon = stripBattleLogPlayerPossessives(abilityMatch[1]);
-    return `${attackingPokemon} used ${stripBattleLogPlayerPossessives(abilityMatch[2])}`;
+    const attackingPokemon = stripBattleLogPlayerReferences(abilityMatch[1]);
+    return `${attackingPokemon} used ${stripBattleLogPlayerReferences(abilityMatch[2])}`;
   }
 
   const drewMatch = displayTitle.match(/^(.+?)\s+drew\s+(.+)$/i);

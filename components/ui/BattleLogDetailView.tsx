@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CopyIcon, ShuffleIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, CalculatorIcon, CopyIcon, ShuffleIcon, XIcon } from "lucide-react";
 import type {
   BattleLogActionTagOverrides,
   BattleLogResolvedActionTag
@@ -120,6 +120,30 @@ function CollapsibleActionHeader({
   );
 }
 
+function BattleLogActionTitleText({ children }: { children: string }) {
+  const parts = children.split(/\s+->\s+/);
+
+  if (parts.length < 2) {
+    return children;
+  }
+
+  return (
+    <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      {parts.map((part, index) => (
+        <span className="inline-flex min-w-0 items-center gap-2" key={`${part}-${index}`}>
+          {index > 0 ? (
+            <>
+              <ArrowRightIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="sr-only">then</span>
+            </>
+          ) : null}
+          <span className="min-w-0">{part}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function formatDetailOutcome(text: string) {
   return text.split(/(\d+\s+cards?)/i).map((part, index) =>
     /\d+\s+cards?/i.test(part) ? (
@@ -162,6 +186,17 @@ type DetailEvent = {
   icon: "discard" | "draw" | "shuffle";
   label: string;
   outcome: string;
+};
+
+type DamageBreakdownItem = {
+  damage: string;
+  label: string;
+  tone: "base" | "modifier" | "total";
+};
+
+type DamageBreakdown = {
+  items: DamageBreakdownItem[];
+  label: string;
 };
 
 export function getBattleLogDetailEvent(text: string): DetailEvent | null {
@@ -237,6 +272,46 @@ export function getBattleLogDetailEvent(text: string): DetailEvent | null {
   return null;
 }
 
+export function getBattleLogDamageBreakdown(items: string[]): DamageBreakdown | null {
+  const [first, ...rest] = items.map((item) => cleanDetailActorText(item));
+
+  if (!/^damage breakdown:?$/i.test(first || "")) {
+    return null;
+  }
+
+  const breakdownItems = rest
+    .map((item): DamageBreakdownItem | null => {
+      const itemMatch = item.match(/^(.+?):\s*(\d+\+?)\s+damage$/i);
+
+      if (!itemMatch?.[1] || !itemMatch[2]) {
+        return null;
+      }
+
+      const label = cleanDetailActorText(itemMatch[1]);
+      const normalizedLabel = label.toLowerCase();
+
+      return {
+        damage: `${itemMatch[2]} damage`,
+        label,
+        tone: normalizedLabel.startsWith("base damage")
+          ? "base"
+          : normalizedLabel.startsWith("total damage")
+            ? "total"
+            : "modifier"
+      };
+    })
+    .filter((item): item is DamageBreakdownItem => item !== null);
+
+  if (breakdownItems.length === 0) {
+    return null;
+  }
+
+  return {
+    items: breakdownItems,
+    label: "Damage breakdown"
+  };
+}
+
 function cleanDetailActorText(text: string) {
   return String(text || "")
     .replace(/\.$/, "")
@@ -254,6 +329,33 @@ function DetailEventRow({ event }: { event: DetailEvent }) {
       <span className="min-w-0 normal-case tracking-normal text-card-foreground">
         {formatDetailOutcome(event.outcome)}
       </span>
+    </div>
+  );
+}
+
+function DamageBreakdownBlock({ breakdown, keyValue }: { breakdown: DamageBreakdown; keyValue: string }) {
+  return (
+    <div className="grid gap-1.5" key={keyValue}>
+      <div className="flex min-w-0 items-center gap-2 text-[0.76rem] font-semibold uppercase leading-5 tracking-[0.05em] text-muted-foreground">
+        <CalculatorIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+        <span>{breakdown.label}</span>
+      </div>
+      <div className="grid gap-1 pl-5">
+        {breakdown.items.map((item, index) => (
+          <div
+            className={[
+              "flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[0.88rem] leading-6",
+              item.tone === "total" ? "font-semibold text-card-foreground" : "text-muted-foreground"
+            ].join(" ")}
+            key={`${keyValue}-${item.label}-${index}`}
+          >
+            <span className="min-w-0">{item.label}</span>
+            <span className={item.tone === "total" ? "" : "font-medium text-card-foreground"}>
+              {item.damage}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -386,6 +488,17 @@ function renderBattleLogActionDetails(details: string[], actionTag: BattleLogAct
   function renderNestedBulletGroup(items: string[], groupIndex: number) {
     if (!items.length) {
       return null;
+    }
+
+    const damageBreakdown = getBattleLogDamageBreakdown(items);
+    if (damageBreakdown) {
+      return (
+        <DamageBreakdownBlock
+          breakdown={damageBreakdown}
+          key={`group-${groupIndex}`}
+          keyValue={`group-${groupIndex}-damage-breakdown`}
+        />
+      );
     }
 
     const first = String(items[0] || "").trim();
@@ -654,10 +767,12 @@ function LogSectionCard({
                       title={displayActionTitle}
                     >
                       <div className="text-[0.98rem] leading-7 text-card-foreground">
-                        {formatBattleLogActionTitle(displayActionTitle, {
-                          actionTag,
-                          retainActor: isSetupSection
-                        })}
+                        <BattleLogActionTitleText>
+                          {formatBattleLogActionTitle(displayActionTitle, {
+                            actionTag,
+                            retainActor: isSetupSection
+                          })}
+                        </BattleLogActionTitleText>
                       </div>
                     </CollapsibleActionHeader>
                     <span className="shrink-0 pt-1.5 text-muted-foreground">
@@ -679,10 +794,12 @@ function LogSectionCard({
             >
               <ActionRow resolved={displayResolvedActionTag} title={displayActionTitle}>
                 <div className="text-[0.98rem] leading-7 text-card-foreground">
-                  {formatBattleLogActionTitle(displayActionTitle, {
-                    actionTag,
-                    retainActor: isSetupSection
-                  })}
+                  <BattleLogActionTitleText>
+                    {formatBattleLogActionTitle(displayActionTitle, {
+                      actionTag,
+                      retainActor: isSetupSection
+                    })}
+                  </BattleLogActionTitleText>
                 </div>
               </ActionRow>
             </div>
