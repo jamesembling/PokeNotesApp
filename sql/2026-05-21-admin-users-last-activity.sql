@@ -49,6 +49,14 @@ as $$
     from public.decks
     group by user_id
   ),
+  deck_list_counts as (
+    select
+      user_id,
+      count(*)::integer as relational_deck_list_count,
+      max(updated_at) as latest_deck_list_activity_at
+    from public.deck_lists
+    group by user_id
+  ),
   tournament_counts as (
     select
       user_id,
@@ -89,6 +97,12 @@ as $$
 
     union all
 
+    select user_id, latest_deck_list_activity_at as activity_at
+    from deck_list_counts
+    where latest_deck_list_activity_at is not null
+
+    union all
+
     select user_id, latest_tournament_activity_at as activity_at
     from tournament_counts
     where latest_tournament_activity_at is not null
@@ -117,11 +131,12 @@ as $$
     p.login_count,
     p.created_at,
     coalesce(dc.deck_count, 0) as deck_count,
-    coalesce(dc.deck_list_count, 0) as deck_list_count,
+    greatest(coalesce(dc.deck_list_count, 0), coalesce(dlc.relational_deck_list_count, 0)) as deck_list_count,
     coalesce(tc.tournament_count, 0) as tournament_count,
     coalesce(uls.games_played, 0)::integer as log_count
   from public.profiles p
   left join deck_counts dc on dc.user_id = p.id
+  left join deck_list_counts dlc on dlc.user_id = p.id
   left join tournament_counts tc on tc.user_id = p.id
   left join public.user_log_stats uls on uls.user_id = p.id
   left join user_activity ua on ua.user_id = p.id

@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { getLogDetailBodyById } from "@/lib/db/logs";
-import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
-import { reportError } from "@/lib/server/report-error";
+import { privateError, privateJson, reportApiError } from "@/lib/server/api-response";
 
 export const runtime = "nodejs";
 
@@ -12,45 +11,33 @@ export async function GET(request: NextRequest) {
     const logId = request.nextUrl.searchParams.get("id");
 
     if (!logId) {
-      return NextResponse.json(
-        { error: "Missing log id." },
-        { headers: PRIVATE_NO_STORE_HEADERS, status: 400 }
-      );
+      return privateError("Missing log id.", 400);
     }
 
     const user = await requireUser();
     const body = await getLogDetailBodyById(user.id, logId);
 
     if (!body) {
-      return NextResponse.json(
-        { error: "Log not found." },
-        { headers: PRIVATE_NO_STORE_HEADERS, status: 404 }
-      );
+      return privateError("Log not found.", 404);
     }
 
-    return NextResponse.json(
+    return privateJson(
       {
         actionTagOverrides: await resolveBattleLogActionTagOverrides(body.sections),
         rawLog: body.rawLog,
         sections: body.sections
-      },
-      {
-        headers: PRIVATE_NO_STORE_HEADERS
       }
     );
   } catch (error) {
-    reportError(error, {
-      action: "getLogDetailBody",
-      area: "api",
-      boundary: "log-detail-body-route",
-      route: "/api/log-detail-body"
-    });
-
-    return NextResponse.json(
+    return reportApiError(
+      error,
       {
-        error: "We couldn't load this battle log right now."
+        action: "getLogDetailBody",
+        area: "api",
+        boundary: "log-detail-body-route",
+        route: "/api/log-detail-body"
       },
-      { headers: PRIVATE_NO_STORE_HEADERS, status: 500 }
+      "We couldn't load this battle log right now."
     );
   }
 }

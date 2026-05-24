@@ -30,6 +30,11 @@ type DeckCountRow = {
   updated_at: string | null;
 };
 
+type DeckListCountRow = {
+  user_id: string;
+  updated_at: string | null;
+};
+
 type UserLogStatsCountRow = {
   user_id: string;
   games_played: number | null;
@@ -96,10 +101,11 @@ function mapCountRows(rows: UserCountRow[] | null) {
   return counts;
 }
 
-function mapDeckCounts(rows: DeckCountRow[] | null) {
+function mapDeckCounts(rows: DeckCountRow[] | null, deckListRows: DeckListCountRow[] | null = null) {
   const deckCounts = new Map<string, number>();
   const deckListCounts = new Map<string, number>();
   const deckActivity = new Map<string, string>();
+  const relationalDeckListCounts = new Map<string, number>();
 
   for (const row of rows ?? []) {
     const userId = String(row.user_id || "").trim();
@@ -114,6 +120,23 @@ function mapDeckCounts(rows: DeckCountRow[] | null) {
     if (row.updated_at && (!deckActivity.get(userId) || row.updated_at > deckActivity.get(userId)!)) {
       deckActivity.set(userId, row.updated_at);
     }
+  }
+
+  for (const row of deckListRows ?? []) {
+    const userId = String(row.user_id || "").trim();
+    if (!userId) {
+      continue;
+    }
+
+    relationalDeckListCounts.set(userId, (relationalDeckListCounts.get(userId) ?? 0) + 1);
+
+    if (row.updated_at && (!deckActivity.get(userId) || row.updated_at > deckActivity.get(userId)!)) {
+      deckActivity.set(userId, row.updated_at);
+    }
+  }
+
+  for (const [userId, relationalCount] of relationalDeckListCounts) {
+    deckListCounts.set(userId, Math.max(deckListCounts.get(userId) ?? 0, relationalCount));
   }
 
   return {
@@ -368,7 +391,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
         "login_count",
         "created_at"
       ].join(",");
-      const [profiles, decks, tournaments, logStats] = await Promise.all([
+      const [profiles, decks, deckLists, tournaments, logStats] = await Promise.all([
         fetchAllRows<ProfileRow>(async (from, to) => {
           const { data, error } = await supabase
             .from("profiles")
@@ -384,6 +407,14 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
             .range(from, to);
 
           return { data: data as DeckCountRow[] | null, error };
+        }),
+        fetchAllRows<DeckListCountRow>(async (from, to) => {
+          const { data, error } = await supabase
+            .from("deck_lists")
+            .select("user_id,updated_at")
+            .range(from, to);
+
+          return { data: data as DeckListCountRow[] | null, error };
         }),
         fetchAllRows<UserCountRow>(async (from, to) => {
           const { data, error } = await supabase
@@ -403,7 +434,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
         })
       ]);
 
-      const { deckCounts, deckListCounts, deckActivity } = mapDeckCounts(decks);
+      const { deckCounts, deckListCounts, deckActivity } = mapDeckCounts(decks, deckLists);
       const tournamentCounts = mapCountRows(tournaments);
       const tournamentActivity = mapLatestActivity(tournaments);
       const { counts: logCounts, logActivity } = mapLogStatsCounts(logStats);

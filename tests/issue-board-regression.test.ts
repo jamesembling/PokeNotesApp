@@ -21,10 +21,28 @@ test("single-day tournaments reuse dateFrom when dateTo is blank", () => {
 });
 
 test("deck list edits fail when the submitted deck list id is missing", () => {
-  const actions = source("app/(app)/decks/actions.ts");
+  const deckListService = source("lib/decks/deck-list-service.ts");
 
-  assert.match(actions, /if \(deckListId && !existingDeckList\)/);
-  assert.match(actions, /Deck list could not be found\./);
+  assert.match(deckListService, /if \(deckListId && !existingDeckList\)/);
+  assert.match(deckListService, /Deck list could not be found\./);
+});
+
+test("deck lists and matchup notes use relational rows with JSON compatibility", () => {
+  const decksDb = source("lib/db/decks.ts");
+  const deckListService = source("lib/decks/deck-list-service.ts");
+  const matchupService = source("lib/decks/matchup-service.ts");
+
+  assert.match(decksDb, /from\("deck_lists"\)/);
+  assert.match(decksDb, /from\("deck_matchups"\)/);
+  assert.match(decksDb, /relationalDeckLists\.get\(row\.id\)/);
+  assert.match(decksDb, /relationalDeckMatchups\.get\(row\.id\)/);
+  assert.match(decksDb, /parseDeckLists\(row\.deck_lists\)/);
+  assert.match(decksDb, /parseDeckMatchups\(row\.matchups\)/);
+
+  assert.match(deckListService, /upsertRelationalDeckLists/);
+  assert.match(deckListService, /deck_lists: updatedDeckLists/);
+  assert.match(matchupService, /upsertRelationalDeckMatchups/);
+  assert.match(matchupService, /matchups: nextMatchups/);
 });
 
 test("user mutations select changed ids before reporting success", () => {
@@ -62,13 +80,15 @@ test("private helper endpoints disable caching and map user-facing share errors"
   const logDetailContextRoute = source("app/api/log-detail-context/route.ts");
   const tournamentEditorRoute = source("app/api/tournament-editor-data/route.ts");
   const testLoginRoute = source("app/auth/test-login/route.ts");
+  const apiResponse = source("lib/server/api-response.ts");
 
-  assert.match(importDialogRoute, /PRIVATE_NO_STORE_HEADERS/);
+  assert.match(apiResponse, /PRIVATE_NO_STORE_HEADERS/);
+  assert.match(importDialogRoute, /privateJson/);
   assert.match(sharesRoute, /getActionErrorStatus/);
   assert.match(sharesRoute, /message\.includes\("not found"\)/);
-  assert.match(logDetailBodyRoute, /PRIVATE_NO_STORE_HEADERS/);
-  assert.match(logDetailContextRoute, /PRIVATE_NO_STORE_HEADERS/);
-  assert.match(tournamentEditorRoute, /PRIVATE_NO_STORE_HEADERS/);
+  assert.match(logDetailBodyRoute, /privateJson/);
+  assert.match(logDetailContextRoute, /privateJson/);
+  assert.match(tournamentEditorRoute, /privateJson/);
   assert.match(testLoginRoute, /POKE_NOTES_ENABLE_TEST_LOGIN/);
 });
 

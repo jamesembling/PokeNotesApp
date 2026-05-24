@@ -23,27 +23,11 @@ import type {
   GoPreference
 } from "@/types/index";
 
-type PostgrestLikeError = {
-  code?: string | null;
-};
-
 const DECK_SUMMARY_SELECT = [
   "id",
   "user_id",
   "deck_name",
   "archetype_id",
-  "format",
-  "go_preference",
-  "deck_pokemon",
-  "deck_lists",
-  "created_at",
-  "updated_at"
-].join(",");
-
-const DECK_SUMMARY_LEGACY_SELECT = [
-  "id",
-  "user_id",
-  "deck_name",
   "format",
   "go_preference",
   "deck_pokemon",
@@ -67,22 +51,6 @@ const DECK_DETAIL_SELECT = [
   "setup_goals",
   "resource_plan",
   "matchups",
-  "deck_lists"
-].join(",");
-
-const DECK_DETAIL_LEGACY_SELECT = [
-  "id",
-  "user_id",
-  "deck_name",
-  "format",
-  "go_preference",
-  "deck_pokemon",
-  "created_at",
-  "updated_at",
-  "core_strategy",
-  "general_notes",
-  "setup_goals",
-  "resource_plan",
   "deck_lists"
 ].join(",");
 
@@ -147,6 +115,37 @@ type DeckSelectionAndLinkRow = Pick<
   "id" | "deck_name" | "deck_lists" | "deck_pokemon"
 >;
 
+type DeckListRelationalRow = {
+  id: string;
+  deck_id: string;
+  name: string;
+  format: string | null;
+  date: string | null;
+  created_by: string | null;
+  notes: string | null;
+  raw_list: string | null;
+  parsed_cards: unknown;
+  sorted_cards: unknown;
+  sorted_cards_version: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type DeckMatchupRelationalRow = {
+  id: string;
+  deck_id: string;
+  deck_name: string;
+  deck_pokemon: unknown;
+  format: string | null;
+  go_preference: GoPreference | null;
+  matchup_favor: DeckMatchup["matchupFavor"] | null;
+  ideal_bench: string | null;
+  techs_needed: string | null;
+  matchup_plan: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type DeckMappingContext = {
   catalog: IdentificationCatalog;
   slugIndex: Map<string, { slug: string }>;
@@ -164,10 +163,6 @@ function parseStringArray(value: unknown): string[] {
   }
 
   return value.filter((item): item is string => typeof item === "string");
-}
-
-function isMissingDeckArchetypeColumn(error: PostgrestLikeError | null) {
-  return error?.code === "42703";
 }
 
 function parseDeckCard(value: unknown): DeckCard | null {
@@ -279,8 +274,43 @@ function parseDeckLists(value: unknown): DeckList[] {
     .filter((entry): entry is DeckList => entry !== null);
 }
 
+function mapRelationalDeckList(row: DeckListRelationalRow): DeckList {
+  const parsedCards = Array.isArray(row.parsed_cards)
+    ? row.parsed_cards
+        .map((card) => parseDeckCard(card))
+        .filter((card): card is DeckCard => card !== null)
+    : [];
+  const sortedCards = Array.isArray(row.sorted_cards)
+    ? row.sorted_cards
+        .map((card) => parseDeckCard(card))
+        .filter((card): card is DeckCard => card !== null)
+    : sortDeckListCardsLocally(parsedCards);
+
+  return {
+    id: row.id,
+    name: row.name,
+    format: row.format ?? "",
+    date: row.date ?? "",
+    createdBy: row.created_by ?? "",
+    notes: row.notes ?? "",
+    rawList: row.raw_list ?? "",
+    parsedCards,
+    sortedCards,
+    sortedCardsVersion: row.sorted_cards_version ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
 function parseDeckListOptions(value: unknown): DeckListOption[] {
   return parseDeckLists(value).map((deckList) => ({
+    id: deckList.id,
+    name: deckList.name
+  }));
+}
+
+function mapDeckListOptions(deckLists: DeckList[]): DeckListOption[] {
+  return deckLists.map((deckList) => ({
     id: deckList.id,
     name: deckList.name
   }));
@@ -372,6 +402,32 @@ function parseDeckMatchups(value: unknown): DeckMatchup[] {
   return value
     .map((entry) => parseDeckMatchup(entry))
     .filter((entry): entry is DeckMatchup => entry !== null);
+}
+
+function mapRelationalDeckMatchup(row: DeckMatchupRelationalRow): DeckMatchup {
+  return {
+    id: row.id,
+    deckName: row.deck_name,
+    deckPokemon: parseStringArray(row.deck_pokemon),
+    format: row.format ?? "",
+    goPreference:
+      row.go_preference === "First" || row.go_preference === "Second"
+        ? row.go_preference
+        : "",
+    matchupFavor:
+      row.matchup_favor === "Heavily Favoured" ||
+      row.matchup_favor === "Slightly Favoured" ||
+      row.matchup_favor === "Even" ||
+      row.matchup_favor === "Slightly Unfavoured" ||
+      row.matchup_favor === "Heavily Unfavoured"
+        ? row.matchup_favor
+        : "",
+    idealBench: row.ideal_bench ?? "",
+    techsNeeded: row.techs_needed ?? "",
+    matchupPlan: row.matchup_plan ?? "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
 }
 
 function stripDeckListCards(deckList: DeckList): DeckList {
@@ -511,9 +567,10 @@ async function deriveDeckPokemon(
 
 async function mapDeckSummary(
   row: DeckSummaryRow,
-  context: DeckMappingContext
+  context: DeckMappingContext,
+  deckListsOverride?: DeckList[]
 ): Promise<DeckSummary> {
-  const parsedDeckLists = parseDeckLists(row.deck_lists);
+  const parsedDeckLists = deckListsOverride ?? parseDeckLists(row.deck_lists);
   const storedDeckPokemon = parseStringArray(row.deck_pokemon);
   const normalizedStoredDeckPokemon = await normalizeDeckPokemon(storedDeckPokemon, context.slugIndex);
   const deckPokemon =
@@ -541,6 +598,19 @@ function mapDeckSelection(row: DeckSelectionRow): DeckSelectionOption {
     id: row.id,
     deckName: row.deck_name,
     deckLists: parseDeckListOptions(row.deck_lists)
+  };
+}
+
+function mapDeckSelectionWithLists(
+  row: DeckSelectionRow,
+  relationalDeckLists: Map<string, DeckList[]>
+): DeckSelectionOption {
+  const deckLists = relationalDeckLists.get(row.id) ?? parseDeckLists(row.deck_lists);
+
+  return {
+    id: row.id,
+    deckName: row.deck_name,
+    deckLists: mapDeckListOptions(deckLists)
   };
 }
 
@@ -627,6 +697,101 @@ async function getDeckLogStatsForIndex(
   return (((data ?? []) as unknown) as DeckLogStatsRow[]);
 }
 
+async function getRelationalDeckListsByDeckId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  deckIds: string[]
+): Promise<Map<string, DeckList[]>> {
+  const resolvedDeckIds = Array.from(new Set(deckIds.filter(Boolean)));
+  if (resolvedDeckIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await measureServerCall("db.decks.relationalDeckLists", async () =>
+    await supabase
+      .from("deck_lists")
+      .select([
+        "id",
+        "deck_id",
+        "name",
+        "format",
+        "date",
+        "created_by",
+        "notes",
+        "raw_list",
+        "parsed_cards",
+        "sorted_cards",
+        "sorted_cards_version",
+        "created_at",
+        "updated_at"
+      ].join(","))
+      .eq("user_id", userId)
+      .in("deck_id", resolvedDeckIds)
+      .order("position", { ascending: true })
+      .order("created_at", { ascending: false })
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const byDeckId = new Map<string, DeckList[]>();
+  (((data ?? []) as unknown) as DeckListRelationalRow[]).forEach((row) => {
+    const deckLists = byDeckId.get(row.deck_id) ?? [];
+    deckLists.push(mapRelationalDeckList(row));
+    byDeckId.set(row.deck_id, deckLists);
+  });
+
+  return byDeckId;
+}
+
+async function getRelationalDeckMatchupsByDeckId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  deckIds: string[]
+): Promise<Map<string, DeckMatchup[]>> {
+  const resolvedDeckIds = Array.from(new Set(deckIds.filter(Boolean)));
+  if (resolvedDeckIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await measureServerCall("db.decks.relationalDeckMatchups", async () =>
+    await supabase
+      .from("deck_matchups")
+      .select([
+        "id",
+        "deck_id",
+        "deck_name",
+        "deck_pokemon",
+        "format",
+        "go_preference",
+        "matchup_favor",
+        "ideal_bench",
+        "techs_needed",
+        "matchup_plan",
+        "created_at",
+        "updated_at"
+      ].join(","))
+      .eq("user_id", userId)
+      .in("deck_id", resolvedDeckIds)
+      .order("position", { ascending: true })
+      .order("created_at", { ascending: true })
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const byDeckId = new Map<string, DeckMatchup[]>();
+  (((data ?? []) as unknown) as DeckMatchupRelationalRow[]).forEach((row) => {
+    const matchups = byDeckId.get(row.deck_id) ?? [];
+    matchups.push(mapRelationalDeckMatchup(row));
+    byDeckId.set(row.deck_id, matchups);
+  });
+
+  return byDeckId;
+}
+
 function mapDeckLinkCandidate(row: DeckSelectionAndLinkRow): DeckLinkCandidate {
   return {
     id: row.id,
@@ -636,8 +801,18 @@ function mapDeckLinkCandidate(row: DeckSelectionAndLinkRow): DeckLinkCandidate {
 }
 
 async function mapDeck(row: DeckRow, context: DeckMappingContext): Promise<Deck> {
-  const deckSummary = await mapDeckSummary(row, context);
-  const hydratedDeckLists = parseDeckLists(row.deck_lists).map((deckList) => ({
+  return mapDeckWithRelations(row, context);
+}
+
+async function mapDeckWithRelations(
+  row: DeckRow,
+  context: DeckMappingContext,
+  deckListsOverride?: DeckList[],
+  matchupsOverride?: DeckMatchup[]
+): Promise<Deck> {
+  const sourceDeckLists = deckListsOverride ?? parseDeckLists(row.deck_lists);
+  const deckSummary = await mapDeckSummary(row, context, sourceDeckLists);
+  const hydratedDeckLists = sourceDeckLists.map((deckList) => ({
     ...deckList,
     sortedCards: getReadSortedDeckCards(deckList)
   }));
@@ -648,7 +823,7 @@ async function mapDeck(row: DeckRow, context: DeckMappingContext): Promise<Deck>
     generalNotes: row.general_notes ?? "",
     setupGoals: parseStringArray(row.setup_goals),
     resourcePlan: row.resource_plan ?? "",
-    matchups: parseDeckMatchups(row.matchups),
+    matchups: matchupsOverride ?? parseDeckMatchups(row.matchups),
     deckLists: hydratedDeckLists
   };
 }
@@ -656,23 +831,13 @@ async function mapDeck(row: DeckRow, context: DeckMappingContext): Promise<Deck>
 export const getDecks = cache(async function getDecks(userId: string): Promise<DeckSummary[]> {
   const supabase = await createClient();
 
-  let { data, error } = await measureServerCall("db.decks.list", async () =>
+  const { data, error } = await measureServerCall("db.decks.list", async () =>
     await supabase
       .from("decks")
       .select(DECK_SUMMARY_SELECT)
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
   );
-
-  if (isMissingDeckArchetypeColumn(error)) {
-    ({ data, error } = await measureServerCall("db.decks.list.legacy", async () =>
-      await supabase
-        .from("decks")
-        .select(DECK_SUMMARY_LEGACY_SELECT)
-        .eq("user_id", userId)
-        .order("updated_at", { ascending: false })
-    ));
-  }
 
   if (error) {
     throw error;
@@ -683,8 +848,15 @@ export const getDecks = cache(async function getDecks(userId: string): Promise<D
     return [];
   }
 
+  const relationalDeckLists = await getRelationalDeckListsByDeckId(
+    supabase,
+    userId,
+    rows.map((row) => row.id)
+  );
   const mappingContext = await loadDeckMappingContext();
-  return await Promise.all(rows.map((row) => mapDeckSummary(row, mappingContext)));
+  return await Promise.all(
+    rows.map((row) => mapDeckSummary(row, mappingContext, relationalDeckLists.get(row.id)))
+  );
 });
 
 export const getDeckIndexSummaries = cache(async function getDeckIndexSummaries(
@@ -759,7 +931,14 @@ export const getDeckSelectionOptions = cache(async function getDeckSelectionOpti
     throw error;
   }
 
-  return (((data ?? []) as unknown) as DeckSelectionRow[]).map(mapDeckSelection);
+  const rows = ((data ?? []) as unknown) as DeckSelectionRow[];
+  const relationalDeckLists = await getRelationalDeckListsByDeckId(
+    supabase,
+    userId,
+    rows.map((row) => row.id)
+  );
+
+  return rows.map((row) => mapDeckSelectionWithLists(row, relationalDeckLists));
 });
 
 export const getDeckSelectionOptionsByIds = cache(async function getDeckSelectionOptionsByIds(
@@ -791,7 +970,14 @@ export const getDeckSelectionOptionsByIds = cache(async function getDeckSelectio
     throw error;
   }
 
-  return (((data ?? []) as unknown) as DeckSelectionRow[]).map(mapDeckSelection);
+  const rows = ((data ?? []) as unknown) as DeckSelectionRow[];
+  const relationalDeckLists = await getRelationalDeckListsByDeckId(
+    supabase,
+    userId,
+    rows.map((row) => row.id)
+  );
+
+  return rows.map((row) => mapDeckSelectionWithLists(row, relationalDeckLists));
 });
 
 export const getDeckSelectionAndLinkCandidates = cache(async function getDeckSelectionAndLinkCandidates(
@@ -814,9 +1000,14 @@ export const getDeckSelectionAndLinkCandidates = cache(async function getDeckSel
   }
 
   const rows = (((data ?? []) as unknown) as DeckSelectionAndLinkRow[]).map((row) => row);
+  const relationalDeckLists = await getRelationalDeckListsByDeckId(
+    supabase,
+    userId,
+    rows.map((row) => row.id)
+  );
 
   return {
-    userDecks: rows.map(mapDeckSelection),
+    userDecks: rows.map((row) => mapDeckSelectionWithLists(row, relationalDeckLists)),
     deckLinkCandidates: rows.map(mapDeckLinkCandidate)
   };
 });
@@ -827,7 +1018,7 @@ export const getDeckById = cache(async function getDeckById(
 ): Promise<Deck | null> {
   const supabase = await createClient();
 
-  let { data, error } = await measureServerCall("db.decks.byId", async () =>
+  const { data, error } = await measureServerCall("db.decks.byId", async () =>
     await supabase
       .from("decks")
       .select(DECK_DETAIL_SELECT)
@@ -836,17 +1027,6 @@ export const getDeckById = cache(async function getDeckById(
       .maybeSingle()
   );
 
-  if (isMissingDeckArchetypeColumn(error)) {
-    ({ data, error } = await measureServerCall("db.decks.byId.legacy", async () =>
-      await supabase
-        .from("decks")
-        .select(DECK_DETAIL_LEGACY_SELECT)
-        .eq("user_id", userId)
-        .eq("id", deckId)
-        .maybeSingle()
-    ));
-  }
-
   if (error) {
     throw error;
   }
@@ -855,8 +1035,19 @@ export const getDeckById = cache(async function getDeckById(
     return null;
   }
 
-  const mappingContext = await loadDeckMappingContext();
-  return await mapDeck((data as unknown) as DeckRow, mappingContext);
+  const row = (data as unknown) as DeckRow;
+  const [mappingContext, relationalDeckLists, relationalDeckMatchups] = await Promise.all([
+    loadDeckMappingContext(),
+    getRelationalDeckListsByDeckId(supabase, userId, [deckId]),
+    getRelationalDeckMatchupsByDeckId(supabase, userId, [deckId])
+  ]);
+
+  return await mapDeckWithRelations(
+    row,
+    mappingContext,
+    relationalDeckLists.get(row.id),
+    relationalDeckMatchups.get(row.id)
+  );
 });
 
 export async function getDeckWithList(
@@ -865,25 +1056,58 @@ export async function getDeckWithList(
   listId: string
 ): Promise<{ deckName: string; deckList: DeckList } | null> {
   const supabase = await createClient();
-  const { data, error } = await measureServerCall("db.decks.listById", async () =>
-    await supabase
-      .from("decks")
-      .select(["id", "user_id", "deck_name", "deck_lists"].join(","))
-      .eq("user_id", userId)
-      .eq("id", deckId)
-      .maybeSingle()
-  );
+  const [deckResult, listResult] = await Promise.all([
+    measureServerCall("db.decks.listDeckById", async () =>
+      await supabase
+        .from("decks")
+        .select(["id", "user_id", "deck_name", "deck_lists"].join(","))
+        .eq("user_id", userId)
+        .eq("id", deckId)
+        .maybeSingle()
+    ),
+    measureServerCall("db.decks.relationalListById", async () =>
+      await supabase
+        .from("deck_lists")
+        .select([
+          "id",
+          "deck_id",
+          "name",
+          "format",
+          "date",
+          "created_by",
+          "notes",
+          "raw_list",
+          "parsed_cards",
+          "sorted_cards",
+          "sorted_cards_version",
+          "created_at",
+          "updated_at"
+        ].join(","))
+        .eq("user_id", userId)
+        .eq("deck_id", deckId)
+        .eq("id", listId)
+        .maybeSingle()
+    )
+  ]);
 
-  if (error) {
-    throw error;
+  if (deckResult.error) {
+    throw deckResult.error;
   }
 
-  if (!data) {
+  if (listResult.error) {
+    throw listResult.error;
+  }
+
+  if (!deckResult.data) {
     return null;
   }
 
-  const row = (data as unknown) as DeckListLookupRow;
-  const deckList = parseDeckLists(row.deck_lists).find((entry) => entry.id === listId);
+  const row = (deckResult.data as unknown) as DeckListLookupRow;
+  const relationalDeckList = listResult.data
+    ? mapRelationalDeckList((listResult.data as unknown) as DeckListRelationalRow)
+    : null;
+  const deckList =
+    relationalDeckList ?? parseDeckLists(row.deck_lists).find((entry) => entry.id === listId);
 
   if (!deckList) {
     return null;
@@ -902,13 +1126,43 @@ export async function getDeckWithMatchup(
   deckId: string,
   matchupId: string
 ): Promise<{ deckName: string; deckPokemon: string[]; matchup: DeckMatchup } | null> {
+  const supabase = await createClient();
+  const { data, error } = await measureServerCall("db.decks.relationalMatchupById", async () =>
+    await supabase
+      .from("deck_matchups")
+      .select([
+        "id",
+        "deck_id",
+        "deck_name",
+        "deck_pokemon",
+        "format",
+        "go_preference",
+        "matchup_favor",
+        "ideal_bench",
+        "techs_needed",
+        "matchup_plan",
+        "created_at",
+        "updated_at"
+      ].join(","))
+      .eq("user_id", userId)
+      .eq("deck_id", deckId)
+      .eq("id", matchupId)
+      .maybeSingle()
+  );
+
+  if (error) {
+    throw error;
+  }
+
   const deck = await getDeckById(userId, deckId);
 
   if (!deck) {
     return null;
   }
 
-  const matchup = deck.matchups.find((entry) => entry.id === matchupId);
+  const matchup = data
+    ? mapRelationalDeckMatchup((data as unknown) as DeckMatchupRelationalRow)
+    : deck.matchups.find((entry) => entry.id === matchupId);
   if (!matchup) {
     return null;
   }

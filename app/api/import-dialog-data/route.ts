@@ -1,9 +1,7 @@
-import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { getDeckSelectionOptions } from "@/lib/db/decks";
 import { getPokemonOptions } from "@/lib/db/pokemon";
-import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
-import { reportError } from "@/lib/server/report-error";
+import { privateJson, reportApiError } from "@/lib/server/api-response";
 import { createClient } from "@/lib/supabase/server";
 
 type ImportProfileRow = {
@@ -34,24 +32,21 @@ export async function GET() {
       getImportProfileUsername(user.id)
     ]);
 
-    return NextResponse.json({
+    return privateJson({
       pokemonOptions,
       userDecks,
       ptcglUsername
-    }, { headers: PRIVATE_NO_STORE_HEADERS });
-  } catch (error) {
-    reportError(error, {
-      action: "getImportDialogData",
-      area: "api",
-      boundary: "import-dialog-data-route",
-      route: "/api/import-dialog-data"
     });
-
-    return NextResponse.json(
+  } catch (error) {
+    return reportApiError(
+      error,
       {
-        error: "We couldn't load import data right now."
+        action: "getImportDialogData",
+        area: "api",
+        boundary: "import-dialog-data-route",
+        route: "/api/import-dialog-data"
       },
-      { headers: PRIVATE_NO_STORE_HEADERS, status: 500 }
+      "We couldn't load import data right now."
     );
   }
 }

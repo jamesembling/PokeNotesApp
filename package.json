@@ -21,6 +21,8 @@
     "perf:prod": "node scripts/perf-prod.mjs",
     "perf:prod:auth": "node scripts/perf-prod.mjs --save-auth",
     "seed:archetypes": "node seed-archetypes.mjs",
+    "schema:health": "node scripts/schema-health.mjs",
+    "types:supabase": "supabase --agent=no gen types typescript --linked --schema public > types/supabase.ts",
     "sync:card-effect-catalog": "node sync-card-effect-catalog.mjs",
     "sync:pokemon-catalog": "node seed-pokemon.mjs",
     "start": "next start",

@@ -89,6 +89,68 @@ comment on column public.decks.deck_lists is
 
 
 -- ============================================================
+-- DECK LISTS
+-- Relational deck-list rows, kept in compatibility with decks.deck_lists.
+-- ============================================================
+
+create table public.deck_lists (
+  id                   text primary key,
+  deck_id              text not null references public.decks(id) on delete cascade,
+  user_id              uuid not null references auth.users(id) on delete cascade,
+  name                 text not null default '',
+  format               text not null default '',
+  date                 text not null default '',
+  created_by           text not null default '',
+  notes                text not null default '',
+  raw_list             text not null default '',
+  parsed_cards         jsonb not null default '[]',
+  sorted_cards         jsonb not null default '[]',
+  sorted_cards_version integer,
+  position             integer not null default 0,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now(),
+
+  constraint deck_lists_user_deck_id_unique
+    unique (user_id, deck_id, id)
+);
+
+comment on table public.deck_lists is
+  'Relational deck-list rows. Kept in compatibility with public.decks.deck_lists during migration.';
+comment on column public.deck_lists.position is
+  'Display order migrated from the previous decks.deck_lists JSON array order.';
+
+
+-- ============================================================
+-- DECK MATCHUPS
+-- Relational matchup-note rows, kept in compatibility with decks.matchups.
+-- ============================================================
+
+create table public.deck_matchups (
+  id             text primary key,
+  deck_id        text not null references public.decks(id) on delete cascade,
+  user_id        uuid not null references auth.users(id) on delete cascade,
+  deck_name      text not null default '',
+  deck_pokemon   jsonb not null default '[]',
+  format         text not null default '',
+  go_preference  text not null default ''
+                   check (go_preference in ('First', 'Second', '')),
+  matchup_favor  text not null default '',
+  ideal_bench    text not null default '',
+  techs_needed   text not null default '',
+  matchup_plan   text not null default '',
+  position       integer not null default 0,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
+
+  constraint deck_matchups_user_deck_id_unique
+    unique (user_id, deck_id, id)
+);
+
+comment on table public.deck_matchups is
+  'Relational deck matchup-note rows. Kept in compatibility with public.decks.matchups during migration.';
+
+
+-- ============================================================
 -- TOURNAMENTS
 -- Tournament runs tied to a deck strategy or a manually tracked deck.
 -- ============================================================
@@ -733,6 +795,14 @@ as $$
     from public.decks
     group by user_id
   ),
+  deck_list_counts as (
+    select
+      user_id,
+      count(*)::integer as relational_deck_list_count,
+      max(updated_at) as latest_deck_list_activity_at
+    from public.deck_lists
+    group by user_id
+  ),
   tournament_counts as (
     select
       user_id,
@@ -773,6 +843,12 @@ as $$
 
     union all
 
+    select user_id, latest_deck_list_activity_at as activity_at
+    from deck_list_counts
+    where latest_deck_list_activity_at is not null
+
+    union all
+
     select user_id, latest_tournament_activity_at as activity_at
     from tournament_counts
     where latest_tournament_activity_at is not null
@@ -801,11 +877,12 @@ as $$
     p.login_count,
     p.created_at,
     coalesce(dc.deck_count, 0) as deck_count,
-    coalesce(dc.deck_list_count, 0) as deck_list_count,
+    greatest(coalesce(dc.deck_list_count, 0), coalesce(dlc.relational_deck_list_count, 0)) as deck_list_count,
     coalesce(tc.tournament_count, 0) as tournament_count,
     coalesce(uls.games_played, 0)::integer as log_count
   from public.profiles p
   left join deck_counts dc on dc.user_id = p.id
+  left join deck_list_counts dlc on dlc.user_id = p.id
   left join tournament_counts tc on tc.user_id = p.id
   left join public.user_log_stats uls on uls.user_id = p.id
   left join user_activity ua on ua.user_id = p.id
@@ -841,10 +918,18 @@ as $$
     d.format,
     d.go_preference,
     d.deck_pokemon,
-    case
-      when jsonb_typeof(d.deck_lists) = 'array' then jsonb_array_length(d.deck_lists)
-      else 0
-    end as deck_list_count,
+    greatest(
+      (
+        select count(*)::integer
+        from public.deck_lists dl
+        where dl.user_id = d.user_id
+          and dl.deck_id = d.id
+      ),
+      case
+        when jsonb_typeof(d.deck_lists) = 'array' then jsonb_array_length(d.deck_lists)
+        else 0
+      end
+    ) as deck_list_count,
     d.created_at,
     d.updated_at
   from public.decks d
@@ -1092,6 +1177,12 @@ grant all privileges on table public.profiles to service_role;
 grant select, insert, update, delete on table public.decks to authenticated;
 grant all privileges on table public.decks to service_role;
 
+grant select, insert, update, delete on table public.deck_lists to authenticated;
+grant all privileges on table public.deck_lists to service_role;
+
+grant select, insert, update, delete on table public.deck_matchups to authenticated;
+grant all privileges on table public.deck_matchups to service_role;
+
 grant select, insert, update, delete on table public.tournaments to authenticated;
 grant all privileges on table public.tournaments to service_role;
 
@@ -1187,6 +1278,18 @@ create index decks_user_format
 create index decks_user_archetype
   on public.decks (user_id, archetype_id)
   where archetype_id <> '';
+
+create index deck_lists_user_deck_position
+  on public.deck_lists (user_id, deck_id, position, created_at desc);
+
+create index deck_lists_user_deck_updated
+  on public.deck_lists (user_id, deck_id, updated_at desc);
+
+create index deck_matchups_user_deck_position
+  on public.deck_matchups (user_id, deck_id, position, created_at asc);
+
+create index deck_matchups_user_deck_updated
+  on public.deck_matchups (user_id, deck_id, updated_at desc);
 
 -- Tournaments
 create index tournaments_user_date
@@ -1324,6 +1427,14 @@ create trigger set_decks_updated_at
   before update on public.decks
   for each row execute function set_updated_at();
 
+create trigger set_deck_lists_updated_at
+  before update on public.deck_lists
+  for each row execute function set_updated_at();
+
+create trigger set_deck_matchups_updated_at
+  before update on public.deck_matchups
+  for each row execute function set_updated_at();
+
 create trigger set_tournaments_updated_at
   before update on public.tournaments
   for each row execute function set_updated_at();
@@ -1446,6 +1557,48 @@ create policy "Users can update own decks"
 
 create policy "Users can delete own decks"
   on public.decks for delete
+  using (auth.uid() = user_id);
+
+
+-- DECK LISTS
+alter table public.deck_lists enable row level security;
+
+create policy "Users can read own deck lists"
+  on public.deck_lists for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own deck lists"
+  on public.deck_lists for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own deck lists"
+  on public.deck_lists for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete own deck lists"
+  on public.deck_lists for delete
+  using (auth.uid() = user_id);
+
+
+-- DECK MATCHUPS
+alter table public.deck_matchups enable row level security;
+
+create policy "Users can read own deck matchups"
+  on public.deck_matchups for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own deck matchups"
+  on public.deck_matchups for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own deck matchups"
+  on public.deck_matchups for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete own deck matchups"
+  on public.deck_matchups for delete
   using (auth.uid() = user_id);
 
 

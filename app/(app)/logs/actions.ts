@@ -29,12 +29,19 @@ import {
   userFacingActionError
 } from "@/lib/server/action-errors";
 import { getFormRedirectPath } from "@/lib/server/action-redirect";
+import {
+  parseBoolean,
+  parseGoPreference,
+  parseResult,
+  parseStringArray
+} from "@/lib/server/form-values";
 import { measureServerCall, measureServerStep } from "@/lib/server/perf";
+import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportLogRecord } from "@/lib/log-import/types";
 import type { LearnedSelfArchetype } from "@/lib/log-import/learned-self-archetypes";
 import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
-import type { LogSection, ParsedLogReview, Result } from "@/types/index";
+import type { LogSection, ParsedLogReview } from "@/types/index";
 
 type ProfileRow = {
   ptcgl_username: string;
@@ -52,11 +59,6 @@ type SaveActionResult = {
   ok: true;
   redirectTo: string;
 };
-
-function revalidateWorkspaceViews() {
-  revalidatePath("/logs", "layout");
-  revalidatePath("/decks", "layout");
-}
 
 function buildImportDate() {
   return new Date().toISOString().slice(0, 10);
@@ -298,40 +300,6 @@ async function buildParsedLogReview(
   };
 }
 
-function parseBoolean(value: FormDataEntryValue | null): boolean | null {
-  if (value === "true") {
-    return true;
-  }
-
-  if (value === "false") {
-    return false;
-  }
-
-  return null;
-}
-
-function parseResult(value: FormDataEntryValue | null): Result {
-  return value === "Loss" ? "Loss" : "Win";
-}
-
-function parseGoOrder(value: FormDataEntryValue | null): "First" | "Second" | "" {
-  if (value === "First" || value === "Second") {
-    return value;
-  }
-
-  return "";
-}
-
-function parseStringArray(values: FormDataEntryValue[]): string[] {
-  return Array.from(
-    new Set(
-      values
-        .map((value) => String(value || "").trim())
-        .filter(Boolean)
-    )
-  );
-}
-
 function parseSections(value: FormDataEntryValue | null): LogSection[] {
   if (typeof value !== "string" || !value.trim()) {
     return [];
@@ -425,7 +393,7 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       date: String(formData.get("date") || "").trim() || buildImportDate(),
       result: parseResult(formData.get("result")),
       format: String(formData.get("format") || "").trim(),
-      go_order: parseGoOrder(formData.get("goOrder")),
+      go_order: parseGoPreference(formData.get("goOrder")),
       self_player_name: String(formData.get("selfPlayerName") || "").trim(),
       self_deck_name: learnedSelfArchetype?.label ?? submittedSelfDeckName,
       self_deck_slug: learnedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
@@ -458,7 +426,7 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       throw insertError;
     }
 
-    revalidateWorkspaceViews();
+    revalidateDeckAndLogWorkspace();
 
     return {
       ok: true,
@@ -541,7 +509,7 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
 
     assertMutatedRows(updatedLogs, 1, "Battle log not found.");
 
-    revalidateWorkspaceViews();
+    revalidateDeckAndLogWorkspace();
 
     return {
       ok: true,
@@ -611,7 +579,7 @@ export async function bulkAssignDeckListAction(input: {
 
     assertMutatedRows(updatedLogs, logIds.length, "Some selected battle logs could not be found.");
 
-    revalidateWorkspaceViews();
+    revalidateDeckAndLogWorkspace();
   } catch (error) {
     throw resolveActionFailure(error, {
       action: "bulkAssignDeckList",
@@ -662,7 +630,7 @@ export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
 
     assertMutatedRows(deletedLogs, logIds.length, "Some selected battle logs could not be found.");
 
-    revalidateWorkspaceViews();
+    revalidateDeckAndLogWorkspace();
   } catch (error) {
     throw resolveActionFailure(error, {
       action: "deleteLogs",
