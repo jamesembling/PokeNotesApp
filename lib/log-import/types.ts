@@ -63,6 +63,21 @@ export type ArchetypeCatalogRow = {
   is_excluded: boolean;
 };
 
+export type CardEffectKind = "ability" | "attack" | "supporter" | "item" | "tool" | "stadium";
+
+export type CardEffectCatalogRow = {
+  source_card_id: string;
+  card_name: string;
+  normalized_card_name: string;
+  supertype: string;
+  subtypes: unknown;
+  effect_kind: CardEffectKind;
+  effect_name: string | null;
+  normalized_effect_name: string;
+  effect_text: string | null;
+  last_synced_at: string;
+};
+
 export type PokemonCatalogIndex = {
   bySlug: Map<string, PokemonCatalogRow>;
   normalizedNameToSlug: Map<string, string>;

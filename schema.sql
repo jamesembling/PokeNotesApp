@@ -947,6 +947,36 @@ comment on column public.pokemon_catalog.stage is
 
 
 -- ============================================================
+-- CARD EFFECT CATALOG
+-- Structured Pokemon TCG card effects used to classify battle
+-- log rows without live card lookups.
+-- ============================================================
+
+create table public.card_effect_catalog (
+  source_card_id          text not null,
+  card_name               text not null,
+  normalized_card_name    text not null,
+  supertype               text not null default '',
+  subtypes                jsonb not null default '[]',
+  effect_kind             text not null
+                            check (effect_kind in ('ability', 'attack', 'supporter', 'item', 'tool', 'stadium')),
+  effect_name             text,
+  normalized_effect_name  text not null default '',
+  effect_text             text,
+  last_synced_at          timestamptz not null default now(),
+
+  primary key (source_card_id, effect_kind, normalized_effect_name)
+);
+
+comment on table public.card_effect_catalog is
+  'Structured Pokemon TCG card effects used to classify battle-log actions without live card lookups.';
+comment on column public.card_effect_catalog.source_card_id is
+  'Pokemon TCG API card id for the printed card version.';
+comment on column public.card_effect_catalog.effect_kind is
+  'Battle-log classification derived from card data. Pokemon effects are ability or attack; trainer cards are supporter, item, tool, or stadium.';
+
+
+-- ============================================================
 -- ARCHETYPE CATALOG
 -- Known competitive deck archetypes sourced from Limitless TCG.
 -- Used for automatic deck identification during log import.
@@ -1087,6 +1117,9 @@ grant all privileges on table public.log_shares to service_role;
 grant select on table public.pokemon_catalog to anon, authenticated;
 grant all privileges on table public.pokemon_catalog to service_role;
 
+grant select on table public.card_effect_catalog to anon, authenticated;
+grant all privileges on table public.card_effect_catalog to service_role;
+
 grant select on table public.archetype_catalog to anon, authenticated;
 grant all privileges on table public.archetype_catalog to service_role;
 
@@ -1176,6 +1209,13 @@ create index pokemon_catalog_national_dex
 create index pokemon_catalog_evolves_from
   on public.pokemon_catalog (evolves_from)
   where evolves_from is not null;
+
+-- Card effect catalog
+create index card_effect_catalog_card_effect
+  on public.card_effect_catalog (normalized_card_name, normalized_effect_name, effect_kind);
+
+create index card_effect_catalog_card_kind
+  on public.card_effect_catalog (normalized_card_name, effect_kind);
 
 -- Archetype catalog
 create index archetype_catalog_excluded
@@ -1472,6 +1512,15 @@ alter table public.pokemon_catalog enable row level security;
 
 create policy "Anyone can read pokemon catalog"
   on public.pokemon_catalog for select
+  using (true);
+
+
+-- CARD EFFECT CATALOG
+-- Public read. Only service role can write (via cron).
+alter table public.card_effect_catalog enable row level security;
+
+create policy "Anyone can read card effect catalog"
+  on public.card_effect_catalog for select
   using (true);
 
 

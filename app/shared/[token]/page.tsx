@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { LinkedDeckListDialog } from "@/components/ui/LinkedDeckListPanel";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName,
@@ -116,6 +117,9 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
       : sharedLog.payload.linkedDeckListRawList?.trim()
         ? sortDeckListCardsLocally(parseDeckList(sharedLog.payload.linkedDeckListRawList))
         : [];
+  const actionTagOverrides = await resolveBattleLogActionTagOverrides(
+    sharedLog.payload.log.sections
+  );
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -126,6 +130,7 @@ export default async function SharedLogPage({ params }: SharedLogPageProps) {
         />
 
         <BattleLogDetailView
+          actionTagOverrides={actionTagOverrides}
           actions={
             sharedLog.payload.linkedDeckListName ? (
               <LinkedDeckListDialog

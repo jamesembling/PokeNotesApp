@@ -240,12 +240,13 @@ test("deck and logs pages do not use client hydration stat patches", () => {
   }
 });
 
-test("shared log page does not call Limitless-backed action tag resolution during render", () => {
+test("shared log page does not call live Limitless action tag resolution during render", () => {
   const source = readFileSync(join(process.cwd(), "app/shared/[token]/page.tsx"), "utf8");
+  const actionTagsSource = readFileSync(join(process.cwd(), "lib/battle-log/action-tags.ts"), "utf8");
 
   assert.equal(
-    source.includes("@/lib/battle-log/action-tags"),
+    source.includes("limitlesstcg.com") || actionTagsSource.includes("limitlesstcg.com"),
     false,
-    "shared page must not import the Limitless-backed action tag resolver"
+    "shared rendering must not rely on live Limitless-backed action tag resolution"
   );
 });

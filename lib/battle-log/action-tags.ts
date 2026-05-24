@@ -1,20 +1,8 @@
 import { classifyBattleLogActionTitle, type BattleLogActionTag } from "@/lib/battle-log/display";
+import { resolveBattleLogEffectCatalogTag } from "@/lib/battle-log/effect-catalog";
 import type { LogSection } from "@/types/index";
 
-const LIMITLESS_API_ROOT = "https://limitlesstcg.com";
-const LIMITLESS_SEARCH_API_URL = `${LIMITLESS_API_ROOT}/api/dm/search`;
-const LIMITLESS_VERSIONS_API_URL = `${LIMITLESS_API_ROOT}/api/dm/versions`;
-
 const RESOLVABLE_TAGS = new Set<BattleLogActionTag>(["supporter", "item", "tool", "stadium"]);
-
-type LimitlessSearchResult = {
-  id?: string | number | null;
-  name?: string | null;
-};
-
-type LimitlessVersionResult = {
-  type?: string | null;
-};
 
 export type BattleLogResolvedActionTag = {
   label: string;
@@ -23,10 +11,8 @@ export type BattleLogResolvedActionTag = {
 
 export type BattleLogActionTagOverrides = Array<Array<BattleLogResolvedActionTag | null>>;
 
-const cardLookupCache = new Map<string, Promise<BattleLogResolvedActionTag | null>>();
-
 export function resetBattleLogActionTagOverrideCache() {
-  cardLookupCache.clear();
+  // Retained for tests and callers that reset the previous live lookup cache.
 }
 
 function normalizeValue(value: string | null | undefined) {
@@ -49,6 +35,10 @@ function getResolvedTagLabel(tag: BattleLogActionTag) {
       return "Tool";
     case "stadium":
       return "Stadium";
+    case "ability":
+      return "Ability";
+    case "attack":
+      return "Attack";
     default:
       return "Action";
   }
@@ -61,16 +51,6 @@ function buildResolvedCardTag(tag: BattleLogActionTag): BattleLogResolvedActionT
   };
 }
 
-function mapTrainerTypeToTag(value: string | null | undefined): BattleLogActionTag | null {
-  const normalized = normalizeValue(value);
-
-  if (normalized === "supporter" || normalized === "item" || normalized === "tool" || normalized === "stadium") {
-    return normalized;
-  }
-
-  return null;
-}
-
 function isResolvableActionTitle(title: string) {
   const tag = classifyBattleLogActionTitle(title);
   if (RESOLVABLE_TAGS.has(tag)) {
@@ -78,7 +58,7 @@ function isResolvableActionTitle(title: string) {
   }
 
   const normalized = normalizeValue(title);
-  return /\bplayed\b/.test(normalized) || /\battached\b/.test(normalized);
+  return /\bplayed\b/.test(normalized) || /\battached\b/.test(normalized) || /\bused\b/.test(normalized);
 }
 
 export function extractBattleLogActionCardCandidate(title: string) {
@@ -124,103 +104,17 @@ function sanitizeCardCandidate(value: string) {
   return candidate;
 }
 
-async function fetchLimitlessSearchResults(query: string) {
-  const normalizedQuery = String(query || "").trim();
-  if (!normalizedQuery) {
-    return [];
-  }
-
-  const response = await fetch(
-    `${LIMITLESS_SEARCH_API_URL}?${new URLSearchParams({ q: normalizedQuery, lang: "en" })}`,
-    { next: { revalidate: 86400 } }
-  ).catch(() => null);
-
-  if (!response?.ok) {
-    return [];
-  }
-
-  const payload = (await response.json().catch(() => [])) as unknown;
-  return Array.isArray(payload) ? (payload as LimitlessSearchResult[]) : [];
-}
-
-async function fetchLimitlessVersions(id: string) {
-  const normalizedId = String(id || "").trim();
-  if (!normalizedId) {
-    return [];
-  }
-
-  const response = await fetch(
-    `${LIMITLESS_VERSIONS_API_URL}?${new URLSearchParams({ id: normalizedId, lang: "en" })}`,
-    { next: { revalidate: 86400 } }
-  ).catch(() => null);
-
-  if (!response?.ok) {
-    return [];
-  }
-
-  const payload = (await response.json().catch(() => [])) as unknown;
-  return Array.isArray(payload) ? (payload as LimitlessVersionResult[]) : [];
-}
-
-function selectSearchMatch(results: LimitlessSearchResult[], candidateName: string) {
-  const normalizedCandidate = normalizeValue(candidateName);
-  const exactMatches = results.filter((entry) => normalizeValue(entry.name) === normalizedCandidate);
-
-  return exactMatches[0] ?? null;
-}
-
-async function resolveCardCandidateTag(candidateName: string): Promise<BattleLogResolvedActionTag | null> {
-  const normalizedCandidate = normalizeValue(candidateName);
-  if (!normalizedCandidate) {
-    return null;
-  }
-
-  if (!cardLookupCache.has(normalizedCandidate)) {
-    const lookupPromise = (async () => {
-      const searchResults = await fetchLimitlessSearchResults(candidateName);
-      const searchMatch = selectSearchMatch(searchResults, candidateName);
-      if (!searchMatch?.id) {
-        return null;
-      }
-
-      const versions = await fetchLimitlessVersions(String(searchMatch.id));
-      const resolvedTags = Array.from(
-        new Set(
-          versions
-            .map((entry) => mapTrainerTypeToTag(entry.type))
-            .filter((value): value is BattleLogActionTag => value !== null)
-        )
-      );
-
-      if (resolvedTags.length === 1) {
-        return buildResolvedCardTag(resolvedTags[0]);
-      }
-
-      return null;
-    })();
-
-    cardLookupCache.set(normalizedCandidate, lookupPromise);
-    void lookupPromise.then((result) => {
-      if (!result) {
-        cardLookupCache.delete(normalizedCandidate);
-      }
-    });
-  }
-
-  return cardLookupCache.get(normalizedCandidate) ?? null;
-}
-
 export async function resolveBattleLogActionTagOverride(title: string) {
   if (!isResolvableActionTitle(title)) {
     return null;
   }
 
-  const candidateName = extractBattleLogActionCardCandidate(title);
-  if (!candidateName) {
-    return null;
+  const catalogTag = await resolveBattleLogEffectCatalogTag(title);
+  if (catalogTag) {
+    return buildResolvedCardTag(catalogTag);
   }
 
-  return resolveCardCandidateTag(candidateName);
+  return null;
 }
 
 export async function resolveBattleLogActionTagOverrides(sections: LogSection[]) {

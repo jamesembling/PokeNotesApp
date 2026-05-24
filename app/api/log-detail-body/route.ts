@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { getLogDetailBodyById } from "@/lib/db/logs";
 import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
 import { reportError } from "@/lib/server/report-error";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
+        actionTagOverrides: await resolveBattleLogActionTagOverrides(body.sections),
         rawLog: body.rawLog,
         sections: body.sections
       },
