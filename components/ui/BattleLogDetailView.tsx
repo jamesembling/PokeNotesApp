@@ -34,30 +34,20 @@ function ChevronIcon() {
   );
 }
 
-const actionTagToneClassNames: Record<BattleLogActionTag, string> = {
-  draw:
-    "border-[rgba(100,116,139,0.18)] bg-[rgba(100,116,139,0.08)] text-[rgb(71,85,105)]",
-  bench:
-    "border-[rgba(148,163,184,0.2)] bg-[rgba(148,163,184,0.08)] text-[rgb(100,116,139)]",
-  evolve:
-    "border-[rgba(217,70,239,0.18)] bg-[rgba(217,70,239,0.08)] text-[rgb(190,24,93)]",
-  ability:
-    "border-[rgba(124,58,237,0.18)] bg-[rgba(124,58,237,0.08)] text-[rgb(109,40,217)]",
-  supporter:
-    "border-[rgba(22,163,74,0.2)] bg-[rgba(22,163,74,0.1)] text-[rgb(21,128,61)]",
-  item:
-    "border-[rgba(37,99,235,0.16)] bg-[rgba(37,99,235,0.08)] text-[rgb(29,78,216)]",
-  tool:
-    "border-[rgba(8,145,178,0.18)] bg-[rgba(8,145,178,0.08)] text-[rgb(14,116,144)]",
-  stadium:
-    "border-[rgba(234,88,12,0.2)] bg-[rgba(234,88,12,0.1)] text-[rgb(194,65,12)]",
-  win: "border-[rgba(5,150,105,0.2)] bg-[rgba(5,150,105,0.1)] text-[rgb(6,95,70)]",
-  loss: "border-[rgba(190,24,93,0.18)] bg-[rgba(190,24,93,0.1)] text-[rgb(157,23,77)]",
-  attack:
-    "border-[rgba(220,38,38,0.18)] bg-[rgba(220,38,38,0.1)] text-[rgb(185,28,28)]",
-  ko: "border-[rgba(244,63,94,0.18)] bg-[rgba(244,63,94,0.1)] text-[rgb(190,24,93)]",
-  other:
-    "border-border bg-muted text-muted-foreground"
+const actionTagDotClassNames: Record<BattleLogActionTag, string> = {
+  draw: "bg-[rgb(37,99,235)]",
+  bench: "bg-[rgb(16,185,129)]",
+  evolve: "bg-[rgb(139,92,246)]",
+  ability: "bg-[rgb(217,70,239)]",
+  supporter: "bg-[rgb(22,163,74)]",
+  item: "bg-[rgb(14,165,233)]",
+  tool: "bg-[rgb(245,158,11)]",
+  stadium: "bg-[rgb(120,113,108)]",
+  win: "bg-[rgb(5,150,105)]",
+  loss: "bg-[rgb(225,29,72)]",
+  attack: "bg-[rgb(239,68,68)]",
+  ko: "bg-[rgb(190,18,60)]",
+  other: "bg-[rgb(100,116,139)]"
 };
 
 function ActionTag({
@@ -71,13 +61,12 @@ function ActionTag({
   const label = resolved?.label ?? getBattleLogActionTagLabel(title);
 
   return (
-    <span
-      className={[
-        "inline-flex h-6 w-fit shrink-0 items-center whitespace-nowrap rounded-[8px] border px-2 text-[0.58rem] font-semibold uppercase leading-none tracking-[0.12em] sm:w-[5.35rem] sm:justify-center",
-        actionTagToneClassNames[tag]
-      ].join(" ")}
-    >
-      {label}
+    <span className="inline-flex h-6 min-w-0 items-center gap-2 whitespace-nowrap text-[0.68rem] font-semibold uppercase leading-none tracking-[0.05em] text-muted-foreground">
+      <span
+        aria-hidden="true"
+        className={["h-2.5 w-2.5 shrink-0 rounded-full", actionTagDotClassNames[tag]].join(" ")}
+      />
+      <span className="truncate">{label}</span>
     </span>
   );
 }
@@ -92,8 +81,9 @@ function ActionRow({
   title: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2 sm:grid sm:grid-cols-[5.35rem_minmax(0,1fr)] sm:items-start sm:gap-3">
+    <div className="grid min-w-0 grid-cols-[5rem_1px_minmax(0,1fr)] items-start gap-4 sm:grid-cols-[4.5rem_1px_minmax(0,1fr)] sm:gap-4">
       <ActionTag resolved={resolved} title={title} />
+      <span aria-hidden="true" className="h-6 w-px bg-slate-300 dark:bg-slate-600" />
       <div className="min-w-0">{children}</div>
     </div>
   );
@@ -430,7 +420,8 @@ function LogSectionCard({
                     </span>
                   </div>
                 </summary>
-                <div className="mt-2 grid gap-2 px-1 sm:grid-cols-[5.35rem_minmax(0,1fr)] sm:gap-3">
+                <div className="mt-2 grid gap-2 px-1 sm:grid-cols-[4.5rem_1px_minmax(0,1fr)] sm:gap-4">
+                  <div className="hidden sm:block" />
                   <div className="hidden sm:block" />
                   <div className="grid gap-2 text-[0.92rem] leading-6 text-muted-foreground">
                     {renderBattleLogActionDetails(action.details, actionTag)}
