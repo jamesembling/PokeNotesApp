@@ -1,5 +1,8 @@
 import { classifyBattleLogActionTitle, type BattleLogActionTag } from "@/lib/battle-log/display";
-import { resolveBattleLogEffectCatalogTag } from "@/lib/battle-log/effect-catalog";
+import {
+  resolveBattleLogEffectCatalogTag,
+  resolveBattleLogEffectCatalogTags
+} from "@/lib/battle-log/effect-catalog";
 import type { LogSection } from "@/types/index";
 
 const RESOLVABLE_TAGS = new Set<BattleLogActionTag>(["supporter", "item", "tool", "stadium"]);
@@ -127,15 +130,11 @@ export async function resolveBattleLogActionTagOverrides(sections: LogSection[])
       )
     )
   );
+  const resolvableTitles = titles.filter(isResolvableActionTitle);
+  const catalogTagsByTitle = await resolveBattleLogEffectCatalogTags(resolvableTitles);
 
-  const overrides = await Promise.all(
-    titles.map(async (title) => {
-      const resolved = await resolveBattleLogActionTagOverride(title);
-      return resolved ? ([title, resolved] as const) : null;
-    })
-  );
   const overridesByTitle = new Map(
-    overrides.filter((entry): entry is readonly [string, BattleLogResolvedActionTag] => entry !== null)
+    Array.from(catalogTagsByTitle.entries()).map(([title, tag]) => [title, buildResolvedCardTag(tag)] as const)
   );
 
   return sections.map((section) =>

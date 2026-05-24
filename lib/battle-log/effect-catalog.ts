@@ -1,12 +1,8 @@
-import { cache } from "react";
-import { unstable_cache } from "next/cache";
 import { normalizeText } from "@/lib/log-import/normalization";
-import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { createPublicClient } from "@/lib/supabase/public";
 import type { BattleLogActionTag } from "@/lib/battle-log/display";
 import type { CardEffectCatalogRow, CardEffectKind } from "@/lib/log-import/types";
 
-const CARD_EFFECT_CATALOG_CACHE_VERSION = "v1";
 const TRAINER_TAGS = new Set<CardEffectKind>(["supporter", "item", "tool", "stadium"]);
 const EFFECT_TAGS = new Set<CardEffectKind>(["ability", "attack"]);
 
@@ -21,7 +17,7 @@ type CardEffectCatalogIndex = {
 };
 
 function normalizeLogText(value: string | null | undefined) {
-  return normalizeText(String(value || "").replace(/['’]s\s+/g, " "));
+  return normalizeText(value || "");
 }
 
 function buildEffectKey(cardName: string, effectName: string) {
@@ -70,32 +66,6 @@ function buildCardEffectCatalogIndex(rows: CardEffectLookupRow[]): CardEffectCat
     trainerTagsByCard
   };
 }
-
-const loadCardEffectCatalogRowsCached = unstable_cache(
-  async (): Promise<CardEffectLookupRow[]> => {
-    const supabase = createPublicClient();
-
-    try {
-      return await fetchAllRows<CardEffectLookupRow>((from, to) =>
-        supabase
-          .from("card_effect_catalog")
-          .select("card_name,normalized_card_name,effect_kind,effect_name,normalized_effect_name")
-          .range(from, to)
-      );
-    } catch {
-      return [];
-    }
-  },
-  ["card-effect-catalog", CARD_EFFECT_CATALOG_CACHE_VERSION],
-  {
-    revalidate: 60 * 60
-  }
-);
-
-const loadCardEffectCatalogIndex = cache(async () => {
-  const rows = await loadCardEffectCatalogRowsCached();
-  return buildCardEffectCatalogIndex(rows);
-});
 
 function extractPlayedCardName(title: string) {
   const playedMatch = String(title || "").trim().match(/\bplayed\s+(.+?)(?=\s*(?:->|→)\s*|\.$|$)/i);
@@ -163,22 +133,84 @@ export function resolveBattleLogEffectCatalogTagFromRows(
   return selectUnambiguousTag(index.trainerTagsByCard.get(cardName));
 }
 
+async function fetchCandidateRows(args: {
+  effectCandidates: Array<{ cardName: string; effectName: string }>;
+  trainerCardNames: string[];
+}) {
+  const supabase = createPublicClient();
+  const rows: CardEffectLookupRow[] = [];
+  const effectCardNames = Array.from(
+    new Set(args.effectCandidates.map((candidate) => candidate.cardName))
+  );
+  const effectNames = Array.from(
+    new Set(args.effectCandidates.map((candidate) => candidate.effectName))
+  );
+  const trainerCardNames = Array.from(new Set(args.trainerCardNames));
+
+  try {
+    if (effectCardNames.length > 0 && effectNames.length > 0) {
+      const { data, error } = await supabase
+        .from("card_effect_catalog")
+        .select("card_name,normalized_card_name,effect_kind,effect_name,normalized_effect_name")
+        .in("normalized_card_name", effectCardNames)
+        .in("normalized_effect_name", effectNames)
+        .in("effect_kind", Array.from(EFFECT_TAGS));
+
+      if (!error && Array.isArray(data)) {
+        rows.push(...((data as unknown) as CardEffectLookupRow[]));
+      }
+    }
+
+    if (trainerCardNames.length > 0) {
+      const { data, error } = await supabase
+        .from("card_effect_catalog")
+        .select("card_name,normalized_card_name,effect_kind,effect_name,normalized_effect_name")
+        .in("normalized_card_name", trainerCardNames)
+        .in("effect_kind", Array.from(TRAINER_TAGS));
+
+      if (!error && Array.isArray(data)) {
+        rows.push(...((data as unknown) as CardEffectLookupRow[]));
+      }
+    }
+  } catch {
+    return [];
+  }
+
+  return rows;
+}
+
 export async function resolveBattleLogEffectCatalogTag(title: string): Promise<BattleLogActionTag | null> {
   const usedEffectCandidate = extractUsedEffectCandidate(title);
-  const index = await loadCardEffectCatalogIndex();
+  const trainerCardName = extractPlayedCardName(title) || extractAttachedCardName(title);
+  const rows = await fetchCandidateRows({
+    effectCandidates: usedEffectCandidate ? [usedEffectCandidate] : [],
+    trainerCardNames: trainerCardName ? [trainerCardName] : []
+  });
 
-  if (usedEffectCandidate) {
-    return selectUnambiguousTag(
-      index.effectTagsByCardAndEffect.get(
-        buildEffectKey(usedEffectCandidate.cardName, usedEffectCandidate.effectName)
-      )
-    );
-  }
+  return resolveBattleLogEffectCatalogTagFromRows(title, rows);
+}
 
-  const cardName = extractPlayedCardName(title) || extractAttachedCardName(title);
-  if (!cardName) {
-    return null;
-  }
+export async function resolveBattleLogEffectCatalogTags(titles: string[]) {
+  const uniqueTitles = Array.from(new Set(titles.map((title) => String(title || "").trim()).filter(Boolean)));
+  const effectCandidates = uniqueTitles
+    .map((title) => extractUsedEffectCandidate(title))
+    .filter((candidate): candidate is { cardName: string; effectName: string } => candidate !== null);
+  const trainerCardNames = uniqueTitles
+    .map((title) => extractPlayedCardName(title) || extractAttachedCardName(title))
+    .filter(Boolean);
+  const rows = await fetchCandidateRows({
+    effectCandidates,
+    trainerCardNames
+  });
+  const resolvedByTitle = new Map<string, BattleLogActionTag>();
 
-  return selectUnambiguousTag(index.trainerTagsByCard.get(cardName));
+  uniqueTitles.forEach((title) => {
+    const resolved = resolveBattleLogEffectCatalogTagFromRows(title, rows);
+
+    if (resolved) {
+      resolvedByTitle.set(title, resolved);
+    }
+  });
+
+  return resolvedByTitle;
 }

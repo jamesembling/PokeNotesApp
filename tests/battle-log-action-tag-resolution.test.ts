@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 import { extractBattleLogActionCardCandidate } from "@/lib/battle-log/action-tags";
 import {
@@ -118,4 +120,12 @@ test("card effect catalog refuses ambiguous or partial effect matches", () => {
     ]),
     null
   );
+});
+
+test("battle-log effect resolution does not load the full catalog", () => {
+  const source = readFileSync(join(process.cwd(), "lib/battle-log/effect-catalog.ts"), "utf8");
+
+  assert.equal(source.includes("fetchAllRows"), false);
+  assert.equal(source.includes("unstable_cache"), false);
+  assert.match(source, /\.in\("normalized_card_name"/);
 });
