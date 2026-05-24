@@ -136,6 +136,10 @@ function getDetailCardCountLabel(cardCount: number) {
   return `${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
 }
 
+function cleanDetailOwnerText(text: string) {
+  return cleanDetailActorText(text).replace(/^[\p{L}\p{N}_.-]+['’]s\s+/u, "");
+}
+
 function getNamedDetailCards(text: string) {
   const value = cleanDetailActorText(text);
 
@@ -192,7 +196,7 @@ export function getBattleLogDetailEvent(text: string): DetailEvent | null {
 
   if (passiveSingleDiscardMatch?.[1] && passiveSingleDiscardMatch[2]) {
     const discardedCard = cleanDetailActorText(passiveSingleDiscardMatch[1]);
-    const discardSource = cleanDetailActorText(passiveSingleDiscardMatch[2]);
+    const discardSource = cleanDetailOwnerText(passiveSingleDiscardMatch[2]);
 
     return {
       cards: discardedCard ? [discardedCard] : [],
@@ -205,7 +209,7 @@ export function getBattleLogDetailEvent(text: string): DetailEvent | null {
   const passiveCountDiscardMatch = value.match(/^(\d+)\s+cards?\s+were\s+discarded\s+from\s+(.+)$/i);
 
   if (passiveCountDiscardMatch?.[1] && passiveCountDiscardMatch[2]) {
-    const discardSource = cleanDetailActorText(passiveCountDiscardMatch[2]);
+    const discardSource = cleanDetailOwnerText(passiveCountDiscardMatch[2]);
 
     return {
       icon: "discard",
