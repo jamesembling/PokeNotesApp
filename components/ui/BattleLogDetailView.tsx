@@ -102,7 +102,62 @@ function ActionRow({
   );
 }
 
+function CollapsibleActionHeader({
+  children,
+  resolved,
+  title
+}: {
+  children: ReactNode;
+  resolved?: BattleLogResolvedActionTag;
+  title: string;
+}) {
+  return (
+    <div className="grid min-w-0 gap-1">
+      <ActionTag resolved={resolved} title={title} />
+      <div className="min-w-0 font-semibold">{children}</div>
+    </div>
+  );
+}
+
+function isCardListDetail(text: string) {
+  const value = String(text || "").trim();
+
+  return (
+    value.includes(",") &&
+    !/[.!?]$/.test(value) &&
+    !/\b(?:drew|draw|shuffled|discarded|moved|switched|played|attached|evolved|retreated|took|put|damage|deck|hand|active|bench)\b/i.test(value)
+  );
+}
+
+function renderCardChips(text: string, keyValue: string) {
+  const cards = String(text || "")
+    .split(",")
+    .map((card) => card.trim())
+    .filter(Boolean);
+
+  if (cards.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5 pl-5" key={keyValue}>
+      {cards.map((card, index) => (
+        <span
+          className="rounded-[4px] border border-border bg-background/70 px-2 py-0.5 text-[0.76rem] font-medium leading-5 text-card-foreground/85"
+          key={`${keyValue}-${card}-${index}`}
+        >
+          {card}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function renderIndentedLine(text: string, level = 1, keyValue?: string) {
+  if (level === 1 && isCardListDetail(text)) {
+    return renderCardChips(text, keyValue ?? text);
+  }
+
   return (
     <div
       className={level === 1 ? "pl-5" : "ml-6 border-l border-border pl-6"}
@@ -174,8 +229,7 @@ function renderBattleLogActionDetails(details: string[], actionTag: BattleLogAct
 
     const first = String(items[0] || "").trim();
     const rest = items.slice(1).map((item) => String(item || "").trim()).filter(Boolean);
-    const supportsNestedCards =
-      /\b\d+\s+drawn cards?\.?$/i.test(first) || /\b\d+\s+cards? drawn\.?$/i.test(first);
+    const supportsNestedCards = rest.some((item) => isCardListDetail(item));
 
     if (supportsNestedCards && rest.length > 0) {
       return (
@@ -183,7 +237,9 @@ function renderBattleLogActionDetails(details: string[], actionTag: BattleLogAct
           {renderIndentedLine(first, 1)}
           <div className="grid gap-1">
             {rest.map((item, index) =>
-              renderIndentedLine(item, 2, `group-${groupIndex}-nested-${index}`)
+              isCardListDetail(item)
+                ? renderCardChips(item, `group-${groupIndex}-nested-${index}`)
+                : renderIndentedLine(item, 2, `group-${groupIndex}-nested-${index}`)
             )}
           </div>
         </div>
@@ -404,7 +460,7 @@ function LogSectionCard({
         ) : null}
       </div>
 
-      <div className="grid gap-1 px-4 py-4 sm:px-6">
+      <div className="grid gap-2 px-4 py-4 sm:px-6">
         {actions.map((action, actionIndex) => {
           const displayActionTitle = getBattleLogDisplayActionTitle(action.title, action.details);
           const displayActionDetails = getBattleLogDisplayActionDetails(action.title, action.details);
@@ -423,25 +479,28 @@ function LogSectionCard({
           if (displayActionDetails.length > 0) {
             return (
               <details
-                className="group border-b border-border py-3 last:border-b-0"
+                className="group overflow-hidden rounded-lg border border-border bg-background/35"
                 key={`${action.title}-${actionIndex}`}
               >
-                <summary className="cursor-pointer list-none px-1 [&::-webkit-details-marker]:hidden">
-                  <div className="flex items-start justify-between gap-4">
-                    <ActionRow resolved={displayResolvedActionTag} title={displayActionTitle}>
+                <summary className="cursor-pointer list-none px-1 py-3 [&::-webkit-details-marker]:hidden">
+                  <div className="flex items-start justify-between gap-3">
+                    <CollapsibleActionHeader
+                      resolved={displayResolvedActionTag}
+                      title={displayActionTitle}
+                    >
                       <div className="text-[0.98rem] leading-7 text-card-foreground">
                         {formatBattleLogActionTitle(displayActionTitle, {
                           actionTag,
                           retainActor: isSetupSection
                         })}
                       </div>
-                    </ActionRow>
-                    <span className="pt-1 text-muted-foreground">
+                    </CollapsibleActionHeader>
+                    <span className="shrink-0 pt-1.5 text-muted-foreground">
                       <ChevronIcon />
                     </span>
                   </div>
                 </summary>
-                <div className="mt-3 grid gap-2 px-1 pl-5 text-[0.92rem] leading-6 text-muted-foreground">
+                <div className="grid gap-2 border-t border-border px-4 py-3 text-[0.92rem] leading-6 text-muted-foreground">
                   {renderBattleLogActionDetails(displayActionDetails, actionTag)}
                 </div>
               </details>
