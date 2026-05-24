@@ -83,7 +83,7 @@ test("formatBattleLogActionTitle uses subject-first wording for common board act
     formatBattleLogActionTitle("Radiant Greninja used Concealed Cards.", {
       actionTag: "ability"
     }),
-    "[ABILITY ACTIVATED] Radiant Greninja used Concealed Cards"
+    "Radiant Greninja used Concealed Cards"
   );
   assert.equal(
     classifyBattleLogActionTitle("Dudunsparce's Run Away Draw was activated."),
@@ -91,7 +91,7 @@ test("formatBattleLogActionTitle uses subject-first wording for common board act
   );
   assert.equal(
     formatBattleLogActionTitle("Dudunsparce's Run Away Draw was activated."),
-    "[ABILITY ACTIVATED] Dudunsparce used Run Away Draw"
+    "Dudunsparce used Run Away Draw"
   );
   assert.equal(
     formatBattleLogActionTitle("JammerUK1993's Greninja ex used Mirage Barrage.", {
@@ -183,7 +183,7 @@ test("display action helpers promote Dudunsparce Run Away Draw effect groups", (
   );
   assert.equal(
     formatBattleLogActionTitle(getBattleLogDisplayActionTitle("JammerUK1993 played Dudunsparce.", details)),
-    "[ABILITY ACTIVATED] Dudunsparce used Run Away Draw"
+    "Dudunsparce used Run Away Draw"
   );
 });
 

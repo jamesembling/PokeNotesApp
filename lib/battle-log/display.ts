@@ -175,12 +175,12 @@ export function formatBattleLogActionTitle(
 
   const activatedMatch = displayTitle.match(/^(.+?)'s\s+(.+?)\s+was activated$/i);
   if (activatedMatch?.[1] && activatedMatch[2]) {
-    return `[ABILITY ACTIVATED] ${cleanBattleLogDisplayText(activatedMatch[1])} used ${cleanBattleLogDisplayText(activatedMatch[2])}`;
+    return `${cleanBattleLogDisplayText(activatedMatch[1])} used ${cleanBattleLogDisplayText(activatedMatch[2])}`;
   }
 
   const abilityMatch = displayTitle.match(/^(.+?)\s+used\s+(.+)$/i);
   if (actionTag === "ability" && abilityMatch?.[1] && abilityMatch[2]) {
-    return `[ABILITY ACTIVATED] ${cleanBattleLogDisplayText(abilityMatch[1])} used ${cleanBattleLogDisplayText(abilityMatch[2])}`;
+    return `${cleanBattleLogDisplayText(abilityMatch[1])} used ${cleanBattleLogDisplayText(abilityMatch[2])}`;
   }
 
   if (actionTag === "attack" && abilityMatch?.[1] && abilityMatch[2]) {
