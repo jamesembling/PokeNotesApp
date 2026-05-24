@@ -230,6 +230,41 @@ function isBossOrdersSwitchDetail(detail: string) {
   );
 }
 
+function isKnockoutDiscardDetail(detail: string) {
+  const value = cleanBattleLogDisplayText(cleanLeadingBullet(detail));
+  return (
+    /^.+?\s+was discarded from\s+.+$/i.test(value) ||
+    /^\d+\s+cards?\s+were discarded from\s+.+$/i.test(value)
+  );
+}
+
+function isKnockoutDiscardCardListDetail(detail: string) {
+  const value = cleanBattleLogDisplayText(cleanLeadingBullet(detail));
+  return (
+    value.includes(",") &&
+    !/[.!?]$/.test(value) &&
+    !/\b(?:drew|draw|shuffled|discarded|moved|switched|played|attached|evolved|retreated|took|put|damage|deck|hand|active|bench)\b/i.test(value)
+  );
+}
+
+function getDiscardRecoveryDetail(details: string[]) {
+  for (const detail of details) {
+    const value = stripBattleLogPlayerReferences(cleanLeadingBullet(detail));
+    const movedMatch = value.match(/^(?:[\p{L}\p{N}_.-]+\s+)?moved\s+(.+?)\s+to\s+(?:their|the)\s+hand$/iu);
+
+    if (movedMatch?.[1]) {
+      return `moved ${cleanBattleLogDisplayText(movedMatch[1])} from discard to hand`;
+    }
+  }
+
+  return "";
+}
+
+function isDiscardRecoveryDetail(detail: string) {
+  const value = stripBattleLogPlayerReferences(cleanLeadingBullet(detail));
+  return /^(?:[\p{L}\p{N}_.-]+\s+)?moved\s+.+?\s+to\s+(?:their|the)\s+hand$/iu.test(value);
+}
+
 export function getBattleLogDisplayActionTitle(title: string, details: string[] = []) {
   const promotedAbilityTitle = getPromotedAbilityActivationTitle(details);
 
@@ -255,20 +290,55 @@ export function getBattleLogDisplayActionTitle(title: string, details: string[] 
     return `${cleanBattleLogDisplayText(title)} - ${bossOrdersSwitchDetail}`;
   }
 
+  const discardRecoveryDetail = /\bplayed\b/i.test(title) ? getDiscardRecoveryDetail(details) : "";
+  if (discardRecoveryDetail) {
+    return `${cleanBattleLogDisplayText(title)} & ${discardRecoveryDetail}`;
+  }
+
   return title;
 }
 
 export function getBattleLogDisplayActionDetails(title: string, details: string[] = []) {
   const displayTitle = getBattleLogDisplayActionTitle(title, details);
   const normalizedDisplayTitle = cleanBattleLogDisplayText(displayTitle);
+  const isKnockoutAction = classifyBattleLogActionTitle(displayTitle) === "ko";
+  let skipNextKnockoutDiscardCardList = false;
 
-  return details.filter(
-    (detail) =>
-      cleanBattleLogDisplayText(cleanLeadingBullet(detail)) !== normalizedDisplayTitle &&
-      !(/\bretreated\b/i.test(displayTitle) && isRetreatPromotionDetail(detail)) &&
-      !(shouldPromoteAttackDamageDetails(title, details) && getAttackDamageDetail(detail) !== null) &&
-      !(/\bBoss's Orders\b/i.test(displayTitle) && isBossOrdersSwitchDetail(detail))
-  );
+  return details.filter((detail) => {
+    if (skipNextKnockoutDiscardCardList && isKnockoutDiscardCardListDetail(detail)) {
+      skipNextKnockoutDiscardCardList = false;
+      return false;
+    }
+
+    skipNextKnockoutDiscardCardList = false;
+
+    if (cleanBattleLogDisplayText(cleanLeadingBullet(detail)) === normalizedDisplayTitle) {
+      return false;
+    }
+
+    if (/\bretreated\b/i.test(displayTitle) && isRetreatPromotionDetail(detail)) {
+      return false;
+    }
+
+    if (shouldPromoteAttackDamageDetails(title, details) && getAttackDamageDetail(detail) !== null) {
+      return false;
+    }
+
+    if (/\bBoss's Orders\b/i.test(displayTitle) && isBossOrdersSwitchDetail(detail)) {
+      return false;
+    }
+
+    if (/\bplayed\b/i.test(displayTitle) && isDiscardRecoveryDetail(detail)) {
+      return false;
+    }
+
+    if (isKnockoutAction && isKnockoutDiscardDetail(detail)) {
+      skipNextKnockoutDiscardCardList = true;
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export function formatBattleLogActionTitle(

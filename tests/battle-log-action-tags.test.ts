@@ -236,6 +236,33 @@ test("display action helpers fold Boss's Orders switch details into the title", 
   assert.deepEqual(getBattleLogDisplayActionDetails(title, details), []);
 });
 
+test("display action helpers hide knockout discard movement details", () => {
+  assert.deepEqual(
+    getBattleLogDisplayActionDetails("_ndz's Cynthia's Gabite was Knocked Out!", [
+      "2 cards were discarded from _ndz's Cynthia's Gabite.",
+      "Basic Fighting Energy, Cynthia's Gible",
+      "Gible was discarded from _ndz's Cynthia's Gabite."
+    ]),
+    []
+  );
+});
+
+test("display action helpers fold discard recovery movement into played card titles", () => {
+  const title = "_ndz played Night Stretcher.";
+  const details = ["_ndz moved _ndz's Cynthia's Gible to their hand"];
+  const displayTitle = getBattleLogDisplayActionTitle(title, details);
+
+  assert.equal(
+    displayTitle,
+    "_ndz played Night Stretcher & moved Cynthia's Gible from discard to hand"
+  );
+  assert.equal(
+    formatBattleLogActionTitle(displayTitle, { actionTag: "item" }),
+    "Played Night Stretcher & moved Cynthia's Gible from discard to hand"
+  );
+  assert.deepEqual(getBattleLogDisplayActionDetails(title, details), []);
+});
+
 test("formatBattleLogActionTitle can retain actors for setup actions", () => {
   assert.equal(
     formatBattleLogActionTitle("JammerUK1993 played Froakie to the Active Spot.", {
