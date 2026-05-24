@@ -39,7 +39,60 @@ export function AdminUsersTable({
         </Alert>
       ) : null}
 
-      <div className="overflow-x-auto">
+      <div className="grid gap-0 lg:hidden">
+        {users.map((user) => (
+          <section className="border-b border-border py-4 first:pt-0 last:border-b-0 last:pb-0" key={user.id}>
+            <div className="min-w-0 space-y-1">
+              <h3 className="break-words text-sm font-semibold text-card-foreground">
+                {user.displayName || "Unnamed user"}
+              </h3>
+              <p className="break-words text-sm text-muted-foreground">{user.email}</p>
+            </div>
+
+            <dl className="mt-4 grid gap-3 text-sm">
+              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3">
+                <dt className="ui-eyebrow pt-0.5 text-[0.65rem]">PTCGL</dt>
+                <dd className="min-w-0 break-words text-right text-card-foreground">
+                  {user.ptcglUsername || "Not set"}
+                </dd>
+              </div>
+
+              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3">
+                <dt className="ui-eyebrow pt-0.5 text-[0.65rem]">Activity</dt>
+                <dd className="min-w-0 space-y-1 text-right text-card-foreground">
+                  <p>Last activity: {formatDateTime(user.lastActivityAt)}</p>
+                  <p>Last login: {formatDateTime(user.lastLoginAt)}</p>
+                </dd>
+              </div>
+
+              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3">
+                <dt className="ui-eyebrow pt-0.5 text-[0.65rem]">Content</dt>
+                <dd className="min-w-0 text-right text-card-foreground">
+                  <p>
+                    {user.deckCount} decks, {user.deckListCount} lists
+                  </p>
+                  <p>
+                    {user.tournamentCount} tournaments, {user.logCount} logs
+                  </p>
+                </dd>
+              </div>
+
+              <div className="grid gap-2">
+                <dt className="ui-eyebrow text-[0.65rem]">Role</dt>
+                <dd className="min-w-0">
+                  <AdminRoleControls
+                    currentRole={user.role}
+                    roleUpdatesEnabled={roleUpdatesEnabled}
+                    userId={user.id}
+                  />
+                </dd>
+              </div>
+            </dl>
+          </section>
+        ))}
+      </div>
+
+      <div className="hidden lg:block">
         <table className="min-w-full border-separate border-spacing-0">
           <thead>
             <tr className="text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
