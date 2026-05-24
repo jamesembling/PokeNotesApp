@@ -125,12 +125,16 @@ function hasPossessivePokemonUsedAction(actionTitle: string) {
   return /^[A-Za-z0-9_.-]+'s\s+.+\s+used\b/i.test(String(actionTitle || "").trim());
 }
 
-function getDisplayActionTag(
+export function getDisplayActionTag(
   actionTitle: string,
   details: string[],
   resolvedActionTag?: BattleLogResolvedActionTag
 ): BattleLogActionTag {
-  const classifiedActionTag = resolvedActionTag?.tag ?? classifyBattleLogActionTitle(actionTitle);
+  if (resolvedActionTag) {
+    return resolvedActionTag.tag;
+  }
+
+  const classifiedActionTag = classifyBattleLogActionTitle(actionTitle);
 
   if (
     classifiedActionTag === "ability" &&
