@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { TrophyIcon } from "@phosphor-icons/react";
 import type {
   BattleLogActionTagOverrides,
   BattleLogResolvedActionTag
@@ -30,6 +29,19 @@ function ChevronIcon() {
       viewBox="0 0 24 24"
     >
       <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function PrizeTrophyIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path d="M7 4.5h10v2h3a1 1 0 0 1 1 1v1.2a5 5 0 0 1-4.25 4.95 5 5 0 0 1-3.25 2.2V18h2.25a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1 0-1.5h2.25v-2.15a5 5 0 0 1-3.25-2.2A5 5 0 0 1 3 8.7V7.5a1 1 0 0 1 1-1h3v-2Zm0 3.5H4.5v.7A3.5 3.5 0 0 0 7 12.05V8Zm10 4.05a3.5 3.5 0 0 0 2.5-3.35V8H17v4.05Z" />
     </svg>
   );
 }
@@ -263,13 +275,11 @@ function PrizeTracker({
         separated ? "sm:border-l sm:border-border sm:pl-3" : ""
       ].join(" ")}
     >
-      <TrophyIcon
-        aria-hidden="true"
+      <PrizeTrophyIcon
         className={[
           "h-4 w-4 shrink-0",
           toneClassNames.name
         ].join(" ")}
-        weight="fill"
       />
       <span
         className={[
