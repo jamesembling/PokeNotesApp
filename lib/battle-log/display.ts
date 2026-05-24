@@ -180,7 +180,7 @@ export function formatBattleLogActionTitle(
 
   const abilityMatch = displayTitle.match(/^(.+?)\s+used\s+(.+)$/i);
   if (actionTag === "ability" && abilityMatch?.[1] && abilityMatch[2]) {
-    return `${cleanBattleLogDisplayText(abilityMatch[1])} used ${cleanBattleLogDisplayText(abilityMatch[2])}`;
+    return `${stripBattleLogPlayerPossessives(abilityMatch[1])} used ${cleanBattleLogDisplayText(abilityMatch[2])}`;
   }
 
   if (actionTag === "attack" && abilityMatch?.[1] && abilityMatch[2]) {

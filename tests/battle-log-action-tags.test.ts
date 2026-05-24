@@ -86,6 +86,12 @@ test("formatBattleLogActionTitle uses subject-first wording for common board act
     "Radiant Greninja used Concealed Cards"
   );
   assert.equal(
+    formatBattleLogActionTitle("iBerzrk_Network's Drakloak used Recon Directive.", {
+      actionTag: "ability"
+    }),
+    "Drakloak used Recon Directive"
+  );
+  assert.equal(
     classifyBattleLogActionTitle("Dudunsparce's Run Away Draw was activated."),
     "ability"
   );
