@@ -75,10 +75,10 @@ function ActionTag({
   const label = resolved?.label ?? getBattleLogActionTagLabel(title);
 
   return (
-    <span className="inline-flex h-6 min-w-0 items-center gap-2 whitespace-nowrap text-[0.68rem] font-semibold uppercase leading-none tracking-[0.05em] text-muted-foreground">
+    <span className="inline-flex h-4 min-w-0 items-center gap-2 whitespace-nowrap text-[0.66rem] font-semibold uppercase leading-none tracking-[0.05em] text-muted-foreground">
       <span
         aria-hidden="true"
-        className={["h-2.5 w-2.5 shrink-0 rounded-full", actionTagDotClassNames[tag]].join(" ")}
+        className={["h-2 w-2 shrink-0 rounded-full", actionTagDotClassNames[tag]].join(" ")}
       />
       <span className="truncate">{label}</span>
     </span>
@@ -95,9 +95,8 @@ function ActionRow({
   title: string;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-[5rem_1px_minmax(0,1fr)] items-start gap-4 sm:grid-cols-[4.5rem_1px_minmax(0,1fr)] sm:gap-4">
+    <div className="grid min-w-0 gap-1">
       <ActionTag resolved={resolved} title={title} />
-      <span aria-hidden="true" className="h-6 w-px bg-slate-300 dark:bg-slate-600" />
       <div className="min-w-0">{children}</div>
     </div>
   );
@@ -442,12 +441,8 @@ function LogSectionCard({
                     </span>
                   </div>
                 </summary>
-                <div className="mt-2 grid gap-2 px-1 sm:grid-cols-[4.5rem_1px_minmax(0,1fr)] sm:gap-4">
-                  <div className="hidden sm:block" />
-                  <div className="hidden sm:block" />
-                  <div className="grid gap-2 text-[0.92rem] leading-6 text-muted-foreground">
-                    {renderBattleLogActionDetails(displayActionDetails, actionTag)}
-                  </div>
+                <div className="mt-3 grid gap-2 px-1 pl-5 text-[0.92rem] leading-6 text-muted-foreground">
+                  {renderBattleLogActionDetails(displayActionDetails, actionTag)}
                 </div>
               </details>
             );
