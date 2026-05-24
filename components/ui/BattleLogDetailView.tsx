@@ -279,7 +279,7 @@ function renderCardChips(text: string, keyValue: string) {
   }
 
   return (
-    <CardChips cards={cards} keyValue={keyValue} />
+    <CardChips cards={cards} key={keyValue} keyValue={keyValue} />
   );
 }
 
@@ -395,7 +395,7 @@ function renderBattleLogActionDetails(details: string[], actionTag: BattleLogAct
     if (supportsNestedCards && rest.length > 0) {
       return (
         <div className="grid gap-2" key={`group-${groupIndex}`}>
-          {renderIndentedLine(first, 1)}
+          {renderIndentedLine(first, 1, `group-${groupIndex}-item-0`)}
           <div className="grid gap-1">
             {rest.map((item, index) =>
               isCardListDetail(item)
