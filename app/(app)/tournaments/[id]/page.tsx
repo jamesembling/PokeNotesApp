@@ -168,7 +168,6 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
       {linkedDeckWithListPromise ? (
         <Suspense fallback={<TournamentDeckListPanelFallback />}>
           <TournamentDeckListSection
-            deckId={tournament.linkedDeckId}
             linkedDeckWithListPromise={linkedDeckWithListPromise}
           />
         </Suspense>
@@ -214,10 +213,8 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
 }
 
 async function TournamentDeckListSection({
-  deckId,
   linkedDeckWithListPromise
 }: {
-  deckId: string | undefined;
   linkedDeckWithListPromise: ReturnType<typeof getDeckWithList>;
 }) {
   const linkedDeckWithList = await linkedDeckWithListPromise;
@@ -225,7 +222,6 @@ async function TournamentDeckListSection({
 
   return (
     <TournamentDeckListPanel
-      deckId={deckId}
       deckListFormat={resolvedTournamentDeckList?.format}
       deckListName={resolvedTournamentDeckList?.name}
       deckListNotes={resolvedTournamentDeckList?.notes}

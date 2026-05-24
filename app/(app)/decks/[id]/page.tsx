@@ -14,6 +14,7 @@ import { ChevronIcon } from "@/components/ui/icons";
 import { InlineDeckStrategyEditor } from "@/components/ui/InlineDeckStrategyEditor";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
+import { LazyDeckListViewButton } from "@/components/ui/LazyDeckListViewButton";
 import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
@@ -231,11 +232,12 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                     triggerLabel="Edit List"
                     triggerVariant="ghost"
                   />
-                  <Button asChild variant="ghost">
-                    <Link href={`/decks/${deck.id}/lists/${deckList.id}`} prefetch={false}>
-                      View List
-                    </Link>
-                  </Button>
+                  <LazyDeckListViewButton
+                    deckId={deck.id}
+                    deckListId={deckList.id}
+                    triggerLabel="View List"
+                    triggerVariant="ghost"
+                  />
                 </ButtonGroup>
               </div>
             ))}
