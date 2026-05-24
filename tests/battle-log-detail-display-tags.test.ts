@@ -33,3 +33,15 @@ test("passive single-card discard details keep the discarded card name", () => {
     }
   );
 });
+
+test("passive discard detail events keep owned Pokemon names after display cleanup", () => {
+  assert.deepEqual(
+    getBattleLogDetailEvent("Basic Fighting Energy was discarded from Cynthia's Roserade."),
+    {
+      cards: ["Basic Fighting Energy"],
+      icon: "discard",
+      label: "Discarded",
+      outcome: "1 card from Cynthia's Roserade"
+    }
+  );
+});

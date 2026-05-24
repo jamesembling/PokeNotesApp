@@ -73,11 +73,17 @@ function stripBattleLogPlayerPossessives(value: string) {
   return cleanBattleLogDisplayText(value).replace(/(^|\s)[\p{L}\p{N}_.-]+['’]s\s+/gu, "$1");
 }
 
+function stripLeadingBattleLogPlayerPossessive(value: string) {
+  return cleanBattleLogDisplayText(value).replace(/^[-•]?\s*[\p{L}\p{N}_.-]+['’]s\s+/u, (match) =>
+    match.startsWith("-") || match.startsWith("•") ? match.slice(0, 2) : ""
+  );
+}
+
 export function formatBattleLogActionDetail(
   detail: string,
   options: { actionTag?: BattleLogActionTag } = {}
 ) {
-  const displayDetail = cleanBattleLogDisplayText(detail);
+  const displayDetail = stripLeadingBattleLogPlayerPossessive(detail);
 
   if (options.actionTag === "attack") {
     return stripBattleLogPlayerPossessives(displayDetail);

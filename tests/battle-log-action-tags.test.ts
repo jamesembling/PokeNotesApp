@@ -183,6 +183,21 @@ test("formatBattleLogActionDetail strips player names from attack details", () =
   );
 });
 
+test("formatBattleLogActionDetail strips leading player names without removing owned Pokemon names", () => {
+  assert.equal(
+    formatBattleLogActionDetail("_ndz's Cynthia's Gabite is now in the Active spot.", {
+      actionTag: "other"
+    }),
+    "Cynthia's Gabite is now in the Active spot"
+  );
+  assert.equal(
+    formatBattleLogActionDetail("- _ndz's Cynthia's Roserade moved to the Bench.", {
+      actionTag: "other"
+    }),
+    "- Cynthia's Roserade moved to Bench"
+  );
+});
+
 test("display action helpers promote Dudunsparce Run Away Draw effect groups", () => {
   const details = [
     "- JammerUK1993 drew 3 cards",
