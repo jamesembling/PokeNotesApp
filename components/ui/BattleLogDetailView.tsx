@@ -9,6 +9,8 @@ import {
   classifyBattleLogActionTitle,
   formatBattleLogActionDetail,
   formatBattleLogActionTitle,
+  getBattleLogDisplayActionDetails,
+  getBattleLogDisplayActionTitle,
   getBattleLogActionTagLabel,
   type BattleLogActionTag
 } from "@/lib/battle-log/display";
@@ -401,15 +403,21 @@ function LogSectionCard({
 
       <div className="grid gap-1 px-4 py-4 sm:px-6">
         {actions.map((action, actionIndex) => {
+          const displayActionTitle = getBattleLogDisplayActionTitle(action.title, action.details);
+          const displayActionDetails = getBattleLogDisplayActionDetails(action.title, action.details);
           const resolvedActionTag = actionTagOverrides?.[actionIndex] ?? undefined;
           const displayResolvedActionTag = getDisplayActionTagOverride(
-            action.title,
-            action.details,
+            displayActionTitle,
+            displayActionDetails,
             resolvedActionTag
           );
-          const actionTag = getDisplayActionTag(action.title, action.details, displayResolvedActionTag);
+          const actionTag = getDisplayActionTag(
+            displayActionTitle,
+            displayActionDetails,
+            displayResolvedActionTag
+          );
 
-          if (action.details.length > 0) {
+          if (displayActionDetails.length > 0) {
             return (
               <details
                 className="group border-b border-border py-3 last:border-b-0"
@@ -417,9 +425,9 @@ function LogSectionCard({
               >
                 <summary className="cursor-pointer list-none px-1 [&::-webkit-details-marker]:hidden">
                   <div className="flex items-start justify-between gap-4">
-                    <ActionRow resolved={displayResolvedActionTag} title={action.title}>
+                    <ActionRow resolved={displayResolvedActionTag} title={displayActionTitle}>
                       <div className="text-[0.98rem] leading-7 text-card-foreground">
-                        {formatBattleLogActionTitle(action.title, {
+                        {formatBattleLogActionTitle(displayActionTitle, {
                           actionTag,
                           retainActor: isSetupSection
                         })}
@@ -434,7 +442,7 @@ function LogSectionCard({
                   <div className="hidden sm:block" />
                   <div className="hidden sm:block" />
                   <div className="grid gap-2 text-[0.92rem] leading-6 text-muted-foreground">
-                    {renderBattleLogActionDetails(action.details, actionTag)}
+                    {renderBattleLogActionDetails(displayActionDetails, actionTag)}
                   </div>
                 </div>
               </details>
@@ -446,9 +454,9 @@ function LogSectionCard({
               className="border-b border-border px-1 py-3 text-[1rem] leading-7 text-card-foreground last:border-b-0"
               key={`${action.title}-${actionIndex}`}
             >
-              <ActionRow resolved={displayResolvedActionTag} title={action.title}>
+              <ActionRow resolved={displayResolvedActionTag} title={displayActionTitle}>
                 <div className="text-[0.98rem] leading-7 text-card-foreground">
-                  {formatBattleLogActionTitle(action.title, {
+                  {formatBattleLogActionTitle(displayActionTitle, {
                     actionTag,
                     retainActor: isSetupSection
                   })}

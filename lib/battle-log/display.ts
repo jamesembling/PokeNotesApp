@@ -71,6 +71,60 @@ export function formatBattleLogActionDetail(
   return displayDetail;
 }
 
+function isAbilityActivationTitle(value: string) {
+  return /^[-•]?\s*.+?'s\s+.+?\s+was activated\.?$/i.test(String(value || "").trim());
+}
+
+function cleanLeadingBullet(value: string) {
+  return String(value || "").trim().replace(/^[-•]\s*/, "");
+}
+
+function getPromotedAbilityActivationTitle(details: string[]) {
+  const activationDetail = details
+    .map(cleanLeadingBullet)
+    .find((detail) => isAbilityActivationTitle(detail));
+
+  return activationDetail || "";
+}
+
+function isDudunsparceRunAwayDrawShape(title: string, details: string[]) {
+  const displayTitle = cleanBattleLogDisplayText(title);
+
+  if (!/^.+?\s+played\s+Dudunsparce$/i.test(displayTitle)) {
+    return false;
+  }
+
+  const cleanedDetails = details.map((detail) => cleanBattleLogDisplayText(cleanLeadingBullet(detail)));
+  return (
+    cleanedDetails.some((detail) => /\bdrew\s+3\s+cards\b/i.test(detail)) &&
+    cleanedDetails.some((detail) => /\bshuffled\s+2\s+cards\s+into\s+their\s+deck\b/i.test(detail)) &&
+    cleanedDetails.some((detail) => /\bDudunsparce\b/i.test(detail))
+  );
+}
+
+export function getBattleLogDisplayActionTitle(title: string, details: string[] = []) {
+  const promotedAbilityTitle = getPromotedAbilityActivationTitle(details);
+
+  if (promotedAbilityTitle) {
+    return promotedAbilityTitle;
+  }
+
+  if (isDudunsparceRunAwayDrawShape(title, details)) {
+    return "Dudunsparce's Run Away Draw was activated.";
+  }
+
+  return title;
+}
+
+export function getBattleLogDisplayActionDetails(title: string, details: string[] = []) {
+  const displayTitle = getBattleLogDisplayActionTitle(title, details);
+  const normalizedDisplayTitle = cleanBattleLogDisplayText(displayTitle);
+
+  return details.filter(
+    (detail) => cleanBattleLogDisplayText(cleanLeadingBullet(detail)) !== normalizedDisplayTitle
+  );
+}
+
 export function formatBattleLogActionTitle(
   title: string,
   options: { actionTag?: BattleLogActionTag; retainActor?: boolean } = {}

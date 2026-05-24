@@ -4,6 +4,8 @@ import {
   classifyBattleLogActionTitle,
   formatBattleLogActionDetail,
   formatBattleLogActionTitle,
+  getBattleLogDisplayActionDetails,
+  getBattleLogDisplayActionTitle,
   getBattleLogActionTagLabel
 } from "@/lib/battle-log/display";
 
@@ -160,5 +162,43 @@ test("formatBattleLogActionDetail strips player names from attack details", () =
       actionTag: "attack"
     }),
     "- Benched Pokemon took 120 damage"
+  );
+});
+
+test("display action helpers promote Dudunsparce Run Away Draw effect groups", () => {
+  const details = [
+    "- JammerUK1993 drew 3 cards",
+    "- Rare Candy, Surfing Beach, Greninja ex",
+    "- JammerUK1993 shuffled 2 cards into their deck",
+    "- Dudunsparce, Dunsparce"
+  ];
+
+  assert.equal(
+    getBattleLogDisplayActionTitle("JammerUK1993 played Dudunsparce.", details),
+    "Dudunsparce's Run Away Draw was activated."
+  );
+  assert.deepEqual(
+    getBattleLogDisplayActionDetails("JammerUK1993 played Dudunsparce.", details),
+    details
+  );
+  assert.equal(
+    formatBattleLogActionTitle(getBattleLogDisplayActionTitle("JammerUK1993 played Dudunsparce.", details)),
+    "[ABILITY ACTIVATED] Dudunsparce used Run Away Draw"
+  );
+});
+
+test("display action helpers promote explicit activation details without duplicating them", () => {
+  const details = [
+    "- Dudunsparce's Run Away Draw was activated.",
+    "- JammerUK1993 drew 3 cards"
+  ];
+
+  assert.equal(
+    getBattleLogDisplayActionTitle("JammerUK1993 played Dudunsparce.", details),
+    "Dudunsparce's Run Away Draw was activated."
+  );
+  assert.deepEqual(
+    getBattleLogDisplayActionDetails("JammerUK1993 played Dudunsparce.", details),
+    ["- JammerUK1993 drew 3 cards"]
   );
 });
