@@ -93,6 +93,22 @@ test("dead sidebar profile endpoint and sidebar client fetch stay removed", () =
   assert.doesNotMatch(source("components/ui/Sidebar.tsx"), /sidebar-profile|fetch\(/);
 });
 
+test("app and admin layouts share the same authenticated shell chrome", () => {
+  const appLayout = source("app/(app)/layout.tsx");
+  const adminLayout = source("app/(admin)/layout.tsx");
+  const appShell = source("components/ui/AppShell.tsx");
+
+  assert.match(appLayout, /<AppShell/);
+  assert.match(adminLayout, /<AppShell/);
+  assert.doesNotMatch(appLayout, /SidebarProvider|SidebarMobileTopbar|SidebarInset|<Sidebar/);
+  assert.doesNotMatch(adminLayout, /SidebarProvider|SidebarMobileTopbar|SidebarInset|<Sidebar/);
+
+  assert.match(appShell, /SidebarProvider/);
+  assert.match(appShell, /SidebarMobileTopbar/);
+  assert.match(appShell, /SidebarInset/);
+  assert.match(appShell, /<Sidebar profile=\{profile\}/);
+});
+
 test("authenticated app routes cache verified Supabase claims briefly across hot navigations", () => {
   const auth = source("lib/auth.ts");
 

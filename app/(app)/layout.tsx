@@ -1,7 +1,5 @@
 import { cookies } from "next/headers";
-import { Sidebar, SidebarMobileTopbar } from "@/components/ui/Sidebar";
-import { RoutePerformanceReporter } from "@/components/ui/RoutePerformanceReporter";
-import { SidebarInset, SidebarProvider } from "@/components/shadcn/sidebar";
+import { AppShell } from "@/components/ui/AppShell";
 import { requireUser } from "@/lib/auth";
 import { normalizeAvatarColor, PROFILE_AVATAR_COOKIE } from "@/lib/profile-avatar";
 
@@ -30,22 +28,15 @@ export default async function AppLayout({
   );
 
   return (
-    <SidebarProvider>
-      <Sidebar
-        profile={{
-          displayName: getFallbackDisplayName(user),
-          email: user.email ?? "",
-          avatarColor,
-          isAdmin: getAuthClaimIsAdmin(user)
-        }}
-      />
-      <SidebarInset>
-        <SidebarMobileTopbar />
-        <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6">{children}</div>
-        </div>
-      </SidebarInset>
-      <RoutePerformanceReporter />
-    </SidebarProvider>
+    <AppShell
+      profile={{
+        displayName: getFallbackDisplayName(user),
+        email: user.email ?? "",
+        avatarColor,
+        isAdmin: getAuthClaimIsAdmin(user)
+      }}
+    >
+      {children}
+    </AppShell>
   );
 }
