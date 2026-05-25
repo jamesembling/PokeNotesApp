@@ -33,7 +33,6 @@ export default async function ProfilePage() {
       <PageHeader
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Profile" }]}
         title="Profile"
-        subtitle="Manage the trainer identity used across the app, including the PTCGL username needed for battle log imports."
       />
 
       <div className="grid gap-6">
