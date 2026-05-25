@@ -188,7 +188,7 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
     <SidebarFooter className="border-t border-sidebar-border p-2">
       <SidebarMenu>
         <SidebarMenuItem>
-          <DropdownMenu open={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
+          <DropdownMenu modal={false} open={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
