@@ -100,6 +100,18 @@ test("admin fallback reads use paginated Supabase fetches", () => {
   assert.match(adminDb, /select\("id", \{ count: "exact", head: true \}\)/);
 });
 
+test("local auth helper reuses the existing Codex test user", () => {
+  const packageJson = source("package.json");
+  const setupScript = source("scripts/setup-local-test-login.mjs");
+
+  assert.match(packageJson, /"auth:local:setup": "node scripts\/setup-local-test-login\.mjs"/);
+  assert.match(packageJson, /"auth:local:save": "node scripts\/save-local-auth-state\.mjs"/);
+  assert.match(packageJson, /"dev:test-login": "node scripts\/setup-local-test-login\.mjs && next dev"/);
+  assert.match(setupScript, /findConfiguredOrExistingCodexUser/);
+  assert.doesNotMatch(setupScript, /createUser/);
+  assert.doesNotMatch(setupScript, /role:\s*"admin"/);
+});
+
 test("server actions clamp editable redirect targets to app paths", () => {
   assert.equal(getSafeRedirectPath("/logs/abc?tab=summary", "/logs"), "/logs/abc?tab=summary");
   assert.equal(getSafeRedirectPath("", "/logs"), "/logs");

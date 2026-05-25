@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   CalculatorIcon,
   CardsIcon,
@@ -13,6 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon, MenuIcon, ShieldIcon } from "lucide-react";
 import { signOutAction } from "@/app/actions";
+import { Button } from "@/components/shadcn/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +36,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar
 } from "@/components/shadcn/sidebar";
 import type { AvatarColor, DeckSelectionOption } from "@/types/index";
@@ -120,17 +120,21 @@ function SidebarLogo({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function SidebarMobileTopbar() {
+  const { setOpenMobile } = useSidebar();
+
   return (
     <div className="sticky top-0 z-30 border-b border-sidebar-border bg-sidebar px-4 py-3 min-[860px]:hidden">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <SidebarTrigger
+          <Button
             aria-label="Open navigation menu"
             className="text-sidebar-foreground"
+            onClick={() => setOpenMobile(true)}
             size="icon-lg"
+            variant="ghost"
           >
             <MenuIcon />
-          </SidebarTrigger>
+          </Button>
           <SidebarLogo />
         </div>
         <SidebarThemeToggle />
@@ -166,7 +170,13 @@ function SidebarNav({ userDecks }: { userDecks: DeckSelectionOption[] }) {
 function AccountBlock({ profile }: { profile: SidebarProfile }) {
   const initials = getInitials(profile.displayName);
   const { isMobile, setOpenMobile } = useSidebar();
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [signOutPending, startSignOutTransition] = useTransition();
+
+  function closeAccountNavigationMenus() {
+    setAccountMenuOpen(false);
+    setOpenMobile(false);
+  }
 
   function handleSignOut() {
     startSignOutTransition(async () => {
@@ -178,7 +188,7 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
     <SidebarFooter className="border-t border-sidebar-border p-2">
       <SidebarMenu>
         <SidebarMenuItem>
-          <DropdownMenu>
+          <DropdownMenu open={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
@@ -212,7 +222,7 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
                 <DropdownMenuItem asChild>
                   <Link
                     href="/profile"
-                    onClick={() => setOpenMobile(false)}
+                    onClick={closeAccountNavigationMenus}
                     prefetch={false}
                   >
                     <BadgeCheckIcon />
@@ -223,7 +233,7 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
                   <DropdownMenuItem asChild>
                     <Link
                       href="/admin/dashboard"
-                      onClick={() => setOpenMobile(false)}
+                      onClick={closeAccountNavigationMenus}
                       prefetch={false}
                     >
                       <ShieldIcon />
@@ -263,13 +273,15 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
           <SidebarLogo onNavigate={() => setOpenMobile(false)} />
           <div className="flex items-center gap-1">
             <SidebarThemeToggle />
-            <SidebarTrigger
+            <Button
               aria-label="Close navigation menu"
               className="text-sidebar-foreground min-[860px]:hidden"
+              onClick={() => setOpenMobile(false)}
               size="icon-lg"
+              variant="ghost"
             >
               <MenuIcon />
-            </SidebarTrigger>
+            </Button>
           </div>
         </div>
       </SidebarHeader>
