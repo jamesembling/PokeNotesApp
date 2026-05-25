@@ -127,7 +127,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         ) : null}
         <div
           aria-busy={avatarSavePending}
-          className="grid grid-cols-4 gap-3 sm:grid-cols-8"
+          className="grid grid-cols-4 gap-3 pt-2 sm:grid-cols-8"
         >
           {AVATAR_COLORS.map((avatarColor) => (
             <label
