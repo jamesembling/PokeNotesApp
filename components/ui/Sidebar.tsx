@@ -31,7 +31,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -84,7 +83,7 @@ function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon;
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className="relative data-[active=true]:font-semibold data-[active=true]:text-primary"
+        className="relative data-[active=true]:bg-[rgba(37,99,235,0.12)] data-[active=true]:font-semibold data-[active=true]:text-primary data-[active=true]:hover:bg-[rgba(37,99,235,0.16)] data-[active=true]:hover:text-primary dark:data-[active=true]:bg-[rgba(37,99,235,0.24)] dark:data-[active=true]:hover:bg-[rgba(37,99,235,0.3)]"
         isActive={active}
       >
         <Link href={href} onClick={() => setOpenMobile(false)} prefetch={false}>
@@ -144,9 +143,6 @@ function SidebarNav({ userDecks }: { userDecks: DeckSelectionOption[] }) {
   return (
     <SidebarContent className="px-2 py-3">
       <SidebarGroup>
-        <SidebarGroupLabel className="ui-eyebrow h-auto px-2 py-2">
-          NAVIGATE
-        </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu className="gap-1">
             {navItems.map((item) => (
