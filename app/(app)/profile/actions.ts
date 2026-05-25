@@ -1,25 +1,35 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateCurrentProfile } from "@/lib/db/profile";
+import { cookies } from "next/headers";
+import { updateCurrentProfile, updateCurrentProfileAvatar } from "@/lib/db/profile";
+import { PROFILE_AVATAR_COOKIE } from "@/lib/profile-avatar";
 import { reportError } from "@/lib/server/report-error";
+import type { AvatarColor } from "@/types/index";
 
 export type ProfileActionState = {
   error: string | null;
   success: string | null;
 };
 
-export const initialProfileActionState: ProfileActionState = {
-  error: null,
-  success: null
-};
-
 function revalidateProfileWorkspace() {
   revalidatePath("/profile");
   revalidatePath("/logs", "layout");
   revalidatePath("/decks", "layout");
+  revalidatePath("/tournaments", "layout");
   revalidatePath("/stats", "layout");
   revalidatePath("/calculator", "layout");
+}
+
+async function setProfileAvatarCookie(avatarColor: AvatarColor) {
+  const cookieStore = await cookies();
+
+  cookieStore.set(PROFILE_AVATAR_COOKIE, avatarColor, {
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 365,
+    path: "/",
+    sameSite: "lax"
+  });
 }
 
 export async function saveProfileAction(
@@ -31,6 +41,7 @@ export async function saveProfileAction(
     const firstName = String(formData.get("firstName") || "").trim();
     const lastName = String(formData.get("lastName") || "").trim();
     const ptcglUsername = String(formData.get("ptcglUsername") || "").trim();
+    const avatarColor = String(formData.get("avatarColor") || "").trim();
 
     if (!displayName && !firstName && !lastName) {
       return {
@@ -39,13 +50,15 @@ export async function saveProfileAction(
       };
     }
 
-    await updateCurrentProfile({
+    const profile = await updateCurrentProfile({
       displayName,
       firstName,
       lastName,
-      ptcglUsername
+      ptcglUsername,
+      avatarColor
     });
 
+    await setProfileAvatarCookie(profile.avatarColor);
     revalidateProfileWorkspace();
 
     return {
@@ -61,6 +74,35 @@ export async function saveProfileAction(
     return {
       error: "Unable to save your profile right now.",
       success: null
+    };
+  }
+}
+
+export type ProfileAvatarActionState = {
+  avatarColor: AvatarColor | null;
+  error: string | null;
+};
+
+export async function saveProfileAvatarAction(avatarColor: string): Promise<ProfileAvatarActionState> {
+  try {
+    const profile = await updateCurrentProfileAvatar(avatarColor);
+
+    await setProfileAvatarCookie(profile.avatarColor);
+    revalidateProfileWorkspace();
+
+    return {
+      avatarColor: profile.avatarColor,
+      error: null
+    };
+  } catch (error) {
+    reportError(error, {
+      boundary: "profile-avatar-actions",
+      route: "/profile"
+    });
+
+    return {
+      avatarColor: null,
+      error: "Unable to save your profile picture right now."
     };
   }
 }

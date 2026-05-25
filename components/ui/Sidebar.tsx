@@ -13,7 +13,6 @@ import {
 } from "@phosphor-icons/react";
 import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon, MenuIcon, ShieldIcon } from "lucide-react";
 import { signOutAction } from "@/app/actions";
-import { Avatar, AvatarFallback } from "@/components/shadcn/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +23,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/shadcn/dropdown-menu";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
+import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { SidebarThemeToggle } from "@/components/ui/SidebarThemeToggle";
 import {
   Sidebar as ShadcnSidebar,
@@ -39,11 +39,12 @@ import {
   SidebarTrigger,
   useSidebar
 } from "@/components/shadcn/sidebar";
-import type { DeckSelectionOption } from "@/types/index";
+import type { AvatarColor, DeckSelectionOption } from "@/types/index";
 
 type SidebarProfile = {
   displayName: string;
   email: string;
+  avatarColor: AvatarColor;
   isAdmin?: boolean;
 };
 
@@ -187,11 +188,7 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 size="lg"
               >
-                <Avatar className="size-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg text-xs font-semibold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
+                <ProfileAvatar avatarColor={profile.avatarColor} fallback={initials} />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{profile.displayName}</span>
                   <span className="truncate text-xs text-muted-foreground">{profile.email}</span>
@@ -202,16 +199,12 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
             <DropdownMenuContent
               align="end"
               className="min-w-56 rounded-lg"
-              side={isMobile ? "bottom" : "right"}
+              side={isMobile ? "bottom" : "top"}
               sideOffset={4}
             >
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="size-8 rounded-lg">
-                    <AvatarFallback className="rounded-lg text-xs font-semibold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
+                  <ProfileAvatar avatarColor={profile.avatarColor} fallback={initials} />
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{profile.displayName}</span>
                     <span className="truncate text-xs text-muted-foreground">{profile.email}</span>

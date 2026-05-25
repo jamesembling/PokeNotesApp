@@ -3,8 +3,9 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
+import { normalizeAvatarColor } from "@/lib/profile-avatar";
 import { measureServerCall } from "@/lib/server/perf";
-import type { AvatarColor, UserProfile } from "@/types/index";
+import type { UserProfile } from "@/types/index";
 
 type ProfileRow = {
   id: string;
@@ -28,34 +29,22 @@ type UpdateProfileInput = {
   firstName: string;
   lastName: string;
   ptcglUsername: string;
+  avatarColor: string;
 };
 
-type SidebarProfileRow = Pick<ProfileRow, "display_name" | "email" | "role" | "last_active_at">;
+type SidebarProfileRow = Pick<
+  ProfileRow,
+  "display_name" | "email" | "role" | "avatar_color" | "last_active_at"
+>;
 
 type CurrentSidebarProfile = {
   displayName: string;
   email: string;
   role: "user" | "admin";
+  avatarColor: UserProfile["avatarColor"];
 };
 
-const DEFAULT_AVATAR_COLOR: AvatarColor = "red";
 const PROFILE_ACTIVITY_TOUCH_INTERVAL_MS = 15 * 60 * 1000;
-
-function normalizeAvatarColor(value: string): AvatarColor {
-  switch (value) {
-    case "red":
-    case "blue":
-    case "yellow":
-    case "green":
-    case "orange":
-    case "pink":
-    case "purple":
-    case "white":
-      return value;
-    default:
-      return DEFAULT_AVATAR_COLOR;
-  }
-}
 
 function getFallbackDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
   return (
@@ -177,7 +166,8 @@ function mapSidebarProfile(
   return {
     displayName: String(row?.display_name || "").trim() || getFallbackDisplayName(user),
     email: String(row?.email || user.email || "").trim(),
-    role: row?.role === "admin" ? "admin" : "user"
+    role: row?.role === "admin" ? "admin" : "user",
+    avatarColor: normalizeAvatarColor(String(row?.avatar_color || user.user_metadata?.avatar_color || ""))
   };
 }
 
@@ -187,7 +177,7 @@ export const getCurrentSidebarProfile = cache(async (): Promise<CurrentSidebarPr
   const loadSidebarProfile = async () =>
     await supabase
       .from("profiles")
-      .select(["display_name", "email", "role", "last_active_at"].join(","))
+      .select(["display_name", "email", "role", "avatar_color", "last_active_at"].join(","))
       .eq("id", user.id)
       .maybeSingle();
 
@@ -361,6 +351,17 @@ export async function updateCurrentProfile(input: UpdateProfileInput): Promise<U
   const explicitDisplayName = input.displayName.trim();
   const combinedName = [firstName, lastName].filter(Boolean).join(" ").trim();
   const displayName = explicitDisplayName || combinedName || getFallbackDisplayName(user);
+  const avatarColor = normalizeAvatarColor(input.avatarColor);
+
+  const { error: authUpdateError } = await supabase.auth.updateUser({
+    data: {
+      avatar_color: avatarColor
+    }
+  });
+
+  if (authUpdateError) {
+    throw authUpdateError;
+  }
 
   const payload = {
     id: user.id,
@@ -369,12 +370,62 @@ export async function updateCurrentProfile(input: UpdateProfileInput): Promise<U
     last_name: lastName,
     email: user.email || "",
     ptcgl_username: input.ptcglUsername.trim(),
+    avatar_color: avatarColor,
     last_active_at: new Date().toISOString()
   };
 
   const { data, error } = await supabase
     .from("profiles")
     .upsert(payload, { onConflict: "id" })
+    .select(
+      [
+        "id",
+        "display_name",
+        "first_name",
+        "last_name",
+        "email",
+        "ptcgl_username",
+        "role",
+        "avatar_color",
+        "auth_account_created_at",
+        "last_login_at",
+        "last_active_at",
+        "login_count",
+        "created_at",
+        "updated_at"
+      ].join(",")
+    )
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapProfileRowToUserProfile(user, data as unknown as ProfileRow);
+}
+
+export async function updateCurrentProfileAvatar(avatarColorInput: string): Promise<UserProfile> {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const avatarColor = normalizeAvatarColor(avatarColorInput);
+
+  const { error: authUpdateError } = await supabase.auth.updateUser({
+    data: {
+      avatar_color: avatarColor
+    }
+  });
+
+  if (authUpdateError) {
+    throw authUpdateError;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      avatar_color: avatarColor,
+      last_active_at: new Date().toISOString()
+    })
+    .eq("id", user.id)
     .select(
       [
         "id",

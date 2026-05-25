@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createAdminClient, hasAdminSupabaseAccess } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
+import { normalizeAvatarColor } from "@/lib/profile-avatar";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { AdminUser, CatalogHealth, Role } from "@/types/index";
 
@@ -12,6 +13,7 @@ type ProfileRow = {
   display_name: string;
   ptcgl_username: string;
   role: Role;
+  avatar_color?: string;
   auth_account_created_at: string | null;
   last_login_at: string | null;
   last_active_at: string | null;
@@ -267,7 +269,7 @@ export const getAdminAccessContext = cache(async () => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("role,display_name,email")
+    .select("role,display_name,email,avatar_color")
     .eq("id", user.id)
     .single();
 
@@ -285,7 +287,8 @@ export const getAdminAccessContext = cache(async () => {
         user.email?.split("@")[0] ||
         "Trainer",
       email: String(data?.email || user.email || "").trim(),
-      role: data?.role === "admin" ? "admin" : "user"
+      role: data?.role === "admin" ? "admin" : "user",
+      avatarColor: normalizeAvatarColor(String(data?.avatar_color || user.user_metadata?.avatar_color || ""))
     },
     role: data?.role === "admin" ? "admin" : "user"
   } as const;

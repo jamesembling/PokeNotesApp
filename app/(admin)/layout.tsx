@@ -20,6 +20,7 @@ export default async function AdminLayout({
         profile={{
           displayName: profile.displayName,
           email: profile.email,
+          avatarColor: profile.avatarColor,
           isAdmin: true
         }}
       />
