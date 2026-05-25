@@ -7,6 +7,7 @@ import type {
 import {
   getBattleLogDamageBreakdown,
   getBattleLogDetailEvent,
+  getAddedToHandDetailCard,
   getDisplayActionTag,
   getDisplayActionTagOverride,
   isCardListDetail,
@@ -273,6 +274,8 @@ function renderIndentedLine(text: string, level = 1, keyValue?: string) {
 
 function renderBattleLogActionDetails(details: string[], actionTag: BattleLogActionTag) {
   const chunks: ReactNode[] = [];
+  let addedToHandCards: string[] = [];
+  let addedToHandDestination = "";
   let bullets: string[] = [];
   let chunkIndex = 0;
 
@@ -334,6 +337,31 @@ function renderBattleLogActionDetails(details: string[], actionTag: BattleLogAct
     bullets = [];
   }
 
+  function flushAddedToHandCards() {
+    if (!addedToHandCards.length) {
+      return;
+    }
+
+    chunks.push(
+      <div className="grid gap-1.5" key={`detail-${chunkIndex}`}>
+        <DetailEventRow
+          event={{
+            cards: addedToHandCards,
+            icon: "draw",
+            label: "Added",
+            outcome: `${addedToHandCards.length} ${
+              addedToHandCards.length === 1 ? "card" : "cards"
+            } to ${addedToHandDestination || "hand"}`
+          }}
+        />
+        <CardChips cards={addedToHandCards} keyValue={`detail-${chunkIndex}-added-cards`} />
+      </div>
+    );
+    chunkIndex += 1;
+    addedToHandCards = [];
+    addedToHandDestination = "";
+  }
+
   details.forEach((detail) => {
     const value = formatBattleLogActionDetail(detail, { actionTag });
     if (!value) {
@@ -346,7 +374,22 @@ function renderBattleLogActionDetails(details: string[], actionTag: BattleLogAct
       return;
     }
 
+    const addedToHandDetail = getAddedToHandDetailCard(value);
+    if (addedToHandDetail) {
+      flushBullets();
+      if (
+        addedToHandDestination &&
+        addedToHandDestination !== addedToHandDetail.destination
+      ) {
+        flushAddedToHandCards();
+      }
+      addedToHandDestination = addedToHandDetail.destination;
+      addedToHandCards.push(addedToHandDetail.card);
+      return;
+    }
+
     flushBullets();
+    flushAddedToHandCards();
     chunks.push(
       <p className="m-0" key={`detail-${chunkIndex}`}>
         {value}
@@ -356,6 +399,7 @@ function renderBattleLogActionDetails(details: string[], actionTag: BattleLogAct
   });
 
   flushBullets();
+  flushAddedToHandCards();
   return chunks;
 }
 

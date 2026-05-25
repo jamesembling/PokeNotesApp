@@ -53,6 +53,25 @@ export function getNamedDetailCards(text: string) {
     .filter(Boolean);
 }
 
+export function getAddedToHandDetailCard(text: string) {
+  const value = String(text || "").trim();
+  const addedMatch = value.match(/^(.+?)\s+was\s+added\s+to\s+(.+?)\s+hand$/i);
+
+  if (!addedMatch?.[1] || !addedMatch[2]) {
+    return null;
+  }
+
+  const card = cleanDetailActorText(addedMatch[1]);
+  if (!card || /\ba\s+card\b/i.test(card)) {
+    return null;
+  }
+
+  return {
+    card,
+    destination: `${cleanDetailOwnerText(addedMatch[2])} hand`
+  };
+}
+
 export function getBattleLogDetailEvent(text: string): DetailEvent | null {
   const value = String(text || "").trim();
   const drewMatch = value.match(/^(?:.+?\s+)?drew\s+(.+)$/i);

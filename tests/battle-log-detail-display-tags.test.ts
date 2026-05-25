@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getAddedToHandDetailCard,
   getBattleLogDamageBreakdown,
   getBattleLogDetailEvent,
   getDisplayActionTag,
@@ -112,6 +113,24 @@ test("draw detail events expose named cards and anonymous card counts", () => {
       icon: "draw",
       label: "Drew",
       outcome: "3 cards"
+    }
+  );
+});
+
+test("added-to-hand prize details expose the revealed card name", () => {
+  assert.deepEqual(
+    getAddedToHandDetailCard("Dawn was added to B3xCharz24's hand"),
+    {
+      card: "Dawn",
+      destination: "B3xCharz24's hand"
+    }
+  );
+
+  assert.deepEqual(
+    getAddedToHandDetailCard("Basic Water Energy was added to B3xCharz24's hand"),
+    {
+      card: "Basic Water Energy",
+      destination: "B3xCharz24's hand"
     }
   );
 });
