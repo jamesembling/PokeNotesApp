@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { SiteFormatsProvider } from "@/components/ui/SiteFormatsProvider";
 import { getInitialSiteFormats } from "@/lib/formats/catalog";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
@@ -19,46 +20,8 @@ export const metadata: Metadata = {
   }
 };
 
-const THEME_COOKIE_KEY = "theme";
-
 function parseTheme(value: string | undefined): Theme {
   return value === "dark" ? "dark" : "light";
-}
-
-function buildThemeBootScript(initialTheme: Theme) {
-  return `
-    (() => {
-      const storageKey = "theme";
-      const cookieKey = "${THEME_COOKIE_KEY}";
-      const initialTheme = "${initialTheme}";
-
-      let nextTheme = initialTheme;
-
-      try {
-        const storedTheme = window.localStorage.getItem(storageKey);
-        if (storedTheme === "dark" || storedTheme === "light") {
-          nextTheme = storedTheme;
-        } else {
-          const cookieTheme = document.cookie
-            .split("; ")
-            .find((entry) => entry.startsWith(cookieKey + "="))
-            ?.split("=")[1];
-
-          if (cookieTheme === "dark" || cookieTheme === "light") {
-            nextTheme = cookieTheme;
-          }
-        }
-      } catch {}
-
-      document.documentElement.classList.toggle("dark", nextTheme === "dark");
-      document.documentElement.style.colorScheme = nextTheme;
-
-      try {
-        window.localStorage.setItem(storageKey, nextTheme);
-        document.cookie = cookieKey + "=" + nextTheme + "; path=/; max-age=31536000; samesite=lax";
-      } catch {}
-    })();
-  `;
 }
 
 export default async function RootLayout({
@@ -66,7 +29,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const initialTheme = parseTheme(undefined);
+  const cookieStore = await cookies();
+  const initialTheme = parseTheme(cookieStore.get("theme")?.value);
   const initialSiteFormats = getInitialSiteFormats();
 
   return (
@@ -75,9 +39,6 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: buildThemeBootScript(initialTheme) }} />
-      </head>
       <body>
         <SiteFormatsProvider initialSiteFormats={initialSiteFormats}>
           <ThemeProvider initialTheme={initialTheme}>

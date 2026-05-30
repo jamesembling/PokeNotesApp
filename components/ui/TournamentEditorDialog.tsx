@@ -511,6 +511,7 @@ export function TournamentEditorDialog({
                     <span className="text-sm font-semibold text-card-foreground">Multi-Day Event</span>
                     <button
                       aria-checked={isMultiDay}
+                      aria-label="Multi-day event"
                       className="relative h-6 w-11 rounded-full border border-border bg-muted transition aria-checked:bg-primary"
                       onClick={() => {
                         setIsMultiDay((current) => {

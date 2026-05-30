@@ -13,7 +13,7 @@ function getSupabaseEnv() {
   return { supabaseUrl, supabaseAnonKey };
 }
 
-export async function GET(request: NextRequest) {
+async function startGoogleSignIn(request: NextRequest) {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
   const appOrigin = buildAppOriginFromHeaders(request.headers);
   const redirectTo = new URL("/auth/callback", appOrigin).toString();
@@ -50,11 +50,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const redirectResponse = NextResponse.redirect(data.url);
+  const redirectResponse = NextResponse.redirect(data.url, 303);
 
   response.cookies.getAll().forEach((cookie) => {
     redirectResponse.cookies.set(cookie);
   });
 
   return redirectResponse;
+}
+
+// oxlint-disable-next-line react-doctor/nextjs-no-side-effect-in-get-handler -- Starting OAuth is a credential-establishing route and direct browser GETs must keep working.
+export async function GET(request: NextRequest) {
+  return startGoogleSignIn(request);
+}
+
+export async function POST(request: NextRequest) {
+  return startGoogleSignIn(request);
 }

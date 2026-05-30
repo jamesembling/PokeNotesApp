@@ -83,7 +83,7 @@ export function ProbabilityCalculator() {
   }, [deckVisualCards]);
   const setupComparisonRows = useMemo(
     () =>
-      [...setupCards].sort((left, right) => {
+      setupCards.toSorted((left, right) => {
         const leftOrder = cardOrder.get(`${left.card.name}-${left.card.category}`) ?? Number.MAX_SAFE_INTEGER;
         const rightOrder = cardOrder.get(`${right.card.name}-${right.card.category}`) ?? Number.MAX_SAFE_INTEGER;
 
@@ -97,7 +97,7 @@ export function ProbabilityCalculator() {
   );
   const prizingComparisonRows = useMemo(
     () =>
-      [...prizingCards].sort((left, right) => {
+      prizingCards.toSorted((left, right) => {
         const leftOrder = cardOrder.get(`${left.card.name}-${left.card.category}`) ?? Number.MAX_SAFE_INTEGER;
         const rightOrder = cardOrder.get(`${right.card.name}-${right.card.category}`) ?? Number.MAX_SAFE_INTEGER;
 
@@ -478,7 +478,7 @@ function ProbabilityComparisonRow({
   pokemonOptions: PokemonOption[] | null;
 }) {
   return (
-    <article className="px-4 py-4 sm:px-5">
+    <article className="p-4 sm:px-5">
       <div
         className="grid gap-4 lg:items-center"
         style={{ gridTemplateColumns: `minmax(0, 1fr)` }}
@@ -491,7 +491,7 @@ function ProbabilityComparisonRow({
             {card.category === "Pokemon" ? (
               <CalculatorPokemonSprite name={card.name} pokemonOptions={pokemonOptions} />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
                 {card.category.slice(0, 1)}
               </div>
             )}
@@ -522,7 +522,7 @@ function ProbabilityComparisonRow({
             {card.category === "Pokemon" ? (
               <CalculatorPokemonSprite name={card.name} pokemonOptions={pokemonOptions} />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
                 {card.category.slice(0, 1)}
               </div>
             )}
@@ -566,14 +566,14 @@ function ProbabilityCompactGrid({
     <div className="grid gap-3 xl:grid-cols-2">
       {rows.map((row) => (
         <article
-          className="rounded-[20px] border border-border bg-muted px-4 py-4"
+          className="rounded-[20px] border border-border bg-muted p-4"
           key={row.key}
         >
           <div className="flex min-w-0 items-center gap-3">
             {row.card.category === "Pokemon" ? (
               <CalculatorPokemonSprite name={row.card.name} pokemonOptions={pokemonOptions} />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
                 {row.card.category.slice(0, 1)}
               </div>
             )}
@@ -593,7 +593,7 @@ function ProbabilityCompactGrid({
           <dl className="mt-4 grid grid-cols-4 gap-2">
             {row.metrics.map((metric, index) => (
               <div
-                className="rounded-[14px] border border-border bg-card px-2 py-2 text-center"
+                className="rounded-[14px] border border-border bg-card p-2 text-center"
                 key={`${row.card.name}-${metric.label}-${index}`}
               >
                 <dt className="ui-eyebrow">{metric.label}</dt>
@@ -626,7 +626,7 @@ function CalculatorPokemonSprite({
     return (
       <div
         aria-label={fallbackLabel}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-card px-1 text-center text-[8px] font-semibold leading-tight text-muted-foreground"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card px-1 text-center text-[8px] font-semibold leading-tight text-muted-foreground"
       >
         {fallbackLabel}
       </div>
@@ -637,7 +637,7 @@ function CalculatorPokemonSprite({
     <Image
       alt=""
       aria-hidden="true"
-      className="h-10 w-10 shrink-0 object-contain"
+      className="size-10 shrink-0 object-contain"
       height={40}
       onError={() => {
         setHasError(true);

@@ -45,7 +45,7 @@ export function isTurnBoundary(line: string, language: Language) {
 }
 
 function getLeadingPlayerFromLine(line: string, playerNames: string[]) {
-  const candidates = [...playerNames].sort((left, right) => right.length - left.length);
+  const candidates = playerNames.toSorted((left, right) => right.length - left.length);
 
   return (
     candidates.find((player) => {
@@ -95,7 +95,7 @@ function inferSectionPlayer(
     });
   });
 
-  return [...playerNames].sort((left, right) => counts[right] - counts[left])[0] ?? "";
+  return playerNames.toSorted((left, right) => counts[right] - counts[left])[0] ?? "";
 }
 
 function getTurnActions(bodyLines: string[]): LogAction[] {

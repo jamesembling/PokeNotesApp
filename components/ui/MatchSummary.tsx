@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import type { BattleLog, Result } from "@/types/index";
 
+const STAT_FORMATTER = new Intl.NumberFormat("en-GB");
+
 type SummaryStat = {
   id: string;
   label: string;
@@ -10,7 +12,7 @@ type SummaryStat = {
 };
 
 function formatStatValue(value: number) {
-  return new Intl.NumberFormat("en-GB").format(value);
+  return STAT_FORMATTER.format(value);
 }
 
 function formatPlacement(goOrder: BattleLog["goOrder"]) {

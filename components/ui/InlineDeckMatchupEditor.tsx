@@ -36,7 +36,10 @@ export function InlineDeckMatchupEditor({
   const [matchupState, setMatchupState] = useState(() => buildMatchupState(matchup));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const savedStateRef = useRef<MatchupState>(buildMatchupState(matchup));
+  const savedStateRef = useRef<MatchupState | null>(null);
+  if (savedStateRef.current === null) {
+    savedStateRef.current = buildMatchupState(matchup);
+  }
   const saveStatusTimerRef = useRef<number | null>(null);
 
   useEffect(() => {

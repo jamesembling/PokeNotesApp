@@ -3,6 +3,7 @@
 import { AppSelect } from "@/components/shadcn/app-select";
 
 type FormatSelectProps = {
+  "aria-label"?: string;
   className?: string;
   id?: string;
   name?: string;
@@ -13,6 +14,7 @@ type FormatSelectProps = {
 };
 
 export function FormatSelect({
+  "aria-label": ariaLabel,
   className,
   id,
   name,
@@ -23,6 +25,7 @@ export function FormatSelect({
 }: FormatSelectProps) {
   return (
     <AppSelect
+      aria-label={ariaLabel}
       className={className}
       id={id}
       name={name}

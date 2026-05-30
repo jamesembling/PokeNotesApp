@@ -236,9 +236,10 @@ export function DeckMatchupEditorDialog({
                 ))}
 
                 <section className="grid gap-4 md:grid-cols-2">
-                  <label className="grid gap-2">
+                  <label className="grid gap-2" htmlFor="matchup-deck-name">
                     <span className="text-sm font-semibold text-muted-foreground">Deck Name</span>
                     <Input
+                      id="matchup-deck-name"
                       className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
                       name="deckName"
                       onChange={(event) => setDeckName(event.target.value)}
@@ -247,10 +248,12 @@ export function DeckMatchupEditorDialog({
                     />
                   </label>
 
-                  <label className="grid gap-2">
+                  <label className="grid gap-2" htmlFor="matchup-format">
                     <span className="text-sm font-semibold text-muted-foreground">Format</span>
                     <FormatSelect
+                      aria-label="Format"
                       className="rounded-xl px-4 py-3"
+                      id="matchup-format"
                       onChange={setSelectedFormat}
                       options={
                         selectedFormat && !siteFormatOptions.includes(selectedFormat)
@@ -334,10 +337,12 @@ export function DeckMatchupEditorDialog({
                     </div>
                   </section>
 
-                  <label className="grid gap-2 md:col-span-2">
+                  <label className="grid gap-2 md:col-span-2" htmlFor="matchup-favor">
                     <span className="text-sm font-semibold text-muted-foreground">Matchup Favour</span>
                     <AppSelect
+                      aria-label="Matchup favour"
                       className="min-h-[3rem] rounded-xl px-4 py-3"
+                      id="matchup-favor"
                       onChange={(value) => setMatchupFavor(value as MatchupFavorability)}
                       options={[
                         { label: "Select favour", value: "" },

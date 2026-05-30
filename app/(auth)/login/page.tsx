@@ -36,9 +36,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </Alert>
             ) : null}
             <div>
-              <Button asChild>
-                <a href="/auth/sign-in/google">Sign in with Google</a>
-              </Button>
+              <form action="/auth/sign-in/google" method="post">
+                <Button type="submit">
+                  Sign in with Google
+                </Button>
+              </form>
             </div>
           </div>
         </Card>

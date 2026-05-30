@@ -21,32 +21,30 @@ type SharedLogPageProps = {
   }>;
 };
 
+const SHARED_LOG_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit"
+});
+
+const SHARED_LOG_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric"
+});
+
 function formatImportedAt(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(new Date(value));
+  return SHARED_LOG_DATE_TIME_FORMATTER.format(new Date(value));
 }
 
 function formatExpiry(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(new Date(value));
+  return SHARED_LOG_DATE_TIME_FORMATTER.format(new Date(value));
 }
 
 function formatSharedLogDate(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(value));
+  return SHARED_LOG_DATE_FORMATTER.format(new Date(value));
 }
 
 function buildSharedLogMetadata(log: BattleLog) {

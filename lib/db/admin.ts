@@ -75,7 +75,7 @@ type AdminUsersOverviewRpcRow = ProfileRow & {
 };
 
 function sortUsers(users: AdminUser[]) {
-  return [...users].sort((left, right) => {
+  return users.toSorted((left, right) => {
     if (left.role !== right.role) {
       return left.role === "admin" ? -1 : 1;
     }
@@ -265,8 +265,7 @@ function mapAdminDashboardOverview(row: AdminDashboardOverviewRpcRow): AdminDash
 }
 
 export const getAdminAccessContext = cache(async () => {
-  const user = await requireUser();
-  const supabase = await createClient();
+  const [user, supabase] = await Promise.all([requireUser(), createClient()]);
   const { data, error } = await supabase
     .from("profiles")
     .select("role,display_name,email,avatar_color")

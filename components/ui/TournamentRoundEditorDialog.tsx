@@ -347,7 +347,7 @@ export function TournamentRoundEditorDialog({
                           >
                             <Checkbox
                               checked={specialResult === option.value}
-                              className="h-4 w-4 accent-win"
+                              className="size-4 accent-win"
                               id={`round-special-${fieldName}`}
                               name={fieldName}
                               onCheckedChange={(checked) => {

@@ -172,7 +172,7 @@ function GameStatRow({
 }) {
   return (
     <div className="flex min-h-9 items-center gap-2 border-b border-border px-4 py-2.5 last:border-b-0">
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">{icon}</span>
+      <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">{icon}</span>
       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-muted-foreground">{label}</span>
       <span className="font-mono text-sm font-semibold text-card-foreground">{value}</span>
     </div>
@@ -223,17 +223,17 @@ function StatsOverviewGrid({ overview }: { overview: LogStatsOverview }) {
       <OverviewSection title="Game Stats">
         <div className="overflow-hidden rounded-lg border border-border bg-muted/60">
           <GameStatRow
-            icon={<TrophyIcon className="h-4 w-4" />}
+            icon={<TrophyIcon className="size-4" />}
             label="Prizes taken"
             value={formatMetric(overview.prizesTaken)}
           />
           <GameStatRow
-            icon={<CoinsIcon className="h-4 w-4" />}
+            icon={<CoinsIcon className="size-4" />}
             label="Coin flips won"
             value={formatMetric(overview.coinFlipsWon)}
           />
           <GameStatRow
-            icon={<RotateCcwIcon className="h-4 w-4" />}
+            icon={<RotateCcwIcon className="size-4" />}
             label="Mulligans taken"
             value={formatMetric(overview.mulligansTaken)}
           />
@@ -361,7 +361,7 @@ function MatchupSortHeaderButton({
       <span>{label}</span>
       <ChevronIcon
         className={[
-          "h-3.5 w-3.5 transition",
+          "size-3.5 transition",
           active ? "opacity-100" : "opacity-45",
           active && direction === "asc" ? "rotate-180" : ""
         ].join(" ")}

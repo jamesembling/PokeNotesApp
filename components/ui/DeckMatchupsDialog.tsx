@@ -19,12 +19,14 @@ type DeckMatchupsDialogProps = {
   matchups: DeckMatchup[];
 };
 
+const MATCHUP_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric"
+});
+
 function formatDate(date: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(date));
+  return MATCHUP_DATE_FORMATTER.format(new Date(date));
 }
 
 export function DeckMatchupsDialog({
@@ -66,7 +68,7 @@ export function DeckMatchupsDialog({
                 <div className="flex min-w-0 flex-col gap-3">
                   {orderedMatchups.map((matchup) => (
                     <Link
-                      className="group flex min-w-0 items-center justify-between gap-4 rounded-[20px] border border-border bg-card px-4 py-4 transition hover:border-ring hover:bg-muted"
+                      className="group flex min-w-0 items-center justify-between gap-4 rounded-[20px] border border-border bg-card p-4 transition hover:border-ring hover:bg-muted"
                       href={`/decks/${deckId}/matchups/${matchup.id}`}
                       key={matchup.id}
                       onClick={() => setIsOpen(false)}
@@ -91,7 +93,7 @@ export function DeckMatchupsDialog({
 
                       <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-primary">
                         Open
-                        <ChevronIcon className="h-4 w-4 -rotate-90" />
+                        <ChevronIcon className="size-4 -rotate-90" />
                       </span>
                     </Link>
                   ))}

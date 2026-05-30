@@ -14,14 +14,16 @@ type LogDetailPageProps = {
   }>;
 };
 
+const IMPORTED_AT_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  month: "short",
+  year: "numeric"
+});
+
 function formatImportedAt(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(value));
+  return IMPORTED_AT_FORMATTER.format(new Date(value));
 }
 
 function DetailError() {
@@ -65,8 +67,7 @@ function DetailError() {
 }
 
 export default async function LogDetailPage({ params }: LogDetailPageProps) {
-  const user = await requireUser();
-  const { id } = await params;
+  const [user, { id }] = await Promise.all([requireUser(), params]);
   const log = await measureServerCall("page.logs.detail.summary", () =>
     getLogDetailSummaryById(user.id, id)
   );

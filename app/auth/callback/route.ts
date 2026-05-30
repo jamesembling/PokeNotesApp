@@ -15,6 +15,7 @@ function getSupabaseEnv() {
   return { supabaseUrl, supabaseAnonKey };
 }
 
+// oxlint-disable-next-line react-doctor/nextjs-no-side-effect-in-get-handler -- OAuth providers return the one-time code to this GET callback.
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const appOrigin = buildAppOriginFromHeaders(request.headers);

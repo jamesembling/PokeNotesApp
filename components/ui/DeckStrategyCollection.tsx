@@ -72,7 +72,14 @@ function SortHeaderButton({
 }
 
 export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
-  const [view, setView] = useState<DeckCardView>("tile");
+  const [view, setView] = useState<DeckCardView>(() => {
+    if (typeof window === "undefined") {
+      return "tile";
+    }
+
+    const storedView = window.localStorage.getItem(STORAGE_KEY);
+    return storedView === "tile" || storedView === "list" ? storedView : "tile";
+  });
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection } | null>(null);
   const orderedDecks = useMemo(() => {
     if (!sort) {
@@ -81,7 +88,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
 
     const directionMultiplier = sort.direction === "asc" ? 1 : -1;
 
-    return [...decks].sort((left, right) => {
+    return decks.toSorted((left, right) => {
       switch (sort.key) {
         case "deck":
           return left.deck.deckName.localeCompare(right.deck.deckName) * directionMultiplier;
@@ -125,13 +132,6 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
       }
     });
   }, [decks, sort]);
-
-  useEffect(() => {
-    const storedView = window.localStorage.getItem(STORAGE_KEY);
-    if (storedView === "tile" || storedView === "list") {
-      setView(storedView);
-    }
-  }, []);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, view);

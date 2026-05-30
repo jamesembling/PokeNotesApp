@@ -15,6 +15,7 @@ const TOURNAMENT_ROUND_SPECIAL_RESULT_TOKEN_MAP: Record<
   ID: ["T"],
   "NO SHOW": ["W"]
 };
+const TOURNAMENT_MONTH_FORMATTER = new Intl.DateTimeFormat("en-GB", { month: "short" });
 
 export function formatTournamentDateRange(dateFrom: string, dateTo: string) {
   if (dateFrom === dateTo) {
@@ -28,7 +29,7 @@ export function formatTournamentDateRange(dateFrom: string, dateTo: string) {
     from.getUTCFullYear() === to.getUTCFullYear() && from.getUTCMonth() === to.getUTCMonth();
 
   if (sameMonth) {
-    const month = new Intl.DateTimeFormat("en-GB", { month: "short" }).format(from);
+    const month = TOURNAMENT_MONTH_FORMATTER.format(from);
     return `${from.getUTCDate()}-${to.getUTCDate()} ${month} ${to.getUTCFullYear()}`;
   }
 

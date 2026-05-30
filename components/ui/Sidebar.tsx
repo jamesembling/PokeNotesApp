@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -114,7 +115,7 @@ function SidebarLogo({ onNavigate }: { onNavigate?: () => void }) {
       onClick={onNavigate}
       prefetch={false}
     >
-      <img alt="Poke Notes" className="h-12 w-12" src="/pokeball-icon.svg" />
+      <Image alt="Poke Notes" className="size-12" height={48} src="/pokeball-icon.svg" width={48} />
     </Link>
   );
 }

@@ -128,3 +128,5 @@ export const requireUser = cache(async () => {
 
   return user;
 });
+
+export const requireAuth = requireUser;

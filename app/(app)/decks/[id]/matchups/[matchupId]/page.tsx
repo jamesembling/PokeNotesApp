@@ -19,8 +19,7 @@ type DeckMatchupPageProps = {
 };
 
 export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) {
-  const user = await requireUser();
-  const { id, matchupId } = await params;
+  const [user, { id, matchupId }] = await Promise.all([requireUser(), params]);
   const result = await getDeckWithMatchup(user.id, id, matchupId);
 
   if (!result) {

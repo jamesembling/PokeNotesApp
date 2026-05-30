@@ -18,8 +18,7 @@ type DeckListPageProps = {
 };
 
 export default async function DeckListPage({ params }: DeckListPageProps) {
-  const user = await requireUser();
-  const { id, listId } = await params;
+  const [user, { id, listId }] = await Promise.all([requireUser(), params]);
   const defaultCreatedBy =
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||

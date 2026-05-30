@@ -8,6 +8,11 @@ export type DeckCardView = "tile" | "list";
 type DeckCardDeck = Pick<DeckSummary, "id" | "deckName" | "deckPokemon" | "updatedAt">;
 
 const listSpriteLaneClassName = "min-h-12 w-[82px] shrink-0 sm:w-[98px]";
+const UPDATED_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric"
+});
 
 type DeckCardProps = {
   deck: DeckCardDeck;
@@ -19,11 +24,7 @@ type DeckCardProps = {
 };
 
 function formatUpdatedDate(date: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(date));
+  return UPDATED_DATE_FORMATTER.format(new Date(date));
 }
 
 function getListWinRateTextClass(winRate: number | null) {
@@ -62,7 +63,7 @@ export function DeckCard({
   if (view === "list") {
     return (
       <Link
-        className="group block px-4 py-4 transition hover:bg-muted sm:px-6"
+        className="group block p-4 transition hover:bg-muted sm:px-6"
         href={`/decks/${deck.id}`}
         prefetch={false}
       >
@@ -155,11 +156,11 @@ export function DeckCard({
 
         <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-3 text-xs font-medium text-muted-foreground">
           <span className="flex min-w-0 items-center gap-1.5">
-            <ClockIcon className="h-3.5 w-3.5 shrink-0" />
+            <ClockIcon className="size-3.5 shrink-0" />
             <span className="truncate">{formatUpdatedDate(deck.updatedAt)}</span>
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
-            <CalendarIcon className="h-3.5 w-3.5" />
+            <CalendarIcon className="size-3.5" />
             <span>
               {deckListCount} {deckListCount === 1 ? "decklist" : "decklists"}
             </span>

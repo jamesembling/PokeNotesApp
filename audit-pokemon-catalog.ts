@@ -10,6 +10,7 @@ import {
   findBestPokemonSearchMatch,
   findPokemonSearchMatches
 } from "@/lib/pokemon/search";
+import { compactMap } from "@/lib/array";
 import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
 import type { PokemonOption } from "@/types/index";
 
@@ -40,16 +41,18 @@ function getRequiredEnv(name: string) {
 }
 
 function buildPokemonOptions(rows: PokemonCatalogRow[]): PokemonOption[] {
-  return rows
-    .filter((row) => row.slug && row.label)
-    .map((row) => ({
-      label: row.label,
-      slug: row.slug,
-      spriteUrl:
-        typeof row.sprite_url === "string" && row.sprite_url
-          ? row.sprite_url
-          : buildPokemonSpriteUrlFromSlug(row.slug)
-    }));
+  return compactMap(rows, (row) =>
+    row.slug && row.label
+      ? {
+          label: row.label,
+          slug: row.slug,
+          spriteUrl:
+            typeof row.sprite_url === "string" && row.sprite_url
+              ? row.sprite_url
+              : buildPokemonSpriteUrlFromSlug(row.slug)
+        }
+      : null
+  );
 }
 
 async function fetchAllRows(
@@ -86,9 +89,9 @@ function findDuplicates(values: string[]) {
     counts.set(value, (counts.get(value) ?? 0) + 1);
   });
 
-  return Array.from(counts.entries())
-    .filter(([, count]) => count > 1)
-    .map(([value, count]) => ({ count, value }))
+  return compactMap(Array.from(counts.entries()), ([value, count]) =>
+    count > 1 ? { count, value } : null
+  )
     .sort((left, right) => right.count - left.count || left.value.localeCompare(right.value));
 }
 
@@ -186,13 +189,17 @@ async function main() {
   const disallowedLabelSet = new Set<string>(DISALLOWED_POKEMON_OPTION_LABELS);
 
   const missingRequiredEntries = requiredEntries.filter((entry) => !optionBySlug.has(entry.slug));
-  const requiredLabelMismatches = requiredEntries
-    .map((entry) => ({
+  const requiredLabelMismatches = compactMap(requiredEntries, (entry) => {
+    const mismatch = {
       actualLabel: optionBySlug.get(entry.slug)?.label ?? null,
       expectedLabel: entry.label,
       slug: entry.slug
-    }))
-    .filter((entry) => entry.actualLabel !== null && entry.actualLabel !== entry.expectedLabel);
+    };
+
+    return mismatch.actualLabel !== null && mismatch.actualLabel !== mismatch.expectedLabel
+      ? mismatch
+      : null;
+  });
 
   const duplicateSlugs = findDuplicates(options.map((option) => option.slug));
   const duplicateLabels = findDuplicates(options.map((option) => option.label));

@@ -21,8 +21,7 @@ export default async function AppLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await requireUser();
-  const cookieStore = await cookies();
+  const [user, cookieStore] = await Promise.all([requireUser(), cookies()]);
   const avatarColor = normalizeAvatarColor(
     cookieStore.get(PROFILE_AVATAR_COOKIE)?.value || String(user.user_metadata?.avatar_color || "")
   );

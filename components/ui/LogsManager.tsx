@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   bulkAssignDeckListAction,
@@ -237,9 +237,9 @@ export function LogsManager({
       : initialLogs
   );
   const [canLoadMore, setCanLoadMore] = useState(initialCanLoadMore);
-  const [nextWindowEndDate, setNextWindowEndDate] = useState(initialNextWindowEndDate);
-  const [windowStartDate, setWindowStartDate] = useState(initialWindowStartDate);
-  const [windowEndDate, setWindowEndDate] = useState(initialWindowEndDate);
+  const nextWindowEndDateRef = useRef(initialNextWindowEndDate);
+  const windowStartDateRef = useRef(initialWindowStartDate);
+  const windowEndDateRef = useRef(initialWindowEndDate);
   const [loadMoreError, setLoadMoreError] = useState("");
   const [deckOptionsError, setDeckOptionsError] = useState("");
   const [isLoadingDeckOptions, setIsLoadingDeckOptions] = useState(false);
@@ -270,9 +270,9 @@ export function LogsManager({
   useEffect(() => {
     setVisibleLogs(userDecks.length > 0 ? attachLinkedDeckListNames(initialLogs, userDecks) : initialLogs);
     setCanLoadMore(initialCanLoadMore);
-    setNextWindowEndDate(initialNextWindowEndDate);
-    setWindowStartDate(initialWindowStartDate);
-    setWindowEndDate(initialWindowEndDate);
+    nextWindowEndDateRef.current = initialNextWindowEndDate;
+    windowStartDateRef.current = initialWindowStartDate;
+    windowEndDateRef.current = initialWindowEndDate;
     setLoadMoreError("");
     setActionNotice(null);
     setDeletePrompt(null);
@@ -425,14 +425,14 @@ export function LogsManager({
     startLoadMoreTransition(async () => {
       try {
         setLoadMoreError("");
-        const result = await loadMoreLogsAction(nextWindowEndDate);
+        const result = await loadMoreLogsAction(nextWindowEndDateRef.current);
         const nextLogs = attachLinkedDeckListNames(result.logs, userDecks);
 
         setVisibleLogs((current) => mergeLogs(current, nextLogs));
         setCanLoadMore(result.hasMore);
-        setNextWindowEndDate(result.nextWindowEndDate);
-        setWindowStartDate(result.windowStartDate);
-        setWindowEndDate((current) => current || result.windowEndDate);
+        nextWindowEndDateRef.current = result.nextWindowEndDate;
+        windowStartDateRef.current = result.windowStartDate;
+        windowEndDateRef.current = windowEndDateRef.current || result.windowEndDate;
       } catch (error) {
         console.error(error);
         setLoadMoreError("Couldn't load more logs right now. Please try again.");
@@ -516,7 +516,7 @@ export function LogsManager({
         </Alert>
       ) : null}
 
-      <section className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <section className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="ui-eyebrow">Battle Logs</h2>
@@ -573,7 +573,7 @@ export function LogsManager({
                           </p>
                           <div className="mt-1 flex items-center justify-end gap-2 text-[0.8rem] text-muted-foreground">
                             <span>{group.logs.length} total</span>
-                            <ChevronIcon className="h-4 w-4 shrink-0 transition group-open:rotate-180" />
+                            <ChevronIcon className="size-4 shrink-0 transition group-open:rotate-180" />
                           </div>
                         </div>
                       </div>
@@ -588,7 +588,7 @@ export function LogsManager({
                         {group.logs.length} total
                       </p>
                     </div>
-                    <ChevronIcon className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+                    <ChevronIcon className="size-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                   </div>
                 </div>
               </summary>

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, use } from "react";
 import type { SiteFormatsCatalog } from "@/lib/formats/catalog";
 
 type SiteFormatsContextValue = SiteFormatsCatalog;
@@ -22,7 +22,7 @@ export function SiteFormatsProvider({
 }
 
 export function useSiteFormats() {
-  const context = useContext(SiteFormatsContext);
+  const context = use(SiteFormatsContext);
 
   if (!context) {
     throw new Error("useSiteFormats must be used within a SiteFormatsProvider");

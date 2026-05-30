@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { requireAuth, requireUser } from "@/lib/auth";
 import { updateCurrentProfile, updateCurrentProfileAvatar } from "@/lib/db/profile";
 import { PROFILE_AVATAR_COOKIE } from "@/lib/profile-avatar";
 import { reportError } from "@/lib/server/report-error";
@@ -36,6 +37,8 @@ export async function saveProfileAction(
   _previousState: ProfileActionState,
   formData: FormData
 ): Promise<ProfileActionState> {
+  await requireAuth();
+
   try {
     const displayName = String(formData.get("displayName") || "").trim();
     const firstName = String(formData.get("firstName") || "").trim();
@@ -84,6 +87,8 @@ export type ProfileAvatarActionState = {
 };
 
 export async function saveProfileAvatarAction(avatarColor: string): Promise<ProfileAvatarActionState> {
+  await requireAuth();
+
   try {
     const profile = await updateCurrentProfileAvatar(avatarColor);
 

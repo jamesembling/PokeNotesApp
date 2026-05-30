@@ -4,6 +4,7 @@ import {
   resolveBattleLogEffectCatalogTags
 } from "@/lib/battle-log/effect-catalog";
 import type { LogSection } from "@/types/index";
+import { compactMap } from "@/lib/array";
 
 const RESOLVABLE_TAGS = new Set<BattleLogActionTag>(["supporter", "item", "tool", "stadium"]);
 
@@ -124,9 +125,7 @@ export async function resolveBattleLogActionTagOverrides(sections: LogSection[])
   const titles = Array.from(
     new Set(
       sections.flatMap((section) =>
-        section.actions
-          .map((action) => String(action.title || "").trim())
-          .filter(Boolean)
+        compactMap(section.actions, (action) => String(action.title || "").trim())
       )
     )
   );

@@ -31,12 +31,14 @@ type DeckDetailPageProps = {
   }>;
 };
 
+const DECK_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric"
+});
+
 function formatDate(date: string) {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(date));
+  return DECK_DATE_FORMATTER.format(new Date(date));
 }
 
 function DeckMatchupTile({
@@ -53,7 +55,7 @@ function DeckMatchupTile({
           <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={matchup.deckPokemon} />
           <span className="inline-flex min-h-10 shrink-0 items-center rounded-2xl border border-ring bg-[color-mix(in_oklab,var(--ring)_8%,var(--bg-surface))] px-3 py-2 text-[0.76rem] font-semibold tracking-[0.12em] text-primary">
             OPEN
-            <ChevronIcon className="h-4 w-4 -rotate-90" />
+            <ChevronIcon className="size-4 -rotate-90" />
           </span>
         </div>
 

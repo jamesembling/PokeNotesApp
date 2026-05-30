@@ -32,8 +32,7 @@ type TournamentDetailPageProps = {
 };
 
 export default async function TournamentDetailPage({ params }: TournamentDetailPageProps) {
-  const user = await requireUser();
-  const { id } = await params;
+  const [user, { id }] = await Promise.all([requireUser(), params]);
   let tournament = null;
   let rounds = [];
 

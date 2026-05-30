@@ -46,7 +46,10 @@ export function InlineDeckMatchupHeaderControls({
   const [headerState, setHeaderState] = useState<HeaderState>(() => buildHeaderState(matchup));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const savedStateRef = useRef<HeaderState>(buildHeaderState(matchup));
+  const savedStateRef = useRef<HeaderState | null>(null);
+  if (savedStateRef.current === null) {
+    savedStateRef.current = buildHeaderState(matchup);
+  }
   const saveStatusTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -143,12 +146,14 @@ export function InlineDeckMatchupHeaderControls({
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <label className="grid gap-1.5">
+      <label className="grid gap-1.5" htmlFor="inline-matchup-favor">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Matchup Favour
         </span>
         <AppSelect
+          aria-label="Matchup favour"
           className="min-h-[48px] rounded-xl px-4 py-3"
+          id="inline-matchup-favor"
           onChange={(value) => {
             const nextState = {
               ...headerState,
@@ -169,12 +174,14 @@ export function InlineDeckMatchupHeaderControls({
         />
       </label>
 
-      <label className="grid gap-1.5">
+      <label className="grid gap-1.5" htmlFor="inline-matchup-go-preference">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Turn Preference
         </span>
         <AppSelect
+          aria-label="Turn preference"
           className="min-h-[48px] rounded-xl px-4 py-3"
+          id="inline-matchup-go-preference"
           onChange={(value) => {
             const nextState = {
               ...headerState,
@@ -193,12 +200,14 @@ export function InlineDeckMatchupHeaderControls({
         />
       </label>
 
-      <label className="grid gap-1.5">
+      <label className="grid gap-1.5" htmlFor="inline-matchup-format">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Format
         </span>
         <AppSelect
+          aria-label="Format"
           className="min-h-[48px] rounded-xl px-4 py-3"
+          id="inline-matchup-format"
           onChange={(value) => {
             const nextState = {
               ...headerState,

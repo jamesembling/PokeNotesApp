@@ -172,8 +172,7 @@ function mapSidebarProfile(
 }
 
 export const getCurrentSidebarProfile = cache(async (): Promise<CurrentSidebarProfile> => {
-  const user = await requireUser();
-  const supabase = await createClient();
+  const [user, supabase] = await Promise.all([requireUser(), createClient()]);
   const loadSidebarProfile = async () =>
     await supabase
       .from("profiles")
@@ -238,8 +237,7 @@ export const getCurrentSidebarProfile = cache(async (): Promise<CurrentSidebarPr
 });
 
 export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
-  const user = await requireUser();
-  const supabase = await createClient();
+  const [user, supabase] = await Promise.all([requireUser(), createClient()]);
   const { data, error } = await measureServerCall("db.profile.current", async () =>
     await supabase
       .from("profiles")
@@ -343,8 +341,7 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
 });
 
 export async function updateCurrentProfile(input: UpdateProfileInput): Promise<UserProfile> {
-  const user = await requireUser();
-  const supabase = await createClient();
+  const [user, supabase] = await Promise.all([requireUser(), createClient()]);
 
   const firstName = input.firstName.trim();
   const lastName = input.lastName.trim();
@@ -405,8 +402,7 @@ export async function updateCurrentProfile(input: UpdateProfileInput): Promise<U
 }
 
 export async function updateCurrentProfileAvatar(avatarColorInput: string): Promise<UserProfile> {
-  const user = await requireUser();
-  const supabase = await createClient();
+  const [user, supabase] = await Promise.all([requireUser(), createClient()]);
   const avatarColor = normalizeAvatarColor(avatarColorInput);
 
   const { error: authUpdateError } = await supabase.auth.updateUser({

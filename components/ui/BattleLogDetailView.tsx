@@ -26,6 +26,7 @@ import {
   type BattleLogActionTag
 } from "@/lib/battle-log/display";
 import type { BattleLog, LogSection } from "@/types/index";
+import { compactMap } from "@/lib/array";
 
 const SETUP_SECTION_LABELS = new Set(["setup"]);
 
@@ -33,7 +34,7 @@ function ChevronIcon() {
   return (
     <svg
       aria-hidden="true"
-      className="h-4 w-4 transition group-open:rotate-180"
+      className="size-4 transition group-open:rotate-180"
       fill="none"
       stroke="currentColor"
       strokeLinecap="round"
@@ -46,7 +47,7 @@ function ChevronIcon() {
   );
 }
 
-function PrizeTrophyIcon({ className = "h-4 w-4" }: { className?: string }) {
+function PrizeTrophyIcon({ className = "size-4" }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
@@ -143,7 +144,7 @@ function BattleLogActionTitleText({ children }: { children: string }) {
         <span className="inline-flex min-w-0 items-center gap-2" key={`${part}-${index}`}>
           {index > 0 ? (
             <>
-              <ArrowRightIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <ArrowRightIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
               <span className="sr-only">then</span>
             </>
           ) : null}
@@ -172,7 +173,7 @@ function DetailEventRow({ event }: { event: DetailEvent }) {
 
   return (
     <div className="flex min-w-0 items-center gap-2 text-[0.76rem] font-semibold uppercase leading-5 tracking-[0.05em] text-muted-foreground">
-      <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+      <Icon aria-hidden="true" className="size-3.5 shrink-0" />
       <span className="shrink-0">{event.label}</span>
       <span className="min-w-0 normal-case tracking-normal text-card-foreground">
         {formatDetailOutcome(event.outcome)}
@@ -185,7 +186,7 @@ function DamageBreakdownBlock({ breakdown, keyValue }: { breakdown: DamageBreakd
   return (
     <div className="grid gap-1.5" key={keyValue}>
       <div className="flex min-w-0 items-center gap-2 text-[0.76rem] font-semibold uppercase leading-5 tracking-[0.05em] text-muted-foreground">
-        <CalculatorIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+        <CalculatorIcon aria-hidden="true" className="size-3.5 shrink-0" />
         <span>{breakdown.label}</span>
       </div>
       <div className="grid gap-1 pl-5">
@@ -209,10 +210,8 @@ function DamageBreakdownBlock({ breakdown, keyValue }: { breakdown: DamageBreakd
 }
 
 function renderCardChips(text: string, keyValue: string) {
-  const cards = String(text || "")
-    .split(",")
-    .map((card) => card.trim())
-    .filter(Boolean);
+  const cards = compactMap(String(text || "")
+    .split(","), (card) => card.trim());
 
   if (cards.length === 0) {
     return null;
@@ -296,7 +295,7 @@ function renderBattleLogActionDetails(details: string[], actionTag: BattleLogAct
     }
 
     const first = String(items[0] || "").trim();
-    const rest = items.slice(1).map((item) => String(item || "").trim()).filter(Boolean);
+    const rest = compactMap(items.slice(1), (item) => String(item || "").trim());
     const supportsNestedCards = rest.some((item) => isCardListDetail(item));
 
     if (supportsNestedCards && rest.length > 0) {
@@ -451,7 +450,7 @@ function PrizeTracker({
     >
       <PrizeTrophyIcon
         className={[
-          "h-4 w-4 shrink-0",
+          "size-4 shrink-0",
           toneClassNames.name
         ].join(" ")}
       />
@@ -528,7 +527,7 @@ function LogSectionCard({
     >
       <div
         className={[
-          "border-b border-border px-4 py-4 sm:px-6",
+          "border-b border-border p-4 sm:px-6",
           headerToneClassName
         ].join(" ")}
       >
@@ -573,7 +572,7 @@ function LogSectionCard({
         ) : null}
       </div>
 
-      <div className="grid px-4 py-4 sm:px-6">
+      <div className="grid p-4 sm:px-6">
         {actions.map((action, actionIndex) => {
           const displayActionTitle = getBattleLogDisplayActionTitle(action.title, action.details);
           const displayActionDetails = getBattleLogDisplayActionDetails(action.title, action.details);
@@ -714,7 +713,7 @@ export function BattleLogDetailView({
       ) : isBodyLoading ? (
         <Card>
           <div className="flex flex-col gap-3" role="status">
-            <div className="h-4 w-40 rounded bg-muted" />
+            <div className="size-40 rounded bg-muted" />
             <div className="h-3 w-full rounded bg-muted" />
             <div className="h-3 w-11/12 rounded bg-muted" />
             <div className="h-3 w-4/5 rounded bg-muted" />

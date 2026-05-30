@@ -2,6 +2,7 @@ import { normalizeText } from "@/lib/log-import/normalization";
 import { createPublicClient } from "@/lib/supabase/public";
 import type { BattleLogActionTag } from "@/lib/battle-log/display";
 import type { CardEffectCatalogRow, CardEffectKind } from "@/lib/log-import/types";
+import { compactMap } from "@/lib/array";
 
 const TRAINER_TAGS = new Set<CardEffectKind>(["supporter", "item", "tool", "stadium"]);
 const EFFECT_TAGS = new Set<CardEffectKind>(["ability", "attack"]);
@@ -191,13 +192,11 @@ export async function resolveBattleLogEffectCatalogTag(title: string): Promise<B
 }
 
 export async function resolveBattleLogEffectCatalogTags(titles: string[]) {
-  const uniqueTitles = Array.from(new Set(titles.map((title) => String(title || "").trim()).filter(Boolean)));
+  const uniqueTitles = Array.from(new Set(compactMap(titles, (title) => String(title || "").trim())));
   const effectCandidates = uniqueTitles
     .map((title) => extractUsedEffectCandidate(title))
     .filter((candidate): candidate is { cardName: string; effectName: string } => candidate !== null);
-  const trainerCardNames = uniqueTitles
-    .map((title) => extractPlayedCardName(title) || extractAttachedCardName(title))
-    .filter(Boolean);
+  const trainerCardNames = compactMap(uniqueTitles, (title) => extractPlayedCardName(title) || extractAttachedCardName(title));
   const rows = await fetchCandidateRows({
     effectCandidates,
     trainerCardNames

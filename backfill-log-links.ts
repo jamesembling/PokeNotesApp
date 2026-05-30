@@ -4,6 +4,7 @@ import {
   resolvePersistableLogDeckLink,
   type DeckLinkCandidate
 } from "./lib/log-import/deck-linking";
+import { compactMap } from "@/lib/array";
 
 type ScriptArgs = {
   batchSize: number;
@@ -127,10 +128,8 @@ function parseStringArray(value: unknown) {
 }
 
 function splitSprites(value: string) {
-  return String(value || "")
-    .split(",")
-    .map((sprite) => sprite.trim())
-    .filter(Boolean);
+  return compactMap(String(value || "")
+    .split(","), (sprite) => sprite.trim());
 }
 
 function formatSummary(summary: Summary) {

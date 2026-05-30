@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
+import { compactMap } from "@/lib/array";
 import { buildPokemonNameVariants, normalizeText } from "@/lib/log-import/normalization";
 import { CACHE_TAGS } from "@/lib/server/cache";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
@@ -30,9 +31,10 @@ function parseStringMatrix(value: unknown) {
     return [];
   }
 
-  return value
-    .map((entry) => parseStringArray(entry))
-    .filter((entry) => entry.length > 0);
+  return compactMap(value, (entry) => {
+    const parsedEntry = parseStringArray(entry);
+    return parsedEntry.length > 0 ? parsedEntry : null;
+  });
 }
 
 function includesSpriteOrAncestor(
@@ -109,25 +111,29 @@ function buildPokemonIndex(rows: PokemonCatalogRow[]) {
 }
 
 function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnType<typeof buildPokemonIndex>) {
-  const includedRows = rows
-    .filter((row) => !row.is_excluded)
-    .map((row) => ({
+  const includedRows = compactMap(rows, (row) => {
+    if (row.is_excluded) {
+      return null;
+    }
+
+    const sprites = parseStringArray(row.sprites);
+    if (!row.id || !row.label || sprites.length === 0) {
+      return null;
+    }
+
+    const detectionSprites = parseStringArray(row.detection_sprites);
+    return {
       id: row.id,
       label: row.label,
-      sprites: parseStringArray(row.sprites),
-      detectionSprites: parseStringArray(row.detection_sprites),
-      requiredMatchGroups: parseStringMatrix(row.required_match_groups)
-    }))
-    .map((row) => ({
-      ...row,
-      detectionSprites: row.detectionSprites.length > 0 ? row.detectionSprites : row.sprites,
+      sprites,
+      detectionSprites: detectionSprites.length > 0 ? detectionSprites : sprites,
       requiredMatchGroups: completeRequiredMatchGroups({
-        sprites: row.sprites,
-        requiredMatchGroups: row.requiredMatchGroups,
+        sprites,
+        requiredMatchGroups: parseStringMatrix(row.required_match_groups),
         pokemonIndex
       })
-    }))
-    .filter((row) => row.id && row.label && row.sprites.length > 0);
+    };
+  });
 
   const byId = new Map(includedRows.map((row) => [row.id, row]));
   const normalizedLabelToIds = new Map<string, string[]>();

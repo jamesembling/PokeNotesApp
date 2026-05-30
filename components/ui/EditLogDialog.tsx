@@ -88,9 +88,11 @@ export function EditLogDialog({
   const pathname = usePathname();
   const { options: siteFormatOptions } = useSiteFormats();
   const [isOpen, setIsOpen] = useState(initialOpen);
-  const [selectedSelfSprites, setSelectedSelfSprites] = useState(log.selfDeckSprites.slice(0, 2));
+  const [selectedSelfSprites, setSelectedSelfSprites] = useState(() =>
+    log.selfDeckSprites.slice(0, 2)
+  );
   const [selectedOpponentSprites, setSelectedOpponentSprites] = useState(
-    log.opponentDeckSprites.slice(0, 2)
+    () => log.opponentDeckSprites.slice(0, 2)
   );
   const [selectedDeckId, setSelectedDeckId] = useState(log.linkedDeckId ?? "");
   const [selectedDeckListId, setSelectedDeckListId] = useState(log.linkedDeckListId ?? "");
@@ -307,17 +309,19 @@ export function EditLogDialog({
               />
 
               <section className="grid gap-4 xl:grid-cols-2">
-                <label className="grid min-w-0 gap-2">
+                <label className="grid min-w-0 gap-2" htmlFor="edit-log-date">
                   <span className="text-sm font-semibold text-muted-foreground">Date</span>
-                  <DatePicker onChange={setSelectedDate} value={selectedDate} />
+                  <DatePicker id="edit-log-date" onChange={setSelectedDate} value={selectedDate} />
                   <span aria-hidden="true" className="hidden min-h-[20px] text-xs opacity-0 xl:block">
                     Placeholder
                   </span>
                 </label>
 
-                <label className="grid min-w-0 gap-2">
+                <label className="grid min-w-0 gap-2" htmlFor="edit-log-format">
                   <span className="text-sm font-semibold text-muted-foreground">Format</span>
                   <FormatSelect
+                    aria-label="Format"
+                    id="edit-log-format"
                     onChange={setSelectedFormat}
                     options={formatOptions}
                     value={selectedFormat}
@@ -327,11 +331,13 @@ export function EditLogDialog({
                   </span>
                 </label>
 
-                <label className="grid min-w-0 gap-2">
+                <label className="grid min-w-0 gap-2" htmlFor="edit-log-deck-strategy">
                   <span className="text-sm font-semibold text-muted-foreground">
                     Deck Strategy
                   </span>
                   <AppSelect
+                    aria-label="Deck strategy"
+                    id="edit-log-deck-strategy"
                     onChange={setSelectedDeckId}
                     options={[
                       { label: "No linked deck", value: "" },
@@ -344,10 +350,12 @@ export function EditLogDialog({
                   />
                 </label>
 
-                <label className="grid min-w-0 gap-2">
+                <label className="grid min-w-0 gap-2" htmlFor="edit-log-deck-list">
                   <span className="text-sm font-semibold text-muted-foreground">Deck List</span>
                   <AppSelect
+                    aria-label="Deck list"
                     disabled={availableDeckLists.length === 0}
+                    id="edit-log-deck-list"
                     onChange={setSelectedDeckListId}
                     options={[
                       {

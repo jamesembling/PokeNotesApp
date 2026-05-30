@@ -39,7 +39,7 @@ function SpriteThumb({
 
   if (!slug) {
     return (
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-card text-xs text-muted-foreground">
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-card text-xs text-muted-foreground">
         -
       </div>
     );
@@ -49,7 +49,7 @@ function SpriteThumb({
     return (
       <div
         aria-label={label}
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-card px-1 text-center text-[10px] font-semibold leading-tight text-muted-foreground"
+        className="flex size-12 shrink-0 items-center justify-center rounded-full bg-card px-1 text-center text-[10px] font-semibold leading-tight text-muted-foreground"
       >
         {label}
       </div>
@@ -59,7 +59,7 @@ function SpriteThumb({
   return (
     <Image
       alt={label}
-      className="h-12 w-12 shrink-0 object-contain"
+      className="size-12 shrink-0 object-contain"
       height={48}
       onError={() => {
         setHasError(true);
@@ -131,7 +131,9 @@ function SpriteSearchSlot({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingSearch, setIsEditingSearch] = useState(false);
-  const [isDesktopFloatingPanel, setIsDesktopFloatingPanel] = useState(false);
+  const [isDesktopFloatingPanel, setIsDesktopFloatingPanel] = useState(() =>
+    typeof window === "undefined" ? false : window.matchMedia("(min-width: 640px)").matches
+  );
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -183,7 +185,6 @@ function SpriteSearchSlot({
       setIsDesktopFloatingPanel(desktopFloatingPanelQuery.matches);
     }
 
-    syncDesktopMode();
     desktopFloatingPanelQuery.addEventListener("change", syncDesktopMode);
 
     return () => {
@@ -217,7 +218,7 @@ function SpriteSearchSlot({
     window.addEventListener("resize", keepMobilePickerVisible);
     window.addEventListener("orientationchange", keepMobilePickerVisible);
     window.visualViewport?.addEventListener("resize", keepMobilePickerVisible);
-    window.visualViewport?.addEventListener("scroll", keepMobilePickerVisible);
+    window.visualViewport?.addEventListener("scroll", keepMobilePickerVisible, { passive: true });
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -267,13 +268,13 @@ function SpriteSearchSlot({
         />
         <Button
           aria-label="Close Pokemon search"
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-card-foreground"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-card-foreground"
           onClick={closeSearchEditor}
           size="icon"
           type="button"
           variant="ghost"
         >
-          <CloseIcon className="h-4 w-4" />
+          <CloseIcon className="size-4" />
         </Button>
       </div>
 
@@ -363,7 +364,7 @@ function SpriteSearchSlot({
                   slug={currentSlug}
                 />
               ) : (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-card text-xs text-muted-foreground">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-card text-xs text-muted-foreground">
                   -
                 </div>
               )}
@@ -373,13 +374,13 @@ function SpriteSearchSlot({
                   : "Select pokemon..."}
               </span>
               {!currentSlug ? (
-                <ChevronIcon className="h-4 w-4 shrink-0 text-muted-foreground -rotate-90" />
+                <ChevronIcon className="size-4 shrink-0 text-muted-foreground -rotate-90" />
               ) : null}
             </Button>
             {currentSlug ? (
               <Button
                 aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions, pokemonOptionsBySlug)}`}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-card hover:text-card-foreground"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-card hover:text-card-foreground"
                 onClick={() => {
                   onChange(updateSpritesAtIndex(sprites, index, ""));
                   closeSearchEditor();
@@ -388,7 +389,7 @@ function SpriteSearchSlot({
                 type="button"
                 variant="ghost"
               >
-                <CloseIcon className="h-[18px] w-[18px]" />
+                <CloseIcon className="size-[18px]" />
               </Button>
             ) : null}
           </div>

@@ -28,7 +28,7 @@ function getTestLoginConfig() {
   };
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const appOrigin = buildAppOriginFromHeaders(request.headers);
   const config = getTestLoginConfig();
 
@@ -76,4 +76,28 @@ export async function GET(request: NextRequest) {
   response.headers.set("Pragma", "no-cache");
 
   return response;
+}
+
+export async function GET(request: NextRequest) {
+  const appOrigin = buildAppOriginFromHeaders(request.headers);
+  const config = getTestLoginConfig();
+
+  if (!config.configured) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (request.nextUrl.searchParams.get("secret") !== config.secret) {
+    return NextResponse.redirect(new URL("/login", appOrigin));
+  }
+
+  const action = `/auth/test-login?secret=${encodeURIComponent(config.secret)}`;
+
+  return new Response(
+    `<!doctype html><html><body><form method="post" action="${action}"><button type="submit">Continue</button></form><script>document.forms[0].requestSubmit();</script></body></html>`,
+    {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8"
+      }
+    }
+  );
 }

@@ -60,7 +60,7 @@ export function hasCanonicalDeckListVisualGrouping(cards: DeckCard[]) {
 }
 
 export function sortDeckListCardsLocally(cards: DeckCard[]) {
-  return [...cards].sort((left, right) => {
+  return cards.toSorted((left, right) => {
     const categoryDifference = getCategoryRank(left) - getCategoryRank(right);
     if (categoryDifference !== 0) {
       return categoryDifference;

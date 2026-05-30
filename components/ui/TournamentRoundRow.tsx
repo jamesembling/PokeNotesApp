@@ -90,7 +90,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
             ))
           ) : (
             <span className="font-display text-[1.05rem] font-semibold tracking-[-0.04em] text-muted-foreground">
-              —
+              -
             </span>
           )}
         </div>
@@ -98,7 +98,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
 
       {canEdit ? (
         <div className="justify-self-end text-foreground max-md:col-start-3 max-md:row-start-1 md:col-start-4">
-          <ChevronIcon className="h-4 w-4 -rotate-90" />
+          <ChevronIcon className="size-4 -rotate-90" />
         </div>
       ) : null}
     </div>

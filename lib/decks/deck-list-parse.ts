@@ -1,4 +1,5 @@
 import type { DeckCard } from "@/types/index";
+import { compactMap } from "@/lib/array";
 
 const HEADER_PATTERNS = [
   { pattern: /^pok[eé]mon(?:\s+cards?)?(?::|\b)/i, category: "Pokemon" },
@@ -11,10 +12,8 @@ const COUNT_LINE_PATTERN = /^(\d+)\s*(?:x)?\s+(.+)$/i;
 type DeckListCategory = "Pokemon" | "Trainer" | "Energy" | "";
 
 export function parseLines(value: string) {
-  return String(value || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  return compactMap(String(value || "")
+    .split(/\r?\n/), (line) => line.trim());
 }
 
 export function getDeckListCategoryFromLine(value: string): DeckListCategory {

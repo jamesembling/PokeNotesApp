@@ -11,16 +11,18 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getAdminDashboardOverview, getAdminUsers } from "@/lib/db/admin";
 
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short"
+});
+
 function formatDateTime(value: string | undefined) {
   if (!value) {
     return "Not available yet";
   }
 
   try {
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short"
-    }).format(new Date(value));
+    return DATE_TIME_FORMATTER.format(new Date(value));
   } catch {
     return value;
   }
@@ -147,7 +149,7 @@ function AdminUsersSectionFallback() {
         <p className="ui-eyebrow">User Management</p>
         <CardTitle>Accounts and Roles</CardTitle>
         <CardDescription>
-          Loading trainer accounts and role controls...
+          Loading trainer accounts and role controls…
         </CardDescription>
       </CardHeader>
 

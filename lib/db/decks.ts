@@ -22,6 +22,7 @@ import type {
   DeckSummary,
   GoPreference
 } from "@/types/index";
+import { compactMap } from "@/lib/array";
 
 const DECK_SUMMARY_SELECT = [
   "id",
@@ -524,8 +525,7 @@ async function normalizeDeckPokemon(
 
   return Array.from(
     new Set(
-      deckPokemon
-        .map((entry) => {
+      compactMap(deckPokemon, (entry) => {
           const trimmedEntry = String(entry || "").trim();
           if (!trimmedEntry) {
             return "";
@@ -533,7 +533,6 @@ async function normalizeDeckPokemon(
 
           return resolvePokemonSlug(trimmedEntry, slugIndex) || trimmedEntry;
         })
-        .filter(Boolean)
     )
   );
 }
@@ -617,7 +616,7 @@ function mapDeckSelectionWithLists(
 function mapDeckIndexRow(row: DeckIndexRow): DeckIndexSummary {
   const storedDeckPokemon = parseStringArray(row.deck_pokemon);
   const deckPokemon = Array.from(
-    new Set(storedDeckPokemon.map((entry) => resolvePokemonSpriteSlug(entry)).filter(Boolean))
+    new Set(compactMap(storedDeckPokemon, (entry) => resolvePokemonSpriteSlug(entry)))
   );
   const archetypeId = String(row.archetype_id || "").trim() || buildDeckArchetypeId(deckPokemon);
 
@@ -848,12 +847,14 @@ export const getDecks = cache(async function getDecks(userId: string): Promise<D
     return [];
   }
 
-  const relationalDeckLists = await getRelationalDeckListsByDeckId(
-    supabase,
-    userId,
-    rows.map((row) => row.id)
-  );
-  const mappingContext = await loadDeckMappingContext();
+  const [relationalDeckLists, mappingContext] = await Promise.all([
+    getRelationalDeckListsByDeckId(
+      supabase,
+      userId,
+      rows.map((row) => row.id)
+    ),
+    loadDeckMappingContext()
+  ]);
   return await Promise.all(
     rows.map((row) => mapDeckSummary(row, mappingContext, relationalDeckLists.get(row.id)))
   );
@@ -947,9 +948,7 @@ export const getDeckSelectionOptionsByIds = cache(async function getDeckSelectio
 ): Promise<DeckSelectionOption[]> {
   const resolvedDeckIds = Array.from(
     new Set(
-      deckIds
-        .map((deckId) => String(deckId || "").trim())
-        .filter(Boolean)
+      compactMap(deckIds, (deckId) => String(deckId || "").trim())
     )
   );
 

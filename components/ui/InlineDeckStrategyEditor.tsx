@@ -89,7 +89,10 @@ export function InlineDeckStrategyEditor({
   const [strategy, setStrategy] = useState(() => buildStrategyState(deck));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const savedStateRef = useRef<StrategyState>(buildStrategyState(deck));
+  const savedStateRef = useRef<StrategyState | null>(null);
+  if (savedStateRef.current === null) {
+    savedStateRef.current = buildStrategyState(deck);
+  }
   const saveStatusTimerRef = useRef<number | null>(null);
 
   useEffect(() => {

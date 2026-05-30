@@ -10,16 +10,18 @@ import { PageWidth } from "@/components/ui/PageWidth";
 import { ProfileForm } from "@/components/ui/ProfileForm";
 import { getCurrentProfile } from "@/lib/db/profile";
 
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short"
+});
+
 function formatDateTime(value: string | undefined) {
   if (!value) {
     return "Not available yet";
   }
 
   try {
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short"
-    }).format(new Date(value));
+    return DATE_TIME_FORMATTER.format(new Date(value));
   } catch {
     return value;
   }

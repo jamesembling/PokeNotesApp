@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { requireAuth, requireUser } from "@/lib/auth";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
@@ -42,6 +42,7 @@ import type { ImportLogRecord } from "@/lib/log-import/types";
 import type { LearnedSelfArchetype } from "@/lib/log-import/learned-self-archetypes";
 import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
 import type { LogSection, ParsedLogReview } from "@/types/index";
+import { compactMap } from "@/lib/array";
 
 type ProfileRow = {
   ptcgl_username: string;
@@ -67,18 +68,14 @@ function buildImportDate() {
 function joinSprites(slugs: string[]) {
   return Array.from(
     new Set(
-      slugs
-        .map((slug) => String(slug || "").trim())
-        .filter(Boolean)
+      compactMap(slugs, (slug) => String(slug || "").trim())
     )
   ).join(",");
 }
 
 function splitJoinedSprites(value: string) {
-  return String(value || "")
-    .split(",")
-    .map((slug) => slug.trim())
-    .filter(Boolean);
+  return compactMap(String(value || "")
+    .split(","), (slug) => slug.trim());
 }
 
 function buildLearnedSelfSpriteCandidates(args: {
@@ -324,6 +321,8 @@ function assertMutatedRows(
 }
 
 export async function parseLogAction(formData: FormData): Promise<ParseLogActionResult> {
+  await requireAuth();
+
   try {
     const rawLog = String(formData.get("rawLog") || "");
     const ptcglUsername = String(formData.get("ptcglUsername") || "").trim();
@@ -349,9 +348,9 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
 }
 
 export async function importLogAction(formData: FormData): Promise<SaveActionResult> {
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
+
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
     const rawLog = String(formData.get("rawLog") || "").trim();
 
     if (!rawLog) {
@@ -444,11 +443,9 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
 
 export async function updateLogAction(formData: FormData): Promise<SaveActionResult> {
   const logId = String(formData.get("logId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
-
     if (!logId) {
       throw userFacingActionError("Missing battle log ID.");
     }
@@ -533,18 +530,14 @@ export async function bulkAssignDeckListAction(input: {
 }): Promise<void> {
   const logIds = Array.from(
     new Set(
-      (input.logIds ?? [])
-        .map((value) => String(value || "").trim())
-        .filter(Boolean)
+      compactMap(input.logIds ?? [], (value) => String(value || "").trim())
     )
   );
   const linkedDeckId = String(input.linkedDeckId || "").trim();
   const linkedDeckListId = String(input.linkedDeckListId || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
-
     if (!logIds.length) {
       throw userFacingActionError("Select at least one battle log.");
     }
@@ -592,7 +585,7 @@ export async function bulkAssignDeckListAction(input: {
 }
 
 export async function loadMoreLogsAction(cursor?: string) {
-  const user = await requireUser();
+  const user = await requireAuth();
   const window = await getLogsWindow(user.id, {
     cursor
   });
@@ -603,16 +596,12 @@ export async function loadMoreLogsAction(cursor?: string) {
 export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
   const logIds = Array.from(
     new Set(
-      (logIdsInput ?? [])
-        .map((value) => String(value || "").trim())
-        .filter(Boolean)
+      compactMap(logIdsInput ?? [], (value) => String(value || "").trim())
     )
   );
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
-
     if (!logIds.length) {
       throw userFacingActionError("Select at least one battle log.");
     }
@@ -642,6 +631,8 @@ export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
 }
 
 export async function deleteLogAction(logIdInput: string): Promise<void> {
+  await requireAuth();
+
   const logId = String(logIdInput || "").trim();
 
   if (!logId) {
@@ -656,7 +647,7 @@ export async function createLogShareAction(logId: string): Promise<{
   shareId: string;
   shareUrl: string;
 }> {
-  const user = await requireUser();
+  const user = await requireAuth();
   const normalizedLogId = String(logId || "").trim();
 
   try {
@@ -724,7 +715,7 @@ export async function createLogShareAction(logId: string): Promise<{
 }
 
 export async function revokeLogShareAction(shareId: string): Promise<void> {
-  const user = await requireUser();
+  const user = await requireAuth();
   const normalizedShareId = String(shareId || "").trim();
 
   try {

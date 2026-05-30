@@ -1,12 +1,13 @@
 import { getDeckSelectionOptionsByIds } from "@/lib/db/decks";
 import type { BattleLogSummary, DeckSelectionOption } from "@/types/index";
+import { compactMap } from "@/lib/array";
 
 type LogWindowWithSummaries = {
   logs: BattleLogSummary[];
 };
 
 function getLinkedDeckIds(logs: BattleLogSummary[]) {
-  return Array.from(new Set(logs.map((log) => log.linkedDeckId).filter(Boolean) as string[]));
+  return Array.from(new Set(compactMap(logs, (log) => log.linkedDeckId) as string[]));
 }
 
 function attachLinkedDeckListNames(

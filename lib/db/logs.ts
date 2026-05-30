@@ -8,6 +8,7 @@ import {
 } from "@/lib/log-import/deck-linking";
 import type { DeckLinkCandidate } from "@/lib/log-import/deck-linking";
 import type { BattleLog, BattleLogSummary, LogSection, Result } from "@/types/index";
+import { compactMap } from "@/lib/array";
 
 export const logsDbTestHooks = {
   createClient: createSupabaseClient
@@ -173,10 +174,8 @@ type LogDetailTableRow = {
 };
 
 function splitSprites(value: string) {
-  return value
-    .split(",")
-    .map((sprite) => sprite.trim())
-    .filter(Boolean);
+  return compactMap(value
+    .split(","), (sprite) => sprite.trim());
 }
 
 function parseSections(value: unknown): LogSection[] {
@@ -208,7 +207,7 @@ function mapLogSummary(row: LogsTableRow): BattleLogSummary {
 }
 
 function sortLogsByBattleDate(logs: BattleLogSummary[]) {
-  return [...logs].sort((left, right) => {
+  return logs.toSorted((left, right) => {
     if (left.date !== right.date) {
       return right.date.localeCompare(left.date);
     }
@@ -839,23 +838,25 @@ export function groupLogsByDeck(input: {
     deckLogs.set(log.id, log);
   };
 
-  explicitRows.map(mapLogSummary).forEach((log) => {
-      if (log.linkedDeckId) {
-        addLogToDeck(log.linkedDeckId, log);
-      }
+  explicitRows.forEach((row) => {
+    const log = mapLogSummary(row);
+    if (log.linkedDeckId) {
+      addLogToDeck(log.linkedDeckId, log);
+    }
+  });
+
+  unlinkedRows.forEach((row) => {
+    const log = mapLogSummary(row);
+    const resolvedDeckId = resolveLinkedDeckFromIndex(deckLinkIndex, {
+      linkedDeckId: log.linkedDeckId,
+      selfDeckName: log.selfDeckName,
+      selfDeckSprites: log.selfDeckSprites
     });
 
-  unlinkedRows.map(mapLogSummary).forEach((log) => {
-      const resolvedDeckId = resolveLinkedDeckFromIndex(deckLinkIndex, {
-        linkedDeckId: log.linkedDeckId,
-        selfDeckName: log.selfDeckName,
-        selfDeckSprites: log.selfDeckSprites
-      });
-
-      if (resolvedDeckId) {
-        addLogToDeck(resolvedDeckId, log);
-      }
-    });
+    if (resolvedDeckId) {
+      addLogToDeck(resolvedDeckId, log);
+    }
+  });
 
   return new Map(
     Array.from(groupedLogs.entries()).map(([deckId, deckLogs]) => [

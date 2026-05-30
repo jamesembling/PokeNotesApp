@@ -2,6 +2,7 @@ import type { Language, LogSection, Result } from "@/types/index";
 import { LANGUAGE_STRINGS } from "@/lib/log-import/parser/language";
 import { getPlayerNameFromTurnLine } from "@/lib/log-import/parser/turns";
 import { ImportLogValidationError } from "@/lib/log-import/types";
+import { compactMap } from "@/lib/array";
 
 const WINNER_PATTERNS: Record<Language, RegExp> = {
   en: /\. (.*) wins\./g,
@@ -22,7 +23,7 @@ const CONCEDE_PATTERNS: Record<Language, RegExp[]> = {
 };
 
 function getLeadingPlayerFromLine(line: string, playerNames: string[]) {
-  const candidates = [...playerNames].sort((left, right) => right.length - left.length);
+  const candidates = playerNames.toSorted((left, right) => right.length - left.length);
 
   return (
     candidates.find((player) => {
@@ -250,7 +251,7 @@ export function buildStats({
 
       const leadingPlayer = getLeadingPlayerFromLine(line, playerNames) || getPlayerFromLine(line, playerNames);
       const playerStats = leadingPlayer ? statsByName[leadingPlayer] : null;
-      const actionLines = [line, ...action.details].map((entry) => String(entry || "").trim()).filter(Boolean);
+      const actionLines = compactMap([line, ...action.details], (entry) => String(entry || "").trim());
 
       actionLines.forEach((actionLine) => {
         const coinTossPlayer = getCoinTossWinnerFromLine(actionLine, playerNames);

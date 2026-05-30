@@ -45,7 +45,7 @@ type SidebarContextProps = {
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
 
 function useSidebar() {
-  const context = React.useContext(SidebarContext)
+  const context = React.use(SidebarContext)
 
   if (!context) {
     throw new Error("useSidebar must be used within a SidebarProvider.")
@@ -287,6 +287,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
       data-sidebar="rail"
       data-slot="sidebar-rail"
       onClick={toggleSidebar}
+      type="button"
       tabIndex={-1}
       title="Toggle Sidebar"
       {...props}

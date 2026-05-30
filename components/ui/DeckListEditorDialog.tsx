@@ -308,7 +308,7 @@ export function DeckListEditorDialog({
                       onClick={() => setStep("details")}
                       type="button"
                     >
-                      Continue
+                      Continue to details
                     </Button>
                   ) : (
                     <>
@@ -380,9 +380,10 @@ export function DeckListEditorDialog({
                       </p>
                     ) : null}
 
-                    <label className="grid gap-2">
+                    <label className="grid gap-2" htmlFor="deck-list-raw-list">
                       <span className="text-sm font-semibold text-muted-foreground">Deck list</span>
                       <Textarea
+                        id="deck-list-raw-list"
                         className="min-h-[320px] w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-[0.95rem] leading-6 text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setRawList(event.target.value)}
                         required
@@ -393,9 +394,10 @@ export function DeckListEditorDialog({
                   </section>
                 ) : (
                   <section className="grid gap-4 md:grid-cols-2">
-                    <label className="grid gap-2">
+                    <label className="grid gap-2" htmlFor="deck-list-name">
                       <span className="text-sm font-semibold text-muted-foreground">List name</span>
                       <Input
+                        id="deck-list-name"
                         className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setListName(event.target.value)}
                         required
@@ -403,28 +405,36 @@ export function DeckListEditorDialog({
                       />
                     </label>
 
-                    <label className="grid gap-2">
+                    <label className="grid gap-2" htmlFor="deck-list-format">
                       <span className="text-sm font-semibold text-muted-foreground">Format</span>
-                      <FormatSelect onChange={setFormat} options={formatOptions} value={format} />
+                      <FormatSelect
+                        aria-label="Format"
+                        id="deck-list-format"
+                        onChange={setFormat}
+                        options={formatOptions}
+                        value={format}
+                      />
                     </label>
 
-                    <label className="grid gap-2">
+                    <label className="grid gap-2" htmlFor="deck-list-date">
                       <span className="text-sm font-semibold text-muted-foreground">Date</span>
-                      <DatePicker onChange={setDate} value={date} />
+                      <DatePicker id="deck-list-date" onChange={setDate} value={date} />
                     </label>
 
-                    <label className="grid gap-2">
+                    <label className="grid gap-2" htmlFor="deck-list-created-by">
                       <span className="text-sm font-semibold text-muted-foreground">Created by</span>
                       <Input
+                        id="deck-list-created-by"
                         className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setCreatedBy(event.target.value)}
                         value={createdBy}
                       />
                     </label>
 
-                    <label className="grid gap-2 md:col-span-2">
+                    <label className="grid gap-2 md:col-span-2" htmlFor="deck-list-notes">
                       <span className="text-sm font-semibold text-muted-foreground">Notes</span>
                       <Textarea
+                        id="deck-list-notes"
                         className="min-h-[100px] w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setNotes(event.target.value)}
                         value={notes}

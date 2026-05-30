@@ -1,5 +1,6 @@
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
+import { compactMap } from "@/lib/array";
 
 export const LEARNED_SELF_ARCHETYPE_THRESHOLD = 3;
 
@@ -33,8 +34,8 @@ const PREFERRED_LEARNED_SPRITE_ORDERS = new Map<string, string[]>([
 ]);
 
 export function normalizeLearnedSelfDeckSprites(sprites: string[]) {
-  const normalizedSprites = Array.from(new Set(sprites.map(normalizeSprite).filter(Boolean))).slice(0, 2);
-  const sortedKey = [...normalizedSprites].sort((left, right) => left.localeCompare(right)).join(",");
+  const normalizedSprites = Array.from(new Set(compactMap(sprites, normalizeSprite))).slice(0, 2);
+  const sortedKey = normalizedSprites.toSorted((left, right) => left.localeCompare(right)).join(",");
 
   return PREFERRED_LEARNED_SPRITE_ORDERS.get(sortedKey) ?? normalizedSprites;
 }

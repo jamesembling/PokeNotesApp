@@ -2,6 +2,11 @@ import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AdminRoleControls } from "@/components/ui/AdminRoleControls";
 import type { AdminUser } from "@/types/index";
 
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short"
+});
+
 type AdminUsersTableProps = {
   roleUpdatesEnabled: boolean;
   users: AdminUser[];
@@ -14,10 +19,7 @@ function formatDateTime(value: string | undefined) {
   }
 
   try {
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short"
-    }).format(new Date(value));
+    return DATE_TIME_FORMATTER.format(new Date(value));
   } catch {
     return value;
   }
@@ -96,11 +98,11 @@ export function AdminUsersTable({
         <table className="min-w-full border-separate border-spacing-0">
           <thead>
             <tr className="text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-              <th className="border-b border-border px-3 py-3 font-semibold">User</th>
-              <th className="border-b border-border px-3 py-3 font-semibold">PTCGL</th>
-              <th className="border-b border-border px-3 py-3 font-semibold">Activity</th>
-              <th className="border-b border-border px-3 py-3 font-semibold">Content</th>
-              <th className="border-b border-border px-3 py-3 font-semibold">Role</th>
+              <th className="border-b border-border p-3 font-semibold">User</th>
+              <th className="border-b border-border p-3 font-semibold">PTCGL</th>
+              <th className="border-b border-border p-3 font-semibold">Activity</th>
+              <th className="border-b border-border p-3 font-semibold">Content</th>
+              <th className="border-b border-border p-3 font-semibold">Role</th>
             </tr>
           </thead>
           <tbody>

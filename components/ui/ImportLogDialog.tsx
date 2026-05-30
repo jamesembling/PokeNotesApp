@@ -449,12 +449,12 @@ export function ImportLogDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-                <div className="shrink-0 border-b border-border px-4 py-4 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:pr-14">
+                <div className="shrink-0 border-b border-border p-4 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:pr-14">
                   {renderHeader()}
                 </div>
 
                 <div
-                  className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4 pr-5 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:px-6 sm:py-5 sm:pr-7 lg:px-8 lg:py-6 lg:pr-9"
+                  className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain p-4 pr-5 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:px-6 sm:py-5 sm:pr-7 lg:px-8 lg:py-6 lg:pr-9"
                   ref={contentRef}
                 >
               {stage === "review" && review ? (
@@ -578,10 +578,10 @@ export function ImportLogDialog({
                       <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-card-foreground [&::-webkit-details-marker]:hidden">
                         <span className="flex items-center justify-between gap-3">
                           More details
-                          <ChevronIcon className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
+                          <ChevronIcon className="size-4 text-muted-foreground transition group-open:rotate-180" />
                         </span>
                       </summary>
-                      <div className="grid gap-3 border-t border-border px-4 py-4">
+                      <div className="grid gap-3 border-t border-border p-4">
                         <Field>
                           <FieldLabel htmlFor="import-date-mobile">Date</FieldLabel>
                           <DatePicker

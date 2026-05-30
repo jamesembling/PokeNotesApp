@@ -1,11 +1,10 @@
 import type { GoPreference, Result } from "@/types/index";
+import { compactMap } from "@/lib/array";
 
 export function normalizeSelectedSprites(values: FormDataEntryValue[], limit = 2) {
   return Array.from(
     new Set(
-      values
-        .map((value) => String(value || "").trim())
-        .filter(Boolean)
+      compactMap(values, (value) => String(value || "").trim())
     )
   ).slice(0, limit);
 }
@@ -55,9 +54,7 @@ export function parseResult(value: FormDataEntryValue | null): Result {
 export function parseStringArray(values: FormDataEntryValue[]): string[] {
   return Array.from(
     new Set(
-      values
-        .map((value) => String(value || "").trim())
-        .filter(Boolean)
+      compactMap(values, (value) => String(value || "").trim())
     )
   );
 }

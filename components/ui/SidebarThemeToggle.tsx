@@ -19,7 +19,7 @@ export function SidebarThemeToggle() {
           onClick={toggleTheme}
           aria-label={label}
         >
-          {theme === "dark" ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+          {theme === "dark" ? <SunIcon className="size-5" /> : <MoonIcon className="size-5" />}
         </Button>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>

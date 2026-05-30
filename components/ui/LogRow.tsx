@@ -74,7 +74,7 @@ function LogRowComponent({
   const mobileMetadata = formatDayDate(log.date);
 
   const cardClasses = [
-    "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border px-3 py-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
+    "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border p-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
     managementMode && selected ? "ring-2 ring-inset ring-ring/45" : "",
     rowClasses
   ].join(" ");
@@ -84,7 +84,7 @@ function LogRowComponent({
     rowClasses
   ].join(" ");
   const managementLinkClasses =
-    "grid min-w-0 grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 px-3 py-3 text-left outline-none sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5";
+    "grid min-w-0 grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 p-3 text-left outline-none sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5";
 
   const content = (
     <>
@@ -180,7 +180,7 @@ function LogRowComponent({
           <span className="sr-only">Select battle log</span>
           <Checkbox
             checked={selected}
-            className="h-5 w-5 cursor-pointer rounded border-border bg-card"
+            className="size-5 cursor-pointer rounded border-border bg-card"
             onCheckedChange={onToggleSelected}
           />
           <span className="sm:hidden">{selected ? "Selected" : "Select"}</span>

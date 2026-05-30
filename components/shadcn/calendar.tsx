@@ -56,12 +56,12 @@ function Calendar({
         ),
         button_previous: cn(
           buttonVariants({ variant: buttonVariant }),
-          "h-[var(--cell-size)] w-[var(--cell-size)] p-0 select-none aria-disabled:opacity-50",
+          "size-[var(--cell-size)] p-0 select-none aria-disabled:opacity-50",
           defaultClassNames.button_previous
         ),
         button_next: cn(
           buttonVariants({ variant: buttonVariant }),
-          "h-[var(--cell-size)] w-[var(--cell-size)] p-0 select-none aria-disabled:opacity-50",
+          "size-[var(--cell-size)] p-0 select-none aria-disabled:opacity-50",
           defaultClassNames.button_next
         ),
         month_caption: cn(
@@ -166,7 +166,7 @@ function Calendar({
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
-              <div className="flex h-[var(--cell-size)] w-[var(--cell-size)] items-center justify-center text-center">
+              <div className="flex size-[var(--cell-size)] items-center justify-center text-center">
                 {children}
               </div>
             </td>

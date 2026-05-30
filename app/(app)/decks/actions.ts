@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { parseLines } from "@/lib/decks/deck-list-parse";
 import { saveDeckList } from "@/lib/decks/deck-list-service";
@@ -38,7 +38,7 @@ type SaveActionResult = {
 };
 
 export async function loadDeckLinkedLogsAction(deckId: string) {
-  const user = await requireUser();
+  const user = await requireAuth();
   const deckLinkCandidates = await getDeckLinkCandidates(user.id);
   return getAllLogsForDeck(user.id, deckId, deckLinkCandidates);
 }
@@ -51,10 +51,9 @@ function assertSingleMutationResult(row: { id?: unknown } | null, message: strin
 
 export async function createDeckAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = crypto.randomUUID();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
     const deckName = String(formData.get("deckName") || "").trim();
 
     if (!deckName) {
@@ -102,11 +101,9 @@ export async function createDeckAction(formData: FormData): Promise<SaveActionRe
 
 export async function updateDeckAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
-
     if (!deckId) {
       throw userFacingActionError("Deck id is required.");
     }
@@ -164,11 +161,9 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
 
 export async function updateDeckStrategyAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
-
     if (!deckId) {
       throw userFacingActionError("Deck id is required.");
     }
@@ -214,11 +209,9 @@ export async function updateDeckStrategyAction(formData: FormData): Promise<Save
 
 export async function deleteDeckAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
-
     if (!deckId) {
       throw userFacingActionError("Deck id is required.");
     }
@@ -270,10 +263,9 @@ export async function deleteDeckAction(formData: FormData): Promise<SaveActionRe
 export async function createDeckMatchupAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
   const matchupId = crypto.randomUUID();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
     const result = await createDeckMatchup({
       formData,
       matchupId,
@@ -303,10 +295,9 @@ export async function createDeckMatchupAction(formData: FormData): Promise<SaveA
 export async function updateDeckMatchupAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
   const matchupId = String(formData.get("matchupId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
     const result = await updateDeckMatchup({
       formData,
       supabase,
@@ -335,10 +326,9 @@ export async function updateDeckMatchupAction(formData: FormData): Promise<SaveA
 export async function saveDeckListAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
   const deckListId = String(formData.get("deckListId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const user = await requireUser();
-    const supabase = await createClient();
     const result = await saveDeckList({
       formData,
       supabase,

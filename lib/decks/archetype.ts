@@ -1,3 +1,4 @@
+import { compactMap } from "@/lib/array";
 function normalizeSpriteSlug(value: string) {
   return String(value || "").trim().toLowerCase();
 }
@@ -5,9 +6,7 @@ function normalizeSpriteSlug(value: string) {
 export function normalizeDeckArchetypeSprites(values: string[]) {
   return Array.from(
     new Set(
-      values
-        .map((value) => normalizeSpriteSlug(value))
-        .filter(Boolean)
+      compactMap(values, (value) => normalizeSpriteSlug(value))
     )
   ).sort((left, right) => left.localeCompare(right));
 }

@@ -3,6 +3,7 @@ import {
   classifyBattleLogActionTitle,
   type BattleLogActionTag
 } from "@/lib/battle-log/display";
+import { compactMap } from "@/lib/array";
 
 export type DetailEvent = {
   cards?: string[];
@@ -47,10 +48,8 @@ export function getNamedDetailCards(text: string) {
     return [];
   }
 
-  return value
-    .split(",")
-    .map((card) => card.trim())
-    .filter(Boolean);
+  return compactMap(value
+    .split(","), (card) => card.trim());
 }
 
 export function getAddedToHandDetailCard(text: string) {

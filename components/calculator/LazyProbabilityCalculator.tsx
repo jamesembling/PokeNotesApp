@@ -11,7 +11,7 @@ export const LazyProbabilityCalculator = dynamic(
     ssr: false,
     loading: () => (
       <div className="rounded-[28px] border border-border bg-card p-6 text-sm text-muted-foreground shadow-[var(--shadow-card)]">
-        Loading probability calculator...
+        Loading probability calculator…
       </div>
     )
   }

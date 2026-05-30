@@ -1,3 +1,4 @@
+import { compactMap } from "@/lib/array";
 export const BATTLE_LOG_ACTION_TAGS = [
   "draw",
   "bench",
@@ -617,9 +618,7 @@ export function prettifyPokemonSlug(slug: string) {
 function getVisibleSprites(sprites: string[]) {
   return Array.from(
     new Set(
-      sprites
-        .map((sprite) => String(sprite || "").trim())
-        .filter(Boolean)
+      compactMap(sprites, (sprite) => String(sprite || "").trim())
     )
   );
 }
