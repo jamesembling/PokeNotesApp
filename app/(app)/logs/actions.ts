@@ -221,8 +221,7 @@ async function buildParsedLogReview(
         })
       )
     : selfSprites;
-  const shouldCheckLearnedSelfArchetype =
-    selfLearnedCandidateSprites.slugs.length > 0 && !selfArchetype;
+  const shouldCheckLearnedSelfArchetype = selfLearnedCandidateSprites.slugs.length > 0;
   let learnedSelfArchetype: LearnedSelfArchetype | null = null;
   if (shouldCheckLearnedSelfArchetype) {
     const [learningUser, learningSupabase] =
@@ -364,9 +363,8 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
     const selectedOpponentSprites = parseStringArray(formData.getAll("opponentSprites"));
     const submittedSelfDeckSlug = String(formData.get("selfDeckSlug") || "").trim();
     const submittedSelfDeckName = String(formData.get("selfDeckName") || "").trim();
-    const selectedSelfSpriteSlug = buildDeckArchetypeId(selectedSelfSprites);
     const learnedSelfArchetype =
-      selectedSelfSprites.length === 0 || submittedSelfDeckSlug === selectedSelfSpriteSlug
+      selectedSelfSprites.length === 0
       ? null
       : await measureServerCall("logs.import.resolveLearnedSelfArchetypeForSave.self", () =>
           resolveLearnedSelfArchetype({

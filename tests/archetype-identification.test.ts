@@ -33,7 +33,11 @@ function createCatalog(): IdentificationCatalog {
         ["zweilous", ["deino"]],
         ["froslass-mega", ["snorunt"]],
         ["froslass", ["snorunt"]],
-        ["starmie-mega", ["staryu"]]
+        ["starmie-mega", ["staryu"]],
+        ["hydrapple", ["dipplin", "applin"]],
+        ["dipplin", ["applin"]],
+        ["meganium", ["bayleef", "chikorita"]],
+        ["bayleef", ["chikorita"]]
       ]),
       slugToFamilyRoot: new Map([
         ["charizard", "charmander"],
@@ -62,7 +66,14 @@ function createCatalog(): IdentificationCatalog {
         ["froslass", "snorunt"],
         ["snorunt", "snorunt"],
         ["starmie-mega", "staryu"],
-        ["staryu", "staryu"]
+        ["staryu", "staryu"],
+        ["hydrapple", "applin"],
+        ["dipplin", "applin"],
+        ["applin", "applin"],
+        ["meganium", "chikorita"],
+        ["bayleef", "chikorita"],
+        ["chikorita", "chikorita"],
+        ["ogerpon", "ogerpon"]
       ]),
       maxNameTokens: 1
     },
@@ -146,6 +157,26 @@ function createCatalog(): IdentificationCatalog {
               ["snorunt", "froslass", "froslass-mega"]
             ]
           }
+        ],
+        [
+          "hydrapple+ogerpon",
+          {
+            id: "hydrapple+ogerpon",
+            label: "Hydrapple / Teal Mask Ogerpon",
+            sprites: ["hydrapple", "ogerpon"],
+            detectionSprites: ["hydrapple", "dipplin", "applin", "ogerpon"],
+            requiredMatchGroups: [["hydrapple", "dipplin", "applin"], ["ogerpon"]]
+          }
+        ],
+        [
+          "meganium+ogerpon",
+          {
+            id: "meganium+ogerpon",
+            label: "Teal Mask Ogerpon / Meganium",
+            sprites: ["ogerpon", "meganium"],
+            detectionSprites: ["ogerpon", "meganium", "bayleef", "chikorita"],
+            requiredMatchGroups: [["ogerpon"], ["meganium", "bayleef", "chikorita"]]
+          }
         ]
       ]),
       normalizedLabelToIds: new Map(),
@@ -169,7 +200,14 @@ function createCatalog(): IdentificationCatalog {
         ["starmie-mega", ["froslass-mega+starmie-mega"]],
         ["snorunt", ["froslass-mega+starmie-mega"]],
         ["froslass", ["froslass-mega+starmie-mega"]],
-        ["froslass-mega", ["froslass-mega+starmie-mega"]]
+        ["froslass-mega", ["froslass-mega+starmie-mega"]],
+        ["hydrapple", ["hydrapple+ogerpon"]],
+        ["dipplin", ["hydrapple+ogerpon"]],
+        ["applin", ["hydrapple+ogerpon"]],
+        ["ogerpon", ["hydrapple+ogerpon", "meganium+ogerpon"]],
+        ["meganium", ["meganium+ogerpon"]],
+        ["bayleef", ["meganium+ogerpon"]],
+        ["chikorita", ["meganium+ogerpon"]]
       ]),
       familyRootToCandidateArchetypes: new Map([
         ["charmander", ["charizard-pidgeot"]],
@@ -180,7 +218,10 @@ function createCatalog(): IdentificationCatalog {
         ["zorua", ["darmanitan+zoroark"]],
         ["darumaka", ["darmanitan+zoroark"]],
         ["staryu", ["froslass-mega+starmie-mega"]],
-        ["snorunt", ["froslass-mega+starmie-mega"]]
+        ["snorunt", ["froslass-mega+starmie-mega"]],
+        ["applin", ["hydrapple+ogerpon"]],
+        ["ogerpon", ["hydrapple+ogerpon", "meganium+ogerpon"]],
+        ["chikorita", ["meganium+ogerpon"]]
       ])
     }
   };
@@ -330,4 +371,31 @@ test("identifyLikelyArchetype identifies Mega Starmie / Mega Froslass from Stary
     sprites: ["starmie-mega", "froslass-mega"],
     confidence: 104
   });
+});
+
+test("identifyLikelyArchetype identifies Hydrapple / Teal Mask Ogerpon from Applin-line and Ogerpon evidence", () => {
+  const catalog = createCatalog();
+
+  const result = identifyLikelyArchetype({
+    evidence: createEvidence(["applin", "ogerpon"]),
+    catalog
+  });
+
+  assert.deepEqual(result, {
+    archetypeId: "hydrapple+ogerpon",
+    label: "Hydrapple / Teal Mask Ogerpon",
+    sprites: ["hydrapple", "ogerpon"],
+    confidence: 82
+  });
+});
+
+test("identifyLikelyArchetype does not identify Hydrapple / Teal Mask Ogerpon from Ogerpon alone", () => {
+  const catalog = createCatalog();
+
+  const result = identifyLikelyArchetype({
+    evidence: createEvidence(["ogerpon"]),
+    catalog
+  });
+
+  assert.equal(result, null);
 });

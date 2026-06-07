@@ -16,7 +16,7 @@ type CachedIdentificationCatalogRows = {
   pokemonRows: PokemonCatalogRow[];
 };
 
-const IDENTIFICATION_CATALOG_CACHE_VERSION = "v8";
+const IDENTIFICATION_CATALOG_CACHE_VERSION = "v10";
 
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {

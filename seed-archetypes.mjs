@@ -1,6 +1,9 @@
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
-import { getArchetypeEnrichment } from "./lib/pokemon-catalog/archetype-enrichments.mjs";
+import {
+  getArchetypeEnrichment,
+  getCustomArchetypeEntries
+} from "./lib/pokemon-catalog/archetype-enrichments.mjs";
 
 const REQUIRED_ENV_VARS = ["NEW_SUPABASE_URL", "NEW_SUPABASE_SERVICE_KEY"];
 const ARCHETYPE_SHEET_CSV_URL =
@@ -495,6 +498,65 @@ function parseArchetypeSheet(csvText, pokemonLookup) {
   return parsedEntries;
 }
 
+function validateCustomArchetypeEntries(entries, pokemonLookup, seenIds) {
+  return entries.map((entry) => {
+    const id = String(entry.id || "").trim().toLowerCase();
+    const label = normalizeWhitespace(entry.label);
+    const sprites = uniqueStrings(entry.sprites ?? []);
+    const detectionSprites = uniqueStrings(entry.detectionSprites ?? sprites);
+    const requiredMatchGroups = (entry.requiredMatchGroups ?? []).map((group) => uniqueStrings(group));
+
+    if (!id || !label || sprites.length === 0) {
+      throw new Error(`Custom archetype ${entry.id} is missing an id, label, or sprites.`);
+    }
+
+    const unresolvedSlugs = uniqueStrings([
+      ...sprites,
+      ...detectionSprites,
+      ...requiredMatchGroups.flat()
+    ]).filter((slug) => !pokemonLookup.knownSlugs.has(slug));
+
+    if (unresolvedSlugs.length > 0) {
+      throw new Error(
+        `Custom archetype ${id} references unknown Pokemon slugs: ${unresolvedSlugs.join(", ")}`
+      );
+    }
+
+    const resolvedId = buildArchetypeId(sprites);
+    if (id !== resolvedId) {
+      throw new Error(`Custom archetype ${id} has sprites that resolve to ${resolvedId}.`);
+    }
+
+    if (seenIds.has(id)) {
+      throw new Error(`Custom archetype ${id} duplicates a source-sheet archetype.`);
+    }
+
+    validateRequiredMatchGroups(requiredMatchGroups, {
+      rowNumber: `custom:${id}`,
+      label
+    });
+
+    seenIds.add(id);
+
+    return {
+      id,
+      label,
+      sprites,
+      detectionSprites,
+      requiredMatchGroups,
+      is_excluded: entry.is_excluded === true
+    };
+  });
+}
+
+function appendCustomArchetypeEntries(entries, pokemonLookup) {
+  const seenIds = new Set(entries.map((entry) => entry.id));
+  return [
+    ...entries,
+    ...validateCustomArchetypeEntries(getCustomArchetypeEntries(), pokemonLookup, seenIds)
+  ];
+}
+
 async function loadExistingExcludedIds(ids) {
   const excludedIds = new Set();
 
@@ -614,7 +676,7 @@ async function main() {
   const csvText = await fetchArchetypeSheetCsv();
 
   console.log("Parsing archetype sheet rows...");
-  const parsedEntries = parseArchetypeSheet(csvText, pokemonLookup);
+  const parsedEntries = appendCustomArchetypeEntries(parseArchetypeSheet(csvText, pokemonLookup), pokemonLookup);
   const ids = parsedEntries.map((entry) => entry.id);
 
   console.log(`Parsed ${parsedEntries.length} archetypes from the Google Sheet.`);

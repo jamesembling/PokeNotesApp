@@ -66,6 +66,10 @@ Optional variables:
 - `CRON_SECRET`
 - `POKE_NOTES_DEBUG_AUTH`
 - `POKE_NOTES_DEBUG_PERF`
+- `POKE_NOTES_ENABLE_TEST_LOGIN`
+- `POKE_NOTES_TEST_LOGIN_SECRET`
+- `POKE_NOTES_TEST_LOGIN_EMAIL`
+- `POKE_NOTES_TEST_LOGIN_PASSWORD`
 
 ## Commands
 
@@ -89,6 +93,7 @@ Deployments are intended for Vercel.
 4. In Supabase Auth, add the deployed `/auth/callback` URL to the allow list.
 5. Run [`schema.sql`](./schema.sql) for a fresh database or apply any required files in [`sql/`](./sql) before using the app in production. This can be done in the Supabase SQL editor, or by asking Codex to run the SQL when local Supabase/database credentials are configured.
 6. Set `CRON_SECRET` in Vercel so the scheduled catalog sync route can authenticate requests.
+7. For Codex/browser verification access, production can expose the hidden `/auth/test-login?secret=...` route. The current Vercel production project has this enabled for the Codex test account with `POKE_NOTES_ENABLE_TEST_LOGIN=1` and the matching `POKE_NOTES_TEST_LOGIN_*` values. Keep the secret out of docs and chat; read it from local env or Vercel when needed.
 
 `vercel.json` schedules `/api/cron/sync-pokemon-catalog` to run daily at `05:00` UTC. The job refreshes `pokemon_catalog` from the upstream sources, then invalidates the cached Pokemon options and identification catalog so UI menus and lookup paths see the new rows without a manual reseed.
 

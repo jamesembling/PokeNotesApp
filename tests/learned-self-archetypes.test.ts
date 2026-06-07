@@ -143,6 +143,30 @@ test("resolveLearnedSelfArchetype checks only matching self sprite variants for 
   ]);
 });
 
+test("resolveLearnedSelfArchetype can promote the third matching save", async () => {
+  const { client, queries } = createFakeSupabaseClient([{ id: "log-1" }, { id: "log-2" }]);
+
+  const resolved = await resolveLearnedSelfArchetype({
+    supabase: client,
+    userId: "user-1",
+    sprites: ["hydrapple", "ogerpon"],
+    minimumExistingMatches: 2
+  });
+
+  assert.deepEqual(resolved, {
+    archetypeId: "hydrapple+ogerpon",
+    label: "Hydrapple / Ogerpon",
+    sprites: ["hydrapple", "ogerpon"],
+    matchCount: 2
+  });
+  assert.deepEqual(queries[0].operations, [
+    { method: "select", args: ["id"] },
+    { method: "eq", args: ["user_id", "user-1"] },
+    { method: "in", args: ["self_deck_sprites", ["hydrapple,ogerpon", "ogerpon,hydrapple"]] },
+    { method: "limit", args: [2] }
+  ]);
+});
+
 test("resolveLearnedSelfArchetypeFromCandidates finds a learned lower-ranked pair", async () => {
   const { client } = createFakeSupabaseClient([
     { id: "log-1", self_deck_sprites: "froslass-mega,lopunny-mega" },
