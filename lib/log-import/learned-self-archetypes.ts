@@ -30,7 +30,8 @@ function normalizeSprite(value: string) {
 }
 
 const PREFERRED_LEARNED_SPRITE_ORDERS = new Map<string, string[]>([
-  ["dudunsparce,greninja-mega", ["greninja-mega", "dudunsparce"]]
+  ["dudunsparce,greninja-mega", ["greninja-mega", "dudunsparce"]],
+  ["hydrapple,ogerpon", ["hydrapple", "ogerpon"]]
 ]);
 
 export function normalizeLearnedSelfDeckSprites(sprites: string[]) {

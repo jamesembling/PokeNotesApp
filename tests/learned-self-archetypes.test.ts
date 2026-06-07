@@ -85,6 +85,13 @@ test("normalizeLearnedSelfDeckSprites applies preferred learned deck sprite orde
   ]);
 });
 
+test("normalizeLearnedSelfDeckSprites displays Hydrapple before Teal Mask Ogerpon", () => {
+  assert.deepEqual(normalizeLearnedSelfDeckSprites(["ogerpon", "hydrapple"]), [
+    "hydrapple",
+    "ogerpon"
+  ]);
+});
+
 test("buildLearnedSelfArchetype uses the stable sprite archetype id", () => {
   assert.deepEqual(buildLearnedSelfArchetype(["dusknoir", "dragapult"], 3), {
     archetypeId: "dragapult+dusknoir",
