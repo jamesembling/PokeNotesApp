@@ -19,6 +19,10 @@ const EXPLICIT_NAME_TO_SLUG: Record<string, string> = {
   "zoroark hisui": "zoroark-hisui"
 };
 
+const CUSTOM_SPRITE_URLS: Record<string, string> = {
+  "crushing-hammer": "/crushing_hammer.png"
+};
+
 export function prettifyPokemonSlug(slug: string) {
   return String(slug || "")
     .split("-")
@@ -208,7 +212,8 @@ export function resolvePokemonSpriteSlug(name: string, pokemonOptions?: PokemonO
 }
 
 export function buildPokemonSpriteUrlFromSlug(slug: string) {
-  return `https://r2.limitlesstcg.net/pokemon/gen9/${slug}.png`;
+  const normalizedSlug = String(slug || "").trim().toLowerCase();
+  return CUSTOM_SPRITE_URLS[normalizedSlug] ?? `https://r2.limitlesstcg.net/pokemon/gen9/${normalizedSlug}.png`;
 }
 
 export function findPokemonOptionBySlug(slug: string, pokemonOptions?: PokemonOption[]) {

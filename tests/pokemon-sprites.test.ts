@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
+import { buildPokemonSpriteUrlFromSlug, resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
 
 test("resolvePokemonSpriteSlug strips trainer prefixes from trainer Pokemon cards", () => {
   assert.equal(resolvePokemonSpriteSlug("Lillie's Clefairy ex"), "clefairy");
@@ -43,4 +43,9 @@ test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => 
 test("resolvePokemonSpriteSlug strips trainer prefixes from additional trainer Pokemon cards", () => {
   assert.equal(resolvePokemonSpriteSlug("Cynthia's Gabite"), "gabite");
   assert.equal(resolvePokemonSpriteSlug("N's Darmanitan"), "darmanitan");
+});
+
+test("buildPokemonSpriteUrlFromSlug resolves curated non-Pokemon sprite assets", () => {
+  assert.equal(buildPokemonSpriteUrlFromSlug("crushing-hammer"), "/crushing_hammer.png");
+  assert.equal(buildPokemonSpriteUrlFromSlug("Crushing-Hammer"), "/crushing_hammer.png");
 });
