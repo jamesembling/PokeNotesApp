@@ -13,7 +13,7 @@ import {
   findPokemonSearchMatchesInIndex,
   normalizePokemonSearchValue
 } from "@/lib/pokemon/search";
-import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
+import { buildPokemonSpriteUrlFromSlug, buildSelectableSpriteOptions } from "@/lib/pokemon/sprites";
 import type { PokemonOption } from "@/types/index";
 
 type BattleLogSpritePickerProps = {
@@ -414,7 +414,14 @@ export function BattleLogSpritePicker({
   onChange,
   pokemonOptions
 }: BattleLogSpritePickerProps) {
-  const pokemonSearchIndex = useMemo(() => buildPokemonSearchIndex(pokemonOptions), [pokemonOptions]);
+  const selectableSpriteOptions = useMemo(
+    () => buildSelectableSpriteOptions(pokemonOptions),
+    [pokemonOptions]
+  );
+  const pokemonSearchIndex = useMemo(
+    () => buildPokemonSearchIndex(selectableSpriteOptions),
+    [selectableSpriteOptions]
+  );
 
   return (
     <section className="grid min-w-0 gap-2 md:gap-3">
@@ -444,7 +451,7 @@ export function BattleLogSpritePicker({
               key={`${title}-${index}`}
               onChange={onChange}
               pokemonOptionsBySlug={pokemonSearchIndex.optionsBySlug}
-              pokemonOptions={pokemonOptions}
+              pokemonOptions={selectableSpriteOptions}
               sprites={sprites}
               title={title}
             />

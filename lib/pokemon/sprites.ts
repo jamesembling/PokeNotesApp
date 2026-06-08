@@ -20,8 +20,16 @@ const EXPLICIT_NAME_TO_SLUG: Record<string, string> = {
 };
 
 const CUSTOM_SPRITE_URLS: Record<string, string> = {
-  "crushing-hammer": "/crushing_hammer.png"
+  "crushing-hammer": "/pixelated-hammer-sprite-transparent.png"
 };
+
+export const CUSTOM_SPRITE_OPTIONS: PokemonOption[] = [
+  {
+    slug: "crushing-hammer",
+    label: "Crushing Hammer",
+    spriteUrl: CUSTOM_SPRITE_URLS["crushing-hammer"]
+  }
+];
 
 export function prettifyPokemonSlug(slug: string) {
   return String(slug || "")
@@ -214,6 +222,14 @@ export function resolvePokemonSpriteSlug(name: string, pokemonOptions?: PokemonO
 export function buildPokemonSpriteUrlFromSlug(slug: string) {
   const normalizedSlug = String(slug || "").trim().toLowerCase();
   return CUSTOM_SPRITE_URLS[normalizedSlug] ?? `https://r2.limitlesstcg.net/pokemon/gen9/${normalizedSlug}.png`;
+}
+
+export function buildSelectableSpriteOptions(pokemonOptions: PokemonOption[]) {
+  const existingSlugs = new Set(pokemonOptions.map((option) => option.slug));
+  return [
+    ...pokemonOptions,
+    ...CUSTOM_SPRITE_OPTIONS.filter((option) => !existingSlugs.has(option.slug))
+  ];
 }
 
 export function findPokemonOptionBySlug(slug: string, pokemonOptions?: PokemonOption[]) {

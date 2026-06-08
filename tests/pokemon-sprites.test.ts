@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPokemonSpriteUrlFromSlug, resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
+import {
+  buildPokemonSpriteUrlFromSlug,
+  buildSelectableSpriteOptions,
+  resolvePokemonSpriteSlug
+} from "@/lib/pokemon/sprites";
 
 test("resolvePokemonSpriteSlug strips trainer prefixes from trainer Pokemon cards", () => {
   assert.equal(resolvePokemonSpriteSlug("Lillie's Clefairy ex"), "clefairy");
@@ -46,6 +50,28 @@ test("resolvePokemonSpriteSlug strips trainer prefixes from additional trainer P
 });
 
 test("buildPokemonSpriteUrlFromSlug resolves curated non-Pokemon sprite assets", () => {
-  assert.equal(buildPokemonSpriteUrlFromSlug("crushing-hammer"), "/crushing_hammer.png");
-  assert.equal(buildPokemonSpriteUrlFromSlug("Crushing-Hammer"), "/crushing_hammer.png");
+  assert.equal(
+    buildPokemonSpriteUrlFromSlug("crushing-hammer"),
+    "/pixelated-hammer-sprite-transparent.png"
+  );
+  assert.equal(
+    buildPokemonSpriteUrlFromSlug("Crushing-Hammer"),
+    "/pixelated-hammer-sprite-transparent.png"
+  );
+});
+
+test("buildSelectableSpriteOptions adds curated non-Pokemon sprite assets to picker options", () => {
+  const options = buildSelectableSpriteOptions([
+    {
+      slug: "dragapult",
+      label: "Dragapult",
+      spriteUrl: "https://example.com/dragapult.png"
+    }
+  ]);
+
+  assert.deepEqual(
+    options.map((option) => option.slug),
+    ["dragapult", "crushing-hammer"]
+  );
+  assert.equal(options.find((option) => option.slug === "crushing-hammer")?.label, "Crushing Hammer");
 });
