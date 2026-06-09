@@ -48,9 +48,10 @@ export function LazyImportLogButton({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [hasLoadedImportData, setHasLoadedImportData] = useState(false);
 
   async function handleImporterOpen() {
-    if (pokemonOptions && ptcglUsername && userDecks.length > 0) {
+    if (hasLoadedImportData) {
       return;
     }
 
@@ -77,6 +78,7 @@ export function LazyImportLogButton({
       if (Array.isArray(payload.userDecks)) {
         setUserDecks(payload.userDecks);
       }
+      setHasLoadedImportData(true);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Could not load import tools.");
     } finally {

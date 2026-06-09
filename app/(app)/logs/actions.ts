@@ -9,6 +9,7 @@ import {
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
 import { linkDeckConservatively } from "@/lib/log-import/deck-linking";
+import { buildImportDate } from "@/lib/log-import/import-date";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
@@ -57,10 +58,6 @@ type SaveActionResult = {
   ok: true;
   redirectTo: string;
 };
-
-function buildImportDate() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function joinSprites(slugs: string[]) {
   return Array.from(
@@ -290,14 +287,19 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
     const selectedOpponentSprites = parseStringArray(formData.getAll("opponentSprites"));
     const submittedSelfDeckSlug = String(formData.get("selfDeckSlug") || "").trim();
     const submittedSelfDeckName = String(formData.get("selfDeckName") || "").trim();
-    const catalog = await measureServerCall("logs.import.loadIdentificationCatalogForSave", () =>
-      loadIdentificationCatalog({
-        supabase,
-        userId: user.id
-      })
-    );
+    const selectedSelfDeckSlug = buildDeckArchetypeId(selectedSelfSprites);
+    const shouldCheckLearnedSelfArchetype =
+      selectedSelfSprites.length > 0 && submittedSelfDeckSlug !== selectedSelfDeckSlug;
+    const catalog = shouldCheckLearnedSelfArchetype
+      ? await measureServerCall("logs.import.loadIdentificationCatalogForSave", () =>
+          loadIdentificationCatalog({
+            supabase,
+            userId: user.id
+          })
+        )
+      : null;
     const learnedSelfArchetype =
-      selectedSelfSprites.length === 0
+      !catalog
       ? null
       : await measureServerCall("logs.import.promoteLearnedSelfArchetypeForSave.self", () =>
           promoteLearnedSelfArchetype({
