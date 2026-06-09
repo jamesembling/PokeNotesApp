@@ -14,8 +14,7 @@ import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import {
   LEARNED_SELF_ARCHETYPE_THRESHOLD,
-  resolveLearnedSelfArchetype,
-  resolveLearnedSelfArchetypeFromCandidates
+  promoteLearnedSelfArchetype
 } from "@/lib/log-import/learned-self-archetypes";
 import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
@@ -39,8 +38,6 @@ import { measureServerCall, measureServerStep } from "@/lib/server/perf";
 import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
 import { createClient } from "@/lib/supabase/server";
 import type { ImportLogRecord } from "@/lib/log-import/types";
-import type { LearnedSelfArchetype } from "@/lib/log-import/learned-self-archetypes";
-import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
 import type { LogSection, ParsedLogReview } from "@/types/index";
 import { compactMap } from "@/lib/array";
 
@@ -78,46 +75,17 @@ function splitJoinedSprites(value: string) {
     .split(","), (slug) => slug.trim());
 }
 
-function buildLearnedSelfSpriteCandidates(args: {
-  primarySprites: string[];
-  evidence: PlayerPokemonEvidence;
-}) {
-  const candidates: string[][] = [];
-  const primarySprites = args.primarySprites.filter(Boolean);
-  if (primarySprites.length > 0) {
-    candidates.push(primarySprites);
-  }
-
-  const rankedEvidenceSlugs = Array.from(args.evidence.mentionCounts.entries())
-    .filter(([, count]) => count > 0)
-    .sort((left, right) => {
-      if (right[1] !== left[1]) {
-        return right[1] - left[1];
-      }
-
-      return left[0].localeCompare(right[0]);
-    })
-    .map(([slug]) => slug)
-    .slice(0, 10);
-
-  rankedEvidenceSlugs.forEach((slug) => candidates.push([slug]));
-  for (let leftIndex = 0; leftIndex < rankedEvidenceSlugs.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < rankedEvidenceSlugs.length; rightIndex += 1) {
-      candidates.push([rankedEvidenceSlugs[leftIndex], rankedEvidenceSlugs[rightIndex]]);
-    }
-  }
-
-  return candidates;
-}
-
 async function getImportContext(): Promise<ImportContext> {
-  const [user, supabase, catalog] = await Promise.all([
+  const [user, supabase] = await Promise.all([
     measureServerCall("logs.import.requireUser", () => requireUser()),
-    measureServerCall("logs.import.createClient", () => createClient()),
-    measureServerCall("logs.import.loadIdentificationCatalog", () =>
-      loadIdentificationCatalog()
-    )
+    measureServerCall("logs.import.createClient", () => createClient())
   ]);
+  const catalog = await measureServerCall("logs.import.loadIdentificationCatalog", () =>
+    loadIdentificationCatalog({
+      supabase,
+      userId: user.id
+    })
+  );
   const { data: profile, error: profileError } = await measureServerCall(
     "logs.import.loadProfile",
     async () =>
@@ -167,14 +135,18 @@ async function buildParsedLogReview(
   const importContext =
     context ??
     (normalizedPtcglUsername
-      ? {
-          user: null,
-          supabase: null,
-          catalog: await measureServerCall("logs.import.loadIdentificationCatalog", () =>
-            loadIdentificationCatalog()
-          ),
-          ptcglUsername: normalizedPtcglUsername
-        }
+      ? await measureServerCall("logs.import.getOverrideImportContext", async () => {
+          const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
+          return {
+            user,
+            supabase,
+            catalog: await loadIdentificationCatalog({
+              supabase,
+              userId: user.id
+            }),
+            ptcglUsername: normalizedPtcglUsername
+          };
+        })
       : await measureServerCall("logs.import.getImportContext", () => getImportContext()));
   const { catalog, ptcglUsername } = importContext;
   const parsed = measureServerStep("logs.import.parseBattleLog", () =>
@@ -212,53 +184,8 @@ async function buildParsedLogReview(
       catalog
     })
   );
-  const selfLearnedCandidateSprites = selfArchetype
-    ? measureServerStep("logs.import.selectLearnedCandidateSprites.self", () =>
-        selectDeckSprites({
-          archetype: null,
-          evidence: parsed.pokemonEvidence.self,
-          catalog
-        })
-      )
-    : selfSprites;
-  const shouldCheckLearnedSelfArchetype = selfLearnedCandidateSprites.slugs.length > 0;
-  let learnedSelfArchetype: LearnedSelfArchetype | null = null;
-  if (shouldCheckLearnedSelfArchetype) {
-    const [learningUser, learningSupabase] =
-      importContext.user && importContext.supabase
-        ? [importContext.user, importContext.supabase]
-        : await Promise.all([
-            measureServerCall("logs.import.requireUserForLearnedSelfArchetype", () => requireUser()),
-            measureServerCall("logs.import.createClientForLearnedSelfArchetype", () => createClient())
-          ]);
-
-    learnedSelfArchetype = await measureServerCall(
-      "logs.import.resolveLearnedSelfArchetype.self",
-      () =>
-        resolveLearnedSelfArchetype({
-          supabase: learningSupabase,
-          userId: learningUser.id,
-          sprites: selfLearnedCandidateSprites.slugs
-        })
-    );
-
-    if (!learnedSelfArchetype) {
-      learnedSelfArchetype = await measureServerCall(
-        "logs.import.resolveLearnedSelfArchetypeCandidates.self",
-        () =>
-          resolveLearnedSelfArchetypeFromCandidates({
-            supabase: learningSupabase,
-            userId: learningUser.id,
-            candidates: buildLearnedSelfSpriteCandidates({
-              primarySprites: selfLearnedCandidateSprites.slugs,
-              evidence: parsed.pokemonEvidence.self
-            })
-          })
-      );
-    }
-  }
-  const resolvedSelfArchetype = learnedSelfArchetype ?? selfArchetype;
-  const resolvedSelfSprites = learnedSelfArchetype?.sprites ?? selfSprites.slugs;
+  const resolvedSelfArchetype = selfArchetype;
+  const resolvedSelfSprites = selfSprites.slugs;
 
   const selfDeckName = getBattleLogDeckDisplayName(
     resolvedSelfArchetype?.label ?? "",
@@ -363,14 +290,21 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
     const selectedOpponentSprites = parseStringArray(formData.getAll("opponentSprites"));
     const submittedSelfDeckSlug = String(formData.get("selfDeckSlug") || "").trim();
     const submittedSelfDeckName = String(formData.get("selfDeckName") || "").trim();
+    const catalog = await measureServerCall("logs.import.loadIdentificationCatalogForSave", () =>
+      loadIdentificationCatalog({
+        supabase,
+        userId: user.id
+      })
+    );
     const learnedSelfArchetype =
       selectedSelfSprites.length === 0
       ? null
-      : await measureServerCall("logs.import.resolveLearnedSelfArchetypeForSave.self", () =>
-          resolveLearnedSelfArchetype({
+      : await measureServerCall("logs.import.promoteLearnedSelfArchetypeForSave.self", () =>
+          promoteLearnedSelfArchetype({
             supabase,
             userId: user.id,
             sprites: selectedSelfSprites,
+            catalog,
             minimumExistingMatches: LEARNED_SELF_ARCHETYPE_THRESHOLD - 1
           })
         );

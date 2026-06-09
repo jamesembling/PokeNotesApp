@@ -56,11 +56,15 @@ export type PokemonCatalogRow = {
 
 export type ArchetypeCatalogRow = {
   id: string;
+  canonical_id: string | null;
   label: string;
   sprites: unknown;
   detection_sprites: unknown;
   required_match_groups: unknown;
   is_excluded: boolean;
+  source: "curated" | "learned";
+  user_id: string | null;
+  learned_match_count: number;
 };
 
 export type CardEffectKind = "ability" | "attack" | "supporter" | "item" | "tool" | "stadium";
@@ -91,6 +95,7 @@ export type ArchetypeCatalogIndex = {
     string,
     {
       id: string;
+      canonicalId?: string;
       label: string;
       sprites: string[];
       detectionSprites: string[];

@@ -1070,6 +1070,7 @@ comment on column public.card_effect_catalog.effect_kind is
 
 create table public.archetype_catalog (
   id                text primary key,        -- e.g. "dragapult-ex", "charizard-ex"
+  canonical_id      text,                    -- stable archetype key for learned rows
   label             text not null,           -- e.g. "Dragapult ex", "Charizard ex"
 
   -- Curated Pokemon slug strings that represent this archetype in the UI
@@ -1088,12 +1089,19 @@ create table public.archetype_catalog (
   -- Archetypes that cause false positive matches are excluded
   -- See known-edge-cases.md section 1.1
   is_excluded       boolean not null default false,
+  source            text not null default 'curated' check (source in ('curated', 'learned')),
+  user_id           uuid references auth.users(id) on delete cascade,
+  learned_match_count integer not null default 0 check (learned_match_count >= 0),
 
-  last_synced_at    timestamptz not null default now()
+  last_synced_at    timestamptz not null default now(),
+  constraint archetype_catalog_learned_owner_check check (
+    (source = 'curated' and user_id is null)
+    or (source = 'learned' and user_id is not null and canonical_id is not null)
+  )
 );
 
 comment on table public.archetype_catalog is
-  'Competitive deck archetypes from Limitless TCG. Refreshed daily by cron job.';
+  'Curated and user-learned deck archetypes used for battle log identification.';
 comment on column public.archetype_catalog.is_excluded is
   'When true, this archetype is skipped during log identification. See known-edge-cases.md 1.1.';
 comment on column public.archetype_catalog.sprites is
@@ -1102,6 +1110,14 @@ comment on column public.archetype_catalog.detection_sprites is
   'Additional Pokemon slugs that should count as evidence when identifying this archetype from a battle log.';
 comment on column public.archetype_catalog.required_match_groups is
   'Optional grouped evidence requirements. Each group needs at least one matching Pokemon before the archetype can qualify.';
+comment on column public.archetype_catalog.canonical_id is
+  'Stable archetype key returned by import identification. Learned rows use a user-scoped primary key and store the sprite archetype key here.';
+comment on column public.archetype_catalog.source is
+  'curated rows are global catalog entries; learned rows are user-scoped entries promoted from repeated imported self-deck sprites.';
+comment on column public.archetype_catalog.user_id is
+  'Owner for learned archetype rows. Null for curated global rows.';
+comment on column public.archetype_catalog.learned_match_count is
+  'Number of matching self-deck logs observed when the learned archetype row was promoted or refreshed.';
 
 
 -- ============================================================
@@ -1212,6 +1228,7 @@ grant select on table public.card_effect_catalog to anon, authenticated;
 grant all privileges on table public.card_effect_catalog to service_role;
 
 grant select on table public.archetype_catalog to anon, authenticated;
+grant insert, update on table public.archetype_catalog to authenticated;
 grant all privileges on table public.archetype_catalog to service_role;
 
 grant select on table public.role_permissions to anon, authenticated;
@@ -1324,6 +1341,10 @@ create index card_effect_catalog_card_kind
 create index archetype_catalog_excluded
   on public.archetype_catalog (is_excluded)
   where is_excluded = false;
+
+create index archetype_catalog_user_learned
+  on public.archetype_catalog (user_id, canonical_id)
+  where source = 'learned';
 
 -- Log shares
 create index log_shares_owner
@@ -1678,12 +1699,21 @@ create policy "Anyone can read card effect catalog"
 
 
 -- ARCHETYPE CATALOG
--- Public read. Only service role can write (via cron).
+-- Curated rows are public. Learned rows are visible and writable only by owner.
 alter table public.archetype_catalog enable row level security;
 
-create policy "Anyone can read archetype catalog"
+create policy "Read public and own archetype catalog rows"
   on public.archetype_catalog for select
-  using (true);
+  using (source = 'curated' or auth.uid() = user_id);
+
+create policy "Users can create learned archetype catalog rows"
+  on public.archetype_catalog for insert
+  with check (source = 'learned' and auth.uid() = user_id);
+
+create policy "Users can update learned archetype catalog rows"
+  on public.archetype_catalog for update
+  using (source = 'learned' and auth.uid() = user_id)
+  with check (source = 'learned' and auth.uid() = user_id);
 
 
 -- ROLE PERMISSIONS

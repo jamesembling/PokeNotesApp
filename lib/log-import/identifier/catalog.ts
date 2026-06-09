@@ -16,7 +16,24 @@ type CachedIdentificationCatalogRows = {
   pokemonRows: PokemonCatalogRow[];
 };
 
-const IDENTIFICATION_CATALOG_CACHE_VERSION = "v10";
+const IDENTIFICATION_CATALOG_CACHE_VERSION = "v11";
+
+type ArchetypeRowsClient = {
+  from(table: "archetype_catalog"): unknown;
+};
+
+type ArchetypeRangeBuilder<T> = {
+  eq(column: string, value: unknown): ArchetypeRangeBuilder<T>;
+  range(from: number, to: number): PromiseLike<{ data: T[] | null; error: unknown }>;
+};
+
+type ArchetypeSelectBuilder<T> = {
+  select(value: string): ArchetypeRangeBuilder<T>;
+};
+
+function archetypeTable<T>(supabase: ArchetypeRowsClient) {
+  return supabase.from("archetype_catalog") as ArchetypeSelectBuilder<T>;
+}
 
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
@@ -124,6 +141,7 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnTy
     const detectionSprites = parseStringArray(row.detection_sprites);
     return {
       id: row.id,
+      canonicalId: row.canonical_id || row.id,
       label: row.label,
       sprites,
       detectionSprites: detectionSprites.length > 0 ? detectionSprites : sprites,
@@ -135,7 +153,7 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnTy
     };
   });
 
-  const byId = new Map(includedRows.map((row) => [row.id, row]));
+  const byId = new Map(includedRows.map((row) => [row.canonicalId, row]));
   const normalizedLabelToIds = new Map<string, string[]>();
   const spriteToCandidateArchetypes = new Map<string, string[]>();
   const familyRootToCandidateArchetypes = new Map<string, string[]>();
@@ -143,17 +161,17 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnTy
   includedRows.forEach((row) => {
     const labelKey = normalizeText(row.label);
     const idsForLabel = normalizedLabelToIds.get(labelKey) ?? [];
-    idsForLabel.push(row.id);
+    idsForLabel.push(row.canonicalId);
     normalizedLabelToIds.set(labelKey, idsForLabel);
 
     row.detectionSprites.forEach((sprite) => {
       const candidateIds = spriteToCandidateArchetypes.get(sprite) ?? [];
-      candidateIds.push(row.id);
+      candidateIds.push(row.canonicalId);
       spriteToCandidateArchetypes.set(sprite, candidateIds);
 
       const familyRoot = pokemonIndex.slugToFamilyRoot.get(sprite) ?? sprite;
       const familyCandidateIds = familyRootToCandidateArchetypes.get(familyRoot) ?? [];
-      familyCandidateIds.push(row.id);
+      familyCandidateIds.push(row.canonicalId);
       familyRootToCandidateArchetypes.set(familyRoot, familyCandidateIds);
     });
   });
@@ -166,31 +184,43 @@ function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnTy
   };
 }
 
-async function loadArchetypeRows(supabase: ReturnType<typeof createPublicClient>) {
+function normalizeArchetypeRows(rows: ArchetypeCatalogRow[]) {
+  return rows.map((row) => ({
+    ...row,
+    canonical_id: row.canonical_id ?? null,
+    source: row.source ?? "curated",
+    user_id: row.user_id ?? null,
+    learned_match_count: row.learned_match_count ?? 0
+  })) as ArchetypeCatalogRow[];
+}
+
+async function loadArchetypeRows(supabase: ArchetypeRowsClient) {
   try {
-    return await fetchAllRows<ArchetypeCatalogRow>((from, to) =>
-      supabase
-        .from("archetype_catalog")
-        .select("id,label,sprites,detection_sprites,required_match_groups,is_excluded")
+    const rows = await fetchAllRows<ArchetypeCatalogRow>((from, to) =>
+      archetypeTable<ArchetypeCatalogRow>(supabase)
+        .select("id,canonical_id,label,sprites,detection_sprites,required_match_groups,is_excluded,source,user_id,learned_match_count")
         .eq("is_excluded", false)
         .range(from, to)
     );
+
+    return normalizeArchetypeRows(rows);
   } catch (fullSchemaError) {
     try {
       const rows = await fetchAllRows<
         Omit<ArchetypeCatalogRow, "required_match_groups"> & { required_match_groups?: unknown }
       >((from, to) =>
-        supabase
-          .from("archetype_catalog")
+        archetypeTable<
+          Omit<ArchetypeCatalogRow, "required_match_groups"> & { required_match_groups?: unknown }
+        >(supabase)
           .select("id,label,sprites,detection_sprites,is_excluded")
           .eq("is_excluded", false)
           .range(from, to)
       );
 
-      return rows.map((row) => ({
+      return normalizeArchetypeRows(rows.map((row) => ({
         ...row,
         required_match_groups: []
-      })) as ArchetypeCatalogRow[];
+      })) as ArchetypeCatalogRow[]);
     } catch (detectionSchemaError) {
       try {
         const rows = await fetchAllRows<
@@ -199,18 +229,22 @@ async function loadArchetypeRows(supabase: ReturnType<typeof createPublicClient>
             required_match_groups?: unknown;
           }
         >((from, to) =>
-          supabase
-            .from("archetype_catalog")
+          archetypeTable<
+            Omit<ArchetypeCatalogRow, "detection_sprites" | "required_match_groups"> & {
+              detection_sprites?: unknown;
+              required_match_groups?: unknown;
+            }
+          >(supabase)
             .select("id,label,sprites,is_excluded")
             .eq("is_excluded", false)
             .range(from, to)
         );
 
-        return rows.map((row) => ({
+        return normalizeArchetypeRows(rows.map((row) => ({
           ...row,
           detection_sprites: row.sprites,
           required_match_groups: []
-        })) as ArchetypeCatalogRow[];
+        })) as ArchetypeCatalogRow[]);
       } catch {
         throw fullSchemaError instanceof Error
           ? fullSchemaError
@@ -219,6 +253,31 @@ async function loadArchetypeRows(supabase: ReturnType<typeof createPublicClient>
             : new Error("Failed to load archetype catalog rows.");
       }
     }
+  }
+}
+
+async function loadLearnedArchetypeRows(args: {
+  supabase: ArchetypeRowsClient;
+  userId: string;
+}) {
+  const normalizedUserId = String(args.userId || "").trim();
+  if (!normalizedUserId) {
+    return [];
+  }
+
+  try {
+    const rows = await fetchAllRows<ArchetypeCatalogRow>((from, to) =>
+      archetypeTable<ArchetypeCatalogRow>(args.supabase)
+        .select("id,canonical_id,label,sprites,detection_sprites,required_match_groups,is_excluded,source,user_id,learned_match_count")
+        .eq("is_excluded", false)
+        .eq("source", "learned")
+        .eq("user_id", normalizedUserId)
+        .range(from, to)
+    );
+
+    return normalizeArchetypeRows(rows);
+  } catch {
+    return [];
   }
 }
 
@@ -257,6 +316,25 @@ const loadBuiltIdentificationCatalog = cache(async (): Promise<IdentificationCat
   };
 });
 
-export async function loadIdentificationCatalog(): Promise<IdentificationCatalog> {
-  return loadBuiltIdentificationCatalog();
+export async function loadIdentificationCatalog(args?: {
+  supabase?: ArchetypeRowsClient;
+  userId?: string;
+}): Promise<IdentificationCatalog> {
+  if (!args?.supabase || !args.userId) {
+    return loadBuiltIdentificationCatalog();
+  }
+
+  const [{ pokemonRows, archetypeRows }, learnedArchetypeRows] = await Promise.all([
+    loadIdentificationCatalogCached(),
+    loadLearnedArchetypeRows({
+      supabase: args.supabase,
+      userId: args.userId
+    })
+  ]);
+  const pokemon = buildPokemonIndex(pokemonRows);
+
+  return {
+    pokemon,
+    archetypes: buildArchetypeIndex([...archetypeRows, ...learnedArchetypeRows], pokemon)
+  };
 }

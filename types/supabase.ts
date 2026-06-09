@@ -16,31 +16,43 @@ export type Database = {
     Tables: {
       archetype_catalog: {
         Row: {
+          canonical_id: string | null
           detection_sprites: Json
           id: string
           is_excluded: boolean
           label: string
           last_synced_at: string
+          learned_match_count: number
           required_match_groups: Json
+          source: string
           sprites: Json
+          user_id: string | null
         }
         Insert: {
+          canonical_id?: string | null
           detection_sprites?: Json
           id: string
           is_excluded?: boolean
           label: string
           last_synced_at?: string
+          learned_match_count?: number
           required_match_groups?: Json
+          source?: string
           sprites?: Json
+          user_id?: string | null
         }
         Update: {
+          canonical_id?: string | null
           detection_sprites?: Json
           id?: string
           is_excluded?: boolean
           label?: string
           last_synced_at?: string
+          learned_match_count?: number
           required_match_groups?: Json
+          source?: string
           sprites?: Json
+          user_id?: string | null
         }
         Relationships: []
       }

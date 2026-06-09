@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildLearnedSelfArchetypeCatalogRow,
   buildLearnedSelfArchetype,
   normalizeLearnedSelfDeckSprites,
+  promoteLearnedSelfArchetype,
   resolveLearnedSelfArchetype,
   resolveLearnedSelfArchetypeFromCandidates
 } from "@/lib/log-import/learned-self-archetypes";
+import type { IdentificationCatalog } from "@/lib/log-import/types";
 
 type QueryOp = {
   method: string;
@@ -19,6 +22,7 @@ type QueryContext = {
 
 function createFakeSupabaseClient(rows: Array<{ id?: string; self_deck_sprites?: string }>) {
   const queries: QueryContext[] = [];
+  const upserts: unknown[] = [];
 
   const makeChain = (ctx: QueryContext) => {
     const chain = {
@@ -37,6 +41,11 @@ function createFakeSupabaseClient(rows: Array<{ id?: string; self_deck_sprites?:
       limit(...args: unknown[]) {
         ctx.operations.push({ method: "limit", args });
         return chain;
+      },
+      upsert(value: unknown, options: unknown) {
+        ctx.operations.push({ method: "upsert", args: [value, options] });
+        upserts.push(value);
+        return Promise.resolve({ error: null });
       },
       then(
         onFulfilled?:
@@ -58,7 +67,7 @@ function createFakeSupabaseClient(rows: Array<{ id?: string; self_deck_sprites?:
 
   return {
     client: {
-      from(table: "logs") {
+      from(table: "logs" | "archetype_catalog") {
         const ctx: QueryContext = {
           table,
           operations: []
@@ -67,8 +76,44 @@ function createFakeSupabaseClient(rows: Array<{ id?: string; self_deck_sprites?:
         return makeChain(ctx);
       }
     },
-    queries
+    queries,
+    upserts
   };
+}
+
+function createCatalog(): IdentificationCatalog {
+  return {
+    pokemon: {
+      bySlug: new Map(),
+      normalizedNameToSlug: new Map(),
+      slugToAncestors: new Map([
+        ["charizard", ["charmeleon", "charmander"]],
+        ["charmeleon", ["charmander"]],
+        ["pidgeot", ["pidgeotto", "pidgey"]],
+        ["pidgeotto", ["pidgey"]]
+      ]),
+      slugToFamilyRoot: new Map(),
+      maxNameTokens: 1
+    },
+    archetypes: {
+      byId: new Map(),
+      normalizedLabelToIds: new Map(),
+      spriteToCandidateArchetypes: new Map(),
+      familyRootToCandidateArchetypes: new Map()
+    }
+  };
+}
+
+function createCatalogWithKnownArchetype(archetypeId: string): IdentificationCatalog {
+  const catalog = createCatalog();
+  catalog.archetypes.byId.set(archetypeId, {
+    id: archetypeId,
+    label: "Known Archetype",
+    sprites: [],
+    detectionSprites: [],
+    requiredMatchGroups: []
+  });
+  return catalog;
 }
 
 test("normalizeLearnedSelfDeckSprites trims, lowercases, dedupes, and caps sprites", () => {
@@ -108,6 +153,32 @@ test("buildLearnedSelfArchetype displays Mega Greninja before Dudunsparce", () =
     sprites: ["greninja-mega", "dudunsparce"],
     matchCount: 3
   });
+});
+
+test("buildLearnedSelfArchetypeCatalogRow populates detection and required match groups", () => {
+  assert.deepEqual(
+    buildLearnedSelfArchetypeCatalogRow({
+      userId: "user-1",
+      sprites: ["charizard", "pidgeot"],
+      matchCount: 3,
+      catalog: createCatalog()
+    }),
+    {
+      id: "learned:user-1:charizard+pidgeot",
+      canonical_id: "charizard+pidgeot",
+      label: "Charizard / Pidgeot",
+      sprites: ["charizard", "pidgeot"],
+      detection_sprites: ["charizard", "charmeleon", "charmander", "pidgeot", "pidgeotto", "pidgey"],
+      required_match_groups: [
+        ["charizard", "charmeleon", "charmander"],
+        ["pidgeot", "pidgeotto", "pidgey"]
+      ],
+      is_excluded: false,
+      source: "learned",
+      user_id: "user-1",
+      learned_match_count: 3
+    }
+  );
 });
 
 test("resolveLearnedSelfArchetype returns null below the learned threshold", async () => {
@@ -172,6 +243,73 @@ test("resolveLearnedSelfArchetype can promote the third matching save", async ()
     { method: "in", args: ["self_deck_sprites", ["hydrapple,ogerpon", "ogerpon,hydrapple"]] },
     { method: "limit", args: [2] }
   ]);
+});
+
+test("promoteLearnedSelfArchetype upserts a user-scoped catalog row", async () => {
+  const { client, queries, upserts } = createFakeSupabaseClient([{ id: "log-1" }, { id: "log-2" }]);
+
+  const resolved = await promoteLearnedSelfArchetype({
+    supabase: client,
+    userId: "user-1",
+    sprites: ["charizard", "pidgeot"],
+    catalog: createCatalog(),
+    minimumExistingMatches: 2
+  });
+
+  assert.deepEqual(resolved, {
+    archetypeId: "charizard+pidgeot",
+    label: "Charizard / Pidgeot",
+    sprites: ["charizard", "pidgeot"],
+    matchCount: 3
+  });
+  assert.equal(queries[1].table, "archetype_catalog");
+  assert.deepEqual(queries[1].operations, [
+    {
+      method: "upsert",
+      args: [
+        {
+          id: "learned:user-1:charizard+pidgeot",
+          canonical_id: "charizard+pidgeot",
+          label: "Charizard / Pidgeot",
+          sprites: ["charizard", "pidgeot"],
+          detection_sprites: [
+            "charizard",
+            "charmeleon",
+            "charmander",
+            "pidgeot",
+            "pidgeotto",
+            "pidgey"
+          ],
+          required_match_groups: [
+            ["charizard", "charmeleon", "charmander"],
+            ["pidgeot", "pidgeotto", "pidgey"]
+          ],
+          is_excluded: false,
+          source: "learned",
+          user_id: "user-1",
+          learned_match_count: 3
+        },
+        { onConflict: "id" }
+      ]
+    }
+  ]);
+  assert.equal(upserts.length, 1);
+});
+
+test("promoteLearnedSelfArchetype skips sprite pairs already in the catalog", async () => {
+  const { client, queries, upserts } = createFakeSupabaseClient([{ id: "log-1" }, { id: "log-2" }]);
+
+  const resolved = await promoteLearnedSelfArchetype({
+    supabase: client,
+    userId: "user-1",
+    sprites: ["charizard", "pidgeot"],
+    catalog: createCatalogWithKnownArchetype("charizard+pidgeot"),
+    minimumExistingMatches: 2
+  });
+
+  assert.equal(resolved, null);
+  assert.equal(queries.length, 0);
+  assert.equal(upserts.length, 0);
 });
 
 test("resolveLearnedSelfArchetypeFromCandidates finds a learned lower-ranked pair", async () => {

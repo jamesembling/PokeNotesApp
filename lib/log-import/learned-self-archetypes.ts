@@ -1,6 +1,7 @@
 import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { compactMap } from "@/lib/array";
+import type { IdentificationCatalog } from "@/lib/log-import/types";
 
 export const LEARNED_SELF_ARCHETYPE_THRESHOLD = 3;
 
@@ -16,6 +17,10 @@ type SpriteQueryResult = {
 
 type LogsClient = {
   from(table: "logs"): unknown;
+};
+
+type LearnedArchetypeCatalogClient = {
+  from(table: "archetype_catalog"): unknown;
 };
 
 export type LearnedSelfArchetype = {
@@ -53,6 +58,48 @@ function buildStoredSpriteVariants(sprites: string[]) {
 
   const [first, second] = normalizedSprites;
   return [`${first},${second}`, `${second},${first}`];
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(compactMap(values, (value) => String(value || "").trim())));
+}
+
+function buildLearnedArchetypeCatalogId(userId: string, archetypeId: string) {
+  return `learned:${userId}:${archetypeId}`;
+}
+
+function buildPokemonFamilyGroup(slug: string, catalog: IdentificationCatalog) {
+  return uniqueStrings([slug, ...(catalog.pokemon.slugToAncestors.get(slug) ?? [])]);
+}
+
+export function buildLearnedSelfArchetypeCatalogRow(args: {
+  userId: string;
+  sprites: string[];
+  matchCount: number;
+  catalog: IdentificationCatalog;
+}) {
+  const learnedArchetype = buildLearnedSelfArchetype(args.sprites, args.matchCount);
+  if (!learnedArchetype || !args.userId) {
+    return null;
+  }
+
+  const requiredMatchGroups = learnedArchetype.sprites.map((sprite) =>
+    buildPokemonFamilyGroup(sprite, args.catalog)
+  );
+  const detectionSprites = uniqueStrings(requiredMatchGroups.flat());
+
+  return {
+    id: buildLearnedArchetypeCatalogId(args.userId, learnedArchetype.archetypeId),
+    canonical_id: learnedArchetype.archetypeId,
+    label: learnedArchetype.label,
+    sprites: learnedArchetype.sprites,
+    detection_sprites: detectionSprites.length > 0 ? detectionSprites : learnedArchetype.sprites,
+    required_match_groups: requiredMatchGroups,
+    is_excluded: false,
+    source: "learned" as const,
+    user_id: args.userId,
+    learned_match_count: learnedArchetype.matchCount
+  };
 }
 
 function uniqueSpriteCandidates(candidates: string[][]) {
@@ -128,6 +175,61 @@ export async function resolveLearnedSelfArchetype(args: {
   }
 
   return buildLearnedSelfArchetype(args.sprites, matchCount);
+}
+
+export async function promoteLearnedSelfArchetype(args: {
+  supabase: LogsClient & LearnedArchetypeCatalogClient;
+  userId: string;
+  sprites: string[];
+  catalog: IdentificationCatalog;
+  minimumExistingMatches?: number;
+}): Promise<LearnedSelfArchetype | null> {
+  const minimumExistingMatches = args.minimumExistingMatches ?? LEARNED_SELF_ARCHETYPE_THRESHOLD;
+  const candidateArchetype = buildLearnedSelfArchetype(args.sprites, 0);
+  if (!candidateArchetype || args.catalog.archetypes.byId.has(candidateArchetype.archetypeId)) {
+    return null;
+  }
+
+  const learnedArchetype = await resolveLearnedSelfArchetype({
+    supabase: args.supabase,
+    userId: args.userId,
+    sprites: args.sprites,
+    minimumExistingMatches
+  });
+
+  if (!learnedArchetype) {
+    return null;
+  }
+
+  const row = buildLearnedSelfArchetypeCatalogRow({
+    userId: args.userId,
+    sprites: learnedArchetype.sprites,
+    matchCount: minimumExistingMatches + 1,
+    catalog: args.catalog
+  });
+
+  if (!row) {
+    return null;
+  }
+
+  const archetypeCatalog = args.supabase.from("archetype_catalog") as {
+    upsert(
+      value: typeof row,
+      options: { onConflict: string }
+    ): PromiseLike<{ error: unknown }>;
+  };
+  const { error } = await archetypeCatalog.upsert(row, {
+    onConflict: "id"
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    ...learnedArchetype,
+    matchCount: row.learned_match_count
+  };
 }
 
 export async function resolveLearnedSelfArchetypeFromCandidates(args: {
