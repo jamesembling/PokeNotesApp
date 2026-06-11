@@ -84,6 +84,17 @@ test("route performance hard loads snapshot resources at the load boundary", () 
   assert.match(reporter, /window\.addEventListener\("load", reportHardLoadAfterLoad, \{ once: true \}\)/);
 });
 
+test("import log save navigates before the lazy dialog parent unmounts", () => {
+  const dialog = source("components/ui/ImportLogDialog.tsx");
+  const saveBlock = dialog.slice(
+    dialog.indexOf("async function handleSubmit"),
+    dialog.indexOf("useEffect(() => {", dialog.indexOf("async function handleSubmit"))
+  );
+
+  assert.match(saveBlock, /router\.push\(result\.redirectTo\);\s*onClose\?\.\(\);/);
+  assert.doesNotMatch(saveBlock, /setIsOpen\(false\);\s*onClose\?\.\(\);/);
+});
+
 test("private helper endpoints disable caching and map user-facing share errors", () => {
   const importDialogRoute = source("app/api/import-dialog-data/route.ts");
   const sharesRoute = source("app/api/log-shares/route.ts");

@@ -4,8 +4,13 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createClient } from "@supabase/supabase-js";
+import { config as loadEnv } from "dotenv";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+loadEnv({ path: resolve(rootDir, ".env"), quiet: true });
+loadEnv({ path: resolve(rootDir, ".env.local"), override: false, quiet: true });
+
 const agentBrowserBin = resolve(
   rootDir,
   process.platform === "win32"
@@ -35,6 +40,11 @@ const authWaitMs = Number(args.get("--auth-wait-ms") || process.env.PERF_AUTH_WA
 const commandTimeoutMs = Number(args.get("--command-timeout-ms") || process.env.PERF_COMMAND_TIMEOUT_MS || 30000);
 const routeWaitMs = Number(args.get("--route-wait-ms") || process.env.PERF_ROUTE_WAIT_MS || 15000);
 const testLoginSecret = String(args.get("--test-login-secret") || process.env.PERF_TEST_LOGIN_SECRET || "");
+const skipImportAction = args.has("--skip-import-action") || process.env.PERF_SKIP_IMPORT_ACTION === "1";
+const onlyImportAction = args.has("--only-import-action") || process.env.PERF_ONLY_IMPORT_ACTION === "1";
+const importActionUsername = String(
+  args.get("--import-action-username") || process.env.PERF_IMPORT_ACTION_USERNAME || "CodexPerf"
+);
 
 const configuredRoutePath = String(args.get("--log-path") || process.env.PERF_LOG_PATH || "");
 
@@ -55,15 +65,41 @@ Options:
   --command-timeout-ms=30000
   --route-wait-ms=15000
   --test-login-secret=<secret>
+  --skip-import-action
+  --only-import-action
+  --import-action-username=CodexPerf
   --save-auth
 `);
   process.exit(0);
 }
 
+const SAMPLE_IMPORT_LOG = `Setup
+CodexPerf drew 7 cards for the opening hand
+OpponentPerf drew 7 cards for the opening hand
+CodexPerf won the coin toss.
+
+Turn # 1 - CodexPerf's Turn
+CodexPerf drew a card.
+CodexPerf attached Basic Lightning Energy to Pikachu ex in the Active Spot.
+CodexPerf used Thunderbolt for 120 damage.
+OpponentPerf's Charmander took 120 damage.
+CodexPerf took a Prize card.
+
+Turn # 2 - OpponentPerf's Turn
+OpponentPerf drew a card.
+OpponentPerf attached Basic Fire Energy to Charmander in the Active Spot.
+OpponentPerf used Ember for 30 damage.
+CodexPerf's Pikachu ex took 30 damage.
+
+Turn # 3 - CodexPerf's Turn
+CodexPerf drew a card.
+CodexPerf took 5 Prize cards.
+OpponentPerf's Charmander was Knocked Out. CodexPerf wins.`;
+
 function buildJourney(routePath) {
   return [
     "/logs",
-    routePath,
+    ...(routePath ? [routePath] : []),
     "/logs",
     "/decks",
     "/tournaments",
@@ -116,6 +152,17 @@ function parseViewport(value) {
 
 function evalJson(expression) {
   const output = runWithState(["eval", `JSON.stringify(${expression})`]).trim();
+  const jsonLine = output.split("\n").find((line) => line.trim().startsWith("{") || line.trim().startsWith("[") || line.trim().startsWith("\""));
+  if (!jsonLine) {
+    return null;
+  }
+
+  const parsed = JSON.parse(jsonLine);
+  return typeof parsed === "string" ? JSON.parse(parsed) : parsed;
+}
+
+function evalBrowserJson(expression, options = {}) {
+  const output = runWithState(["eval", expression], options).trim();
   const jsonLine = output.split("\n").find((line) => line.trim().startsWith("{") || line.trim().startsWith("[") || line.trim().startsWith("\""));
   if (!jsonLine) {
     return null;
@@ -184,6 +231,250 @@ function openPath(path) {
   waitForRouteSettled();
 }
 
+function readCurrentAuthUser() {
+  return evalJson(`(() => {
+    const authCookie = document.cookie
+      .split('; ')
+      .map((value) => value.split('='))
+      .find(([name]) => name.startsWith('sb-') && name.endsWith('-auth-token'));
+    if (!authCookie) {
+      return null;
+    }
+    const rawValue = decodeURIComponent(authCookie.slice(1).join('='));
+    const json = rawValue.startsWith('base64-') ? atob(rawValue.slice(7)) : rawValue;
+    const parsed = JSON.parse(json);
+    return {
+      email: parsed.user?.email || '',
+      id: parsed.user?.id || ''
+    };
+  })()`);
+}
+
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEW_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEW_SUPABASE_SERVICE_KEY;
+  if (!supabaseUrl || !serviceKey) {
+    return null;
+  }
+
+  return createClient(supabaseUrl, serviceKey, {
+    auth: {
+      persistSession: false
+    }
+  });
+}
+
+async function withImportProfileUsername(userId, username, callback) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    throw new Error(
+      "Missing Supabase service credentials; cannot set a temporary PTCGL username for the import action probe."
+    );
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("ptcgl_username")
+    .eq("id", userId)
+    .single();
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  const previousUsername = String(profile?.ptcgl_username || "");
+  const shouldRestore = previousUsername !== username;
+
+  if (shouldRestore) {
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ ptcgl_username: username })
+      .eq("id", userId);
+    if (updateError) {
+      throw updateError;
+    }
+  }
+
+  try {
+    return await callback({ previousUsername, supabase });
+  } finally {
+    if (shouldRestore) {
+      await supabase
+        .from("profiles")
+        .update({ ptcgl_username: previousUsername })
+        .eq("id", userId);
+    }
+  }
+}
+
+async function cleanupImportedLog({ logId, supabase, userId }) {
+  if (!logId) {
+    return {
+      cleanup: "skipped"
+    };
+  }
+
+  const { error } = await supabase
+    .from("logs")
+    .delete()
+    .eq("id", logId)
+    .eq("user_id", userId);
+
+  return {
+    cleanup: error ? `failed:${error.message}` : "deleted"
+  };
+}
+
+async function measureImportAction() {
+  openPath("/logs");
+  const authUser = readCurrentAuthUser();
+  if (!authUser?.id) {
+    throw new Error("Could not read the authenticated production user from the browser session.");
+  }
+
+  return await withImportProfileUsername(authUser.id, importActionUsername, async ({ supabase }) => {
+    const actionResult = evalBrowserJson(`(async () => {
+      const rawLog = ${JSON.stringify(SAMPLE_IMPORT_LOG.replaceAll("CodexPerf", importActionUsername))};
+      const isVisible = (element) => {
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+      };
+      const findVisibleButton = (label) => Array.from(document.querySelectorAll('button'))
+        .find((candidate) => isVisible(candidate) && candidate.textContent.trim().includes(label));
+      const clickButton = (label) => {
+        const button = findVisibleButton(label);
+        if (!button) {
+          throw new Error(\`No visible "\${label}" button found.\`);
+        }
+        button.click();
+      };
+      const waitUntil = (predicate, label, timeoutMs = 30000) =>
+        new Promise((resolve, reject) => {
+          const deadline = performance.now() + timeoutMs;
+          const tick = () => {
+            try {
+              if (predicate()) {
+                resolve(true);
+                return;
+              }
+            } catch {
+              // Keep waiting until timeout; transient missing nodes are expected.
+            }
+            if (performance.now() > deadline) {
+              reject(new Error(\`Timed out waiting for \${label}.\`));
+              return;
+            }
+            requestAnimationFrame(tick);
+          };
+          tick();
+        });
+      const latestImportDataEntry = () => performance.getEntriesByType('resource')
+        .filter((resource) => {
+          try {
+            return new URL(resource.name).pathname === '/api/import-dialog-data';
+          } catch {
+            return false;
+          }
+        })
+        .toSorted((left, right) => right.startTime - left.startTime)[0] || null;
+      const readDetailLogId = () => location.pathname.match(/^\\/logs\\/([0-9a-f-]{36})$/i)?.[1] || '';
+      const readSavedListLogId = () => Array.from(document.querySelectorAll('a[href^="/logs/"]'))
+        .map((anchor) => ({
+          href: anchor.getAttribute('href') || '',
+          text: anchor.textContent || ''
+        }))
+        .find((anchor) =>
+          /OpponentPerf/.test(anchor.text) &&
+          /^\\/logs\\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(anchor.href)
+        )
+        ?.href.match(/\\/logs\\/([0-9a-f-]{36})/i)?.[1] || '';
+
+      performance.clearResourceTimings();
+      const openStartedAt = performance.now();
+      clickButton('Import PTCGL Log');
+      await waitUntil(() => document.querySelector('#battle-log'), 'battle log textarea');
+      await waitUntil(() => latestImportDataEntry(), 'import dialog data');
+      await waitUntil(
+        () => !Array.from(document.querySelectorAll('button')).some((button) => button.textContent.includes('Loading...')),
+        'import dialog data state'
+      );
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const openMs = Math.round(performance.now() - openStartedAt);
+      const importData = latestImportDataEntry();
+
+      const textarea = document.querySelector('#battle-log');
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+      if (setter) {
+        setter.call(textarea, rawLog);
+      } else {
+        textarea.value = rawLog;
+      }
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.dispatchEvent(new Event('change', { bubbles: true }));
+      await waitUntil(() => findVisibleButton('Review PTCGL Log'), 'review button');
+
+      const parseStartedAt = performance.now();
+      clickButton('Review PTCGL Log');
+      await waitUntil(
+        () => document.body.textContent.includes('Review Battle Log') && findVisibleButton('Save Log'),
+        'review stage'
+      );
+      const parseMs = Math.round(performance.now() - parseStartedAt);
+
+      const saveStartedAt = performance.now();
+      clickButton('Save Log');
+      await waitUntil(
+        () => (readDetailLogId() || readSavedListLogId()) && !document.querySelector('[data-route-loading]'),
+        'saved log completion',
+        45000
+      );
+      const saveMs = Math.round(performance.now() - saveStartedAt);
+      const detailLogId = readDetailLogId();
+      const listLogId = readSavedListLogId();
+      const logId = detailLogId || listLogId;
+
+      return JSON.stringify({
+        detailPath: detailLogId ? '/logs/:id' : location.pathname,
+        importDataMs: importData ? Math.round(importData.duration) : '-',
+        importDataTransferSize: importData?.transferSize || '-',
+        logId,
+        openMs,
+        parseMs,
+        saveMs,
+        status: detailLogId ? 'ok' : listLogId ? 'saved-without-navigation' : 'missing-log-id'
+      });
+    })()`, {
+      timeoutMs: Math.max(commandTimeoutMs, 90000)
+    });
+    const logId = actionResult?.logId ?? "";
+    const cleanup = await cleanupImportedLog({
+      logId,
+      supabase,
+      userId: authUser.id
+    });
+
+    return {
+      cleanup: cleanup.cleanup,
+      detailPath: actionResult?.detailPath ?? "",
+      importDataMs: actionResult?.importDataMs ?? "-",
+      importDataTransferSize: actionResult?.importDataTransferSize ?? "-",
+      openMs: actionResult?.openMs ?? "-",
+      parseMs: actionResult?.parseMs ?? "-",
+      saveMs: actionResult?.saveMs ?? "-",
+      status: actionResult?.status ?? "missing-result"
+    };
+  });
+}
+
+function printImportActionResult(importAction) {
+  console.log(`open dialog: ${importAction.openMs} ms`);
+  console.log(`import data: ${importAction.importDataMs} ms (${importAction.importDataTransferSize} bytes)`);
+  console.log(`review parse: ${importAction.parseMs} ms`);
+  console.log(`save completion: ${importAction.saveMs} ms`);
+  console.log(`status: ${importAction.status}; cleanup: ${importAction.cleanup}`);
+}
+
 function discoverFirstLogPath() {
   openPath("/logs");
 
@@ -191,12 +482,8 @@ function discoverFirstLogPath() {
     "eval",
     `Array.from(document.querySelectorAll('a[href^="/logs/"]'))
       .map((anchor) => anchor.getAttribute('href'))
-      .find((href) => href && href !== '/logs') || ''`
+      .find((href) => href && /^\\/logs\\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(href)) || ''`
   ]).trim().replace(/^"|"$/g, "");
-
-  if (!discoveredPath) {
-    throw new Error("No battle log detail link found on /logs. Pass --log-path=/logs/<id>.");
-  }
 
   return discoveredPath;
 }
@@ -331,6 +618,23 @@ if (cold) {
 
 runWithState(["set", "viewport", String(parsedViewport.width), String(parsedViewport.height), String(parsedViewport.scale ?? 1)]);
 
+if (onlyImportAction) {
+  console.log(`Production import action performance`);
+  console.log(`base: ${baseUrl}`);
+  console.log(`viewport: ${viewport}`);
+  console.log(`session: ${session}`);
+  console.log(`state: ${statePath}`);
+  console.log("");
+  try {
+    printImportActionResult(await measureImportAction());
+  } catch (error) {
+    console.log(`status: failed`);
+    console.log(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
+  process.exit();
+}
+
 const routePath = configuredRoutePath || discoverFirstLogPath();
 const journey = buildJourney(routePath);
 
@@ -339,11 +643,11 @@ console.log(`base: ${baseUrl}`);
 console.log(`viewport: ${viewport}`);
 console.log(`session: ${session}`);
 console.log(`state: ${statePath}`);
-console.log(`log path: ${routePath}`);
+console.log(`log path: ${routePath || "(none found; skipping detail leg)"}`);
 console.log("");
 
 const hardLoads = [];
-for (const path of ["/logs", routePath, "/calculator"]) {
+for (const path of ["/logs", ...(routePath ? [routePath] : []), "/calculator"]) {
   openPath(path);
   hardLoads.push({
     path,
@@ -384,6 +688,21 @@ printTable(
 console.log("");
 console.log("Route clicks");
 printTable(routeRows);
+
+if (!skipImportAction) {
+  console.log("");
+  console.log("Import action");
+  try {
+    printImportActionResult(await measureImportAction());
+  } catch (error) {
+    console.log(`status: failed`);
+    console.log(error instanceof Error ? error.message : String(error));
+  }
+} else {
+  console.log("");
+  console.log("Import action");
+  console.log("skipped (--skip-import-action)");
+}
 
 console.log("");
 console.log("Done. Fresh RUM rows should also appear in Supabase route_performance_events.");

@@ -328,17 +328,18 @@ export function ImportLogDialog({
       clearCloseTimer();
       closeTimerRef.current = window.setTimeout(() => {
         setIsOpen(false);
-        onClose?.();
         clearNavigationTimer();
         navigationTimerRef.current = window.setTimeout(() => {
           resetImportState();
 
           if (normalizeRedirectPath(result.redirectTo) === pathname) {
             router.refresh();
+            onClose?.();
             return;
           }
 
           router.push(result.redirectTo);
+          onClose?.();
         }, 50);
       }, SUCCESS_CLOSE_DELAY_MS);
     } catch (error) {
