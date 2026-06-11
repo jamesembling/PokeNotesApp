@@ -133,3 +133,13 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
   assert.match(logsDb, /from\("user_archetype_matchup_stats"\)/);
   assert.doesNotMatch(logsDb, /from\("logs"\)[\s\S]{0,300}opponent_deck_slug[\s\S]{0,300}group/);
 });
+
+test("/logs streams its shell before the initial log window resolves", () => {
+  const page = source("app/(app)/logs/page.tsx");
+
+  assert.match(page, /<Suspense fallback=\{<LogsContentFallback \/>/);
+  assert.match(page, /<LogsContent\s+[\s\S]*hydratedWindowPromise=\{hydratedWindowPromise\}/);
+  assert.match(page, /statsPromise=\{statsPromise\}/);
+  assert.match(page, /measureServerCall\("page\.logs\.initialData"/);
+  assert.match(page, /<LogsWorkspaceClient window=\{hydratedWindow\}/);
+});
