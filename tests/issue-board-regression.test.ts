@@ -77,9 +77,11 @@ test("route performance hard loads snapshot resources at the load boundary", () 
   const reporter = source("components/ui/RoutePerformanceReporter.tsx");
 
   assert.match(reporter, /function reportHardLoad\(\)/);
+  assert.match(reporter, /const reportHardLoadAfterLoad = \(\) => \{/);
+  assert.match(reporter, /window\.requestAnimationFrame\(reportHardLoad\)/);
   assert.match(reporter, /hardLoadEndedAt = nav && nav\.loadEventEnd > 0 \? nav\.loadEventEnd : measuredAt/);
   assert.match(reporter, /getSlowestResourceSince\(0, hardLoadEndedAt\)/);
-  assert.match(reporter, /window\.addEventListener\("load", reportHardLoad, \{ once: true \}\)/);
+  assert.match(reporter, /window\.addEventListener\("load", reportHardLoadAfterLoad, \{ once: true \}\)/);
 });
 
 test("private helper endpoints disable caching and map user-facing share errors", () => {

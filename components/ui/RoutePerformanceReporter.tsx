@@ -239,15 +239,19 @@ export function RoutePerformanceReporter() {
 
     const hardLoadTimeoutId = window.setTimeout(reportHardLoad, 2500);
 
-    if (document.readyState === "complete") {
+    const reportHardLoadAfterLoad = () => {
       window.requestAnimationFrame(reportHardLoad);
+    };
+
+    if (document.readyState === "complete") {
+      reportHardLoadAfterLoad();
     } else {
-      window.addEventListener("load", reportHardLoad, { once: true });
+      window.addEventListener("load", reportHardLoadAfterLoad, { once: true });
     }
 
     return () => {
       window.clearTimeout(hardLoadTimeoutId);
-      window.removeEventListener("load", reportHardLoad);
+      window.removeEventListener("load", reportHardLoadAfterLoad);
       longTaskObserver?.disconnect();
     };
   }, []);
