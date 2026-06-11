@@ -199,29 +199,55 @@ export function RoutePerformanceReporter() {
       } catch {}
     }
 
-    const hardLoadTimeoutId = window.setTimeout(() => {
+    let hardLoadReported = false;
+
+    function reportHardLoad() {
+      if (hardLoadReported) {
+        return;
+      }
+
+      hardLoadReported = true;
       const nav = getNavigationTiming();
       const measuredAt = performance.now();
-      const resourceSnapshot = getSlowestResourceSince(0, measuredAt);
+      const hardLoadEndedAt = nav && nav.loadEventEnd > 0 ? nav.loadEventEnd : measuredAt;
+      const hardLoadDuration =
+        nav && nav.loadEventEnd > 0
+          ? nav.loadEventEnd
+          : nav
+            ? Math.min(nav.duration || measuredAt, measuredAt)
+            : measuredAt;
+      const resourceSnapshot = getSlowestResourceSince(0, hardLoadEndedAt);
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
         ...resourceSnapshot,
-        domContentLoadedMs: nav ? Math.round(nav.domContentLoadedEventEnd) : null,
-        durationMs: nav ? Math.round(nav.duration) : Math.round(performance.now()),
+        domContentLoadedMs:
+          nav && nav.domContentLoadedEventEnd > 0
+            ? Math.round(nav.domContentLoadedEventEnd)
+            : null,
+        durationMs: Math.round(hardLoadDuration),
         eventType: "hard-load",
         fromPath: null,
-        loadEventMs: nav ? Math.round(nav.loadEventEnd) : null,
+        loadEventMs: nav && nav.loadEventEnd > 0 ? Math.round(nav.loadEventEnd) : null,
         loadingMs: null,
         maxLongTaskMs: Math.round(longTaskStatsRef.current.maxLongTaskMs),
         toPath: getCurrentPath(),
         totalBlockingTimeMs: Math.round(longTaskStatsRef.current.totalBlockingTimeMs),
         ttfbMs: nav ? Math.round(nav.responseStart) : null
       });
-    }, 2500);
+    }
+
+    const hardLoadTimeoutId = window.setTimeout(reportHardLoad, 2500);
+
+    if (document.readyState === "complete") {
+      window.requestAnimationFrame(reportHardLoad);
+    } else {
+      window.addEventListener("load", reportHardLoad, { once: true });
+    }
 
     return () => {
       window.clearTimeout(hardLoadTimeoutId);
+      window.removeEventListener("load", reportHardLoad);
       longTaskObserver?.disconnect();
     };
   }, []);

@@ -73,6 +73,15 @@ test("route performance long tasks are scoped to the completed navigation", () =
   );
 });
 
+test("route performance hard loads snapshot resources at the load boundary", () => {
+  const reporter = source("components/ui/RoutePerformanceReporter.tsx");
+
+  assert.match(reporter, /function reportHardLoad\(\)/);
+  assert.match(reporter, /hardLoadEndedAt = nav && nav\.loadEventEnd > 0 \? nav\.loadEventEnd : measuredAt/);
+  assert.match(reporter, /getSlowestResourceSince\(0, hardLoadEndedAt\)/);
+  assert.match(reporter, /window\.addEventListener\("load", reportHardLoad, \{ once: true \}\)/);
+});
+
 test("private helper endpoints disable caching and map user-facing share errors", () => {
   const importDialogRoute = source("app/api/import-dialog-data/route.ts");
   const sharesRoute = source("app/api/log-shares/route.ts");
