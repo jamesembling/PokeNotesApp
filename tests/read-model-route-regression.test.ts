@@ -125,6 +125,8 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
 
   assert.match(page, /getLogStatsOverview/);
   assert.doesNotMatch(page, /getArchetypeMatchupStats/);
+  assert.match(page, /<Suspense fallback=\{<StatsOverviewFallback \/>/);
+  assert.match(page, /<StatsContent overviewPromise=\{overviewPromise\}/);
   assert.match(page, /<StatsTabsClient overview=\{overview\}/);
   assert.match(apiRoute, /getArchetypeMatchupStats/);
   assert.match(source("components/ui/StatsTabsClient.tsx"), /\/api\/stats-matchups/);
