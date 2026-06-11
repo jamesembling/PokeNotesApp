@@ -425,7 +425,11 @@ async function measureImportAction() {
       const saveStartedAt = performance.now();
       clickButton('Save Log');
       await waitUntil(
-        () => (readDetailLogId() || readSavedListLogId()) && !document.querySelector('[data-route-loading]'),
+        () =>
+          readDetailLogId() ||
+          (readSavedListLogId() &&
+            performance.now() - saveStartedAt > 2000 &&
+            !document.querySelector('[data-route-loading]')),
         'saved log completion',
         45000
       );
