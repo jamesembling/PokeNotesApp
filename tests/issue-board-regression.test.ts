@@ -91,8 +91,10 @@ test("import log save navigates before the lazy dialog parent unmounts", () => {
     dialog.indexOf("useEffect(() => {", dialog.indexOf("async function handleSubmit"))
   );
 
-  assert.match(saveBlock, /router\.push\(result\.redirectTo\);\s*onClose\?\.\(\);/);
+  assert.match(saveBlock, /router\.push\(result\.redirectTo\);/);
+  assert.match(saveBlock, /router\.refresh\(\);\s*onClose\?\.\(\);/);
   assert.doesNotMatch(saveBlock, /setIsOpen\(false\);\s*onClose\?\.\(\);/);
+  assert.doesNotMatch(saveBlock, /router\.push\(result\.redirectTo\);\s*onClose\?\.\(\);/);
 });
 
 test("private helper endpoints disable caching and map user-facing share errors", () => {

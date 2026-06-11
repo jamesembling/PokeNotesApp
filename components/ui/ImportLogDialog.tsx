@@ -339,7 +339,6 @@ export function ImportLogDialog({
           }
 
           router.push(result.redirectTo);
-          onClose?.();
         }, 50);
       }, SUCCESS_CLOSE_DELAY_MS);
     } catch (error) {
