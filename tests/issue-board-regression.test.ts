@@ -92,7 +92,10 @@ test("import log save navigates before the lazy dialog parent unmounts", () => {
   );
 
   assert.match(saveBlock, /router\.push\(result\.redirectTo\);/);
-  assert.match(saveBlock, /router\.refresh\(\);\s*onClose\?\.\(\);/);
+  assert.match(
+    saveBlock,
+    /if \(normalizeRedirectPath\(result\.redirectTo\) === pathname\) \{\s*setIsOpen\(false\);\s*router\.refresh\(\);\s*onClose\?\.\(\);\s*return;\s*\}\s*router\.push\(result\.redirectTo\);/
+  );
   assert.doesNotMatch(saveBlock, /setIsOpen\(false\);\s*onClose\?\.\(\);/);
   assert.doesNotMatch(saveBlock, /router\.push\(result\.redirectTo\);\s*onClose\?\.\(\);/);
 });

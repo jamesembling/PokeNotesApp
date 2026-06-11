@@ -327,12 +327,12 @@ export function ImportLogDialog({
 
       clearCloseTimer();
       closeTimerRef.current = window.setTimeout(() => {
-        setIsOpen(false);
         clearNavigationTimer();
         navigationTimerRef.current = window.setTimeout(() => {
           resetImportState();
 
           if (normalizeRedirectPath(result.redirectTo) === pathname) {
+            setIsOpen(false);
             router.refresh();
             onClose?.();
             return;
