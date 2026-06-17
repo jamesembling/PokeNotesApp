@@ -122,6 +122,7 @@ export type ArchetypeIdentification = {
 export type DeckSpriteSelection = {
   slugs: string[];
   confidence: number;
+  selectionSource: "archetype" | "fallback";
 };
 
 export type ImportLogRecord = {

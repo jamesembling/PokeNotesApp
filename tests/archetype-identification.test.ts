@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
-import type { IdentificationCatalog, PlayerPokemonEvidence } from "@/lib/log-import/types";
+import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
+import type {
+  ArchetypeIdentification,
+  IdentificationCatalog,
+  PlayerPokemonEvidence,
+  PokemonCatalogRow
+} from "@/lib/log-import/types";
 
 function createEvidence(slugs: string[]): PlayerPokemonEvidence {
   return {
@@ -227,6 +233,28 @@ function createCatalog(): IdentificationCatalog {
   };
 }
 
+function addPokemon(
+  catalog: IdentificationCatalog,
+  slug: string,
+  ancestors: string[] = []
+) {
+  const row: PokemonCatalogRow = {
+    slug,
+    label: slug,
+    evolves_from: ancestors[0] ?? null,
+    sprite_url: "",
+    name_de: null,
+    name_es: null,
+    name_fr: null,
+    name_it: null,
+    name_pt_br: null
+  };
+
+  catalog.pokemon.bySlug.set(slug, row);
+  catalog.pokemon.slugToAncestors.set(slug, ancestors);
+  catalog.pokemon.slugToFamilyRoot.set(slug, ancestors[ancestors.length - 1] ?? slug);
+}
+
 test("identifyLikelyArchetype prefers multi-piece archetypes when more required groups are satisfied", () => {
   const catalog = createCatalog();
 
@@ -398,4 +426,78 @@ test("identifyLikelyArchetype does not identify Hydrapple / Teal Mask Ogerpon fr
   });
 
   assert.equal(result, null);
+});
+
+test("selectDeckSprites does not let a one-off single-sprite archetype override stronger family evidence", () => {
+  const catalog = createCatalog();
+  addPokemon(catalog, "riolu");
+  addPokemon(catalog, "lucario-mega", ["riolu"]);
+  addPokemon(catalog, "okidogi");
+  addPokemon(catalog, "fezandipiti");
+  addPokemon(catalog, "lunatone");
+  addPokemon(catalog, "solrock");
+
+  const archetype: NonNullable<ArchetypeIdentification> = {
+    archetypeId: "okidogi",
+    label: "Okidogi",
+    sprites: ["okidogi"],
+    confidence: 147
+  };
+
+  const result = selectDeckSprites({
+    archetype,
+    evidence: {
+      lines: [],
+      normalizedText: "okidogi",
+      mentionCounts: new Map([
+        ["riolu", 9],
+        ["lucario-mega", 5],
+        ["fezandipiti", 2],
+        ["lunatone", 2],
+        ["solrock", 2],
+        ["okidogi", 1]
+      ])
+    },
+    catalog
+  });
+
+  assert.deepEqual(result, {
+    slugs: ["lucario-mega", "fezandipiti"],
+    confidence: 10,
+    selectionSource: "fallback"
+  });
+});
+
+test("selectDeckSprites keeps a single-sprite archetype when it matches the strongest family", () => {
+  const catalog = createCatalog();
+  addPokemon(catalog, "dreepy");
+  addPokemon(catalog, "dragapult", ["drakloak", "dreepy"]);
+  addPokemon(catalog, "fezandipiti");
+
+  const archetype: NonNullable<ArchetypeIdentification> = {
+    archetypeId: "dragapult",
+    label: "Dragapult",
+    sprites: ["dragapult"],
+    confidence: 166
+  };
+
+  const result = selectDeckSprites({
+    archetype,
+    evidence: {
+      lines: [],
+      normalizedText: "dragapult",
+      mentionCounts: new Map([
+        ["dreepy", 9],
+        ["dragapult", 1],
+        ["fezandipiti", 2]
+      ])
+    },
+    catalog
+  });
+
+  assert.deepEqual(result, {
+    slugs: ["dragapult"],
+    confidence: 166,
+    selectionSource: "archetype"
+  });
 });

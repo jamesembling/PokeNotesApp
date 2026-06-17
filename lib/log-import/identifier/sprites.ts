@@ -19,13 +19,50 @@ export function selectDeckSprites(args: {
   evidence: PlayerPokemonEvidence;
   catalog: IdentificationCatalog;
 }): DeckSpriteSelection {
-  if (args.archetype && args.archetype.confidence >= 40) {
+  const { archetype } = args;
+  const fallbackSelection = selectFallbackDeckSprites({
+    evidence: args.evidence,
+    catalog: args.catalog
+  });
+
+  if (shouldUseArchetypeSprites(archetype, fallbackSelection.slugs, args.catalog)) {
     return {
-      slugs: args.archetype.sprites,
-      confidence: args.archetype.confidence
+      slugs: archetype.sprites,
+      confidence: archetype.confidence,
+      selectionSource: "archetype"
     };
   }
 
+  return fallbackSelection;
+}
+
+function shouldUseArchetypeSprites(
+  archetype: ArchetypeIdentification,
+  fallbackSlugs: string[],
+  catalog: IdentificationCatalog
+): archetype is NonNullable<ArchetypeIdentification> {
+  if (!archetype || archetype.confidence < 40) {
+    return false;
+  }
+
+  if (archetype.sprites.length !== 1) {
+    return true;
+  }
+
+  const [archetypeSprite] = archetype.sprites;
+  const [topFallbackSprite] = fallbackSlugs;
+
+  if (!topFallbackSprite) {
+    return true;
+  }
+
+  return getFamilyKey(archetypeSprite, catalog) === getFamilyKey(topFallbackSprite, catalog);
+}
+
+function selectFallbackDeckSprites(args: {
+  evidence: PlayerPokemonEvidence;
+  catalog: IdentificationCatalog;
+}): DeckSpriteSelection {
   const groupedFamilies = new Map<
     string,
     {
@@ -92,6 +129,7 @@ export function selectDeckSprites(args: {
 
   return {
     slugs: strongestSlugs,
-    confidence: strongestSlugs.length > 0 ? 10 : 0
+    confidence: strongestSlugs.length > 0 ? 10 : 0,
+    selectionSource: "fallback"
   };
 }

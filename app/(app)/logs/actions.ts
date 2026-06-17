@@ -181,8 +181,10 @@ async function buildParsedLogReview(
       catalog
     })
   );
-  const resolvedSelfArchetype = selfArchetype;
+  const resolvedSelfArchetype = selfSprites.selectionSource === "archetype" ? selfArchetype : null;
   const resolvedSelfSprites = selfSprites.slugs;
+  const resolvedOpponentArchetype =
+    opponentSprites.selectionSource === "archetype" ? opponentArchetype : null;
 
   const selfDeckName = getBattleLogDeckDisplayName(
     resolvedSelfArchetype?.label ?? "",
@@ -195,13 +197,13 @@ async function buildParsedLogReview(
     opponentPlayerName: parsed.players.opponentPlayerName,
     selfDeckName,
     opponentDeckName: getBattleLogOpponentDisplayName(
-      opponentArchetype?.label ?? "",
+      resolvedOpponentArchetype?.label ?? "",
       opponentSprites.slugs
     ),
     selfSprites: resolvedSelfSprites,
     opponentSprites: opponentSprites.slugs,
     selfDeckSlug,
-    opponentDeckSlug: opponentArchetype?.archetypeId ?? "",
+    opponentDeckSlug: resolvedOpponentArchetype?.archetypeId ?? "",
     date: buildImportDate(),
     goOrder: parsed.stats.goOrder,
     coinTossWon: parsed.stats.coinTossWon,
