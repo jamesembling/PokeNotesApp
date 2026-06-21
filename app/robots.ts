@@ -4,7 +4,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
-        disallow: ["/shared/"],
+        disallow: ["/shared/", "/s/"],
         userAgent: "*"
       }
     ]

@@ -127,6 +127,21 @@ test("reuses an active share for the same owner and log", async () => {
   assert.equal(rows.length, 1);
 });
 
+test("creates compact URL-safe share tokens", async () => {
+  const { store } = createMemoryStore();
+  const share = await getOrCreateLogShareSnapshot(
+    {
+      ownerUserId: "user-1",
+      sourceLogId: "log-1",
+      log: buildBattleLog(),
+      linkedStrategyLabel: "Dragapult ex"
+    },
+    { now: new Date("2026-04-15T10:00:00.000Z"), store }
+  );
+
+  assert.match(share.id, /^[A-Za-z0-9_-]{16}$/);
+});
+
 test("expired shares resolve to null", async () => {
   const { store } = createMemoryStore([
     {

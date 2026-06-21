@@ -96,7 +96,7 @@ function isBattleLogSharePayload(value: unknown): value is BattleLogSharePayload
 }
 
 function createShareToken() {
-  return randomBytes(24).toString("base64url");
+  return randomBytes(12).toString("base64url");
 }
 
 function isUniqueViolation(error: unknown) {

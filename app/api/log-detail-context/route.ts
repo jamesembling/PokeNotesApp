@@ -5,6 +5,7 @@ import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
 import { getPublicAppOrigin } from "@/lib/server/app-url";
 import { privateError, privateJson, reportApiError } from "@/lib/server/api-response";
+import { buildSharedLogUrl } from "@/lib/server/share-url";
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
           ? {
               expiresAt: activeShare.expiresAt,
               shareId: activeShare.id,
-              shareUrl: `${appOrigin}/shared/${activeShare.id}`
+              shareUrl: buildSharedLogUrl(appOrigin, activeShare.id)
             }
           : null,
         linkedDeckId: log.linkedDeckId,

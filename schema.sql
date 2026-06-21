@@ -973,7 +973,7 @@ grant execute on function public.get_deck_index_stats(text[]) to authenticated;
 -- ============================================================
 
 create table public.log_shares (
-  id                text primary key,       -- cryptographically random token, 32+ chars
+  id                text primary key,       -- cryptographically random URL-safe token
   owner_user_id     uuid not null references auth.users(id) on delete cascade,
   source_log_id     text,
 
@@ -989,7 +989,7 @@ create table public.log_shares (
 comment on table public.log_shares is
   'Public share tokens for battle logs. Payload is a full snapshot taken at share time.';
 comment on column public.log_shares.id is
-  'Share token. Must be cryptographically random and at least 32 characters. Never sequential.';
+  'Share token. Must be cryptographically random and never sequential.';
 comment on column public.log_shares.source_log_id is
   'Source battle log ID for owner-side share management. Nullable for legacy rows created before this column existed.';
 comment on column public.log_shares.payload is

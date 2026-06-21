@@ -194,7 +194,9 @@ test("deck list read paths do not call the external canonical sorter during rend
   const readPathFiles = [
     "lib/db/decks.ts",
     "app/(app)/tournaments/[id]/page.tsx",
-    "app/shared/[token]/page.tsx"
+    "components/ui/SharedLogPage.tsx",
+    "app/shared/[token]/page.tsx",
+    "app/s/[token]/page.tsx"
   ];
 
   for (const filePath of readPathFiles) {
@@ -241,7 +243,7 @@ test("deck and logs pages do not use client hydration stat patches", () => {
 });
 
 test("shared log page does not call live Limitless action tag resolution during render", () => {
-  const source = readFileSync(join(process.cwd(), "app/shared/[token]/page.tsx"), "utf8");
+  const source = readFileSync(join(process.cwd(), "components/ui/SharedLogPage.tsx"), "utf8");
   const actionTagsSource = readFileSync(join(process.cwd(), "lib/battle-log/action-tags.ts"), "utf8");
 
   assert.equal(
