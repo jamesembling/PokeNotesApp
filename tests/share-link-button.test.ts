@@ -14,5 +14,10 @@ test("native share payload does not include the share URL twice", () => {
     false,
     "native share targets can duplicate links when text and url both contain the same URL"
   );
+  assert.equal(
+    /text:\s*["']/.test(source),
+    false,
+    "native share copy targets should receive only the URL, not extra prefixed text"
+  );
   assert.match(source, /url:\s*shareUrl/);
 });
