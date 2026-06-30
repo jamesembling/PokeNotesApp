@@ -87,11 +87,35 @@ function stripLeadingBattleLogPlayerPossessive(value: string) {
   );
 }
 
+function formatDamageCounterPlacementDetail(value: string) {
+  const displayValue = cleanBattleLogDisplayText(value);
+  const bulletMatch = displayValue.match(/^([-•]\s*)?(.+)$/u);
+  const bullet = bulletMatch?.[1] ?? "";
+  const body = bulletMatch?.[2] ?? displayValue;
+  const counterMatch = body.match(
+    /^(?:[\p{L}\p{N}_.-]+\s+)?put\s+(a|\d+)\s+damage counters?\s+on\s+(.+)$/iu
+  );
+
+  if (!counterMatch?.[1] || !counterMatch[2]) {
+    return null;
+  }
+
+  const count = counterMatch[1].toLowerCase() === "a" ? "1" : counterMatch[1];
+  const target = stripLeadingBattleLogPlayerPossessive(counterMatch[2]);
+
+  return `${bullet}${count} damage ${count === "1" ? "counter" : "counters"} on ${target}`;
+}
+
 export function formatBattleLogActionDetail(
   detail: string,
   options: { actionTag?: BattleLogActionTag } = {}
 ) {
   const displayDetail = stripLeadingBattleLogPlayerPossessive(detail);
+  const damageCounterDetail = formatDamageCounterPlacementDetail(displayDetail);
+
+  if (damageCounterDetail) {
+    return damageCounterDetail;
+  }
 
   if (options.actionTag === "attack") {
     return stripBattleLogPlayerReferences(displayDetail);

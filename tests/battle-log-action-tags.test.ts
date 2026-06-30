@@ -300,6 +300,18 @@ test("formatBattleLogActionDetail strips player names from attack details", () =
   );
 });
 
+test("formatBattleLogActionDetail clarifies damage-counter placement details", () => {
+  assert.equal(
+    formatBattleLogActionDetail("Hyierro put 6 damage counters on Hyierro's Fan Rotom."),
+    "6 damage counters on Fan Rotom"
+  );
+
+  assert.equal(
+    formatBattleLogActionDetail("- _ndz put a damage counter on _ndz's Cynthia's Roserade."),
+    "- 1 damage counter on Cynthia's Roserade"
+  );
+});
+
 test("formatBattleLogActionDetail strips leading player names without removing owned Pokemon names", () => {
   assert.equal(
     formatBattleLogActionDetail("_ndz's Cynthia's Gabite is now in the Active spot.", {
