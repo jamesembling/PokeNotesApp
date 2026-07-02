@@ -44,7 +44,7 @@ async function LogsContent({
   );
 
   return (
-    <>
+    <div className="-mx-4 -my-6 flex min-h-dvh flex-col gap-6 bg-card px-4 py-6 sm:-mx-6 sm:-my-8 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8">
       <PageHeader
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
@@ -84,7 +84,7 @@ async function LogsContent({
       />
 
       <LogsWorkspaceClient window={hydratedWindow} />
-    </>
+    </div>
   );
 }
 

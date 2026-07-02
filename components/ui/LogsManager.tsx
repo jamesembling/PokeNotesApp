@@ -539,7 +539,7 @@ export function LogsManager({
         />
 
         {groups.length > 0 ? (
-          <div>
+          <div className="space-y-8">
             {groups.map((group, index) => (
               <details
                 className="group border-b border-border open:border-b-0"
