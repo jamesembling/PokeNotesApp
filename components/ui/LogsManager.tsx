@@ -516,24 +516,22 @@ export function LogsManager({
         </Alert>
       ) : null}
 
-      <section className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-6 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="ui-eyebrow">Battle Logs</h2>
             {!canLoadMore ? <Badge>Current window complete</Badge> : null}
           </div>
+
+          <Button
+            className="justify-center self-start sm:min-w-[5.5rem]"
+            onClick={toggleManagementMode}
+            variant={managementModeActive ? "default" : "outline"}
+          >
+            {managementModeActive ? "Done" : "Edit logs"}
+          </Button>
         </div>
 
-        <Button
-          className="justify-center self-start sm:min-w-[5.5rem]"
-          onClick={toggleManagementMode}
-          variant={managementModeActive ? "default" : "outline"}
-        >
-          {managementModeActive ? "Done" : "Edit logs"}
-        </Button>
-      </section>
-
-      <div className="flex flex-col gap-6 p-4 sm:p-5">
         <ClientPerfPanel
           expandedGroupCount={openGroupDates.length}
           totalGroupCount={groups.length}
@@ -542,61 +540,60 @@ export function LogsManager({
 
         {groups.length > 0 ? (
           <div>
-          {groups.map((group, index) => (
-            <details
-              className="group border-b border-border"
-              key={group.date}
-              onToggle={(event) => toggleGroup(group.date, event.currentTarget.open)}
-              open={openGroupDates.includes(group.date) || (index === 0 && openGroupDates.length === 0)}
-              style={{
-                contentVisibility: "auto",
-                containIntrinsicSize: "128px"
-              }}
-            >
-              <summary className="cursor-pointer list-none py-5 [&::-webkit-details-marker]:hidden">
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                    <div>
-                      <div className="flex items-start justify-between gap-3 sm:block">
-                        <div>
-                          <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-card-foreground">
-                            {formatDayDate(group.date)}
-                          </h3>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
-                          </p>
-                        </div>
+            {groups.map((group, index) => (
+              <details
+                className="group border-b border-border open:border-b-0"
+                key={group.date}
+                onToggle={(event) => toggleGroup(group.date, event.currentTarget.open)}
+                open={openGroupDates.includes(group.date) || (index === 0 && openGroupDates.length === 0)}
+                style={{
+                  contentVisibility: "auto",
+                  containIntrinsicSize: "128px"
+                }}
+              >
+                <summary className="cursor-pointer list-none py-5 group-open:border-b group-open:border-border [&::-webkit-details-marker]:hidden">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                      <div>
+                        <div className="flex items-start justify-between gap-3 sm:block">
+                          <div>
+                            <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-card-foreground">
+                              {formatDayDate(group.date)}
+                            </h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
+                            </p>
+                          </div>
 
-                        <div className="text-right sm:hidden">
-                          <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
-                            {group.wins}-{group.losses}
-                          </p>
-                          <div className="mt-1 flex items-center justify-end gap-2 text-[0.8rem] text-muted-foreground">
-                            <span>{group.logs.length} total</span>
-                            <ChevronIcon className="size-4 shrink-0 transition group-open:rotate-180" />
+                          <div className="text-right sm:hidden">
+                            <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
+                              {group.wins}-{group.losses}
+                            </p>
+                            <div className="mt-1 flex items-center justify-end gap-2 text-[0.8rem] text-muted-foreground">
+                              <span>{group.logs.length} total</span>
+                              <ChevronIcon className="size-4 shrink-0 transition group-open:rotate-180" />
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="hidden items-center self-center lg:flex lg:gap-2.5">
-                    <div className="text-right">
-                      <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
-                        {group.wins}-{group.losses}
-                      </p>
-                      <p className="mt-1 text-[0.95rem] leading-none text-muted-foreground">
-                        {group.logs.length} total
-                      </p>
+                    <div className="hidden items-center self-center lg:flex lg:gap-2.5">
+                      <div className="text-right">
+                        <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
+                          {group.wins}-{group.losses}
+                        </p>
+                        <p className="mt-1 text-[0.95rem] leading-none text-muted-foreground">
+                          {group.logs.length} total
+                        </p>
+                      </div>
+                      <ChevronIcon className="size-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                     </div>
-                    <ChevronIcon className="size-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                   </div>
-                </div>
-              </summary>
+                </summary>
 
-              {openGroupDates.includes(group.date) ? (
-                <div className="flex flex-col gap-3 pb-2 pt-1">
-                  {group.logs.map((log) => (
-                    <div className="flex flex-col gap-3" key={log.id}>
+                {openGroupDates.includes(group.date) ? (
+                  <div className="flex flex-col">
+                    {group.logs.map((log) => (
                       <LogRow
                         editAction={
                           <DropdownMenuItem
@@ -609,20 +606,20 @@ export function LogsManager({
                             Edit
                           </DropdownMenuItem>
                         }
+                        key={log.id}
                         log={log}
                         managementMode={managementModeActive}
                         onDelete={() => handleDeleteSingle(log.id)}
                         onWarmDetailAssets={() => warmBattleLogDetailRoute(router, log.id)}
                         onToggleSelected={() => toggleSelectedLog(log.id)}
                         selected={selectedLogIdSet.has(log.id)}
+                        variant="flat"
                       />
-
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </details>
-          ))}
+                    ))}
+                  </div>
+                ) : null}
+              </details>
+            ))}
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">

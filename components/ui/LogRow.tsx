@@ -28,6 +28,7 @@ type LogRowProps = {
   onToggleSelected?: () => void;
   pokemonOptions?: PokemonOption[] | null;
   selected?: boolean;
+  variant?: "card" | "flat";
 };
 
 function formatGoOrder(goOrder: BattleLogSummary["goOrder"]) {
@@ -55,12 +56,17 @@ function LogRowComponent({
   onWarmDetailAssets,
   onToggleSelected,
   pokemonOptions,
-  selected = false
+  selected = false,
+  variant = "card"
 }: LogRowProps) {
-  const rowClasses =
+  const toneClasses =
     log.result === "Win"
       ? "border-win-border bg-win-bg"
       : "border-loss-border bg-loss-bg";
+  const flatToneClasses =
+    log.result === "Win"
+      ? "border-l-win-border bg-win-bg"
+      : "border-l-loss-border bg-loss-bg";
 
   const selfSprites = log.selfDeckSprites.slice(0, 2);
   const opponentDeckName = getBattleLogOpponentDisplayName(
@@ -74,14 +80,18 @@ function LogRowComponent({
   const mobileMetadata = formatDayDate(log.date);
 
   const cardClasses = [
-    "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border p-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
+    variant === "flat"
+      ? "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden border-b border-l-4 border-b-border p-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5"
+      : "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border p-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
     managementMode && selected ? "ring-2 ring-inset ring-ring/45" : "",
-    rowClasses
+    variant === "flat" ? flatToneClasses : toneClasses
   ].join(" ");
   const managementRowClasses = [
-    "group/row grid overflow-hidden rounded-[10px] border text-left transition duration-200 hover:brightness-[0.98] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
+    variant === "flat"
+      ? "group/row grid overflow-hidden border-b border-l-4 border-b-border text-left transition duration-200 hover:brightness-[0.98] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch"
+      : "group/row grid overflow-hidden rounded-[10px] border text-left transition duration-200 hover:brightness-[0.98] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
     selected ? "ring-2 ring-inset ring-ring/45" : "",
-    rowClasses
+    variant === "flat" ? flatToneClasses : toneClasses
   ].join(" ");
   const managementLinkClasses =
     "grid min-w-0 grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 p-3 text-left outline-none sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5";
