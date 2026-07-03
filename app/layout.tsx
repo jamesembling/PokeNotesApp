@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Fraunces, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { SiteFormatsProvider } from "@/components/ui/SiteFormatsProvider";
 import { getInitialSiteFormats } from "@/lib/formats/catalog";
@@ -8,6 +9,27 @@ import { TooltipProvider } from "@/components/shadcn/tooltip";
 import "./globals.css";
 
 type Theme = "light" | "dark";
+
+const ibmPlexSans = IBM_Plex_Sans({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-body",
+  weight: ["400", "500", "600", "700"]
+});
+
+const fraunces = Fraunces({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["500", "600", "700"]
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["400", "500", "600", "700"]
+});
 
 export const metadata: Metadata = {
   title: "Poke Notes",
@@ -35,7 +57,12 @@ export default async function RootLayout({
 
   return (
     <html
-      className={initialTheme === "dark" ? "dark" : ""}
+      className={[
+        initialTheme === "dark" ? "dark" : "",
+        ibmPlexSans.variable,
+        fraunces.variable,
+        jetBrainsMono.variable
+      ].filter(Boolean).join(" ")}
       lang="en"
       suppressHydrationWarning
     >
