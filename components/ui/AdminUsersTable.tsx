@@ -80,7 +80,7 @@ export function AdminUsersTable({
               </div>
 
               <div className="grid gap-2">
-                <dt className="ui-eyebrow text-[0.65rem]">Role</dt>
+                <dt className="ui-eyebrow text-[0.65rem]">Admin</dt>
                 <dd className="min-w-0">
                   <AdminRoleControls
                     currentRole={user.role}
@@ -102,7 +102,7 @@ export function AdminUsersTable({
               <th className="border-b border-border p-3 font-semibold">PTCGL</th>
               <th className="border-b border-border p-3 font-semibold">Activity</th>
               <th className="border-b border-border p-3 font-semibold">Content</th>
-              <th className="border-b border-border p-3 font-semibold">Role</th>
+              <th className="border-b border-border p-3 font-semibold">Admin</th>
             </tr>
           </thead>
           <tbody>

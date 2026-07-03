@@ -1,36 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { updateAdminUserRoleAction } from "@/app/(admin)/admin/dashboard/actions";
-import { Button } from "@/components/shadcn/button";
-import { ButtonGroup } from "@/components/shadcn/button-group";
+import { Switch } from "@/components/shadcn/switch";
 import type { Role } from "@/types/index";
-
-function RoleButton({
-  currentRole,
-  disabled,
-  onChange,
-  targetRole
-}: {
-  currentRole: Role;
-  disabled: boolean;
-  onChange: (nextRole: Role) => void;
-  targetRole: Role;
-}) {
-  const isActive = currentRole === targetRole;
-
-  return (
-    <Button
-      className="min-w-[7rem] justify-center"
-      disabled={disabled || isActive}
-      onClick={() => onChange(targetRole)}
-      variant={isActive ? "default" : "outline"}
-    >
-      {targetRole === "admin" ? "Admin" : "User"}
-    </Button>
-  );
-}
 
 export function AdminRoleControls({
   currentRole,
@@ -42,10 +16,17 @@ export function AdminRoleControls({
   userId: string;
 }) {
   const router = useRouter();
+  const adminSwitchId = useId();
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
+  const isAdmin = currentRole === "admin";
+  const disabled = !roleUpdatesEnabled || isPending;
 
   function handleRoleChange(role: Role) {
+    if (role === currentRole) {
+      return;
+    }
+
     setFeedback(null);
 
     startTransition(async () => {
@@ -61,21 +42,16 @@ export function AdminRoleControls({
   }
 
   return (
-    <div className="space-y-2">
-      <ButtonGroup className="max-w-full flex-wrap">
-        <RoleButton
-          currentRole={currentRole}
-          disabled={!roleUpdatesEnabled || isPending}
-          onChange={handleRoleChange}
-          targetRole="user"
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <Switch
+          aria-label="Admin role"
+          checked={isAdmin}
+          disabled={disabled}
+          id={adminSwitchId}
+          onCheckedChange={(checked) => handleRoleChange(checked ? "admin" : "user")}
         />
-        <RoleButton
-          currentRole={currentRole}
-          disabled={!roleUpdatesEnabled || isPending}
-          onChange={handleRoleChange}
-          targetRole="admin"
-        />
-      </ButtonGroup>
+      </div>
       {feedback ? (
         <p className="text-xs text-loss">{feedback}</p>
       ) : null}

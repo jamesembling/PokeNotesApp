@@ -5,11 +5,9 @@ import { startTransition, useEffect, useMemo, useState } from "react";
 import { Textarea } from "@/components/shadcn/textarea";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { Card } from "@/components/shadcn/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
-import { StatCard } from "@/components/ui/StatCard";
 import {
   analyzeDecklist,
   getPokemonSpriteUrl,
@@ -70,10 +68,10 @@ export function ProbabilityCalculator() {
 
   const showStatus = Boolean(statusMessage) || Boolean(analysis?.warnings.length) || Boolean(analysis);
   const statusClassName = [
-    "h-[9.5rem] overflow-y-auto rounded-xl border p-4",
+    "min-h-20 overflow-y-auto py-2",
     analysis?.warnings.length || statusTone === "warn"
-      ? "border-loss-border bg-loss-bg"
-      : "border-ring/20 bg-muted"
+      ? "text-loss"
+      : "text-muted-foreground"
   ].join(" ");
 
   const setupCards = analysis?.setupRows ?? [];
@@ -181,49 +179,48 @@ export function ProbabilityCalculator() {
 
   return (
     <section className="grid gap-6">
-      <Card>
-        <div className="grid gap-6 xl:items-start xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-          <div className="grid content-start gap-4">
-            <div className="space-y-2">
-              <p className="ui-eyebrow">Deck Input</p>
-              <div className="space-y-1">
-                <h2 className="ui-section-title">Paste a deck list</h2>
-                <p className="text-sm text-muted-foreground">
-                  Paste a Limitless-format list to calculate opening-hand and prizing probabilities.
-                </p>
-              </div>
+      <section className="grid gap-6 border-b border-border pb-6 xl:items-start xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+        <div className="grid content-start gap-4">
+          <div className="space-y-2">
+            <p className="ui-eyebrow">Deck Input</p>
+            <div className="space-y-1">
+              <h2 className="ui-section-title">Paste a deck list</h2>
+              <p className="text-sm text-muted-foreground">
+                Paste a Limitless-format list to calculate opening-hand and prizing probabilities.
+              </p>
             </div>
+          </div>
 
-            <div className="grid gap-2">
-              <label
-                className="ui-eyebrow"
-                htmlFor="calculator-deck-input"
-              >
-                Deck List
-              </label>
-              <Textarea
-                className="h-[320px] w-full resize-none rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
-                id="calculator-deck-input"
-                onChange={(event) => setDeckInput(event.target.value)}
-                placeholder="Paste your deck list here"
-                spellCheck={false}
-                value={deckInput}
-              />
-            </div>
+          <div className="grid gap-2">
+            <label
+              className="ui-eyebrow"
+              htmlFor="calculator-deck-input"
+            >
+              Deck List
+            </label>
+            <Textarea
+              className="h-[320px] w-full resize-none rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
+              id="calculator-deck-input"
+              onChange={(event) => setDeckInput(event.target.value)}
+              placeholder="Paste your deck list here"
+              spellCheck={false}
+              value={deckInput}
+            />
+          </div>
 
-            <ButtonGroup className="w-full" orientation="vertical">
-              <Button onClick={() => runCalculation(deckInput)}>Calculate</Button>
-              <Button onClick={handleSampleDeck} variant="outline">
-                Load Sample Deck
-              </Button>
-              <Button onClick={handleClear} variant="outline">
-                Clear
-              </Button>
-            </ButtonGroup>
+          <ButtonGroup className="w-full" orientation="vertical">
+            <Button onClick={() => runCalculation(deckInput)}>Calculate</Button>
+            <Button onClick={handleSampleDeck} variant="outline">
+              Load Sample Deck
+            </Button>
+            <Button onClick={handleClear} variant="outline">
+              Clear
+            </Button>
+          </ButtonGroup>
 
-            <section className={statusClassName}>
-              {showStatus ? (
-                <>
+          <section className={statusClassName}>
+            {showStatus ? (
+              <>
                 {analysis ? (
                   <p className="text-sm leading-6 text-card-foreground">
                     Parsed {analysis.cards.length} unique cards: {analysis.totals.Pokemon} Pokemon,{" "}
@@ -245,186 +242,203 @@ export function ProbabilityCalculator() {
                     ))}
                   </ul>
                 ) : null}
-                </>
-              ) : (
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Paste a deck list and click Calculate to review parsed counts, warnings, and setup stats.
-                </p>
-              )}
-            </section>
-          </div>
-
-          <div className="grid gap-5 xl:border-l xl:border-border xl:pl-6">
-            <section className="grid gap-4">
-              <div className="space-y-1">
-                <p className="ui-eyebrow">Opening Hand Risk</p>
-                <h2 className="ui-section-title">Mulligan Stats and Deck Visual</h2>
-                <p className="text-sm text-muted-foreground">
-                  Review your opening-hand probabilities first, then scan the sorted 60-card visual below.
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <StatCard
-                  detail="Chance your opening hand has no Basic Pokemon."
-                  label="Mulligan Rate"
-                  value={summary.mulligan}
-                />
-                <StatCard
-                  detail="Chance your opening hand starts with exactly one Basic."
-                  label="Starting With 1 Basic"
-                  value={summary.oneBasic}
-                />
-                <StatCard
-                  detail="Chance your opening hand starts with two or more Basics."
-                  label="Starting With 2+ Basics"
-                  value={summary.twoBasics}
-                />
-              </div>
-
-              <div className="rounded-[24px] border border-border bg-muted p-4 sm:p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="ui-eyebrow">Deck Visual</p>
-                    <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-card-foreground">
-                      60-Card Graphic
-                    </h3>
-                  </div>
-                  <CopyDeckListButton text={deckInput} />
-                </div>
-
-                <div className="mt-4">
-                  {analysis ? (
-                    <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
-                  ) : (
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      Card images will appear here after calculation.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <div className="grid gap-4">
-            <div className="space-y-1">
-              <p className="ui-eyebrow">Opening Hand Risk</p>
-              <h2 className="ui-section-title">Mulligan Streak Calculator</h2>
-              <p className="text-sm text-muted-foreground">
-                {analysis
-                  ? "Odds of repeated no-Basic opening hands."
-                  : "Odds of repeated no-Basic opening hands will appear here after calculation."}
-              </p>
-            </div>
-
-            {analysis ? (
-              <>
-                <p className="text-sm text-foreground">
-                  Basics in deck: <strong>{analysis.basicPokemonCount}</strong> out of <strong>60</strong>{" "}
-                  cards.
-                </p>
-                <div className="overflow-hidden rounded-xl border border-border bg-muted">
-                  <div className="ui-eyebrow grid grid-cols-3 gap-4 border-b border-border px-4 py-3">
-                    <span>Streak</span>
-                    <span>Exact</span>
-                    <span>At Least</span>
-                  </div>
-                  <div className="divide-y divide-[var(--border)]">
-                    {analysis.mulliganRows.map((row) => (
-                      <div
-                        className="grid grid-cols-3 gap-4 px-4 py-3 text-sm text-foreground"
-                        key={row.streak}
-                      >
-                        <span className="font-semibold text-card-foreground">{row.streak}x</span>
-                        <span>{pct(row.exactThenPlayable)}</span>
-                        <span>{pct(row.atLeast)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Exact means that many mulligans, then your next hand is playable.
-                </p>
               </>
             ) : (
               <p className="text-sm leading-6 text-muted-foreground">
-                Calculate a deck list to populate mulligan streak probabilities.
+                Paste a deck list and click Calculate to review parsed counts, warnings, and setup stats.
               </p>
             )}
+          </section>
         </div>
-      </Card>
 
-      <Card>
         <div className="grid gap-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <section className="grid gap-4">
             <div className="space-y-1">
-              <p className="ui-eyebrow">Card Odds</p>
-              <h2 className="ui-section-title">Setup and Prizing Detail</h2>
+              <p className="ui-eyebrow">Opening Hand Risk</p>
+              <h2 className="ui-section-title">Mulligan Stats and Deck Visual</h2>
+              <p className="text-sm text-muted-foreground">
+                Review your opening-hand probabilities first, then scan the sorted 60-card visual below.
+              </p>
             </div>
 
-            <Tabs
-              className="w-auto"
-              onValueChange={(value) => setActiveTab(value as TabId)}
-              value={activeTab}
-            >
-              <TabsList aria-label="Calculator views" className="rounded-full bg-muted p-1">
-                <TabsTrigger className="rounded-full px-4" value="setup">
-                  Setup
-                </TabsTrigger>
-                <TabsTrigger className="rounded-full px-4" value="prizing">
-                  Prizing
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ProbabilitySummaryMetric
+                detail="Chance your opening hand has no Basic Pokemon."
+                label="Mulligan Rate"
+                value={summary.mulligan}
+              />
+              <ProbabilitySummaryMetric
+                detail="Chance your opening hand starts with exactly one Basic."
+                label="Starting With 1 Basic"
+                value={summary.oneBasic}
+              />
+              <ProbabilitySummaryMetric
+                detail="Chance your opening hand starts with two or more Basics."
+                label="Starting With 2+ Basics"
+                value={summary.twoBasics}
+              />
+            </div>
+
+            <div className="grid gap-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="ui-eyebrow">Deck Visual</p>
+                  <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-card-foreground">
+                    60-Card Graphic
+                  </h3>
+                </div>
+                <CopyDeckListButton text={deckInput} />
+              </div>
+
+              <div>
+                {analysis ? (
+                  <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
+                ) : (
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Card images will appear here after calculation.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section className="grid gap-4 border-b border-border pb-6">
+        <div className="space-y-1">
+          <p className="ui-eyebrow">Opening Hand Risk</p>
+          <h2 className="ui-section-title">Mulligan Streak Calculator</h2>
+          <p className="text-sm text-muted-foreground">
+            {analysis
+              ? "Odds of repeated no-Basic opening hands."
+              : "Odds of repeated no-Basic opening hands will appear here after calculation."}
+          </p>
+        </div>
+
+        {analysis ? (
+          <>
+            <p className="text-sm text-foreground">
+              Basics in deck: <strong>{analysis.basicPokemonCount}</strong> out of <strong>60</strong>{" "}
+              cards.
+            </p>
+            <div className="overflow-hidden rounded-xl border border-border bg-muted">
+              <div className="ui-eyebrow grid grid-cols-3 gap-4 border-b border-border px-4 py-3">
+                <span>Streak</span>
+                <span>Exact</span>
+                <span>At Least</span>
+              </div>
+              <div className="divide-y divide-[var(--border)]">
+                {analysis.mulliganRows.map((row) => (
+                  <div
+                    className="grid grid-cols-3 gap-4 px-4 py-3 text-sm text-foreground"
+                    key={row.streak}
+                  >
+                    <span className="font-semibold text-card-foreground">{row.streak}x</span>
+                    <span>{pct(row.exactThenPlayable)}</span>
+                    <span>{pct(row.atLeast)}</span>
+                  </div>
+                ))}
+                </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Exact means that many mulligans, then your next hand is playable.
+            </p>
+          </>
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">
+            Calculate a deck list to populate mulligan streak probabilities.
+          </p>
+        )}
+      </section>
+
+      <section className="grid gap-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="ui-eyebrow">Card Odds</p>
+            <h2 className="ui-section-title">Setup and Prizing Detail</h2>
           </div>
 
-          {activeTab === "setup" ? (
-            setupComparisonRows.length ? (
-              <ProbabilityComparisonTable
-                columns={[
-                  { key: "primary", label: "Only Starter" },
-                  { key: "secondary", label: "In Starting 7" }
-                ]}
-                pokemonOptions={pokemonOptions}
-                rows={setupComparisonRows.map((row) => ({
-                  card: row.card,
-                  key: `${row.card.name}-${row.card.category}`,
-                  metrics: [
-                    { label: "Only Starter", value: pct(row.onlyStarter) },
-                    { label: "In Starting 7", value: pct(row.inStartingSeven) }
-                  ]
-                }))}
-              />
-            ) : (
-              <p className="text-sm leading-6 text-muted-foreground">
-                No Pokemon cards were parsed for setup probabilities.
-              </p>
-            )
-          ) : prizingComparisonRows.length ? (
-            <ProbabilityCompactGrid
+          <Tabs
+            className="w-auto"
+            onValueChange={(value) => setActiveTab(value as TabId)}
+            value={activeTab}
+          >
+            <TabsList aria-label="Calculator views" className="rounded-full bg-muted p-1">
+              <TabsTrigger className="rounded-full px-4" value="setup">
+                Setup
+              </TabsTrigger>
+              <TabsTrigger className="rounded-full px-4" value="prizing">
+                Prizing
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {activeTab === "setup" ? (
+          setupComparisonRows.length ? (
+            <ProbabilityComparisonTable
+              columns={[
+                { key: "primary", label: "Only Starter" },
+                { key: "secondary", label: "In Starting 7" }
+              ]}
               pokemonOptions={pokemonOptions}
-              rows={prizingComparisonRows.map((row) => ({
+              rows={setupComparisonRows.map((row) => ({
                 card: row.card,
                 key: `${row.card.name}-${row.card.category}`,
                 metrics: [
-                  { label: "None Prized", value: pct(row.nonePrized) },
-                  { label: "1 Prized", value: pct(row.onePrized) },
-                  { label: "2 Prized", value: pct(row.twoPrized) },
-                  { label: "3+ Prized", value: pct(row.threePlusPrized) }
+                  { label: "Only Starter", value: pct(row.onlyStarter) },
+                  { label: "In Starting 7", value: pct(row.inStartingSeven) }
                 ]
               }))}
             />
           ) : (
             <p className="text-sm leading-6 text-muted-foreground">
-              No cards were parsed for prizing probabilities.
+              No Pokemon cards were parsed for setup probabilities.
             </p>
-          )}
-        </div>
-      </Card>
+          )
+        ) : prizingComparisonRows.length ? (
+          <ProbabilityCompactGrid
+            pokemonOptions={pokemonOptions}
+            rows={prizingComparisonRows.map((row) => ({
+              card: row.card,
+              key: `${row.card.name}-${row.card.category}`,
+              metrics: [
+                { label: "None Prized", value: pct(row.nonePrized) },
+                { label: "1 Prized", value: pct(row.onePrized) },
+                { label: "2 Prized", value: pct(row.twoPrized) },
+                { label: "3+ Prized", value: pct(row.threePlusPrized) }
+              ]
+            }))}
+          />
+        ) : (
+          <p className="text-sm leading-6 text-muted-foreground">
+            No cards were parsed for prizing probabilities.
+          </p>
+        )}
+      </section>
     </section>
+  );
+}
+
+function ProbabilitySummaryMetric({
+  detail,
+  label,
+  value
+}: {
+  detail: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex h-full flex-col gap-2 py-2">
+      <p className="text-xs font-medium uppercase leading-tight tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p className="text-3xl font-semibold leading-none tracking-[-0.02em] text-card-foreground [font-variant-numeric:tabular-nums]">
+        {value}
+      </p>
+      <p className="text-xs leading-5 text-muted-foreground">{detail}</p>
+    </div>
   );
 }
 
