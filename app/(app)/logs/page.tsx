@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { Card } from "@/components/shadcn/card";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
@@ -29,6 +29,18 @@ export default async function LogsPage() {
   );
 }
 
+const logsPagePaletteStyle = {
+  // Trial logs palette. Keep token-based so this can move to globals cleanly.
+  "--background": "#FBFAF6",
+  "--card": "#FBFAF6",
+  "--foreground": "#2B2822",
+  "--card-foreground": "#2B2822",
+  "--muted": "#F3F0E8",
+  "--muted-foreground": "#7A7365",
+  "--border": "#ECE9E1",
+  "--input": "#ECE9E1"
+} as CSSProperties;
+
 async function LogsContent({
   hydratedWindowPromise,
   statsPromise
@@ -44,7 +56,10 @@ async function LogsContent({
   );
 
   return (
-    <div className="-mx-4 -my-6 flex min-h-dvh flex-col gap-6 bg-card px-4 py-6 sm:-mx-6 sm:-my-8 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8">
+    <div
+      className="-mx-4 -my-6 flex min-h-dvh flex-col gap-6 bg-background px-4 py-6 text-foreground sm:-mx-6 sm:-my-8 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8"
+      style={logsPagePaletteStyle}
+    >
       <PageHeader
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
