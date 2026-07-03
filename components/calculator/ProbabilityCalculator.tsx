@@ -66,7 +66,7 @@ export function ProbabilityCalculator() {
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"info" | "warn">("info");
 
-  const showStatus = Boolean(statusMessage) || Boolean(analysis?.warnings.length) || Boolean(analysis);
+  const showStatus = Boolean(statusMessage) || Boolean(analysis?.warnings.length);
   const statusClassName = [
     "min-h-20 overflow-y-auto py-2",
     analysis?.warnings.length || statusTone === "warn"
@@ -191,18 +191,12 @@ export function ProbabilityCalculator() {
       <section className="grid gap-6 border-b border-border pb-6 xl:items-start xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
         <div className="grid content-start gap-4">
           <div className="space-y-2">
-            <p className="ui-eyebrow">Deck Input</p>
-            <div className="space-y-1">
-              <h2 className="ui-section-title">Paste a deck list</h2>
-              <p className="text-sm text-muted-foreground">
-                Paste a Limitless-format list to calculate opening-hand and prizing probabilities.
-              </p>
-            </div>
+            <h2 className="ui-section-title">Paste a deck list</h2>
           </div>
 
           <div className="grid gap-2">
             <label
-              className="ui-eyebrow"
+              className="sr-only"
               htmlFor="calculator-deck-input"
             >
               Deck List
@@ -227,57 +221,39 @@ export function ProbabilityCalculator() {
             </Button>
           </ButtonGroup>
 
-          <section className={statusClassName}>
-            {showStatus ? (
-              <>
-                {analysis ? (
-                  <p className="text-sm leading-6 text-card-foreground">
-                    Parsed {analysis.cards.length} unique cards: {analysis.totals.Pokemon} Pokemon,{" "}
-                    {analysis.totals.Trainer} Trainer, {analysis.totals.Energy} Energy,{" "}
-                    {analysis.totals.deck} cards total.
-                  </p>
-                ) : null}
+          {showStatus ? (
+            <section className={statusClassName}>
+              {statusMessage ? (
+                <p className="mt-2 text-sm font-medium leading-6 text-card-foreground">
+                  {statusMessage}
+                </p>
+              ) : null}
 
-                {statusMessage ? (
-                  <p className="mt-2 text-sm font-medium leading-6 text-card-foreground">
-                    {statusMessage}
-                  </p>
-                ) : null}
-
-                {analysis?.warnings.length ? (
-                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-loss">
-                    {analysis.warnings.map((warning) => (
-                      <li key={warning}>{warning}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-sm leading-6 text-muted-foreground">
-                Paste a deck list and click Calculate to review parsed counts, warnings, and setup stats.
-              </p>
-            )}
-          </section>
+              {analysis?.warnings.length ? (
+                <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-loss">
+                  {analysis.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="grid gap-3 border-t border-border pt-4">
             <div className="space-y-1">
-              <p className="ui-eyebrow">Opening Hand Risk</p>
               <h2 className="ui-section-title">Mulligan Stats</h2>
             </div>
 
             <div className="grid gap-3">
               <ProbabilitySummaryMetric
-                detail="Chance your opening hand has no Basic Pokemon."
                 label="Mulligan Rate"
                 value={summary.mulligan}
               />
               <ProbabilitySummaryMetric
-                detail="Chance your opening hand starts with exactly one Basic."
                 label="Starting With 1 Basic"
                 value={summary.oneBasic}
               />
               <ProbabilitySummaryMetric
-                detail="Chance your opening hand starts with two or more Basics."
                 label="Starting With 2+ Basics"
                 value={summary.twoBasics}
               />
@@ -290,7 +266,6 @@ export function ProbabilityCalculator() {
             <div className="grid gap-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <p className="ui-eyebrow">Deck Visual</p>
                   <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-card-foreground">
                     60-Card Graphic
                   </h3>
@@ -301,11 +276,7 @@ export function ProbabilityCalculator() {
               <div>
                 {analysis ? (
                   <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
-                ) : (
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Card images will appear here after calculation.
-                  </p>
-                )}
+                ) : null}
               </div>
             </div>
           </section>
@@ -314,21 +285,11 @@ export function ProbabilityCalculator() {
 
       <section className="grid gap-4 border-b border-border pb-6">
         <div className="space-y-1">
-          <p className="ui-eyebrow">Opening Hand Risk</p>
           <h2 className="ui-section-title">Mulligan Streak Calculator</h2>
-          <p className="text-sm text-muted-foreground">
-            {analysis
-              ? "Odds of repeated no-Basic opening hands."
-              : "Odds of repeated no-Basic opening hands will appear here after calculation."}
-          </p>
         </div>
 
         {analysis ? (
           <>
-            <p className="text-sm text-foreground">
-              Basics in deck: <strong>{analysis.basicPokemonCount}</strong> out of <strong>60</strong>{" "}
-              cards.
-            </p>
             <div className="overflow-hidden rounded-xl border border-border bg-muted">
               <div className="ui-eyebrow grid grid-cols-3 gap-4 border-b border-border px-4 py-3">
                 <span>Streak</span>
@@ -348,15 +309,8 @@ export function ProbabilityCalculator() {
                 ))}
                 </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Exact means that many mulligans, then your next hand is playable.
-            </p>
           </>
-        ) : (
-          <p className="text-sm leading-6 text-muted-foreground">
-            Calculate a deck list to populate mulligan streak probabilities.
-          </p>
-        )}
+        ) : null}
       </section>
 
       <section className="grid gap-5">
@@ -400,9 +354,7 @@ export function ProbabilityCalculator() {
               }))}
             />
           ) : (
-            <p className="text-sm leading-6 text-muted-foreground">
-              No Pokemon cards were parsed for setup probabilities.
-            </p>
+            null
           )
         ) : prizingComparisonRows.length ? (
           <ProbabilityCompactGrid
@@ -419,9 +371,7 @@ export function ProbabilityCalculator() {
             }))}
           />
         ) : (
-          <p className="text-sm leading-6 text-muted-foreground">
-            No cards were parsed for prizing probabilities.
-          </p>
+          null
         )}
       </section>
     </section>
@@ -429,11 +379,9 @@ export function ProbabilityCalculator() {
 }
 
 function ProbabilitySummaryMetric({
-  detail,
   label,
   value
 }: {
-  detail: string;
   label: string;
   value: string;
 }) {
@@ -445,7 +393,6 @@ function ProbabilitySummaryMetric({
       <p className="text-3xl font-semibold leading-none tracking-[-0.02em] text-card-foreground [font-variant-numeric:tabular-nums]">
         {value}
       </p>
-      <p className="text-xs leading-5 text-muted-foreground">{detail}</p>
     </div>
   );
 }

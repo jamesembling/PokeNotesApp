@@ -425,7 +425,7 @@ export function ImportLogDialog({
             Confirm the parsed result, then save it to your battle logs.
           </DialogDescription>
         </div>
-        <ButtonGroup className="w-full">
+        <ButtonGroup className="w-full md:hidden [&>button]:w-full">
           <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
         </ButtonGroup>
       </div>
@@ -715,6 +715,13 @@ export function ImportLogDialog({
                       <ResultChip>{review.language}</ResultChip>
                     </div>
                   </section>
+
+                  <ButtonGroup className="hidden w-full md:flex [&>button]:w-full">
+                    <SaveButton
+                      onClick={() => formRef.current?.requestSubmit()}
+                      saveState={saveState}
+                    />
+                  </ButtonGroup>
                 </form>
               ) : (
                 <div className="flex min-w-0 flex-col gap-6">

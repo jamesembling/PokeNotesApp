@@ -84,16 +84,10 @@ function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon;
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className="relative data-[active=true]:bg-[rgba(220,38,38,0.12)] data-[active=true]:font-semibold data-[active=true]:text-primary data-[active=true]:hover:bg-[rgba(220,38,38,0.16)] data-[active=true]:hover:text-primary dark:data-[active=true]:bg-[rgba(220,38,38,0.24)] dark:data-[active=true]:hover:bg-[rgba(220,38,38,0.3)]"
+        className="relative px-6 data-[active=true]:!rounded-none data-[active=true]:!bg-[rgba(220,38,38,0.12)] data-[active=true]:font-semibold data-[active=true]:!text-card-foreground data-[active=true]:hover:!bg-[rgba(220,38,38,0.16)] data-[active=true]:hover:!text-card-foreground dark:data-[active=true]:!bg-[#4A1F24] dark:data-[active=true]:!text-primary-foreground dark:data-[active=true]:hover:!bg-[#4A1F24] dark:data-[active=true]:hover:!text-primary-foreground group-data-[collapsible=icon]:px-2"
         isActive={active}
       >
         <Link href={href} onClick={() => setOpenMobile(false)} prefetch={false}>
-          {active ? (
-            <span
-              aria-hidden="true"
-              className="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-primary group-data-[collapsible=icon]:hidden"
-            />
-          ) : null}
           <Icon
             aria-hidden="true"
             className={active ? "ml-2 text-primary" : "ml-2 text-sidebar-foreground/75"}
@@ -149,7 +143,7 @@ function SidebarNav({ userDecks }: { userDecks: DeckSelectionOption[] }) {
     <SidebarContent className="px-2 py-3">
       <SidebarGroup>
         <SidebarGroupContent>
-          <SidebarMenu className="gap-1">
+          <SidebarMenu className="-mx-4 w-[calc(100%+2rem)] gap-1">
             {navItems.map((item) => (
               <AppSidebarLink
                 href={item.href}
