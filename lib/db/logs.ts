@@ -551,11 +551,14 @@ export async function getLogsWindow(
       ].join(",")
     )
     .eq("user_id", userId)
-    .lte("date", queryWindowEndDate)
     .order("date", { ascending: false })
     .order("imported_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(pageSize + 1);
+
+  if (requestedWindowEndDate) {
+    query = query.lte("date", queryWindowEndDate);
+  }
 
   if (cursor) {
     query = query.or(buildLogsCursorFilter(cursor));

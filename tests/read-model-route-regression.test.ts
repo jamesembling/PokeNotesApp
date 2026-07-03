@@ -141,5 +141,5 @@ test("/logs streams its shell before the initial log window resolves", () => {
   assert.match(page, /<LogsContent\s+[\s\S]*hydratedWindowPromise=\{hydratedWindowPromise\}/);
   assert.match(page, /statsPromise=\{statsPromise\}/);
   assert.match(page, /measureServerCall\("page\.logs\.initialData"/);
-  assert.match(page, /<LogsWorkspaceClient window=\{hydratedWindow\}/);
+  assert.match(page, /<LogsWorkspaceClient\s+[\s\S]*window=\{hydratedWindow\}/);
 });

@@ -267,8 +267,9 @@ test("getLogsWindow limits the initial window and orders by stable keyset column
 
 test("getLogsWindow anchors the initial 7-day window to the newest log date", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client } = createFakeSupabaseClient(() => ({
+  const { client, queries } = createFakeSupabaseClient(() => ({
     data: [
+      buildLogRow({ id: "log-future-local", date: "2026-07-04", imported_at: "2026-07-03T23:08:51.000Z" }),
       buildLogRow({ id: "log-new", date: "2026-04-10", imported_at: "2026-04-10T10:00:00.000Z" }),
       buildLogRow({ id: "log-old", date: "2026-04-03", imported_at: "2026-04-03T10:00:00.000Z" })
     ],
@@ -282,11 +283,12 @@ test("getLogsWindow anchors the initial 7-day window to the newest log date", as
 
   const window = await getLogsWindow("user-1");
 
-  assert.deepEqual(window.logs.map((log) => log.id), ["log-new"]);
-  assert.equal(window.windowEndDate, "2026-04-10");
-  assert.equal(window.windowStartDate, "2026-04-04");
+  assert.deepEqual(window.logs.map((log) => log.id), ["log-future-local"]);
+  assert.equal(window.windowEndDate, "2026-07-04");
+  assert.equal(window.windowStartDate, "2026-06-28");
   assert.equal(window.hasMore, true);
-  assert.equal(window.nextWindowEndDate, "2026-04-03");
+  assert.equal(window.nextWindowEndDate, "2026-06-27");
+  assert.equal(queries[0]?.operations.some((op) => op.method === "lte"), false);
 });
 
 test("getLogsWindow uses the full keyset cursor across same-date logs", async (t) => {

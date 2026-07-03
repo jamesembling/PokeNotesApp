@@ -94,7 +94,7 @@ test("import log save navigates before the lazy dialog parent unmounts", () => {
   assert.match(saveBlock, /router\.push\(result\.redirectTo\);/);
   assert.match(
     saveBlock,
-    /if \(normalizeRedirectPath\(result\.redirectTo\) === pathname\) \{\s*setIsOpen\(false\);\s*router\.refresh\(\);\s*onClose\?\.\(\);\s*return;\s*\}\s*router\.push\(result\.redirectTo\);/
+    /if \(normalizeRedirectPath\(result\.redirectTo\) === pathname\) \{\s*setIsOpen\(false\);\s*router\.refresh\(\);\s*onClose\?\.\(\);[\s\S]*?return;\s*\}\s*router\.push\(result\.redirectTo\);\s*navigationTimerRef\.current = window\.setTimeout\([\s\S]*?onClose\?\.\(\);/
   );
   assert.doesNotMatch(saveBlock, /setIsOpen\(false\);\s*onClose\?\.\(\);/);
   assert.doesNotMatch(saveBlock, /router\.push\(result\.redirectTo\);\s*onClose\?\.\(\);/);
@@ -133,7 +133,7 @@ test("local auth helper reuses the existing Codex test user", () => {
 
   assert.match(packageJson, /"auth:local:setup": "node scripts\/setup-local-test-login\.mjs"/);
   assert.match(packageJson, /"auth:local:save": "node scripts\/save-local-auth-state\.mjs"/);
-  assert.match(packageJson, /"dev:test-login": "node scripts\/setup-local-test-login\.mjs && next dev"/);
+  assert.match(packageJson, /"dev:test-login": "node scripts\/setup-local-test-login\.mjs && next dev(?: [^"]*)?"/);
   assert.match(setupScript, /findConfiguredOrExistingCodexUser/);
   assert.doesNotMatch(setupScript, /createUser/);
   assert.doesNotMatch(setupScript, /role:\s*"admin"/);

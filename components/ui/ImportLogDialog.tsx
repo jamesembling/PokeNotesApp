@@ -327,18 +327,21 @@ export function ImportLogDialog({
 
       clearCloseTimer();
       closeTimerRef.current = window.setTimeout(() => {
-        setIsOpen(false);
         clearNavigationTimer();
+
+        if (normalizeRedirectPath(result.redirectTo) === pathname) {
+          setIsOpen(false);
+          router.refresh();
+          onClose?.();
+          resetImportState();
+          return;
+        }
+
+        router.push(result.redirectTo);
         navigationTimerRef.current = window.setTimeout(() => {
+          setIsOpen(false);
           resetImportState();
           onClose?.();
-
-          if (normalizeRedirectPath(result.redirectTo) === pathname) {
-            router.refresh();
-            return;
-          }
-
-          router.push(result.redirectTo);
         }, 50);
       }, SUCCESS_CLOSE_DELAY_MS);
     } catch (error) {
