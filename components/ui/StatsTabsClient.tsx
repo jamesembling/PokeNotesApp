@@ -4,7 +4,6 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { CoinsIcon, RotateCcwIcon, TrophyIcon } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
-import { Card } from "@/components/shadcn/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
@@ -221,7 +220,7 @@ function StatsOverviewGrid({ overview }: { overview: LogStatsOverview }) {
       </OverviewSection>
 
       <OverviewSection title="Game Stats">
-        <div className="overflow-hidden rounded-lg border border-border bg-muted/60">
+        <div>
           <GameStatRow
             icon={<TrophyIcon className="size-4" />}
             label="Prizes taken"
@@ -581,25 +580,25 @@ export function StatsTabsClient({ matchups: initialMatchups, overview }: StatsTa
       </TabsList>
 
       <TabsContent value="overview">
-        <Card className="grid gap-5 border-0 bg-transparent p-0 ring-0 sm:border-transparent sm:bg-card sm:p-6 sm:ring-1 sm:ring-[var(--rim)]">
+        <div className="grid gap-5">
           <div className="hidden space-y-2 sm:block">
             <p className="ui-eyebrow">Overview</p>
             <h2 className="ui-section-title">Battle Log Totals</h2>
           </div>
 
           <StatsOverviewGrid overview={overview} />
-        </Card>
+        </div>
       </TabsContent>
 
       <TabsContent value="matchups">
-        <Card className="grid gap-4">
+        <div className="grid gap-4">
           <div className="space-y-2">
             <p className="ui-eyebrow">Matchups</p>
             <h2 className="ui-section-title">Win % vs Archetypes</h2>
           </div>
 
           {matchupContent}
-        </Card>
+        </div>
       </TabsContent>
     </Tabs>
   );
