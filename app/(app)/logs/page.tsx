@@ -31,8 +31,8 @@ export default async function LogsPage() {
 
 const logsPagePaletteStyle = {
   // Trial logs palette. Keep token-based so this can move to globals cleanly.
-  "--background": "#FBFAF6",
-  "--card": "#FBFAF6",
+  "--background": "var(--logs-page-surface)",
+  "--card": "var(--logs-page-surface)",
   "--foreground": "#2B2822",
   "--card-foreground": "#2B2822",
   "--muted": "#F3F0E8",
@@ -57,6 +57,7 @@ async function LogsContent({
 
   return (
     <div
+      data-logs-page-surface
       className="-mx-4 -my-6 flex min-h-dvh flex-col gap-6 bg-background px-4 py-6 text-foreground sm:-mx-6 sm:-my-8 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8"
       style={logsPagePaletteStyle}
     >
