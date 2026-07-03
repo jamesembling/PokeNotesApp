@@ -11,7 +11,7 @@
     "dev": "next dev",
     "dev:perf": "POKE_NOTES_DEBUG_PERF=1 next dev",
     "dev:reset": "rm -rf .next && next dev",
-    "dev:test-login": "node scripts/setup-local-test-login.mjs && next dev",
+    "dev:test-login": "node scripts/setup-local-test-login.mjs && next dev -H 0.0.0.0",
     "deploy:changed-sql": "node scripts/deploy-changed-sql.mjs",
     "build": "next build",
     "hooks:install": "git config core.hooksPath .githooks",

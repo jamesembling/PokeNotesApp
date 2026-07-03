@@ -73,10 +73,10 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none bg-win-strong text-primary-foreground opacity-100 hover:bg-win-strong"
+          ? "w-full whitespace-nowrap pointer-events-none bg-win-strong text-primary-foreground opacity-100 hover:bg-win-strong"
           : isSaving
-            ? "w-full md:w-[148px] md:shrink-0 whitespace-nowrap pointer-events-none"
-            : "w-full md:w-[148px] md:shrink-0 whitespace-nowrap"
+            ? "w-full whitespace-nowrap pointer-events-none"
+            : "w-full whitespace-nowrap"
       }
       disabled={isSaving}
       onClick={onClick}
@@ -413,16 +413,16 @@ export function ImportLogDialog({
     }
 
     return (
-      <div className="relative flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0 pr-12 text-center md:pr-0 md:text-left">
+      <div className="relative flex min-w-0 flex-col gap-3">
+        <div className="min-w-0 pr-12 text-left md:pr-0">
           <DialogTitle className="text-[1.3rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.55rem] md:text-[1.9rem]">
             Review Battle Log
           </DialogTitle>
-          <DialogDescription className="mt-2 text-sm leading-6 text-muted-foreground md:hidden">
+          <DialogDescription className="sr-only">
             Confirm the parsed result, then save it to your battle logs.
           </DialogDescription>
         </div>
-        <ButtonGroup className="hidden md:flex">
+        <ButtonGroup className="w-full">
           <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
         </ButtonGroup>
       </div>
@@ -712,10 +712,6 @@ export function ImportLogDialog({
                       <ResultChip>{review.language}</ResultChip>
                     </div>
                   </section>
-
-                  <ButtonGroup className="min-w-0 md:hidden" orientation="vertical">
-                    <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
-                  </ButtonGroup>
                 </form>
               ) : (
                 <div className="flex min-w-0 flex-col gap-6">
