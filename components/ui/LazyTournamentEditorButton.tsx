@@ -8,6 +8,7 @@ import type { TournamentEditorDialogProps } from "@/components/ui/TournamentEdit
 import type { PokemonOption, Tournament, TournamentDeckChoice } from "@/types/index";
 
 type LazyTournamentEditorButtonProps = {
+  className?: string;
   decks?: TournamentDeckChoice[];
   tournament?: Tournament;
   triggerLabel: string;
@@ -62,6 +63,7 @@ async function loadTournamentEditorData() {
 }
 
 export function LazyTournamentEditorButton({
+  className,
   decks: initialDecks = [],
   tournament,
   triggerLabel,
@@ -106,6 +108,7 @@ export function LazyTournamentEditorButton({
           initialOpen={dialogOpen}
           pokemonOptions={pokemonOptions}
           tournament={tournament}
+          triggerClassName={className}
           triggerLabel={triggerLabel}
           triggerVariant={triggerVariant}
         />
@@ -121,6 +124,7 @@ export function LazyTournamentEditorButton({
   return (
     <>
       <Button
+        className={className}
         disabled={isLoading}
         onClick={() => {
           setDialogOpen(true);

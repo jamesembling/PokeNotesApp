@@ -84,7 +84,7 @@ function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon;
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className="relative data-[active=true]:bg-[rgba(37,99,235,0.12)] data-[active=true]:font-semibold data-[active=true]:text-primary data-[active=true]:hover:bg-[rgba(37,99,235,0.16)] data-[active=true]:hover:text-primary dark:data-[active=true]:bg-[rgba(37,99,235,0.24)] dark:data-[active=true]:hover:bg-[rgba(37,99,235,0.3)]"
+        className="relative data-[active=true]:bg-[rgba(220,38,38,0.12)] data-[active=true]:font-semibold data-[active=true]:text-primary data-[active=true]:hover:bg-[rgba(220,38,38,0.16)] data-[active=true]:hover:text-primary dark:data-[active=true]:bg-[rgba(220,38,38,0.24)] dark:data-[active=true]:hover:bg-[rgba(220,38,38,0.3)]"
         isActive={active}
       >
         <Link href={href} onClick={() => setOpenMobile(false)} prefetch={false}>
@@ -96,7 +96,7 @@ function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon;
           ) : null}
           <Icon
             aria-hidden="true"
-            className={active ? "ml-2 text-primary" : "ml-2 text-muted-foreground"}
+            className={active ? "ml-2 text-primary" : "ml-2 text-sidebar-foreground/75"}
             weight={active ? "fill" : "regular"}
           />
           <span>{label}</span>

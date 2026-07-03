@@ -1,13 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ChevronRightIcon, XIcon } from "lucide-react";
-import { deleteTournamentAction } from "@/app/(app)/tournaments/actions";
-import { Alert, AlertDescription } from "@/components/shadcn/alert";
-import { Button } from "@/components/shadcn/button";
-import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { formatDayDate } from "@/lib/client/date-format";
 import { getTournamentRecord } from "@/lib/tournaments/display";
@@ -16,18 +9,8 @@ import { getTournamentPlacementPillClassName } from "@/lib/tournaments/placement
 import type { TournamentSummary } from "@/types/index";
 
 function TournamentSummaryRow({
-  confirmingId,
-  deletingId,
-  onCancelDelete,
-  onConfirmDelete,
-  onRequestDelete,
   tournament
 }: {
-  confirmingId: string | null;
-  deletingId: string | null;
-  onCancelDelete: () => void;
-  onConfirmDelete: (tournament: TournamentSummary) => void;
-  onRequestDelete: (tournament: TournamentSummary) => void;
   tournament: TournamentSummary;
 }) {
   const placementLabel = tournament.placement
@@ -35,18 +18,15 @@ function TournamentSummaryRow({
     : "No placement";
   const summarySubheading = [
     formatDayDate(tournament.dateFrom),
-    tournament.category ? getTournamentCategoryLabel(tournament.category) : "",
-    tournament.format || "No format"
+    tournament.category ? getTournamentCategoryLabel(tournament.category) : ""
   ]
     .filter(Boolean)
     .join(" · ");
-  const isDeleting = deletingId === tournament.id;
-  const isConfirming = confirmingId === tournament.id;
 
   return (
     <div className="group/row space-y-2">
       <div
-        className="group/card relative grid w-full grid-cols-[minmax(0,1fr)_1.25rem] gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-muted p-4 pr-12 text-left transition duration-200 hover:brightness-[0.98] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background sm:grid-cols-[4rem_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)_2rem_1.25rem] sm:items-center sm:gap-4 sm:pr-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
+        className="group/card relative grid w-full grid-cols-1 gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-muted p-4 text-left transition duration-200 hover:brightness-[0.98] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background sm:grid-cols-[4rem_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
         style={{
           contentVisibility: "auto",
           containIntrinsicSize: "88px"
@@ -93,32 +73,7 @@ function TournamentSummaryRow({
         <div className="pointer-events-none z-10 hidden font-display text-[1.05rem] font-semibold tracking-[-0.03em] text-card-foreground sm:block sm:text-right">
           {getTournamentRecord(tournament.rounds)}
         </div>
-
-        <Button
-          aria-label={`Delete ${tournament.name}`}
-          className="z-20 bg-muted text-muted-foreground hover:bg-loss-bg hover:text-loss max-sm:absolute max-sm:right-9 max-sm:top-3 sm:col-start-5"
-          disabled={isDeleting}
-          onClick={() => onRequestDelete(tournament)}
-          size="icon-sm"
-          variant="ghost"
-        >
-          <XIcon />
-        </Button>
-
-        <ChevronRightIcon
-          aria-hidden="true"
-          className="pointer-events-none z-10 size-4 self-center justify-self-end text-muted-foreground transition group-hover/card:translate-x-0.5 group-hover/card:text-card-foreground max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1 sm:col-start-6"
-        />
       </div>
-
-      <DeleteConfirmDialog
-        confirmLabel={isDeleting ? "Deleting..." : "Yes, delete"}
-        disabled={isDeleting}
-        message={`Delete "${tournament.name}" and all of its rounds? This cannot be undone.`}
-        onCancel={onCancelDelete}
-        onConfirm={() => onConfirmDelete(tournament)}
-        open={isConfirming}
-      />
     </div>
   );
 }
@@ -128,30 +83,6 @@ export function TournamentSummaryList({
 }: {
   tournaments: TournamentSummary[];
 }) {
-  const router = useRouter();
-  const [deleteError, setDeleteError] = useState("");
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  async function handleDelete(tournament: TournamentSummary) {
-    setDeleteError("");
-    setDeletingId(tournament.id);
-
-    const formData = new FormData();
-    formData.set("tournamentId", tournament.id);
-    const result = await deleteTournamentAction(formData);
-
-    if (!result.ok) {
-      setDeleteError(result.message);
-      setDeletingId(null);
-      return;
-    }
-
-    setConfirmingId(null);
-    router.push(result.redirectTo);
-    router.refresh();
-  }
-
   if (tournaments.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">
@@ -162,28 +93,9 @@ export function TournamentSummaryList({
 
   return (
     <div className="flex flex-col gap-3">
-      {deleteError ? (
-        <Alert
-          className="border-loss-border bg-loss-bg text-loss"
-          variant="destructive"
-        >
-          <AlertDescription>{deleteError}</AlertDescription>
-        </Alert>
-      ) : null}
-
       {tournaments.map((tournament) => (
         <TournamentSummaryRow
-          confirmingId={confirmingId}
-          deletingId={deletingId}
           key={tournament.id}
-          onCancelDelete={() => setConfirmingId(null)}
-          onConfirmDelete={handleDelete}
-          onRequestDelete={(selectedTournament) => {
-            setDeleteError("");
-            setConfirmingId(
-              confirmingId === selectedTournament.id ? null : selectedTournament.id
-            );
-          }}
           tournament={tournament}
         />
       ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   bulkAssignDeckListAction,
@@ -18,6 +18,7 @@ import { Card } from "@/components/shadcn/card";
 import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
 import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
 import { ChevronIcon, PencilIcon, TrashIcon } from "@/components/ui/icons";
+import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +55,7 @@ export type LogsManagerProps = {
   initialWindowEndDate: string;
   initialWindowStartDate: string;
   initialUserDecks?: DeckSelectionOption[];
+  renderHeaderAction?: (action: ReactNode) => ReactNode;
 };
 
 type DeckSelectionOptionsResponse = {
@@ -222,7 +224,8 @@ export function LogsManager({
   initialNextWindowEndDate,
   initialWindowEndDate,
   initialWindowStartDate,
-  initialUserDecks = []
+  initialUserDecks = [],
+  renderHeaderAction
 }: LogsManagerProps) {
   const router = useRouter();
   const [isMutating, startMutationTransition] = useTransition();
@@ -391,6 +394,15 @@ export function LogsManager({
     });
   }
 
+  const editLogsButton = (
+    <Button
+      className="w-full justify-center sm:w-auto sm:self-start sm:min-w-[5.5rem]"
+      onClick={toggleManagementMode}
+    >
+      {managementModeActive ? "Done" : "Edit logs"}
+    </Button>
+  );
+
   function toggleGroup(date: string, isOpen: boolean) {
     setOpenGroupDates((current) => {
       if (isOpen) {
@@ -516,20 +528,15 @@ export function LogsManager({
         </Alert>
       ) : null}
 
+      {renderHeaderAction?.(editLogsButton)}
+
       <div className="flex flex-col gap-6 p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:hidden">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="ui-eyebrow">Battle Logs</h2>
             {!canLoadMore ? <Badge>Current window complete</Badge> : null}
           </div>
 
-          <Button
-            className="justify-center self-start sm:min-w-[5.5rem]"
-            onClick={toggleManagementMode}
-            variant={managementModeActive ? "default" : "outline"}
-          >
-            {managementModeActive ? "Done" : "Edit logs"}
-          </Button>
+          <LazyImportLogButton className="w-full justify-center" initialUserDecks={userDecks} />
         </div>
 
         <ClientPerfPanel
@@ -539,7 +546,7 @@ export function LogsManager({
         />
 
         {groups.length > 0 ? (
-          <div className="space-y-8">
+          <div className="space-y-3">
             {groups.map((group, index) => (
               <details
                 className="group border-b border-border open:border-b-0"
@@ -551,7 +558,7 @@ export function LogsManager({
                   containIntrinsicSize: "128px"
                 }}
               >
-                <summary className="cursor-pointer list-none py-5 group-open:border-b group-open:border-border [&::-webkit-details-marker]:hidden">
+                <summary className="cursor-pointer list-none py-3 group-open:border-b group-open:border-border [&::-webkit-details-marker]:hidden">
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                       <div>
@@ -560,19 +567,13 @@ export function LogsManager({
                             <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-card-foreground">
                               {formatDayDate(group.date)}
                             </h3>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {group.logs.length} log{group.logs.length === 1 ? "" : "s"}
-                            </p>
                           </div>
 
-                          <div className="text-right sm:hidden">
+                          <div className="flex items-center justify-end gap-2 text-right sm:hidden">
                             <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
                               {group.wins}-{group.losses}
                             </p>
-                            <div className="mt-1 flex items-center justify-end gap-2 text-[0.8rem] text-muted-foreground">
-                              <span>{group.logs.length} total</span>
-                              <ChevronIcon className="size-4 shrink-0 transition group-open:rotate-180" />
-                            </div>
+                            <ChevronIcon className="size-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                           </div>
                         </div>
                       </div>
@@ -582,9 +583,6 @@ export function LogsManager({
                         <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
                           {group.wins}-{group.losses}
                         </p>
-                        <p className="mt-1 text-[0.95rem] leading-none text-muted-foreground">
-                          {group.logs.length} total
-                        </p>
                       </div>
                       <ChevronIcon className="size-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                     </div>
@@ -592,7 +590,7 @@ export function LogsManager({
                 </summary>
 
                 {openGroupDates.includes(group.date) ? (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col gap-2">
                     {group.logs.map((log) => (
                       <LogRow
                         editAction={

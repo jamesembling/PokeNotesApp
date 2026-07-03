@@ -335,6 +335,10 @@ function normalizeDateString(value?: string) {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isDateString(value: string | undefined) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim());
+}
+
 function shiftDateString(date: string, dayOffset: number) {
   const [year, month, day] = normalizeDateString(date).split("-").map(Number);
   const shifted = new Date(Date.UTC(year, month - 1, day));
@@ -519,9 +523,10 @@ export async function getLogsWindow(
 ) {
   const supabase = await logsDbTestHooks.createClient();
   const windowDays = normalizeWindowDays(options?.windowDays);
-  const windowEndDate = normalizeDateString(options?.windowEndDate);
-  const windowStartDate = shiftDateString(windowEndDate, -(windowDays - 1));
-  const cursor = decodeLogsCursor(options?.cursor ?? options?.windowEndDate);
+  const cursorDate = isDateString(options?.cursor) ? options?.cursor : undefined;
+  const cursor = decodeLogsCursor(options?.cursor);
+  const requestedWindowEndDate = options?.windowEndDate ?? cursorDate ?? cursor?.date;
+  const queryWindowEndDate = normalizeDateString(requestedWindowEndDate);
   const pageSize = Math.max(1, Math.min(100, options?.limit ?? DEFAULT_LOG_WINDOW_LIMIT));
 
   let query = supabase
@@ -546,6 +551,7 @@ export async function getLogsWindow(
       ].join(",")
     )
     .eq("user_id", userId)
+    .lte("date", queryWindowEndDate)
     .order("date", { ascending: false })
     .order("imported_at", { ascending: false })
     .order("id", { ascending: false })
@@ -562,17 +568,27 @@ export async function getLogsWindow(
   }
 
   const rows = ((data ?? []) as unknown) as LogsTableRow[];
-  const hasMore = rows.length > pageSize;
-  const pageRows = hasMore ? rows.slice(0, pageSize) : rows;
+  const windowEndDate = requestedWindowEndDate ? queryWindowEndDate : rows[0]?.date ?? queryWindowEndDate;
+  const windowStartDate = shiftDateString(windowEndDate, -(windowDays - 1));
+  const visibleRows = rows.filter((row) => row.date <= windowEndDate && row.date >= windowStartDate).slice(0, pageSize);
+  const hasMoreInWindow = rows.length > pageSize && rows[pageSize]?.date <= windowEndDate && rows[pageSize]?.date >= windowStartDate;
+  const hasOlderRows = rows.some((row) => row.date < windowStartDate);
+  const hasMore = hasMoreInWindow || hasOlderRows;
+  const pageRows = visibleRows;
   const logs = pageRows.map(mapLogSummary);
-  const nextCursor = hasMore && logs.length > 0 ? encodeLogsCursor(logs[logs.length - 1]) : "";
+  const nextCursor =
+    hasMoreInWindow && logs.length > 0
+      ? encodeLogsCursor(logs[logs.length - 1])
+      : hasOlderRows
+        ? shiftDateString(windowStartDate, -1)
+        : "";
 
   return {
     logs,
     hasMore,
     windowDays,
-    windowStartDate: logs.at(-1)?.date ?? windowStartDate,
-    windowEndDate: logs.at(0)?.date ?? windowEndDate,
+    windowStartDate,
+    windowEndDate,
     nextWindowEndDate: nextCursor
   };
 }

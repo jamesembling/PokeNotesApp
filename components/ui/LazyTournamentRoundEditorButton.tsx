@@ -12,6 +12,7 @@ type LazyTournamentRoundEditorButtonProps = {
   suggestedRoundNumber: number;
   tournamentId: string;
   trigger?: ReactElement<{ onClick?: () => void }>;
+  triggerClassName?: string;
   triggerLabel: string;
   triggerVariant?: "default" | "outline" | "ghost";
 };
@@ -21,6 +22,7 @@ export function LazyTournamentRoundEditorButton({
   suggestedRoundNumber,
   tournamentId,
   trigger,
+  triggerClassName,
   triggerLabel,
   triggerVariant = "outline"
 }: LazyTournamentRoundEditorButtonProps) {
@@ -54,7 +56,12 @@ export function LazyTournamentRoundEditorButton({
       onClick: handleOpen
     })
   ) : (
-    <Button disabled={isLoading} onClick={handleOpen} variant={triggerVariant}>
+    <Button
+      className={triggerClassName}
+      disabled={isLoading}
+      onClick={handleOpen}
+      variant={triggerVariant}
+    >
       {isLoading ? "Loading Editor..." : triggerLabel}
     </Button>
   );
@@ -69,6 +76,7 @@ export function LazyTournamentRoundEditorButton({
           suggestedRoundNumber={suggestedRoundNumber}
           tournamentId={tournamentId}
           trigger={trigger}
+          triggerClassName={triggerClassName}
           triggerLabel={triggerLabel}
           triggerVariant={triggerVariant}
         />

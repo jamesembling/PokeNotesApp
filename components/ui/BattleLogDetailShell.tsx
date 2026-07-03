@@ -7,7 +7,6 @@ import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
-import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
 import { LinkedDeckListDialog } from "@/components/ui/LinkedDeckListPanel";
@@ -207,11 +206,6 @@ export function BattleLogDetailShell({
               Back to Logs
             </Link>
           </Button>
-          <LazyImportLogButton
-            className="min-w-0 flex-1 justify-center"
-            initialUserDecks={resolvedUserDecks}
-            label="Import New Log"
-          />
         </ButtonGroup>
       }
       timestampLabel={timestampLabel}

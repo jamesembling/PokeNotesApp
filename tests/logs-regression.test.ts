@@ -252,7 +252,7 @@ test("getLogsWindow limits the initial window and orders by stable keyset column
     logsDbTestHooks.createClient = originalCreateClient;
   });
 
-  const window = await getLogsWindow("user-1", { limit: 2 });
+  const window = await getLogsWindow("user-1", { limit: 2, windowEndDate: "2026-04-26" });
 
   assert.deepEqual(window.logs.map((log) => log.id), ["log-c", "log-b"]);
   assert.equal(window.hasMore, true);
@@ -262,7 +262,31 @@ test("getLogsWindow limits the initial window and orders by stable keyset column
     ["date", "imported_at", "id"]
   );
   assert.deepEqual(queries[0]?.operations.find((op) => op.method === "limit")?.args, [3]);
-  assert.equal(queries[0]?.operations.some((op) => op.method === "gte" || op.method === "lte"), false);
+  assert.deepEqual(queries[0]?.operations.find((op) => op.method === "lte")?.args, ["date", "2026-04-26"]);
+});
+
+test("getLogsWindow anchors the initial 7-day window to the newest log date", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client } = createFakeSupabaseClient(() => ({
+    data: [
+      buildLogRow({ id: "log-new", date: "2026-04-10", imported_at: "2026-04-10T10:00:00.000Z" }),
+      buildLogRow({ id: "log-old", date: "2026-04-03", imported_at: "2026-04-03T10:00:00.000Z" })
+    ],
+    error: null
+  }));
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const window = await getLogsWindow("user-1");
+
+  assert.deepEqual(window.logs.map((log) => log.id), ["log-new"]);
+  assert.equal(window.windowEndDate, "2026-04-10");
+  assert.equal(window.windowStartDate, "2026-04-04");
+  assert.equal(window.hasMore, true);
+  assert.equal(window.nextWindowEndDate, "2026-04-03");
 });
 
 test("getLogsWindow uses the full keyset cursor across same-date logs", async (t) => {
@@ -286,7 +310,7 @@ test("getLogsWindow uses the full keyset cursor across same-date logs", async (t
     logsDbTestHooks.createClient = originalCreateClient;
   });
 
-  const firstPage = await getLogsWindow("user-1", { limit: 1 });
+  const firstPage = await getLogsWindow("user-1", { limit: 1, windowEndDate: "2026-04-26" });
   const secondPage = await getLogsWindow("user-1", {
     cursor: firstPage.nextWindowEndDate,
     limit: 1

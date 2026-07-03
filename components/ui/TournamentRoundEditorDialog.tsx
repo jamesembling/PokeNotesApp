@@ -8,7 +8,6 @@ import {
   saveTournamentRoundAction
 } from "@/app/(app)/tournaments/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
-import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
@@ -18,7 +17,6 @@ import {
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
-import { Checkbox } from "@/components/shadcn/checkbox";
 import { Textarea } from "@/components/shadcn/textarea";
 import {
   TOURNAMENT_ROUND_GAME_RESULT_OPTIONS,
@@ -34,6 +32,7 @@ type TournamentRoundEditorDialogProps = {
   suggestedRoundNumber: number;
   tournamentId: string;
   trigger?: ReactElement<{ onClick?: () => void }>;
+  triggerClassName?: string;
   triggerLabel: string;
   triggerVariant?: "default" | "outline" | "ghost";
 };
@@ -54,6 +53,7 @@ export function TournamentRoundEditorDialog({
   suggestedRoundNumber,
   tournamentId,
   trigger,
+  triggerClassName,
   triggerLabel,
   triggerVariant = "outline"
 }: TournamentRoundEditorDialogProps) {
@@ -201,6 +201,7 @@ export function TournamentRoundEditorDialog({
     })
   ) : (
     <Button
+      className={triggerClassName}
       disabled={deleteState === "deleting"}
       onClick={openDialog}
       variant={triggerVariant}
@@ -227,8 +228,8 @@ export function TournamentRoundEditorDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-            <div className="flex min-w-0 flex-col gap-4 border-b border-border bg-card px-3 py-4 pr-14 sm:px-4 sm:pr-14 lg:flex-row lg:items-start lg:justify-between lg:px-5">
-              <div className="min-w-0">
+            <div className="flex min-w-0 flex-col gap-4 border-b border-border bg-card px-3 py-4 sm:px-4 lg:px-5">
+              <div className="min-w-0 pr-11">
                 <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
                   {isEditing ? `Edit Round ${round?.roundNumber}` : "Add Round"}
                 </DialogTitle>
@@ -237,27 +238,28 @@ export function TournamentRoundEditorDialog({
                 </DialogDescription>
               </div>
 
-              <ButtonGroup className="max-w-full flex-wrap sm:justify-end">
+              <div
+                className={isEditing ? "grid w-full grid-cols-2" : "w-full"}
+                role="group"
+              >
                 {isEditing ? (
                   <Button
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="w-full rounded-r-none"
                     disabled={isBusy}
                     onClick={() => {
                       setActionError("");
                       setShowDeleteConfirmation((current) => !current);
                     }}
                     type="button"
-                    variant="outline"
                   >
                     Delete
                   </Button>
                 ) : null}
                 <Button
-                  className="border-border bg-background text-foreground hover:bg-muted hover:text-foreground"
+                  className={isEditing ? "w-full rounded-l-none border-l-0" : "w-full"}
                   disabled={saveState === "saving"}
                   onClick={() => formRef.current?.requestSubmit()}
                   type="button"
-                  variant="outline"
                 >
                   {saveState === "saving"
                     ? "Saving..."
@@ -267,7 +269,7 @@ export function TournamentRoundEditorDialog({
                         ? "Save Changes"
                         : "Add Round"}
                 </Button>
-              </ButtonGroup>
+              </div>
             </div>
             <div
               className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain p-3 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:p-4 sm:pr-2 lg:p-5"
@@ -326,75 +328,88 @@ export function TournamentRoundEditorDialog({
                 />
               ))}
 
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <p className="text-sm font-semibold text-card-foreground">Result</p>
-                  <div className="grid gap-2">
-                    <div className="flex flex-wrap gap-x-5 gap-y-2">
-                      {TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.map((option) => {
-                        const fieldName =
-                          option.value === "BYE"
-                            ? "isBye"
-                            : option.value === "ID"
-                              ? "isId"
-                              : "isNoShow";
-
-                        return (
+              <div className="grid gap-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {[0, 1, 2].map((index) => (
+                    <fieldset
+                      className="grid gap-3 border-b border-border pb-4 last:border-b-0 last:pb-0 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-4 sm:last:border-r-0 sm:last:pr-0"
+                      disabled={Boolean(specialResult)}
+                      key={index}
+                    >
+                      <legend className="text-sm font-semibold text-card-foreground">
+                        Game {index + 1}
+                      </legend>
+                      <div className="grid gap-2">
+                        {TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.map((option) => (
                           <label
-                            className="inline-flex w-fit items-center gap-2 text-sm"
-                            htmlFor={`round-special-${fieldName}`}
-                            key={option.value}
+                            className="flex min-h-11 cursor-pointer items-center justify-start gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-card-foreground has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
+                            htmlFor={`round-game-${index + 1}-${option}`}
+                            key={option}
                           >
-                            <Checkbox
-                              checked={specialResult === option.value}
-                              className="size-4 accent-win"
-                              id={`round-special-${fieldName}`}
-                              name={fieldName}
-                              onCheckedChange={(checked) => {
-                                const nextSpecialResult = checked ? option.value : "";
-                                setSpecialResult(nextSpecialResult);
-                                if (nextSpecialResult) {
-                                  setGameResults(["", "", ""]);
-                                }
+                            <input
+                              checked={gameResults[index] === option}
+                              className="size-4 accent-primary"
+                              disabled={Boolean(specialResult)}
+                              id={`round-game-${index + 1}-${option}`}
+                              name={`game${index + 1}`}
+                              onChange={() => {
+                                const next = [...gameResults];
+                                next[index] = option;
+                                setGameResults(next);
                               }}
+                              type="radio"
+                              value={option}
                             />
-                            {option.label}
+                            {option}
                           </label>
-                        );
-                      })}
-                    </div>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      {[0, 1, 2].map((index) => (
-                        <label
-                          className="grid gap-1 text-sm"
-                          htmlFor={`round-game-${index + 1}`}
-                          key={index}
-                        >
-                          Game {index + 1}
-                          <AppSelect
-                            className="min-h-[3rem] rounded-xl px-4 py-3"
-                            disabled={Boolean(specialResult)}
-                            id={`round-game-${index + 1}`}
-                            name={`game${index + 1}`}
-                            onChange={(value) => {
-                              const next = [...gameResults];
-                              next[index] = value;
-                              setGameResults(next);
-                            }}
-                            options={[
-                              { label: "-", value: "" },
-                              ...TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.map((option) => ({
-                                label: option,
-                                value: option
-                              }))
-                            ]}
-                            value={gameResults[index]}
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ))}
                 </div>
+
+                <fieldset className="grid gap-2">
+                  <legend className="text-sm font-semibold text-card-foreground">
+                    Other Outcome
+                  </legend>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.map((option) => {
+                      const fieldName =
+                        option.value === "BYE"
+                          ? "isBye"
+                          : option.value === "ID"
+                            ? "isId"
+                            : "isNoShow";
+
+                      return (
+                        <label
+                          className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-card-foreground has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground"
+                          htmlFor={`round-special-${fieldName}`}
+                          key={option.value}
+                        >
+                          <input
+                            checked={specialResult === option.value}
+                            className="size-4 accent-primary"
+                            id={`round-special-${fieldName}`}
+                            name={fieldName}
+                            onChange={() => {
+                              setSpecialResult(option.value);
+                              setGameResults(["", "", ""]);
+                            }}
+                            onClick={() => {
+                              if (specialResult === option.value) {
+                                setSpecialResult("");
+                              }
+                            }}
+                            type="radio"
+                            value={option.value}
+                          />
+                          {option.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
               </div>
 
               <BattleLogSpritePicker

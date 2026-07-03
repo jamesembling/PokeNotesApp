@@ -46,22 +46,19 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
         : "border-warning-border bg-warning-bg";
 
   const rowContent = (
-    <div className={["group relative grid w-full grid-cols-[minmax(4rem,1fr)_auto_auto] items-center gap-x-3 gap-y-2 rounded-2xl border p-4 text-left transition duration-200 hover:brightness-[0.98] md:grid-cols-[auto_1fr_auto_auto] md:gap-4 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]", rowTone].join(" ")}>
-      <div className="space-y-1 text-center max-md:pointer-events-none max-md:absolute max-md:left-1/2 max-md:top-1/2 max-md:-translate-x-1/2 max-md:-translate-y-1/2 md:col-start-1">
-        <p className="ui-eyebrow">Round</p>
-        <p className="font-display text-[1.12rem] font-semibold tracking-[-0.03em] text-card-foreground">
-          {round.roundNumber}
-        </p>
-      </div>
+    <div className={["group relative grid w-full grid-cols-[4rem_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-2 rounded-2xl border p-4 text-left transition duration-200 hover:brightness-[0.98] md:grid-cols-[auto_1fr_auto_auto] md:gap-4 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]", rowTone].join(" ")}>
+      <p className="font-display text-[1.05rem] font-semibold tracking-[-0.03em] text-card-foreground dark:text-white md:col-start-1">
+        Round {round.roundNumber}
+      </p>
 
-      <div className="flex min-w-0 items-center gap-3 justify-self-start max-md:col-start-1 max-md:row-start-1 md:col-start-2">
+      <div className="flex min-w-0 items-center justify-center gap-3 justify-self-center md:col-start-2 md:justify-self-start">
         <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={round.opponentDeckSprites} />
         <span className="hidden min-w-0 truncate text-[0.95rem] font-semibold text-card-foreground md:inline">
           VS {opponentDeckName}
         </span>
       </div>
 
-      <div className="justify-self-end max-md:col-start-2 max-md:row-start-1 md:col-start-3">
+      <div className="justify-self-end md:col-start-3">
         <div className="flex items-center justify-end gap-0.5">
           {specialResult ? (
             <span
@@ -97,7 +94,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
       </div>
 
       {canEdit ? (
-        <div className="justify-self-end text-foreground max-md:col-start-3 max-md:row-start-1 md:col-start-4">
+        <div className="justify-self-end text-foreground md:col-start-4">
           <ChevronIcon className="size-4 -rotate-90" />
         </div>
       ) : null}

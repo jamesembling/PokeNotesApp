@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { Card } from "@/components/shadcn/card";
 import { Skeleton } from "@/components/shadcn/skeleton";
-import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { requireUser } from "@/lib/auth";
@@ -45,45 +44,7 @@ async function LogsContent({
 
   return (
     <div className="-mx-4 -my-6 flex min-h-dvh flex-col gap-6 bg-background px-4 py-6 text-foreground sm:-mx-6 sm:-my-8 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8">
-      <PageHeader
-        breadcrumb={[
-          { label: "Poke Notes", href: "/" },
-          { label: "Battle Logs" }
-        ]}
-        title="Battle Logs"
-        meta={
-          <div
-            aria-label={`${stats.total} total battle logs, ${stats.wins} wins, ${stats.losses} losses`}
-            className="flex flex-wrap items-center gap-y-2 text-sm text-muted-foreground"
-          >
-            <div className="flex items-baseline gap-2 pr-5">
-              <span className="text-[1.35rem] font-semibold leading-none text-card-foreground [font-variant-numeric:tabular-nums]">
-                {stats.total}
-              </span>
-              <span>total</span>
-            </div>
-            <div aria-hidden="true" className="h-5 w-px bg-border" />
-            <div className="flex items-baseline gap-2 px-5">
-              <span className="text-[1.35rem] font-semibold leading-none text-win [font-variant-numeric:tabular-nums]">
-                {stats.wins}
-              </span>
-              <span>wins</span>
-            </div>
-            <div aria-hidden="true" className="h-5 w-px bg-border" />
-            <div className="flex items-baseline gap-2 pl-5">
-              <span className="text-[1.35rem] font-semibold leading-none text-loss [font-variant-numeric:tabular-nums]">
-                {stats.losses}
-              </span>
-              <span>losses</span>
-            </div>
-          </div>
-        }
-        action={
-          <LazyImportLogButton className="w-full justify-center sm:w-auto" />
-        }
-      />
-
-      <LogsWorkspaceClient window={hydratedWindow} />
+      <LogsWorkspaceClient stats={stats} window={hydratedWindow} />
     </div>
   );
 }
@@ -92,7 +53,6 @@ function LogsContentFallback() {
   return (
     <>
       <PageHeader
-        action={<Skeleton className="h-10 w-full rounded-lg sm:w-40" />}
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
           { label: "Battle Logs" }

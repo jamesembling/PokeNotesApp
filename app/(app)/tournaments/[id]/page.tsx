@@ -4,7 +4,6 @@ import { Skeleton } from "@/components/shadcn/skeleton";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { Card } from "@/components/shadcn/card";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -75,20 +74,18 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
           subtitle="This tournament could not be found or you do not have access to it."
         />
 
-        <Card>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-foreground">
-              The requested tournament is unavailable.
-            </p>
-            <Link
-              className="text-sm font-medium text-primary transition hover:text-primary/90"
-              href="/tournaments"
-              prefetch={false}
-            >
-              Back to Tournaments
-            </Link>
-          </div>
-        </Card>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-foreground">
+            The requested tournament is unavailable.
+          </p>
+          <Link
+            className="text-sm font-medium text-primary transition hover:text-primary/90"
+            href="/tournaments"
+            prefetch={false}
+          >
+            Back to Tournaments
+          </Link>
+        </div>
       </PageWidth>
     );
   }
@@ -117,11 +114,11 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         title={tournament.name}
         subtitle={tournamentSubheading}
         action={
-          <ButtonGroup className="max-w-full flex-wrap">
+          <ButtonGroup className="mx-auto !w-full max-w-full justify-center sm:!w-fit">
             <Suspense fallback={<TournamentEditButtonFallback />}>
               <TournamentEditAction tournament={tournament} userId={user.id} />
             </Suspense>
-            <Button asChild variant="outline">
+            <Button asChild className="flex-1 justify-center text-center sm:flex-none">
               <Link href="/tournaments" prefetch={false}>
                 Back to Tournaments
               </Link>
@@ -130,39 +127,37 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         }
       />
 
-      <Card>
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <SpriteStrip maxVisible={3} size="xl" sprites={tournament.deckSprites} />
-              <div className="space-y-1">
-                <p className="ui-eyebrow">Deck</p>
-                <p className="font-display text-[1.15rem] font-semibold tracking-[-0.03em] text-card-foreground">
-                  {tournament.deckName || "No linked deck"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge>{record}</Badge>
-              {tournament.placement ? (
-                <Badge className={getTournamentPlacementPillClassName(tournament.placement)}>
-                  {getTournamentPlacementLabel(tournament.placement)}
-                </Badge>
-              ) : null}
+      <section className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <SpriteStrip maxVisible={3} size="xl" sprites={tournament.deckSprites} />
+            <div className="space-y-1">
+              <p className="ui-eyebrow">Deck</p>
+              <p className="font-display text-[1.15rem] font-semibold tracking-[-0.03em] text-card-foreground">
+                {tournament.deckName || "No linked deck"}
+              </p>
             </div>
           </div>
 
-          {tournament.notes ? (
-            <div className="rounded-2xl border border-border bg-muted p-4">
-              <p className="ui-eyebrow">Tournament Notes</p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
-                {tournament.notes}
-              </p>
-            </div>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>{record}</Badge>
+            {tournament.placement ? (
+              <Badge className={getTournamentPlacementPillClassName(tournament.placement)}>
+                {getTournamentPlacementLabel(tournament.placement)}
+              </Badge>
+            ) : null}
+          </div>
         </div>
-      </Card>
+
+        {tournament.notes ? (
+          <div className="rounded-2xl border border-border bg-muted p-4">
+            <p className="ui-eyebrow">Tournament Notes</p>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
+              {tournament.notes}
+            </p>
+          </div>
+        ) : null}
+      </section>
 
       {linkedDeckWithListPromise ? (
         <Suspense fallback={<TournamentDeckListPanelFallback />}>
@@ -172,10 +167,9 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         </Suspense>
       ) : null}
 
-      <Card className="space-y-5">
+      <section className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="ui-eyebrow">Rounds</p>
             <h2 className="font-display text-[1.3rem] font-semibold tracking-[-0.03em] text-card-foreground">
               Tournament Rounds
             </h2>
@@ -184,7 +178,9 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
           <LazyTournamentRoundEditorButton
             suggestedRoundNumber={rounds.length + 1}
             tournamentId={tournament.id}
+            triggerClassName="text-white"
             triggerLabel="Add Round"
+            triggerVariant="default"
           />
         </div>
 
@@ -206,7 +202,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
             ))}
           </div>
         )}
-      </Card>
+      </section>
     </PageWidth>
   );
 }
@@ -241,17 +237,17 @@ async function TournamentEditAction({
 
   return (
     <LazyTournamentEditorButton
+      className="flex-1 justify-center text-center sm:flex-none"
       decks={decks}
       tournament={tournament}
       triggerLabel="Edit Tournament"
-      triggerVariant="outline"
     />
   );
 }
 
 function TournamentEditButtonFallback() {
   return (
-    <Button disabled variant="outline">
+    <Button className="flex-1 justify-center text-center sm:flex-none" disabled>
       Edit Tournament
     </Button>
   );
@@ -259,11 +255,9 @@ function TournamentEditButtonFallback() {
 
 function TournamentDeckListPanelFallback() {
   return (
-    <Card className="rounded-[24px] bg-card p-4 shadow-[var(--shadow-sm)] sm:p-5">
-      <div className="grid gap-4">
-        <Skeleton className="h-5 w-28" />
-        <Skeleton className="h-16 rounded-2xl border border-border" />
-      </div>
-    </Card>
+    <div className="grid gap-4">
+      <Skeleton className="h-5 w-28" />
+      <Skeleton className="h-16 rounded-2xl border border-border" />
+    </div>
   );
 }

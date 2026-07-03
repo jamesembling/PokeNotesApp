@@ -5,13 +5,13 @@
 :root {
   --font-body: "IBM Plex Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  --background: #F5F7FA;
+  --background: #FFFFFF;
   --foreground: #1A2130;
   --card: #FFFFFF;
   --card-foreground: #111827;
   --popover: #FFFFFF;
   --popover-foreground: #111827;
-  --primary: #2563eb;
+  --primary: #DC2626;
   --primary-foreground: #ffffff;
   --secondary: #EDF0F4;
   --secondary-foreground: #111827;
@@ -25,11 +25,11 @@
   --ring: #64748B;
   --rim: rgba(100, 116, 139, 0.28);
   --radius: 0.5rem;
-  --sidebar: var(--card);
+  --sidebar: #F6F7F6;
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
+  --sidebar-accent: #E3E7ED;
   --sidebar-accent-foreground: var(--accent-foreground);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
@@ -75,7 +75,7 @@
   --card-foreground: #f9fafb;
   --popover: #1a1d27;
   --popover-foreground: #f9fafb;
-  --primary: #2563eb;
+  --primary: #DC2626;
   --primary-foreground: #ffffff;
   --secondary: #14161f;
   --secondary-foreground: #d1d5db;
@@ -88,7 +88,7 @@
   --input: #2a2d3a;
   --ring: #9ca3af;
   --rim: rgba(156, 163, 175, 0.34);
-  --sidebar: var(--card);
+  --sidebar: #4F4F4F;
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
@@ -111,12 +111,12 @@
   --text-kicker: #4b5563;
   --color-win: var(--chart-2);
   --color-win-strong: #22c55e;
-  --color-win-bg: rgba(22, 163, 74, 0.1);
-  --color-win-border: rgba(22, 163, 74, 0.2);
+  --color-win-bg: rgba(34, 197, 94, 0.18);
+  --color-win-border: rgba(34, 197, 94, 0.34);
   --color-loss: var(--destructive);
   --color-loss-strong: #f87171;
-  --color-loss-bg: rgba(220, 38, 38, 0.08);
-  --color-loss-border: rgba(220, 38, 38, 0.16);
+  --color-loss-bg: rgba(248, 113, 113, 0.16);
+  --color-loss-border: rgba(248, 113, 113, 0.32);
   --color-warning: #f59e0b;
   --color-warning-strong: #d97706;
   --color-warning-bg: rgba(251, 146, 60, 0.12);

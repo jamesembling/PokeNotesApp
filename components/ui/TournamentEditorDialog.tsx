@@ -35,6 +35,7 @@ export type TournamentEditorDialogProps = {
   initialOpen?: boolean;
   pokemonOptions: PokemonOption[];
   tournament?: Tournament;
+  triggerClassName?: string;
   triggerLabel: string;
   triggerVariant?: "default" | "outline" | "ghost";
 };
@@ -126,6 +127,7 @@ export function TournamentEditorDialog({
   initialOpen = false,
   pokemonOptions,
   tournament,
+  triggerClassName,
   triggerLabel,
   triggerVariant = "default"
 }: TournamentEditorDialogProps) {
@@ -338,6 +340,7 @@ export function TournamentEditorDialog({
       open={isOpen}
     >
       <Button
+        className={triggerClassName}
         disabled={deleteState === "deleting"}
         onClick={() => {
           resetState();
