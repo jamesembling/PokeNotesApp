@@ -155,6 +155,15 @@ export function ProbabilityCalculator() {
   }, [analysis]);
 
   function runCalculation(input: string) {
+    if (!input.trim()) {
+      setAnalysis(null);
+      setDeckVisualCards([]);
+      setActiveTab("setup");
+      setStatusMessage("Paste a deck list before calculating.");
+      setStatusTone("warn");
+      return;
+    }
+
     const result = analyzeDecklist(input);
     setAnalysis(result);
     setDeckVisualCards(result.cards);
@@ -249,19 +258,14 @@ export function ProbabilityCalculator() {
               </p>
             )}
           </section>
-        </div>
 
-        <div className="grid gap-5">
-          <section className="grid gap-4">
+          <section className="grid gap-3 border-t border-border pt-4">
             <div className="space-y-1">
               <p className="ui-eyebrow">Opening Hand Risk</p>
-              <h2 className="ui-section-title">Mulligan Stats and Deck Visual</h2>
-              <p className="text-sm text-muted-foreground">
-                Review your opening-hand probabilities first, then scan the sorted 60-card visual below.
-              </p>
+              <h2 className="ui-section-title">Mulligan Stats</h2>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3">
               <ProbabilitySummaryMetric
                 detail="Chance your opening hand has no Basic Pokemon."
                 label="Mulligan Rate"
@@ -278,7 +282,11 @@ export function ProbabilityCalculator() {
                 value={summary.twoBasics}
               />
             </div>
+          </section>
+        </div>
 
+        <div className="grid gap-5">
+          <section className="grid gap-4">
             <div className="grid gap-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1">
