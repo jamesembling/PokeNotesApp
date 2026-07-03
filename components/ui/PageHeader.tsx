@@ -8,7 +8,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from "@/components/shadcn/breadcrumb";
-import { cn } from "@/lib/utils";
 
 type PageBreadcrumbItem = {
   label: string;
@@ -22,7 +21,6 @@ type PageHeaderProps = {
   meta?: ReactNode;
   action?: ReactNode;
   showDivider?: boolean;
-  titleClassName?: string;
 };
 
 export function PageHeader({
@@ -31,8 +29,7 @@ export function PageHeader({
   subtitle,
   meta,
   action,
-  showDivider = true,
-  titleClassName
+  showDivider = true
 }: PageHeaderProps) {
   const hasTitle = title.trim().length > 0;
   const hasMetaRow = hasTitle || Boolean(subtitle) || Boolean(meta) || Boolean(action);
@@ -68,7 +65,7 @@ export function PageHeader({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             {hasTitle ? (
-              <h1 className={cn("text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl", titleClassName)}>
+              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl">
                 {title}
               </h1>
             ) : null}

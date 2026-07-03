@@ -566,7 +566,7 @@ export function LogsManager({
                           </div>
 
                           <div className="text-right sm:hidden">
-                            <p className="min-w-[4.5ch] text-right [font-family:var(--font-mono)] text-[1.5rem] font-semibold leading-none text-card-foreground [font-variant-numeric:tabular-nums]">
+                            <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
                               {group.wins}-{group.losses}
                             </p>
                             <div className="mt-1 flex items-center justify-end gap-2 text-[0.8rem] text-muted-foreground">
@@ -579,7 +579,7 @@ export function LogsManager({
                     </div>
                     <div className="hidden items-center self-center lg:flex lg:gap-2.5">
                       <div className="text-right">
-                        <p className="min-w-[4.5ch] text-right [font-family:var(--font-mono)] text-[1.5rem] font-semibold leading-none text-card-foreground [font-variant-numeric:tabular-nums]">
+                        <p className="font-display text-[1.5rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
                           {group.wins}-{group.losses}
                         </p>
                         <p className="mt-1 text-[0.95rem] leading-none text-muted-foreground">
