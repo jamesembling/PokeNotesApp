@@ -5,13 +5,17 @@ type DeckListCardProps = {
   count: number;
   imageUrl: string;
   cardUrl: string;
+  imageQuality?: number;
+  imageSizes?: string;
 };
 
 export function DeckListCard({
   name,
   count,
   imageUrl,
-  cardUrl
+  cardUrl,
+  imageQuality = 80,
+  imageSizes = "(max-width: 640px) 22vw, (max-width: 1024px) 16vw, 120px"
 }: DeckListCardProps) {
   const badgeImageUrl = `https://limitless3.nyc3.cdn.digitaloceanspaces.com/decklist/${count}.png`;
 
@@ -28,7 +32,8 @@ export function DeckListCard({
           alt={name}
           fill
           className="relative h-full w-full object-contain transition"
-          sizes="(max-width: 640px) 22vw, (max-width: 1024px) 16vw, 120px"
+          quality={imageQuality}
+          sizes={imageSizes}
           src={imageUrl}
           style={{
             filter: "drop-shadow(0 2.5px 3.5px rgba(15,23,42,0.34)) drop-shadow(0 0.75px 1.5px rgba(15,23,42,0.22))"

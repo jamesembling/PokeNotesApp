@@ -1,13 +1,21 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { Textarea } from "@/components/shadcn/textarea";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle
+} from "@/components/shadcn/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   analyzeDecklist,
   getPokemonSpriteUrl,
@@ -63,15 +71,16 @@ export function ProbabilityCalculator() {
   const [deckVisualCards, setDeckVisualCards] = useState<CalculatorAnalysis["cards"]>([]);
   const pokemonOptions = usePokemonOptions(Boolean(analysis));
   const [activeTab, setActiveTab] = useState<TabId>("setup");
+  const [importDialogOpen, setImportDialogOpen] = useState(true);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"info" | "warn">("info");
 
   const showStatus = Boolean(statusMessage) || Boolean(analysis?.warnings.length);
   const statusClassName = [
-    "min-h-20 overflow-y-auto py-2",
+    "rounded-[16px] border px-4 py-3",
     analysis?.warnings.length || statusTone === "warn"
-      ? "text-loss"
-      : "text-muted-foreground"
+      ? "border-loss-border bg-loss-bg text-loss"
+      : "border-border bg-muted text-muted-foreground"
   ].join(" ");
 
   const setupCards = analysis?.setupRows ?? [];
@@ -165,11 +174,22 @@ export function ProbabilityCalculator() {
     }
 
     const result = analyzeDecklist(input);
+
+    if (!result.cards.length) {
+      setAnalysis(null);
+      setDeckVisualCards([]);
+      setActiveTab("setup");
+      setStatusMessage(result.warnings[0] ?? "No parseable cards found.");
+      setStatusTone("warn");
+      return;
+    }
+
     setAnalysis(result);
     setDeckVisualCards(result.cards);
     setActiveTab("setup");
     setStatusMessage("");
     setStatusTone("info");
+    setImportDialogOpen(false);
   }
 
   function handleSampleDeck() {
@@ -184,112 +204,99 @@ export function ProbabilityCalculator() {
     setActiveTab("setup");
     setStatusMessage("");
     setStatusTone("info");
+    setImportDialogOpen(true);
   }
 
   return (
-    <section className="grid gap-6">
-      <section className="grid gap-6 border-b border-border pb-6 xl:items-start xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-        <div className="grid content-start gap-4">
-          <div className="space-y-2">
-            <h2 className="ui-section-title">Paste a deck list</h2>
-          </div>
+    <>
+      <DeckImportDialog
+        deckInput={deckInput}
+        initialImport={!analysis}
+        onDeckInputChange={setDeckInput}
+        onLoadSampleDeck={handleSampleDeck}
+        onOpenChange={setImportDialogOpen}
+        onSubmit={() => runCalculation(deckInput)}
+        open={importDialogOpen}
+        showStatus={!analysis && showStatus}
+        statusClassName={statusClassName}
+        statusMessage={statusMessage}
+      />
 
-          <div className="grid gap-2">
-            <label
-              className="sr-only"
-              htmlFor="calculator-deck-input"
-            >
-              Deck List
-            </label>
-            <Textarea
-              className="h-[320px] w-full resize-none rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
-              id="calculator-deck-input"
-              onChange={(event) => setDeckInput(event.target.value)}
-              placeholder="Paste your deck list here"
-              spellCheck={false}
-              value={deckInput}
-            />
-          </div>
+      {analysis ? (
+        <section className="grid gap-6">
+          <PageHeader
+            action={
+              <ButtonGroup className="w-full [&>[data-slot=button]]:flex-1 sm:w-auto sm:[&>[data-slot=button]]:flex-none">
+                <Button onClick={() => setImportDialogOpen(true)}>
+                  Import Deck
+                </Button>
+                <Button onClick={handleClear}>
+                  Clear Deck
+                </Button>
+              </ButtonGroup>
+            }
+            breadcrumb={[
+              { label: "Poke Notes", href: "/" },
+              { label: "Probability Calculator" }
+            ]}
+            showDivider={false}
+            title="Probability Calculator"
+          />
 
-          <ButtonGroup className="w-full" orientation="vertical">
-            <Button onClick={() => runCalculation(deckInput)}>Calculate</Button>
-            <Button onClick={handleSampleDeck} variant="outline">
-              Load Sample Deck
-            </Button>
-            <Button onClick={handleClear} variant="outline">
-              Clear
-            </Button>
-          </ButtonGroup>
-
-          {showStatus ? (
-            <section className={statusClassName}>
-              {statusMessage ? (
-                <p className="mt-2 text-sm font-medium leading-6 text-card-foreground">
-                  {statusMessage}
-                </p>
-              ) : null}
-
-              {analysis?.warnings.length ? (
-                <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-loss">
-                  {analysis.warnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </section>
-          ) : null}
-
-          <section className="grid gap-3 border-t border-border pt-4">
-            <div className="space-y-1">
+          <section className="grid gap-5 border-b border-border pb-6">
+            <section className="grid gap-3">
               <h2 className="ui-section-title">Mulligan Stats</h2>
-            </div>
+              <div className="grid grid-cols-3 gap-3">
+                <ProbabilitySummaryMetric
+                  label="Mulligan Rate"
+                  value={summary.mulligan}
+                />
+                <ProbabilitySummaryMetric
+                  label="Starting With 1 Basic"
+                  value={summary.oneBasic}
+                />
+                <ProbabilitySummaryMetric
+                  label="Starting With 2+ Basics"
+                  value={summary.twoBasics}
+                />
+              </div>
+            </section>
 
-            <div className="grid gap-3">
-              <ProbabilitySummaryMetric
-                label="Mulligan Rate"
-                value={summary.mulligan}
-              />
-              <ProbabilitySummaryMetric
-                label="Starting With 1 Basic"
-                value={summary.oneBasic}
-              />
-              <ProbabilitySummaryMetric
-                label="Starting With 2+ Basics"
-                value={summary.twoBasics}
-              />
-            </div>
-          </section>
-        </div>
+            {showStatus ? (
+              <section className={statusClassName}>
+                {statusMessage ? (
+                  <p className="text-sm font-medium leading-6 text-card-foreground">
+                    {statusMessage}
+                  </p>
+                ) : null}
 
-        <div className="grid gap-5">
-          <section className="grid gap-4">
-            <div className="grid gap-4">
+                {analysis.warnings.length ? (
+                  <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-loss">
+                    {analysis.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ) : null}
+
+            <section className="grid gap-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-card-foreground">
-                    60-Card Graphic
-                  </h3>
-                </div>
+                <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-card-foreground">
+                  60-Card Graphic
+                </h3>
                 <CopyDeckListButton text={deckInput} />
               </div>
 
-              <div>
-                {analysis ? (
-                  <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
-                ) : null}
-              </div>
-            </div>
+              <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
+            </section>
           </section>
-        </div>
-      </section>
 
-      <section className="grid gap-4 border-b border-border pb-6">
-        <div className="space-y-1">
-          <h2 className="ui-section-title">Mulligan Streak Calculator</h2>
-        </div>
+          <section className="grid gap-4 border-b border-border pb-6">
+            <div className="space-y-1">
+              <h2 className="ui-section-title">Mulligan Streak Calculator</h2>
+            </div>
 
-        {analysis ? (
-          <>
             <div className="overflow-hidden rounded-xl border border-border bg-muted">
               <div className="ui-eyebrow grid grid-cols-3 gap-4 border-b border-border px-4 py-3">
                 <span>Streak</span>
@@ -309,72 +316,164 @@ export function ProbabilityCalculator() {
                 ))}
                 </div>
             </div>
-          </>
-        ) : null}
-      </section>
+          </section>
 
-      <section className="grid gap-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="ui-eyebrow">Card Odds</p>
-            <h2 className="ui-section-title">Setup and Prizing Detail</h2>
-          </div>
+          <section className="grid gap-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="ui-eyebrow">Card Odds</p>
+                <h2 className="ui-section-title">Setup and Prizing Detail</h2>
+              </div>
 
-          <Tabs
-            className="w-auto"
-            onValueChange={(value) => setActiveTab(value as TabId)}
-            value={activeTab}
-          >
-            <TabsList aria-label="Calculator views" className="rounded-full bg-muted p-1">
-              <TabsTrigger className="rounded-full px-4" value="setup">
-                Setup
-              </TabsTrigger>
-              <TabsTrigger className="rounded-full px-4" value="prizing">
-                Prizing
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+              <Tabs
+                className="w-auto"
+                onValueChange={(value) => setActiveTab(value as TabId)}
+                value={activeTab}
+              >
+                <TabsList aria-label="Calculator views" className="rounded-full bg-muted p-1">
+                  <TabsTrigger className="rounded-full px-4" value="setup">
+                    Setup
+                  </TabsTrigger>
+                  <TabsTrigger className="rounded-full px-4" value="prizing">
+                    Prizing
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {activeTab === "setup" ? (
+              setupComparisonRows.length ? (
+                <ProbabilityComparisonTable
+                  columns={[
+                    { key: "primary", label: "Only Starter" },
+                    { key: "secondary", label: "In Starting 7" }
+                  ]}
+                  pokemonOptions={pokemonOptions}
+                  rows={setupComparisonRows.map((row) => ({
+                    card: row.card,
+                    key: `${row.card.name}-${row.card.category}`,
+                    metrics: [
+                      { label: "Only Starter", value: pct(row.onlyStarter) },
+                      { label: "In Starting 7", value: pct(row.inStartingSeven) }
+                    ]
+                  }))}
+                />
+              ) : (
+                null
+              )
+            ) : prizingComparisonRows.length ? (
+              <ProbabilityCompactGrid
+                pokemonOptions={pokemonOptions}
+                rows={prizingComparisonRows.map((row) => ({
+                  card: row.card,
+                  key: `${row.card.name}-${row.card.category}`,
+                  metrics: [
+                    { label: "None Prized", value: pct(row.nonePrized) },
+                    { label: "1 Prized", value: pct(row.onePrized) },
+                    { label: "2 Prized", value: pct(row.twoPrized) },
+                    { label: "3+ Prized", value: pct(row.threePlusPrized) }
+                  ]
+                }))}
+              />
+            ) : (
+              null
+            )}
+          </section>
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+function DeckImportDialog({
+  deckInput,
+  initialImport,
+  onDeckInputChange,
+  onLoadSampleDeck,
+  onOpenChange,
+  onSubmit,
+  open,
+  showStatus,
+  statusClassName,
+  statusMessage
+}: {
+  deckInput: string;
+  initialImport: boolean;
+  onDeckInputChange: (value: string) => void;
+  onLoadSampleDeck: () => void;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: () => void;
+  open: boolean;
+  showStatus: boolean;
+  statusClassName: string;
+  statusMessage: string;
+}) {
+  return (
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (initialImport && !nextOpen) {
+          return;
+        }
+
+        onOpenChange(nextOpen);
+      }}
+      open={open}
+    >
+      <DialogContent
+        className="flex max-h-[calc(100dvh-1rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[24px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-3xl sm:rounded-[28px]"
+        showCloseButton={!initialImport}
+      >
+        <div className="shrink-0 border-b border-border p-4 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:pr-14">
+          <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
+            Import Deck
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Paste a Pokemon TCG deck list to open the probability calculator.
+          </DialogDescription>
         </div>
 
-        {activeTab === "setup" ? (
-          setupComparisonRows.length ? (
-            <ProbabilityComparisonTable
-              columns={[
-                { key: "primary", label: "Only Starter" },
-                { key: "secondary", label: "In Starting 7" }
-              ]}
-              pokemonOptions={pokemonOptions}
-              rows={setupComparisonRows.map((row) => ({
-                card: row.card,
-                key: `${row.card.name}-${row.card.category}`,
-                metrics: [
-                  { label: "Only Starter", value: pct(row.onlyStarter) },
-                  { label: "In Starting 7", value: pct(row.inStartingSeven) }
-                ]
-              }))}
-            />
-          ) : (
-            null
-          )
-        ) : prizingComparisonRows.length ? (
-          <ProbabilityCompactGrid
-            pokemonOptions={pokemonOptions}
-            rows={prizingComparisonRows.map((row) => ({
-              card: row.card,
-              key: `${row.card.name}-${row.card.category}`,
-              metrics: [
-                { label: "None Prized", value: pct(row.nonePrized) },
-                { label: "1 Prized", value: pct(row.onePrized) },
-                { label: "2 Prized", value: pct(row.twoPrized) },
-                { label: "3+ Prized", value: pct(row.threePlusPrized) }
-              ]
-            }))}
+        <form
+          className="grid min-h-0 gap-4 overflow-y-auto p-4 pr-5 sm:px-6 sm:py-5 sm:pr-7 lg:px-8 lg:py-6 lg:pr-9"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <label className="sr-only" htmlFor="calculator-deck-input">
+            Deck List
+          </label>
+          <Textarea
+            autoFocus
+            className="h-[360px] w-full resize-none rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
+            id="calculator-deck-input"
+            onChange={(event) => onDeckInputChange(event.target.value)}
+            placeholder="Paste your deck list here"
+            spellCheck={false}
+            value={deckInput}
           />
-        ) : (
-          null
-        )}
-      </section>
-    </section>
+
+          {showStatus ? (
+            <section className={statusClassName}>
+              <p className="text-sm font-medium leading-6 text-card-foreground">
+                {statusMessage}
+              </p>
+            </section>
+          ) : null}
+
+          <ButtonGroup className="w-full" orientation="vertical">
+            <Button type="submit">Import Deck</Button>
+            <Button onClick={onLoadSampleDeck} variant="outline">
+              Load Sample Deck
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/logs" prefetch={false}>
+                Back to Site
+              </Link>
+            </Button>
+          </ButtonGroup>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -386,11 +485,11 @@ function ProbabilitySummaryMetric({
   value: string;
 }) {
   return (
-    <div className="flex h-full flex-col gap-2 py-2">
-      <p className="text-xs font-medium uppercase leading-tight tracking-wide text-muted-foreground">
+    <div className="flex h-full min-w-0 flex-col gap-2 py-2">
+      <p className="text-[0.65rem] font-medium uppercase leading-tight tracking-wide text-muted-foreground sm:text-xs">
         {label}
       </p>
-      <p className="text-3xl font-semibold leading-none tracking-[-0.02em] text-card-foreground [font-variant-numeric:tabular-nums]">
+      <p className="text-xl font-semibold leading-none tracking-[-0.02em] text-card-foreground [font-variant-numeric:tabular-nums] sm:text-3xl">
         {value}
       </p>
     </div>

@@ -1,5 +1,7 @@
 import { normalizeLimitlessSetCode } from "@/lib/deck-lists/limitless";
 
+export type DeckListCardImageSize = "XS" | "SM" | "MD" | "LG";
+
 export function formatDeckListCardNumber(number: string): string {
   const match = number.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
 
@@ -11,10 +13,14 @@ export function formatDeckListCardNumber(number: string): string {
   return number;
 }
 
-export function buildDeckListCardImageUrl(set: string, number: string) {
+export function buildDeckListCardImageUrl(
+  set: string,
+  number: string,
+  size: DeckListCardImageSize = "SM"
+) {
   const normalizedSet = normalizeLimitlessSetCode(set);
   const formattedNumber = formatDeckListCardNumber(number);
-  return `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${normalizedSet}/${normalizedSet}_${formattedNumber}_R_EN_SM.png`;
+  return `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/${normalizedSet}/${normalizedSet}_${formattedNumber}_R_EN_${size}.png`;
 }
 
 export function buildDeckListCardUrl(set: string, number: string) {
