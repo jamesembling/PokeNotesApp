@@ -1,16 +1,20 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { CoinsIcon, RotateCcwIcon, TrophyIcon } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
-import type { ArchetypeMatchupStats, LogStatsOverview } from "@/lib/db/logs";
+import type {
+  ArchetypeMatchupStats,
+  LogDamageTimelinePoint,
+  LogStatsOverview
+} from "@/lib/db/logs";
 
 type StatsTabsClientProps = {
+  damageTimeline: LogDamageTimelinePoint[];
   matchups?: ArchetypeMatchupStats[];
   overview: LogStatsOverview;
 };
@@ -57,6 +61,7 @@ function getDamageComparison(overview: LogStatsOverview) {
     return {
       detail: `You dealt ${percentage}% more damage than opponents`,
       label: "Damage Advantage",
+      percentage,
       value: `+${formatMetric(advantage)}`,
       valueClassName: "text-win"
     };
@@ -66,6 +71,7 @@ function getDamageComparison(overview: LogStatsOverview) {
     return {
       detail: `Opponents dealt ${percentage}% more damage than you`,
       label: "Damage Deficit",
+      percentage,
       value: `-${formatMetric(absoluteAdvantage)}`,
       valueClassName: "text-loss"
     };
@@ -74,6 +80,7 @@ function getDamageComparison(overview: LogStatsOverview) {
   return {
     detail: "You dealt the same damage as opponents",
     label: "Damage Advantage",
+    percentage,
     value: formatMetric(0),
     valueClassName: "text-card-foreground"
   };
@@ -134,59 +141,291 @@ function OverviewSection({
   );
 }
 
+function DamageSplitChart({
+  attackDamage,
+  damageTimeline,
+  opponentAttackDamage
+}: {
+  attackDamage: number;
+  damageTimeline: LogDamageTimelinePoint[];
+  opponentAttackDamage: number;
+}) {
+  const chart = getDamageChartGeometry(damageTimeline, attackDamage, opponentAttackDamage);
+
+  return (
+    <div className="grid gap-5 rounded-lg border border-border bg-card p-5">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Damage Split
+        </h3>
+        <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-violet-500" />
+            You dealt
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-loss" />
+            Opponents dealt
+          </span>
+        </div>
+      </div>
+
+      <div
+        aria-label={`Damage split line chart. You dealt ${formatMetric(attackDamage)}. Opponents dealt ${formatMetric(opponentAttackDamage)}.`}
+        className="relative overflow-hidden p-3"
+        role="img"
+      >
+        <svg
+          aria-hidden="true"
+          className="h-auto w-full"
+          preserveAspectRatio="xMidYMid meet"
+          viewBox={`0 0 ${chart.width} ${chart.height}`}
+        >
+          <defs>
+            <linearGradient id="attack-damage-line" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#8b5cf6" />
+              <stop offset="100%" stopColor="#6366f1" />
+            </linearGradient>
+            <linearGradient id="opponent-damage-line" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="var(--color-loss)" />
+              <stop offset="100%" stopColor="#fb7185" />
+            </linearGradient>
+          </defs>
+          {chart.yTicks.map((tick) => (
+            <g key={tick.value}>
+              <line
+                stroke="var(--border)"
+                strokeDasharray="3 8"
+                strokeOpacity="0.85"
+                x1={chart.plotLeft}
+                x2={chart.plotRight}
+                y1={tick.y}
+                y2={tick.y}
+              />
+              <text
+                fill="var(--muted-foreground)"
+                fontSize="11"
+                textAnchor="end"
+                x={chart.plotLeft - 10}
+                y={tick.y + 4}
+              >
+                {formatCompactMetric(tick.value)}
+              </text>
+            </g>
+          ))}
+          <path
+            d={chart.attackPath}
+            fill="none"
+            stroke="url(#attack-damage-line)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="3.5"
+          />
+          <path
+            d={chart.opponentPath}
+            fill="none"
+            stroke="url(#opponent-damage-line)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="3.5"
+          />
+          <line
+            stroke="var(--border)"
+            strokeWidth="1"
+            x1={chart.plotLeft}
+            x2={chart.plotRight}
+            y1={chart.plotBottom}
+            y2={chart.plotBottom}
+          />
+          <circle cx={chart.lastX} cy={chart.lastAttackY} fill="#8b5cf6" r="4.5" />
+          <circle cx={chart.lastX} cy={chart.lastOpponentY} fill="var(--color-loss)" r="4.5" />
+          <text
+            fill="var(--muted-foreground)"
+            fontSize="11"
+            textAnchor="start"
+            x={chart.plotLeft}
+            y={chart.height - 10}
+          >
+            Game 1
+          </text>
+          <text
+            fill="var(--muted-foreground)"
+            fontSize="11"
+            textAnchor="end"
+            x={chart.plotRight}
+            y={chart.height - 10}
+          >
+            Game {Math.max(damageTimeline.length, 1)}
+          </text>
+        </svg>
+        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+          <div className="flex items-center justify-between gap-3 border-t border-border px-1 py-3">
+            <span className="font-medium text-muted-foreground">You dealt</span>
+            <span className="font-mono font-semibold text-card-foreground">{formatMetric(attackDamage)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t border-border px-1 py-3">
+            <span className="font-medium text-muted-foreground">Opponents dealt</span>
+            <span className="font-mono font-semibold text-card-foreground">{formatMetric(opponentAttackDamage)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatCompactMetric(value: number) {
+  if (value >= 1000) {
+    return `${Math.round(value / 1000)}K`;
+  }
+
+  return String(value);
+}
+
+function getDamageChartGeometry(
+  damageTimeline: LogDamageTimelinePoint[],
+  attackDamage: number,
+  opponentAttackDamage: number
+) {
+  const width = 560;
+  const height = 260;
+  const plotLeft = 54;
+  const plotRight = width - 18;
+  const plotTop = 18;
+  const plotBottom = height - 38;
+  const plotWidth = plotRight - plotLeft;
+  const plotHeight = plotBottom - plotTop;
+  const points =
+    damageTimeline.length > 0
+      ? damageTimeline
+      : [{ date: "", selfAttackDamage: attackDamage, opponentAttackDamage }];
+  let cumulativeAttack = 0;
+  let cumulativeOpponent = 0;
+  const cumulativePoints = points.map((point, index) => {
+    cumulativeAttack += point.selfAttackDamage;
+    cumulativeOpponent += point.opponentAttackDamage;
+
+    return {
+      attack: cumulativeAttack,
+      index,
+      opponent: cumulativeOpponent
+    };
+  });
+  const maxDamage = Math.max(
+    attackDamage,
+    opponentAttackDamage,
+    ...cumulativePoints.map((point) => Math.max(point.attack, point.opponent)),
+    1
+  );
+  const tickStep = Math.max(1000, Math.ceil(maxDamage / 4 / 1000) * 1000);
+  const maxTick = Math.ceil(maxDamage / tickStep) * tickStep;
+  const yTicks = Array.from({ length: 5 }, (_, index) => {
+    const value = Math.round((maxTick / 4) * index);
+
+    return {
+      value,
+      y: plotBottom - (value / maxTick) * plotHeight
+    };
+  }).reverse();
+
+  function xForIndex(index: number) {
+    return plotLeft + (points.length === 1 ? plotWidth : (index / (points.length - 1)) * plotWidth);
+  }
+
+  function yForValue(value: number) {
+    return plotBottom - (value / maxTick) * plotHeight;
+  }
+
+  function pathFor(key: "attack" | "opponent") {
+    return cumulativePoints
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${xForIndex(point.index).toFixed(2)} ${yForValue(point[key]).toFixed(2)}`)
+      .join(" ");
+  }
+
+  const lastPoint = cumulativePoints[cumulativePoints.length - 1] ?? {
+    attack: attackDamage,
+    index: 0,
+    opponent: opponentAttackDamage
+  };
+
+  return {
+    attackPath: pathFor("attack"),
+    height,
+    lastAttackY: yForValue(lastPoint.attack),
+    lastOpponentY: yForValue(lastPoint.opponent),
+    lastX: xForIndex(lastPoint.index),
+    opponentPath: pathFor("opponent"),
+    plotBottom,
+    plotLeft,
+    plotRight,
+    width,
+    yTicks
+  };
+}
+
 function OverviewTile({
-  className = "",
   detail,
   label,
   value,
   valueClassName = "text-card-foreground"
 }: {
-  className?: string;
   detail?: string;
   label: string;
   value: string;
   valueClassName?: string;
 }) {
   return (
-    <div className={`grid min-h-[70px] content-start gap-2 rounded-lg bg-muted p-4 ${className}`}>
+    <div className="min-h-24 p-5">
       <p className="text-xs font-semibold uppercase leading-none tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className={`text-2xl font-semibold leading-none [font-variant-numeric:tabular-nums] ${valueClassName}`}>
+      <p
+        className={`mt-3 text-2xl font-semibold leading-none [font-variant-numeric:tabular-nums] sm:text-3xl ${valueClassName}`}
+      >
         {value}
       </p>
-      {detail ? <p className="text-xs font-medium leading-snug text-muted-foreground">{detail}</p> : null}
+      {detail ? <p className="mt-2 text-sm font-medium leading-snug text-muted-foreground">{detail}</p> : null}
     </div>
   );
 }
 
 function GameStatRow({
-  icon,
+  detail,
   label,
   value
 }: {
-  icon: ReactNode;
+  detail: string;
   label: string;
   value: string;
 }) {
   return (
-    <div className="flex min-h-9 items-center gap-2 border-b border-border px-4 py-2.5 last:border-b-0">
-      <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">{icon}</span>
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-muted-foreground">{label}</span>
-      <span className="font-mono text-sm font-semibold text-card-foreground">{value}</span>
+    <div className="flex min-h-14 items-center gap-3 border-b border-border py-4 last:border-b-0">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-card-foreground">{label}</span>
+        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+      </span>
+      <span className="font-mono text-lg font-semibold text-card-foreground">{value}</span>
     </div>
   );
 }
 
-function StatsOverviewGrid({ overview }: { overview: LogStatsOverview }) {
+function StatsOverviewGrid({
+  damageTimeline,
+  overview
+}: {
+  damageTimeline: LogDamageTimelinePoint[];
+  overview: LogStatsOverview;
+}) {
   const damageComparison = getDamageComparison(overview);
   const winRate = getOverviewWinRate(overview);
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-6">
       <OverviewSection title="Results">
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-          <OverviewTile label="Games Played" value={formatMetric(overview.gamesPlayed)} />
+        <div className="grid overflow-hidden rounded-lg border border-border bg-card [&>*+*]:border-t sm:grid-cols-2 sm:[&>*+*]:border-t-0 sm:[&>*:nth-child(2n)]:border-l sm:[&>*:nth-child(n+3)]:border-t xl:grid-cols-4 xl:[&>*:nth-child(n)]:border-l xl:[&>*:first-child]:border-l-0 xl:[&>*:nth-child(n+3)]:border-t-0">
+          <OverviewTile
+            label="Games Played"
+            value={formatMetric(overview.gamesPlayed)}
+          />
           <OverviewTile
             label="Win Rate"
             value={formatWinRate(winRate)}
@@ -206,11 +445,16 @@ function StatsOverviewGrid({ overview }: { overview: LogStatsOverview }) {
       </OverviewSection>
 
       <OverviewSection title="Damage">
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          <OverviewTile label="Attack Damage" value={formatMetric(overview.attackDamage)} />
-          <OverviewTile label="Opponent Damage" value={formatMetric(overview.opponentAttackDamage)} />
+        <div className="grid overflow-hidden rounded-lg border border-border bg-card [&>*+*]:border-t sm:grid-cols-2 sm:[&>*+*]:border-t-0 sm:[&>*:nth-child(2n)]:border-l sm:[&>*:nth-child(n+3)]:border-t lg:grid-cols-[1fr_1fr_1.45fr] lg:[&>*:nth-child(n)]:border-l lg:[&>*:first-child]:border-l-0 lg:[&>*:nth-child(n+3)]:border-t-0">
           <OverviewTile
-            className="col-span-2"
+            label="Attack Damage"
+            value={formatMetric(overview.attackDamage)}
+          />
+          <OverviewTile
+            label="Opponent Damage"
+            value={formatMetric(overview.opponentAttackDamage)}
+          />
+          <OverviewTile
             detail={damageComparison.detail}
             label={damageComparison.label}
             value={damageComparison.value}
@@ -219,25 +463,41 @@ function StatsOverviewGrid({ overview }: { overview: LogStatsOverview }) {
         </div>
       </OverviewSection>
 
-      <OverviewSection title="Game Stats">
-        <div>
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)]">
+        <DamageSplitChart
+          attackDamage={overview.attackDamage}
+          damageTimeline={damageTimeline}
+          opponentAttackDamage={overview.opponentAttackDamage}
+        />
+
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="mb-3 text-xs font-semibold uppercase leading-none tracking-wide text-muted-foreground">
+            Game Stats
+          </h2>
           <GameStatRow
-            icon={<TrophyIcon className="size-4" />}
+            detail="Total prize cards collected"
             label="Prizes taken"
             value={formatMetric(overview.prizesTaken)}
           />
           <GameStatRow
-            icon={<CoinsIcon className="size-4" />}
+            detail="Successful coin flips"
             label="Coin flips won"
             value={formatMetric(overview.coinFlipsWon)}
           />
           <GameStatRow
-            icon={<RotateCcwIcon className="size-4" />}
+            detail="Games mulliganed"
             label="Mulligans taken"
             value={formatMetric(overview.mulligansTaken)}
           />
         </div>
-      </OverviewSection>
+      </div>
+
+      <div className="mx-auto flex w-fit max-w-full border-t border-border px-5 py-3 text-sm text-muted-foreground">
+        <span className="min-w-0">
+          Tracked {formatMetric(overview.trackedDamage)} damage and{" "}
+          {formatMetric(overview.trackedPrizes)} prize cards from imported logs.
+        </span>
+      </div>
     </div>
   );
 }
@@ -505,7 +765,11 @@ function ArchetypeMatchupsTable({ matchups }: { matchups: ArchetypeMatchupStats[
   );
 }
 
-export function StatsTabsClient({ matchups: initialMatchups, overview }: StatsTabsClientProps) {
+export function StatsTabsClient({
+  damageTimeline,
+  matchups: initialMatchups,
+  overview
+}: StatsTabsClientProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [matchups, setMatchups] = useState<ArchetypeMatchupStats[] | null>(
     initialMatchups ?? null
@@ -573,21 +837,27 @@ export function StatsTabsClient({ matchups: initialMatchups, overview }: StatsTa
   }, [isLoadingMatchups, matchups, matchupsError]);
 
   return (
-    <Tabs className="-mt-2 sm:mt-5" defaultValue="overview" onValueChange={setActiveTab} value={activeTab}>
-      <TabsList aria-label="Stats sections">
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="matchups">Matchups</TabsTrigger>
-      </TabsList>
+      <Tabs
+        className="-mt-2 gap-6 sm:mt-5"
+        defaultValue="overview"
+        onValueChange={setActiveTab}
+        value={activeTab}
+      >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <TabsList
+          aria-label="Stats sections"
+          className="h-11 rounded-lg border border-border bg-card/80 p-1 shadow-sm"
+        >
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="matchups">Matchups</TabsTrigger>
+        </TabsList>
+        <div className="inline-flex h-11 w-fit items-center gap-2 rounded-lg border border-border bg-card/80 px-4 text-sm font-medium text-card-foreground shadow-sm">
+          <span>All time</span>
+        </div>
+      </div>
 
       <TabsContent value="overview">
-        <div className="grid gap-5">
-          <div className="hidden space-y-2 sm:block">
-            <p className="ui-eyebrow">Overview</p>
-            <h2 className="ui-section-title">Battle Log Totals</h2>
-          </div>
-
-          <StatsOverviewGrid overview={overview} />
-        </div>
+        <StatsOverviewGrid damageTimeline={damageTimeline} overview={overview} />
       </TabsContent>
 
       <TabsContent value="matchups">

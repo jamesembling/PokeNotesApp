@@ -3,13 +3,16 @@ import { Skeleton } from "@/components/shadcn/skeleton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatsTabsClient } from "@/components/ui/StatsTabsClient";
 import { requireUser } from "@/lib/auth";
-import { getLogStatsOverview } from "@/lib/db/logs";
+import { getLogDamageTimeline, getLogStatsOverview } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
 
 export default async function StatsPage() {
   const user = await requireUser();
   const overviewPromise = measureServerCall("page.stats.overview", () =>
     getLogStatsOverview(user.id)
+  );
+  const damageTimelinePromise = measureServerCall("page.stats.damageTimeline", () =>
+    getLogDamageTimeline(user.id)
   );
 
   return (
@@ -20,20 +23,25 @@ export default async function StatsPage() {
       />
 
       <Suspense fallback={<StatsOverviewFallback />}>
-        <StatsContent overviewPromise={overviewPromise} />
+        <StatsContent
+          damageTimelinePromise={damageTimelinePromise}
+          overviewPromise={overviewPromise}
+        />
       </Suspense>
     </>
   );
 }
 
 async function StatsContent({
+  damageTimelinePromise,
   overviewPromise
 }: {
+  damageTimelinePromise: ReturnType<typeof getLogDamageTimeline>;
   overviewPromise: ReturnType<typeof getLogStatsOverview>;
 }) {
-  const overview = await overviewPromise;
+  const [overview, damageTimeline] = await Promise.all([overviewPromise, damageTimelinePromise]);
 
-  return <StatsTabsClient overview={overview} />;
+  return <StatsTabsClient damageTimeline={damageTimeline} overview={overview} />;
 }
 
 function StatsOverviewFallback() {
