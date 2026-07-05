@@ -274,6 +274,7 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
         <div className="flex items-center justify-between gap-3">
           <SidebarLogo onNavigate={() => setOpenMobile(false)} />
           <div className="flex items-center gap-1">
+            <SidebarThemeToggle />
             <Button
               aria-label="Close navigation menu"
               className="text-sidebar-foreground min-[860px]:hidden"

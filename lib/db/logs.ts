@@ -54,6 +54,12 @@ export type LogStatsOverview = {
   trackedPrizes: number;
 };
 
+export type LogDamageTimelinePoint = {
+  date: string;
+  selfAttackDamage: number;
+  opponentAttackDamage: number;
+};
+
 export type ArchetypeMatchupStats = {
   matchupKey: string;
   opponentDeckName: string;
@@ -88,6 +94,12 @@ type ArchetypeMatchupStatsRow = {
   games_won: number | null;
   games_lost: number | null;
   last_played_date: string | null;
+};
+
+type LogDamageTimelineRow = {
+  date: string | null;
+  self_attack_damage: number | null;
+  opponent_attack_damage: number | null;
 };
 
 function mapLogStatsOverviewRow(row: LogStatsOverviewRpcRow | null): LogStatsOverview {
@@ -475,6 +487,32 @@ export const getLogStatsOverview = cache(async function getLogStatsOverview(
   }
 
   return mapLogStatsOverviewRow(((fallbackData ?? null) as unknown) as LogStatsOverviewRpcRow | null);
+});
+
+export const getLogDamageTimeline = cache(async function getLogDamageTimeline(
+  userId: string
+): Promise<LogDamageTimelinePoint[]> {
+  const supabase = await logsDbTestHooks.createClient();
+  const { data, error } = await measureServerCall("db.logs.damageTimeline", async () =>
+    await supabase
+      .from("logs")
+      .select("date,self_attack_damage,opponent_attack_damage")
+      .eq("user_id", userId)
+      .order("date", { ascending: true })
+      .order("imported_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(5000)
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return (((data ?? []) as unknown) as LogDamageTimelineRow[]).map((row) => ({
+    date: String(row.date ?? ""),
+    selfAttackDamage: Number(row.self_attack_damage ?? 0),
+    opponentAttackDamage: Number(row.opponent_attack_damage ?? 0)
+  }));
 });
 
 export const getArchetypeMatchupStats = cache(async function getArchetypeMatchupStats(
