@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/shadcn/button";
 
 type CopyShareLinkButtonProps = {
+  ariaLabel?: string;
+  children?: ReactNode;
+  className?: string;
   initialShare?: ShareLinkState | null;
   logId: string;
   onShareReady?: (share: ShareLinkState) => void;
+  variant?: React.ComponentProps<typeof Button>["variant"];
 };
 
 type ShareMethod = "native-share" | "clipboard" | "prompt" | "cancelled";
@@ -129,9 +133,13 @@ function showShareConfirmation(shareMethod: ShareMethod) {
 }
 
 export function CopyShareLinkButton({
+  ariaLabel,
+  children,
+  className,
   initialShare = null,
   logId,
-  onShareReady
+  onShareReady,
+  variant = "outline"
 }: CopyShareLinkButtonProps) {
   const [isBusy, setIsBusy] = useState(false);
 
@@ -157,8 +165,15 @@ export function CopyShareLinkButton({
   }
 
   return (
-    <Button disabled={isBusy} onClick={handleCopy} type="button" variant="outline">
-      {isBusy ? "Preparing Share..." : "Share Log"}
+    <Button
+      aria-label={ariaLabel}
+      className={className}
+      disabled={isBusy}
+      onClick={handleCopy}
+      type="button"
+      variant={variant}
+    >
+      {children ?? (isBusy ? "Preparing Share..." : "Share Log")}
     </Button>
   );
 }

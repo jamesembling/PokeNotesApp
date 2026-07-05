@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -91,6 +92,16 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
             { label: `VS ${opponentDeckName}` }
           ]}
           title=" "
+          afterBreadcrumb={
+            <Link
+              className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary sm:hidden"
+              href="/logs"
+              prefetch={false}
+            >
+              <ArrowLeftIcon className="size-4" />
+              Back to Logs
+            </Link>
+          }
         />
 
         <BattleLogDetailShell

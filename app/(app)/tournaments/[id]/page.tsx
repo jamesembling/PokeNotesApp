@@ -1,19 +1,21 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Skeleton } from "@/components/shadcn/skeleton";
+import { ArrowLeftIcon, EyeIcon, PencilIcon } from "lucide-react";
+import { saveTournamentDeckListAction } from "@/app/(app)/tournaments/actions";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
+import { LazyDeckListViewButton } from "@/components/ui/LazyDeckListViewButton";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
-import { TournamentDeckListPanel } from "@/components/ui/TournamentDeckListPanel";
 import { TournamentRoundRow } from "@/components/ui/TournamentRoundRow";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { requireUser } from "@/lib/auth";
-import { getDeckWithList } from "@/lib/db/decks";
+import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
 import {
   getTournamentById,
   getTournamentDeckChoices,
@@ -29,6 +31,54 @@ type TournamentDetailPageProps = {
     id: string;
   }>;
 };
+
+function splitTitleForMobile(title: string) {
+  const words = title.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length < 2) {
+    return title;
+  }
+
+  const midpoint = Math.ceil(words.length / 2);
+
+  return (
+    <>
+      <span className="block">{words.slice(0, midpoint).join(" ")}</span>
+      <span className="block">{words.slice(midpoint).join(" ")}</span>
+    </>
+  );
+}
+
+function getTournamentDeckDisplayName(sprites: string[]) {
+  return getBattleLogSpriteDisplayName(sprites, "/") || "No deck name";
+}
+
+function stackDeckName(deckName: string) {
+  const parts = deckName.includes("/")
+    ? deckName.split("/").map((part) => part.trim()).filter(Boolean)
+    : deckName.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length < 2) {
+    return deckName;
+  }
+
+  if (deckName.includes("/")) {
+    return (
+      <>
+        <span className="block">{parts[0]}</span>
+        <span className="block">{parts.slice(1).join("/")}</span>
+      </>
+    );
+  }
+
+  const midpoint = Math.ceil(parts.length / 2);
+  return (
+    <>
+      <span className="block">{parts.slice(0, midpoint).join(" ")}</span>
+      <span className="block">{parts.slice(midpoint).join(" ")}</span>
+    </>
+  );
+}
 
 export default async function TournamentDetailPage({ params }: TournamentDetailPageProps) {
   const [user, { id }] = await Promise.all([requireUser(), params]);
@@ -98,27 +148,60 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   ]
     .filter(Boolean)
     .join(" · ");
-  const linkedDeckWithListPromise =
-    tournament.linkedDeckId && tournament.linkedDeckListId
-      ? getDeckWithList(user.id, tournament.linkedDeckId, tournament.linkedDeckListId)
-      : null;
+  const defaultCreatedBy =
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split("@")[0] ||
+    "Trainer";
+  const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
 
   return (
     <PageWidth size="standard">
       <PageHeader
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
-          { label: "Tournaments", href: "/tournaments" },
-          { label: tournament.name }
+          { label: "Tournaments", href: "/tournaments" }
         ]}
         title={tournament.name}
-        subtitle={tournamentSubheading}
+        meta={
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge>{record}</Badge>
+              {tournament.placement ? (
+                <Badge className={getTournamentPlacementPillClassName(tournament.placement)}>
+                  {getTournamentPlacementLabel(tournament.placement)}
+                </Badge>
+              ) : null}
+            </div>
+            {tournamentSubheading ? (
+              <p className="max-w-[65ch] text-base leading-7 text-muted-foreground">
+                {tournamentSubheading}
+              </p>
+            ) : null}
+          </div>
+        }
+        mobileTitle={splitTitleForMobile(tournament.name)}
+        afterBreadcrumb={
+          <Link
+            className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary sm:hidden"
+            href="/tournaments"
+            prefetch={false}
+          >
+            <ArrowLeftIcon className="size-4" />
+            Back to Tournaments
+          </Link>
+        }
+        mobileAction={
+          <Suspense fallback={<TournamentEditButtonFallback compact />}>
+            <TournamentEditAction compact tournament={tournament} userId={user.id} />
+          </Suspense>
+        }
         action={
-          <ButtonGroup className="mx-auto !w-full max-w-full justify-center sm:!w-fit">
+          <ButtonGroup className="mx-auto hidden max-w-full justify-center sm:flex sm:!w-fit">
             <Suspense fallback={<TournamentEditButtonFallback />}>
               <TournamentEditAction tournament={tournament} userId={user.id} />
             </Suspense>
-            <Button asChild className="flex-1 justify-center text-center sm:flex-none">
+            <Button asChild className="hidden justify-center text-center sm:flex">
               <Link href="/tournaments" prefetch={false}>
                 Back to Tournaments
               </Link>
@@ -127,25 +210,51 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         }
       />
 
-      <section className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+      <section className="flex flex-col gap-6 border-b border-border pb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
             <SpriteStrip maxVisible={3} size="xl" sprites={tournament.deckSprites} />
-            <div className="space-y-1">
-              <p className="ui-eyebrow">Deck</p>
-              <p className="font-display text-[1.15rem] font-semibold tracking-[-0.03em] text-card-foreground">
-                {tournament.deckName || "No linked deck"}
-              </p>
+            <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-display text-[1.15rem] font-semibold tracking-[-0.03em] text-card-foreground">
+                  {stackDeckName(tournamentDeckName)}
+                </p>
+              </div>
+              <div className="flex shrink-0">
+                {tournament.linkedDeckId && tournament.linkedDeckListId ? (
+                  <LazyDeckListViewButton
+                    deckId={tournament.linkedDeckId}
+                    deckListId={tournament.linkedDeckListId}
+                    triggerChildren={
+                      <>
+                        <EyeIcon className="size-4" />
+                        <span>Deck List</span>
+                      </>
+                    }
+                    triggerClassName="px-3"
+                    triggerLabel="Deck List"
+                    triggerSize="sm"
+                    triggerVariant="default"
+                  />
+                ) : (
+                  <LazyDeckListEditorButton
+                    deckId={tournament.linkedDeckId ?? ""}
+                    defaultCreatedBy={defaultCreatedBy}
+                    defaultFormat={tournament.format}
+                    defaultListName={tournamentDeckName}
+                    extraHiddenFields={
+                      <input name="tournamentId" type="hidden" value={tournament.id} />
+                    }
+                    saveAction={saveTournamentDeckListAction}
+                    simplePasteMode
+                    triggerClassName="px-3"
+                    triggerLabel="+ ADD"
+                    triggerSize="sm"
+                    triggerVariant="default"
+                  />
+                )}
+              </div>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge>{record}</Badge>
-            {tournament.placement ? (
-              <Badge className={getTournamentPlacementPillClassName(tournament.placement)}>
-                {getTournamentPlacementLabel(tournament.placement)}
-              </Badge>
-            ) : null}
           </div>
         </div>
 
@@ -158,14 +267,6 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
           </div>
         ) : null}
       </section>
-
-      {linkedDeckWithListPromise ? (
-        <Suspense fallback={<TournamentDeckListPanelFallback />}>
-          <TournamentDeckListSection
-            linkedDeckWithListPromise={linkedDeckWithListPromise}
-          />
-        </Suspense>
-      ) : null}
 
       <section className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -207,29 +308,12 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   );
 }
 
-async function TournamentDeckListSection({
-  linkedDeckWithListPromise
-}: {
-  linkedDeckWithListPromise: ReturnType<typeof getDeckWithList>;
-}) {
-  const linkedDeckWithList = await linkedDeckWithListPromise;
-  const resolvedTournamentDeckList = linkedDeckWithList?.deckList;
-
-  return (
-    <TournamentDeckListPanel
-      deckListFormat={resolvedTournamentDeckList?.format}
-      deckListName={resolvedTournamentDeckList?.name}
-      deckListNotes={resolvedTournamentDeckList?.notes}
-      rawList={resolvedTournamentDeckList?.rawList}
-      sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
-    />
-  );
-}
-
 async function TournamentEditAction({
+  compact = false,
   tournament,
   userId
 }: {
+  compact?: boolean;
   tournament: NonNullable<Awaited<ReturnType<typeof getTournamentById>>>;
   userId: string;
 }) {
@@ -240,24 +324,30 @@ async function TournamentEditAction({
       className="flex-1 justify-center text-center sm:flex-none"
       decks={decks}
       tournament={tournament}
+      triggerChildren={
+        compact ? (
+          <>
+            <PencilIcon className="size-4" />
+            <span>Edit</span>
+          </>
+        ) : undefined
+      }
       triggerLabel="Edit Tournament"
     />
   );
 }
 
-function TournamentEditButtonFallback() {
+function TournamentEditButtonFallback({ compact = false }: { compact?: boolean }) {
   return (
     <Button className="flex-1 justify-center text-center sm:flex-none" disabled>
-      Edit Tournament
+      {compact ? (
+        <>
+          <PencilIcon className="size-4" />
+          <span>Edit</span>
+        </>
+      ) : (
+        "Edit Tournament"
+      )}
     </Button>
-  );
-}
-
-function TournamentDeckListPanelFallback() {
-  return (
-    <div className="grid gap-4">
-      <Skeleton className="h-5 w-28" />
-      <Skeleton className="h-16 rounded-2xl border border-border" />
-    </div>
   );
 }

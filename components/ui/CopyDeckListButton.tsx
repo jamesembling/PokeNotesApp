@@ -6,6 +6,7 @@ import { Button } from "@/components/shadcn/button";
 type CopyDeckListButtonProps = {
   className?: string;
   text: string;
+  variant?: React.ComponentProps<typeof Button>["variant"];
 };
 
 type CopyState = "idle" | "copied" | "error";
@@ -37,7 +38,7 @@ async function copyTextToClipboard(text: string) {
   }
 }
 
-export function CopyDeckListButton({ className, text }: CopyDeckListButtonProps) {
+export function CopyDeckListButton({ className, text, variant = "outline" }: CopyDeckListButtonProps) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
   const resetTimerRef = useRef<number | null>(null);
   const trimmedText = text.trim();
@@ -85,7 +86,7 @@ export function CopyDeckListButton({ className, text }: CopyDeckListButtonProps)
       className={className}
       onClick={handleCopy}
       type="button"
-      variant={copyState === "error" ? "destructive" : "outline"}
+      variant={copyState === "error" ? "destructive" : variant}
     >
       {label}
     </Button>

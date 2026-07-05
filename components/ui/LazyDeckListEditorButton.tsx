@@ -32,7 +32,13 @@ export function LazyDeckListEditorButton({
   deckListId,
   defaultCreatedBy,
   defaultFormat,
+  defaultListName,
+  extraHiddenFields,
+  saveAction,
+  simplePasteMode,
+  triggerClassName,
   triggerLabel,
+  triggerSize,
   triggerVariant = "outline"
 }: LazyDeckListEditorButtonProps) {
   const [resolvedDeckList, setResolvedDeckList] = useState<DeckList | undefined>(deckList);
@@ -79,8 +85,14 @@ export function LazyDeckListEditorButton({
           deckList={resolvedDeckList}
           defaultCreatedBy={defaultCreatedBy}
           defaultFormat={defaultFormat}
+          defaultListName={defaultListName}
+          extraHiddenFields={extraHiddenFields}
           initialOpen={dialogOpen}
+          saveAction={saveAction}
+          simplePasteMode={simplePasteMode}
+          triggerClassName={triggerClassName}
           triggerLabel={triggerLabel}
+          triggerSize={triggerSize}
           triggerVariant={triggerVariant}
         />
         {loadError ? (
@@ -94,7 +106,13 @@ export function LazyDeckListEditorButton({
 
   return (
     <>
-      <Button disabled={isLoading} onClick={handleOpen} variant={triggerVariant}>
+      <Button
+        className={triggerClassName}
+        disabled={isLoading}
+        onClick={handleOpen}
+        size={triggerSize}
+        variant={triggerVariant}
+      >
         {isLoading ? "Loading..." : triggerLabel}
       </Button>
       {loadError ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
@@ -18,7 +18,10 @@ type DeckListViewDialogProps = {
   initialOpen?: boolean;
   rawList?: string;
   sortedCards: DeckCard[];
+  triggerChildren?: ReactNode;
+  triggerClassName?: string;
   triggerLabel?: string;
+  triggerSize?: React.ComponentProps<typeof Button>["size"];
   triggerVariant?: "default" | "outline" | "ghost";
 };
 
@@ -27,7 +30,10 @@ export function DeckListViewDialog({
   initialOpen = false,
   rawList,
   sortedCards,
+  triggerChildren,
+  triggerClassName,
   triggerLabel = "View List",
+  triggerSize = "default",
   triggerVariant = "outline"
 }: DeckListViewDialogProps) {
   const [isOpen, setIsOpen] = useState(initialOpen);
@@ -35,15 +41,15 @@ export function DeckListViewDialog({
   return (
     <Dialog onOpenChange={setIsOpen} open={isOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant={triggerVariant}>
-          {triggerLabel}
+        <Button className={triggerClassName} size={triggerSize} type="button" variant={triggerVariant}>
+          {triggerChildren ?? triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-hidden sm:max-w-5xl">
-        <DialogHeader className="min-w-0 pr-10 sm:flex-row sm:items-center sm:justify-between">
-          <DialogTitle className="min-w-0 truncate">{deckListName}</DialogTitle>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <CopyDeckListButton text={rawList ?? ""} />
+        <DialogHeader className="min-w-0 w-full">
+          <DialogTitle className="min-w-0 truncate pr-10">{deckListName}</DialogTitle>
+          <div className="w-full">
+            <CopyDeckListButton className="flex w-full" text={rawList ?? ""} variant="default" />
           </div>
         </DialogHeader>
         <div className="max-h-[min(72dvh,48rem)] min-w-0 overflow-x-hidden overflow-y-auto pr-1">

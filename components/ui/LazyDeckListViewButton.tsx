@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/shadcn/button";
 import type { DeckListViewDialog } from "@/components/ui/DeckListViewDialog";
 import type { DeckList } from "@/types/index";
@@ -10,10 +10,11 @@ type DeckListViewDialogProps = React.ComponentProps<typeof DeckListViewDialog>;
 
 type LazyDeckListViewButtonProps = Pick<
   DeckListViewDialogProps,
-  "triggerLabel" | "triggerVariant"
+  "triggerClassName" | "triggerLabel" | "triggerSize" | "triggerVariant"
 > & {
   deckId: string;
   deckListId: string;
+  triggerChildren?: ReactNode;
 };
 
 type DeckListResponse = {
@@ -34,7 +35,10 @@ const DynamicDeckListViewDialog = dynamic<DeckListViewDialogProps>(
 export function LazyDeckListViewButton({
   deckId,
   deckListId,
+  triggerChildren,
+  triggerClassName,
   triggerLabel = "View List",
+  triggerSize,
   triggerVariant = "ghost"
 }: LazyDeckListViewButtonProps) {
   const [deckList, setDeckList] = useState<DeckList | undefined>();
@@ -81,7 +85,10 @@ export function LazyDeckListViewButton({
           initialOpen={dialogOpen}
           rawList={deckList.rawList}
           sortedCards={deckList.sortedCards}
+          triggerChildren={triggerChildren}
+          triggerClassName={triggerClassName}
           triggerLabel={triggerLabel}
+          triggerSize={triggerSize}
           triggerVariant={triggerVariant}
         />
         {loadError ? (
@@ -95,8 +102,14 @@ export function LazyDeckListViewButton({
 
   return (
     <>
-      <Button disabled={isLoading} onClick={handleOpen} variant={triggerVariant}>
-        {isLoading ? "Loading..." : triggerLabel}
+      <Button
+        className={triggerClassName}
+        disabled={isLoading}
+        onClick={handleOpen}
+        size={triggerSize}
+        variant={triggerVariant}
+      >
+        {isLoading ? "Loading..." : (triggerChildren ?? triggerLabel)}
       </Button>
       {loadError ? (
         <p className="text-sm text-loss" role="status">

@@ -109,7 +109,14 @@ function SidebarLogo({ onNavigate }: { onNavigate?: () => void }) {
       onClick={onNavigate}
       prefetch={false}
     >
-      <Image alt="Poke Notes" className="size-12" height={48} src="/pokeball-icon.svg" width={48} />
+      <Image
+        alt="Poke Notes"
+        className="size-12"
+        height={48}
+        loading="eager"
+        src="/pokeball-icon.svg"
+        width={48}
+      />
     </Link>
   );
 }
@@ -267,7 +274,6 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
         <div className="flex items-center justify-between gap-3">
           <SidebarLogo onNavigate={() => setOpenMobile(false)} />
           <div className="flex items-center gap-1">
-            <SidebarThemeToggle />
             <Button
               aria-label="Close navigation menu"
               className="text-sidebar-foreground min-[860px]:hidden"

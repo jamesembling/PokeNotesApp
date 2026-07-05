@@ -1,14 +1,33 @@
 import type { ReactNode } from "react";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
-import type { BattleLog, Result } from "@/types/index";
+import type { BattleLog, LogSection, Result } from "@/types/index";
 
 const STAT_FORMATTER = new Intl.NumberFormat("en-GB");
 
 type SummaryStat = {
   id: string;
   label: string;
+  toneMode?: "comparison" | "neutral";
   opponentValue: number;
+  higherIsBetter?: boolean;
   userValue: number;
+};
+
+type StatTone = "win" | "loss" | "neutral";
+
+const STAT_TONE_STYLES: Record<StatTone, { color: string; textClassName: string }> = {
+  loss: {
+    color: "var(--color-loss)",
+    textClassName: "text-loss"
+  },
+  neutral: {
+    color: "var(--muted-foreground)",
+    textClassName: "text-muted-foreground dark:text-white"
+  },
+  win: {
+    color: "var(--color-win)",
+    textClassName: "text-win"
+  }
 };
 
 function formatStatValue(value: number) {
@@ -43,14 +62,82 @@ function getResultStyles(result: Result) {
   if (result === "Win") {
     return {
       className: "text-win",
-      label: "W"
+      label: "WIN"
     };
   }
 
   return {
     className: "text-loss",
-    label: "L"
+    label: "LOSS"
   };
+}
+
+function getStatTone(value: number, comparisonValue: number, higherIsBetter: boolean): StatTone {
+  if (value === comparisonValue) {
+    return "neutral";
+  }
+
+  const isBetterValue = higherIsBetter ? value > comparisonValue : value < comparisonValue;
+  return isBetterValue ? "win" : "loss";
+}
+
+function isSetupSection(section: LogSection) {
+  return String(section.title || "").trim().toLowerCase() === "setup";
+}
+
+function getFallbackTurnCounts(log: BattleLog) {
+  const totalTurns = Math.max(0, log.totalTurns || 0);
+  const firstPlayerTurns = Math.ceil(totalTurns / 2);
+  const secondPlayerTurns = Math.floor(totalTurns / 2);
+
+  if (log.goOrder === "First") {
+    return {
+      opponentTurns: secondPlayerTurns,
+      userTurns: firstPlayerTurns
+    };
+  }
+
+  if (log.goOrder === "Second") {
+    return {
+      opponentTurns: firstPlayerTurns,
+      userTurns: secondPlayerTurns
+    };
+  }
+
+  return {
+    opponentTurns: secondPlayerTurns,
+    userTurns: firstPlayerTurns
+  };
+}
+
+function getPlayerTurnCounts(log: BattleLog) {
+  const sections = Array.isArray(log.sections) ? log.sections : [];
+  const counts = new Map<string, number>();
+
+  sections.forEach((section) => {
+    if (isSetupSection(section)) {
+      return;
+    }
+
+    const playerName = String(section.player || "").trim();
+    if (!playerName) {
+      return;
+    }
+
+    counts.set(playerName, (counts.get(playerName) || 0) + 1);
+  });
+
+  const userTurns = counts.get(log.selfPlayerName) || 0;
+  const opponentTurns = counts.get(log.opponentPlayerName) || 0;
+
+  if (userTurns > 0 || opponentTurns > 0) {
+    return {
+      opponentTurns,
+      userTurns
+    };
+  }
+
+  return getFallbackTurnCounts(log);
 }
 
 export function IconCircle({
@@ -113,25 +200,33 @@ export function ProgressBar({
 
 export function StatRow({ stat }: { stat: SummaryStat }) {
   const maxValue = Math.max(stat.userValue, stat.opponentValue);
+  const isNeutralTone = stat.toneMode === "neutral";
+  const higherIsBetter = stat.higherIsBetter ?? true;
+  const userTone = isNeutralTone
+    ? STAT_TONE_STYLES.neutral
+    : STAT_TONE_STYLES[getStatTone(stat.userValue, stat.opponentValue, higherIsBetter)];
+  const opponentTone = isNeutralTone
+    ? STAT_TONE_STYLES.neutral
+    : STAT_TONE_STYLES[getStatTone(stat.opponentValue, stat.userValue, higherIsBetter)];
 
   return (
     <div className="relative z-10 space-y-2 py-3.5">
       <div className="grid grid-cols-[auto_1fr_auto] items-end gap-4">
-        <p className="text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-loss">
+        <p className={`text-[1.35rem] font-semibold leading-none tracking-[-0.02em] ${userTone.textClassName}`}>
           {formatStatValue(stat.userValue)}
         </p>
-        <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[0.72rem]">
+        <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground dark:text-white sm:text-[0.72rem]">
           {stat.label}
         </p>
-        <p className="text-right text-[1.35rem] font-semibold leading-none tracking-[-0.02em] text-primary">
+        <p className={`text-right text-[1.35rem] font-semibold leading-none tracking-[-0.02em] ${opponentTone.textClassName}`}>
           {formatStatValue(stat.opponentValue)}
         </p>
       </div>
       <ProgressBar
-        leftColor="var(--color-loss)"
+        leftColor={userTone.color}
         leftValue={stat.userValue}
         max={maxValue}
-        rightColor="var(--color-brand)"
+        rightColor={opponentTone.color}
         rightValue={stat.opponentValue}
       />
     </div>
@@ -153,7 +248,7 @@ function PlayerPanel({
     <div
       className={[
         "flex min-w-0 flex-1 flex-col gap-2",
-        align === "right" ? "items-start text-left lg:items-end lg:text-right" : "items-start text-left"
+        align === "right" ? "items-end text-right" : "items-start text-left"
       ].join(" ")}
     >
       <SpriteStrip className="gap-1.5" maxVisible={2} size="lg" sprites={sprites} />
@@ -179,22 +274,33 @@ export function MatchSummary({
   timestampLabel: string;
 }) {
   const resultStyles = getResultStyles(log.result);
+  const turnCounts = getPlayerTurnCounts(log);
   const stats: SummaryStat[] = [
+    {
+      id: "turns",
+      label: "Turns",
+      higherIsBetter: true,
+      opponentValue: turnCounts.opponentTurns,
+      userValue: turnCounts.userTurns
+    },
     {
       id: "attack-damage",
       label: "Attack Damage",
+      higherIsBetter: true,
       opponentValue: log.opponentAttackDamage,
       userValue: log.selfAttackDamage
     },
     {
       id: "prizes",
       label: "Prizes Taken",
+      higherIsBetter: true,
       opponentValue: log.opponentPrizesTaken,
       userValue: log.selfPrizesTaken
     },
     {
       id: "mulligans",
       label: "Mulligans",
+      higherIsBetter: false,
       opponentValue: log.opponentMulligans,
       userValue: log.selfMulligans
     }
@@ -203,21 +309,20 @@ export function MatchSummary({
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card px-5 py-5 sm:px-6 sm:py-6 lg:px-7">
       <div className="flex flex-col gap-5">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-start">
-          <div className="space-y-2">
+        <div className="flex items-start justify-between gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+          <div className="min-w-0 space-y-2">
             <h2 className="text-[1.85rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground sm:text-[2.15rem]">
-              Match Summary
+              <span className="block sm:inline">Match</span>{" "}
+              <span className="block sm:inline">Summary</span>
             </h2>
-            <p className="text-sm text-muted-foreground">{timestampLabel}</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              <span className={resultStyles.className}>{resultStyles.label}</span>
+              <span className="text-muted-foreground/70"> • </span>
+              <span className="font-medium normal-case tracking-normal">{timestampLabel}</span>
+            </p>
           </div>
 
-          <div className="flex justify-start lg:justify-center">
-            <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-current/20 text-[1.1rem] font-semibold leading-none ${resultStyles.className}`}>
-              {resultStyles.label}
-            </span>
-          </div>
-
-          {actions ? <div className="flex flex-wrap items-center gap-3 lg:justify-end">{actions}</div> : null}
+          {actions ? <div className="flex shrink-0 flex-wrap items-center gap-3 lg:justify-end">{actions}</div> : null}
         </div>
 
         <div className="border-t border-border pt-5">
@@ -229,17 +334,9 @@ export function MatchSummary({
             />
 
             <div className="flex flex-col items-center justify-center gap-1.5 self-center lg:gap-2">
-              <IconCircle className="h-9 w-9 border border-border bg-muted text-[0.72rem] font-semibold tracking-[0.12em] text-muted-foreground sm:h-11 sm:w-11 sm:text-sm">
+              <IconCircle className="h-9 w-9 border border-border bg-muted text-[0.72rem] font-semibold tracking-[0.12em] text-muted-foreground dark:text-white sm:h-11 sm:w-11 sm:text-sm">
                 VS
               </IconCircle>
-              <div className="text-center">
-                <p className="text-[2rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground sm:text-[2.55rem]">
-                  {log.totalTurns}
-                </p>
-                <p className="mt-1 text-[0.65rem] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:mt-1.5 sm:text-sm">
-                  Total Turns
-                </p>
-              </div>
             </div>
 
             <PlayerPanel

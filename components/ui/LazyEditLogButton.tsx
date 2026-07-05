@@ -1,6 +1,12 @@
 "use client";
 
-import { cloneElement, isValidElement, useEffect, type ReactElement } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useEffect,
+  type ComponentProps,
+  type ReactElement
+} from "react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Button } from "@/components/shadcn/button";
@@ -10,12 +16,14 @@ import type { BattleLog, DeckSelectionOption, PokemonOption } from "@/types/inde
 
 type LazyEditLogButtonProps = {
   autoOpen?: boolean;
+  className?: string;
   log: BattleLog;
   trigger?: ReactElement<{
     onClick?: () => void;
     onSelect?: (event: Event) => void;
   }>;
   userDecks: DeckSelectionOption[];
+  variant?: ComponentProps<typeof Button>["variant"];
 };
 
 type DeckSelectionOptionsResponse = {
@@ -29,7 +37,14 @@ const DynamicEditLogDialog = dynamic<EditLogDialogProps>(
   }
 );
 
-export function LazyEditLogButton({ autoOpen = false, log, trigger, userDecks }: LazyEditLogButtonProps) {
+export function LazyEditLogButton({
+  autoOpen = false,
+  className,
+  log,
+  trigger,
+  userDecks,
+  variant = "outline"
+}: LazyEditLogButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [loadedUserDecks, setLoadedUserDecks] = useState<DeckSelectionOption[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -129,12 +144,13 @@ export function LazyEditLogButton({ autoOpen = false, log, trigger, userDecks }:
     })
   ) : (
     <Button
+      className={className}
       disabled={isLoading}
       onClick={() => {
         setDialogOpen(true);
         void handleOpen();
       }}
-      variant="outline"
+      variant={variant}
     >
       Edit Log
     </Button>

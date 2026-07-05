@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/shadcn/button";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { TournamentEditorDialogProps } from "@/components/ui/TournamentEditorDialog";
@@ -11,6 +11,7 @@ type LazyTournamentEditorButtonProps = {
   className?: string;
   decks?: TournamentDeckChoice[];
   tournament?: Tournament;
+  triggerChildren?: ReactNode;
   triggerLabel: string;
   triggerVariant?: "default" | "outline" | "ghost";
 };
@@ -66,6 +67,7 @@ export function LazyTournamentEditorButton({
   className,
   decks: initialDecks = [],
   tournament,
+  triggerChildren,
   triggerLabel,
   triggerVariant = "default"
 }: LazyTournamentEditorButtonProps) {
@@ -108,6 +110,7 @@ export function LazyTournamentEditorButton({
           initialOpen={dialogOpen}
           pokemonOptions={pokemonOptions}
           tournament={tournament}
+          triggerChildren={triggerChildren}
           triggerClassName={className}
           triggerLabel={triggerLabel}
           triggerVariant={triggerVariant}
@@ -132,7 +135,7 @@ export function LazyTournamentEditorButton({
         }}
         variant={triggerVariant}
       >
-        {isLoading ? "Loading Editor..." : triggerLabel}
+        {isLoading ? "Loading Editor..." : (triggerChildren ?? triggerLabel)}
       </Button>
       {loadError ? (
         <p className="text-sm text-loss" role="status">

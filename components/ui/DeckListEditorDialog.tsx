@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { saveDeckListAction } from "@/app/(app)/decks/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
@@ -22,13 +23,27 @@ import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { parseDeckList, summarizeDeckList } from "@/lib/decks/deck-list-parse";
 import type { DeckList } from "@/types/index";
 
+type DeckListSaveActionResult = {
+  ok: true;
+  redirectTo: string;
+} | {
+  ok: false;
+  message: string;
+};
+
 export type DeckListEditorDialogProps = {
   deckId: string;
   deckList?: DeckList;
+  defaultListName?: string;
   defaultFormat?: string;
   defaultCreatedBy: string;
+  extraHiddenFields?: ReactNode;
   initialOpen?: boolean;
+  saveAction?: (formData: FormData) => Promise<DeckListSaveActionResult>;
+  simplePasteMode?: boolean;
+  triggerClassName?: string;
   triggerLabel: string;
+  triggerSize?: React.ComponentProps<typeof Button>["size"];
   triggerVariant?: "default" | "outline" | "ghost";
 };
 
@@ -115,10 +130,16 @@ function normalizeRedirectPath(value: string) {
 export function DeckListEditorDialog({
   deckId,
   deckList,
+  defaultListName,
   defaultFormat,
   defaultCreatedBy,
+  extraHiddenFields,
   initialOpen = false,
+  saveAction = saveDeckListAction,
+  simplePasteMode = false,
+  triggerClassName,
   triggerLabel,
+  triggerSize = "default",
   triggerVariant = "outline"
 }: DeckListEditorDialogProps) {
   const router = useRouter();
@@ -129,7 +150,7 @@ export function DeckListEditorDialog({
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [step, setStep] = useState<DialogStep>("list");
   const [rawList, setRawList] = useState(deckList?.rawList ?? "");
-  const [listName, setListName] = useState(deckList?.name ?? "");
+  const [listName, setListName] = useState(deckList?.name ?? defaultListName ?? "");
   const [format, setFormat] = useState(
     deckList?.format || defaultFormat || syncedDefaultFormat
   );
@@ -146,7 +167,7 @@ export function DeckListEditorDialog({
   const parsedCards = useMemo(() => parseDeckList(rawList), [rawList]);
   const summaryTone = useMemo(() => getSummaryTone(rawList), [rawList]);
   const hasDeckListText = rawList.trim().length > 0;
-  const canContinueFromList = isEditing ? hasDeckListText : summary.total === 60;
+  const canContinueFromList = simplePasteMode || isEditing ? hasDeckListText : summary.total === 60;
   const canSave = hasDeckListText && listName.trim().length > 0;
   const formatOptions = useMemo(() => {
     const normalizedFormat = String(format || "").trim();
@@ -180,14 +201,14 @@ export function DeckListEditorDialog({
   }, []);
 
   useEffect(() => {
-    if (!isOpen || isEditing || step !== "list") {
+    if (simplePasteMode || !isOpen || isEditing || step !== "list") {
       return;
     }
 
     if (summary.total === 60) {
       setStep("details");
     }
-  }, [isEditing, isOpen, step, summary.total]);
+  }, [isEditing, isOpen, simplePasteMode, step, summary.total]);
 
   function clearCloseTimer() {
     if (closeTimerRef.current !== null) {
@@ -210,7 +231,7 @@ export function DeckListEditorDialog({
     setSaveState("idle");
     setStep("list");
     setRawList(deckList?.rawList ?? "");
-    setListName(deckList?.name ?? "");
+    setListName(deckList?.name ?? defaultListName ?? "");
     setFormat(deckList?.format || defaultFormat || syncedDefaultFormat);
     setDate(deckList?.date ?? "");
     setCreatedBy(deckList?.createdBy || defaultCreatedBy);
@@ -226,7 +247,7 @@ export function DeckListEditorDialog({
     setSaveState("idle");
     setStep("list");
     setRawList(deckList?.rawList ?? "");
-    setListName(deckList?.name ?? "");
+    setListName(deckList?.name ?? defaultListName ?? "");
     setFormat(deckList?.format || defaultFormat || syncedDefaultFormat);
     setDate(deckList?.date ?? "");
     setCreatedBy(deckList?.createdBy || defaultCreatedBy);
@@ -234,7 +255,7 @@ export function DeckListEditorDialog({
   }
 
   async function handleSubmit(formData: FormData) {
-    if (step !== "details") {
+    if (!simplePasteMode && step !== "details") {
       return;
     }
 
@@ -242,7 +263,11 @@ export function DeckListEditorDialog({
     setSaveState("saving");
 
     try {
-      const result = await saveDeckListAction(formData);
+      const result = await saveAction(formData);
+      if (!result.ok) {
+        throw new Error(result.message);
+      }
+
       setSaveState("success");
 
       clearCloseTimer();
@@ -254,7 +279,7 @@ export function DeckListEditorDialog({
           setSaveState("idle");
           setStep("list");
           setRawList(deckList?.rawList ?? "");
-          setListName(deckList?.name ?? "");
+          setListName(deckList?.name ?? defaultListName ?? "");
           setFormat(deckList?.format || defaultFormat || syncedDefaultFormat);
           setDate(deckList?.date ?? "");
           setCreatedBy(deckList?.createdBy || defaultCreatedBy);
@@ -283,7 +308,7 @@ export function DeckListEditorDialog({
       }}
       open={isOpen}
     >
-      <Button onClick={openDialog} variant={triggerVariant}>
+      <Button className={triggerClassName} onClick={openDialog} size={triggerSize} variant={triggerVariant}>
         {triggerLabel}
       </Button>
 
@@ -292,17 +317,40 @@ export function DeckListEditorDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-              <div className="flex min-w-0 flex-col gap-4 border-b border-border bg-card px-3 py-4 pr-14 sm:px-4 sm:pr-14 lg:flex-row lg:items-start lg:justify-between lg:px-5">
+              <div
+                className={[
+                  "flex min-w-0 flex-col bg-card px-3 sm:px-4 lg:flex-row lg:items-start lg:justify-between lg:px-5",
+                  simplePasteMode ? "gap-3 pb-2 pt-4" : "gap-4 py-4",
+                  simplePasteMode ? "" : "border-b border-border",
+                  simplePasteMode ? "" : "pr-14 sm:pr-14"
+                ].join(" ")}
+              >
                 <div className="min-w-0">
-                  <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
+                  <DialogTitle
+                    className={[
+                      "text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]",
+                      simplePasteMode ? "pr-14" : ""
+                    ].join(" ")}
+                  >
                     {isEditing ? "Edit Deck List" : "New Deck List"}
                   </DialogTitle>
-                  <DialogDescription className="text-sm text-muted-foreground">
-                    {step === "list" ? "Step 1 of 2 · Paste deck list" : "Step 2 of 2 · List details"}
-                  </DialogDescription>
+                  {!simplePasteMode ? (
+                    <DialogDescription className="text-sm text-muted-foreground">
+                      {step === "list" ? "Step 1 of 2 · Paste deck list" : "Step 2 of 2 · List details"}
+                    </DialogDescription>
+                  ) : null}
                 </div>
-                <ButtonGroup className="w-full sm:w-auto sm:justify-end">
-                  {step === "list" ? (
+                <ButtonGroup className={simplePasteMode ? "w-full" : "w-full sm:w-auto sm:justify-end"}>
+                  {simplePasteMode ? (
+                    <Button
+                      className="w-full"
+                      disabled={!canSave}
+                      onClick={() => formRef.current?.requestSubmit()}
+                      type="button"
+                    >
+                      {saveState === "saving" ? "Saving..." : saveState === "success" ? "Saved" : "Save List"}
+                    </Button>
+                  ) : step === "list" ? (
                     <Button
                       disabled={!canContinueFromList}
                       onClick={() => setStep("details")}
@@ -325,7 +373,12 @@ export function DeckListEditorDialog({
                   )}
                 </ButtonGroup>
               </div>
-            <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain p-3 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:p-4 sm:pr-2 lg:p-5">
+            <div
+              className={[
+                "min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2",
+                simplePasteMode ? "px-3 pb-3 pt-1 sm:px-4 sm:pb-4 sm:pt-1 lg:px-5 lg:pb-5" : "p-3 sm:p-4 lg:p-5"
+              ].join(" ")}
+            >
               <form
                 className="flex min-w-0 flex-col gap-6"
                 onSubmit={(event) => {
@@ -344,6 +397,7 @@ export function DeckListEditorDialog({
                 <input name="createdBy" type="hidden" value={createdBy} />
                 <input name="notes" type="hidden" value={notes} />
                 <input name="rawList" type="hidden" value={rawList} />
+                {extraHiddenFields}
 
                 {saveError ? (
                   <Alert
@@ -354,7 +408,22 @@ export function DeckListEditorDialog({
                   </Alert>
                 ) : null}
 
-                {step === "list" ? (
+                {simplePasteMode ? (
+                  <section className="grid gap-2">
+                    <label className="sr-only" htmlFor="deck-list-raw-list">
+                      Deck list
+                    </label>
+                    <Textarea
+                      id="deck-list-raw-list"
+                      className="min-h-[360px] w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-[0.95rem] leading-6 text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+                      onChange={(event) => setRawList(event.target.value)}
+                      placeholder="Paste deck list here"
+                      required
+                      spellCheck={false}
+                      value={rawList}
+                    />
+                  </section>
+                ) : step === "list" ? (
                   <section className="grid gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span

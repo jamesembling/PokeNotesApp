@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
+import { buildDeckArchetypeId } from "@/lib/decks/archetype";
+import { saveDeckList } from "@/lib/decks/deck-list-service";
+import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
 import { getDefaultSyncedSiteFormat, isKnownSyncedSiteFormat } from "@/lib/formats/catalog";
 import {
   toActionFailureResult,
@@ -132,6 +135,10 @@ function parseFormat(value: FormDataEntryValue | null) {
 function parseSpriteArray(values: FormDataEntryValue[]) {
   return compactMap(values, (value) => String(value || "").trim())
     .slice(0, 2);
+}
+
+function getTournamentDeckDisplayName(sprites: string[]) {
+  return getBattleLogSpriteDisplayName(sprites, "/");
 }
 
 async function resolveDeckSnapshot(userId: string, linkedDeckId: string) {
@@ -386,6 +393,142 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       action: "updateTournament",
       area: "tournaments",
       fallbackMessage: "We couldn't update that tournament right now.",
+      route: "/tournaments",
+      tournamentId
+    });
+  }
+}
+
+async function ensureTournamentDeckListDeck(params: {
+  format: string;
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  tournamentId: string;
+  userId: string;
+}) {
+  const { format, supabase, tournamentId, userId } = params;
+  const { data: tournament, error } = await supabase
+    .from("tournaments")
+    .select("id,linked_deck_id,linked_deck_list_id,deck_sprites,format")
+    .eq("id", tournamentId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw toUserFacingDatabaseError(error);
+  }
+
+  if (!tournament) {
+    throw userFacingActionError("Tournament could not be found.");
+  }
+
+  const existingDeckId = String((tournament as { linked_deck_id?: unknown }).linked_deck_id || "").trim();
+  const existingDeckListId = String(
+    (tournament as { linked_deck_list_id?: unknown }).linked_deck_list_id || ""
+  ).trim();
+  const deckSprites = parseSpriteArray(
+    Array.isArray((tournament as { deck_sprites?: unknown }).deck_sprites)
+      ? ((tournament as { deck_sprites: FormDataEntryValue[] }).deck_sprites)
+      : []
+  );
+  const deckName = getTournamentDeckDisplayName(deckSprites);
+
+  if (!deckName || deckSprites.length === 0) {
+    throw userFacingActionError("Choose tournament sprites before adding a deck list.");
+  }
+
+  if (existingDeckId && existingDeckListId) {
+    return {
+      deckId: existingDeckId,
+      deckName,
+      deckSprites
+    };
+  }
+
+  const deckId = crypto.randomUUID();
+  const timestamp = new Date().toISOString();
+  const { error: insertError } = await supabase.from("decks").insert({
+    id: deckId,
+    user_id: userId,
+    deck_name: deckName,
+    archetype_id: buildDeckArchetypeId(deckSprites),
+    format: format || String((tournament as { format?: unknown }).format || "").trim() || (await getDefaultSyncedSiteFormat()),
+    go_preference: "",
+    deck_pokemon: deckSprites,
+    core_strategy: "",
+    general_notes: "",
+    setup_goals: [],
+    resource_plan: "",
+    deck_lists: [],
+    created_at: timestamp,
+    updated_at: timestamp
+  });
+
+  if (insertError) {
+    throw toUserFacingDatabaseError(insertError);
+  }
+
+  return {
+    deckId,
+    deckName,
+    deckSprites
+  };
+}
+
+export async function saveTournamentDeckListAction(formData: FormData): Promise<SaveActionResult> {
+  const tournamentId = String(formData.get("tournamentId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
+
+  try {
+    if (!tournamentId) {
+      throw userFacingActionError("Tournament id is required.");
+    }
+
+    const backingDeck = await ensureTournamentDeckListDeck({
+      format: String(formData.get("format") || "").trim(),
+      supabase,
+      tournamentId,
+      userId: user.id
+    });
+
+    const deckListFormData = new FormData();
+    for (const [key, value] of formData.entries()) {
+      deckListFormData.append(key, value);
+    }
+    deckListFormData.set("deckId", backingDeck.deckId);
+
+    const result = await saveDeckList({
+      formData: deckListFormData,
+      supabase,
+      user
+    });
+
+    const { error: updateError } = await supabase
+      .from("tournaments")
+      .update({
+        linked_deck_id: result.deckId,
+        linked_deck_list_id: result.deckListId,
+        deck_name: backingDeck.deckName,
+        deck_sprites: backingDeck.deckSprites
+      })
+      .eq("id", tournamentId)
+      .eq("user_id", user.id);
+
+    if (updateError) {
+      throw toUserFacingDatabaseError(updateError);
+    }
+
+    revalidateTournamentWorkspace(tournamentId);
+    revalidatePath("/decks", "layout");
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`))
+    };
+  } catch (error) {
+    return toActionFailureResult(error, {
+      action: "saveTournamentDeckList",
+      area: "tournaments",
+      fallbackMessage: "We couldn't save that tournament deck list right now.",
       route: "/tournaments",
       tournamentId
     });

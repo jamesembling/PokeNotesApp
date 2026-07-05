@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   createTournamentAction,
@@ -35,6 +35,7 @@ export type TournamentEditorDialogProps = {
   initialOpen?: boolean;
   pokemonOptions: PokemonOption[];
   tournament?: Tournament;
+  triggerChildren?: ReactNode;
   triggerClassName?: string;
   triggerLabel: string;
   triggerVariant?: "default" | "outline" | "ghost";
@@ -123,10 +124,10 @@ function SaveButton({
 }
 
 export function TournamentEditorDialog({
-  decks,
   initialOpen = false,
   pokemonOptions,
   tournament,
+  triggerChildren,
   triggerClassName,
   triggerLabel,
   triggerVariant = "default"
@@ -140,8 +141,6 @@ export function TournamentEditorDialog({
   const navigationTimerRef = useRef<number | null>(null);
   const isEditing = Boolean(tournament?.id);
   const [isOpen, setIsOpen] = useState(initialOpen);
-  const [linkedDeckId, setLinkedDeckId] = useState(tournament?.linkedDeckId ?? "");
-  const [linkedDeckListId, setLinkedDeckListId] = useState(tournament?.linkedDeckListId ?? "");
   const [category, setCategory] = useState<string>(tournament?.category ?? "");
   const [placement, setPlacement] = useState<string>(tournament?.placement ?? "");
   const [format, setFormat] = useState<string>(tournament?.format || defaultFormat);
@@ -154,11 +153,6 @@ export function TournamentEditorDialog({
   const [actionError, setActionError] = useState("");
 
   const placementOptions = useMemo(() => getPlacementOptionsForCategory(category), [category]);
-  const selectedDeck = useMemo(
-    () => decks.find((deck) => deck.id === linkedDeckId) ?? null,
-    [decks, linkedDeckId]
-  );
-  const availableDeckLists = selectedDeck?.deckLists ?? [];
   const formatOptions = useMemo(() => {
     const normalizedFormat = String(format || "").trim();
     const options = normalizedFormat && !siteFormatOptions.includes(normalizedFormat)
@@ -191,22 +185,6 @@ export function TournamentEditorDialog({
     setFormat((current) => current || defaultFormat);
   }, [defaultFormat, tournament?.format]);
 
-  useEffect(() => {
-    if (!linkedDeckId || availableDeckLists.length === 0) {
-      setLinkedDeckListId("");
-      return;
-    }
-
-    if (!linkedDeckListId) {
-      return;
-    }
-
-    const stillValid = availableDeckLists.some((deckList) => deckList.id === linkedDeckListId);
-    if (!stillValid) {
-      setLinkedDeckListId(availableDeckLists[0]?.id ?? "");
-    }
-  }, [availableDeckLists, linkedDeckId, linkedDeckListId]);
-
   function clearCloseTimer() {
     if (closeTimerRef.current !== null) {
       window.clearTimeout(closeTimerRef.current);
@@ -222,8 +200,6 @@ export function TournamentEditorDialog({
   }
 
   function resetState() {
-    setLinkedDeckId(tournament?.linkedDeckId ?? "");
-    setLinkedDeckListId(tournament?.linkedDeckListId ?? "");
     setCategory(tournament?.category ?? "");
     setPlacement(tournament?.placement ?? "");
     setFormat(tournament?.format || defaultFormat);
@@ -257,22 +233,6 @@ export function TournamentEditorDialog({
       clearNavigationTimer();
     };
   }, []);
-
-  function handleLinkedDeckChange(nextDeckId: string) {
-    setLinkedDeckId(nextDeckId);
-    setLinkedDeckListId("");
-
-    if (!nextDeckId) {
-      return;
-    }
-
-    const nextDeck = decks.find((deck) => deck.id === nextDeckId);
-    if (!nextDeck) {
-      return;
-    }
-
-    setSelectedSprites(nextDeck.deckPokemon.slice(0, 2));
-  }
 
   async function handleSubmit(formData: FormData) {
     setActionError("");
@@ -348,7 +308,7 @@ export function TournamentEditorDialog({
         }}
         variant={triggerVariant}
       >
-        {triggerLabel}
+        {triggerChildren ?? triggerLabel}
       </Button>
 
       <DialogContent
@@ -440,6 +400,8 @@ export function TournamentEditorDialog({
             >
               {isEditing && tournament ? <input name="tournamentId" type="hidden" value={tournament.id} /> : null}
               <input name="redirectTo" type="hidden" value={pathname} />
+              <input name="linkedDeckId" type="hidden" value={tournament?.linkedDeckId ?? ""} />
+              <input name="linkedDeckListId" type="hidden" value={tournament?.linkedDeckListId ?? ""} />
 
               <div className="border-b border-border pb-5 sm:border-0 sm:pb-0">
                 <FieldGroup className="grid gap-4">
@@ -546,58 +508,6 @@ export function TournamentEditorDialog({
                       placeholder="dd/mm/yyyy"
                       value={dateTo}
                     />
-                  </Field>
-                </FieldGroup>
-              </div>
-
-              <div className="border-b border-border pb-5 sm:border-0 sm:pb-0">
-                <FieldGroup className="grid gap-4 md:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor="tournament-linked-deck">Deck Strategy</FieldLabel>
-                    <AppSelect
-                      className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:min-h-[3rem] sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
-                      id="tournament-linked-deck"
-                      name="linkedDeckId"
-                      onChange={handleLinkedDeckChange}
-                      options={[
-                        { label: "No Linked Deck", value: "" },
-                        ...decks.map((deck) => ({
-                          label: deck.deckName,
-                          value: deck.id
-                        }))
-                      ]}
-                      value={linkedDeckId}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="tournament-linked-deck-list">Saved Decklist</FieldLabel>
-                    <AppSelect
-                      className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:min-h-[3rem] sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
-                      disabled={availableDeckLists.length === 0}
-                      id="tournament-linked-deck-list"
-                      name="linkedDeckListId"
-                      onChange={setLinkedDeckListId}
-                      options={[
-                        {
-                          label:
-                            availableDeckLists.length > 0
-                              ? "No Linked Decklist"
-                              : "Select a Deck Strategy First",
-                          value: ""
-                        },
-                        ...availableDeckLists.map((deckList) => ({
-                          label: deckList.name,
-                          value: deckList.id
-                        }))
-                      ]}
-                      value={linkedDeckListId}
-                    />
-                    {availableDeckLists.length === 0 ? (
-                      <p className="text-xs text-muted-foreground sm:hidden">
-                        Choose a Deck Strategy above to unlock
-                      </p>
-                    ) : null}
                   </Field>
                 </FieldGroup>
               </div>

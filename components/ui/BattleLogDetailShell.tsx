@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ExportIcon } from "@phosphor-icons/react";
+import { PencilIcon } from "lucide-react";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Button } from "@/components/shadcn/button";
@@ -174,40 +176,57 @@ export function BattleLogDetailShell({
     <BattleLogDetailView
       actionTagOverrides={deferredBody?.actionTagOverrides ?? actionTagOverrides}
       actions={
-        <ButtonGroup className="max-w-full flex-wrap">
-          <LazyEditLogButton log={log} userDecks={resolvedUserDecks} />
-          <CopyShareLinkButton
-            initialShare={currentShare}
-            logId={log.id}
-            onShareReady={setCurrentShare}
-          />
-          {resolvedLinkedDeckListName ? (
-            <LinkedDeckListDialog
-              deckId={resolvedLinkedDeckId}
-              deckListName={resolvedLinkedDeckListName}
-              rawList={resolvedLinkedDeckListRawList}
-              sortedCards={resolvedLinkedDeckListSortedCards ?? []}
+        <>
+          <ButtonGroup className="flex w-fit max-w-full sm:hidden">
+            <LazyEditLogButton
+              log={log}
+              trigger={
+                <Button className="min-w-0 px-3">
+                  <PencilIcon className="size-4" />
+                  <span>Edit</span>
+                </Button>
+              }
+              userDecks={resolvedUserDecks}
             />
-          ) : null}
-          <Button asChild className="hidden sm:inline-flex" variant="outline">
-            <Link href="/logs" prefetch={false}>
-              Back to Logs
-            </Link>
-          </Button>
-        </ButtonGroup>
+            <CopyShareLinkButton
+              ariaLabel="Share Log"
+              className="min-w-0 px-3 text-primary hover:border-primary hover:bg-white hover:text-primary"
+              initialShare={currentShare}
+              logId={log.id}
+              onShareReady={setCurrentShare}
+              variant="outline"
+            >
+              <ExportIcon className="size-5" weight="bold" />
+              <span className="sr-only">Share Log</span>
+            </CopyShareLinkButton>
+          </ButtonGroup>
+
+          <ButtonGroup className="hidden max-w-full flex-wrap sm:flex sm:w-fit">
+            <LazyEditLogButton log={log} userDecks={resolvedUserDecks} />
+            <CopyShareLinkButton
+              initialShare={currentShare}
+              logId={log.id}
+              onShareReady={setCurrentShare}
+            />
+            {resolvedLinkedDeckListName ? (
+              <LinkedDeckListDialog
+                deckId={resolvedLinkedDeckId}
+                deckListName={resolvedLinkedDeckListName}
+                rawList={resolvedLinkedDeckListRawList}
+                sortedCards={resolvedLinkedDeckListSortedCards ?? []}
+              />
+            ) : null}
+            <Button asChild variant="outline">
+              <Link href="/logs" prefetch={false}>
+                Back to Logs
+              </Link>
+            </Button>
+          </ButtonGroup>
+        </>
       }
       linkedStrategyLabel={deferredContext?.linkedStrategyLabel ?? linkedStrategyLabel}
       isBodyLoading={!deferredBody && !resolvedLog.rawLog && resolvedLog.sections.length === 0}
       log={resolvedLog}
-      mobileNavigation={
-        <ButtonGroup className="w-full sm:hidden">
-          <Button asChild className="min-w-0 flex-1" variant="outline">
-            <Link href="/logs" prefetch={false}>
-              Back to Logs
-            </Link>
-          </Button>
-        </ButtonGroup>
-      }
       timestampLabel={timestampLabel}
     />
   );
