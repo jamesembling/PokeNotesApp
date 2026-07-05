@@ -329,32 +329,34 @@ export function TournamentRoundEditorDialog({
               ))}
 
               <div className="grid gap-5">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
                   {[0, 1, 2].map((index) => (
                     <fieldset
-                      className="grid gap-3 border-b border-border pb-4 last:border-b-0 last:pb-0 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-4 sm:last:border-r-0 sm:last:pr-0"
-                      disabled={Boolean(specialResult)}
+                      className="flex items-center gap-3 border-b border-border pb-3 last:border-b-0 last:pb-0 sm:grid sm:grid-cols-1 sm:items-start sm:border-b-0 sm:border-r sm:pb-0 sm:pr-4 sm:last:border-r-0 sm:last:pr-0"
                       key={index}
                     >
-                      <legend className="text-sm font-semibold text-card-foreground">
+                      <legend className="sr-only">
                         Game {index + 1}
                       </legend>
-                      <div className="grid gap-2">
+                      <span className="w-[4.5rem] shrink-0 text-sm font-semibold text-card-foreground sm:w-auto">
+                        Game {index + 1}
+                      </span>
+                      <div className="grid flex-1 grid-cols-3 gap-2 sm:w-full sm:flex-none">
                         {TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.map((option) => (
                           <label
-                            className="flex min-h-11 cursor-pointer items-center justify-start gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-card-foreground has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
+                            className="flex cursor-pointer items-center justify-center gap-2 text-sm font-semibold text-card-foreground has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
                             htmlFor={`round-game-${index + 1}-${option}`}
                             key={option}
                           >
                             <input
                               checked={gameResults[index] === option}
                               className="size-4 accent-primary"
-                              disabled={Boolean(specialResult)}
                               id={`round-game-${index + 1}-${option}`}
                               name={`game${index + 1}`}
                               onChange={() => {
                                 const next = [...gameResults];
                                 next[index] = option;
+                                setSpecialResult("");
                                 setGameResults(next);
                               }}
                               type="radio"

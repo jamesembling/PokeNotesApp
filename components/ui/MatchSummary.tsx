@@ -7,7 +7,7 @@ const STAT_FORMATTER = new Intl.NumberFormat("en-GB");
 type SummaryStat = {
   id: string;
   label: string;
-  toneMode?: "comparison" | "neutral";
+  toneMode?: "comparison" | "neutral" | "player";
   opponentValue: number;
   higherIsBetter?: boolean;
   userValue: number;
@@ -201,13 +201,18 @@ export function ProgressBar({
 export function StatRow({ stat }: { stat: SummaryStat }) {
   const maxValue = Math.max(stat.userValue, stat.opponentValue);
   const isNeutralTone = stat.toneMode === "neutral";
+  const isPlayerTone = stat.toneMode === "player";
   const higherIsBetter = stat.higherIsBetter ?? true;
-  const userTone = isNeutralTone
-    ? STAT_TONE_STYLES.neutral
-    : STAT_TONE_STYLES[getStatTone(stat.userValue, stat.opponentValue, higherIsBetter)];
-  const opponentTone = isNeutralTone
-    ? STAT_TONE_STYLES.neutral
-    : STAT_TONE_STYLES[getStatTone(stat.opponentValue, stat.userValue, higherIsBetter)];
+  const userTone = isPlayerTone
+    ? STAT_TONE_STYLES.loss
+    : isNeutralTone
+      ? STAT_TONE_STYLES.neutral
+      : STAT_TONE_STYLES[getStatTone(stat.userValue, stat.opponentValue, higherIsBetter)];
+  const opponentTone = isPlayerTone
+    ? STAT_TONE_STYLES.win
+    : isNeutralTone
+      ? STAT_TONE_STYLES.neutral
+      : STAT_TONE_STYLES[getStatTone(stat.opponentValue, stat.userValue, higherIsBetter)];
 
   return (
     <div className="relative z-10 space-y-2 py-3.5">
@@ -281,6 +286,7 @@ export function MatchSummary({
       label: "Turns",
       higherIsBetter: true,
       opponentValue: turnCounts.opponentTurns,
+      toneMode: "player",
       userValue: turnCounts.userTurns
     },
     {
