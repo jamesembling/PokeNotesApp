@@ -7,9 +7,7 @@ const STAT_FORMATTER = new Intl.NumberFormat("en-GB");
 type SummaryStat = {
   id: string;
   label: string;
-  toneMode?: "comparison" | "neutral" | "player";
   opponentValue: number;
-  higherIsBetter?: boolean;
   userValue: number;
 };
 
@@ -70,15 +68,6 @@ function getResultStyles(result: Result) {
     className: "text-loss",
     label: "LOSS"
   };
-}
-
-function getStatTone(value: number, comparisonValue: number, higherIsBetter: boolean): StatTone {
-  if (value === comparisonValue) {
-    return "neutral";
-  }
-
-  const isBetterValue = higherIsBetter ? value > comparisonValue : value < comparisonValue;
-  return isBetterValue ? "win" : "loss";
 }
 
 function isSetupSection(section: LogSection) {
@@ -200,19 +189,8 @@ export function ProgressBar({
 
 export function StatRow({ stat }: { stat: SummaryStat }) {
   const maxValue = Math.max(stat.userValue, stat.opponentValue);
-  const isNeutralTone = stat.toneMode === "neutral";
-  const isPlayerTone = stat.toneMode === "player";
-  const higherIsBetter = stat.higherIsBetter ?? true;
-  const userTone = isPlayerTone
-    ? STAT_TONE_STYLES.loss
-    : isNeutralTone
-      ? STAT_TONE_STYLES.neutral
-      : STAT_TONE_STYLES[getStatTone(stat.userValue, stat.opponentValue, higherIsBetter)];
-  const opponentTone = isPlayerTone
-    ? STAT_TONE_STYLES.win
-    : isNeutralTone
-      ? STAT_TONE_STYLES.neutral
-      : STAT_TONE_STYLES[getStatTone(stat.opponentValue, stat.userValue, higherIsBetter)];
+  const userTone = STAT_TONE_STYLES.win;
+  const opponentTone = STAT_TONE_STYLES.loss;
 
   return (
     <div className="relative z-10 space-y-2 py-3.5">
@@ -284,29 +262,24 @@ export function MatchSummary({
     {
       id: "turns",
       label: "Turns",
-      higherIsBetter: true,
       opponentValue: turnCounts.opponentTurns,
-      toneMode: "player",
       userValue: turnCounts.userTurns
     },
     {
       id: "attack-damage",
       label: "Attack Damage",
-      higherIsBetter: true,
       opponentValue: log.opponentAttackDamage,
       userValue: log.selfAttackDamage
     },
     {
       id: "prizes",
       label: "Prizes Taken",
-      higherIsBetter: true,
       opponentValue: log.opponentPrizesTaken,
       userValue: log.selfPrizesTaken
     },
     {
       id: "mulligans",
       label: "Mulligans",
-      higherIsBetter: false,
       opponentValue: log.opponentMulligans,
       userValue: log.selfMulligans
     }

@@ -417,12 +417,12 @@ function getOrderedPlayerNames(
 function getPlayerToneClassNames(playerName: string, selfPlayerName: string) {
   return playerName === selfPlayerName
     ? {
-        dot: "bg-[rgb(59,130,246)]",
-        name: "text-[rgb(37,99,235)] dark:text-[rgb(96,165,250)]"
+        dot: "bg-win",
+        name: "text-win"
       }
     : {
-        dot: "bg-[rgb(236,72,153)]",
-        name: "text-[rgb(219,39,119)] dark:text-[rgb(244,114,182)]"
+        dot: "bg-loss",
+        name: "text-loss"
       };
 }
 
@@ -499,12 +499,12 @@ function LogSectionCard({
   const bodyToneClassName = !effectivePlayer
     ? "bg-card"
     : effectivePlayer === selfPlayerName
-      ? "bg-[rgba(37,99,235,0.045)] dark:bg-[rgba(37,99,235,0.08)]"
+      ? "bg-win-bg"
       : "bg-[rgba(220,38,38,0.04)] dark:bg-[rgba(220,38,38,0.075)]";
   const headerToneClassName = !effectivePlayer
     ? "bg-muted/55"
     : effectivePlayer === selfPlayerName
-      ? "bg-[rgba(37,99,235,0.1)] dark:bg-[rgba(37,99,235,0.16)]"
+      ? "bg-[rgba(22,163,74,0.12)] dark:bg-[rgba(22,163,74,0.18)]"
       : "bg-[rgba(220,38,38,0.08)] dark:bg-[rgba(220,38,38,0.14)]";
   const orderedPlayerNames = getOrderedPlayerNames(section, previousSection, selfPlayerName);
   const actions = section.actions.filter(
