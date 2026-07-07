@@ -7,6 +7,7 @@ import { Tabs, TabsContent } from "@/components/shadcn/tabs";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { SectionTitle } from "@/components/ui/Typography";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import type {
   ArchetypeMatchupStats,
@@ -864,7 +865,7 @@ export function StatsTabsClient({
         <div className="grid gap-4">
           <div className="space-y-2">
             <p className="ui-eyebrow">Matchups</p>
-            <h2 className="ui-section-title">Win % vs Archetypes</h2>
+            <SectionTitle>Win % vs Archetypes</SectionTitle>
           </div>
 
           {matchupContent}

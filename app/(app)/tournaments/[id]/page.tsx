@@ -4,16 +4,18 @@ import { ArrowLeftIcon, EyeIcon, PencilIcon } from "lucide-react";
 import { saveTournamentDeckListAction } from "@/app/(app)/tournaments/actions";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
-import { ButtonGroup } from "@/components/shadcn/button-group";
 import { DeckListViewDialog } from "@/components/ui/DeckListViewDialog";
 import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageActions } from "@/components/ui/PageActions";
 import { PageWidth } from "@/components/ui/PageWidth";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { TournamentRoundRow } from "@/components/ui/TournamentRoundRow";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
+import { ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
 import { getDeckWithList } from "@/lib/db/decks";
@@ -202,16 +204,16 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
           </Suspense>
         }
         action={
-          <ButtonGroup className="mx-auto hidden max-w-full justify-center sm:flex sm:!w-fit">
+          <PageActions className="hidden sm:flex">
             <Suspense fallback={<TournamentEditButtonFallback />}>
               <TournamentEditAction tournament={tournament} userId={user.id} />
             </Suspense>
-            <Button asChild className="hidden justify-center text-center sm:flex">
+            <Button asChild className="hidden justify-center text-center sm:flex" variant="outline">
               <Link href="/tournaments" prefetch={false}>
                 Back to Tournaments
               </Link>
             </Button>
-          </ButtonGroup>
+          </PageActions>
         }
       />
 
@@ -221,9 +223,9 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
             <SpriteStrip maxVisible={3} size="xl" sprites={tournament.deckSprites} />
             <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-display text-[1.15rem] font-semibold tracking-[-0.03em] text-card-foreground">
+                <ItemTitle as="p" size="lg">
                   {stackDeckName(tournamentDeckName)}
-                </p>
+                </ItemTitle>
               </div>
               <div className="flex shrink-0">
                 {tournament.linkedDeckId && tournament.linkedDeckListId ? (
@@ -240,7 +242,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
                     triggerClassName="px-3"
                     triggerLabel="Deck List"
                     triggerSize="sm"
-                    triggerVariant="default"
+                    triggerVariant="outline"
                   />
                 ) : (
                   <LazyDeckListEditorButton
@@ -256,7 +258,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
                     triggerClassName="px-3"
                     triggerLabel="+ ADD"
                     triggerSize="sm"
-                    triggerVariant="default"
+                    triggerVariant="outline"
                   />
                 )}
               </div>
@@ -275,20 +277,17 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
       </section>
 
       <section className="space-y-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-display text-[1.3rem] font-semibold tracking-[-0.03em] text-card-foreground">
-              Tournament Rounds
-            </h2>
-          </div>
-
-          <LazyTournamentRoundEditorButton
-            suggestedRoundNumber={rounds.length + 1}
-            tournamentId={tournament.id}
-            triggerLabel="Add Round"
-            triggerVariant="default"
-          />
-        </div>
+        <SectionHeader
+          actions={
+            <LazyTournamentRoundEditorButton
+              suggestedRoundNumber={rounds.length + 1}
+              tournamentId={tournament.id}
+              triggerLabel="Add Round"
+              triggerVariant="outline"
+            />
+          }
+          title="Tournament Rounds"
+        />
 
         {rounds.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-muted p-6">
@@ -338,13 +337,14 @@ async function TournamentEditAction({
         ) : undefined
       }
       triggerLabel="Edit Tournament"
+      triggerVariant="outline"
     />
   );
 }
 
 function TournamentEditButtonFallback({ compact = false }: { compact?: boolean }) {
   return (
-    <Button className="flex-1 justify-center text-center sm:flex-none" disabled>
+    <Button className="flex-1 justify-center text-center sm:flex-none" disabled variant="outline">
       {compact ? (
         <>
           <PencilIcon className="size-4" />

@@ -8,6 +8,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator
 } from "@/components/shadcn/breadcrumb";
+import { PageTitle } from "@/components/ui/Typography";
 
 type PageBreadcrumbItem = {
   label: string;
@@ -23,7 +24,6 @@ type PageHeaderProps = {
   afterBreadcrumb?: ReactNode;
   mobileAction?: ReactNode;
   mobileTitle?: ReactNode;
-  showDivider?: boolean;
 };
 
 export function PageHeader({
@@ -34,8 +34,7 @@ export function PageHeader({
   action,
   afterBreadcrumb,
   mobileAction,
-  mobileTitle,
-  showDivider = true
+  mobileTitle
 }: PageHeaderProps) {
   const hasTitle = title.trim().length > 0;
   const hasMetaRow = hasTitle || Boolean(subtitle) || Boolean(meta) || Boolean(action);
@@ -84,7 +83,7 @@ export function PageHeader({
           <div className="space-y-2">
             <div className={mobileAction ? "flex items-start justify-between gap-4 sm:block" : undefined}>
               {hasTitle ? (
-                <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl">
+                <PageTitle>
                   {mobileTitle ? (
                     <>
                       <span className="sm:hidden">{mobileTitle}</span>
@@ -93,7 +92,7 @@ export function PageHeader({
                   ) : (
                     title
                   )}
-                </h1>
+                </PageTitle>
               ) : null}
               {mobileAction ? <div className="shrink-0 sm:hidden">{mobileAction}</div> : null}
             </div>
@@ -107,7 +106,7 @@ export function PageHeader({
         </div>
       ) : null}
 
-      {showDivider ? <div className="border-b border-border" /> : null}
+      <div className="border-b border-border" />
     </header>
   );
 }

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
-import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageActions } from "@/components/ui/PageActions";
 import { PageWidth } from "@/components/ui/PageWidth";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { requireUser } from "@/lib/auth";
 import { getDeckWithList } from "@/lib/db/decks";
 
@@ -71,7 +72,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         ]}
         title={deckList.name}
         action={
-          <ButtonGroup className="max-w-full flex-wrap">
+          <PageActions>
             <LazyDeckListEditorButton
               deckId={id}
               deckList={deckList}
@@ -85,15 +86,15 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
                 Back to Deck
               </Link>
             </Button>
-          </ButtonGroup>
+          </PageActions>
         }
       />
 
       <Card className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="ui-eyebrow">Deck List</p>
-          <CopyDeckListButton text={deckList.rawList} />
-        </div>
+        <SectionHeader
+          actions={<CopyDeckListButton text={deckList.rawList} />}
+          eyebrow="Deck List"
+        />
 
         {deckList.parsedCards.length === 0 ? (
           <p className="text-sm text-foreground">

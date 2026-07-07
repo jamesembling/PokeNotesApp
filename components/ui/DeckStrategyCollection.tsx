@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { DeckCard } from "@/components/ui/DeckCard";
 import { ChevronIcon } from "@/components/ui/icons";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
+import { PageActions } from "@/components/ui/PageActions";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { DeckSummary } from "@/types/index";
 import { Button } from "@/components/shadcn/button";
@@ -140,9 +141,9 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
           ]}
           size="sm"
         />
-        <div className="sm:hidden">
+        <PageActions className="sm:hidden" mobile="stack">
           <LazyDeckEditorButton triggerLabel="+ New deck" />
-        </div>
+        </PageActions>
       </div>
 
       {viewMode === "list" ? (

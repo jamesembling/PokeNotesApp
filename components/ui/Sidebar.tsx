@@ -37,6 +37,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
   useSidebar
 } from "@/components/shadcn/sidebar";
 import type { AvatarColor, DeckSelectionOption } from "@/types/index";
@@ -84,13 +85,18 @@ function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon;
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className="relative px-6 data-[active=true]:!rounded-none data-[active=true]:!bg-[var(--sidebar-active-bg)] data-[active=true]:font-semibold data-[active=true]:!text-[var(--sidebar-active-text)] data-[active=true]:hover:!bg-[var(--sidebar-active-bg-hover)] data-[active=true]:hover:!text-[var(--sidebar-active-text)] group-data-[collapsible=icon]:px-2"
+        className="relative px-6 data-[active=true]:!rounded-none data-[active=true]:!bg-[var(--sidebar-active-bg)] data-[active=true]:font-semibold data-[active=true]:!text-[var(--sidebar-active-text)] data-[active=true]:hover:!bg-[var(--sidebar-active-bg-hover)] data-[active=true]:hover:!text-[var(--sidebar-active-text)] group-data-[collapsible=icon]:!h-10 group-data-[collapsible=icon]:!w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:[&>span]:hidden group-data-[collapsible=icon]:[&_svg]:!size-6"
         isActive={active}
+        tooltip={label}
       >
         <Link href={href} onClick={() => setOpenMobile(false)} prefetch={false}>
           <Icon
             aria-hidden="true"
-            className={active ? "ml-2 text-primary" : "ml-2 text-sidebar-foreground/75"}
+            className={
+              active
+                ? "text-[var(--sidebar-active-text)]"
+                : "text-sidebar-foreground/75"
+            }
             weight={active ? "fill" : "regular"}
           />
           <span>{label}</span>
@@ -111,7 +117,7 @@ function SidebarLogo({ onNavigate }: { onNavigate?: () => void }) {
     >
       <Image
         alt="Poke Notes"
-        className="size-12"
+        className="size-12 group-data-[collapsible=icon]:size-8"
         height={48}
         loading="eager"
         src="/pokeball-icon.svg"
@@ -147,10 +153,10 @@ export function SidebarMobileTopbar() {
 
 function SidebarNav({ userDecks }: { userDecks: DeckSelectionOption[] }) {
   return (
-    <SidebarContent className="px-2 py-3">
-      <SidebarGroup>
+    <SidebarContent className="px-2 py-3 group-data-[collapsible=icon]:px-0">
+      <SidebarGroup className="group-data-[collapsible=icon]:p-0">
         <SidebarGroupContent>
-          <SidebarMenu className="-mx-4 w-[calc(100%+2rem)] gap-1">
+          <SidebarMenu className="-mx-4 w-[calc(100%+2rem)] gap-1 group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:w-full">
             {navItems.map((item) => (
               <AppSidebarLink
                 href={item.href}
@@ -187,21 +193,21 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
   }
 
   return (
-    <SidebarFooter className="border-t border-sidebar-border p-2">
+    <SidebarFooter className="border-t border-sidebar-border p-2 group-data-[collapsible=icon]:p-0">
       <SidebarMenu>
         <SidebarMenuItem>
           <DropdownMenu modal={false} open={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:rounded-none group-data-[collapsible=icon]:p-0"
                 size="lg"
               >
                 <ProfileAvatar avatarColor={profile.avatarColor} fallback={initials} />
-                <div className="grid flex-1 text-left text-sm leading-tight">
+                <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate font-medium">{profile.displayName}</span>
                   <span className="truncate text-xs text-muted-foreground">{profile.email}</span>
                 </div>
-                <ChevronsUpDownIcon className="ml-auto" />
+                <ChevronsUpDownIcon className="ml-auto group-data-[collapsible=icon]:hidden" />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -269,11 +275,11 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <ShadcnSidebar className="border-sidebar-border" collapsible="offcanvas">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center justify-between gap-3">
+    <ShadcnSidebar className="border-sidebar-border" collapsible="icon">
+      <SidebarHeader className="p-4 group-data-[collapsible=icon]:p-2">
+        <div className="flex items-center justify-between gap-3 group-data-[collapsible=icon]:justify-center">
           <SidebarLogo onNavigate={() => setOpenMobile(false)} />
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden min-[860px]:hidden">
             <SidebarThemeToggle />
             <Button
               aria-label="Close navigation menu"
@@ -289,6 +295,7 @@ export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
       </SidebarHeader>
       <SidebarNav userDecks={userDecks} />
       <AccountBlock profile={profile} />
+      <SidebarRail />
     </ShadcnSidebar>
   );
 }

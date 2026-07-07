@@ -2,6 +2,7 @@
 
 import { LogsManager } from "@/components/ui/LogsManager";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageActions } from "@/components/ui/PageActions";
 import type { BattleLogSummary } from "@/types/index";
 
 type LogsWindowPayload = {
@@ -32,7 +33,7 @@ export function LogsWorkspaceClient({ stats, window }: LogsPagePayload) {
         initialWindowStartDate={window.windowStartDate}
         renderHeaderAction={(action) => (
           <PageHeader
-            action={<div className="hidden sm:block">{action}</div>}
+            action={<PageActions className="hidden sm:flex">{action}</PageActions>}
             breadcrumb={[
               { label: "Poke Notes", href: "/" },
               { label: "Battle Logs" }

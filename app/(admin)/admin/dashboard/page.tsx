@@ -32,7 +32,6 @@ export default async function AdminDashboardPage() {
           { label: "Admin" },
           { label: "Dashboard" }
         ]}
-        showDivider={false}
         title="Admin Dashboard"
         subtitle="Manage account access and monitor the imported catalog data that powers battle log identification."
       />

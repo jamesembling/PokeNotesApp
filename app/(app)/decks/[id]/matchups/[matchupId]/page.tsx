@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
-import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { InlineDeckMatchupHeaderControls } from "@/components/ui/InlineDeckMatchupHeaderControls";
 import { InlineDeckMatchupEditor } from "@/components/ui/InlineDeckMatchupEditor";
 import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageActions } from "@/components/ui/PageActions";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { DetailTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getDeckWithMatchup } from "@/lib/db/decks";
 
@@ -66,13 +67,11 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
               <SpriteStrip maxVisible={2} size="xl" sprites={matchup.deckPokemon} />
-              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl">
-                {matchup.deckName}
-              </h1>
+              <DetailTitle>{matchup.deckName}</DetailTitle>
             </div>
 
             <div className="lg:shrink-0">
-              <ButtonGroup className="max-w-full flex-wrap">
+              <PageActions>
                 <LazyDeckMatchupEditorButton
                   deckId={id}
                   matchup={matchup}
@@ -84,7 +83,7 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
                     Back to Deck
                   </Link>
                 </Button>
-              </ButtonGroup>
+              </PageActions>
             </div>
           </div>
 

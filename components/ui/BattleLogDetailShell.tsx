@@ -7,11 +7,11 @@ import { PencilIcon } from "lucide-react";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Button } from "@/components/shadcn/button";
-import { ButtonGroup } from "@/components/shadcn/button-group";
 import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
 import { LinkedDeckListDialog } from "@/components/ui/LinkedDeckListPanel";
+import { PageActions } from "@/components/ui/PageActions";
 import type { BattleLog, DeckCard, DeckSelectionOption } from "@/types/index";
 
 type BattleLogDetailShellProps = {
@@ -177,7 +177,7 @@ export function BattleLogDetailShell({
       actionTagOverrides={deferredBody?.actionTagOverrides ?? actionTagOverrides}
       actions={
         <>
-          <ButtonGroup className="flex w-fit max-w-full sm:hidden">
+          <PageActions className="sm:hidden">
             <LazyEditLogButton
               log={log}
               trigger={
@@ -199,9 +199,9 @@ export function BattleLogDetailShell({
               <ExportIcon className="size-5" weight="bold" />
               <span className="sr-only">Share Log</span>
             </CopyShareLinkButton>
-          </ButtonGroup>
+          </PageActions>
 
-          <ButtonGroup className="hidden max-w-full flex-wrap sm:flex sm:w-fit">
+          <PageActions className="hidden sm:flex">
             <LazyEditLogButton log={log} userDecks={resolvedUserDecks} />
             <CopyShareLinkButton
               initialShare={currentShare}
@@ -221,7 +221,7 @@ export function BattleLogDetailShell({
                 Back to Logs
               </Link>
             </Button>
-          </ButtonGroup>
+          </PageActions>
         </>
       }
       linkedStrategyLabel={deferredContext?.linkedStrategyLabel ?? linkedStrategyLabel}

@@ -17,6 +17,8 @@ import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ItemTitle, SectionTitle } from "@/components/ui/Typography";
 import {
   analyzeDecklist,
   getPokemonSpriteUrl,
@@ -240,13 +242,12 @@ export function ProbabilityCalculator() {
               { label: "Poke Notes", href: "/" },
               { label: "Probability Calculator" }
             ]}
-            showDivider={false}
             title="Probability Calculator"
           />
 
           <section className="grid gap-5 border-b border-border pb-6">
             <section className="grid gap-3">
-              <h2 className="ui-section-title">Mulligan Stats</h2>
+              <SectionTitle>Mulligan Stats</SectionTitle>
               <div className="grid grid-cols-3 gap-3">
                 <ProbabilitySummaryMetric
                   label="Mulligan Rate"
@@ -283,9 +284,7 @@ export function ProbabilityCalculator() {
 
             <section className="grid gap-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <h3 className="font-display text-[1.25rem] font-semibold tracking-[-0.03em] text-card-foreground">
-                  60-Card Graphic
-                </h3>
+                <SectionTitle as="h3" size="sm">60-Card Graphic</SectionTitle>
                 <CopyDeckListButton text={deckInput} />
               </div>
 
@@ -295,7 +294,7 @@ export function ProbabilityCalculator() {
 
           <section className="grid gap-4 border-b border-border pb-6">
             <div className="space-y-1">
-              <h2 className="ui-section-title">Mulligan Streak Calculator</h2>
+              <SectionTitle>Mulligan Streak Calculator</SectionTitle>
             </div>
 
             <div className="overflow-hidden rounded-xl border border-border bg-muted">
@@ -320,12 +319,8 @@ export function ProbabilityCalculator() {
           </section>
 
           <section className="grid gap-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="ui-eyebrow">Card Odds</p>
-                <h2 className="ui-section-title">Setup and Prizing Detail</h2>
-              </div>
-
+            <SectionHeader
+              actions={
               <Tabs
                 className="w-auto"
                 onValueChange={(value) => setActiveTab(value as TabId)}
@@ -339,7 +334,10 @@ export function ProbabilityCalculator() {
                   ]}
                 />
               </Tabs>
-            </div>
+              }
+              eyebrow="Card Odds"
+              title="Setup and Prizing Detail"
+            />
 
             {activeTab === "setup" ? (
               setupComparisonRows.length ? (
@@ -565,9 +563,9 @@ function ProbabilityComparisonRow({
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h4 className="font-display text-[1.05rem] font-semibold tracking-[-0.025em] text-card-foreground">
+                <ItemTitle as="h4" size="sm">
                   {card.count}x {card.name}
-                </h4>
+                </ItemTitle>
                 <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[0.72rem] font-semibold text-foreground">
                   {card.category === "Pokemon" && card.stage ? card.stage : card.category}
                 </span>
@@ -577,9 +575,9 @@ function ProbabilityComparisonRow({
 
           {metrics.map((metric, index) => (
             <div className="text-right" key={`${card.name}-${metric.label}-${index}`}>
-              <p className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-card-foreground">
+              <ItemTitle as="p" className="text-right">
                 {metric.value}
-              </p>
+              </ItemTitle>
             </div>
           ))}
         </div>

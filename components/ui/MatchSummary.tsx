@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { SectionTitle } from "@/components/ui/Typography";
 import type { BattleLog, LogSection, Result } from "@/types/index";
 
 const STAT_FORMATTER = new Intl.NumberFormat("en-GB");
@@ -286,14 +287,14 @@ export function MatchSummary({
   ];
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card px-5 py-5 sm:px-6 sm:py-6 lg:px-7">
+    <section className="border-b border-border pb-6">
       <div className="flex flex-col gap-5">
         <div className="flex items-start justify-between gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div className="min-w-0 space-y-2">
-            <h2 className="text-[1.85rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground sm:text-[2.15rem]">
+            <SectionTitle size="lg">
               <span className="block sm:inline">Match</span>{" "}
               <span className="block sm:inline">Summary</span>
-            </h2>
+            </SectionTitle>
             <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <span className={resultStyles.className}>{resultStyles.label}</span>
               <span className="text-muted-foreground/70"> • </span>

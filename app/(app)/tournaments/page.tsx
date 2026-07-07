@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageActions } from "@/components/ui/PageActions";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { TournamentSummaryList } from "@/components/ui/TournamentSummaryList";
 import { requireUser } from "@/lib/auth";
@@ -20,13 +21,14 @@ export default async function TournamentsPage() {
     <>
       <PageHeader
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Tournaments" }]}
-        showDivider={false}
         title="Tournaments"
         action={
-          <LazyTournamentEditorButton
-            className="w-full justify-center sm:w-auto"
-            triggerLabel="New Tournament"
-          />
+          <PageActions className="w-full sm:w-fit" mobile="stack">
+            <LazyTournamentEditorButton
+              className="w-full justify-center sm:w-auto"
+              triggerLabel="New Tournament"
+            />
+          </PageActions>
         }
       />
 

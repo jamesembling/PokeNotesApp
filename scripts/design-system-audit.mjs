@@ -21,6 +21,14 @@ const rawColorLiteralPattern = /(?:#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)
 const rawWhiteTextPattern = /\b(?:dark:)?text-white\b/g;
 const rawBlackOverlayPattern = /\bbg-black\/[0-9]{1,3}\b/g;
 const emptyPageHeaderTitlePattern = /<PageHeader[\s\S]*?title=["']\s*["']/g;
+const legacyPageHeaderDividerPattern = /\bshowDivider=/g;
+const localPageHeaderDividerPattern = /<PageHeader[\s\S]*?\bdivider=/g;
+const rawHeadingRecipePattern =
+  /\b(?:text-\[2rem\]|sm:text-4xl|ui-section-title|font-display text-\[1\.(?:08|15|25)rem\]|text-\[1\.85rem\])/g;
+const rawHeadingRecipeAllowlist = new Set([
+  "components/ui/Typography.tsx",
+  "components/ui/ImportLogDialog.tsx"
+]);
 
 const disallowedPatterns = [
   {
@@ -54,6 +62,14 @@ const disallowedPatterns = [
   {
     pattern: emptyPageHeaderTitlePattern,
     message: "Do not pass empty PageHeader titles; use a shared detail header pattern instead."
+  },
+  {
+    pattern: legacyPageHeaderDividerPattern,
+    message: "Use PageHeader divider intent instead of legacy local showDivider overrides."
+  },
+  {
+    pattern: localPageHeaderDividerPattern,
+    message: "PageHeader dividers are global; do not override divider behavior locally."
   }
 ];
 
@@ -121,6 +137,12 @@ for (const filePath of files) {
   if (!rawColorLiteralAllowlist.has(relativePath)) {
     for (const match of content.matchAll(rawColorLiteralPattern)) {
       failures.push(`${relativePath}:${getLineNumber(content, match.index)} Use CSS tokens instead of raw color literals.`);
+    }
+  }
+
+  if (!rawHeadingRecipeAllowlist.has(relativePath)) {
+    for (const match of content.matchAll(rawHeadingRecipePattern)) {
+      failures.push(`${relativePath}:${getLineNumber(content, match.index)} Use Typography primitives instead of local heading recipes.`);
     }
   }
 

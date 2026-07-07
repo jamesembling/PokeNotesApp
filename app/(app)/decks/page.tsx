@@ -4,6 +4,7 @@ import { Card } from "@/components/shadcn/card";
 import { DeckStrategyCollection } from "@/components/ui/DeckStrategyCollection";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageActions } from "@/components/ui/PageActions";
 import { requireUser } from "@/lib/auth";
 import { getDeckIndexSummaries } from "@/lib/db/decks";
 import { measureServerCall } from "@/lib/server/perf";
@@ -41,9 +42,9 @@ async function DecksContent({
   const header = (
     <PageHeader
       action={
-        <div className="hidden sm:block">
+        <PageActions className="hidden sm:flex">
           <LazyDeckEditorButton triggerLabel="+ New deck" />
-        </div>
+        </PageActions>
       }
       breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Deck Strategy" }]}
       meta={
@@ -53,7 +54,6 @@ async function DecksContent({
           <span>{totalMatches} matches tracked</span>
         </div>
       }
-      showDivider={false}
       title="Deck Strategy"
     />
   );
@@ -62,9 +62,9 @@ async function DecksContent({
     return (
       <>
         {header}
-        <div className="sm:hidden">
+        <PageActions className="sm:hidden" mobile="stack">
           <LazyDeckEditorButton triggerLabel="+ New deck" />
-        </div>
+        </PageActions>
         <Card>
           <p className="text-sm text-foreground">No decks saved yet.</p>
         </Card>

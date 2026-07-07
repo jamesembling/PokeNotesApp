@@ -3,6 +3,7 @@ import { Card } from "@/components/shadcn/card";
 import { CalendarIcon, ClockIcon } from "@/components/ui/icons";
 import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { ItemTitle } from "@/components/ui/Typography";
 import type { DeckSummary } from "@/types/index";
 
 export type DeckCardView = "tile" | "list";
@@ -76,9 +77,9 @@ export function DeckCard({
               size="lg"
               sprites={deck.deckPokemon}
             />
-            <h2 className="truncate font-display text-[1.02rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground">
+            <ItemTitle as="h2" className="truncate" size="sm">
               {deck.deckName}
-            </h2>
+            </ItemTitle>
           </div>
         </div>
 
@@ -91,9 +92,9 @@ export function DeckCard({
               sprites={deck.deckPokemon}
             />
             <div className="min-w-0 space-y-1">
-              <h2 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground">
+              <ItemTitle as="h2" className="truncate">
                 {deck.deckName}
-              </h2>
+              </ItemTitle>
               <p className="text-sm text-muted-foreground">
                 {gamesPlayed > 0 ? `${gamesPlayed} logged matches` : "No linked battle logs"}
               </p>
@@ -145,9 +146,9 @@ export function DeckCard({
         </div>
 
         <div className="min-w-0">
-          <h2 className="truncate font-display text-[1.02rem] font-semibold leading-tight tracking-[-0.01em] text-card-foreground">
+          <ItemTitle as="h2" className="truncate" size="sm">
             {deck.deckName}
-          </h2>
+          </ItemTitle>
           <p className="mt-0.5 text-sm font-medium leading-5 text-muted-foreground">
             {gamesPlayed > 0
               ? `Record ${recordLabel} · ${gamesPlayed} matches`

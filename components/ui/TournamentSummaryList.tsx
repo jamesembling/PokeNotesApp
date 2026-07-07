@@ -31,7 +31,7 @@ function TournamentSummaryRow({
     <div className="group/row space-y-2">
       <div
         className={[
-          "group/card relative grid w-full grid-cols-1 gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-muted p-4 text-left sm:grid-cols-[82px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:grid-cols-[98px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] lg:px-5",
+          "group/card relative grid w-full grid-cols-1 gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-card p-4 text-left sm:grid-cols-[82px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:grid-cols-[98px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] lg:px-5",
           tournamentEntryRolloverClassName,
           focusWithinRolloverClassName
         ].join(" ")}

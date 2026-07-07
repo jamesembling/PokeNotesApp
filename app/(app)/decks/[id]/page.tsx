@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
-import { ButtonGroup } from "@/components/shadcn/button-group";
 import { Card } from "@/components/shadcn/card";
 import { DeckMatchupsDialog } from "@/components/ui/DeckMatchupsDialog";
 import {
@@ -17,9 +16,12 @@ import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButt
 import { LazyDeckListViewButton } from "@/components/ui/LazyDeckListViewButton";
 import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PageActions } from "@/components/ui/PageActions";
 import { PageWidth } from "@/components/ui/PageWidth";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { DetailTitle, ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
 import { getLatestLogsForDeck } from "@/lib/db/logs";
@@ -60,9 +62,9 @@ function DeckMatchupTile({
           </span>
         </div>
 
-        <h3 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground">
+        <ItemTitle className="truncate">
           {matchup.deckName}
-        </h3>
+        </ItemTitle>
       </Card>
     </Link>
   );
@@ -131,7 +133,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const deckEditorPayload = getDeckEditorPayload(deck);
   const deckListRows = deck.deckLists.map(getDeckListRowPayload);
   const deckActions = (
-    <ButtonGroup className="max-w-full flex-wrap">
+    <PageActions>
       <LazyDeckEditorButton
         deck={deckEditorPayload}
         triggerLabel="Edit Deck"
@@ -142,7 +144,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           Back to Decks
         </Link>
       </Button>
-    </ButtonGroup>
+    </PageActions>
   );
 
   return await measureServerCall("page.decks.detail.initialData", async () => (
@@ -155,56 +157,56 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         ]}
       />
 
-      <Card>
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-              <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
-              <h1 className="text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl">
-                {deck.deckName}
-              </h1>
-            </div>
-
-            <div className="lg:shrink-0">{deckActions}</div>
+      <section className="flex flex-col gap-6 border-b border-border pb-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+            <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
+            <DetailTitle>{deck.deckName}</DetailTitle>
           </div>
 
-          <Suspense fallback={<DeckLogStatsGridFallback />}>
-            <DeckLogStatsGrid statsPromise={deckStatsPromise} />
-          </Suspense>
+          <div className="lg:shrink-0">{deckActions}</div>
         </div>
-      </Card>
+
+        <Suspense fallback={<DeckLogStatsGridFallback />}>
+          <DeckLogStatsGrid statsPromise={deckStatsPromise} />
+        </Suspense>
+      </section>
       <InlineDeckStrategyEditor deck={deckEditorPayload} />
 
-      <Card className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="ui-eyebrow">Matchup Notes</p>
-          <ButtonGroup className="max-w-full flex-wrap">
-            <DeckMatchupsDialog deckId={deck.id} matchups={deck.matchups} />
-            <LazyDeckMatchupEditorButton
-              deckId={deck.id}
-              triggerLabel="New Matchup"
-              triggerVariant="outline"
-            />
-          </ButtonGroup>
-        </div>
+      <section className="space-y-4 border-b border-border pb-6">
+        <SectionHeader
+          actions={
+            <PageActions>
+              <DeckMatchupsDialog deckId={deck.id} matchups={deck.matchups} />
+              <LazyDeckMatchupEditorButton
+                deckId={deck.id}
+                triggerLabel="New Matchup"
+                triggerVariant="outline"
+              />
+            </PageActions>
+          }
+          eyebrow="Matchup Notes"
+        />
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {previewMatchups.map((matchup) => (
             <DeckMatchupTile deckId={deck.id} key={matchup.id} matchup={matchup} />
           ))}
         </div>
-      </Card>
+      </section>
 
-      <Card className="space-y-4" id="deck-lists">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="ui-eyebrow">Deck Lists</p>
-          <LazyDeckListEditorButton
-            deckId={deck.id}
-            defaultCreatedBy={defaultCreatedBy}
-            defaultFormat={deck.format}
-            triggerLabel="Add Deck List"
-            triggerVariant="outline"
-          />
-        </div>
+      <section className="space-y-4 border-b border-border pb-6" id="deck-lists">
+        <SectionHeader
+          actions={
+            <LazyDeckListEditorButton
+              deckId={deck.id}
+              defaultCreatedBy={defaultCreatedBy}
+              defaultFormat={deck.format}
+              triggerLabel="Add Deck List"
+              triggerVariant="outline"
+            />
+          }
+          eyebrow="Deck Lists"
+        />
 
         {deckListRows.length === 0 ? (
           <p className="text-sm text-foreground">No deck lists saved.</p>
@@ -215,17 +217,25 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                 className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                 key={deckList.id}
               >
-                <div className="space-y-1">
-                  <p className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-card-foreground">
-                    {deckList.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {deckList.format}
-                    {deckList.date ? ` · ${formatDate(deckList.date)}` : ""}
-                  </p>
+                <div className="flex min-w-0 items-center gap-4">
+                  <SpriteStrip
+                    className="min-h-10 shrink-0"
+                    maxVisible={3}
+                    size="md"
+                    sprites={deck.deckPokemon}
+                  />
+                  <div className="min-w-0 space-y-1">
+                    <ItemTitle as="p" className="truncate">
+                      {deckList.name}
+                    </ItemTitle>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {deckList.format}
+                      {deckList.date ? ` · ${formatDate(deckList.date)}` : ""}
+                    </p>
+                  </div>
                 </div>
 
-                <ButtonGroup className="max-w-full flex-wrap">
+                <PageActions>
                   <LazyDeckListEditorButton
                     deckId={deck.id}
                     deckListId={deckList.id}
@@ -240,12 +250,12 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                     triggerLabel="View List"
                     triggerVariant="ghost"
                   />
-                </ButtonGroup>
+                </PageActions>
               </div>
             ))}
           </div>
         )}
-      </Card>
+      </section>
 
       <Suspense fallback={<DeckRelatedLogsSectionFallback />}>
         <DeckRelatedLogsSection deck={deck} latestLogsPromise={latestLogsPromise} />

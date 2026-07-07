@@ -1,7 +1,6 @@
-import { Card } from "@/components/shadcn/card";
 import { DeckLinkedLogsDialog } from "@/components/ui/DeckLinkedLogsDialog";
 import { LogRow } from "@/components/ui/LogRow";
-import { StatCard } from "@/components/ui/StatCard";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import type { LogSummaryStats } from "@/lib/db/logs";
 import type { BattleLogSummary, Deck } from "@/types/index";
 
@@ -27,26 +26,48 @@ function attachLinkedDeckListNames(logs: BattleLogSummary[], deck: Deck) {
 
 export function DeckRelatedLogsSectionFallback() {
   return (
-    <Card className="space-y-5">
-      <div className="space-y-2">
-        <div className="space-y-2">
-          <p className="ui-eyebrow">Battle Logs</p>
-        </div>
-      </div>
+    <section className="space-y-5 border-b border-border pb-6">
+      <SectionHeader eyebrow="Battle Logs" />
       <div className="space-y-3">
-        <div className="h-24 rounded-[20px] border border-border bg-muted" />
-        <div className="h-24 rounded-[20px] border border-border bg-muted" />
+        <div className="h-24 rounded-[20px] border border-border bg-card" />
+        <div className="h-24 rounded-[20px] border border-border bg-card" />
       </div>
-    </Card>
+    </section>
   );
 }
 
 export function DeckLogStatsGridFallback() {
   return (
-    <div className="grid grid-cols-3 gap-2 sm:gap-4">
-      <div className="h-[86px] rounded-[20px] border border-border bg-muted sm:h-[112px]" />
-      <div className="h-[86px] rounded-[20px] border border-border bg-muted sm:h-[112px]" />
-      <div className="h-[86px] rounded-[20px] border border-border bg-muted sm:h-[112px]" />
+    <div className="grid overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-3">
+      <div className="h-[86px] border-b border-border sm:h-[112px] sm:border-b-0 sm:border-r" />
+      <div className="h-[86px] border-b border-border sm:h-[112px] sm:border-b-0 sm:border-r" />
+      <div className="h-[86px] sm:h-[112px]" />
+    </div>
+  );
+}
+
+function DeckLogStat({
+  label,
+  value,
+  valueColor = "text-card-foreground"
+}: {
+  label: string;
+  value: number;
+  valueColor?: string;
+}) {
+  return (
+    <div className="grid gap-2 p-4">
+      <p className="text-[0.68rem] font-medium uppercase leading-tight tracking-[0.18em] text-muted-foreground sm:text-xs sm:tracking-wide">
+        {label}
+      </p>
+      <p
+        className={[
+          "text-[1.5rem] font-semibold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums] sm:text-3xl",
+          valueColor
+        ].join(" ")}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -59,10 +80,14 @@ export async function DeckLogStatsGrid({
   const stats = await statsPromise;
 
   return (
-    <div className="grid grid-cols-3 gap-2 sm:gap-4">
-      <StatCard label="Total Games" size="compact" value={stats.total} />
-      <StatCard label="Wins" size="compact" value={stats.wins} valueColor="win" />
-      <StatCard label="Losses" size="compact" value={stats.losses} valueColor="loss" />
+    <div className="grid overflow-hidden rounded-xl border border-border bg-card sm:grid-cols-3">
+      <div className="border-b border-border sm:border-b-0 sm:border-r">
+        <DeckLogStat label="Total Games" value={stats.total} />
+      </div>
+      <div className="border-b border-border sm:border-b-0 sm:border-r">
+        <DeckLogStat label="Wins" value={stats.wins} valueColor="text-win" />
+      </div>
+      <DeckLogStat label="Losses" value={stats.losses} valueColor="text-loss" />
     </div>
   );
 }
@@ -77,10 +102,8 @@ export async function DeckRelatedLogsSection({
   const relatedLogs = attachLinkedDeckListNames(await latestLogsPromise, deck);
 
   return (
-    <Card className="space-y-5">
-      <div className="space-y-2">
-        <p className="ui-eyebrow">Battle Logs</p>
-      </div>
+    <section className="space-y-5 border-b border-border pb-6">
+      <SectionHeader eyebrow="Battle Logs" />
 
       {relatedLogs.length === 0 ? (
         <p className="text-sm text-foreground">
@@ -106,6 +129,6 @@ export async function DeckRelatedLogsSection({
           </div>
         </>
       )}
-    </Card>
+    </section>
   );
 }

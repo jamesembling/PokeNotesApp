@@ -28,6 +28,8 @@ import {
 } from "@/components/shadcn/dropdown-menu";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { LogRow } from "@/components/ui/LogRow";
+import { PageActions } from "@/components/ui/PageActions";
+import { ItemTitle } from "@/components/ui/Typography";
 import { formatDayDate } from "@/lib/client/date-format";
 import type { BattleLog, BattleLogSummary, DeckSelectionOption } from "@/types/index";
 
@@ -536,7 +538,9 @@ export function LogsManager({
             {!canLoadMore ? <Badge>Current window complete</Badge> : null}
           </div>
 
-          <LazyImportLogButton className="w-full justify-center" initialUserDecks={userDecks} />
+          <PageActions mobile="stack">
+            <LazyImportLogButton className="w-full justify-center" initialUserDecks={userDecks} />
+          </PageActions>
         </div>
 
         <ClientPerfPanel
@@ -564,9 +568,9 @@ export function LogsManager({
                       <div>
                         <div className="flex items-start justify-between gap-3 sm:block">
                           <div>
-                            <h3 className="font-display text-[1.08rem] font-semibold tracking-[-0.025em] text-card-foreground">
+                            <ItemTitle>
                               {formatDayDate(group.date)}
-                            </h3>
+                            </ItemTitle>
                           </div>
 
                           <div className="flex items-center justify-end gap-2 text-right sm:hidden">
