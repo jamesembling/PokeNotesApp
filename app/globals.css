@@ -389,6 +389,18 @@ h3,
   transform: translateY(calc(var(--deck-card-hover-lift) * -1));
 }
 
+.deck-strategy-ledger-grid {
+  gap: 0.73rem;
+}
+
+.deck-strategy-ledger-shell {
+  border-color: color-mix(in oklab, var(--border) 76%, var(--ring));
+}
+
+.deck-strategy-ledger-toolbar {
+  background: color-mix(in oklab, var(--muted) 71.8%, var(--card));
+}
+
 @media (min-width: 1024px) {
   .ui-log-entry-rollover:hover {
     box-shadow: var(--log-entry-hover-shadow);

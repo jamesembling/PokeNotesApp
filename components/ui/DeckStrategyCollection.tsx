@@ -128,11 +128,11 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
 
   return (
     <Tabs
-      className="grid gap-5"
+      className="grid gap-3"
       onValueChange={(value) => setViewMode(value as ViewMode)}
       value={viewMode}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="deck-strategy-ledger-toolbar flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
         <SegmentedControl
           ariaLabel="Deck strategy view"
           options={[
@@ -147,8 +147,8 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
       </div>
 
       {viewMode === "list" ? (
-        <div className="overflow-hidden rounded-lg border border-border bg-background">
-          <div className="hidden border-b border-border bg-muted px-6 py-3 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(6.5rem,0.55fr)_minmax(7rem,0.65fr)_minmax(4.5rem,0.4fr)_minmax(7.5rem,0.6fr)_auto] md:items-center md:gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(7rem,0.55fr)_minmax(7.5rem,0.7fr)_minmax(5rem,0.4fr)_minmax(8rem,0.65fr)_auto]">
+        <div className="deck-strategy-ledger-shell overflow-hidden rounded-lg border bg-background">
+          <div className="hidden border-b border-border bg-muted px-5 py-2.5 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(6.5rem,0.55fr)_minmax(7rem,0.65fr)_minmax(4.5rem,0.4fr)_minmax(7.5rem,0.6fr)_auto] md:items-center md:gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(7rem,0.55fr)_minmax(7.5rem,0.7fr)_minmax(5rem,0.4fr)_minmax(8rem,0.65fr)_auto]">
             <SortHeaderButton
               active={sort?.key === "deck"}
               direction={sort?.key === "deck" ? sort.direction : undefined}
@@ -191,7 +191,6 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
             />
             <div className="ui-eyebrow text-right">Open</div>
           </div>
-
           <div className="divide-y divide-[var(--border)]">
             {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
               <DeckCard
@@ -207,7 +206,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="deck-strategy-ledger-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
             <DeckCard
               deck={deck}

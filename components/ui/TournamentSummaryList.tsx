@@ -100,6 +100,7 @@ export function TournamentSummaryList({
   }
 
   return (
+
     <div className="flex flex-col gap-3">
       {tournaments.map((tournament) => (
         <TournamentSummaryRow
@@ -108,5 +109,6 @@ export function TournamentSummaryList({
         />
       ))}
     </div>
+
   );
 }
