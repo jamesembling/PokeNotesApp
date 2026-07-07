@@ -2,9 +2,9 @@
 
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -43,7 +43,7 @@ export function DeleteConfirmDialog({
         }
       }}
     >
-      <DialogContent className="border border-loss-border" showCloseButton={!disabled}>
+      <AppDialogContent className="border-loss-border p-4" showCloseButton={!disabled}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{message}</DialogDescription>
@@ -61,7 +61,7 @@ export function DeleteConfirmDialog({
             </Button>
           </ButtonGroup>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

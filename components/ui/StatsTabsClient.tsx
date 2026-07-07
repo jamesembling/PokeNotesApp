@@ -3,8 +3,9 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
+import { Tabs, TabsContent } from "@/components/shadcn/tabs";
 import { ChevronIcon } from "@/components/ui/icons";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import type {
@@ -160,7 +161,7 @@ function DamageSplitChart({
         </h3>
         <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-violet-500" />
+            <span className="size-2 rounded-full bg-[var(--chart-damage-self-start)]" />
             You dealt
           </span>
           <span className="inline-flex items-center gap-1.5">
@@ -183,12 +184,12 @@ function DamageSplitChart({
         >
           <defs>
             <linearGradient id="attack-damage-line" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor="#8b5cf6" />
-              <stop offset="100%" stopColor="#6366f1" />
+              <stop offset="0%" stopColor="var(--chart-damage-self-start)" />
+              <stop offset="100%" stopColor="var(--chart-damage-self-end)" />
             </linearGradient>
             <linearGradient id="opponent-damage-line" x1="0" x2="1" y1="0" y2="0">
               <stop offset="0%" stopColor="var(--color-loss)" />
-              <stop offset="100%" stopColor="#fb7185" />
+              <stop offset="100%" stopColor="var(--chart-damage-opponent-end)" />
             </linearGradient>
           </defs>
           {chart.yTicks.map((tick) => (
@@ -237,7 +238,7 @@ function DamageSplitChart({
             y1={chart.plotBottom}
             y2={chart.plotBottom}
           />
-          <circle cx={chart.lastX} cy={chart.lastAttackY} fill="#8b5cf6" r="4.5" />
+          <circle cx={chart.lastX} cy={chart.lastAttackY} fill="var(--chart-damage-self-start)" r="4.5" />
           <circle cx={chart.lastX} cy={chart.lastOpponentY} fill="var(--color-loss)" r="4.5" />
           <text
             fill="var(--muted-foreground)"
@@ -844,13 +845,13 @@ export function StatsTabsClient({
         value={activeTab}
       >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <TabsList
-          aria-label="Stats sections"
-          className="h-11 rounded-lg border border-border bg-card/80 p-1 shadow-sm"
-        >
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="matchups">Matchups</TabsTrigger>
-        </TabsList>
+        <SegmentedControl
+          ariaLabel="Stats sections"
+          options={[
+            { value: "overview", label: "Overview" },
+            { value: "matchups", label: "Matchups" }
+          ]}
+        />
         <div className="inline-flex h-11 w-fit items-center gap-2 rounded-lg border border-border bg-card/80 px-4 text-sm font-medium text-card-foreground shadow-sm">
           <span>All time</span>
         </div>

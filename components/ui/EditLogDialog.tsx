@@ -16,10 +16,10 @@ import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import { DatePicker } from "@/components/ui/DatePicker";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
@@ -242,8 +242,8 @@ export function EditLogDialog({
         </Button>
       )}
 
-      <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-3xl sm:p-4 lg:p-5"
+      <AppDialogContent
+        className="sm:p-4 lg:p-5"
         showMobileCloseButton
         showCloseButton={false}
       >
@@ -380,7 +380,7 @@ export function EditLogDialog({
               </ButtonGroup>
             </form>
             </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

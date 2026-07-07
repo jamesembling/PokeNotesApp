@@ -6,16 +6,17 @@ import { startTransition, useEffect, useMemo, useState } from "react";
 import { Textarea } from "@/components/shadcn/textarea";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
+import { Tabs } from "@/components/shadcn/tabs";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import {
   analyzeDecklist,
   getPokemonSpriteUrl,
@@ -330,14 +331,13 @@ export function ProbabilityCalculator() {
                 onValueChange={(value) => setActiveTab(value as TabId)}
                 value={activeTab}
               >
-                <TabsList aria-label="Calculator views" className="rounded-full bg-muted p-1">
-                  <TabsTrigger className="rounded-full px-4" value="setup">
-                    Setup
-                  </TabsTrigger>
-                  <TabsTrigger className="rounded-full px-4" value="prizing">
-                    Prizing
-                  </TabsTrigger>
-                </TabsList>
+                <SegmentedControl
+                  ariaLabel="Calculator views"
+                  options={[
+                    { value: "setup", label: "Setup" },
+                    { value: "prizing", label: "Prizing" }
+                  ]}
+                />
               </Tabs>
             </div>
 
@@ -419,8 +419,7 @@ function DeckImportDialog({
       }}
       open={open}
     >
-      <DialogContent
-        className="flex max-h-[calc(100dvh-1rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[24px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-3xl sm:rounded-[28px]"
+      <AppDialogContent
         showCloseButton={!initialImport}
       >
         <div className="shrink-0 border-b border-border p-4 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:pr-14">
@@ -472,7 +471,7 @@ function DeckImportDialog({
             </Button>
           </ButtonGroup>
         </form>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

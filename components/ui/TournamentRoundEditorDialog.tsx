@@ -11,9 +11,9 @@ import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
@@ -223,8 +223,7 @@ export function TournamentRoundEditorDialog({
     >
       {triggerElement}
 
-      <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-3xl"
+      <AppDialogContent
         showMobileCloseButton
         showCloseButton={false}
       >
@@ -435,7 +434,7 @@ export function TournamentRoundEditorDialog({
               </div>
             </form>
             </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

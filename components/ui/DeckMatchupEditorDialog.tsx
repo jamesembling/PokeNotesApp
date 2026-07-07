@@ -7,9 +7,10 @@ import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { AppDialogContent } from "@/components/ui/AppDialog";
+import { ChoiceCard } from "@/components/ui/ChoiceCard";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
@@ -182,8 +183,7 @@ export function DeckMatchupEditorDialog({
         </Button>
       )}
 
-      <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-3xl"
+      <AppDialogContent
         showMobileCloseButton
         showCloseButton={false}
       >
@@ -273,67 +273,17 @@ export function DeckMatchupEditorDialog({
                       className="grid gap-3 sm:grid-cols-2"
                       role="radiogroup"
                     >
-                      <Button
-                        aria-checked={goPreference === "First"}
-                        className={`h-auto justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                          goPreference === "First"
-                            ? "border-ring bg-[color-mix(in_oklab,var(--ring)_10%,var(--bg-surface-alt))] text-card-foreground"
-                            : "border-border bg-muted text-muted-foreground"
-                        }`}
+                      <ChoiceCard
+                        checked={goPreference === "First"}
+                        label="Go First"
                         onClick={() => setGoPreference("First")}
-                        role="radio"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                            goPreference === "First"
-                              ? "border-ring"
-                              : "border-[var(--border-strong)]"
-                          }`}
-                        >
-                          <span
-                            className={`h-2.5 w-2.5 rounded-full ${
-                              goPreference === "First"
-                                ? "bg-primary"
-                                : "bg-transparent"
-                            }`}
-                          />
-                        </span>
-                        <span className="text-sm font-medium">Go First</span>
-                      </Button>
+                      />
 
-                      <Button
-                        aria-checked={goPreference === "Second"}
-                        className={`h-auto justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                          goPreference === "Second"
-                            ? "border-ring bg-[color-mix(in_oklab,var(--ring)_10%,var(--bg-surface-alt))] text-card-foreground"
-                            : "border-border bg-muted text-muted-foreground"
-                        }`}
+                      <ChoiceCard
+                        checked={goPreference === "Second"}
+                        label="Go Second"
                         onClick={() => setGoPreference("Second")}
-                        role="radio"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                            goPreference === "Second"
-                              ? "border-ring"
-                              : "border-[var(--border-strong)]"
-                          }`}
-                        >
-                          <span
-                            className={`h-2.5 w-2.5 rounded-full ${
-                              goPreference === "Second"
-                                ? "bg-primary"
-                                : "bg-transparent"
-                            }`}
-                          />
-                        </span>
-                        <span className="text-sm font-medium">Go Second</span>
-                      </Button>
+                      />
                     </div>
                   </section>
 
@@ -371,7 +321,7 @@ export function DeckMatchupEditorDialog({
                 ) : null}
               </form>
             </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

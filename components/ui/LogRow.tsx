@@ -6,6 +6,10 @@ import { MoreHorizontalIcon } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { Checkbox } from "@/components/shadcn/checkbox";
 import { ChevronIcon, TrashIcon } from "@/components/ui/icons";
+import {
+  focusRolloverClassName,
+  logEntryRolloverClassName
+} from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import {
   DropdownMenu,
@@ -81,15 +85,18 @@ function LogRowComponent({
 
   const cardClasses = [
     variant === "flat"
-      ? "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden border-b border-b-border p-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem_1.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem_1.25rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
-      : "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border p-3 text-left transition duration-200 hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem_1.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem_1.25rem] lg:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
+      ? "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden border-b border-b-border p-3 text-left sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem_1.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem_1.25rem] lg:gap-4 lg:px-5"
+      : "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border p-3 text-left sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem_1.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem_1.25rem] lg:gap-4 lg:px-5",
+    logEntryRolloverClassName,
+    focusRolloverClassName,
     managementMode && selected ? "ring-2 ring-inset ring-ring/45" : "",
     variant === "flat" ? flatToneClasses : toneClasses
   ].join(" ");
   const managementRowClasses = [
     variant === "flat"
-      ? "group/row grid overflow-hidden border-b border-b-border text-left transition duration-200 hover:brightness-[0.98] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
-      : "group/row grid overflow-hidden rounded-[10px] border text-left transition duration-200 hover:brightness-[0.98] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]",
+      ? "group/row grid overflow-hidden border-b border-b-border text-left sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch"
+      : "group/row grid overflow-hidden rounded-[10px] border text-left sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch",
+    logEntryRolloverClassName,
     selected ? "ring-2 ring-inset ring-ring/45" : "",
     variant === "flat" ? flatToneClasses : toneClasses
   ].join(" ");
@@ -154,7 +161,7 @@ function LogRowComponent({
       </div>
 
       {!managementMode ? (
-        <ChevronIcon className="hidden size-4 -rotate-90 justify-self-end text-muted-foreground transition group-hover:text-card-foreground sm:block" />
+        <ChevronIcon className="hidden size-4 -rotate-90 justify-self-end text-muted-foreground sm:block" />
       ) : null}
     </>
   );

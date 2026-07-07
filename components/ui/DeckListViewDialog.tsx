@@ -2,9 +2,9 @@
 
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/shadcn/button";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger
@@ -45,7 +45,7 @@ export function DeckListViewDialog({
           {triggerChildren ?? triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-hidden sm:max-w-5xl">
+      <AppDialogContent className="p-4" size="xl">
         <DialogHeader className="min-w-0 w-full">
           <DialogTitle className="min-w-0 truncate pr-10">{deckListName}</DialogTitle>
           <div className="w-full">
@@ -61,7 +61,7 @@ export function DeckListViewDialog({
             </p>
           )}
         </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

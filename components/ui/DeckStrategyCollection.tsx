@@ -7,7 +7,8 @@ import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import type { DeckSummary } from "@/types/index";
 import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
+import { Tabs } from "@/components/shadcn/tabs";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
 const STORAGE_KEY = "poke-notes.deck-strategy-view";
 
@@ -139,16 +140,14 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
 
   const viewSwitcher = (
     <Tabs onValueChange={(value) => setView(value as DeckCardView)} value={view}>
-      <TabsList aria-label="Deck view mode" className="h-9 rounded-lg border border-border bg-card p-1">
-        <TabsTrigger className="h-7 w-10 flex-none px-0" value="tile">
-          <GridIcon />
-          <span className="sr-only">Tiles</span>
-        </TabsTrigger>
-        <TabsTrigger className="h-7 w-10 flex-none px-0" value="list">
-          <MenuIcon />
-          <span className="sr-only">Decklist view</span>
-        </TabsTrigger>
-      </TabsList>
+      <SegmentedControl
+        ariaLabel="Deck view mode"
+        options={[
+          { value: "tile", label: "Tiles", icon: GridIcon },
+          { value: "list", label: "Decklist view", icon: MenuIcon }
+        ]}
+        size="icon"
+      />
     </Tabs>
   );
 

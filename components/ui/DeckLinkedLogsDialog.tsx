@@ -5,11 +5,11 @@ import { loadDeckLinkedLogsAction } from "@/app/(app)/decks/actions";
 import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle,
   DialogTrigger
 } from "@/components/shadcn/dialog";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import { LogRow } from "@/components/ui/LogRow";
 import type { BattleLogSummary } from "@/types/index";
 
@@ -60,8 +60,8 @@ export function DeckLinkedLogsDialog({ deckId }: DeckLinkedLogsDialogProps) {
         <Button variant="outline">Show all linked logs</Button>
       </DialogTrigger>
 
-      <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-5xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-5xl"
+      <AppDialogContent
+        size="xl"
         showMobileCloseButton
         showCloseButton={false}
       >
@@ -96,7 +96,7 @@ export function DeckLinkedLogsDialog({ deckId }: DeckLinkedLogsDialogProps) {
                 </div>
               )}
             </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

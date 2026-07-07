@@ -12,9 +12,9 @@ import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
@@ -235,8 +235,7 @@ export function DeckEditorDialog({
         {triggerLabel}
       </Button>
 
-      <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-3xl"
+      <AppDialogContent
         showMobileCloseButton
         showCloseButton={false}
       >
@@ -430,7 +429,7 @@ export function DeckEditorDialog({
               </ButtonGroup>
             </form>
             </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

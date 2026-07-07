@@ -18,6 +18,7 @@ import { LazyDeckListViewButton } from "@/components/ui/LazyDeckListViewButton";
 import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
+import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { requireUser } from "@/lib/auth";
 import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
@@ -50,10 +51,10 @@ function DeckMatchupTile({
 }) {
   return (
     <Link className="group block h-full" href={`/decks/${deckId}/matchups/${matchup.id}`} prefetch={false}>
-      <Card className="flex h-full flex-col gap-4 transition hover:-translate-y-0.5 hover:border-ring hover:shadow-[var(--shadow-sm)]">
+      <Card className={`flex h-full flex-col gap-4 ${deckCardRolloverClassName}`}>
         <div className="flex items-start justify-between gap-3">
           <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={matchup.deckPokemon} />
-          <span className="inline-flex min-h-10 shrink-0 items-center rounded-2xl border border-ring bg-[color-mix(in_oklab,var(--ring)_8%,var(--bg-surface))] px-3 py-2 text-[0.76rem] font-semibold tracking-[0.12em] text-primary">
+          <span className="inline-flex min-h-10 shrink-0 items-center rounded-2xl border border-[var(--link-chip-border)] bg-[var(--link-chip-bg)] px-3 py-2 text-[0.76rem] font-semibold tracking-[0.12em] text-[var(--link-chip-text)]">
             OPEN
             <ChevronIcon className="size-4 -rotate-90" />
           </span>

@@ -7,12 +7,12 @@ import { saveDeckListAction } from "@/app/(app)/decks/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
@@ -312,8 +312,8 @@ export function DeckListEditorDialog({
         {triggerLabel}
       </Button>
 
-      <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-4xl"
+      <AppDialogContent
+        size="lg"
         showMobileCloseButton
         showCloseButton={false}
       >
@@ -430,9 +430,9 @@ export function DeckListEditorDialog({
                         className={[
                           "inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold",
                           summaryTone === "success"
-                            ? "bg-[rgba(31,138,98,0.14)] text-win"
+                            ? "bg-win-bg text-win"
                             : summaryTone === "warning"
-                              ? "bg-[rgba(213,87,75,0.12)] text-loss"
+                              ? "bg-loss-bg text-loss"
                               : "bg-muted text-muted-foreground"
                         ].join(" ")}
                       >
@@ -535,7 +535,7 @@ export function DeckListEditorDialog({
                 )}
               </form>
             </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

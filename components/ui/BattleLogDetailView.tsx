@@ -61,19 +61,19 @@ function PrizeTrophyIcon({ className = "size-4" }: { className?: string }) {
 }
 
 const actionTagDotClassNames: Record<BattleLogActionTag, string> = {
-  draw: "bg-[rgb(37,99,235)]",
-  bench: "bg-[rgb(16,185,129)]",
-  evolve: "bg-[rgb(139,92,246)]",
-  ability: "bg-[rgb(217,70,239)]",
-  supporter: "bg-[rgb(22,163,74)]",
-  item: "bg-[rgb(14,165,233)]",
-  tool: "bg-[rgb(245,158,11)]",
-  stadium: "bg-[rgb(120,113,108)]",
-  win: "bg-[rgb(5,150,105)]",
-  loss: "bg-[rgb(225,29,72)]",
-  attack: "bg-[rgb(239,68,68)]",
-  ko: "bg-[rgb(190,18,60)]",
-  other: "bg-[rgb(100,116,139)]"
+  draw: "bg-[var(--action-draw)]",
+  bench: "bg-[var(--action-bench)]",
+  evolve: "bg-[var(--action-evolve)]",
+  ability: "bg-[var(--action-ability)]",
+  supporter: "bg-[var(--action-supporter)]",
+  item: "bg-[var(--action-item)]",
+  tool: "bg-[var(--action-tool)]",
+  stadium: "bg-[var(--action-stadium)]",
+  win: "bg-[var(--action-win)]",
+  loss: "bg-[var(--action-loss)]",
+  attack: "bg-[var(--action-attack)]",
+  ko: "bg-[var(--action-ko)]",
+  other: "bg-[var(--action-other)]"
 };
 
 function ActionTag({
@@ -499,13 +499,13 @@ function LogSectionCard({
   const bodyToneClassName = !effectivePlayer
     ? "bg-card"
     : effectivePlayer === selfPlayerName
-      ? "bg-win-bg"
-      : "bg-[rgba(220,38,38,0.04)] dark:bg-[rgba(220,38,38,0.075)]";
+      ? "bg-[var(--player-self-bg)]"
+      : "bg-[var(--player-opponent-bg)]";
   const headerToneClassName = !effectivePlayer
     ? "bg-muted/55"
     : effectivePlayer === selfPlayerName
-      ? "bg-[rgba(22,163,74,0.12)] dark:bg-[rgba(22,163,74,0.18)]"
-      : "bg-[rgba(220,38,38,0.08)] dark:bg-[rgba(220,38,38,0.14)]";
+      ? "bg-[var(--player-self-header-bg)]"
+      : "bg-[var(--player-opponent-header-bg)]";
   const orderedPlayerNames = getOrderedPlayerNames(section, previousSection, selfPlayerName);
   const actions = section.actions.filter(
     (action) => !SETUP_SECTION_LABELS.has(String(action.title || "").trim().toLowerCase())

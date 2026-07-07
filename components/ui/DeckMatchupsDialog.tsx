@@ -5,12 +5,13 @@ import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle,
   DialogTrigger
 } from "@/components/shadcn/dialog";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import { ChevronIcon } from "@/components/ui/icons";
+import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import type { DeckMatchup } from "@/types/index";
 
@@ -42,8 +43,8 @@ export function DeckMatchupsDialog({
         <Button variant="outline">View All Matchups</Button>
       </DialogTrigger>
 
-      <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] max-w-4xl min-w-0 flex-col overflow-hidden rounded-[28px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-w-4xl"
+      <AppDialogContent
+        size="lg"
         showMobileCloseButton
         showCloseButton={false}
       >
@@ -68,7 +69,7 @@ export function DeckMatchupsDialog({
                 <div className="flex min-w-0 flex-col gap-3">
                   {orderedMatchups.map((matchup) => (
                     <Link
-                      className="group flex min-w-0 items-center justify-between gap-4 rounded-[20px] border border-border bg-card p-4 transition hover:border-ring hover:bg-muted"
+                      className={`group flex min-w-0 items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 ${deckCardRolloverClassName}`}
                       href={`/decks/${deckId}/matchups/${matchup.id}`}
                       key={matchup.id}
                       onClick={() => setIsOpen(false)}
@@ -100,7 +101,7 @@ export function DeckMatchupsDialog({
                 </div>
               )}
             </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

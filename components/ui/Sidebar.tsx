@@ -84,7 +84,7 @@ function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon;
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className="relative px-6 data-[active=true]:!rounded-none data-[active=true]:!bg-[rgba(220,38,38,0.12)] data-[active=true]:font-semibold data-[active=true]:!text-card-foreground data-[active=true]:hover:!bg-[rgba(220,38,38,0.16)] data-[active=true]:hover:!text-card-foreground dark:data-[active=true]:!bg-[#4A1F24] dark:data-[active=true]:!text-primary-foreground dark:data-[active=true]:hover:!bg-[#4A1F24] dark:data-[active=true]:hover:!text-primary-foreground group-data-[collapsible=icon]:px-2"
+        className="relative px-6 data-[active=true]:!rounded-none data-[active=true]:!bg-[var(--sidebar-active-bg)] data-[active=true]:font-semibold data-[active=true]:!text-[var(--sidebar-active-text)] data-[active=true]:hover:!bg-[var(--sidebar-active-bg-hover)] data-[active=true]:hover:!text-[var(--sidebar-active-text)] group-data-[collapsible=icon]:px-2"
         isActive={active}
       >
         <Link href={href} onClick={() => setOpenMobile(false)} prefetch={false}>

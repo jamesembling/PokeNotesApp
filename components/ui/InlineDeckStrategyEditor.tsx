@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
 import { Textarea } from "@/components/shadcn/textarea";
 import { Card } from "@/components/shadcn/card";
+import { ChoiceCard } from "@/components/ui/ChoiceCard";
 import type { Deck } from "@/types/index";
 import type { GoPreference } from "@/types/index";
 
@@ -52,34 +53,7 @@ function StrategyPreferenceRadio({
   label: string;
   onClick: () => void;
 }) {
-  return (
-    <Button
-      aria-checked={checked}
-      className={`h-auto justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-        checked
-          ? "border-ring bg-[color-mix(in_oklab,var(--ring)_10%,var(--bg-surface-alt))] text-card-foreground"
-          : "border-border bg-muted text-muted-foreground"
-      }`}
-      onClick={onClick}
-      role="radio"
-      type="button"
-      variant="ghost"
-    >
-      <span
-        aria-hidden="true"
-        className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-          checked ? "border-ring" : "border-[var(--border-strong)]"
-        }`}
-      >
-        <span
-          className={`h-2.5 w-2.5 rounded-full ${
-            checked ? "bg-primary" : "bg-transparent"
-          }`}
-        />
-      </span>
-      <span className="text-sm font-medium">{label}</span>
-    </Button>
-  );
+  return <ChoiceCard checked={checked} label={label} onClick={onClick} />;
 }
 
 export function InlineDeckStrategyEditor({

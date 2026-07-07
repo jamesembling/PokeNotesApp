@@ -268,7 +268,7 @@ function SpriteSearchSlot({
         />
         <Button
           aria-label="Close Pokemon search"
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-card-foreground"
+          className="size-10 shrink-0 text-muted-foreground"
           onClick={closeSearchEditor}
           size="icon"
           type="button"
@@ -380,7 +380,7 @@ function SpriteSearchSlot({
             {currentSlug ? (
               <Button
                 aria-label={`Remove ${getPokemonOptionLabel(currentSlug, pokemonOptions, pokemonOptionsBySlug)}`}
-                className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-card hover:text-card-foreground"
+                className="size-10 shrink-0 text-muted-foreground"
                 onClick={() => {
                   onChange(updateSpritesAtIndex(sprites, index, ""));
                   closeSearchEditor();
@@ -430,7 +430,7 @@ export function BattleLogSpritePicker({
           <p className="text-[0.95rem] font-semibold text-muted-foreground md:text-sm">{title}</p>
         </div>
         <Button
-          className="inline-flex items-center gap-1 text-[0.9rem] font-medium text-foreground transition hover:text-card-foreground md:gap-2 md:text-sm"
+          className="gap-1 text-[0.9rem] font-medium text-foreground md:gap-2 md:text-sm"
           onClick={() => onChange(swapSpritePositions(sprites))}
           size="sm"
           type="button"

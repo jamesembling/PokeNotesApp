@@ -190,7 +190,7 @@ export function BattleLogDetailShell({
             />
             <CopyShareLinkButton
               ariaLabel="Share Log"
-              className="min-w-0 px-3 text-primary hover:border-primary hover:bg-white hover:text-primary"
+              className="min-w-0 px-3 text-primary hover:border-primary hover:bg-background hover:text-primary"
               initialShare={currentShare}
               logId={log.id}
               onShareReady={setCurrentShare}

@@ -12,9 +12,9 @@ import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
@@ -111,7 +111,7 @@ function SaveButton({
       className={
         isSuccess
           ? "pointer-events-none w-full whitespace-nowrap border-win-border bg-win-bg text-win opacity-100 hover:bg-win-bg sm:w-[9.5rem] sm:shrink-0"
-          : "w-full whitespace-nowrap border-border bg-background text-foreground hover:bg-muted hover:text-foreground sm:w-[9.5rem] sm:shrink-0"
+          : "w-full whitespace-nowrap sm:w-[9.5rem] sm:shrink-0"
       }
       disabled={isSaving}
       onClick={onClick}
@@ -311,8 +311,9 @@ export function TournamentEditorDialog({
         {triggerChildren ?? triggerLabel}
       </Button>
 
-      <DialogContent
-        className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-2rem)] max-w-[22.5rem] min-w-0 flex-col overflow-hidden rounded-[10px] border border-border bg-card p-6 shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-3xl sm:rounded-[28px] sm:p-4 lg:p-5"
+      <AppDialogContent
+        className="p-6 sm:p-4 lg:p-5"
+        size="compact"
         showMobileCloseButton
         showCloseButton={false}
       >
@@ -565,7 +566,7 @@ export function TournamentEditorDialog({
               </div>
             </form>
             </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

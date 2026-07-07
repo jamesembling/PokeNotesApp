@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import {
+  focusWithinRolloverClassName,
+  tournamentEntryRolloverClassName
+} from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { formatDayDate } from "@/lib/client/date-format";
 import { getTournamentRecord } from "@/lib/tournaments/display";
@@ -26,7 +30,11 @@ function TournamentSummaryRow({
   return (
     <div className="group/row space-y-2">
       <div
-        className="group/card relative grid w-full grid-cols-1 gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-muted p-4 text-left transition duration-200 hover:brightness-[0.98] focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background sm:grid-cols-[4rem_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:px-5 lg:hover:-translate-y-0.5 lg:hover:shadow-[var(--shadow-sm)]"
+        className={[
+          "group/card relative grid w-full grid-cols-1 gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-muted p-4 text-left sm:grid-cols-[4rem_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:px-5",
+          tournamentEntryRolloverClassName,
+          focusWithinRolloverClassName
+        ].join(" ")}
         style={{
           contentVisibility: "auto",
           containIntrinsicSize: "88px"

@@ -5,13 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import { DatePicker } from "@/components/ui/DatePicker";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle
 } from "@/components/shadcn/dialog";
@@ -447,8 +447,7 @@ export function ImportLogDialog({
         </Button>
       ) : null}
 
-      <DialogContent
-        className="flex max-h-[calc(100dvh-1rem)] max-w-3xl min-w-0 flex-col overflow-hidden rounded-[24px] border border-border bg-card p-0 shadow-[var(--shadow-lg)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-3xl sm:rounded-[28px]"
+      <AppDialogContent
         showMobileCloseButton
         showCloseButton={false}
       >
@@ -780,7 +779,7 @@ export function ImportLogDialog({
                 </div>
               )}
                 </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

@@ -36,7 +36,7 @@ export function DeckListCard({
           sizes={imageSizes}
           src={imageUrl}
           style={{
-            filter: "drop-shadow(0 2.5px 3.5px rgba(15,23,42,0.34)) drop-shadow(0 0.75px 1.5px rgba(15,23,42,0.22))"
+            filter: "var(--deck-list-card-image-shadow)"
           }}
         />
         <Image

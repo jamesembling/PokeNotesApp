@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card } from "@/components/shadcn/card";
 import { CalendarIcon, ClockIcon } from "@/components/ui/icons";
+import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import type { DeckSummary } from "@/types/index";
 
@@ -37,7 +38,7 @@ function getListWinRateTextClass(winRate: number | null) {
   }
 
   if (winRate >= 40) {
-    return "text-[rgb(180,83,9)] dark:text-[rgb(251,191,36)]";
+    return "text-warning";
   }
 
   return "text-loss";
@@ -57,13 +58,13 @@ export function DeckCard({
       : winRate > 60
         ? "border-win-border bg-win-bg text-win"
         : winRate >= 40
-        ? "border-[rgba(217,119,6,0.22)] bg-[rgba(217,119,6,0.1)] text-[rgb(180,83,9)] dark:border-[rgba(251,191,36,0.22)] dark:bg-[rgba(245,158,11,0.12)] dark:text-[rgb(251,191,36)]"
+        ? "border-warning-border bg-warning-bg text-warning"
         : "border-loss-border bg-loss-bg text-loss";
 
   if (view === "list") {
     return (
       <Link
-        className="group block p-4 transition hover:bg-muted sm:px-6"
+        className={`group block p-4 sm:px-6 ${deckCardRolloverClassName}`}
         href={`/decks/${deck.id}`}
         prefetch={false}
       >
@@ -75,7 +76,7 @@ export function DeckCard({
               size="lg"
               sprites={deck.deckPokemon}
             />
-            <h2 className="truncate font-display text-[1.02rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground transition group-hover:text-primary">
+            <h2 className="truncate font-display text-[1.02rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground">
               {deck.deckName}
             </h2>
           </div>
@@ -90,7 +91,7 @@ export function DeckCard({
               sprites={deck.deckPokemon}
             />
             <div className="min-w-0 space-y-1">
-              <h2 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground transition group-hover:text-primary">
+              <h2 className="truncate font-display text-[1.08rem] font-semibold leading-tight tracking-[-0.03em] text-card-foreground">
                 {deck.deckName}
               </h2>
               <p className="text-sm text-muted-foreground">
@@ -124,7 +125,7 @@ export function DeckCard({
 
   return (
     <Link className="block h-full" href={`/decks/${deck.id}`} prefetch={false}>
-      <Card className="flex h-full flex-col gap-3 rounded-lg p-5 transition hover:-translate-y-0.5 hover:border-primary hover:shadow-[var(--shadow-sm)] sm:p-5">
+      <Card className={`flex h-full flex-col gap-3 rounded-lg p-5 sm:p-5 ${deckCardRolloverClassName}`}>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <SpriteStrip className="min-h-10" pokemonOptions={null} size="md" sprites={deck.deckPokemon} />

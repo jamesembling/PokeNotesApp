@@ -33,11 +33,17 @@
   --sidebar-accent-foreground: var(--accent-foreground);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
+  --sidebar-active-bg: rgba(220, 38, 38, 0.12);
+  --sidebar-active-bg-hover: rgba(220, 38, 38, 0.16);
+  --sidebar-active-text: var(--card-foreground);
   --chart-1: var(--primary);
   --chart-2: #16a34a;
   --chart-3: var(--destructive);
   --chart-4: #b45309;
   --chart-5: var(--muted-foreground);
+  --chart-damage-self-start: #8b5cf6;
+  --chart-damage-self-end: #6366f1;
+  --chart-damage-opponent-end: #fb7185;
 
   --bg-page: var(--background);
   --bg-surface: var(--card);
@@ -63,9 +69,62 @@
   --color-danger: var(--destructive);
   --text-inverse: var(--primary-foreground);
   --bg-overlay: rgba(17, 24, 39, 0.44);
-  --shadow-sm: 0 10px 24px rgba(17, 24, 39, 0.08);
+  --shadow-sm: 0 6px 14px rgba(17, 24, 39, 0.06);
   --shadow-card: 0 18px 42px rgba(17, 24, 39, 0.12);
   --shadow-lg: 0 24px 64px rgba(17, 24, 39, 0.18);
+  --control-bg: color-mix(in oklab, var(--card) 86%, var(--muted));
+  --control-border: var(--border);
+  --control-active-bg: var(--background);
+  --control-active-text: var(--foreground);
+  --control-text: var(--muted-foreground);
+  --control-radius: var(--radius);
+  --control-shadow: 0 8px 20px rgba(17, 24, 39, 0.06);
+  --button-primary-hover-bg: var(--background);
+  --button-primary-hover-border: var(--primary);
+  --button-primary-hover-text: var(--primary);
+  --choice-bg: var(--muted);
+  --choice-border: var(--border);
+  --choice-text: var(--muted-foreground);
+  --choice-active-bg: color-mix(in oklab, var(--ring) 10%, var(--bg-surface-alt));
+  --choice-active-border: var(--ring);
+  --choice-active-text: var(--card-foreground);
+  --dialog-bg: var(--card);
+  --dialog-border: var(--border);
+  --dialog-radius: 1.75rem;
+  --dialog-radius-compact: 1.5rem;
+  --dialog-shadow: var(--shadow-lg);
+  --player-self-bg: var(--color-win-bg);
+  --player-self-header-bg: rgba(22, 163, 74, 0.12);
+  --player-opponent-bg: rgba(220, 38, 38, 0.04);
+  --player-opponent-header-bg: rgba(220, 38, 38, 0.08);
+  --action-draw: #2563eb;
+  --action-bench: #10b981;
+  --action-evolve: #8b5cf6;
+  --action-ability: #d946ef;
+  --action-supporter: #16a34a;
+  --action-item: #0ea5e9;
+  --action-tool: #f59e0b;
+  --action-stadium: #78716c;
+  --action-win: #059669;
+  --action-loss: #e11d48;
+  --action-attack: #ef4444;
+  --action-ko: #be123c;
+  --action-other: #64748b;
+  --log-entry-hover-brightness: 0.94;
+  --log-entry-hover-lift: 0.125rem;
+  --log-entry-hover-shadow: var(--shadow-sm);
+  --tournament-entry-hover-brightness: 0.98;
+  --tournament-entry-hover-lift: 0.125rem;
+  --tournament-entry-hover-shadow: var(--shadow-sm);
+  --deck-card-hover-lift: 0.125rem;
+  --deck-card-hover-bg: color-mix(in oklab, var(--muted) 45%, transparent);
+  --deck-card-hover-shadow: var(--shadow-sm);
+  --deck-list-card-image-shadow: drop-shadow(0 2.5px 3.5px rgba(15, 23, 42, 0.34)) drop-shadow(0 0.75px 1.5px rgba(15, 23, 42, 0.22));
+  --link-chip-bg: color-mix(in oklab, var(--ring) 8%, var(--bg-surface));
+  --link-chip-border: var(--ring);
+  --link-chip-text: var(--primary);
+  --share-notice-border: rgba(43, 109, 246, 0.14);
+  --share-notice-bg: linear-gradient(180deg, var(--bg-surface), rgba(43, 109, 246, 0.08));
 }
 
 .dark {
@@ -96,11 +155,17 @@
   --sidebar-accent-foreground: var(--accent-foreground);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
+  --sidebar-active-bg: #4A1F24;
+  --sidebar-active-bg-hover: #4A1F24;
+  --sidebar-active-text: var(--primary-foreground);
   --chart-1: var(--primary);
   --chart-2: #16a34a;
   --chart-3: var(--destructive);
   --chart-4: #f59e0b;
   --chart-5: var(--muted-foreground);
+  --chart-damage-self-start: #a78bfa;
+  --chart-damage-self-end: #818cf8;
+  --chart-damage-opponent-end: #fb7185;
 
   --bg-page: var(--background);
   --bg-surface: var(--card);
@@ -126,9 +191,62 @@
   --color-danger: var(--destructive);
   --text-inverse: var(--primary-foreground);
   --bg-overlay: rgba(15, 17, 23, 0.6);
-  --shadow-sm: 0 12px 28px rgba(0, 0, 0, 0.18);
+  --shadow-sm: 0 8px 18px rgba(0, 0, 0, 0.14);
   --shadow-card: 0 20px 48px rgba(0, 0, 0, 0.24);
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.32);
+  --control-bg: color-mix(in oklab, var(--card) 86%, var(--muted));
+  --control-border: var(--border);
+  --control-active-bg: color-mix(in oklab, var(--input) 70%, var(--card));
+  --control-active-text: var(--foreground);
+  --control-text: var(--muted-foreground);
+  --control-radius: var(--radius);
+  --control-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  --button-primary-hover-bg: var(--background);
+  --button-primary-hover-border: var(--primary);
+  --button-primary-hover-text: var(--primary);
+  --choice-bg: var(--muted);
+  --choice-border: var(--border);
+  --choice-text: var(--muted-foreground);
+  --choice-active-bg: color-mix(in oklab, var(--ring) 12%, var(--bg-surface-alt));
+  --choice-active-border: var(--ring);
+  --choice-active-text: var(--card-foreground);
+  --dialog-bg: var(--card);
+  --dialog-border: var(--border);
+  --dialog-radius: 1.75rem;
+  --dialog-radius-compact: 1.5rem;
+  --dialog-shadow: var(--shadow-lg);
+  --player-self-bg: var(--color-win-bg);
+  --player-self-header-bg: rgba(22, 163, 74, 0.18);
+  --player-opponent-bg: rgba(220, 38, 38, 0.075);
+  --player-opponent-header-bg: rgba(220, 38, 38, 0.14);
+  --action-draw: #60a5fa;
+  --action-bench: #34d399;
+  --action-evolve: #a78bfa;
+  --action-ability: #e879f9;
+  --action-supporter: #22c55e;
+  --action-item: #38bdf8;
+  --action-tool: #fbbf24;
+  --action-stadium: #a8a29e;
+  --action-win: #34d399;
+  --action-loss: #fb7185;
+  --action-attack: #f87171;
+  --action-ko: #f43f5e;
+  --action-other: #94a3b8;
+  --log-entry-hover-brightness: 0.94;
+  --log-entry-hover-lift: 0.125rem;
+  --log-entry-hover-shadow: var(--shadow-sm);
+  --tournament-entry-hover-brightness: 0.98;
+  --tournament-entry-hover-lift: 0.125rem;
+  --tournament-entry-hover-shadow: var(--shadow-sm);
+  --deck-card-hover-lift: 0.125rem;
+  --deck-card-hover-bg: color-mix(in oklab, var(--muted) 58%, transparent);
+  --deck-card-hover-shadow: var(--shadow-sm);
+  --deck-list-card-image-shadow: drop-shadow(0 2.5px 3.5px rgba(0, 0, 0, 0.38)) drop-shadow(0 0.75px 1.5px rgba(0, 0, 0, 0.26));
+  --link-chip-bg: color-mix(in oklab, var(--ring) 10%, var(--bg-surface));
+  --link-chip-border: var(--ring);
+  --link-chip-text: var(--primary);
+  --share-notice-border: rgba(43, 109, 246, 0.24);
+  --share-notice-bg: linear-gradient(180deg, var(--bg-surface), rgba(43, 109, 246, 0.12));
 }
 
 html {
@@ -227,6 +345,42 @@ h3,
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.ui-log-entry-rollover,
+.ui-tournament-entry-rollover,
+.ui-deck-card-rollover {
+  transition:
+    border-color 200ms ease-out,
+    filter 200ms ease-out,
+    box-shadow 200ms ease-out,
+    transform 200ms ease-out;
+}
+
+.ui-log-entry-rollover:hover {
+  filter: brightness(var(--log-entry-hover-brightness));
+}
+
+.ui-tournament-entry-rollover:hover {
+  filter: brightness(var(--tournament-entry-hover-brightness));
+}
+
+.ui-deck-card-rollover:hover {
+  background-color: var(--deck-card-hover-bg);
+  box-shadow: var(--deck-card-hover-shadow);
+  transform: translateY(calc(var(--deck-card-hover-lift) * -1));
+}
+
+@media (min-width: 1024px) {
+  .ui-log-entry-rollover:hover {
+    box-shadow: var(--log-entry-hover-shadow);
+    transform: translateY(calc(var(--log-entry-hover-lift) * -1));
+  }
+
+  .ui-tournament-entry-rollover:hover {
+    box-shadow: var(--tournament-entry-hover-shadow);
+    transform: translateY(calc(var(--tournament-entry-hover-lift) * -1));
+  }
 }
 
 a {

@@ -20,8 +20,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
         style={{
           margin: 0,
           minHeight: "100vh",
-          background: "#0f1117",
-          color: "#f9fafb",
+          background: "var(--background, #0f1117)",
+          color: "var(--card-foreground, #f9fafb)",
           fontFamily: "var(--font-body), system-ui, sans-serif"
         }}
       >
@@ -38,8 +38,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             style={{
               width: "100%",
               maxWidth: "720px",
-              border: "1px solid #2a2d3a",
-              background: "#1a1d27",
+              border: "1px solid var(--border, #2a2d3a)",
+              background: "var(--card, #1a1d27)",
               borderRadius: "20px",
               padding: "24px"
             }}
@@ -51,7 +51,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 fontWeight: 700,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                color: "#6b7280"
+                color: "var(--muted-foreground, #6b7280)"
               }}
             >
               Fatal Error
@@ -68,7 +68,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             >
               We hit a problem before the app finished loading.
             </h1>
-            <p style={{ margin: 0, color: "#d1d5db", fontSize: "14px", lineHeight: 1.6 }}>
+            <p style={{ margin: 0, color: "var(--foreground, #d1d5db)", fontSize: "14px", lineHeight: 1.6 }}>
               This recovery screen is here to help you get back on track. We’ve logged the
               failure and can use the reference below to track it down.
             </p>
@@ -78,13 +78,13 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                   marginTop: "20px",
                   borderRadius: "14px",
                   padding: "16px",
-                  background: "#14161f",
-                  border: "1px solid #2a2d3a",
-                  color: "#d1d5db",
+                  background: "var(--muted, #14161f)",
+                  border: "1px solid var(--border, #2a2d3a)",
+                  color: "var(--foreground, #d1d5db)",
                   fontSize: "13px"
                 }}
               >
-                Error reference: <strong style={{ color: "#f9fafb" }}>{error.digest}</strong>
+                Error reference: <strong style={{ color: "var(--card-foreground, #f9fafb)" }}>{error.digest}</strong>
               </div>
             ) : null}
             <Button
@@ -93,8 +93,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 marginTop: "20px",
                 borderRadius: "12px",
                 padding: "10px 16px",
-                background: "#DC2626",
-                color: "#fff",
+                background: "var(--primary, #DC2626)",
+                color: "var(--primary-foreground, #fff)",
                 fontSize: "14px",
                 fontWeight: 600,
                 cursor: "pointer"

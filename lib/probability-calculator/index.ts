@@ -19,6 +19,22 @@ export const OPENING_HAND = 7;
 export const PRIZE_COUNT = 6;
 const EXPECTED_STAGE_COUNT = 1025;
 const logFactorialCache = [0];
+const EXPORT_IMAGE_COLORS = {
+  background: "#111111",
+  panel: "#171717",
+  panelBorder: "#2b2b2b",
+  text: "#f2f2f2",
+  mutedText: "#9a9a9a",
+  cardPlaceholder: "#1f1f1f",
+  cardPlaceholderBorder: "#2f2f2f",
+  badgeBg: "rgba(15,15,15,0.86)",
+  badgeBorder: "#3d3d3d",
+  tableHeader: "#1e1e1e",
+  tableHeaderText: "#b8b8b8",
+  tableHeaderBorder: "#2d2d2d",
+  tableRow: "#151515",
+  tableRowBorder: "#242424"
+} as const;
 
 export const SAMPLE_DECKLIST = `Pokémon: 16
 4 Munkidori ASC 99
@@ -736,18 +752,27 @@ async function drawExportReport(report: ExportReportModel) {
     throw new Error("Could not create drawing context.");
   }
 
-  context.fillStyle = "#111111";
+  context.fillStyle = EXPORT_IMAGE_COLORS.background;
   context.fillRect(0, 0, canvas.width, canvas.height);
 
   let y = margin;
-  context.fillStyle = "#f2f2f2";
+  context.fillStyle = EXPORT_IMAGE_COLORS.text;
   context.font = "700 36px 'Avenir Next','Segoe UI',sans-serif";
   context.fillText("Pokémon TCG Probability Report", margin, y + 34);
   y += 64;
 
   const cardsPanel = { x: margin, y, w: contentWidth, h: cardsSectionHeight };
-  drawRoundedRect(context, cardsPanel.x, cardsPanel.y, cardsPanel.w, cardsPanel.h, 12, "#171717", "#2b2b2b");
-  context.fillStyle = "#f2f2f2";
+  drawRoundedRect(
+    context,
+    cardsPanel.x,
+    cardsPanel.y,
+    cardsPanel.w,
+    cardsPanel.h,
+    12,
+    EXPORT_IMAGE_COLORS.panel,
+    EXPORT_IMAGE_COLORS.panelBorder
+  );
+  context.fillStyle = EXPORT_IMAGE_COLORS.text;
   context.font = "700 20px 'Avenir Next','Segoe UI',sans-serif";
   context.fillText("Card List", cardsPanel.x + panelPad, cardsPanel.y + 32);
   const cardDrawStartY = cardsPanel.y + 52;
@@ -759,11 +784,20 @@ async function drawExportReport(report: ExportReportModel) {
     const x = cardsPanel.x + panelPad + column * (cardWidth + cardGap);
     const cardY = cardDrawStartY + row * (cardHeight + cardGap);
 
-    drawRoundedRect(context, x, cardY, cardWidth, cardHeight, 8, "#1f1f1f", "#2f2f2f");
+    drawRoundedRect(
+      context,
+      x,
+      cardY,
+      cardWidth,
+      cardHeight,
+      8,
+      EXPORT_IMAGE_COLORS.cardPlaceholder,
+      EXPORT_IMAGE_COLORS.cardPlaceholderBorder
+    );
     if (item.image) {
       context.drawImage(item.image, x, cardY, cardWidth, cardHeight);
     } else {
-      context.fillStyle = "#9a9a9a";
+      context.fillStyle = EXPORT_IMAGE_COLORS.mutedText;
       context.font = "500 13px 'Avenir Next','Segoe UI',sans-serif";
       context.fillText(`${item.card.set} ${item.card.number}`, x + 10, cardY + cardHeight / 2);
     }
@@ -781,10 +815,10 @@ async function drawExportReport(report: ExportReportModel) {
       badgeWidth,
       badgeHeight,
       999,
-      "rgba(15,15,15,0.86)",
-      "#3d3d3d"
+      EXPORT_IMAGE_COLORS.badgeBg,
+      EXPORT_IMAGE_COLORS.badgeBorder
     );
-    context.fillStyle = "#f2f2f2";
+    context.fillStyle = EXPORT_IMAGE_COLORS.text;
     context.font = "700 13px 'Avenir Next','Segoe UI',sans-serif";
     context.textAlign = "center";
     context.textBaseline = "middle";
@@ -796,12 +830,21 @@ async function drawExportReport(report: ExportReportModel) {
   y += cardsSectionHeight + 20;
 
   const setupPanel = { x: margin, y, w: contentWidth, h: setupSectionHeight };
-  drawRoundedRect(context, setupPanel.x, setupPanel.y, setupPanel.w, setupPanel.h, 12, "#171717", "#2b2b2b");
-  context.fillStyle = "#f2f2f2";
+  drawRoundedRect(
+    context,
+    setupPanel.x,
+    setupPanel.y,
+    setupPanel.w,
+    setupPanel.h,
+    12,
+    EXPORT_IMAGE_COLORS.panel,
+    EXPORT_IMAGE_COLORS.panelBorder
+  );
+  context.fillStyle = EXPORT_IMAGE_COLORS.text;
   context.font = "700 20px 'Avenir Next','Segoe UI',sans-serif";
   context.fillText("Setup Stats", setupPanel.x + panelPad, setupPanel.y + 32);
 
-  context.fillStyle = "#9a9a9a";
+  context.fillStyle = EXPORT_IMAGE_COLORS.mutedText;
   context.font = "600 14px 'Avenir Next','Segoe UI',sans-serif";
   const setupSummary = `Pokémon ${report.totals.Pokemon}   Trainers ${report.totals.Trainer}   Energy ${report.totals.Energy}   Mulligan ${pct(report.mulliganProbability)}`;
   context.fillText(setupSummary, setupPanel.x + panelPad, setupPanel.y + 58);
@@ -858,10 +901,10 @@ async function drawExportReport(report: ExportReportModel) {
     prizingPanel.w,
     prizingPanel.h,
     12,
-    "#171717",
-    "#2b2b2b"
+    EXPORT_IMAGE_COLORS.panel,
+    EXPORT_IMAGE_COLORS.panelBorder
   );
-  context.fillStyle = "#f2f2f2";
+  context.fillStyle = EXPORT_IMAGE_COLORS.text;
   context.font = "700 20px 'Avenir Next','Segoe UI',sans-serif";
   context.fillText("Prizing Stats", prizingPanel.x + panelPad, prizingPanel.y + 32);
 
@@ -1027,8 +1070,17 @@ function drawExportTableHeader(
   width: number,
   labels: string[]
 ) {
-  drawRoundedRect(context, x, y, width, 26, 6, "#1e1e1e", "#2d2d2d");
-  context.fillStyle = "#b8b8b8";
+  drawRoundedRect(
+    context,
+    x,
+    y,
+    width,
+    26,
+    6,
+    EXPORT_IMAGE_COLORS.tableHeader,
+    EXPORT_IMAGE_COLORS.tableHeaderBorder
+  );
+  context.fillStyle = EXPORT_IMAGE_COLORS.tableHeaderText;
   context.font = "600 13px 'Avenir Next','Segoe UI',sans-serif";
 
   if (labels.length === 3) {
@@ -1052,7 +1104,16 @@ function drawExportRowBackground(
   width: number,
   height: number
 ) {
-  drawRoundedRect(context, x, y, width, height, 6, "#151515", "#242424");
+  drawRoundedRect(
+    context,
+    x,
+    y,
+    width,
+    height,
+    6,
+    EXPORT_IMAGE_COLORS.tableRow,
+    EXPORT_IMAGE_COLORS.tableRowBorder
+  );
 }
 
 function drawExportCell(
@@ -1063,7 +1124,7 @@ function drawExportCell(
   maxWidth: number,
   alignRight = false
 ) {
-  context.fillStyle = "#f2f2f2";
+  context.fillStyle = EXPORT_IMAGE_COLORS.text;
   context.font = "500 14px 'Avenir Next','Segoe UI',sans-serif";
 
   if (alignRight) {
