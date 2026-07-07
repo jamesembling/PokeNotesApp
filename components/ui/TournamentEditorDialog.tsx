@@ -12,12 +12,8 @@ import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { AppDialogContent } from "@/components/ui/AppDialog";
-import {
-  Dialog,
-  DialogDescription,
-  DialogTitle
-} from "@/components/shadcn/dialog";
+import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
+import { Dialog } from "@/components/shadcn/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
 import { Textarea } from "@/components/shadcn/textarea";
@@ -96,11 +92,13 @@ function normalizeRedirectPath(value: string) {
 function SaveButton({
   isEditing,
   onClick,
-  saveState
+  saveState,
+  variant = "default"
 }: {
   isEditing: boolean;
   onClick: () => void;
   saveState: SaveState;
+  variant?: "default" | "outline";
 }) {
   const isSaving = saveState === "saving";
   const isSuccess = saveState === "success";
@@ -116,7 +114,7 @@ function SaveButton({
       disabled={isSaving}
       onClick={onClick}
       type="button"
-      variant="outline"
+      variant={variant}
     >
       {isSaving ? "Saving..." : isSuccess ? "Saved" : isEditing ? "Save Changes" : "Create Tournament"}
     </Button>
@@ -312,46 +310,40 @@ export function TournamentEditorDialog({
       </Button>
 
       <AppDialogContent
-        className="p-6 sm:p-4 lg:p-5"
         size="compact"
         showMobileCloseButton
         showCloseButton={false}
       >
-            <div className="relative mb-5 flex shrink-0 min-w-0 flex-col gap-4 border-b border-border pb-6 pr-14 sm:mb-2 sm:pb-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <DialogTitle className="text-[1.25rem] font-bold tracking-[-0.02em] text-card-foreground sm:text-[1.9rem] sm:tracking-[-0.05em]">
-                  {isEditing ? "Edit Tournament" : "New Tournament"}
-                </DialogTitle>
-                <DialogDescription className="sr-only">
-                  {isEditing ? "Update tournament details, deck choices, and notes." : "Create a tournament with deck choices and notes."}
-                </DialogDescription>
-              </div>
-
-              <ButtonGroup className="hidden max-w-full flex-wrap sm:flex sm:justify-end">
-                {isEditing ? (
-                  <Button
-                    className="whitespace-nowrap text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    disabled={isBusy}
-                    onClick={() => {
-                      setActionError("");
-                      setShowDeleteConfirmation((current) => !current);
-                    }}
-                    type="button"
-                    variant="outline"
-                  >
-                    Delete
-                  </Button>
-                ) : null}
-                <SaveButton
-                  isEditing={isEditing}
-                  onClick={() => formRef.current?.requestSubmit()}
-                  saveState={saveState}
-                />
-              </ButtonGroup>
-            </div>
+            <AppDialogHeader
+              actions={(
+                <ButtonGroup className="hidden max-w-full flex-wrap sm:flex sm:justify-end">
+                  {isEditing ? (
+                    <Button
+                      className="whitespace-nowrap text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      disabled={isBusy}
+                      onClick={() => {
+                        setActionError("");
+                        setShowDeleteConfirmation((current) => !current);
+                      }}
+                      type="button"
+                      variant="outline"
+                    >
+                      Delete
+                    </Button>
+                  ) : null}
+                  <SaveButton
+                    isEditing={isEditing}
+                    onClick={() => formRef.current?.requestSubmit()}
+                    saveState={saveState}
+                  />
+                </ButtonGroup>
+              )}
+              description={isEditing ? "Update tournament details, deck choices, and notes." : "Create a tournament with deck choices and notes."}
+              title={isEditing ? "Edit Tournament" : "New Tournament"}
+            />
 
             <div
-              className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2"
+              className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain p-3 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:p-4 sm:pr-2 lg:p-5"
               onFocusCapture={resetHorizontalScroll}
               onInputCapture={resetHorizontalScroll}
               onScroll={(event) => {
@@ -473,7 +465,7 @@ export function TournamentEditorDialog({
                     />
                   </Field>
 
-                  <div className="flex items-center justify-between gap-3 sm:hidden">
+                  <div className="flex min-h-[2.75rem] items-center justify-between gap-3 sm:min-h-[3rem]">
                     <span className="text-sm font-semibold text-card-foreground">Multi-Day Event</span>
                     <button
                       aria-checked={isMultiDay}
@@ -499,7 +491,7 @@ export function TournamentEditorDialog({
                     </button>
                   </div>
 
-                  <Field className={isMultiDay ? "grid" : "hidden sm:grid"}>
+                  <Field className={isMultiDay ? "grid" : "hidden"}>
                     <FieldLabel htmlFor="tournament-date-to">End date</FieldLabel>
                     <DatePicker
                       className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:text-sm"
@@ -539,33 +531,15 @@ export function TournamentEditorDialog({
                   placeholder="Takeaways, matchup notes, prep notes..."
                 />
               </Field>
-
-              <div className="border-t border-border pt-5 sm:hidden">
-                <div className="grid gap-2">
-                  <Button
-                    aria-disabled={saveState === "saving" || saveState === "success"}
-                    className={[
-                      "w-full",
-                      saveState === "success"
-                        ? "pointer-events-none border-win-border bg-win-bg text-win opacity-100 hover:bg-win-bg"
-                        : ""
-                    ].join(" ")}
-                    disabled={saveState === "saving"}
-                    onClick={() => formRef.current?.requestSubmit()}
-                    type="button"
-                  >
-                    {saveState === "saving"
-                      ? "Saving..."
-                      : saveState === "success"
-                        ? "Saved"
-                        : isEditing
-                          ? "Save Changes"
-                          : "Create Tournament"}
-                  </Button>
-                </div>
-              </div>
             </form>
             </div>
+            <AppDialogMobileFooter>
+              <SaveButton
+                isEditing={isEditing}
+                onClick={() => formRef.current?.requestSubmit()}
+                saveState={saveState}
+              />
+            </AppDialogMobileFooter>
       </AppDialogContent>
     </Dialog>
   );

@@ -5,16 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
-import { AppDialogContent } from "@/components/ui/AppDialog";
+import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import { DatePicker } from "@/components/ui/DatePicker";
-import {
-  Dialog,
-  DialogDescription,
-  DialogTitle
-} from "@/components/shadcn/dialog";
+import { Dialog } from "@/components/shadcn/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
@@ -386,17 +382,9 @@ export function ImportLogDialog({
   function renderHeader() {
     if (stage === "raw") {
       return (
-        <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
-              Import PTCGL Log
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              Paste a PTCGL battle log URL or raw log text to review before saving.
-            </DialogDescription>
-          </div>
-          {trimmedRawLog ? (
-            <ButtonGroup className="w-full sm:w-auto sm:justify-end">
+        <AppDialogHeader
+          actions={trimmedRawLog ? (
+            <ButtonGroup className="hidden w-full md:flex md:w-auto md:justify-end">
               <Button
                 className="min-w-0 flex-1 whitespace-normal text-center leading-5 sm:flex-none sm:whitespace-nowrap"
                 disabled={!canReviewRawLog}
@@ -411,24 +399,17 @@ export function ImportLogDialog({
               </Button>
             </ButtonGroup>
           ) : null}
-        </div>
+          description="Paste a PTCGL battle log URL or raw log text to review before saving."
+          title="Import PTCGL Log"
+        />
       );
     }
 
     return (
-      <div className="relative flex min-w-0 flex-col gap-3">
-        <div className="min-w-0 pr-12 text-left md:pr-0">
-          <DialogTitle className="text-[1.3rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.55rem] md:text-[1.9rem]">
-            Review Battle Log
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Confirm the parsed result, then save it to your battle logs.
-          </DialogDescription>
-        </div>
-        <ButtonGroup className="w-full md:hidden [&>button]:w-full">
-          <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
-        </ButtonGroup>
-      </div>
+      <AppDialogHeader
+        description="Confirm the parsed result, then save it to your battle logs."
+        title="Review Battle Log"
+      />
     );
   }
 
@@ -451,9 +432,7 @@ export function ImportLogDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-                <div className="shrink-0 border-b border-border p-4 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:pr-14">
-                  {renderHeader()}
-                </div>
+                {renderHeader()}
 
                 <div
                   className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain p-4 pr-5 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:px-6 sm:py-5 sm:pr-7 lg:px-8 lg:py-6 lg:pr-9"
@@ -779,6 +758,26 @@ export function ImportLogDialog({
                 </div>
               )}
                 </div>
+                {stage === "raw" && trimmedRawLog ? (
+                  <AppDialogMobileFooter className="md:hidden">
+                    <Button
+                      className="min-w-0 w-full whitespace-normal text-center leading-5"
+                      disabled={!canReviewRawLog}
+                      onClick={handleReviewLog}
+                      type="button"
+                    >
+                      {isParsing
+                        ? "Reviewing..."
+                        : isTrainingCourtUrl
+                          ? "Import Training Court URL"
+                          : "Review PTCGL Log"}
+                    </Button>
+                  </AppDialogMobileFooter>
+                ) : stage === "review" && review ? (
+                  <AppDialogMobileFooter className="md:hidden">
+                    <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
+                  </AppDialogMobileFooter>
+                ) : null}
       </AppDialogContent>
     </Dialog>
   );

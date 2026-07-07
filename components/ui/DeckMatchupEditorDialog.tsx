@@ -7,13 +7,9 @@ import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { AppDialogContent } from "@/components/ui/AppDialog";
+import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
 import { ChoiceCard } from "@/components/ui/ChoiceCard";
-import {
-  Dialog,
-  DialogDescription,
-  DialogTitle
-} from "@/components/shadcn/dialog";
+import { Dialog } from "@/components/shadcn/dialog";
 import { Input } from "@/components/shadcn/input";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
@@ -187,16 +183,9 @@ export function DeckMatchupEditorDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-              <div className="flex min-w-0 flex-col gap-4 border-b border-border bg-card px-3 py-4 pr-14 sm:px-4 sm:pr-14 lg:flex-row lg:items-start lg:justify-between lg:px-5">
-                <div className="min-w-0">
-                  <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
-                    {isEditing ? "Edit Matchup" : "New Matchup"}
-                  </DialogTitle>
-                  <DialogDescription className="sr-only">
-                    {isEditing ? "Update this matchup's Pokemon, favorability, and notes." : "Create matchup notes for this deck."}
-                  </DialogDescription>
-                </div>
-                <ButtonGroup className="w-full sm:w-auto sm:justify-end">
+              <AppDialogHeader
+                actions={(
+                  <ButtonGroup className="hidden w-full sm:flex sm:w-auto sm:justify-end">
                   <Button
                     disabled={saveState === "saving"}
                     onClick={() => formRef.current?.requestSubmit()}
@@ -207,11 +196,14 @@ export function DeckMatchupEditorDialog({
                       : saveState === "success"
                         ? "Saved"
                         : isEditing
-                          ? "Save Matchup"
+                      ? "Save Matchup"
                           : "Create Matchup"}
                   </Button>
                 </ButtonGroup>
-              </div>
+                )}
+                description={isEditing ? "Update this matchup's Pokemon, favorability, and notes." : "Create matchup notes for this deck."}
+                title={isEditing ? "Edit Matchup" : "New Matchup"}
+              />
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain p-3 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:p-4 sm:pr-2 lg:p-5">
 
               <form
@@ -321,6 +313,23 @@ export function DeckMatchupEditorDialog({
                 ) : null}
               </form>
             </div>
+            <AppDialogMobileFooter>
+              <Button
+                aria-disabled={saveState === "saving" || saveState === "success"}
+                className="w-full"
+                disabled={saveState === "saving"}
+                onClick={() => formRef.current?.requestSubmit()}
+                type="button"
+              >
+                {saveState === "saving"
+                  ? "Saving..."
+                  : saveState === "success"
+                    ? "Saved"
+                    : isEditing
+                      ? "Save Matchup"
+                      : "Create Matchup"}
+              </Button>
+            </AppDialogMobileFooter>
       </AppDialogContent>
     </Dialog>
   );

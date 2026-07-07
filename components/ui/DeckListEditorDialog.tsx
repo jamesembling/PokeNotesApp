@@ -7,15 +7,11 @@ import { saveDeckListAction } from "@/app/(app)/decks/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { AppDialogContent } from "@/components/ui/AppDialog";
+import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
-import {
-  Dialog,
-  DialogDescription,
-  DialogTitle
-} from "@/components/shadcn/dialog";
+import { Dialog } from "@/components/shadcn/dialog";
 import { Input } from "@/components/shadcn/input";
 import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
@@ -317,30 +313,9 @@ export function DeckListEditorDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-              <div
-                className={[
-                  "flex min-w-0 flex-col bg-card px-3 sm:px-4 lg:flex-row lg:items-start lg:justify-between lg:px-5",
-                  simplePasteMode ? "gap-3 pb-2 pt-4" : "gap-4 py-4",
-                  simplePasteMode ? "" : "border-b border-border",
-                  simplePasteMode ? "" : "pr-14 sm:pr-14"
-                ].join(" ")}
-              >
-                <div className="min-w-0">
-                  <DialogTitle
-                    className={[
-                      "text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]",
-                      simplePasteMode ? "pr-14" : ""
-                    ].join(" ")}
-                  >
-                    {isEditing ? "Edit Deck List" : "New Deck List"}
-                  </DialogTitle>
-                  {!simplePasteMode ? (
-                    <DialogDescription className="text-sm text-muted-foreground">
-                      {step === "list" ? "Step 1 of 2 · Paste deck list" : "Step 2 of 2 · List details"}
-                    </DialogDescription>
-                  ) : null}
-                </div>
-                <ButtonGroup className={simplePasteMode ? "w-full" : "w-full sm:w-auto sm:justify-end"}>
+              <AppDialogHeader
+                actions={(
+                  <ButtonGroup className={simplePasteMode ? "hidden w-full sm:flex" : "hidden w-full sm:flex sm:w-auto sm:justify-end"}>
                   {simplePasteMode ? (
                     <Button
                       className="w-full"
@@ -372,7 +347,11 @@ export function DeckListEditorDialog({
                     </>
                   )}
                 </ButtonGroup>
-              </div>
+                )}
+                description={simplePasteMode ? "Paste a deck list." : step === "list" ? "Step 1 of 2 · Paste deck list" : "Step 2 of 2 · List details"}
+                descriptionHidden={simplePasteMode}
+                title={isEditing ? "Edit Deck List" : "New Deck List"}
+              />
             <div
               className={[
                 "min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2",
@@ -535,6 +514,39 @@ export function DeckListEditorDialog({
                 )}
               </form>
             </div>
+            <AppDialogMobileFooter>
+              {simplePasteMode ? (
+                <Button
+                  className="w-full"
+                  disabled={!canSave}
+                  onClick={() => formRef.current?.requestSubmit()}
+                  type="button"
+                >
+                  {saveState === "saving" ? "Saving..." : saveState === "success" ? "Saved" : "Save List"}
+                </Button>
+              ) : step === "list" ? (
+                <Button
+                  className="w-full"
+                  disabled={!canContinueFromList}
+                  onClick={() => setStep("details")}
+                  type="button"
+                >
+                  Continue to details
+                </Button>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button onClick={() => setStep("list")} type="button" variant="outline">
+                    Back
+                  </Button>
+                  <SaveButton
+                    disabled={!canSave}
+                    isEditing={isEditing}
+                    onClick={() => formRef.current?.requestSubmit()}
+                    saveState={saveState}
+                  />
+                </div>
+              )}
+            </AppDialogMobileFooter>
       </AppDialogContent>
     </Dialog>
   );

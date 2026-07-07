@@ -6,12 +6,8 @@ import { startTransition, useEffect, useMemo, useState } from "react";
 import { Textarea } from "@/components/shadcn/textarea";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { AppDialogContent } from "@/components/ui/AppDialog";
-import {
-  Dialog,
-  DialogDescription,
-  DialogTitle
-} from "@/components/shadcn/dialog";
+import { AppDialogContent, AppDialogHeader } from "@/components/ui/AppDialog";
+import { Dialog } from "@/components/shadcn/dialog";
 import { Tabs } from "@/components/shadcn/tabs";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
@@ -420,14 +416,10 @@ function DeckImportDialog({
       <AppDialogContent
         showCloseButton={!initialImport}
       >
-        <div className="shrink-0 border-b border-border p-4 pr-14 sm:px-6 sm:pr-14 lg:px-8 lg:pr-14">
-          <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
-            Import Deck
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Paste a Pokemon TCG deck list to open the probability calculator.
-          </DialogDescription>
-        </div>
+        <AppDialogHeader
+          description="Paste a Pokemon TCG deck list to open the probability calculator."
+          title="Import Deck"
+        />
 
         <form
           className="grid min-h-0 gap-4 overflow-y-auto p-4 pr-5 sm:px-6 sm:py-5 sm:pr-7 lg:px-8 lg:py-6 lg:pr-9"

@@ -12,12 +12,8 @@ import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { AppDialogContent } from "@/components/ui/AppDialog";
-import {
-  Dialog,
-  DialogDescription,
-  DialogTitle
-} from "@/components/shadcn/dialog";
+import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
+import { Dialog } from "@/components/shadcn/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
 import { Textarea } from "@/components/shadcn/textarea";
@@ -239,16 +235,10 @@ export function DeckEditorDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-            <div className="flex min-w-0 flex-col gap-4 border-b border-border bg-card px-3 py-4 pr-14 sm:px-4 sm:pr-14 lg:flex-row lg:items-start lg:justify-between lg:px-5">
-              <div className="min-w-0">
-                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
-                  {isEditing ? "Edit Deck" : "New Deck"}
-                </DialogTitle>
-                <DialogDescription className="sr-only">
-                  {isEditing ? "Update this deck's details, Pokemon, and strategy notes." : "Create a deck with Pokemon, format, and strategy notes."}
-                </DialogDescription>
-              </div>
-            </div>
+            <AppDialogHeader
+              description={isEditing ? "Update this deck's details, Pokemon, and strategy notes." : "Create a deck with Pokemon, format, and strategy notes."}
+              title={isEditing ? "Edit Deck" : "New Deck"}
+            />
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain p-3 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:p-4 sm:pr-2 lg:p-5">
             {isEditing && showDeleteConfirmation ? (
               <Alert
@@ -407,7 +397,24 @@ export function DeckEditorDialog({
                 </Field>
               </FieldGroup>
 
-              <ButtonGroup className="w-full flex-col gap-2 border-t border-border pt-4 max-sm:[&>*]:!rounded-lg max-sm:[&>*]:!border max-sm:[&>*]:!border-border sm:ml-auto sm:w-auto sm:flex-row sm:justify-end sm:gap-0">
+              {isEditing ? (
+                <div className="border-t border-border pt-4 sm:hidden">
+                  <Button
+                    className="w-full"
+                    disabled={isBusy}
+                    onClick={() => {
+                      setActionError("");
+                      setShowDeleteConfirmation((currentValue) => !currentValue);
+                    }}
+                    type="button"
+                    variant="destructive"
+                  >
+                    Delete Deck
+                  </Button>
+                </div>
+              ) : null}
+
+              <ButtonGroup className="hidden border-t border-border pt-4 sm:ml-auto sm:flex sm:w-auto sm:flex-row sm:justify-end sm:gap-0">
                 {isEditing ? (
                   <Button
                     disabled={isBusy}
@@ -429,6 +436,13 @@ export function DeckEditorDialog({
               </ButtonGroup>
             </form>
             </div>
+            <AppDialogMobileFooter>
+              <SaveButton
+                isEditing={isEditing}
+                onClick={() => formRef.current?.requestSubmit()}
+                saveState={saveState}
+              />
+            </AppDialogMobileFooter>
       </AppDialogContent>
     </Dialog>
   );

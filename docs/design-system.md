@@ -43,6 +43,8 @@ Responsive and theme-specific behavior belongs in shared primitives and tokens:
 
 - Desktop page actions sit in `PageHeader.action` or `SectionHeader.actions` and use `PageActions` for wrapping, grouping, and width.
 - Mobile page actions should use the same action component through `PageHeader.mobileAction` or `PageActions mobile="stack"`; do not duplicate local flex/button recipes in page code.
+- Mobile dialogs with long scrollable forms should put their primary action in `AppDialogMobileFooter` so save/continue actions stay reachable above the safe area while the form body scrolls.
+- App modal headers should use `AppDialogHeader` so mobile popup titles, full-width dividers, close-button spacing, and optional action slots stay consistent.
 - Light and dark styles must be represented by semantic CSS variables in `app/globals.css`. Component and page code should consume those tokens through shared variants.
 - If a pattern needs different mobile, desktop, light, or dark behavior, add that behavior to the shared component or token set first.
 
@@ -57,6 +59,8 @@ Use these components for repeated app UI:
 - `SegmentedControl` for compact view switches, turn preference toggles, and two-to-five option tabs.
 - `ChoiceCard` for large radio-card choices where each option needs explanatory content.
 - `AppDialogContent` for app modal shells.
+- `AppDialogHeader` for app modal title/description/action rows.
+- `AppDialogMobileFooter` for persistent mobile dialog actions below a scrollable modal body.
 - `Badge` variants for win, loss, warning, neutral, and action labels.
 - `Card`, `PageHeader`, `PageWidth`, `StatCard`, and existing shadcn primitives for structure.
 

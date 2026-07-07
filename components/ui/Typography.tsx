@@ -5,6 +5,7 @@ type TypographyProps<T extends ElementType> = {
   as?: T;
   children: ReactNode;
   className?: string;
+  id?: string;
 };
 
 type SizedTypographyProps<T extends ElementType> = TypographyProps<T> & {
@@ -14,7 +15,8 @@ type SizedTypographyProps<T extends ElementType> = TypographyProps<T> & {
 export function PageTitle<T extends ElementType = "h1">({
   as,
   children,
-  className
+  className,
+  id
 }: TypographyProps<T>) {
   const Comp = as ?? "h1";
 
@@ -24,6 +26,7 @@ export function PageTitle<T extends ElementType = "h1">({
         "text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl",
         className
       )}
+      id={id}
     >
       {children}
     </Comp>
@@ -33,7 +36,8 @@ export function PageTitle<T extends ElementType = "h1">({
 export function DetailTitle<T extends ElementType = "h1">({
   as,
   children,
-  className
+  className,
+  id
 }: TypographyProps<T>) {
   const Comp = as ?? "h1";
 
@@ -43,6 +47,7 @@ export function DetailTitle<T extends ElementType = "h1">({
         "text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl",
         className
       )}
+      id={id}
     >
       {children}
     </Comp>
@@ -53,6 +58,7 @@ export function SectionTitle<T extends ElementType = "h2">({
   as,
   children,
   className,
+  id,
   size = "default"
 }: SizedTypographyProps<T>) {
   const Comp = as ?? "h2";
@@ -64,7 +70,7 @@ export function SectionTitle<T extends ElementType = "h2">({
         : "text-[1.3rem] leading-tight tracking-[-0.03em]";
 
   return (
-    <Comp className={cn("font-semibold text-card-foreground", sizeClassName, className)}>
+    <Comp className={cn("font-semibold text-card-foreground", sizeClassName, className)} id={id}>
       {children}
     </Comp>
   );
@@ -74,6 +80,7 @@ export function ItemTitle<T extends ElementType = "h3">({
   as,
   children,
   className,
+  id,
   size = "default"
 }: SizedTypographyProps<T>) {
   const Comp = as ?? "h3";
@@ -85,7 +92,7 @@ export function ItemTitle<T extends ElementType = "h3">({
         : "text-[1.08rem] leading-tight tracking-[-0.025em]";
 
   return (
-    <Comp className={cn("font-display font-semibold text-card-foreground", sizeClassName, className)}>
+    <Comp className={cn("font-display font-semibold text-card-foreground", sizeClassName, className)} id={id}>
       {children}
     </Comp>
   );

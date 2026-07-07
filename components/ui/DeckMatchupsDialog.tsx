@@ -5,11 +5,9 @@ import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
 import {
   Dialog,
-  DialogDescription,
-  DialogTitle,
   DialogTrigger
 } from "@/components/shadcn/dialog";
-import { AppDialogContent } from "@/components/ui/AppDialog";
+import { AppDialogContent, AppDialogHeader } from "@/components/ui/AppDialog";
 import { ChevronIcon } from "@/components/ui/icons";
 import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
@@ -48,17 +46,13 @@ export function DeckMatchupsDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-            <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5 pr-14 lg:px-8 lg:pr-14">
-              <div className="min-w-0 space-y-2">
-                <p className="ui-eyebrow">Matchup Notes</p>
-                <DialogTitle className="text-[1.45rem] font-bold tracking-[-0.04em] text-card-foreground sm:text-[1.8rem]">
-                  All Matchups
-                </DialogTitle>
-                <DialogDescription className="text-sm text-foreground">
-                  {matchups.length} saved matchup{matchups.length === 1 ? "" : "s"} for this deck.
-                </DialogDescription>
-              </div>
-            </div>
+            <AppDialogHeader
+              description={`${matchups.length} saved matchup${matchups.length === 1 ? "" : "s"} for this deck.`}
+              descriptionClassName="text-foreground"
+              descriptionHidden={false}
+              eyebrow="Matchup Notes"
+              title="All Matchups"
+            />
 
             <div className="min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-5 pr-8 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] lg:px-8 lg:pr-10">
               {orderedMatchups.length === 0 ? (

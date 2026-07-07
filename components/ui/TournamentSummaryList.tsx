@@ -5,6 +5,7 @@ import {
   focusWithinRolloverClassName,
   tournamentEntryRolloverClassName
 } from "@/components/ui/rolloverStyles";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { formatDayDate } from "@/lib/client/date-format";
 import { getTournamentRecord } from "@/lib/tournaments/display";
@@ -28,7 +29,7 @@ function TournamentSummaryRow({
     .join(" · ");
 
   return (
-    <div className="group/row space-y-2">
+    <div className="group/row">
       <div
         className={[
           "group/card relative grid w-full grid-cols-1 gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-card p-4 text-left sm:grid-cols-[82px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:grid-cols-[98px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] lg:px-5",
@@ -100,15 +101,28 @@ export function TournamentSummaryList({
   }
 
   return (
-
-    <div className="flex flex-col gap-3">
-      {tournaments.map((tournament) => (
-        <TournamentSummaryRow
-          key={tournament.id}
-          tournament={tournament}
-        />
-      ))}
-    </div>
-
+    <section className="flex flex-col gap-4" aria-labelledby="tournament-history-heading">
+      <SectionHeader
+        eyebrow={`${tournaments.length} ${tournaments.length === 1 ? "event" : "events"} · Most recent first`}
+        title="Tournament history"
+        titleId="tournament-history-heading"
+      />
+      <div className="overflow-hidden rounded-lg border border-border bg-background">
+        <div className="hidden border-b border-border bg-muted px-4 py-2.5 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:grid sm:grid-cols-[82px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:grid-cols-[98px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] lg:px-5">
+          <span aria-hidden="true" />
+          <span>Event</span>
+          <span className="justify-self-center">Placement</span>
+          <span className="justify-self-end">Record</span>
+        </div>
+        <div className="divide-y divide-border">
+          {tournaments.map((tournament) => (
+            <TournamentSummaryRow
+              key={tournament.id}
+              tournament={tournament}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

@@ -11,12 +11,8 @@ import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { AppDialogContent } from "@/components/ui/AppDialog";
-import {
-  Dialog,
-  DialogDescription,
-  DialogTitle
-} from "@/components/shadcn/dialog";
+import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
+import { Dialog } from "@/components/shadcn/dialog";
 import { Textarea } from "@/components/shadcn/textarea";
 import {
   TOURNAMENT_ROUND_GAME_RESULT_OPTIONS,
@@ -227,49 +223,44 @@ export function TournamentRoundEditorDialog({
         showMobileCloseButton
         showCloseButton={false}
       >
-            <div className="flex min-w-0 flex-col gap-4 border-b border-border bg-card px-3 py-4 sm:px-4 lg:px-5">
-              <div className="min-w-0 pr-11">
-                <DialogTitle className="text-[1.55rem] font-bold tracking-[-0.05em] text-card-foreground sm:text-[1.9rem]">
-                  {isEditing ? `Edit Round ${round?.roundNumber}` : "Add Round"}
-                </DialogTitle>
-                <DialogDescription className="sr-only">
-                  {isEditing ? "Update this tournament round result, Pokemon, and notes." : "Add a tournament round result, Pokemon, and notes."}
-                </DialogDescription>
-              </div>
-
-              <div
-                className={isEditing ? "grid w-full grid-cols-2" : "w-full"}
-                role="group"
-              >
-                {isEditing ? (
+            <AppDialogHeader
+              actions={(
+                <div
+                  className={isEditing ? "hidden w-full grid-cols-2 sm:grid" : "hidden w-full sm:block"}
+                  role="group"
+                >
+                  {isEditing ? (
+                    <Button
+                      className="w-full rounded-r-none"
+                      disabled={isBusy}
+                      onClick={() => {
+                        setActionError("");
+                        setShowDeleteConfirmation((current) => !current);
+                      }}
+                      type="button"
+                    >
+                      Delete
+                    </Button>
+                  ) : null}
                   <Button
-                    className="w-full rounded-r-none"
-                    disabled={isBusy}
-                    onClick={() => {
-                      setActionError("");
-                      setShowDeleteConfirmation((current) => !current);
-                    }}
+                    className={isEditing ? "w-full rounded-l-none border-l-0" : "w-full"}
+                    disabled={saveState === "saving"}
+                    onClick={() => formRef.current?.requestSubmit()}
                     type="button"
                   >
-                    Delete
+                    {saveState === "saving"
+                      ? "Saving..."
+                      : saveState === "success"
+                        ? "Saved"
+                        : isEditing
+                          ? "Save Changes"
+                          : "Add Round"}
                   </Button>
-                ) : null}
-                <Button
-                  className={isEditing ? "w-full rounded-l-none border-l-0" : "w-full"}
-                  disabled={saveState === "saving"}
-                  onClick={() => formRef.current?.requestSubmit()}
-                  type="button"
-                >
-                  {saveState === "saving"
-                    ? "Saving..."
-                    : saveState === "success"
-                      ? "Saved"
-                      : isEditing
-                        ? "Save Changes"
-                        : "Add Round"}
-                </Button>
-              </div>
-            </div>
+                </div>
+              )}
+              description={isEditing ? "Update this tournament round result, Pokemon, and notes." : "Add a tournament round result, Pokemon, and notes."}
+              title={isEditing ? `Edit Round ${round?.roundNumber}` : "Add Round"}
+            />
             <div
               className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain p-3 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:p-4 sm:pr-2 lg:p-5"
               onFocusCapture={resetHorizontalScroll}
@@ -384,7 +375,7 @@ export function TournamentRoundEditorDialog({
 
                       return (
                         <label
-                          className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-card-foreground has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground"
+                          className="flex cursor-pointer items-center justify-center gap-2 text-sm font-semibold text-card-foreground has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 sm:min-h-11 sm:rounded-lg sm:border sm:border-border sm:bg-card sm:px-3 sm:has-[:checked]:border-primary sm:has-[:checked]:bg-primary sm:has-[:checked]:text-primary-foreground"
                           htmlFor={`round-special-${fieldName}`}
                           key={option.value}
                         >
@@ -434,6 +425,41 @@ export function TournamentRoundEditorDialog({
               </div>
             </form>
             </div>
+            <AppDialogMobileFooter>
+              <div
+                className={isEditing ? "grid w-full grid-cols-2" : "w-full"}
+                role="group"
+              >
+                {isEditing ? (
+                  <Button
+                    className="w-full rounded-r-none"
+                    disabled={isBusy}
+                    onClick={() => {
+                      setActionError("");
+                      setShowDeleteConfirmation((current) => !current);
+                    }}
+                    type="button"
+                  >
+                    Delete
+                  </Button>
+                ) : null}
+                <Button
+                  aria-disabled={saveState === "saving" || saveState === "success"}
+                  className={isEditing ? "w-full rounded-l-none border-l-0" : "w-full"}
+                  disabled={saveState === "saving"}
+                  onClick={() => formRef.current?.requestSubmit()}
+                  type="button"
+                >
+                  {saveState === "saving"
+                    ? "Saving..."
+                    : saveState === "success"
+                      ? "Saved"
+                      : isEditing
+                        ? "Save Changes"
+                        : "Add Round"}
+                </Button>
+              </div>
+            </AppDialogMobileFooter>
       </AppDialogContent>
     </Dialog>
   );
