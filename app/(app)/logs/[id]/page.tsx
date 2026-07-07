@@ -91,7 +91,6 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
             { label: "Battle Logs", href: "/logs" },
             { label: `VS ${opponentDeckName}` }
           ]}
-          title=" "
           afterBreadcrumb={
             <Link
               className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary sm:hidden"

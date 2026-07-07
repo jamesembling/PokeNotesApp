@@ -48,7 +48,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
 
   const rowContent = (
     <div className={["group relative grid w-full grid-cols-[4rem_minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-2 rounded-2xl border p-4 text-left md:grid-cols-[auto_1fr_auto_auto] md:gap-4", tournamentEntryRolloverClassName, rowTone].join(" ")}>
-      <p className="font-display text-[1.05rem] font-semibold tracking-[-0.03em] text-card-foreground dark:text-white md:col-start-1">
+      <p className="font-display text-[1.05rem] font-semibold tracking-[-0.03em] text-card-foreground md:col-start-1">
         Round {round.roundNumber}
       </p>
 

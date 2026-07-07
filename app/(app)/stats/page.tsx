@@ -23,10 +23,7 @@ export default async function StatsPage() {
       />
 
       <Suspense fallback={<StatsOverviewFallback />}>
-        <StatsContent
-          damageTimelinePromise={damageTimelinePromise}
-          overviewPromise={overviewPromise}
-        />
+        <StatsContent overviewPromise={overviewPromise} damageTimelinePromise={damageTimelinePromise} />
       </Suspense>
     </>
   );
@@ -41,7 +38,7 @@ async function StatsContent({
 }) {
   const [overview, damageTimeline] = await Promise.all([overviewPromise, damageTimelinePromise]);
 
-  return <StatsTabsClient damageTimeline={damageTimeline} overview={overview} />;
+  return <StatsTabsClient overview={overview} damageTimeline={damageTimeline} />;
 }
 
 function StatsOverviewFallback() {

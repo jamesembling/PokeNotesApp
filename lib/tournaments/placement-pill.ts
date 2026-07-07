@@ -2,27 +2,27 @@ import type { TournamentPlacement } from "@/types/index";
 
 const TOP_EIGHT_PLACEMENT_CLASSES: Partial<Record<TournamentPlacement, string>> = {
   champion:
-    "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-200 dark:bg-amber-200 dark:text-amber-950",
+    "border-[var(--placement-champion-border)] bg-[var(--placement-champion-bg)] text-[var(--placement-champion-text)]",
   finalist:
-    "border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-200 dark:bg-slate-200 dark:text-slate-950",
+    "border-[var(--placement-finalist-border)] bg-[var(--placement-finalist-bg)] text-[var(--placement-finalist-text)]",
   second:
-    "border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-200 dark:bg-slate-200 dark:text-slate-950",
+    "border-[var(--placement-finalist-border)] bg-[var(--placement-finalist-bg)] text-[var(--placement-finalist-text)]",
   t4:
-    "border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-200 dark:bg-orange-200 dark:text-orange-950",
+    "border-[var(--placement-top4-border)] bg-[var(--placement-top4-bg)] text-[var(--placement-top4-text)]",
   third:
-    "border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-200 dark:bg-orange-200 dark:text-orange-950",
+    "border-[var(--placement-top4-border)] bg-[var(--placement-top4-bg)] text-[var(--placement-top4-text)]",
   fourth:
-    "border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-200 dark:bg-orange-200 dark:text-orange-950",
+    "border-[var(--placement-top4-border)] bg-[var(--placement-top4-bg)] text-[var(--placement-top4-text)]",
   t8:
-    "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-200 dark:bg-sky-200 dark:text-sky-950",
+    "border-[var(--placement-top8-border)] bg-[var(--placement-top8-bg)] text-[var(--placement-top8-text)]",
   fifth:
-    "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-200 dark:bg-sky-200 dark:text-sky-950",
+    "border-[var(--placement-top8-border)] bg-[var(--placement-top8-bg)] text-[var(--placement-top8-text)]",
   sixth:
-    "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-200 dark:bg-sky-200 dark:text-sky-950",
+    "border-[var(--placement-top8-border)] bg-[var(--placement-top8-bg)] text-[var(--placement-top8-text)]",
   seventh:
-    "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-200 dark:bg-sky-200 dark:text-sky-950",
+    "border-[var(--placement-top8-border)] bg-[var(--placement-top8-bg)] text-[var(--placement-top8-text)]",
   eighth:
-    "border-sky-300 bg-sky-100 text-sky-900 dark:border-sky-200 dark:bg-sky-200 dark:text-sky-950"
+    "border-[var(--placement-top8-border)] bg-[var(--placement-top8-bg)] text-[var(--placement-top8-text)]"
 };
 
 export function getTournamentPlacementPillClassName(placement: TournamentPlacement) {

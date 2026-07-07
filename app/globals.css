@@ -65,7 +65,7 @@
   --color-warning-bg: rgba(180, 83, 9, 0.12);
   --color-warning-border: rgba(180, 83, 9, 0.2);
   --color-brand: var(--primary);
-  --color-brand-hover: #1d4ed8;
+  --color-brand-hover: var(--primary);
   --color-danger: var(--destructive);
   --text-inverse: var(--primary-foreground);
   --bg-overlay: rgba(17, 24, 39, 0.44);
@@ -125,6 +125,19 @@
   --link-chip-text: var(--primary);
   --share-notice-border: rgba(43, 109, 246, 0.14);
   --share-notice-bg: linear-gradient(180deg, var(--bg-surface), rgba(43, 109, 246, 0.08));
+  --prize-marker-empty-bg: color-mix(in oklab, var(--muted-foreground) 40%, transparent);
+  --placement-champion-bg: #fef3c7;
+  --placement-champion-border: #fcd34d;
+  --placement-champion-text: #78350f;
+  --placement-finalist-bg: var(--secondary);
+  --placement-finalist-border: var(--border);
+  --placement-finalist-text: var(--secondary-foreground);
+  --placement-top4-bg: #ffedd5;
+  --placement-top4-border: #fdba74;
+  --placement-top4-text: #7c2d12;
+  --placement-top8-bg: #e0f2fe;
+  --placement-top8-border: #7dd3fc;
+  --placement-top8-text: #0c4a6e;
 }
 
 .dark {
@@ -187,7 +200,7 @@
   --color-warning-bg: rgba(251, 146, 60, 0.12);
   --color-warning-border: rgba(251, 146, 60, 0.24);
   --color-brand: var(--primary);
-  --color-brand-hover: #1d4ed8;
+  --color-brand-hover: var(--primary);
   --color-danger: var(--destructive);
   --text-inverse: var(--primary-foreground);
   --bg-overlay: rgba(15, 17, 23, 0.6);
@@ -247,6 +260,19 @@
   --link-chip-text: var(--primary);
   --share-notice-border: rgba(43, 109, 246, 0.24);
   --share-notice-bg: linear-gradient(180deg, var(--bg-surface), rgba(43, 109, 246, 0.12));
+  --prize-marker-empty-bg: color-mix(in oklab, var(--muted-foreground) 54%, transparent);
+  --placement-champion-bg: #fde68a;
+  --placement-champion-border: #fde68a;
+  --placement-champion-text: #451a03;
+  --placement-finalist-bg: color-mix(in oklab, var(--card) 72%, var(--foreground));
+  --placement-finalist-border: color-mix(in oklab, var(--border) 52%, var(--foreground));
+  --placement-finalist-text: var(--card-foreground);
+  --placement-top4-bg: #fed7aa;
+  --placement-top4-border: #fed7aa;
+  --placement-top4-text: #431407;
+  --placement-top8-bg: #bae6fd;
+  --placement-top8-border: #bae6fd;
+  --placement-top8-text: #082f49;
 }
 
 html {

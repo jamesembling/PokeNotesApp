@@ -5,8 +5,8 @@ import { saveTournamentDeckListAction } from "@/app/(app)/tournaments/actions";
 import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
+import { DeckListViewDialog } from "@/components/ui/DeckListViewDialog";
 import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
-import { LazyDeckListViewButton } from "@/components/ui/LazyDeckListViewButton";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentRoundEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -16,6 +16,7 @@ import { TournamentRoundRow } from "@/components/ui/TournamentRoundRow";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
+import { getDeckWithList } from "@/lib/db/decks";
 import {
   getTournamentById,
   getTournamentDeckChoices,
@@ -154,6 +155,10 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
     user.email?.split("@")[0] ||
     "Trainer";
   const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
+  const resolvedTournamentDeckList =
+    tournament.linkedDeckId && tournament.linkedDeckListId
+      ? (await getDeckWithList(user.id, tournament.linkedDeckId, tournament.linkedDeckListId))?.deckList ?? null
+      : null;
 
   return (
     <PageWidth size="standard">
@@ -222,9 +227,10 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
               </div>
               <div className="flex shrink-0">
                 {tournament.linkedDeckId && tournament.linkedDeckListId ? (
-                  <LazyDeckListViewButton
-                    deckId={tournament.linkedDeckId}
-                    deckListId={tournament.linkedDeckListId}
+                  <DeckListViewDialog
+                    deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
+                    rawList={resolvedTournamentDeckList?.rawList}
+                    sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
                     triggerChildren={
                       <>
                         <EyeIcon className="size-4" />
@@ -279,7 +285,6 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
           <LazyTournamentRoundEditorButton
             suggestedRoundNumber={rounds.length + 1}
             tournamentId={tournament.id}
-            triggerClassName="text-white"
             triggerLabel="Add Round"
             triggerVariant="default"
           />

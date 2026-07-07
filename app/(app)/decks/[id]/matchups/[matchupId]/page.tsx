@@ -59,7 +59,6 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
           { label: deckName, href: `/decks/${id}` },
           { label: matchup.deckName }
         ]}
-        title=""
       />
 
       <Card>

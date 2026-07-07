@@ -10,6 +10,17 @@ const allowedDirectPrimitiveFiles = new Set([
   "components/ui/AppDialog.tsx",
   "components/ui/SegmentedControl.tsx"
 ]);
+const rawColorLiteralAllowlist = new Set([
+  "app/global-error.tsx",
+  "app/globals.css",
+  "lib/probability-calculator/index.ts"
+]);
+const rawColorFamilyPattern =
+  /\b(?:bg|border|text|from|via|to|ring|stroke|fill)-(?:slate|amber|orange|sky)-[0-9]{2,3}(?:\/[0-9]{1,3})?\b/g;
+const rawColorLiteralPattern = /(?:#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\))/g;
+const rawWhiteTextPattern = /\b(?:dark:)?text-white\b/g;
+const rawBlackOverlayPattern = /\bbg-black\/[0-9]{1,3}\b/g;
+const emptyPageHeaderTitlePattern = /<PageHeader[\s\S]*?title=["']\s*["']/g;
 
 const disallowedPatterns = [
   {
@@ -39,6 +50,10 @@ const disallowedPatterns = [
   {
     pattern: /className="flex max-h-\[calc\(100dvh-[^"]*shadow-\[var\(--shadow-lg\)\]/,
     message: "Use AppDialogContent instead of copying dialog shell classes."
+  },
+  {
+    pattern: emptyPageHeaderTitlePattern,
+    message: "Do not pass empty PageHeader titles; use a shared detail header pattern instead."
   }
 ];
 
@@ -87,6 +102,25 @@ for (const filePath of files) {
     const match = pattern.exec(content);
     if (match) {
       failures.push(`${relativePath}:${getLineNumber(content, match.index)} ${message}`);
+    }
+    pattern.lastIndex = 0;
+  }
+
+  for (const match of content.matchAll(rawWhiteTextPattern)) {
+    failures.push(`${relativePath}:${getLineNumber(content, match.index)} Use semantic text tokens instead of text-white/dark:text-white.`);
+  }
+
+  for (const match of content.matchAll(rawBlackOverlayPattern)) {
+    failures.push(`${relativePath}:${getLineNumber(content, match.index)} Use overlay tokens instead of raw bg-black opacity classes.`);
+  }
+
+  for (const match of content.matchAll(rawColorFamilyPattern)) {
+    failures.push(`${relativePath}:${getLineNumber(content, match.index)} Use semantic tokens/variants instead of raw Tailwind color families.`);
+  }
+
+  if (!rawColorLiteralAllowlist.has(relativePath)) {
+    for (const match of content.matchAll(rawColorLiteralPattern)) {
+      failures.push(`${relativePath}:${getLineNumber(content, match.index)} Use CSS tokens instead of raw color literals.`);
     }
   }
 

@@ -6,6 +6,10 @@ This app uses a token-first design system. Page and feature code should choose i
 
 Design tokens live in `app/globals.css` and are exposed to Tailwind through `tailwind.config.ts`.
 
+This document is the source of truth for design-system intent. `app/globals.css`
+and `tailwind.config.ts` are the implementation. The root `design.md` file is a
+compatibility pointer only.
+
 Use semantic tokens:
 
 - `--primary`, `--secondary`, `--muted`, `--border`, `--ring`
@@ -18,6 +22,15 @@ Use semantic tokens:
 - `--action-*` for battle-log action dots
 
 Do not add raw page-level colors for common states. If a new repeated state is needed, add a semantic token first.
+
+## Product Decisions
+
+- Primary brand/action color is red through `--primary`.
+- `--color-brand` is an alias for `--primary`; it is not a separate blue brand system.
+- Primary button hover uses the shared `--button-primary-hover-*` tokens and intentionally inverts to a light surface with red text/border.
+- Admin routes use the same authenticated app shell and token contract as the app routes. There is no separate admin palette unless a future requirement adds one explicitly.
+- Shared-log notices may use `--share-notice-*` tokens. The gradient is an allowed tokenized notice treatment, not a general-purpose decorative background.
+- Canvas export artwork uses an isolated export palette in `lib/probability-calculator/index.ts` because CSS variables are not available inside generated image drawing.
 
 ## Shared Components
 

@@ -16,7 +16,7 @@ type PageBreadcrumbItem = {
 
 type PageHeaderProps = {
   breadcrumb: PageBreadcrumbItem[];
-  title: string;
+  title?: string;
   subtitle?: string;
   meta?: ReactNode;
   action?: ReactNode;
@@ -28,7 +28,7 @@ type PageHeaderProps = {
 
 export function PageHeader({
   breadcrumb,
-  title,
+  title = "",
   subtitle,
   meta,
   action,

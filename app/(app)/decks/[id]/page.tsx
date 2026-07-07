@@ -153,7 +153,6 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           { label: "Deck Strategy", href: "/decks" },
           { label: deck.deckName }
         ]}
-        title=""
       />
 
       <Card>

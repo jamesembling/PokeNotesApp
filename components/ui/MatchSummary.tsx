@@ -20,7 +20,7 @@ const STAT_TONE_STYLES: Record<StatTone, { color: string; textClassName: string 
   },
   neutral: {
     color: "var(--muted-foreground)",
-    textClassName: "text-muted-foreground dark:text-white"
+    textClassName: "text-muted-foreground"
   },
   win: {
     color: "var(--color-win)",
@@ -198,7 +198,7 @@ export function StatRow({ stat }: { stat: SummaryStat }) {
         <p className={`text-[1.35rem] font-semibold leading-none tracking-[-0.02em] ${userTone.textClassName}`}>
           {formatStatValue(stat.userValue)}
         </p>
-        <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground dark:text-white sm:text-[0.72rem]">
+        <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:text-[0.72rem]">
           {stat.label}
         </p>
         <p className={`text-right text-[1.35rem] font-semibold leading-none tracking-[-0.02em] ${opponentTone.textClassName}`}>
@@ -313,7 +313,7 @@ export function MatchSummary({
             />
 
             <div className="flex flex-col items-center justify-center gap-1.5 self-center lg:gap-2">
-              <IconCircle className="h-9 w-9 border border-border bg-muted text-[0.72rem] font-semibold tracking-[0.12em] text-muted-foreground dark:text-white sm:h-11 sm:w-11 sm:text-sm">
+              <IconCircle className="h-9 w-9 border border-border bg-muted text-[0.72rem] font-semibold tracking-[0.12em] text-muted-foreground sm:h-11 sm:w-11 sm:text-sm">
                 VS
               </IconCircle>
             </div>

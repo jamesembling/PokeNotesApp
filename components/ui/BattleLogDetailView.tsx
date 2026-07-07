@@ -468,7 +468,7 @@ function PrizeTracker({
           <span
             className={[
               "h-2 w-2 rounded-full",
-              index < safePrizes ? toneClassNames.dot : "bg-slate-300 dark:bg-slate-500/60"
+              index < safePrizes ? toneClassNames.dot : "bg-[var(--prize-marker-empty-bg)]"
             ].join(" ")}
             key={index}
           />
