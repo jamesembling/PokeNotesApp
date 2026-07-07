@@ -31,7 +31,7 @@ function TournamentSummaryRow({
     <div className="group/row space-y-2">
       <div
         className={[
-          "group/card relative grid w-full grid-cols-1 gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-muted p-4 text-left sm:grid-cols-[4rem_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:px-5",
+          "group/card relative grid w-full grid-cols-1 gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-muted p-4 text-left sm:grid-cols-[7rem_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:grid-cols-[8rem_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] lg:px-5",
           tournamentEntryRolloverClassName,
           focusWithinRolloverClassName
         ].join(" ")}
@@ -47,7 +47,7 @@ function TournamentSummaryRow({
           prefetch={false}
         />
 
-        <div className="pointer-events-none z-10 hidden sm:flex sm:justify-start">
+        <div className="pointer-events-none z-10 hidden min-w-0 overflow-hidden sm:flex sm:justify-start">
           <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={tournament.deckSprites} />
         </div>
 

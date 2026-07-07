@@ -85,8 +85,8 @@ function LogRowComponent({
 
   const cardClasses = [
     variant === "flat"
-      ? "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden border-b border-b-border p-3 text-left sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem_1.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem_1.25rem] lg:gap-4 lg:px-5"
-      : "group relative grid w-full grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 overflow-hidden rounded-[10px] border p-3 text-left sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem_1.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem_1.25rem] lg:gap-4 lg:px-5",
+      ? "group relative grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1.5 overflow-hidden rounded-[10px] border border-border p-3 text-left sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem_1.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem_1.25rem] lg:gap-4 lg:px-5"
+      : "group relative grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1.5 overflow-hidden rounded-[10px] border p-3 text-left sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem_1.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem_1.25rem] lg:gap-4 lg:px-5",
     logEntryRolloverClassName,
     focusRolloverClassName,
     managementMode && selected ? "ring-2 ring-inset ring-ring/45" : "",
@@ -94,14 +94,14 @@ function LogRowComponent({
   ].join(" ");
   const managementRowClasses = [
     variant === "flat"
-      ? "group/row grid overflow-hidden border-b border-b-border text-left sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch"
+      ? "group/row grid overflow-hidden rounded-[10px] border border-border text-left sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch"
       : "group/row grid overflow-hidden rounded-[10px] border text-left sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch",
     logEntryRolloverClassName,
     selected ? "ring-2 ring-inset ring-ring/45" : "",
     variant === "flat" ? flatToneClasses : toneClasses
   ].join(" ");
   const managementLinkClasses =
-    "grid min-w-0 grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2 p-3 text-left outline-none sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5";
+    "grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1.5 p-3 text-left outline-none sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5";
 
   const content = (
     <>
@@ -125,7 +125,7 @@ function LogRowComponent({
       </div>
 
       <div className="min-w-0 text-center sm:text-left">
-        <p className="block truncate text-[0.92rem] font-semibold leading-[1.15] tracking-[-0.015em] text-card-foreground sm:whitespace-normal sm:text-[1.06rem] sm:leading-[1.25] sm:truncate">
+        <p className="block truncate text-[0.86rem] font-semibold leading-[1.15] tracking-[-0.015em] text-card-foreground sm:whitespace-normal sm:text-[1.06rem] sm:leading-[1.25] sm:truncate">
           {log.result} vs {opponentDeckName}
           {log.opponentPlayerName ? (
             <span className="hidden font-normal sm:inline"> ({log.opponentPlayerName})</span>

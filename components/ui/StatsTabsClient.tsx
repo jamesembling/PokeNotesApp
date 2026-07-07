@@ -636,9 +636,9 @@ function ArchetypeMatchupsTable({ matchups }: { matchups: ArchetypeMatchupStats[
   );
   const visibleMatchups = useMemo(
     () =>
-      matchups
+      [...matchups]
         .filter((matchup) => matchup.gamesPlayed >= MIN_MATCHUP_GAMES)
-        .toSorted((left, right) => compareMatchupsBySort(sort, left, right)),
+        .sort((left, right) => compareMatchupsBySort(sort, left, right)),
     [matchups, sort]
   );
 
@@ -777,10 +777,9 @@ export function StatsTabsClient({
   );
   const [isLoadingMatchups, setIsLoadingMatchups] = useState(false);
   const [matchupsError, setMatchupsError] = useState("");
-  const shouldLoadMatchups = activeTab === "matchups" && !matchups && !isLoadingMatchups;
 
   useEffect(() => {
-    if (!shouldLoadMatchups) {
+    if (activeTab !== "matchups" || matchups) {
       return;
     }
 
@@ -819,7 +818,7 @@ export function StatsTabsClient({
     return () => {
       cancelled = true;
     };
-  }, [shouldLoadMatchups]);
+  }, [activeTab, matchups]);
 
   const matchupContent = useMemo(() => {
     if (matchupsError) {
