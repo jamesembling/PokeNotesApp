@@ -558,7 +558,7 @@ export function LogsManager({
                   containIntrinsicSize: "128px"
                 }}
               >
-                <summary className="cursor-pointer list-none py-3 group-open:border-b group-open:border-border [&::-webkit-details-marker]:hidden">
+                <summary className="cursor-pointer list-none py-3 [&::-webkit-details-marker]:hidden">
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                       <div>
