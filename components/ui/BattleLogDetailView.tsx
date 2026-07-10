@@ -543,7 +543,7 @@ function LogSectionCard({
           </h3>
 
           {!isSetupSection && turnNumber ? (
-            <span className="inline-flex w-fit shrink-0 items-center rounded-full border border-border bg-background/50 px-3 py-1 text-[0.75rem] font-semibold text-muted-foreground">
+            <span className="w-fit shrink-0 text-[0.75rem] font-semibold text-black dark:text-white">
               Turn {turnNumber}
             </span>
           ) : null}

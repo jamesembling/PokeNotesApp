@@ -52,14 +52,16 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
         Round {round.roundNumber}
       </p>
 
-      <div className="flex min-w-0 items-center justify-center gap-3 justify-self-center md:col-start-2 md:justify-self-start">
-        <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={round.opponentDeckSprites} />
-        <span className="hidden min-w-0 truncate text-[0.95rem] font-semibold text-card-foreground md:inline">
-          VS {opponentDeckName}
-        </span>
-      </div>
+      {specialResult === "BYE" ? null : (
+        <div className="flex min-w-0 items-center justify-center gap-3 justify-self-center md:col-start-2 md:justify-self-start">
+          <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={round.opponentDeckSprites} />
+          <span className="hidden min-w-0 truncate text-[0.95rem] font-semibold text-card-foreground md:inline">
+            VS {opponentDeckName}
+          </span>
+        </div>
+      )}
 
-      <div className="justify-self-end md:col-start-3">
+      <div className="col-start-3 justify-self-end">
         <div className="flex items-center justify-end gap-0.5">
           {specialResult ? (
             <span
@@ -95,7 +97,7 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
       </div>
 
       {canEdit ? (
-        <div className="justify-self-end text-foreground md:col-start-4">
+        <div className="col-start-4 justify-self-end text-foreground">
           <ChevronIcon className="size-4 -rotate-90" />
         </div>
       ) : null}

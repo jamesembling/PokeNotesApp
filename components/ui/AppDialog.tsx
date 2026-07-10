@@ -50,6 +50,24 @@ export function AppDialogMobileFooter({
   );
 }
 
+export function AppDialogFooter({
+  children,
+  className,
+  ...props
+}: ComponentProps<"div">) {
+  return (
+    <div
+      className={cn(
+        "hidden shrink-0 items-center justify-end gap-2 border-t border-border bg-[var(--dialog-bg)] px-4 py-4 sm:flex lg:px-5",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
 type AppDialogHeaderProps = ComponentProps<"div"> & {
   actions?: ReactNode;
   description: ReactNode;

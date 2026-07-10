@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ItemTitle, SectionTitle } from "@/components/ui/Typography";
+import { cn } from "@/lib/utils";
 import {
   analyzeDecklist,
   getPokemonSpriteUrl,
@@ -331,16 +332,16 @@ export function ProbabilityCalculator() {
                 />
               </Tabs>
               }
-              eyebrow="Card Odds"
-              title="Setup and Prizing Detail"
+              title="Card Probabilities"
             />
 
             {activeTab === "setup" ? (
               setupComparisonRows.length ? (
-                <ProbabilityComparisonTable
+                <ProbabilityDetailTable
+                  ariaLabel="Setup probabilities by card"
                   columns={[
-                    { key: "primary", label: "Only Starter" },
-                    { key: "secondary", label: "In Starting 7" }
+                    { key: "only-starter", label: "Only Starter", mobileLabel: "Only Starter" },
+                    { key: "starting-seven", label: "In Starting 7", mobileLabel: "Opening 7" }
                   ]}
                   pokemonOptions={pokemonOptions}
                   rows={setupComparisonRows.map((row) => ({
@@ -356,7 +357,14 @@ export function ProbabilityCalculator() {
                 null
               )
             ) : prizingComparisonRows.length ? (
-              <ProbabilityCompactGrid
+              <ProbabilityDetailTable
+                ariaLabel="Prize probabilities by card"
+                columns={[
+                  { key: "none-prized", label: "None Prized", mobileLabel: "None" },
+                  { key: "one-prized", label: "1 Prized", mobileLabel: "1" },
+                  { key: "two-prized", label: "2 Prized", mobileLabel: "2" },
+                  { key: "three-plus-prized", label: "3+ Prized", mobileLabel: "3+" }
+                ]}
                 pokemonOptions={pokemonOptions}
                 rows={prizingComparisonRows.map((row) => ({
                   card: row.card,
@@ -485,191 +493,109 @@ function ProbabilitySummaryMetric({
   );
 }
 
-function ProbabilityComparisonTable({
+function ProbabilityDetailTable({
+  ariaLabel,
   columns,
   pokemonOptions,
   rows
 }: {
-  columns: Array<{ key: string; label: string }>;
+  ariaLabel: string;
+  columns: Array<{ key: string; label: string; mobileLabel: string }>;
   pokemonOptions: PokemonOption[] | null;
   rows: Array<{ key: string; card: CalculatorCardGroup; metrics: ComparisonMetric[] }>;
 }) {
-  return (
-    <div className="overflow-hidden rounded-[24px] border border-border bg-muted">
-      <div
-        className="hidden border-b border-border bg-card px-5 py-3 lg:grid lg:items-center lg:gap-4"
-        style={{ gridTemplateColumns: `minmax(17rem, 1.6fr) repeat(${columns.length}, minmax(0, 1fr))` }}
-      >
-        <div className="ui-eyebrow">Card</div>
-        {columns.map((column) => (
-          <div className="ui-eyebrow text-right" key={column.key}>
-            {column.label}
-          </div>
-        ))}
-      </div>
+  const dense = columns.length > 2;
+  const firstColumnWidth = dense ? "w-[38%] sm:w-[48%]" : "w-[50%] sm:w-[58%]";
 
-      <div className="divide-y divide-[var(--border)]">
-        {rows.map((row) => (
-          <ProbabilityComparisonRow
-            card={row.card}
-            columns={columns}
-            key={row.key}
-            metrics={row.metrics}
-            pokemonOptions={pokemonOptions}
-          />
-        ))}
-      </div>
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-muted">
+      <table aria-label={ariaLabel} className="w-full table-fixed">
+        <colgroup>
+          <col className={firstColumnWidth} />
+          {columns.map((column) => (
+            <col key={column.key} />
+          ))}
+        </colgroup>
+        <thead className="border-b border-border bg-card">
+          <tr>
+            <th className="ui-eyebrow px-3 py-2.5 text-left sm:px-4" scope="col">
+              Card
+            </th>
+            {columns.map((column) => (
+              <th className="ui-eyebrow px-1 py-2.5 text-right sm:px-3" key={column.key} scope="col">
+                <span className="sm:hidden">{column.mobileLabel}</span>
+                <span className="hidden sm:inline">{column.label}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--border)]">
+          {rows.map((row) => (
+            <ProbabilityDetailRow
+              card={row.card}
+              dense={dense}
+              key={row.key}
+              metrics={row.metrics}
+              pokemonOptions={pokemonOptions}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-function ProbabilityComparisonRow({
+function ProbabilityDetailRow({
   card,
-  columns,
+  dense,
   metrics,
   pokemonOptions
 }: {
   card: CalculatorCardGroup;
-  columns: Array<{ key: string; label: string }>;
+  dense: boolean;
   metrics: ComparisonMetric[];
   pokemonOptions: PokemonOption[] | null;
 }) {
   return (
-    <article className="p-4 sm:px-5">
-      <div
-        className="grid gap-4 lg:items-center"
-        style={{ gridTemplateColumns: `minmax(0, 1fr)` }}
-      >
-        <div
-          className="hidden lg:grid lg:items-center lg:gap-4"
-          style={{ gridTemplateColumns: `minmax(17rem, 1.6fr) repeat(${columns.length}, minmax(0, 1fr))` }}
-        >
-          <div className="flex min-w-0 items-center gap-3">
+    <tr>
+      <th className="px-3 py-2 text-left font-normal sm:px-4 sm:py-2.5" scope="row">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <span className={cn("shrink-0", dense && "hidden sm:inline-flex")}>
             {card.category === "Pokemon" ? (
-              <CalculatorPokemonSprite name={card.name} pokemonOptions={pokemonOptions} />
+              <CalculatorPokemonSprite compact name={card.name} pokemonOptions={pokemonOptions} />
             ) : (
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
+              <span className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-[0.68rem] font-semibold text-muted-foreground sm:size-10">
                 {card.category.slice(0, 1)}
-              </div>
+              </span>
             )}
-
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <ItemTitle as="h4" size="sm">
-                  {card.count}x {card.name}
-                </ItemTitle>
-                <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[0.72rem] font-semibold text-foreground">
-                  {card.category === "Pokemon" && card.stage ? card.stage : card.category}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {metrics.map((metric, index) => (
-            <div className="text-right" key={`${card.name}-${metric.label}-${index}`}>
-              <ItemTitle as="p" className="text-right">
-                {metric.value}
-              </ItemTitle>
-            </div>
-          ))}
+          </span>
+          <ItemTitle as="span" className="line-clamp-2" size="xs">
+            {card.count}x {card.name}
+          </ItemTitle>
         </div>
-
-        <div className="grid gap-3 lg:hidden">
-          <div className="flex min-w-0 items-center gap-3">
-            {card.category === "Pokemon" ? (
-              <CalculatorPokemonSprite name={card.name} pokemonOptions={pokemonOptions} />
-            ) : (
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
-                {card.category.slice(0, 1)}
-              </div>
+      </th>
+      {metrics.map((metric, index) => (
+        <td className="px-1 py-2 text-right sm:px-3 sm:py-2.5" key={`${card.name}-${metric.label}-${index}`}>
+          <span
+            className={cn(
+              "whitespace-nowrap font-semibold text-card-foreground tabular-nums sm:text-base",
+              dense ? "text-[0.7rem]" : "text-xs"
             )}
-
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h4 className="font-display text-[1.05rem] font-semibold tracking-[-0.025em] text-card-foreground">
-                  {card.count}x {card.name}
-                </h4>
-                <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[0.72rem] font-semibold text-foreground">
-                  {card.category === "Pokemon" && card.stage ? card.stage : card.category}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <dl className={`grid gap-3 ${metrics.length > 2 ? "grid-cols-2" : "grid-cols-2"}`}>
-            {metrics.map((metric, index) => (
-              <div className="rounded-[16px] border border-border bg-card px-3 py-2.5" key={`${card.name}-${metric.label}-${index}`}>
-                <dt className="ui-eyebrow">{metric.label}</dt>
-                <dd className="mt-1 font-display text-[1.02rem] font-semibold tracking-[-0.025em] text-card-foreground">
-                  {metric.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function ProbabilityCompactGrid({
-  pokemonOptions,
-  rows
-}: {
-  pokemonOptions: PokemonOption[] | null;
-  rows: Array<{ key: string; card: CalculatorCardGroup; metrics: ComparisonMetric[] }>;
-}) {
-  return (
-    <div className="grid gap-3 xl:grid-cols-2">
-      {rows.map((row) => (
-        <article
-          className="rounded-[20px] border border-border bg-muted p-4"
-          key={row.key}
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            {row.card.category === "Pokemon" ? (
-              <CalculatorPokemonSprite name={row.card.name} pokemonOptions={pokemonOptions} />
-            ) : (
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[0.72rem] font-semibold text-muted-foreground">
-                {row.card.category.slice(0, 1)}
-              </div>
-            )}
-
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h4 className="font-display text-[1rem] font-semibold tracking-[-0.025em] text-card-foreground">
-                  {row.card.count}x {row.card.name}
-                </h4>
-                <span className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[0.72rem] font-semibold text-foreground">
-                  {row.card.category === "Pokemon" && row.card.stage ? row.card.stage : row.card.category}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <dl className="mt-4 grid grid-cols-4 gap-2">
-            {row.metrics.map((metric, index) => (
-              <div
-                className="rounded-[14px] border border-border bg-card p-2 text-center"
-                key={`${row.card.name}-${metric.label}-${index}`}
-              >
-                <dt className="ui-eyebrow">{metric.label}</dt>
-                <dd className="mt-1 font-display text-[0.94rem] font-semibold tracking-[-0.02em] text-card-foreground">
-                  {metric.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </article>
+          >
+            {metric.value}
+          </span>
+        </td>
       ))}
-    </div>
+    </tr>
   );
 }
 
 function CalculatorPokemonSprite({
+  compact = false,
   name,
   pokemonOptions
 }: {
+  compact?: boolean;
   name: string;
   pokemonOptions: PokemonOption[] | null;
 }) {
@@ -683,7 +609,10 @@ function CalculatorPokemonSprite({
     return (
       <div
         aria-label={fallbackLabel}
-        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card px-1 text-center text-[8px] font-semibold leading-tight text-muted-foreground"
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-full border border-border bg-card px-1 text-center text-[8px] font-semibold leading-tight text-muted-foreground",
+          compact ? "size-8 sm:size-10" : "size-10"
+        )}
       >
         {fallbackLabel}
       </div>
@@ -694,7 +623,7 @@ function CalculatorPokemonSprite({
     <Image
       alt=""
       aria-hidden="true"
-      className="size-10 shrink-0 object-contain"
+      className={cn("shrink-0 object-contain", compact ? "size-8 sm:size-10" : "size-10")}
       height={40}
       onError={() => {
         setHasError(true);

@@ -9,7 +9,7 @@ type TypographyProps<T extends ElementType> = {
 };
 
 type SizedTypographyProps<T extends ElementType> = TypographyProps<T> & {
-  size?: "default" | "sm" | "lg";
+  size?: "default" | "xs" | "sm" | "lg";
 };
 
 export function PageTitle<T extends ElementType = "h1">({
@@ -87,6 +87,8 @@ export function ItemTitle<T extends ElementType = "h3">({
   const sizeClassName =
     size === "lg"
       ? "text-[1.15rem] tracking-[-0.03em]"
+      : size === "xs"
+        ? "text-[0.82rem] leading-tight tracking-[-0.01em] sm:text-[0.92rem]"
       : size === "sm"
         ? "text-[1.02rem] leading-tight tracking-[-0.025em]"
         : "text-[1.08rem] leading-tight tracking-[-0.025em]";

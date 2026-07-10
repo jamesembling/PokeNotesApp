@@ -60,6 +60,7 @@ Use these components for repeated app UI:
 - `ChoiceCard` for large radio-card choices where each option needs explanatory content.
 - `AppDialogContent` for app modal shells.
 - `AppDialogHeader` for app modal title/description/action rows.
+- `AppDialogFooter` for desktop dialog actions that belong below a scrollable form.
 - `AppDialogMobileFooter` for persistent mobile dialog actions below a scrollable modal body.
 - `Badge` variants for win, loss, warning, neutral, and action labels.
 - `Card`, `PageHeader`, `PageWidth`, `StatCard`, and existing shadcn primitives for structure.
