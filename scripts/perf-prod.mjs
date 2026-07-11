@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
@@ -587,6 +587,7 @@ function saveAuthState() {
     runAgentBrowser(["open", testLoginUrl.toString()], { stdio: "inherit" });
     waitForRouteSettled(false);
     runAgentBrowser(["state", "save", statePath], { stdio: "inherit" });
+    chmodSync(statePath, 0o600);
     console.log(`Saved auth state to ${statePath}`);
     return;
   }
@@ -598,6 +599,7 @@ function saveAuthState() {
     timeoutMs: authWaitMs + 5000
   });
   runAgentBrowser(["state", "save", statePath], { stdio: "inherit" });
+  chmodSync(statePath, 0o600);
   console.log(`Saved auth state to ${statePath}`);
 }
 

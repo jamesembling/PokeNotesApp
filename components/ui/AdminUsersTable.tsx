@@ -34,7 +34,7 @@ export function AdminUsersTable({
     <div className="space-y-4">
       {warning ? (
         <Alert
-          className="border-loss-border bg-loss-bg text-loss"
+          className="border-loss-border bg-loss-bg text-loss-strong"
           variant="destructive"
         >
           <AlertDescription>{warning}</AlertDescription>
@@ -85,6 +85,7 @@ export function AdminUsersTable({
                   <AdminRoleControls
                     currentRole={user.role}
                     roleUpdatesEnabled={roleUpdatesEnabled}
+                    userLabel={user.displayName || user.email}
                     userId={user.id}
                   />
                 </dd>
@@ -137,6 +138,7 @@ export function AdminUsersTable({
                   <AdminRoleControls
                     currentRole={user.role}
                     roleUpdatesEnabled={roleUpdatesEnabled}
+                    userLabel={user.displayName || user.email}
                     userId={user.id}
                   />
                 </td>

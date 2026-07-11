@@ -21,14 +21,14 @@ type TournamentRoundRowProps = {
 
 function getRoundResultTextColor(result: TournamentRoundGameResult) {
   if (result === "W") {
-    return "text-win";
+    return "text-win-strong";
   }
 
   if (result === "L") {
-    return "text-loss";
+    return "text-loss-strong";
   }
 
-  return "text-warning";
+  return "text-warning-strong";
 }
 
 export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentRoundRowProps) {
@@ -68,10 +68,10 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
               className={[
                 "font-display text-[1rem] font-semibold tracking-[-0.04em]",
                 rowVariant === "win"
-                  ? "text-win"
+                  ? "text-win-strong"
                   : rowVariant === "loss"
-                    ? "text-loss"
-                    : "text-warning"
+                    ? "text-loss-strong"
+                    : "text-warning-strong"
               ].join(" ")}
             >
               {specialResult}

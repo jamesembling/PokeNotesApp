@@ -307,7 +307,7 @@ export function DeckMatchupEditorDialog({
                 />
 
                 {actionError ? (
-                  <p className="text-sm text-loss" role="status">
+                  <p className="text-sm text-loss-strong" role="status">
                     {actionError}
                   </p>
                 ) : null}

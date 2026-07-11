@@ -108,7 +108,7 @@ function SaveButton({
       aria-disabled={isSaving || isSuccess}
       className={
         isSuccess
-          ? "pointer-events-none w-full whitespace-nowrap border-win-border bg-win-bg text-win opacity-100 hover:bg-win-bg sm:w-[9.5rem] sm:shrink-0"
+          ? "pointer-events-none w-full whitespace-nowrap border-win-border bg-win-bg text-win-strong opacity-100 hover:bg-win-bg sm:w-[9.5rem] sm:shrink-0"
           : "w-full whitespace-nowrap sm:w-[9.5rem] sm:shrink-0"
       }
       disabled={isSaving}
@@ -319,7 +319,7 @@ export function TournamentEditorDialog({
                 <ButtonGroup className="hidden max-w-full flex-wrap sm:flex sm:justify-end">
                   {isEditing ? (
                     <Button
-                      className="whitespace-nowrap text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      className="whitespace-nowrap text-loss-strong hover:bg-destructive/10 hover:text-loss-strong"
                       disabled={isBusy}
                       onClick={() => {
                         setActionError("");
@@ -379,7 +379,7 @@ export function TournamentEditorDialog({
 
             {actionError ? (
               <Alert
-                className="mb-4 border-loss-border bg-loss-bg text-loss"
+                className="mb-4 border-loss-border bg-loss-bg text-loss-strong"
                 variant="destructive"
               >
                 <AlertDescription>{actionError}</AlertDescription>

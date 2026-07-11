@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRightIcon, CalculatorIcon, CopyIcon, ShuffleIcon, XIcon } from "lucide-react";
 import type {
@@ -14,7 +15,14 @@ import {
   type DamageBreakdown,
   type DetailEvent
 } from "@/lib/battle-log/detail-display";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle
+} from "@/components/shadcn/alert";
+import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import { MatchSummary } from "@/components/ui/MatchSummary";
 import {
   classifyBattleLogActionTitle,
@@ -418,11 +426,11 @@ function getPlayerToneClassNames(playerName: string, selfPlayerName: string) {
   return playerName === selfPlayerName
     ? {
         dot: "bg-win",
-        name: "text-win"
+        name: "text-win-strong"
       }
     : {
         dot: "bg-loss",
-        name: "text-loss"
+        name: "text-loss-strong"
       };
 }
 
@@ -483,12 +491,14 @@ function PrizeTracker({
 
 function LogSectionCard({
   actionTagOverrides,
+  focusTargetId,
   previousSection,
   section,
   selfPlayerName,
   turnNumber
 }: {
   actionTagOverrides?: Array<BattleLogResolvedActionTag | null>;
+  focusTargetId?: string;
   previousSection: LogSection | null;
   section: LogSection;
   selfPlayerName: string;
@@ -535,15 +545,17 @@ function LogSectionCard({
           <h3
             className={[
               "min-w-0",
-              "font-display m-0 text-[1.05rem] font-semibold",
+              "font-display m-0 rounded-sm text-[1.05rem] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring",
               titleToneClassName
             ].join(" ")}
+            id={focusTargetId}
+            tabIndex={focusTargetId ? -1 : undefined}
           >
             {effectivePlayer ? `${effectivePlayer}'s turn` : section.title}
           </h3>
 
           {!isSetupSection && turnNumber ? (
-            <span className="w-fit shrink-0 text-[0.75rem] font-semibold text-black dark:text-white">
+            <span className="w-fit shrink-0 text-[0.75rem] font-semibold text-card-foreground">
               Turn {turnNumber}
             </span>
           ) : null}
@@ -667,24 +679,32 @@ function getSectionTurnNumbers(sections: LogSection[]) {
 type BattleLogDetailViewProps = {
   actionTagOverrides?: BattleLogActionTagOverrides;
   actions?: ReactNode;
+  bodyErrorStatus?: number | null;
+  bodyLoadFailed?: boolean;
   footerAction?: ReactNode;
   linkedStrategyLabel: string;
   isBodyLoading?: boolean;
+  isBodyRetrying?: boolean;
   log: BattleLog;
   mobileNavigation?: ReactNode;
   notice?: ReactNode;
+  onRetryBody?: () => void;
   timestampLabel: string;
 };
 
 export function BattleLogDetailView({
   actionTagOverrides,
   actions,
+  bodyErrorStatus = null,
+  bodyLoadFailed = false,
   footerAction,
   linkedStrategyLabel: _linkedStrategyLabel,
   isBodyLoading = false,
+  isBodyRetrying = false,
   log,
   mobileNavigation,
   notice,
+  onRetryBody,
   timestampLabel
 }: BattleLogDetailViewProps) {
   void _linkedStrategyLabel;
@@ -703,6 +723,7 @@ export function BattleLogDetailView({
         sections.map((section, index) => (
           <LogSectionCard
             actionTagOverrides={actionTagOverrides?.[index]}
+            focusTargetId={index === 0 ? "battle-log-detail-body" : undefined}
             key={`${section.title}-${index}`}
             previousSection={index > 0 ? sections[index - 1] : null}
             section={section}
@@ -710,18 +731,65 @@ export function BattleLogDetailView({
             turnNumber={turnNumbers[index] ?? null}
           />
         ))
+      ) : bodyLoadFailed || isBodyRetrying ? (
+        <Alert aria-busy={isBodyRetrying} variant="loss">
+          <AlertTitle>
+            {bodyErrorStatus === 401
+              ? "Your session expired"
+              : bodyErrorStatus === 404
+                ? "Battle log no longer available"
+                : "Battle log details unavailable"}
+          </AlertTitle>
+          <AlertDescription>
+            <p>
+              {bodyErrorStatus === 401
+                ? "Sign in again, then reopen this battle log from your log list."
+                : bodyErrorStatus === 404
+                  ? "This battle log may have been removed."
+                  : "We couldn’t load the full battle log. Try again to continue."}
+            </p>
+            <div className="mt-3">
+              {bodyErrorStatus === 401 ? (
+                <Button asChild className="min-h-11" variant="outline">
+                  <Link href="/login">Sign in</Link>
+                </Button>
+              ) : bodyErrorStatus === 404 ? (
+                <Button asChild className="min-h-11" variant="outline">
+                  <Link href="/logs">Back to Logs</Link>
+                </Button>
+              ) : onRetryBody ? (
+                <Button
+                  aria-disabled={isBodyRetrying}
+                  className="min-h-11"
+                  onClick={() => {
+                    if (!isBodyRetrying) {
+                      onRetryBody();
+                    }
+                  }}
+                  variant="outline"
+                >
+                  {isBodyRetrying ? "Trying again..." : "Try again"}
+                </Button>
+              ) : null}
+            </div>
+          </AlertDescription>
+        </Alert>
       ) : isBodyLoading ? (
         <Card>
-          <div className="flex flex-col gap-3" role="status">
-            <div className="size-40 rounded bg-muted" />
-            <div className="h-3 w-full rounded bg-muted" />
-            <div className="h-3 w-11/12 rounded bg-muted" />
-            <div className="h-3 w-4/5 rounded bg-muted" />
+          <div aria-label="Loading battle log details" className="flex flex-col gap-3" role="status">
+            <Skeleton aria-hidden="true" className="size-40" />
+            <Skeleton aria-hidden="true" className="h-3 w-full" />
+            <Skeleton aria-hidden="true" className="h-3 w-11/12" />
+            <Skeleton aria-hidden="true" className="h-3 w-4/5" />
           </div>
         </Card>
       ) : (
         <Card>
-          <div className="whitespace-pre-wrap font-mono text-[0.92rem] leading-6 text-card-foreground">
+          <div
+            className="whitespace-pre-wrap rounded-sm font-mono text-[0.92rem] leading-6 text-card-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            id="battle-log-detail-body"
+            tabIndex={-1}
+          >
             {log.rawLog || "No parsed battle log stored for this record."}
           </div>
         </Card>

@@ -35,14 +35,14 @@ function getListWinRateTextClass(winRate: number | null) {
   }
 
   if (winRate > 60) {
-    return "text-win";
+    return "text-win-strong";
   }
 
   if (winRate >= 40) {
-    return "text-warning";
+    return "text-warning-strong";
   }
 
-  return "text-loss";
+  return "text-loss-strong";
 }
 
 export function DeckCard({
@@ -57,10 +57,10 @@ export function DeckCard({
     winRate == null
       ? "border-border bg-card text-muted-foreground"
       : winRate > 60
-        ? "border-win-border bg-win-bg text-win"
+        ? "border-win-border bg-win-bg text-win-strong"
         : winRate >= 40
-        ? "border-warning-border bg-warning-bg text-warning"
-        : "border-loss-border bg-loss-bg text-loss";
+        ? "border-warning-border bg-warning-bg text-warning-strong"
+        : "border-loss-border bg-loss-bg text-loss-strong";
 
   if (view === "list") {
     return (

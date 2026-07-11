@@ -223,7 +223,7 @@ function LogRowComponent({
             {editAction ? <DropdownMenuSeparator /> : null}
             <DropdownMenuGroup>
               <DropdownMenuItem
-                className="text-loss focus:text-loss"
+                className="text-loss-strong focus:text-loss-strong"
                 onClick={onDelete}
                 variant="destructive"
               >

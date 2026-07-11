@@ -1,20 +1,20 @@
 import { NextRequest } from "next/server";
-import { requireUser } from "@/lib/auth";
 import { resolveBattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { getLogDetailBodyById } from "@/lib/db/logs";
+import { requireApiUser } from "@/lib/server/api-auth";
 import { privateError, privateJson, reportApiError } from "@/lib/server/api-response";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireApiUser();
     const logId = request.nextUrl.searchParams.get("id");
 
     if (!logId) {
       return privateError("Missing log id.", 400);
     }
 
-    const user = await requireUser();
     const body = await getLogDetailBodyById(user.id, logId);
 
     if (!body) {

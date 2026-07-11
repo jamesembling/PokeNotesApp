@@ -28,6 +28,24 @@ test("battle-log detail keeps raw body data out of the initial route and removes
   assert.doesNotMatch(source("components/ui/LogsManager.tsx"), /warmLogDetailCache|sessionStorage|log-detail-data/);
 });
 
+test("deferred battle-log body failures leave loading state and provide a retry", () => {
+  const shell = source("components/ui/BattleLogDetailShell.tsx");
+  const view = source("components/ui/BattleLogDetailView.tsx");
+
+  assert.match(shell, /Deferred battle-log body request failed/);
+  assert.match(shell, /status: "error"/);
+  assert.match(shell, /status: "retrying"/);
+  assert.match(shell, /retryDeferredBody/);
+  assert.match(shell, /bodyLoadFailed=\{deferredBodyStatus === "error"\}/);
+  assert.match(shell, /getElementById\("battle-log-detail-body"\)\?\.focus\(\)/);
+  assert.match(view, /Battle log details unavailable/);
+  assert.match(view, /Your session expired/);
+  assert.match(view, /Battle log no longer available/);
+  assert.match(view, /aria-disabled=\{isBodyRetrying\}/);
+  assert.match(view, /className="min-h-11"/);
+  assert.match(view, /<Skeleton/);
+});
+
 test("battle-log detail defers linked deck list data out of the blocking route response", () => {
   const page = source("app/(app)/logs/[id]/page.tsx");
   const contextRoute = source("app/api/log-detail-context/route.ts");

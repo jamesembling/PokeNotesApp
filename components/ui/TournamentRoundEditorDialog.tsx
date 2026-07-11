@@ -304,7 +304,7 @@ export function TournamentRoundEditorDialog({
 
             {actionError ? (
               <Alert
-                className="mb-4 border-loss-border bg-loss-bg text-loss"
+                className="mb-4 border-loss-border bg-loss-bg text-loss-strong"
                 variant="destructive"
               >
                 <AlertDescription>{actionError}</AlertDescription>

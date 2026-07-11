@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,6 +54,7 @@ runAgentBrowser([
   "document.readyState === 'complete' && location.pathname !== '/login'"
 ]);
 runAgentBrowser(["state", "save", statePath], { stdio: "inherit" });
+chmodSync(statePath, 0o600);
 
 console.log(`Saved local auth state to ${statePath}`);
 

@@ -1,7 +1,13 @@
 export function getSafeRedirectPath(value: FormDataEntryValue | string | null, fallbackPath: string) {
   const path = String(value || "").trim();
 
-  if (!path || !path.startsWith("/") || path.startsWith("//")) {
+  if (
+    !path ||
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    path.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(path)
+  ) {
     return fallbackPath;
   }
 

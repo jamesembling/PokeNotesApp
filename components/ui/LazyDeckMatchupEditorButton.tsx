@@ -67,7 +67,7 @@ export function LazyDeckMatchupEditorButton({
           {children}
         </DeckMatchupEditorDialog>
         {loadError ? (
-          <p className="text-sm text-loss" role="status">
+          <p className="text-sm text-loss-strong" role="status">
             {loadError}
           </p>
         ) : null}
@@ -93,7 +93,7 @@ export function LazyDeckMatchupEditorButton({
         </Button>
       )}
       {loadError ? (
-        <p className="text-sm text-loss" role="status">
+        <p className="text-sm text-loss-strong" role="status">
           {loadError}
         </p>
       ) : null}

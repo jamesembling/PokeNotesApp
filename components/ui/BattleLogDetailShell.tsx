@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ExportIcon } from "@phosphor-icons/react";
 import { PencilIcon } from "lucide-react";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
@@ -12,6 +12,7 @@ import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
 import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
 import { LinkedDeckListDialog } from "@/components/ui/LinkedDeckListPanel";
 import { PageActions } from "@/components/ui/PageActions";
+import { logErrorReport } from "@/lib/error-reporting";
 import type { BattleLog, DeckCard, DeckSelectionOption } from "@/types/index";
 
 type BattleLogDetailShellProps = {
@@ -46,6 +47,20 @@ type LogDetailBodyResponse = {
   sections?: BattleLog["sections"];
 };
 
+type DeferredBodyRequest = {
+  errorStatus: number | null;
+  logId: string;
+  payload: LogDetailBodyResponse | null;
+  status: "error" | "loaded" | "loading" | "retrying";
+};
+
+class DeferredBodyResponseError extends Error {
+  constructor(readonly status: number) {
+    super(`Deferred battle-log body request failed with status ${status}.`);
+    this.name = "DeferredBodyResponseError";
+  }
+}
+
 export function BattleLogDetailShell({
   activeShare = null,
   actionTagOverrides,
@@ -60,7 +75,14 @@ export function BattleLogDetailShell({
 }: BattleLogDetailShellProps) {
   const [currentShare, setCurrentShare] = useState<ShareLinkState | null>(activeShare);
   const [deferredContext, setDeferredContext] = useState<LogDetailContextResponse | null>(null);
-  const [deferredBody, setDeferredBody] = useState<LogDetailBodyResponse | null>(null);
+  const [deferredBodyAttempt, setDeferredBodyAttempt] = useState(0);
+  const retryFocusLogIdRef = useRef<string | null>(null);
+  const [deferredBodyRequest, setDeferredBodyRequest] = useState<DeferredBodyRequest>(() => ({
+    errorStatus: null,
+    logId: log.id,
+    payload: null,
+    status: log.rawLog || log.sections.length > 0 ? "loaded" : "loading"
+  }));
 
   useEffect(() => {
     performance.mark("logs-detail-summary-visible");
@@ -134,16 +156,25 @@ export function BattleLogDetailShell({
         });
 
         if (!response.ok) {
-          return;
+          throw new DeferredBodyResponseError(response.status);
         }
 
         const payload = (await response.json()) as LogDetailBodyResponse;
-        setDeferredBody(payload);
+        setDeferredBodyRequest({ errorStatus: null, logId: log.id, payload, status: "loaded" });
         performance.mark("logs-detail-body-visible");
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        if (controller.signal.aborted) {
           return;
         }
+
+        const errorStatus = error instanceof DeferredBodyResponseError ? error.status : null;
+        if (errorStatus !== 401 && errorStatus !== 404) {
+          logErrorReport(error, {
+            boundary: "battle-log-detail-body",
+            route: "/api/log-detail-body"
+          });
+        }
+        setDeferredBodyRequest({ errorStatus, logId: log.id, payload: null, status: "error" });
       }
     }
 
@@ -152,7 +183,31 @@ export function BattleLogDetailShell({
     return () => {
       controller.abort();
     };
-  }, [log.id, log.rawLog, log.sections.length]);
+  }, [deferredBodyAttempt, log.id, log.rawLog, log.sections.length]);
+
+  const deferredBody =
+    deferredBodyRequest.logId === log.id ? deferredBodyRequest.payload : null;
+  const deferredBodyErrorStatus =
+    deferredBodyRequest.logId === log.id ? deferredBodyRequest.errorStatus : null;
+  const deferredBodyStatus =
+    log.rawLog || log.sections.length > 0
+      ? "loaded"
+      : deferredBodyRequest.logId === log.id
+        ? deferredBodyRequest.status
+        : "loading";
+
+  function retryDeferredBody() {
+    retryFocusLogIdRef.current = log.id;
+    setDeferredBodyRequest({ errorStatus: null, logId: log.id, payload: null, status: "retrying" });
+    setDeferredBodyAttempt((attempt) => attempt + 1);
+  }
+
+  useEffect(() => {
+    if (retryFocusLogIdRef.current === log.id && deferredBodyStatus === "loaded") {
+      document.getElementById("battle-log-detail-body")?.focus();
+      retryFocusLogIdRef.current = null;
+    }
+  }, [deferredBodyStatus, log.id]);
 
   const resolvedUserDecks = useMemo(
     () => deferredContext?.userDecks ?? userDecks,
@@ -224,9 +279,13 @@ export function BattleLogDetailShell({
           </PageActions>
         </>
       }
+      bodyErrorStatus={deferredBodyErrorStatus}
+      bodyLoadFailed={deferredBodyStatus === "error"}
+      isBodyRetrying={deferredBodyStatus === "retrying"}
       linkedStrategyLabel={deferredContext?.linkedStrategyLabel ?? linkedStrategyLabel}
-      isBodyLoading={!deferredBody && !resolvedLog.rawLog && resolvedLog.sections.length === 0}
+      isBodyLoading={deferredBodyStatus === "loading"}
       log={resolvedLog}
+      onRetryBody={retryDeferredBody}
       timestampLabel={timestampLabel}
     />
   );

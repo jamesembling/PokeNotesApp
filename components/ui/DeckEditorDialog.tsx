@@ -247,7 +247,7 @@ export function DeckEditorDialog({
               >
                 <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 space-y-1">
-                    <AlertTitle className="text-loss">
+                    <AlertTitle className="text-loss-strong">
                       Delete this deck strategy?
                     </AlertTitle>
                     <AlertDescription className="text-foreground">

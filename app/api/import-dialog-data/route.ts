@@ -1,6 +1,6 @@
-import { requireUser } from "@/lib/auth";
 import { getDeckSelectionOptions } from "@/lib/db/decks";
 import { getPokemonOptions } from "@/lib/db/pokemon";
+import { requireApiUser } from "@/lib/server/api-auth";
 import { privateJson, reportApiError } from "@/lib/server/api-response";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,7 +25,7 @@ async function getImportProfileUsername(userId: string) {
 
 export async function GET() {
   try {
-    const user = await requireUser();
+    const user = await requireApiUser();
     const [userDecks, pokemonOptions, ptcglUsername] = await Promise.all([
       getDeckSelectionOptions(user.id),
       getPokemonOptions(),

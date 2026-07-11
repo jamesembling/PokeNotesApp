@@ -498,9 +498,9 @@ export const getLogDamageTimeline = cache(async function getLogDamageTimeline(
       .from("logs")
       .select("date,self_attack_damage,opponent_attack_damage")
       .eq("user_id", userId)
-      .order("date", { ascending: true })
-      .order("imported_at", { ascending: true })
-      .order("id", { ascending: true })
+      .order("date", { ascending: false })
+      .order("imported_at", { ascending: false })
+      .order("id", { ascending: false })
       .limit(5000)
   );
 
@@ -508,11 +508,13 @@ export const getLogDamageTimeline = cache(async function getLogDamageTimeline(
     throw error;
   }
 
-  return (((data ?? []) as unknown) as LogDamageTimelineRow[]).map((row) => ({
-    date: String(row.date ?? ""),
-    selfAttackDamage: Number(row.self_attack_damage ?? 0),
-    opponentAttackDamage: Number(row.opponent_attack_damage ?? 0)
-  }));
+  return (((data ?? []) as unknown) as LogDamageTimelineRow[])
+    .toReversed()
+    .map((row) => ({
+      date: String(row.date ?? ""),
+      selfAttackDamage: Number(row.self_attack_damage ?? 0),
+      opponentAttackDamage: Number(row.opponent_attack_damage ?? 0)
+    }));
 });
 
 export const getArchetypeMatchupStats = cache(async function getArchetypeMatchupStats(

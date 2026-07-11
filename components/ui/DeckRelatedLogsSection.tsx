@@ -85,9 +85,9 @@ export async function DeckLogStatsGrid({
         <DeckLogStat label="Total Games" value={stats.total} />
       </div>
       <div className="border-b border-border sm:border-b-0 sm:border-r">
-        <DeckLogStat label="Wins" value={stats.wins} valueColor="text-win" />
+        <DeckLogStat label="Wins" value={stats.wins} valueColor="text-win-strong" />
       </div>
-      <DeckLogStat label="Losses" value={stats.losses} valueColor="text-loss" />
+      <DeckLogStat label="Losses" value={stats.losses} valueColor="text-loss-strong" />
     </div>
   );
 }

@@ -749,7 +749,7 @@ export function ImportLogDialog({
 
                   {parseError ? (
                     <Alert
-                      className="border-loss-border bg-loss-bg text-loss"
+                      className="border-loss-border bg-loss-bg text-loss-strong"
                       variant="destructive"
                     >
                       <AlertDescription>{parseError}</AlertDescription>

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
@@ -90,8 +90,10 @@ function writeLocalEnv(values) {
   }
 
   if (nextContent !== existingContent.trimEnd()) {
-    writeFileSync(localEnvPath, `${nextContent}\n`);
+    writeFileSync(localEnvPath, `${nextContent}\n`, { mode: 0o600 });
   }
+
+  chmodSync(localEnvPath, 0o600);
 }
 
 async function listAllAuthUsers() {

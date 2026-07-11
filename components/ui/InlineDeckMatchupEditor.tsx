@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { updateDeckMatchupAction } from "@/app/(app)/decks/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Field, FieldLabel } from "@/components/shadcn/field";
 import { Textarea } from "@/components/shadcn/textarea";
 import { Card } from "@/components/shadcn/card";
 import type { DeckMatchup } from "@/types/index";
@@ -32,6 +33,9 @@ export function InlineDeckMatchupEditor({
   deckId,
   matchup
 }: InlineDeckMatchupEditorProps) {
+  const idealBenchId = useId();
+  const techsNeededId = useId();
+  const matchupPlanId = useId();
   const [isPending, startTransition] = useTransition();
   const [matchupState, setMatchupState] = useState(() => buildMatchupState(matchup));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -121,13 +125,17 @@ export function InlineDeckMatchupEditor({
         <p className="ui-eyebrow">Matchup Plan</p>
         {statusLabel ? (
           <p
+            aria-atomic={saveStatus === "error" ? undefined : true}
+            aria-hidden={saveStatus === "error" ? true : undefined}
+            aria-live={saveStatus === "error" ? undefined : "polite"}
             className={`text-sm font-medium ${
               saveStatus === "error"
-                ? "text-loss"
+                ? "text-loss-strong"
                 : saveStatus === "saved"
-                  ? "text-win"
+                  ? "text-win-strong"
                   : "text-muted-foreground"
             }`}
+            role={saveStatus === "error" ? undefined : "status"}
           >
             {statusLabel}
           </p>
@@ -135,19 +143,22 @@ export function InlineDeckMatchupEditor({
       </div>
 
       {errorMessage ? (
-        <Alert
-          className="border-loss-border bg-loss-bg text-loss"
-          variant="destructive"
-        >
+        <Alert variant="loss">
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-muted-foreground">Ideal Bench</p>
+        <Field>
+          <FieldLabel
+            className="text-sm font-semibold text-muted-foreground"
+            htmlFor={idealBenchId}
+          >
+            Ideal Bench
+          </FieldLabel>
           <Textarea
             className="min-h-[160px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+            id={idealBenchId}
             onBlur={() => saveMatchup(matchupState)}
             onChange={(event) =>
               setMatchupState((current) => ({
@@ -158,12 +169,18 @@ export function InlineDeckMatchupEditor({
             placeholder="Capture your preferred bench state for this matchup."
             value={matchupState.idealBench}
           />
-        </div>
+        </Field>
 
-        <div className="space-y-2">
-          <p className="text-sm font-semibold text-muted-foreground">Tech&apos;s needed</p>
+        <Field>
+          <FieldLabel
+            className="text-sm font-semibold text-muted-foreground"
+            htmlFor={techsNeededId}
+          >
+            Tech&apos;s needed
+          </FieldLabel>
           <Textarea
             className="min-h-[160px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+            id={techsNeededId}
             onBlur={() => saveMatchup(matchupState)}
             onChange={(event) =>
               setMatchupState((current) => ({
@@ -174,13 +191,19 @@ export function InlineDeckMatchupEditor({
             placeholder="List the cards or tech pieces you need for this matchup."
             value={matchupState.techsNeeded}
           />
-        </div>
+        </Field>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-sm font-semibold text-muted-foreground">Strategy Notes</p>
+      <Field>
+        <FieldLabel
+          className="text-sm font-semibold text-muted-foreground"
+          htmlFor={matchupPlanId}
+        >
+          Strategy Notes
+        </FieldLabel>
         <Textarea
           className="min-h-[240px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+          id={matchupPlanId}
           onBlur={() => saveMatchup(matchupState)}
           onChange={(event) =>
             setMatchupState((current) => ({
@@ -191,7 +214,7 @@ export function InlineDeckMatchupEditor({
           placeholder="Capture your matchup plan, sequencing notes, and testing takeaways."
           value={matchupState.matchupPlan}
         />
-      </div>
+      </Field>
     </Card>
   );
 }

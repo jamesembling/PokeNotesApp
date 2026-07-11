@@ -13,7 +13,8 @@ compatibility pointer only.
 Use semantic tokens:
 
 - `--primary`, `--secondary`, `--muted`, `--border`, `--ring`
-- `--color-win`, `--color-loss`, `--color-warning`
+- `--color-win`, `--color-loss`, `--color-warning` for charts/dots/background ingredients
+- `--color-win-strong`, `--color-loss-strong`, `--color-warning-strong` for normal status text
 - `--control-*` for segmented controls
 - `--button-*` for shared button interaction states
 - `--choice-*` for choice-card/radio-card controls
@@ -36,6 +37,7 @@ Do not add raw page-level colors for common states. If a new repeated state is n
 - Canvas export artwork uses an isolated export palette in `lib/probability-calculator/index.ts` because CSS variables are not available inside generated image drawing.
 - Page headers always show the shared bottom divider. Do not disable or recreate page-header dividers in page code.
 - Primary red buttons are for page-level create/import/save actions. Detail-page edit/back actions and section-level add/view actions use outline or ghost intent unless they are the only primary action on that page.
+- Normal muted/kicker text must meet WCAG AA on page, card, and muted surfaces in both themes. Normal status/destructive text uses the `*-strong` semantic tokens; base status colors are reserved for non-text chart and marker graphics.
 
 ## Mode Callouts
 
@@ -87,7 +89,7 @@ Rollover behavior is intentionally separated by pattern:
 
 Log, tournament, and deck rollover styles may differ from each other, but every deployment of each pattern should use the matching shared utility. Shared rollover utilities should control container background, brightness, lift, shadow, and focus ring only; text color changes must be explicit component decisions.
 
-Run `npm run design:audit` after UI changes. It checks for copied dialog shells, copied rollover utilities, direct tab/dialog primitives where app wrappers exist, and undefined CSS tokens.
+Run `npm run design:audit` after UI changes. It checks for copied dialog shells, copied rollover utilities, direct tab/dialog primitives where app wrappers exist, weak status/destructive text classes, and undefined CSS tokens.
 
 ## Migration Rule
 

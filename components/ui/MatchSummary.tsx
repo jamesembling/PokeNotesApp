@@ -17,7 +17,7 @@ type StatTone = "win" | "loss" | "neutral";
 const STAT_TONE_STYLES: Record<StatTone, { color: string; textClassName: string }> = {
   loss: {
     color: "var(--color-loss)",
-    textClassName: "text-loss"
+    textClassName: "text-loss-strong"
   },
   neutral: {
     color: "var(--muted-foreground)",
@@ -25,7 +25,7 @@ const STAT_TONE_STYLES: Record<StatTone, { color: string; textClassName: string 
   },
   win: {
     color: "var(--color-win)",
-    textClassName: "text-win"
+    textClassName: "text-win-strong"
   }
 };
 
@@ -60,13 +60,13 @@ function getOpponentPlacement(goOrder: BattleLog["goOrder"]) {
 function getResultStyles(result: Result) {
   if (result === "Win") {
     return {
-      className: "text-win",
+      className: "text-win-strong",
       label: "WIN"
     };
   }
 
   return {
-    className: "text-loss",
+    className: "text-loss-strong",
     label: "LOSS"
   };
 }

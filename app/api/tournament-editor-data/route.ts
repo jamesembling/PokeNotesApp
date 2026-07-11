@@ -1,6 +1,6 @@
-import { requireUser } from "@/lib/auth";
 import { getPokemonOptions } from "@/lib/db/pokemon";
 import { getTournamentDeckChoices } from "@/lib/db/tournaments";
+import { requireApiUser } from "@/lib/server/api-auth";
 import { privateJson, reportApiError } from "@/lib/server/api-response";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    const user = await requireUser();
+    const user = await requireApiUser();
     const [decks, pokemonOptions] = await Promise.all([
       getTournamentDeckChoices(user.id),
       getPokemonOptions()

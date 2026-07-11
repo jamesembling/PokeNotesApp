@@ -130,11 +130,11 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
 
   return (
     <Tabs
-      className="grid gap-3"
+      className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3"
       onValueChange={(value) => setViewMode(value as ViewMode)}
       value={viewMode}
     >
-      <div className="deck-strategy-ledger-toolbar flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+      <div className="deck-strategy-ledger-toolbar flex w-full min-w-0 flex-col items-stretch justify-between gap-3 rounded-lg border border-border px-3 py-2 min-[360px]:flex-row min-[360px]:items-center">
         <SegmentedControl
           ariaLabel="Deck strategy view"
           options={[
@@ -143,7 +143,10 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
           ]}
           size="sm"
         />
-        <PageActions className="sm:hidden" mobile="stack">
+        <PageActions
+          className="w-auto self-stretch sm:hidden min-[360px]:w-fit min-[360px]:self-auto [&>button]:w-full min-[360px]:[&>button]:w-auto"
+          mobile="stack"
+        >
           <LazyDeckEditorButton triggerLabel="+ New deck" />
         </PageActions>
       </div>

@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
-import { reportError } from "@/lib/server/report-error";
+import { type NextRequest } from "next/server";
+import { requireApiUser } from "@/lib/server/api-auth";
+import { privateError, privateJson, reportApiError } from "@/lib/server/api-response";
 import { createClient } from "@/lib/supabase/server";
 
 type PerformanceEventPayload = {
@@ -91,7 +91,7 @@ function clampDecimal(value: unknown, max = 10_000) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireUser();
+    const user = await requireApiUser();
     const payload = (await request.json()) as PerformanceEventPayload;
     const eventType = payload.eventType === "app-route" ? "app-route" : "hard-load";
     const toPath = clampText(payload.toPath, 180);
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     const sourceHost = clampText(request.headers.get("host") || payload.sourceHost, 180);
 
     if (!toPath || durationMs === null) {
-      return NextResponse.json({ error: "Invalid performance event." }, { status: 400 });
+      return privateError("Invalid performance event.", 400);
     }
 
     const supabase = await createClient();
@@ -139,22 +139,17 @@ export async function POST(request: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json(
-      { ok: true },
-      {
-        headers: {
-          "Cache-Control": "private, no-store, max-age=0"
-        }
-      }
-    );
+    return privateJson({ ok: true });
   } catch (error) {
-    reportError(error, {
-      action: "createPerformanceEvent",
-      area: "api",
-      boundary: "performance-events-route",
-      route: "/api/performance-events"
-    });
-
-    return NextResponse.json({ error: "Could not record performance event." }, { status: 500 });
+    return reportApiError(
+      error,
+      {
+        action: "createPerformanceEvent",
+        area: "api",
+        boundary: "performance-events-route",
+        route: "/api/performance-events"
+      },
+      "Could not record performance event."
+    );
   }
 }

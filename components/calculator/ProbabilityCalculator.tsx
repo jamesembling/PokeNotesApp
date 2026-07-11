@@ -79,43 +79,45 @@ export function ProbabilityCalculator() {
   const statusClassName = [
     "rounded-[16px] border px-4 py-3",
     analysis?.warnings.length || statusTone === "warn"
-      ? "border-loss-border bg-loss-bg text-loss"
+      ? "border-loss-border bg-loss-bg text-loss-strong"
       : "border-border bg-muted text-muted-foreground"
   ].join(" ");
 
-  const setupCards = analysis?.setupRows ?? [];
-  const prizingCards = analysis?.prizingRows ?? [];
   const cardOrder = useMemo(() => {
     return new Map(deckVisualCards.map((card, index) => [`${card.name}-${card.category}`, index]));
   }, [deckVisualCards]);
-  const setupComparisonRows = useMemo(
-    () =>
-      setupCards.toSorted((left, right) => {
-        const leftOrder = cardOrder.get(`${left.card.name}-${left.card.category}`) ?? Number.MAX_SAFE_INTEGER;
-        const rightOrder = cardOrder.get(`${right.card.name}-${right.card.category}`) ?? Number.MAX_SAFE_INTEGER;
+  const setupComparisonRows = useMemo(() => {
+    const setupCards = analysis?.setupRows ?? [];
 
-        if (leftOrder !== rightOrder) {
-          return leftOrder - rightOrder;
-        }
+    return setupCards.toSorted((left, right) => {
+      const leftOrder =
+        cardOrder.get(`${left.card.name}-${left.card.category}`) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder =
+        cardOrder.get(`${right.card.name}-${right.card.category}`) ?? Number.MAX_SAFE_INTEGER;
 
-        return left.card.name.localeCompare(right.card.name);
-      }),
-    [cardOrder, setupCards]
-  );
-  const prizingComparisonRows = useMemo(
-    () =>
-      prizingCards.toSorted((left, right) => {
-        const leftOrder = cardOrder.get(`${left.card.name}-${left.card.category}`) ?? Number.MAX_SAFE_INTEGER;
-        const rightOrder = cardOrder.get(`${right.card.name}-${right.card.category}`) ?? Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
 
-        if (leftOrder !== rightOrder) {
-          return leftOrder - rightOrder;
-        }
+      return left.card.name.localeCompare(right.card.name);
+    });
+  }, [analysis, cardOrder]);
+  const prizingComparisonRows = useMemo(() => {
+    const prizingCards = analysis?.prizingRows ?? [];
 
-        return left.card.name.localeCompare(right.card.name);
-      }),
-    [cardOrder, prizingCards]
-  );
+    return prizingCards.toSorted((left, right) => {
+      const leftOrder =
+        cardOrder.get(`${left.card.name}-${left.card.category}`) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder =
+        cardOrder.get(`${right.card.name}-${right.card.category}`) ?? Number.MAX_SAFE_INTEGER;
+
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+
+      return left.card.name.localeCompare(right.card.name);
+    });
+  }, [analysis, cardOrder]);
   const summary = useMemo(() => {
     if (!analysis) {
       return {
@@ -209,6 +211,7 @@ export function ProbabilityCalculator() {
 
   return (
     <>
+      {!analysis ? <h1 className="sr-only">Probability Calculator</h1> : null}
       <DeckImportDialog
         deckInput={deckInput}
         initialImport={!analysis}
@@ -262,7 +265,7 @@ export function ProbabilityCalculator() {
             </section>
 
             {showStatus ? (
-              <section className={statusClassName}>
+              <section className={statusClassName} role="alert">
                 {statusMessage ? (
                   <p className="text-sm font-medium leading-6 text-card-foreground">
                     {statusMessage}
@@ -270,7 +273,7 @@ export function ProbabilityCalculator() {
                 ) : null}
 
                 {analysis.warnings.length ? (
-                  <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-loss">
+                  <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-loss-strong">
                     {analysis.warnings.map((warning) => (
                       <li key={warning}>{warning}</li>
                     ))}
@@ -450,7 +453,7 @@ function DeckImportDialog({
           />
 
           {showStatus ? (
-            <section className={statusClassName}>
+            <section className={statusClassName} role="alert">
               <p className="text-sm font-medium leading-6 text-card-foreground">
                 {statusMessage}
               </p>

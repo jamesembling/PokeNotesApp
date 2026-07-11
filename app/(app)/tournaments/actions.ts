@@ -588,6 +588,22 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
     if (!tournamentId) {
       throw userFacingActionError("Tournament id is required.");
     }
+
+    const { data: ownedTournament, error: tournamentError } = await supabase
+      .from("tournaments")
+      .select("id")
+      .eq("id", tournamentId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (tournamentError) {
+      throw toUserFacingDatabaseError(tournamentError);
+    }
+
+    if (!ownedTournament) {
+      throw userFacingActionError("Tournament could not be found.");
+    }
+
     const roundNumber = await resolveTournamentRoundNumber({
       roundId,
       tournamentId,
@@ -662,6 +678,7 @@ export async function deleteTournamentRoundAction(formData: FormData): Promise<S
       .from("tournament_rounds")
       .delete()
       .eq("id", roundId)
+      .eq("tournament_id", tournamentId)
       .eq("user_id", user.id)
       .select("id")
       .maybeSingle();

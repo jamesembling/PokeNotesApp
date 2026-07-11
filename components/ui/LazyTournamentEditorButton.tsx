@@ -116,7 +116,7 @@ export function LazyTournamentEditorButton({
           triggerVariant={triggerVariant}
         />
         {loadError ? (
-          <p className="text-sm text-loss" role="status">
+          <p className="text-sm text-loss-strong" role="status">
             {loadError}
           </p>
         ) : null}
@@ -138,7 +138,7 @@ export function LazyTournamentEditorButton({
         {isLoading ? "Loading Editor..." : (triggerChildren ?? triggerLabel)}
       </Button>
       {loadError ? (
-        <p className="text-sm text-loss" role="status">
+        <p className="text-sm text-loss-strong" role="status">
           {loadError}
         </p>
       ) : null}

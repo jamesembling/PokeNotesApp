@@ -380,7 +380,7 @@ export function DeckListEditorDialog({
 
                 {saveError ? (
                   <Alert
-                    className="border-loss-border bg-loss-bg text-loss"
+                    className="border-loss-border bg-loss-bg text-loss-strong"
                     variant="destructive"
                   >
                     <AlertDescription>{saveError}</AlertDescription>
@@ -409,9 +409,9 @@ export function DeckListEditorDialog({
                         className={[
                           "inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold",
                           summaryTone === "success"
-                            ? "bg-win-bg text-win"
+                            ? "bg-win-bg text-win-strong"
                             : summaryTone === "warning"
-                              ? "bg-loss-bg text-loss"
+                              ? "bg-loss-bg text-loss-strong"
                               : "bg-muted text-muted-foreground"
                         ].join(" ")}
                       >

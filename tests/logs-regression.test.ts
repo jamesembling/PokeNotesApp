@@ -7,6 +7,7 @@ import {
   getDeckStatsForIndex,
   getLatestLogsForDeck,
   getLogById,
+  getLogDamageTimeline,
   getLogDetailSummaryById,
   getLogStatsOverview,
   getLogsWindow,
@@ -203,6 +204,55 @@ test("getLogById falls back to an empty raw log when the stored value is missing
   const log = await getLogById("user-1", "log-1");
 
   assert.equal(log?.rawLog, "");
+});
+
+test("getLogDamageTimeline retains the newest bounded window and restores chronological order", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries } = createFakeSupabaseClient(() => ({
+    data: [
+      {
+        date: "2026-07-11",
+        self_attack_damage: 220,
+        opponent_attack_damage: 120
+      },
+      {
+        date: "2026-07-10",
+        self_attack_damage: 180,
+        opponent_attack_damage: 200
+      }
+    ],
+    error: null
+  }));
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const timeline = await getLogDamageTimeline("user-1");
+  const orderOperations = queries[0]?.operations.filter((op) => op.method === "order") ?? [];
+
+  assert.deepEqual(
+    orderOperations.map((op) => op.args),
+    [
+      ["date", { ascending: false }],
+      ["imported_at", { ascending: false }],
+      ["id", { ascending: false }]
+    ]
+  );
+  assert.deepEqual(queries[0]?.operations.find((op) => op.method === "limit")?.args, [5000]);
+  assert.deepEqual(timeline, [
+    {
+      date: "2026-07-10",
+      selfAttackDamage: 180,
+      opponentAttackDamage: 200
+    },
+    {
+      date: "2026-07-11",
+      selfAttackDamage: 220,
+      opponentAttackDamage: 120
+    }
+  ]);
 });
 
 test("getLogDetailSummaryById reads only summary columns for server-rendered detail", async (t) => {

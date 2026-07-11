@@ -20,8 +20,14 @@ type AppShellProps = {
 export function AppShell({ children, profile }: AppShellProps) {
   return (
     <SidebarProvider>
+      <a
+        className="fixed left-3 top-3 z-50 -translate-y-20 rounded-md bg-background px-3 py-2 text-sm font-semibold text-foreground shadow-sm outline-none transition-transform focus:translate-y-0 focus:ring-2 focus:ring-ring"
+        href="#main-content"
+      >
+        Skip to main content
+      </a>
       <Sidebar profile={profile} />
-      <SidebarInset>
+      <SidebarInset id="main-content" tabIndex={-1}>
         <SidebarMobileTopbar />
         <div className="hidden px-3 pt-3 min-[860px]:flex min-[860px]:items-center min-[860px]:gap-1 sm:px-5 lg:px-7">
           <SidebarTrigger size="icon-lg" />

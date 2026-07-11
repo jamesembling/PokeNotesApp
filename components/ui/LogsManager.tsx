@@ -522,7 +522,7 @@ export function LogsManager({
       {actionNotice ? (
         <Alert
           aria-live="polite"
-          className="border-loss-border bg-loss-bg text-loss"
+          className="border-loss-border bg-loss-bg text-loss-strong"
           variant="destructive"
         >
           <AlertTitle className="ui-eyebrow">Action Failed</AlertTitle>
@@ -638,7 +638,7 @@ export function LogsManager({
             }`}
           >
             {loadMoreError ? (
-              <p className="text-sm font-medium text-loss">{loadMoreError}</p>
+              <p className="text-sm font-medium text-loss-strong">{loadMoreError}</p>
             ) : null}
             <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="outline">
               {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}
@@ -678,7 +678,7 @@ export function LogsManager({
 
             <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               {deckOptionsError ? (
-                <p className="text-sm font-medium text-loss md:col-span-2">
+                <p className="text-sm font-medium text-loss-strong md:col-span-2">
                   {deckOptionsError}
                 </p>
               ) : null}
@@ -740,7 +740,7 @@ export function LogsManager({
                 <DropdownMenuContent align="end" className="w-44" forceMount>
                   <DropdownMenuGroup>
                     <DropdownMenuItem
-                      className="text-loss focus:text-loss"
+                      className="text-loss-strong focus:text-loss-strong"
                       onClick={handleDeleteSelected}
                       variant="destructive"
                     >

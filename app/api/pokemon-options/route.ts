@@ -1,40 +1,27 @@
-import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
 import { getPokemonOptions } from "@/lib/db/pokemon";
-import { reportError } from "@/lib/server/report-error";
+import { requireApiUser } from "@/lib/server/api-auth";
+import { privateJson, reportApiError } from "@/lib/server/api-response";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET() {
   try {
-    await requireUser();
+    await requireApiUser();
 
     const pokemonOptions = await getPokemonOptions();
 
-    return NextResponse.json(
-      {
-        pokemonOptions
-      },
-      {
-        headers: {
-          "Cache-Control": "no-store, max-age=0"
-        }
-      }
-    );
+    return privateJson({ pokemonOptions });
   } catch (error) {
-    reportError(error, {
-      action: "getPokemonOptions",
-      area: "api",
-      boundary: "pokemon-options-route",
-      route: "/api/pokemon-options"
-    });
-
-    return NextResponse.json(
+    return reportApiError(
+      error,
       {
-        error: "We couldn't load Pokemon options right now."
+        action: "getPokemonOptions",
+        area: "api",
+        boundary: "pokemon-options-route",
+        route: "/api/pokemon-options"
       },
-      { status: 500 }
+      "We couldn't load Pokemon options right now."
     );
   }
 }

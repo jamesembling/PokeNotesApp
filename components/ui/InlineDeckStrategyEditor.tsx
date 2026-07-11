@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { updateDeckStrategyAction } from "@/app/(app)/decks/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Field, FieldLabel } from "@/components/shadcn/field";
 import { Tabs } from "@/components/shadcn/tabs";
 import { Textarea } from "@/components/shadcn/textarea";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -47,6 +48,10 @@ function buildStrategyState(deck: InlineDeckStrategy): StrategyState {
 export function InlineDeckStrategyEditor({
   deck
 }: InlineDeckStrategyEditorProps) {
+  const coreStrategyId = useId();
+  const setupGoalsId = useId();
+  const resourcePlanId = useId();
+  const generalNotesId = useId();
   const [isPending, startTransition] = useTransition();
   const [strategy, setStrategy] = useState(() => buildStrategyState(deck));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -135,13 +140,17 @@ export function InlineDeckStrategyEditor({
       <SectionHeader
         actions={statusLabel ? (
           <p
+            aria-atomic={saveStatus === "error" ? undefined : true}
+            aria-hidden={saveStatus === "error" ? true : undefined}
+            aria-live={saveStatus === "error" ? undefined : "polite"}
             className={`text-sm font-medium ${
               saveStatus === "error"
-                ? "text-loss"
+                ? "text-loss-strong"
                 : saveStatus === "saved"
-                  ? "text-win"
+                  ? "text-win-strong"
                   : "text-muted-foreground"
             }`}
+            role={saveStatus === "error" ? undefined : "status"}
           >
             {statusLabel}
           </p>
@@ -150,10 +159,7 @@ export function InlineDeckStrategyEditor({
       />
 
       {errorMessage ? (
-        <Alert
-          className="border-loss-border bg-loss-bg text-loss"
-          variant="destructive"
-        >
+        <Alert variant="loss">
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
       ) : null}
@@ -183,51 +189,73 @@ export function InlineDeckStrategyEditor({
           </Tabs>
         </section>
 
-        <section className="grid gap-2 md:col-span-2">
-          <p className="text-sm font-semibold text-muted-foreground">Core Strategy</p>
+        <Field className="md:col-span-2">
+          <FieldLabel
+            className="text-sm font-semibold text-muted-foreground"
+            htmlFor={coreStrategyId}
+          >
+            Core Strategy
+          </FieldLabel>
           <Textarea
             className="min-h-[240px] rounded-xl border border-border bg-card px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+            id={coreStrategyId}
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("coreStrategy", event.target.value)}
             placeholder="Outline the main plan, sequencing, and key pressure points."
             value={strategy.coreStrategy}
           />
-        </section>
+        </Field>
 
-        <section className="grid gap-2">
-          <p className="text-sm font-semibold text-muted-foreground">Ideal Bench</p>
+        <Field>
+          <FieldLabel
+            className="text-sm font-semibold text-muted-foreground"
+            htmlFor={setupGoalsId}
+          >
+            Ideal Bench
+          </FieldLabel>
           <Textarea
             className="min-h-[140px] rounded-xl border border-border bg-card px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+            id={setupGoalsId}
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("setupGoals", event.target.value)}
             placeholder="One ideal bench note per line"
             value={strategy.setupGoals}
           />
-        </section>
+        </Field>
 
-        <section className="grid gap-2">
-          <p className="text-sm font-semibold text-muted-foreground">
+        <Field>
+          <FieldLabel
+            className="text-sm font-semibold text-muted-foreground"
+            htmlFor={resourcePlanId}
+          >
             Potential Cuts / Techs / Inclusions
-          </p>
+          </FieldLabel>
           <Textarea
             className="min-h-[140px] rounded-xl border border-border bg-card px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+            id={resourcePlanId}
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("resourcePlan", event.target.value)}
             placeholder="Track likely swaps, flex slots, and format calls."
             value={strategy.resourcePlan}
           />
-        </section>
+        </Field>
 
-        <section className="grid gap-2 md:col-span-2">
-          <p className="text-sm font-semibold text-muted-foreground">General Notes</p>
+        <Field className="md:col-span-2">
+          <FieldLabel
+            className="text-sm font-semibold text-muted-foreground"
+            htmlFor={generalNotesId}
+          >
+            General Notes
+          </FieldLabel>
           <Textarea
             className="min-h-[140px] rounded-xl border border-border bg-card px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+            id={generalNotesId}
             onBlur={() => saveStrategy(strategy)}
             onChange={(event) => updateField("generalNotes", event.target.value)}
             placeholder="Add matchup trends, testing reminders, and loose notes."
             value={strategy.generalNotes}
           />
-        </section>
+        </Field>
       </div>
     </section>
   );

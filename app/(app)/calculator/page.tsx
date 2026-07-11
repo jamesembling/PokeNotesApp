@@ -1,5 +1,5 @@
 import { LazyProbabilityCalculator } from "@/components/calculator/LazyProbabilityCalculator";
 
-export default async function CalculatorPage() {
+export default function CalculatorPage() {
   return <LazyProbabilityCalculator />;
 }

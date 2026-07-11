@@ -1,21 +1,21 @@
 import { NextRequest } from "next/server";
-import { requireUser } from "@/lib/auth";
 import { getDeckWithList } from "@/lib/db/decks";
 import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
 import { getPublicAppOrigin } from "@/lib/server/app-url";
+import { requireApiUser } from "@/lib/server/api-auth";
 import { privateError, privateJson, reportApiError } from "@/lib/server/api-response";
 import { buildSharedLogUrl } from "@/lib/server/share-url";
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireApiUser();
     const logId = request.nextUrl.searchParams.get("id");
 
     if (!logId) {
       return privateError("Missing log id.", 400);
     }
 
-    const user = await requireUser();
     const log = await getLogDetailSummaryById(user.id, logId);
 
     if (!log) {

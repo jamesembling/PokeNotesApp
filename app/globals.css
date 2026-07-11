@@ -16,7 +16,7 @@
   --secondary: #FFFFFF;
   --secondary-foreground: #111827;
   --muted: #EDF0F4;
-  --muted-foreground: #64748B;
+  --muted-foreground: #5f6b7c;
   --accent: #EDF0F4;
   --accent-foreground: #111827;
   --destructive: #dc2626;
@@ -51,9 +51,9 @@
   --text-primary: var(--card-foreground);
   --text-secondary: var(--foreground);
   --text-muted: var(--muted-foreground);
-  --text-kicker: #64748B;
+  --text-kicker: var(--muted-foreground);
   --color-win: var(--chart-2);
-  --color-win-strong: #15803d;
+  --color-win-strong: #126f33;
   --color-win-bg: rgba(22, 163, 74, 0.1);
   --color-win-border: rgba(22, 163, 74, 0.2);
   --color-loss: var(--destructive);
@@ -152,7 +152,7 @@
   --secondary: #14161f;
   --secondary-foreground: #d1d5db;
   --muted: #14161f;
-  --muted-foreground: #6b7280;
+  --muted-foreground: #7f8897;
   --accent: #14161f;
   --accent-foreground: #f9fafb;
   --destructive: #dc2626;
@@ -186,7 +186,7 @@
   --text-primary: var(--card-foreground);
   --text-secondary: var(--foreground);
   --text-muted: var(--muted-foreground);
-  --text-kicker: #4b5563;
+  --text-kicker: var(--muted-foreground);
   --color-win: var(--chart-2);
   --color-win-strong: #22c55e;
   --color-win-bg: rgba(34, 197, 94, 0.18);
@@ -196,7 +196,7 @@
   --color-loss-bg: rgba(248, 113, 113, 0.16);
   --color-loss-border: rgba(248, 113, 113, 0.32);
   --color-warning: #f59e0b;
-  --color-warning-strong: #d97706;
+  --color-warning-strong: #f59e0b;
   --color-warning-bg: rgba(251, 146, 60, 0.12);
   --color-warning-border: rgba(251, 146, 60, 0.24);
   --color-brand: var(--primary);
@@ -342,6 +342,17 @@ html.theme-switching span {
     border-color 180ms ease-out,
     color 180ms ease-out,
     box-shadow 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 h1,

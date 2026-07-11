@@ -111,7 +111,7 @@ export function LazyEditLogButton({
           userDecks={resolvedUserDecks}
         />
         {loadError ? (
-          <p className="text-sm text-loss" role="status">
+          <p className="text-sm text-loss-strong" role="status">
             {loadError}
           </p>
         ) : null}
@@ -121,7 +121,7 @@ export function LazyEditLogButton({
 
   if (autoOpen) {
     return loadError ? (
-      <p className="text-sm text-loss" role="status">
+      <p className="text-sm text-loss-strong" role="status">
         {loadError}
       </p>
     ) : null;
@@ -160,7 +160,7 @@ export function LazyEditLogButton({
     <>
       {triggerElement}
       {loadError ? (
-        <p className="text-sm text-loss" role="status">
+        <p className="text-sm text-loss-strong" role="status">
           {loadError}
         </p>
       ) : null}

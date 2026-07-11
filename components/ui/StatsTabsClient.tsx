@@ -9,6 +9,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { SectionTitle } from "@/components/ui/Typography";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
+import { summarizeDamageTimelineWindow } from "@/lib/stats/damage-timeline";
 import type {
   ArchetypeMatchupStats,
   LogDamageTimelinePoint,
@@ -65,7 +66,7 @@ function getDamageComparison(overview: LogStatsOverview) {
       label: "Damage Advantage",
       percentage,
       value: `+${formatMetric(advantage)}`,
-      valueClassName: "text-win"
+      valueClassName: "text-win-strong"
     };
   }
 
@@ -75,7 +76,7 @@ function getDamageComparison(overview: LogStatsOverview) {
       label: "Damage Deficit",
       percentage,
       value: `-${formatMetric(absoluteAdvantage)}`,
-      valueClassName: "text-loss"
+      valueClassName: "text-loss-strong"
     };
   }
 
@@ -107,20 +108,20 @@ function getWinRateTone(value: number | null) {
   if (value >= 75) {
     return {
       barClassName: "bg-win",
-      textClassName: "text-win"
+      textClassName: "text-win-strong"
     };
   }
 
   if (value >= 50) {
     return {
       barClassName: "bg-warning",
-      textClassName: "text-warning"
+      textClassName: "text-warning-strong"
     };
   }
 
   return {
     barClassName: "bg-loss",
-    textClassName: "text-loss"
+    textClassName: "text-loss-strong"
   };
 }
 
@@ -146,20 +147,36 @@ function OverviewSection({
 function DamageSplitChart({
   attackDamage,
   damageTimeline,
-  opponentAttackDamage
+  endGame,
+  isTruncated,
+  opponentAttackDamage,
+  startGame
 }: {
   attackDamage: number;
   damageTimeline: LogDamageTimelinePoint[];
+  endGame: number;
+  isTruncated: boolean;
   opponentAttackDamage: number;
+  startGame: number;
 }) {
   const chart = getDamageChartGeometry(damageTimeline, attackDamage, opponentAttackDamage);
+  const rangeDescription = isTruncated
+    ? ` for games ${formatMetric(startGame)} to ${formatMetric(endGame)}`
+    : "";
 
   return (
     <div className="grid gap-5 rounded-lg border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Damage Split
-        </h3>
+        <div className="space-y-1">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Damage Split
+          </h3>
+          {isTruncated ? (
+            <p className="text-xs text-muted-foreground">
+              Latest {formatMetric(damageTimeline.length)} games
+            </p>
+          ) : null}
+        </div>
         <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2 rounded-full bg-[var(--chart-damage-self-start)]" />
@@ -173,7 +190,7 @@ function DamageSplitChart({
       </div>
 
       <div
-        aria-label={`Damage split line chart. You dealt ${formatMetric(attackDamage)}. Opponents dealt ${formatMetric(opponentAttackDamage)}.`}
+        aria-label={`Damage split line chart${rangeDescription}. You dealt ${formatMetric(attackDamage)}. Opponents dealt ${formatMetric(opponentAttackDamage)}.`}
         className="relative overflow-hidden p-3"
         role="img"
       >
@@ -248,7 +265,7 @@ function DamageSplitChart({
             x={chart.plotLeft}
             y={chart.height - 10}
           >
-            Game 1
+            Game {formatMetric(startGame)}
           </text>
           <text
             fill="var(--muted-foreground)"
@@ -257,16 +274,20 @@ function DamageSplitChart({
             x={chart.plotRight}
             y={chart.height - 10}
           >
-            Game {Math.max(damageTimeline.length, 1)}
+            Game {formatMetric(endGame)}
           </text>
         </svg>
         <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           <div className="flex items-center justify-between gap-3 border-t border-border px-1 py-3">
-            <span className="font-medium text-muted-foreground">You dealt</span>
+            <span className="font-medium text-muted-foreground">
+              You dealt{isTruncated ? " in window" : ""}
+            </span>
             <span className="font-mono font-semibold text-card-foreground">{formatMetric(attackDamage)}</span>
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-border px-1 py-3">
-            <span className="font-medium text-muted-foreground">Opponents dealt</span>
+            <span className="font-medium text-muted-foreground">
+              Opponents dealt{isTruncated ? " in window" : ""}
+            </span>
             <span className="font-mono font-semibold text-card-foreground">{formatMetric(opponentAttackDamage)}</span>
           </div>
         </div>
@@ -418,6 +439,12 @@ function StatsOverviewGrid({
   overview: LogStatsOverview;
 }) {
   const damageComparison = getDamageComparison(overview);
+  const damageWindow = summarizeDamageTimelineWindow(
+    damageTimeline,
+    overview.gamesPlayed,
+    overview.attackDamage,
+    overview.opponentAttackDamage
+  );
   const winRate = getOverviewWinRate(overview);
 
   return (
@@ -431,17 +458,17 @@ function StatsOverviewGrid({
           <OverviewTile
             label="Win Rate"
             value={formatWinRate(winRate)}
-            valueClassName="text-win"
+            valueClassName="text-win-strong"
           />
           <OverviewTile
             label="Won"
             value={formatMetric(overview.gamesWon)}
-            valueClassName="text-win"
+            valueClassName="text-win-strong"
           />
           <OverviewTile
             label="Lost"
             value={formatMetric(overview.gamesLost)}
-            valueClassName="text-loss"
+            valueClassName="text-loss-strong"
           />
         </div>
       </OverviewSection>
@@ -467,9 +494,12 @@ function StatsOverviewGrid({
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)]">
         <DamageSplitChart
-          attackDamage={overview.attackDamage}
+          attackDamage={damageWindow.attackDamage}
           damageTimeline={damageTimeline}
-          opponentAttackDamage={overview.opponentAttackDamage}
+          endGame={damageWindow.endGame}
+          isTruncated={damageWindow.isTruncated}
+          opponentAttackDamage={damageWindow.opponentAttackDamage}
+          startGame={damageWindow.startGame}
         />
 
         <div className="rounded-lg border border-border bg-card p-5">
@@ -824,7 +854,7 @@ export function StatsTabsClient({
   const matchupContent = useMemo(() => {
     if (matchupsError) {
       return (
-        <div className="rounded-lg border border-loss-border bg-loss-bg px-4 py-6 text-sm text-loss">
+        <div className="rounded-lg border border-loss-border bg-loss-bg px-4 py-6 text-sm text-loss-strong">
           {matchupsError}
         </div>
       );

@@ -52,6 +52,14 @@ const disallowedPatterns = [
     message: "Use button or background tokens instead of hardcoded white hover backgrounds."
   },
   {
+    pattern: /\btext-(?:win|loss|warning)(?!-strong)\b/,
+    message: "Use strong semantic status tokens for normal text contrast."
+  },
+  {
+    pattern: /\btext-destructive(?!-foreground)\b/,
+    message: "Use text-loss-strong for destructive normal text contrast."
+  },
+  {
     pattern: /filter:\s*["']drop-shadow\(/,
     message: "Use a named shadow token instead of inline image drop shadows."
   },

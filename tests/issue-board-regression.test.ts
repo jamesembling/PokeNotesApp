@@ -129,6 +129,8 @@ test("admin fallback reads use paginated Supabase fetches", () => {
 
 test("local auth helper reuses the existing Codex test user", () => {
   const packageJson = source("package.json");
+  const perfScript = source("scripts/perf-prod.mjs");
+  const saveAuthScript = source("scripts/save-local-auth-state.mjs");
   const setupScript = source("scripts/setup-local-test-login.mjs");
 
   assert.match(packageJson, /"auth:local:setup": "node scripts\/setup-local-test-login\.mjs"/);
@@ -137,6 +139,10 @@ test("local auth helper reuses the existing Codex test user", () => {
   assert.match(setupScript, /findConfiguredOrExistingCodexUser/);
   assert.doesNotMatch(setupScript, /createUser/);
   assert.doesNotMatch(setupScript, /role:\s*"admin"/);
+  assert.match(setupScript, /writeFileSync\(localEnvPath, `\$\{nextContent\}\\n`, \{ mode: 0o600 \}\)/);
+  assert.match(setupScript, /chmodSync\(localEnvPath, 0o600\)/);
+  assert.match(saveAuthScript, /chmodSync\(statePath, 0o600\)/);
+  assert.match(perfScript, /chmodSync\(statePath, 0o600\)/);
 });
 
 test("server actions clamp editable redirect targets to app paths", () => {
@@ -144,6 +150,8 @@ test("server actions clamp editable redirect targets to app paths", () => {
   assert.equal(getSafeRedirectPath("", "/logs"), "/logs");
   assert.equal(getSafeRedirectPath("https://example.com", "/logs"), "/logs");
   assert.equal(getSafeRedirectPath("//example.com/path", "/logs"), "/logs");
+  assert.equal(getSafeRedirectPath("/\\example.com/path", "/logs"), "/logs");
+  assert.equal(getSafeRedirectPath("/logs\u0000/hidden", "/logs"), "/logs");
   assert.equal(withRefreshToken("/logs?deck=abc", 123), "/logs?deck=abc&r=123");
 
   const decksActions = source("app/(app)/decks/actions.ts");
@@ -161,6 +169,39 @@ test("server actions clamp editable redirect targets to app paths", () => {
   );
 });
 
+test("tournament round deletion is scoped to its parent tournament", () => {
+  const tournamentsActions = source("app/(app)/tournaments/actions.ts");
+  const deleteRoundStart = tournamentsActions.indexOf(
+    "export async function deleteTournamentRoundAction"
+  );
+  const deleteRoundBlock = tournamentsActions.slice(
+    deleteRoundStart,
+    tournamentsActions.indexOf("revalidateTournamentWorkspace(tournamentId)", deleteRoundStart)
+  );
+
+  assert.match(deleteRoundBlock, /\.eq\("id", roundId\)/);
+  assert.match(deleteRoundBlock, /\.eq\("tournament_id", tournamentId\)/);
+  assert.match(deleteRoundBlock, /\.eq\("user_id", user\.id\)/);
+});
+
+test("tournament round saves verify ownership of the parent tournament", () => {
+  const tournamentsActions = source("app/(app)/tournaments/actions.ts");
+  const saveRoundStart = tournamentsActions.indexOf(
+    "export async function saveTournamentRoundAction"
+  );
+  const deleteRoundStart = tournamentsActions.indexOf(
+    "export async function deleteTournamentRoundAction",
+    saveRoundStart
+  );
+  const saveRoundBlock = tournamentsActions.slice(saveRoundStart, deleteRoundStart);
+
+  assert.ok(saveRoundStart >= 0 && deleteRoundStart > saveRoundStart);
+  assert.match(saveRoundBlock, /\.from\("tournaments"\)/);
+  assert.match(saveRoundBlock, /\.eq\("id", tournamentId\)/);
+  assert.match(saveRoundBlock, /\.eq\("user_id", user\.id\)/);
+  assert.match(saveRoundBlock, /if \(!ownedTournament\)/);
+});
+
 test("edit-log bulk dock keeps compact selects accessible", () => {
   const appSelect = source("components/shadcn/app-select.tsx");
   const logsManager = source("components/ui/LogsManager.tsx");
@@ -169,4 +210,64 @@ test("edit-log bulk dock keeps compact selects accessible", () => {
   assert.match(appSelect, /aria-label=\{ariaLabel\}/);
   assert.match(logsManager, /aria-label="Deck strategy for selected logs"/);
   assert.match(logsManager, /aria-label="Deck list for selected logs"/);
+});
+
+test("the authenticated app shell provides a keyboard skip link", () => {
+  const appShell = source("components/ui/AppShell.tsx");
+
+  assert.match(appShell, /href="#main-content"/);
+  assert.match(appShell, />\s*Skip to main content\s*<\/a>/);
+  assert.match(appShell, /-translate-y-20/);
+  assert.match(appShell, /focus:translate-y-0/);
+  assert.doesNotMatch(appShell, /focus:not-sr-only/);
+  assert.match(appShell, /<SidebarInset id="main-content" tabIndex=\{-1\}>/);
+});
+
+test("battle-log turn labels use the semantic foreground token", () => {
+  const battleLogDetail = source("components/ui/BattleLogDetailView.tsx");
+
+  assert.match(battleLogDetail, /font-semibold text-card-foreground/);
+  assert.doesNotMatch(battleLogDetail, /text-black dark:text-white/);
+});
+
+test("shared secondary and status text tokens meet the reviewed contrast contract", () => {
+  const globalStyles = source("app/globals.css");
+  const badge = source("components/shadcn/badge.tsx");
+  const alert = source("components/shadcn/alert.tsx");
+
+  assert.match(globalStyles, /--muted-foreground: #5f6b7c/);
+  assert.match(globalStyles, /--muted-foreground: #7f8897/);
+  assert.match(globalStyles, /--color-win-strong: #126f33/);
+  assert.equal(globalStyles.match(/--text-kicker: var\(--muted-foreground\)/g)?.length, 2);
+  assert.match(badge, /bg-win-bg text-win-strong/);
+  assert.match(badge, /bg-loss-bg text-loss-strong/);
+  assert.match(badge, /bg-warning-bg text-warning-strong/);
+  assert.match(alert, /bg-win-bg text-win-strong/);
+  assert.match(alert, /bg-loss-bg text-loss-strong/);
+  assert.match(alert, /bg-warning-bg text-warning-strong/);
+});
+
+test("the deck toolbar stacks before its controls overflow at 320px", () => {
+  const deckStrategyCollection = source("components/ui/DeckStrategyCollection.tsx");
+
+  assert.match(
+    deckStrategyCollection,
+    /className="grid min-w-0 grid-cols-\[minmax\(0,1fr\)\] gap-3"/
+  );
+  assert.match(deckStrategyCollection, /flex w-full min-w-0 flex-col/);
+  assert.match(deckStrategyCollection, /min-\[360px\]:flex-row/);
+  assert.match(deckStrategyCollection, /w-auto self-stretch/);
+  assert.match(deckStrategyCollection, /min-\[360px\]:w-fit/);
+});
+
+test("motion preferences and calculator loading/status states are accessible", () => {
+  const globalStyles = source("app/globals.css");
+  const lazyCalculator = source("components/calculator/LazyProbabilityCalculator.tsx");
+  const calculator = source("components/calculator/ProbabilityCalculator.tsx");
+
+  assert.match(globalStyles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(lazyCalculator, /aria-label="Loading probability calculator"/);
+  assert.match(lazyCalculator, /loading: CalculatorLoadingState/);
+  assert.match(calculator, /<h1 className="sr-only">Probability Calculator<\/h1>/);
+  assert.match(calculator, /className=\{statusClassName\} role="alert"/);
 });

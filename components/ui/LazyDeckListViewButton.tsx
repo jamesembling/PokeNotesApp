@@ -92,7 +92,7 @@ export function LazyDeckListViewButton({
           triggerVariant={triggerVariant}
         />
         {loadError ? (
-          <p className="text-sm text-loss" role="status">
+          <p className="text-sm text-loss-strong" role="status">
             {loadError}
           </p>
         ) : null}
@@ -112,7 +112,7 @@ export function LazyDeckListViewButton({
         {isLoading ? "Loading..." : (triggerChildren ?? triggerLabel)}
       </Button>
       {loadError ? (
-        <p className="text-sm text-loss" role="status">
+        <p className="text-sm text-loss-strong" role="status">
           {loadError}
         </p>
       ) : null}
