@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
@@ -16,14 +18,18 @@ loadDotenv({ path: localEnvPath, override: true });
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEW_SUPABASE_URL || "";
 const serviceRoleKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEW_SUPABASE_SERVICE_KEY || "";
+const localLoginCode = process.env.POKE_NOTES_LOCAL_LOGIN_CODE || randomToken(24);
+const localLoginHosts = discoverLocalLoginHosts();
 
 if (!supabaseUrl || !serviceRoleKey) {
   writeLocalEnv({
     POKE_NOTES_ENABLE_TEST_LOGIN: "1",
-    POKE_NOTES_TEST_LOGIN_SECRET:
-      process.env.POKE_NOTES_TEST_LOGIN_SECRET || randomToken(24)
+    POKE_NOTES_LOCAL_LOGIN_CODE: localLoginCode,
+    POKE_NOTES_LOCAL_LOGIN_HOSTS: localLoginHosts
+  }, {
+    replaceKeys: new Set(["POKE_NOTES_LOCAL_LOGIN_HOSTS"])
   });
-  console.log("Local test-login base env is configured in .env.local.");
+  console.log("Local development login base env is configured in .env.local.");
   console.log(
     "Skipped Codex test account lookup because admin Supabase env vars are missing."
   );
@@ -43,57 +49,114 @@ const password = process.env.POKE_NOTES_TEST_LOGIN_PASSWORD || randomToken(32);
 await updateExistingTestUserPassword(authUser, password);
 writeLocalEnv({
   POKE_NOTES_ENABLE_TEST_LOGIN: "1",
-  POKE_NOTES_TEST_LOGIN_SECRET:
-    process.env.POKE_NOTES_TEST_LOGIN_SECRET || randomToken(24),
+  POKE_NOTES_LOCAL_LOGIN_CODE: localLoginCode,
+  POKE_NOTES_LOCAL_LOGIN_HOSTS: localLoginHosts,
   POKE_NOTES_TEST_LOGIN_EMAIL: authUser.email || "",
   POKE_NOTES_TEST_LOGIN_PASSWORD: password
+}, {
+  replaceKeys: new Set(["POKE_NOTES_LOCAL_LOGIN_HOSTS"])
 });
 
-console.log("Local test-login is configured.");
-console.log(`Test account: ${authUser.email}`);
+console.log("Local development login is configured.");
 console.log("Existing test account was reused; no new account was created and no role was changed.");
 console.log("Credentials were written to ignored local env; secret values were not printed.");
+console.log("Use npm run auth:local:copy-code to copy the local pairing code without printing it.");
 
 function randomToken(byteLength) {
   return randomBytes(byteLength).toString("base64url");
 }
 
-function parseEnvFile(path) {
-  if (!existsSync(path)) {
-    return new Map();
-  }
-
-  const entries = new Map();
-  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-    const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (match) {
-      entries.set(match[1], match[2]);
-    }
-  }
-  return entries;
-}
-
-function writeLocalEnv(values) {
+function writeLocalEnv(values, options = {}) {
   const existingContent = existsSync(localEnvPath) ? readFileSync(localEnvPath, "utf8") : "";
-  const entries = parseEnvFile(localEnvPath);
-  let nextContent = existingContent.trimEnd();
+  const replaceKeys = options.replaceKeys ?? new Set();
+  const writtenKeys = new Set();
+  const lines = existingContent.trimEnd() ? existingContent.trimEnd().split(/\r?\n/) : [];
+  const nextLines = lines.map((line) => {
+    const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (!match || !(match[1] in values)) {
+      return line;
+    }
+
+    const key = match[1];
+    writtenKeys.add(key);
+
+    if (match[2] && !replaceKeys.has(key)) {
+      return line;
+    }
+
+    return `${key}=${values[key]}`;
+  });
 
   for (const [key, value] of Object.entries(values)) {
-    if (entries.has(key) && entries.get(key)) {
+    if (writtenKeys.has(key)) {
       continue;
     }
 
-    if (nextContent) {
-      nextContent += "\n";
-    }
-    nextContent += `${key}=${value}`;
+    nextLines.push(`${key}=${value}`);
   }
 
+  const nextContent = nextLines.join("\n");
   if (nextContent !== existingContent.trimEnd()) {
     writeFileSync(localEnvPath, `${nextContent}\n`, { mode: 0o600 });
   }
 
   chmodSync(localEnvPath, 0o600);
+}
+
+function discoverLocalLoginHosts() {
+  const port = String(process.env.PORT || "3000");
+  const hosts = new Set([
+    `localhost:${port}`,
+    `127.0.0.1:${port}`,
+    `[::1]:${port}`
+  ]);
+
+  for (const addresses of Object.values(networkInterfaces())) {
+    for (const address of addresses ?? []) {
+      if (address.family === "IPv4" && !address.internal) {
+        if (isPrivateIpv4(address.address)) {
+          hosts.add(`${address.address}:${port}`);
+        }
+      }
+    }
+  }
+
+  if (process.platform === "darwin") {
+    try {
+      const localHostName = execFileSync("scutil", ["--get", "LocalHostName"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"]
+      }).trim();
+      if (localHostName) {
+        hosts.add(`${localHostName}.local:${port}`);
+      }
+    } catch {
+      // The discovered private IP remains available when mDNS lookup is unavailable.
+    }
+  }
+
+  for (const configuredHost of String(process.env.POKE_NOTES_LOCAL_LOGIN_HOSTS || "").split(",")) {
+    const normalizedHost = configuredHost.trim();
+    if (normalizedHost) {
+      hosts.add(normalizedHost);
+    }
+  }
+
+  return Array.from(hosts).join(",");
+}
+
+function isPrivateIpv4(address) {
+  const octets = address.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet))) {
+    return false;
+  }
+
+  return (
+    octets[0] === 10 ||
+    (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+    (octets[0] === 192 && octets[1] === 168) ||
+    (octets[0] === 169 && octets[1] === 254)
+  );
 }
 
 async function listAllAuthUsers() {

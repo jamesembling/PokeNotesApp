@@ -124,6 +124,10 @@ const REQUIRED_COLUMNS = {
 };
 
 const REQUIRED_FUNCTIONS = [
+  "commit_deck_aggregate_child",
+  "create_log_share",
+  "clear_orphaned_deck_list_link",
+  "get_active_log_share",
   "get_admin_dashboard_overview",
   "get_admin_users_overview",
   "get_archetype_matchup_key",
@@ -134,24 +138,71 @@ const REQUIRED_FUNCTIONS = [
   "refresh_user_archetype_matchup_stats",
   "refresh_user_log_stats",
   "sync_deck_log_stats_from_log_row",
+  "sync_current_profile",
   "sync_user_archetype_matchup_stats_from_log_row",
-  "sync_user_log_stats_from_log_row"
+  "sync_user_log_stats_from_log_row",
+  "set_profile_role",
+  "touch_current_profile_activity"
 ];
+
+const REQUIRED_CONSTRAINT_DEFINITIONS = {
+  deck_lists_owner_deck_fkey:
+    "FOREIGN KEY (user_id, deck_id) REFERENCES decks(user_id, id) ON DELETE CASCADE",
+  deck_log_stats_owner_deck_fkey:
+    "FOREIGN KEY (user_id, deck_id) REFERENCES decks(user_id, id) ON DELETE CASCADE",
+  deck_matchups_owner_deck_fkey:
+    "FOREIGN KEY (user_id, deck_id) REFERENCES decks(user_id, id) ON DELETE CASCADE",
+  decks_user_id_id_unique: "UNIQUE (user_id, id)",
+  logs_linked_deck_list_requires_deck:
+    "CHECK (linked_deck_id IS NOT NULL OR linked_deck_list_id IS NULL)",
+  log_shares_payload_v1_envelope:
+    "CHECK (NOT jsonb_typeof(payload) IS DISTINCT FROM 'object'::text AND NOT (payload ->> 'version'::text) IS DISTINCT FROM 'v1'::text AND NOT jsonb_typeof(payload -> 'log'::text) IS DISTINCT FROM 'object'::text AND NOT jsonb_typeof(payload #> '{log,sections}'::text[]) IS DISTINCT FROM 'array'::text AND NOT jsonb_typeof(payload -> 'linkedStrategyLabel'::text) IS DISTINCT FROM 'string'::text AND (NOT payload ? 'linkedDeckListSortedCards'::text OR (jsonb_typeof(payload -> 'linkedDeckListSortedCards'::text) = ANY (ARRAY['array'::text, 'null'::text]))))",
+  log_shares_payload_max_256k:
+    "CHECK (octet_length(payload::text) <= 262144)",
+  logs_owner_linked_deck_fkey:
+    "FOREIGN KEY (user_id, linked_deck_id) REFERENCES decks(user_id, id) ON DELETE SET NULL (linked_deck_id)",
+  tournament_rounds_owner_tournament_fkey:
+    "FOREIGN KEY (user_id, tournament_id) REFERENCES tournaments(user_id, id) ON DELETE CASCADE",
+  tournaments_linked_deck_list_requires_deck:
+    "CHECK (linked_deck_id IS NOT NULL OR linked_deck_list_id IS NULL)",
+  tournaments_owner_linked_deck_fkey:
+    "FOREIGN KEY (user_id, linked_deck_id) REFERENCES decks(user_id, id) ON DELETE SET NULL (linked_deck_id)",
+  tournaments_user_id_id_unique: "UNIQUE (user_id, id)"
+};
+
+const REQUIRED_CONSTRAINTS = Object.keys(REQUIRED_CONSTRAINT_DEFINITIONS);
+
+const REQUIRED_INDEX_DEFINITIONS = {
+  tournament_rounds_user_tournament:
+    "CREATE INDEX tournament_rounds_user_tournament ON public.tournament_rounds USING btree (user_id, tournament_id)",
+  tournaments_user_linked_deck:
+    "CREATE INDEX tournaments_user_linked_deck ON public.tournaments USING btree (user_id, linked_deck_id) WHERE (linked_deck_id IS NOT NULL)"
+};
 
 const REQUIRED_INDEXES = [
   "decks_user_archetype",
   "deck_lists_user_deck_position",
   "deck_lists_user_deck_updated",
+  "deck_lists_deck_id",
   "deck_matchups_user_deck_position",
   "deck_matchups_user_deck_updated",
+  "deck_matchups_deck_id",
   "deck_log_stats_pkey",
+  "deck_log_stats_deck_id",
   "logs_user_date_imported_id",
   "logs_user_linked_deck_date",
+  "logs_linked_deck_id",
+  "log_shares_owner_created_at",
   "log_shares_owner_source_log",
-  "route_performance_events_env_route_created_at"
+  "route_performance_events_env_route_created_at",
+  "tournament_rounds_user_tournament",
+  "tournaments_user_linked_deck"
 ];
 
 const REQUIRED_TRIGGERS = [
+  "clear_orphaned_log_deck_list_link",
+  "clear_orphaned_tournament_deck_list_link",
+  "enforce_log_share_creation",
   "log_search_vector_update",
   "refresh_deck_log_stats_after_delete",
   "refresh_deck_log_stats_after_insert",
@@ -230,8 +281,15 @@ const functionRows = runSupabaseJson(`
     and routine_name in (${sqlList(REQUIRED_FUNCTIONS)})
   order by routine_name;
 `);
+const constraintRows = runSupabaseJson(`
+  select conname, convalidated, pg_get_constraintdef(oid, true) as definition
+  from pg_catalog.pg_constraint
+  where connamespace = 'public'::regnamespace
+    and conname in (${sqlList(REQUIRED_CONSTRAINTS)})
+  order by conname;
+`);
 const indexRows = runSupabaseJson(`
-  select indexname
+  select indexname, indexdef
   from pg_indexes
   where schemaname = 'public'
     and indexname in (${sqlList(REQUIRED_INDEXES)})
@@ -243,6 +301,328 @@ const triggerRows = runSupabaseJson(`
   where trigger_schema = 'public'
     and trigger_name in (${sqlList(REQUIRED_TRIGGERS)})
   order by trigger_name;
+`);
+const [securityContract = {}] = runSupabaseJson(`
+  select
+    not has_table_privilege('anon', 'public.log_shares', 'SELECT')
+      as anon_cannot_select_log_shares,
+    not has_table_privilege('authenticated', 'public.log_shares', 'INSERT')
+      as authenticated_cannot_insert_log_shares_directly,
+    has_function_privilege('anon', 'public.get_active_log_share(text)', 'EXECUTE')
+      as anon_can_use_token_scoped_share_reader,
+    has_function_privilege(
+      'authenticated',
+      'public.create_log_share(text,text,jsonb)',
+      'EXECUTE'
+    ) as authenticated_can_use_rate_limited_share_creator,
+    coalesce((
+      select position('LOG_SHARE_PAYLOAD_TOO_LARGE' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+        and position('262144' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+      from pg_catalog.pg_proc as procedure
+      where procedure.oid = pg_catalog.to_regprocedure(
+        'public.create_log_share(text,text,jsonb)'
+      )
+    ), false) as share_creator_has_stable_payload_limit,
+    coalesce((
+      select relation.relrowsecurity
+        and not pg_catalog.has_table_privilege(
+          'authenticated',
+          relation.oid,
+          'SELECT,INSERT,UPDATE,DELETE'
+        )
+        and not pg_catalog.has_table_privilege(
+          'service_role',
+          relation.oid,
+          'SELECT,INSERT,UPDATE,DELETE'
+        )
+      from pg_catalog.pg_class as relation
+      where relation.oid = pg_catalog.to_regclass(
+        'private.deck_aggregate_rekey_ledger'
+      )
+    ), false) as private_rekey_ledger_is_locked,
+    coalesce(has_function_privilege(
+      'authenticated',
+      pg_catalog.to_regprocedure(
+        'public.commit_deck_aggregate_child(text,text,text,jsonb,text,timestamptz)'
+      ),
+      'EXECUTE'
+    ), false) as authenticated_can_commit_deck_aggregates,
+    coalesce(not has_function_privilege(
+      'anon',
+      pg_catalog.to_regprocedure(
+        'public.commit_deck_aggregate_child(text,text,text,jsonb,text,timestamptz)'
+      ),
+      'EXECUTE'
+    ), false) as anon_cannot_commit_deck_aggregates,
+    coalesce((
+      select
+        not procedure.prosecdef
+        and procedure.proconfig = array['search_path=pg_catalog']::text[]
+      from pg_catalog.pg_proc as procedure
+      where procedure.oid = pg_catalog.to_regprocedure(
+        'public.commit_deck_aggregate_child(text,text,text,jsonb,text,timestamptz)'
+      )
+    ), false) as deck_aggregate_commit_is_invoker_with_fixed_search_path,
+    not has_column_privilege('authenticated', 'public.profiles', 'role', 'INSERT')
+      as authenticated_cannot_insert_profile_role,
+    not has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE')
+      as authenticated_cannot_update_profile_role,
+    not has_table_privilege('authenticated', 'public.profiles', 'INSERT')
+      as authenticated_cannot_insert_profiles_directly,
+    not has_column_privilege('authenticated', 'public.profiles', 'email', 'UPDATE')
+      as authenticated_cannot_update_profile_email,
+    has_column_privilege('authenticated', 'public.profiles', 'display_name', 'UPDATE')
+      as authenticated_can_update_profile_display_name,
+    has_column_privilege('authenticated', 'public.profiles', 'first_name', 'UPDATE')
+      as authenticated_can_update_profile_first_name,
+    has_column_privilege('authenticated', 'public.profiles', 'last_name', 'UPDATE')
+      as authenticated_can_update_profile_last_name,
+    has_column_privilege('authenticated', 'public.profiles', 'ptcgl_username', 'UPDATE')
+      as authenticated_can_update_profile_ptcgl_username,
+    has_column_privilege('authenticated', 'public.profiles', 'avatar_color', 'UPDATE')
+      as authenticated_can_update_profile_avatar,
+    not has_function_privilege('anon', 'public.get_admin_dashboard_overview()', 'EXECUTE')
+      as anon_cannot_execute_admin_dashboard,
+    not has_function_privilege('anon', 'public.get_admin_users_overview()', 'EXECUTE')
+      as anon_cannot_execute_admin_users,
+    not has_function_privilege(
+      'authenticated',
+      'public.set_profile_role(uuid,uuid,text)',
+      'EXECUTE'
+    ) as authenticated_cannot_execute_role_mutation,
+    has_function_privilege(
+      'service_role',
+      'public.set_profile_role(uuid,uuid,text)',
+      'EXECUTE'
+    ) as service_role_can_execute_role_mutation,
+    not has_function_privilege('anon', 'public.rls_auto_enable()', 'EXECUTE')
+      as anon_cannot_execute_rls_event_trigger,
+    not has_function_privilege('authenticated', 'public.rls_auto_enable()', 'EXECUTE')
+      as authenticated_cannot_execute_rls_event_trigger,
+    (
+      not has_function_privilege(
+        'anon',
+        'public.clear_orphaned_deck_list_link()',
+        'EXECUTE'
+      )
+      and not has_function_privilege(
+        'authenticated',
+        'public.clear_orphaned_deck_list_link()',
+        'EXECUTE'
+      )
+    ) as link_cleanup_trigger_is_not_directly_executable,
+    coalesce((
+      select p.proconfig @> array['search_path=pg_catalog']::text[]
+      from pg_proc as p
+      join pg_namespace as n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'set_updated_at'
+    ), false) as updated_at_trigger_has_fixed_search_path,
+    coalesce((
+      select p.proconfig @> array['search_path=pg_catalog']::text[]
+      from pg_proc as p
+      join pg_namespace as n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'update_log_search_vector'
+    ), false) as search_vector_trigger_has_fixed_search_path,
+    not exists (
+      select 1
+      from pg_policies as policy
+      where policy.schemaname = 'public'
+        and concat(
+          replace(coalesce(policy.qual, ''), '( SELECT auth.uid() AS uid)', ''),
+          replace(coalesce(policy.with_check, ''), '( SELECT auth.uid() AS uid)', '')
+        ) like '%auth.uid()%'
+    ) as rls_identity_checks_are_initplan_safe,
+    (
+      select count(*) = 4
+      from pg_policies as policy
+      where policy.schemaname = 'public'
+        and (policy.tablename, policy.policyname) in (
+          ('decks', 'Users can update own decks'),
+          ('logs', 'Users can update own logs'),
+          ('tournament_rounds', 'Users can update own tournament rounds'),
+          ('tournaments', 'Users can update own tournaments')
+        )
+        and policy.with_check is not null
+    ) as owner_updates_recheck_identity,
+    (
+      select count(*) = 1
+      from pg_policies as policy
+      where policy.schemaname = 'public'
+        and policy.tablename = 'route_performance_events'
+        and policy.cmd = 'SELECT'
+    ) as route_performance_has_single_select_policy,
+    (
+      select count(*) = 4
+      from pg_policies as policy
+      where policy.schemaname = 'public'
+        and (policy.tablename, policy.policyname) in (
+          ('logs', 'Users can insert own logs'),
+          ('logs', 'Users can update own logs'),
+          ('tournaments', 'Users can insert own tournaments'),
+          ('tournaments', 'Users can update own tournaments')
+        )
+        and position('auth.uid' in lower(coalesce(policy.with_check, ''))) > 0
+        and position('parent.id' in lower(coalesce(policy.with_check, ''))) > 0
+        and position('parent.user_id' in lower(coalesce(policy.with_check, ''))) > 0
+        and position('linked_deck_id is null' in lower(coalesce(policy.with_check, ''))) > 0
+        and position('linked_deck_list_id is null' in lower(coalesce(policy.with_check, ''))) > 0
+        and position('jsonb_array_elements' in lower(coalesce(policy.with_check, ''))) > 0
+    ) as linked_deck_list_writes_require_owned_parent,
+    not exists (
+      select 1
+      from pg_catalog.pg_constraint
+      where connamespace = 'public'::regnamespace
+        and conname in (
+          'deck_lists_deck_id_fkey',
+          'deck_matchups_deck_id_fkey',
+          'tournament_rounds_tournament_id_fkey',
+          'deck_log_stats_deck_id_fkey',
+          'logs_linked_deck_id_fkey',
+          'tournaments_linked_deck_id_fkey'
+        )
+    ) as superseded_id_only_parent_keys_are_absent,
+    not exists (
+      select 1 from public.logs
+      where linked_deck_id is null and linked_deck_list_id is not null
+    ) and not exists (
+      select 1 from public.tournaments
+      where linked_deck_id is null and linked_deck_list_id is not null
+    ) as optional_deck_links_are_coherent,
+    (
+      select count(*) = 2
+      from pg_catalog.pg_trigger as trigger
+      join pg_catalog.pg_class as relation on relation.oid = trigger.tgrelid
+      join pg_catalog.pg_namespace as namespace on namespace.oid = relation.relnamespace
+      join pg_catalog.pg_proc as procedure on procedure.oid = trigger.tgfoid
+      where namespace.nspname = 'public'
+        and relation.relname in ('logs', 'tournaments')
+        and trigger.tgname in (
+          'clear_orphaned_log_deck_list_link',
+          'clear_orphaned_tournament_deck_list_link'
+        )
+        and procedure.proname = 'clear_orphaned_deck_list_link'
+        and trigger.tgtype = 23
+        and trigger.tgenabled = 'O'
+    ) as optional_deck_link_cleanup_triggers_are_active,
+    not exists (
+      select 1
+      from pg_catalog.pg_default_acl as default_acl
+      join pg_catalog.pg_namespace as namespace
+        on namespace.oid = default_acl.defaclnamespace
+      cross join lateral pg_catalog.aclexplode(default_acl.defaclacl) as privilege
+      where pg_catalog.pg_get_userbyid(default_acl.defaclrole) = 'postgres'
+        and namespace.nspname = 'public'
+        and default_acl.defaclobjtype = 'r'
+        and pg_catalog.pg_get_userbyid(privilege.grantee) in (
+          'anon',
+          'authenticated',
+          'service_role'
+        )
+    ) as future_public_tables_require_explicit_grants,
+    not exists (
+      select 1
+      from pg_catalog.pg_default_acl as default_acl
+      join pg_catalog.pg_namespace as namespace
+        on namespace.oid = default_acl.defaclnamespace
+      cross join lateral pg_catalog.aclexplode(default_acl.defaclacl) as privilege
+      where pg_catalog.pg_get_userbyid(default_acl.defaclrole) = 'postgres'
+        and namespace.nspname = 'public'
+        and default_acl.defaclobjtype = 'S'
+        and pg_catalog.pg_get_userbyid(privilege.grantee) in (
+          'anon',
+          'authenticated',
+          'service_role'
+        )
+    ) as future_public_sequences_require_explicit_grants,
+    not exists (
+      select 1
+      from pg_catalog.pg_default_acl as default_acl
+      join pg_catalog.pg_namespace as namespace
+        on namespace.oid = default_acl.defaclnamespace
+      cross join lateral pg_catalog.aclexplode(default_acl.defaclacl) as privilege
+      where pg_catalog.pg_get_userbyid(default_acl.defaclrole) = 'postgres'
+        and namespace.nspname = 'public'
+        and default_acl.defaclobjtype = 'f'
+        and pg_catalog.pg_get_userbyid(privilege.grantee) in (
+          'anon',
+          'authenticated',
+          'service_role'
+        )
+    ) as future_public_functions_require_explicit_grants,
+    exists (
+      select 1
+      from pg_catalog.pg_event_trigger as event_trigger
+      join pg_catalog.pg_proc as procedure
+        on procedure.oid = event_trigger.evtfoid
+      join pg_catalog.pg_namespace as namespace
+        on namespace.oid = procedure.pronamespace
+      where event_trigger.evtname = 'pokenotes_harden_public_routine_privileges'
+        and event_trigger.evtevent = 'ddl_command_end'
+        and event_trigger.evtenabled = 'O'
+        and event_trigger.evttags @> array[
+          'CREATE FUNCTION',
+          'CREATE PROCEDURE',
+          'CREATE AGGREGATE'
+        ]::text[]
+        and pg_catalog.cardinality(event_trigger.evttags) = 3
+        and namespace.nspname = 'private'
+        and procedure.proname = 'harden_new_public_routine_privileges'
+    ) as future_public_routine_hardener_is_active,
+    coalesce((
+      select
+        procedure.prosecdef
+        and procedure.proconfig = array['search_path=""']::text[]
+        and not pg_catalog.has_function_privilege(
+          'anon', procedure.oid, 'EXECUTE'
+        )
+        and not pg_catalog.has_function_privilege(
+          'authenticated', procedure.oid, 'EXECUTE'
+        )
+        and not pg_catalog.has_function_privilege(
+          'service_role', procedure.oid, 'EXECUTE'
+        )
+        and position(
+          'command.schema_name = ''public'''
+          in lower(pg_catalog.pg_get_functiondef(procedure.oid))
+        ) > 0
+        and position(
+          'not command.in_extension'
+          in lower(pg_catalog.pg_get_functiondef(procedure.oid))
+        ) > 0
+        and position(
+          'routine.proowner = ''postgres''::regrole'
+          in lower(pg_catalog.pg_get_functiondef(procedure.oid))
+        ) > 0
+        and position(
+          'revoke execute on routine'
+          in lower(pg_catalog.pg_get_functiondef(procedure.oid))
+        ) > 0
+      from pg_catalog.pg_proc as procedure
+      join pg_catalog.pg_namespace as namespace
+        on namespace.oid = procedure.pronamespace
+      where namespace.nspname = 'private'
+        and procedure.proname = 'harden_new_public_routine_privileges'
+        and procedure.prorettype = 'event_trigger'::regtype
+    ), false) as future_public_routine_hardener_is_scoped_and_locked_down,
+    (
+      not exists (
+        select 1
+        from pg_catalog.pg_class as relation
+        join pg_catalog.pg_namespace as namespace
+          on namespace.oid = relation.relnamespace
+        where namespace.nspname = 'public'
+          and relation.relkind in ('r', 'p', 'v', 'm', 'S', 'f')
+          and pg_catalog.pg_get_userbyid(relation.relowner) <> 'postgres'
+      )
+      and not exists (
+        select 1
+        from pg_catalog.pg_proc as procedure
+        join pg_catalog.pg_namespace as namespace
+          on namespace.oid = procedure.pronamespace
+        where namespace.nspname = 'public'
+          and pg_catalog.pg_get_userbyid(procedure.proowner) <> 'postgres'
+      )
+    ) as public_objects_use_the_hardened_creator_role;
 `);
 
 const columnsByTable = new Map();
@@ -266,17 +646,43 @@ for (const [tableName, columns] of Object.entries(REQUIRED_COLUMNS)) {
 }
 
 const actualFunctions = new Set(functionRows.map((row) => String(row.routine_name || "")));
-const actualIndexes = new Set(indexRows.map((row) => String(row.indexname || "")));
+const actualConstraints = new Map(
+  constraintRows.map((row) => [
+    String(row.conname || ""),
+    {
+      definition: String(row.definition || ""),
+      validated: row.convalidated === true
+    }
+  ])
+);
+const actualIndexes = new Map(
+  indexRows.map((row) => [String(row.indexname || ""), String(row.indexdef || "")])
+);
 const actualTriggers = new Set(triggerRows.map((row) => String(row.trigger_name || "")));
 const missingFunctions = REQUIRED_FUNCTIONS.filter((name) => !actualFunctions.has(name));
+const missingConstraints = REQUIRED_CONSTRAINTS.filter(
+  (name) =>
+    actualConstraints.get(name)?.validated !== true ||
+    actualConstraints.get(name)?.definition !== REQUIRED_CONSTRAINT_DEFINITIONS[name]
+);
 const missingIndexes = REQUIRED_INDEXES.filter((name) => !actualIndexes.has(name));
+const changedIndexes = Object.entries(REQUIRED_INDEX_DEFINITIONS)
+  .filter(([name, definition]) => actualIndexes.get(name) !== definition)
+  .map(([name]) => name);
 const missingTriggers = REQUIRED_TRIGGERS.filter((name) => !actualTriggers.has(name));
 const failures = [
   ...reportMissing("Missing columns", missingColumns),
   ...reportMissing("Missing functions", missingFunctions),
+  ...reportMissing("Missing, unvalidated, or changed constraints", missingConstraints),
   ...reportMissing("Missing indexes", missingIndexes),
+  ...reportMissing("Indexes with changed definitions", changedIndexes),
   ...reportMissing("Missing triggers", missingTriggers)
 ];
+
+const failedSecurityContracts = Object.entries(securityContract)
+  .filter(([, passed]) => passed !== true)
+  .map(([name]) => name);
+failures.push(...reportMissing("Failed security contracts", failedSecurityContracts));
 
 if (failures.length > 0) {
   console.error("Schema health check failed.");
@@ -288,5 +694,7 @@ console.log("Schema health check passed.");
 console.log(`Tables checked: ${tableNames.length}`);
 console.log(`Columns checked: ${Object.values(REQUIRED_COLUMNS).flat().length}`);
 console.log(`Functions checked: ${REQUIRED_FUNCTIONS.length}`);
+console.log(`Constraints checked: ${REQUIRED_CONSTRAINTS.length}`);
 console.log(`Indexes checked: ${REQUIRED_INDEXES.length}`);
 console.log(`Triggers checked: ${REQUIRED_TRIGGERS.length}`);
+console.log(`Security contracts checked: ${Object.keys(securityContract).length}`);

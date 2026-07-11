@@ -21,7 +21,13 @@ import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
-import { getOrCreateLogShareSnapshot, revokeLogShare } from "@/lib/db/log-shares";
+import {
+  getOrCreateLogShareSnapshot,
+  isLogShare24HourLimitError,
+  isLogSharePayloadTooLargeError,
+  isLogShareSourceNotFoundError,
+  revokeLogShare
+} from "@/lib/db/log-shares";
 import { getLogById, getLogsWindow } from "@/lib/db/logs";
 import {
   resolveActionFailure,
@@ -41,6 +47,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ImportLogRecord } from "@/lib/log-import/types";
 import type { LogSection, ParsedLogReview } from "@/types/index";
 import { compactMap } from "@/lib/array";
+import { decodeSerializedLogSections } from "@/lib/battle-log/runtime-validation";
 
 type ProfileRow = {
   ptcgl_username: string;
@@ -223,16 +230,14 @@ async function buildParsedLogReview(
 }
 
 function parseSections(value: FormDataEntryValue | null): LogSection[] {
-  if (typeof value !== "string" || !value.trim()) {
-    return [];
+  const sections = decodeSerializedLogSections(value);
+  if (!sections) {
+    throw userFacingActionError(
+      "The parsed battle-log details were missing or invalid. Parse the log again before importing."
+    );
   }
 
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return Array.isArray(parsed) ? (parsed as LogSection[]) : [];
-  } catch {
-    return [];
-  }
+  return sections;
 }
 
 function assertMutatedRows(
@@ -639,6 +644,27 @@ export async function createLogShareAction(logId: string): Promise<{
       shareUrl
     };
   } catch (error) {
+    if (isLogShare24HourLimitError(error)) {
+      throw userFacingActionError(
+        "You've reached the limit of 50 new share links in a rolling 24-hour period. Existing active links still work; try creating a new one later.",
+        { code: "LOG_SHARE_RATE_LIMIT", httpStatus: 429 }
+      );
+    }
+
+    if (isLogSharePayloadTooLargeError(error)) {
+      throw userFacingActionError(
+        "This battle log is too large to share safely. The original log remains unchanged.",
+        { code: "LOG_SHARE_PAYLOAD_TOO_LARGE", httpStatus: 413 }
+      );
+    }
+
+    if (isLogShareSourceNotFoundError(error)) {
+      throw userFacingActionError("Battle log not found.", {
+        code: "LOG_SHARE_SOURCE_NOT_FOUND",
+        httpStatus: 404
+      });
+    }
+
     throw resolveActionFailure(error, {
       action: "createShare",
       area: "logs",
@@ -661,7 +687,10 @@ export async function revokeLogShareAction(shareId: string): Promise<void> {
 
     const didRevoke = await revokeLogShare(normalizedShareId, user.id);
     if (!didRevoke) {
-      throw userFacingActionError("Share link not found or already revoked.");
+      throw userFacingActionError("Share link not found or already revoked.", {
+        code: "LOG_SHARE_NOT_FOUND",
+        httpStatus: 404
+      });
     }
 
     revalidatePath("/logs", "layout");

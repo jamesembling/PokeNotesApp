@@ -2,9 +2,14 @@ import { unstable_rethrow } from "next/navigation";
 import { reportError } from "@/lib/server/report-error";
 
 export class UserFacingActionError extends Error {
-  constructor(message: string) {
+  readonly code?: string;
+  readonly httpStatus?: number;
+
+  constructor(message: string, options: { code?: string; httpStatus?: number } = {}) {
     super(message);
     this.name = "UserFacingActionError";
+    this.code = options.code;
+    this.httpStatus = options.httpStatus;
   }
 }
 
@@ -26,8 +31,11 @@ export type FailedActionResult = {
   message: string;
 };
 
-export function userFacingActionError(message: string) {
-  return new UserFacingActionError(message);
+export function userFacingActionError(
+  message: string,
+  options: { code?: string; httpStatus?: number } = {}
+) {
+  return new UserFacingActionError(message, options);
 }
 
 export function isUserFacingActionError(error: unknown): error is UserFacingActionError {

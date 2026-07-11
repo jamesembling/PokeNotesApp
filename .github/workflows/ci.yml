@@ -30,6 +30,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Design system audit
+        run: npm run design:audit
+
       - name: Typecheck
         run: npm run typecheck
 

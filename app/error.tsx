@@ -26,8 +26,8 @@ export default function AppError({ error, reset }: AppErrorProps) {
               Something went wrong while loading this page.
             </h1>
             <p className="text-sm text-foreground">
-              Try the page again. If it keeps happening, we’ve logged the failure and can trace it
-              from the reference below.
+              Try the page again. If it keeps happening, report what you were doing. Include the
+              error reference below if one is shown.
             </p>
           </div>
 

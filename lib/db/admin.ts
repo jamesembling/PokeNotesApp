@@ -587,54 +587,18 @@ export async function updateAdminUserRole(userId: string, role: Role) {
   }
 
   const supabase = createAdminClient();
+  const { error: roleUpdateError } = await supabase.rpc("set_profile_role", {
+    p_actor_user_id: actingUser.id,
+    p_target_user_id: userId,
+    p_role: role
+  });
 
-  const syncAuthRoleMetadata = async () => {
-    const { data: authUser, error: authUserError } = await supabase.auth.admin.getUserById(userId);
-
-    if (authUserError) {
-      throw authUserError;
-    }
-
-    const appMetadata =
-      authUser.user?.app_metadata && typeof authUser.user.app_metadata === "object"
-        ? authUser.user.app_metadata
-        : {};
-
-    if (appMetadata.role === role) {
-      return;
-    }
-
-    const { error: updateAuthError } = await supabase.auth.admin.updateUserById(userId, {
-      app_metadata: {
-        ...appMetadata,
-        role
-      }
-    });
-
-    if (updateAuthError) {
-      throw updateAuthError;
-    }
-  };
-
-  if (actingUser.id === userId && role !== "admin") {
-    const { count: adminCount, error } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "admin");
-
-    if (error) {
-      throw error;
-    }
-
-    if ((adminCount ?? 0) <= 1) {
-      throw new Error("You cannot remove admin access from the only admin account.");
-    }
+  if (roleUpdateError) {
+    throw roleUpdateError;
   }
 
   const { data, error } = await supabase
     .from("profiles")
-    .update({ role })
-    .eq("id", userId)
     .select(
       [
         "id",
@@ -649,13 +613,12 @@ export async function updateAdminUserRole(userId: string, role: Role) {
         "created_at"
       ].join(",")
     )
+    .eq("id", userId)
     .single();
 
   if (error) {
     throw error;
   }
-
-  await syncAuthRoleMetadata();
 
   return mapAdminUser(
     data as unknown as ProfileRow,

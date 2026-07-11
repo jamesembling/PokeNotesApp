@@ -173,7 +173,10 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
       </section>
       <InlineDeckStrategyEditor deck={deckEditorPayload} />
 
-      <section className="space-y-4 border-b border-border pb-6">
+      <section
+        aria-labelledby="deck-matchups-heading"
+        className="space-y-4 border-b border-border pb-6"
+      >
         <SectionHeader
           actions={
             <PageActions>
@@ -186,6 +189,8 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
             </PageActions>
           }
           eyebrow="Matchup Notes"
+          eyebrowAs="h2"
+          eyebrowId="deck-matchups-heading"
         />
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {previewMatchups.map((matchup) => (
@@ -194,7 +199,11 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         </div>
       </section>
 
-      <section className="space-y-4 border-b border-border pb-6" id="deck-lists">
+      <section
+        aria-labelledby="deck-lists-heading"
+        className="space-y-4 border-b border-border pb-6"
+        id="deck-lists"
+      >
         <SectionHeader
           actions={
             <LazyDeckListEditorButton
@@ -206,6 +215,8 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
             />
           }
           eyebrow="Deck Lists"
+          eyebrowAs="h2"
+          eyebrowId="deck-lists-heading"
         />
 
         {deckListRows.length === 0 ? (

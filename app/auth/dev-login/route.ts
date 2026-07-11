@@ -1,7 +1,18 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { syncCurrentProfileFromAuthUser } from "@/lib/db/profile";
-import { buildAppOriginFromHeaders } from "@/lib/server/app-url";
+import {
+  validateLocalLoginAttempt,
+  validateLocalLoginRequest
+} from "@/lib/server/local-test-login";
+import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
+
+function privateRedirect(url: URL) {
+  return NextResponse.redirect(url, {
+    headers: PRIVATE_NO_STORE_HEADERS,
+    status: 303
+  });
+}
 
 function getSupabaseEnv() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -14,29 +25,54 @@ function getSupabaseEnv() {
   return { supabaseUrl, supabaseAnonKey };
 }
 
-function getDevLoginConfig() {
-  const enabled =
-    process.env.NODE_ENV !== "production" && process.env.POKE_NOTES_ENABLE_TEST_LOGIN === "1";
-  const email = process.env.POKE_NOTES_TEST_LOGIN_EMAIL || "";
-  const password = process.env.POKE_NOTES_TEST_LOGIN_PASSWORD || "";
-
-  return {
-    configured: Boolean(enabled && email && password),
-    email,
-    password
-  };
-}
-
 export async function POST(request: NextRequest) {
-  const appOrigin = buildAppOriginFromHeaders(request.headers);
-  const config = getDevLoginConfig();
+  const requestValidation = validateLocalLoginRequest({
+    host: request.headers.get("host"),
+    origin: request.headers.get("origin"),
+    secFetchSite: request.headers.get("sec-fetch-site")
+  });
 
-  if (!config.configured) {
-    return NextResponse.redirect(new URL("/login", appOrigin));
+  if (!requestValidation.allowed) {
+    return NextResponse.json(
+      { error: "Not found" },
+      { headers: PRIVATE_NO_STORE_HEADERS, status: 404 }
+    );
   }
 
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid request" },
+      { headers: PRIVATE_NO_STORE_HEADERS, status: 400 }
+    );
+  }
+  const pairingCode = String(formData.get("pairingCode") || "");
+  const validation = validateLocalLoginAttempt({
+    host: request.headers.get("host"),
+    origin: request.headers.get("origin"),
+    pairingCode,
+    secFetchSite: request.headers.get("sec-fetch-site")
+  });
+
+  if (!validation.allowed) {
+    if (validation.reason === "pairing-code") {
+      return privateRedirect(
+        new URL("/login?localError=pairing-code", validation.origin)
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Not found" },
+      { headers: PRIVATE_NO_STORE_HEADERS, status: 404 }
+    );
+  }
+
+  const { config, origin } = validation;
+
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
-  const response = NextResponse.redirect(new URL("/logs", appOrigin));
+  const response = privateRedirect(new URL("/logs", origin));
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -61,7 +97,7 @@ export async function POST(request: NextRequest) {
   });
 
   if (error || !data.user) {
-    return NextResponse.redirect(new URL("/login", appOrigin));
+    return privateRedirect(new URL("/login?localError=sign-in", origin));
   }
 
   await syncCurrentProfileFromAuthUser(data.user);

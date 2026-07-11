@@ -1,38 +1,25 @@
 import { cookies } from "next/headers";
 import { AppShell } from "@/components/ui/AppShell";
-import { requireUser } from "@/lib/auth";
+import { getCurrentSidebarProfile } from "@/lib/db/profile";
 import { normalizeAvatarColor, PROFILE_AVATAR_COOKIE } from "@/lib/profile-avatar";
-
-function getFallbackDisplayName(user: Awaited<ReturnType<typeof requireUser>>) {
-  return (
-    user.user_metadata?.full_name ||
-    user.user_metadata?.name ||
-    user.email?.split("@")[0] ||
-    "Trainer"
-  );
-}
-
-function getAuthClaimIsAdmin(user: Awaited<ReturnType<typeof requireUser>>) {
-  return user.app_metadata?.role === "admin";
-}
 
 export default async function AppLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [user, cookieStore] = await Promise.all([requireUser(), cookies()]);
+  const [profile, cookieStore] = await Promise.all([getCurrentSidebarProfile(), cookies()]);
   const avatarColor = normalizeAvatarColor(
-    cookieStore.get(PROFILE_AVATAR_COOKIE)?.value || String(user.user_metadata?.avatar_color || "")
+    cookieStore.get(PROFILE_AVATAR_COOKIE)?.value || profile.avatarColor
   );
 
   return (
     <AppShell
       profile={{
-        displayName: getFallbackDisplayName(user),
-        email: user.email ?? "",
+        displayName: profile.displayName,
+        email: profile.email,
         avatarColor,
-        isAdmin: getAuthClaimIsAdmin(user)
+        isAdmin: profile.role === "admin"
       }}
     >
       {children}

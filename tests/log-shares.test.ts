@@ -3,6 +3,9 @@ import test from "node:test";
 import {
   getOrCreateLogShareSnapshot,
   getSharedLogSnapshot,
+  isLogShare24HourLimitError,
+  isLogSharePayloadTooLargeError,
+  isLogShareSourceNotFoundError,
   revokeLogShare,
   type LogShareRow,
   type LogShareStore
@@ -140,6 +143,43 @@ test("creates compact URL-safe share tokens", async () => {
   );
 
   assert.match(share.id, /^[A-Za-z0-9_-]{16}$/);
+  assert.equal(share.expiresAt, "2026-04-22T10:00:00.000Z");
+});
+
+test("recognizes only the typed database share errors", () => {
+  assert.equal(
+    isLogShare24HourLimitError({
+      code: "P0001",
+      message: "LOG_SHARE_24_HOUR_LIMIT_REACHED"
+    }),
+    true
+  );
+  assert.equal(
+    isLogSharePayloadTooLargeError({
+      code: "P0001",
+      message: "LOG_SHARE_PAYLOAD_TOO_LARGE"
+    }),
+    true
+  );
+  assert.equal(
+    isLogShareSourceNotFoundError({ code: "P0001", message: "LOG_SHARE_SOURCE_NOT_FOUND" }),
+    true
+  );
+  assert.equal(
+    isLogShare24HourLimitError({ code: "P0001", message: "LOG_SHARE_SOURCE_NOT_FOUND" }),
+    false
+  );
+  assert.equal(
+    isLogSharePayloadTooLargeError({
+      code: "23514",
+      message: "LOG_SHARE_PAYLOAD_TOO_LARGE"
+    }),
+    false
+  );
+  assert.equal(
+    isLogShare24HourLimitError({ code: "23505", message: "LOG_SHARE_24_HOUR_LIMIT_REACHED" }),
+    false
+  );
 });
 
 test("expired shares resolve to null", async () => {
@@ -216,6 +256,34 @@ test("legacy rows without source_log_id still load shared snapshots", async () =
   assert.equal(sharedLog?.id, "legacy-share");
   assert.equal(sharedLog?.sourceLogId, undefined);
   assert.equal(sharedLog?.payload.log.id, "legacy-log");
+});
+
+test("malformed nested share payloads fail closed", async () => {
+  const malformedLog = {
+    ...buildBattleLog("malformed-log"),
+    sections: [{ title: "Setup", player: "", actions: "not-an-array", prizesAfterTurn: {} }]
+  };
+  const { store } = createMemoryStore([
+    {
+      id: "malformed-share",
+      owner_user_id: "user-1",
+      source_log_id: "malformed-log",
+      payload: {
+        version: "v1",
+        log: malformedLog as unknown as BattleLog,
+        linkedStrategyLabel: "Malformed share"
+      },
+      expires_at: "2026-05-15T10:00:00.000Z",
+      created_at: "2026-04-15T10:00:00.000Z"
+    }
+  ]);
+
+  const sharedLog = await getSharedLogSnapshot("malformed-share", {
+    now: new Date("2026-04-15T10:00:00.000Z"),
+    store
+  });
+
+  assert.equal(sharedLog, null);
 });
 
 test("requireSharedLogSnapshot uses the missing-share path when no snapshot exists", () => {

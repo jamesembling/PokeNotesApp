@@ -26,8 +26,15 @@ function attachLinkedDeckListNames(logs: BattleLogSummary[], deck: Deck) {
 
 export function DeckRelatedLogsSectionFallback() {
   return (
-    <section className="space-y-5 border-b border-border pb-6">
-      <SectionHeader eyebrow="Battle Logs" />
+    <section
+      aria-labelledby="deck-related-logs-loading-heading"
+      className="space-y-5 border-b border-border pb-6"
+    >
+      <SectionHeader
+        eyebrow="Battle Logs"
+        eyebrowAs="h2"
+        eyebrowId="deck-related-logs-loading-heading"
+      />
       <div className="space-y-3">
         <div className="h-24 rounded-[20px] border border-border bg-card" />
         <div className="h-24 rounded-[20px] border border-border bg-card" />
@@ -102,8 +109,15 @@ export async function DeckRelatedLogsSection({
   const relatedLogs = attachLinkedDeckListNames(await latestLogsPromise, deck);
 
   return (
-    <section className="space-y-5 border-b border-border pb-6">
-      <SectionHeader eyebrow="Battle Logs" />
+    <section
+      aria-labelledby="deck-related-logs-heading"
+      className="space-y-5 border-b border-border pb-6"
+    >
+      <SectionHeader
+        eyebrow="Battle Logs"
+        eyebrowAs="h2"
+        eyebrowId="deck-related-logs-heading"
+      />
 
       {relatedLogs.length === 0 ? (
         <p className="text-sm text-foreground">

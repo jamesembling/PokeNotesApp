@@ -4,6 +4,7 @@ import { Button } from "@/components/shadcn/button";
 import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
+import { PageTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
@@ -102,6 +103,8 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
             </Link>
           }
         />
+
+        <PageTitle className="sr-only">Battle Log versus {opponentDeckName}</PageTitle>
 
         <BattleLogDetailShell
           activeShare={null}

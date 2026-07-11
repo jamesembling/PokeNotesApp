@@ -24,10 +24,9 @@ import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS
 } from "@/lib/tournaments/options";
-import type { PokemonOption, Tournament, TournamentDeckChoice } from "@/types/index";
+import type { PokemonOption, Tournament } from "@/types/index";
 
 export type TournamentEditorDialogProps = {
-  decks: TournamentDeckChoice[];
   initialOpen?: boolean;
   pokemonOptions: PokemonOption[];
   tournament?: Tournament;

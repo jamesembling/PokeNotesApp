@@ -4,6 +4,14 @@ export type CardEffectCatalogSyncSummary = {
   syncedAt: string;
 };
 
+export function assertUsableCardCatalog(summary: {
+  cardCount: number;
+  expectedCardCount: number | null;
+  prepared: number;
+}): void;
+
+export function recordUniqueCardIds(cards: unknown[], seenCardIds: Set<string>): void;
+
 export function syncCardEffectCatalog(args?: {
   logger?: {
     log: (...args: unknown[]) => void;

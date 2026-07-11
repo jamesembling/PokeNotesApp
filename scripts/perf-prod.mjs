@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
@@ -39,7 +46,6 @@ const saveAuth = args.has("--save-auth");
 const authWaitMs = Number(args.get("--auth-wait-ms") || process.env.PERF_AUTH_WAIT_MS || 120000);
 const commandTimeoutMs = Number(args.get("--command-timeout-ms") || process.env.PERF_COMMAND_TIMEOUT_MS || 30000);
 const routeWaitMs = Number(args.get("--route-wait-ms") || process.env.PERF_ROUTE_WAIT_MS || 15000);
-const testLoginSecret = String(args.get("--test-login-secret") || process.env.PERF_TEST_LOGIN_SECRET || "");
 const skipImportAction = args.has("--skip-import-action") || process.env.PERF_SKIP_IMPORT_ACTION === "1";
 const onlyImportAction = args.has("--only-import-action") || process.env.PERF_ONLY_IMPORT_ACTION === "1";
 const importActionUsername = String(
@@ -64,7 +70,6 @@ Options:
   --auth-wait-ms=120000
   --command-timeout-ms=30000
   --route-wait-ms=15000
-  --test-login-secret=<secret>
   --skip-import-action
   --only-import-action
   --import-action-username=CodexPerf
@@ -110,9 +115,13 @@ function buildJourney(routePath) {
 }
 
 function runAgentBrowser(commandArgs, options = {}) {
+  const authDomains = saveAuth
+    ? ["accounts.google.com", "*.google.com", "*.googleusercontent.com"]
+    : [];
   const fullArgs = [
     "--session",
     session,
+    ...(saveAuth ? ["--headed"] : []),
     "--allowed-domains",
     Array.from(new Set([
       baseHost,
@@ -120,7 +129,8 @@ function runAgentBrowser(commandArgs, options = {}) {
       "poke-notes-app.vercel.app",
       "*.vercel.app",
       "*.supabase.co",
-      "*.supabase.in"
+      "*.supabase.in",
+      ...authDomains
     ])).join(","),
     ...commandArgs
   ];
@@ -580,27 +590,50 @@ function printTable(rows) {
 function saveAuthState() {
   mkdirSync(dirname(statePath), { recursive: true });
 
-  if (testLoginSecret) {
-    const testLoginUrl = new URL("/auth/test-login", baseUrl);
-    testLoginUrl.searchParams.set("secret", testLoginSecret);
-    console.log(`Opening secret-gated test login with session "${session}".`);
-    runAgentBrowser(["open", testLoginUrl.toString()], { stdio: "inherit" });
-    waitForRouteSettled(false);
-    runAgentBrowser(["state", "save", statePath], { stdio: "inherit" });
-    chmodSync(statePath, 0o600);
-    console.log(`Saved auth state to ${statePath}`);
-    return;
-  }
-
-  console.log(`Opening ${baseUrl}/logs with session "${session}". Log in if needed, then come back here.`);
+  console.log(
+    `Opening ${baseUrl}/logs with session "${session}". Complete Google sign-in in the opened browser.`
+  );
   runAgentBrowser(["open", `${baseUrl}/logs`], { stdio: "inherit" });
-  runAgentBrowser(["wait", String(authWaitMs)], {
+  runAgentBrowser(["wait", "--url", "**/logs**", "--timeout", String(authWaitMs)], {
     stdio: "inherit",
     timeoutMs: authWaitMs + 5000
   });
+
+  const authenticatedUrl = new URL(runAgentBrowser(["get", "url"]).trim());
+  if (authenticatedUrl.hostname !== baseHostname || authenticatedUrl.pathname === "/login") {
+    throw new Error("Production authentication was not completed; auth state was not saved.");
+  }
+
   runAgentBrowser(["state", "save", statePath], { stdio: "inherit" });
+  sanitizeAuthState();
   chmodSync(statePath, 0o600);
   console.log(`Saved auth state to ${statePath}`);
+}
+
+function sanitizeAuthState() {
+  let state;
+  try {
+    state = JSON.parse(readFileSync(statePath, "utf8"));
+  } catch (error) {
+    rmSync(statePath, { force: true });
+    throw new Error("Saved production auth state could not be sanitized and was removed.", {
+      cause: error
+    });
+  }
+  const expectedHostname = baseHostname.toLowerCase();
+  const expectedOrigin = baseUrlParts.origin;
+
+  state.cookies = Array.isArray(state.cookies)
+    ? state.cookies.filter(
+        (cookie) =>
+          String(cookie?.domain || "").replace(/^\./, "").toLowerCase() === expectedHostname
+      )
+    : [];
+  state.origins = Array.isArray(state.origins)
+    ? state.origins.filter((entry) => entry?.origin === expectedOrigin)
+    : [];
+
+  writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
 }
 
 if (saveAuth) {

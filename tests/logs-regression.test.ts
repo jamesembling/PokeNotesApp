@@ -11,7 +11,8 @@ import {
   getLogDetailSummaryById,
   getLogStatsOverview,
   getLogsWindow,
-  logsDbTestHooks
+  logsDbTestHooks,
+  mapBattleLog
 } from "@/lib/db/logs";
 import type { DeckSummary, Result } from "@/types/index";
 
@@ -204,6 +205,37 @@ test("getLogById falls back to an empty raw log when the stored value is missing
   const log = await getLogById("user-1", "log-1");
 
   assert.equal(log?.rawLog, "");
+});
+
+test("mapBattleLog reports malformed stored sections and falls back safely", () => {
+  const reports: unknown[][] = [];
+  const originalConsoleError = console.error;
+  console.error = (...args: unknown[]) => {
+    reports.push(args);
+  };
+
+  try {
+    const log = mapBattleLog(
+      buildLogRow({
+        raw_log: "raw",
+        sections: [
+          {
+            title: "Setup",
+            player: "",
+            actions: [{ title: "Missing details" }],
+            prizesAfterTurn: {}
+          }
+        ]
+      }) as never
+    );
+
+    assert.deepEqual(log.sections, []);
+    assert.equal(reports.length, 1);
+    assert.equal(reports[0]?.[0], "[pokenotes:error]");
+    assert.doesNotMatch(JSON.stringify(reports[0]?.[1]), /Missing details|raw/);
+  } finally {
+    console.error = originalConsoleError;
+  }
 });
 
 test("getLogDamageTimeline retains the newest bounded window and restores chronological order", async (t) => {

@@ -1,14 +1,24 @@
 import { randomBytes } from "node:crypto";
 import type { BattleLog, DeckCard } from "@/types/index";
+import type { Json } from "@/types/supabase";
+import { decodeBattleLog, decodeDeckCards } from "@/lib/battle-log/runtime-validation";
+import { reportError } from "@/lib/server/report-error";
+import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 
-export type LogShareRow = {
+type LogShareLookupRow = {
   id: string;
-  owner_user_id: string;
   source_log_id: string | null;
-  payload: unknown;
   expires_at: string;
   created_at: string;
+};
+
+type PublicLogShareRow = LogShareLookupRow & {
+  payload: unknown;
+};
+
+export type LogShareRow = PublicLogShareRow & {
+  owner_user_id: string;
   updated_at?: string;
 };
 
@@ -65,7 +75,7 @@ export type LogShareStore = {
     sourceLogId: string,
     nowIso: string
   ) => Promise<LogShareRow | null>;
-  findByToken: (token: string) => Promise<LogShareRow | null>;
+  findByToken: (token: string) => Promise<PublicLogShareRow | null>;
   insert: (row: LogShareInsertRow) => Promise<void>;
   listActiveByOwnerLog: (
     ownerUserId: string,
@@ -79,20 +89,66 @@ type LogShareQueryOptions = {
   store?: LogShareStore;
 };
 
-const SHARE_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
+const SHARE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+const LOG_SHARE_24_HOUR_LIMIT_MESSAGE = "LOG_SHARE_24_HOUR_LIMIT_REACHED";
+const LOG_SHARE_PAYLOAD_TOO_LARGE_MESSAGE = "LOG_SHARE_PAYLOAD_TOO_LARGE";
+const LOG_SHARE_SOURCE_NOT_FOUND_MESSAGE = "LOG_SHARE_SOURCE_NOT_FOUND";
 
-function isBattleLogSharePayload(value: unknown): value is BattleLogSharePayload {
+function decodeBattleLogSharePayload(value: unknown): BattleLogSharePayload | null {
   if (!value || typeof value !== "object") {
-    return false;
+    return null;
   }
 
   const candidate = value as Record<string, unknown>;
-  return (
-    candidate.version === "v1" &&
-    typeof candidate.linkedStrategyLabel === "string" &&
-    candidate.log !== null &&
-    typeof candidate.log === "object"
+  const log = decodeBattleLog(candidate.log);
+  const optionalStrings = [
+    "linkedDeckListFormat",
+    "linkedDeckListName",
+    "linkedDeckListNotes",
+    "linkedDeckListRawList"
+  ] as const;
+  const hasValidOptionalStrings = optionalStrings.every(
+    (field) =>
+      candidate[field] === undefined ||
+      candidate[field] === null ||
+      typeof candidate[field] === "string"
   );
+  const sortedCards =
+    candidate.linkedDeckListSortedCards === undefined ||
+    candidate.linkedDeckListSortedCards === null
+      ? undefined
+      : decodeDeckCards(candidate.linkedDeckListSortedCards);
+
+  if (
+    candidate.version !== "v1" ||
+    typeof candidate.linkedStrategyLabel !== "string" ||
+    !hasValidOptionalStrings ||
+    !log ||
+    sortedCards === null
+  ) {
+    return null;
+  }
+
+  return {
+    version: "v1",
+    log,
+    linkedStrategyLabel: candidate.linkedStrategyLabel,
+    linkedDeckListFormat:
+      typeof candidate.linkedDeckListFormat === "string"
+        ? candidate.linkedDeckListFormat
+        : undefined,
+    linkedDeckListName:
+      typeof candidate.linkedDeckListName === "string" ? candidate.linkedDeckListName : undefined,
+    linkedDeckListNotes:
+      typeof candidate.linkedDeckListNotes === "string"
+        ? candidate.linkedDeckListNotes
+        : undefined,
+    linkedDeckListRawList:
+      typeof candidate.linkedDeckListRawList === "string"
+        ? candidate.linkedDeckListRawList
+        : undefined,
+    linkedDeckListSortedCards: sortedCards
+  };
 }
 
 function createShareToken() {
@@ -108,6 +164,29 @@ function isUniqueViolation(error: unknown) {
   );
 }
 
+function hasDatabaseError(error: unknown, code: string, message: string) {
+  return (
+    !!error &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === code &&
+    "message" in error &&
+    error.message === message
+  );
+}
+
+export function isLogShare24HourLimitError(error: unknown) {
+  return hasDatabaseError(error, "P0001", LOG_SHARE_24_HOUR_LIMIT_MESSAGE);
+}
+
+export function isLogSharePayloadTooLargeError(error: unknown) {
+  return hasDatabaseError(error, "P0001", LOG_SHARE_PAYLOAD_TOO_LARGE_MESSAGE);
+}
+
+export function isLogShareSourceNotFoundError(error: unknown) {
+  return hasDatabaseError(error, "P0001", LOG_SHARE_SOURCE_NOT_FOUND_MESSAGE);
+}
+
 function getShareExpiry(now = new Date()) {
   return new Date(now.getTime() + SHARE_LIFETIME_MS).toISOString();
 }
@@ -117,7 +196,7 @@ function getEffectiveNow(now?: Date) {
 }
 
 function mapActiveLogShare(
-  row: LogShareRow | null,
+  row: LogShareLookupRow | null,
   now = Date.now()
 ): ActiveLogShare | null {
   if (!row) {
@@ -137,10 +216,20 @@ function mapActiveLogShare(
 }
 
 export function mapSharedLogSnapshot(
-  row: LogShareRow | null,
+  row: PublicLogShareRow | null,
   now = Date.now()
 ): SharedBattleLogSnapshot | null {
-  if (!row || !isBattleLogSharePayload(row.payload)) {
+  if (!row) {
+    return null;
+  }
+
+  const payload = decodeBattleLogSharePayload(row.payload);
+  if (!payload) {
+    reportError(new Error("Shared battle log payload failed runtime validation."), {
+      area: "shares",
+      boundary: "share-read",
+      shareId: row.id
+    });
     return null;
   }
 
@@ -154,12 +243,13 @@ export function mapSharedLogSnapshot(
     sourceLogId: activeShare.sourceLogId,
     createdAt: activeShare.createdAt,
     expiresAt: activeShare.expiresAt,
-    payload: row.payload
+    payload
   };
 }
 
 async function createSupabaseLogShareStore(): Promise<LogShareStore> {
   const supabase = await createClient();
+  const publicSupabase = createPublicClient();
 
   return {
     async deleteOwnedShare(shareId, ownerUserId) {
@@ -194,20 +284,23 @@ async function createSupabaseLogShareStore(): Promise<LogShareStore> {
       return row ?? null;
     },
     async findByToken(token) {
-      const { data, error } = await supabase
-        .from("log_shares")
-        .select("id,owner_user_id,source_log_id,payload,expires_at,created_at,updated_at")
-        .eq("id", token)
-        .maybeSingle();
+      const { data, error } = await publicSupabase.rpc("get_active_log_share", {
+        p_token: token
+      });
 
       if (error) {
         throw error;
       }
 
-      return ((data as unknown) as LogShareRow | null) ?? null;
+      const [row] = data ?? [];
+      return row ?? null;
     },
     async insert(row) {
-      const { error } = await supabase.from("log_shares").insert(row);
+      const { error } = await supabase.rpc("create_log_share", {
+        p_payload: row.payload as unknown as Json,
+        p_source_log_id: row.source_log_id,
+        p_token: row.id
+      });
 
       if (error) {
         throw error;

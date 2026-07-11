@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/shadcn/popover";
 import { ChevronIcon, CloseIcon } from "@/components/ui/icons";
 import { prettifyPokemonSlug } from "@/lib/battle-log/display";
@@ -414,6 +414,8 @@ export function BattleLogSpritePicker({
   onChange,
   pokemonOptions
 }: BattleLogSpritePickerProps) {
+  const groupDescriptionId = useId();
+  const groupLabelId = useId();
   const selectableSpriteOptions = useMemo(
     () => buildSelectableSpriteOptions(pokemonOptions),
     [pokemonOptions]
@@ -424,10 +426,23 @@ export function BattleLogSpritePicker({
   );
 
   return (
-    <section className="grid min-w-0 gap-2 md:gap-3">
+    <section
+      aria-describedby={groupDescriptionId}
+      aria-labelledby={groupLabelId}
+      className="grid min-w-0 gap-2 md:gap-3"
+      role="group"
+    >
       <div className="flex min-w-0 items-center justify-between gap-3 md:gap-4">
         <div className="grid min-w-0 gap-1">
-          <p className="text-[0.95rem] font-semibold text-muted-foreground md:text-sm">{title}</p>
+          <p
+            className="text-[0.95rem] font-semibold text-muted-foreground md:text-sm"
+            id={groupLabelId}
+          >
+            {title}
+          </p>
+          <p className="sr-only" id={groupDescriptionId}>
+            Choose up to two Pokemon. Use Swap to change their order.
+          </p>
         </div>
         <Button
           className="gap-1 text-[0.9rem] font-medium text-foreground md:gap-2 md:text-sm"

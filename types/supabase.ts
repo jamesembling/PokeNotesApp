@@ -149,11 +149,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "deck_lists_deck_id_fkey"
-            columns: ["deck_id"]
+            foreignKeyName: "deck_lists_owner_deck_fkey"
+            columns: ["user_id", "deck_id"]
             isOneToOne: false
             referencedRelation: "decks"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -187,11 +187,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "deck_log_stats_deck_id_fkey"
-            columns: ["deck_id"]
-            isOneToOne: false
+            foreignKeyName: "deck_log_stats_owner_deck_fkey"
+            columns: ["user_id", "deck_id"]
+            isOneToOne: true
             referencedRelation: "decks"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -246,11 +246,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "deck_matchups_deck_id_fkey"
-            columns: ["deck_id"]
+            foreignKeyName: "deck_matchups_owner_deck_fkey"
+            columns: ["user_id", "deck_id"]
             isOneToOne: false
             referencedRelation: "decks"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -440,11 +440,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "logs_linked_deck_id_fkey"
-            columns: ["linked_deck_id"]
+            foreignKeyName: "logs_owner_linked_deck_fkey"
+            columns: ["user_id", "linked_deck_id"]
             isOneToOne: false
             referencedRelation: "decks"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -714,11 +714,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "tournament_rounds_tournament_id_fkey"
-            columns: ["tournament_id"]
+            foreignKeyName: "tournament_rounds_owner_tournament_fkey"
+            columns: ["user_id", "tournament_id"]
             isOneToOne: false
             referencedRelation: "tournaments"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -776,11 +776,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "tournaments_linked_deck_id_fkey"
-            columns: ["linked_deck_id"]
+            foreignKeyName: "tournaments_owner_linked_deck_fkey"
+            columns: ["user_id", "linked_deck_id"]
             isOneToOne: false
             referencedRelation: "decks"
-            referencedColumns: ["id"]
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
@@ -879,6 +879,36 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      commit_deck_aggregate_child: {
+        Args: {
+          p_child: Json
+          p_deck_id: string
+          p_expected_child_updated_at: string | null
+          p_kind: string
+          p_operation: string
+          p_updated_at: string
+        }
+        Returns: string
+      }
+      create_log_share: {
+        Args: { p_payload: Json; p_source_log_id: string; p_token: string }
+        Returns: {
+          created_at: string
+          expires_at: string
+          id: string
+          source_log_id: string
+        }[]
+      }
+      get_active_log_share: {
+        Args: { p_token: string }
+        Returns: {
+          created_at: string
+          expires_at: string
+          id: string
+          payload: Json
+          source_log_id: string
+        }[]
+      }
       get_admin_dashboard_overview: {
         Args: never
         Returns: {
@@ -970,6 +1000,40 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: undefined
       }
+      set_profile_role: {
+        Args: {
+          p_actor_user_id: string
+          p_role: string
+          p_target_user_id: string
+        }
+        Returns: undefined
+      }
+      sync_current_profile: {
+        Args: never
+        Returns: {
+          auth_account_created_at: string | null
+          avatar_color: string
+          created_at: string
+          display_name: string
+          email: string
+          first_name: string
+          id: string
+          last_active_at: string | null
+          last_login_at: string | null
+          last_name: string
+          login_count: number
+          ptcgl_username: string
+          role: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      touch_current_profile_activity: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never

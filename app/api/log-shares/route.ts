@@ -9,12 +9,7 @@ import { apiAuthenticationErrorResponse, privateJson } from "@/lib/server/api-re
 import { reportError } from "@/lib/server/report-error";
 
 function getActionErrorStatus(error: unknown) {
-  if (!isUserFacingActionError(error)) {
-    return 500;
-  }
-
-  const message = error.message.toLowerCase();
-  return message.includes("not found") || message.includes("already revoked") ? 404 : 400;
+  return isUserFacingActionError(error) ? (error.httpStatus ?? 400) : 500;
 }
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {

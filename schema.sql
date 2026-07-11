@@ -1784,3 +1784,1700 @@ values
 -- ============================================================
 
 notify pgrst, 'reload schema';
+
+-- Make every future public-schema interface an explicit API decision. ALTER
+-- DEFAULT PRIVILEGES only affects objects created after this migration, so
+-- current table, sequence, and function grants remain unchanged.
+--
+-- Default privileges belong to the role that creates an object. PokeNotes
+-- migrations and every current public object use the postgres owner. Fail
+-- clearly instead of silently hardening an unrelated migration role.
+do $migration_role$
+begin
+  if not pg_catalog.pg_has_role(current_user, 'postgres', 'MEMBER') then
+    raise exception
+      'Default privilege migration must run as postgres or a postgres member.';
+  end if;
+end
+$migration_role$;
+
+alter default privileges for role postgres in schema public
+  revoke all privileges on tables
+  from anon, authenticated, service_role;
+
+alter default privileges for role postgres in schema public
+  revoke all privileges on sequences
+  from anon, authenticated, service_role;
+
+alter default privileges for role postgres in schema public
+  revoke execute on functions
+  from anon, authenticated, service_role;
+
+-- PostgreSQL's built-in function default grants EXECUTE to PUBLIC, and a
+-- schema-scoped default REVOKE cannot subtract that global grant. Do not solve
+-- that with a global default change: it would also affect future postgres-owned
+-- routines in platform/extension schemas. Instead, revoke the implicit grant
+-- immediately after application routines are created or replaced in public.
+create schema if not exists private;
+
+create or replace function private.harden_new_public_routine_privileges()
+returns event_trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  routine_command record;
+begin
+  for routine_command in
+    select command.object_identity
+    from pg_catalog.pg_event_trigger_ddl_commands() as command
+    join pg_catalog.pg_proc as routine
+      on routine.oid = command.objid
+    where command.schema_name = 'public'
+      and command.object_type in ('function', 'procedure', 'aggregate')
+      and not command.in_extension
+      and routine.proowner = 'postgres'::regrole
+  loop
+    execute pg_catalog.format(
+      'revoke execute on routine %s from public, anon, authenticated, service_role',
+      routine_command.object_identity
+    );
+  end loop;
+end;
+$function$;
+
+revoke all on function private.harden_new_public_routine_privileges()
+  from public, anon, authenticated, service_role;
+
+drop event trigger if exists pokenotes_harden_public_routine_privileges;
+create event trigger pokenotes_harden_public_routine_privileges
+  on ddl_command_end
+  when tag in ('CREATE FUNCTION', 'CREATE PROCEDURE', 'CREATE AGGREGATE')
+  execute function private.harden_new_public_routine_privileges();
+
+-- Rollback (future objects only): restore the live pre-migration defaults with
+-- the inverse statements below. Objects created, or routines replaced, while
+-- the hardened boundary was active keep their explicit ACLs and must be
+-- reviewed separately.
+--
+-- alter default privileges for role postgres in schema public
+--   grant all privileges on tables to anon, authenticated, service_role;
+-- alter default privileges for role postgres in schema public
+--   grant all privileges on sequences to anon, authenticated, service_role;
+-- alter default privileges for role postgres in schema public
+--   grant execute on functions to anon, authenticated, service_role;
+-- drop event trigger if exists pokenotes_harden_public_routine_privileges;
+-- drop function if exists private.harden_new_public_routine_privileges();
+
+-- End future-object default privilege boundary.
+
+-- Reject malformed direct-RPC snapshots before they consume storage or become
+-- a public read-time failure. This intentionally validates only the stable v1
+-- envelope: deeper Battle Log fields remain governed by the application codec,
+-- and no product-level payload byte limit is introduced here.
+alter table public.log_shares
+  add constraint log_shares_payload_v1_envelope
+  check (
+    jsonb_typeof(payload) is not distinct from 'object'
+    and payload ->> 'version' is not distinct from 'v1'
+    and jsonb_typeof(payload -> 'log') is not distinct from 'object'
+    and jsonb_typeof(payload #> '{log,sections}') is not distinct from 'array'
+    and jsonb_typeof(payload -> 'linkedStrategyLabel') is not distinct from 'string'
+    and (
+      not (payload ? 'linkedDeckListSortedCards')
+      or jsonb_typeof(payload -> 'linkedDeckListSortedCards') in ('array', 'null')
+    )
+  ) not valid;
+
+-- Privacy-safe production evidence found 71/71 existing rows conforming. The
+-- two-phase form keeps the preflight and enforcement contract explicit: new
+-- writes are checked as soon as the constraint is added, then historical rows
+-- must pass before the migration can complete.
+alter table public.log_shares
+  validate constraint log_shares_payload_v1_envelope;
+
+-- End log-share v1 payload envelope boundary.
+
+-- ============================================================
+-- COHERENT OPTIONAL DECK LINKS
+-- Foreign-key unlinking must clear the corresponding list link.
+-- ============================================================
+
+-- Keep optional deck and deck-list links in a single coherent state for every
+-- write path, including foreign-key actions triggered by direct deck deletes.
+
+create or replace function public.clear_orphaned_deck_list_link()
+returns trigger
+language plpgsql
+security invoker
+set search_path = pg_catalog
+as $$
+begin
+  if new.linked_deck_id is null then
+    new.linked_deck_list_id := null;
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function public.clear_orphaned_deck_list_link()
+  from public, anon, authenticated;
+
+drop trigger if exists clear_orphaned_log_deck_list_link
+  on public.logs;
+create trigger clear_orphaned_log_deck_list_link
+  before insert or update on public.logs
+  for each row execute function public.clear_orphaned_deck_list_link();
+
+drop trigger if exists clear_orphaned_tournament_deck_list_link
+  on public.tournaments;
+create trigger clear_orphaned_tournament_deck_list_link
+  before insert or update on public.tournaments
+  for each row execute function public.clear_orphaned_deck_list_link();
+
+alter table public.logs
+  add constraint logs_linked_deck_list_requires_deck
+  check (linked_deck_id is not null or linked_deck_list_id is null)
+  not valid;
+
+alter table public.tournaments
+  add constraint tournaments_linked_deck_list_requires_deck
+  check (linked_deck_id is not null or linked_deck_list_id is null)
+  not valid;
+
+alter table public.logs
+  validate constraint logs_linked_deck_list_requires_deck;
+
+alter table public.tournaments
+  validate constraint tournaments_linked_deck_list_requires_deck;
+
+notify pgrst, 'reload schema';
+
+
+-- ============================================================
+-- TENANT PARENT OWNERSHIP
+-- Parent and child records must belong to the same account.
+-- ============================================================
+
+-- Enforce account ownership across parent/child relationships without changing data.
+-- Existing rows were audited read-only before this migration; every relationship matched.
+
+alter table public.decks
+  add constraint decks_user_id_id_unique
+  unique (user_id, id);
+
+alter table public.tournaments
+  add constraint tournaments_user_id_id_unique
+  unique (user_id, id);
+
+alter table public.deck_lists
+  add constraint deck_lists_owner_deck_fkey
+  foreign key (user_id, deck_id)
+  references public.decks (user_id, id)
+  on delete cascade
+  not valid;
+
+alter table public.deck_matchups
+  add constraint deck_matchups_owner_deck_fkey
+  foreign key (user_id, deck_id)
+  references public.decks (user_id, id)
+  on delete cascade
+  not valid;
+
+alter table public.tournament_rounds
+  add constraint tournament_rounds_owner_tournament_fkey
+  foreign key (user_id, tournament_id)
+  references public.tournaments (user_id, id)
+  on delete cascade
+  not valid;
+
+alter table public.deck_log_stats
+  add constraint deck_log_stats_owner_deck_fkey
+  foreign key (user_id, deck_id)
+  references public.decks (user_id, id)
+  on delete cascade
+  not valid;
+
+-- PostgreSQL 17 can null only the optional deck reference while preserving the
+-- required owner column in these composite foreign keys.
+alter table public.logs
+  add constraint logs_owner_linked_deck_fkey
+  foreign key (user_id, linked_deck_id)
+  references public.decks (user_id, id)
+  on delete set null (linked_deck_id)
+  not valid;
+
+alter table public.tournaments
+  add constraint tournaments_owner_linked_deck_fkey
+  foreign key (user_id, linked_deck_id)
+  references public.decks (user_id, id)
+  on delete set null (linked_deck_id)
+  not valid;
+
+alter table public.deck_lists
+  validate constraint deck_lists_owner_deck_fkey;
+
+alter table public.deck_matchups
+  validate constraint deck_matchups_owner_deck_fkey;
+
+alter table public.tournament_rounds
+  validate constraint tournament_rounds_owner_tournament_fkey;
+
+alter table public.deck_log_stats
+  validate constraint deck_log_stats_owner_deck_fkey;
+
+alter table public.logs
+  validate constraint logs_owner_linked_deck_fkey;
+
+alter table public.tournaments
+  validate constraint tournaments_owner_linked_deck_fkey;
+
+-- The composite constraints supersede the original ID-only relationships.
+alter table public.deck_lists
+  drop constraint deck_lists_deck_id_fkey;
+
+alter table public.deck_matchups
+  drop constraint deck_matchups_deck_id_fkey;
+
+alter table public.tournament_rounds
+  drop constraint tournament_rounds_tournament_id_fkey;
+
+alter table public.deck_log_stats
+  drop constraint deck_log_stats_deck_id_fkey;
+
+alter table public.logs
+  drop constraint logs_linked_deck_id_fkey;
+
+alter table public.tournaments
+  drop constraint tournaments_linked_deck_id_fkey;
+
+-- A list link remains compatibility-backed by decks.deck_lists until the
+-- account-scoped ID collisions are re-keyed. Authenticated writes must select
+-- a list that is actually present on the caller's owned deck.
+alter policy "Users can insert own logs"
+  on public.logs
+  with check (
+    (select auth.uid()) = user_id
+    and (
+      (linked_deck_id is null and linked_deck_list_id is null)
+      or exists (
+        select 1
+        from public.decks as parent
+        where parent.id = logs.linked_deck_id
+          and parent.user_id = (select auth.uid())
+          and (
+            logs.linked_deck_list_id is null
+            or exists (
+              select 1
+              from jsonb_array_elements(
+                case
+                  when jsonb_typeof(parent.deck_lists) = 'array'
+                    then parent.deck_lists
+                  else '[]'::jsonb
+                end
+              ) as item(value)
+              where item.value ->> 'id' = logs.linked_deck_list_id
+            )
+          )
+      )
+    )
+  );
+
+alter policy "Users can update own logs"
+  on public.logs
+  using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and (
+      (linked_deck_id is null and linked_deck_list_id is null)
+      or exists (
+        select 1
+        from public.decks as parent
+        where parent.id = logs.linked_deck_id
+          and parent.user_id = (select auth.uid())
+          and (
+            logs.linked_deck_list_id is null
+            or exists (
+              select 1
+              from jsonb_array_elements(
+                case
+                  when jsonb_typeof(parent.deck_lists) = 'array'
+                    then parent.deck_lists
+                  else '[]'::jsonb
+                end
+              ) as item(value)
+              where item.value ->> 'id' = logs.linked_deck_list_id
+            )
+          )
+      )
+    )
+  );
+
+alter policy "Users can insert own tournaments"
+  on public.tournaments
+  with check (
+    (select auth.uid()) = user_id
+    and (
+      (linked_deck_id is null and linked_deck_list_id is null)
+      or exists (
+        select 1
+        from public.decks as parent
+        where parent.id = tournaments.linked_deck_id
+          and parent.user_id = (select auth.uid())
+          and (
+            tournaments.linked_deck_list_id is null
+            or exists (
+              select 1
+              from jsonb_array_elements(
+                case
+                  when jsonb_typeof(parent.deck_lists) = 'array'
+                    then parent.deck_lists
+                  else '[]'::jsonb
+                end
+              ) as item(value)
+              where item.value ->> 'id' = tournaments.linked_deck_list_id
+            )
+          )
+      )
+    )
+  );
+
+alter policy "Users can update own tournaments"
+  on public.tournaments
+  using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and (
+      (linked_deck_id is null and linked_deck_list_id is null)
+      or exists (
+        select 1
+        from public.decks as parent
+        where parent.id = tournaments.linked_deck_id
+          and parent.user_id = (select auth.uid())
+          and (
+            tournaments.linked_deck_list_id is null
+            or exists (
+              select 1
+              from jsonb_array_elements(
+                case
+                  when jsonb_typeof(parent.deck_lists) = 'array'
+                    then parent.deck_lists
+                  else '[]'::jsonb
+                end
+              ) as item(value)
+              where item.value ->> 'id' = tournaments.linked_deck_list_id
+            )
+          )
+      )
+    )
+  );
+
+notify pgrst, 'reload schema';
+
+-- Keep each Deck Aggregate write inside one database transaction. The function
+-- locks the owned parent row before it reads or mutates the Legacy Deck Copy,
+-- then upserts the matching Relational Deck Records before updating the JSON.
+-- Any error (including an unresolved historical global-ID collision) rolls the
+-- complete function call back.
+
+create or replace function public.commit_deck_aggregate_child(
+  p_deck_id text,
+  p_kind text,
+  p_operation text,
+  p_child jsonb,
+  p_expected_child_updated_at text,
+  p_updated_at timestamptz
+)
+returns text
+language plpgsql
+security invoker
+set search_path = pg_catalog
+as $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_child_id text;
+  v_child_updated_at timestamptz;
+  v_current_child jsonb;
+  v_current_child_updated_at text;
+  v_current_child_updated_at_timestamp timestamptz;
+  v_current_children jsonb;
+  v_next_children jsonb;
+begin
+  if v_user_id is null then
+    raise exception using
+      errcode = '42501',
+      message = 'Authentication is required.';
+  end if;
+
+  if nullif(btrim(p_deck_id), '') is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Deck id is required.';
+  end if;
+
+  if p_kind is null or p_kind not in ('deck-list', 'matchup') then
+    raise exception using
+      errcode = '22023',
+      message = 'Unsupported deck aggregate child kind.';
+  end if;
+
+  if p_operation is null or p_operation not in ('create', 'update') then
+    raise exception using
+      errcode = '22023',
+      message = 'Unsupported deck aggregate operation.';
+  end if;
+
+  if p_updated_at is null then
+    raise exception using
+      errcode = '22023',
+      message = 'An update timestamp is required.';
+  end if;
+
+  if p_child is null or jsonb_typeof(p_child) is distinct from 'object' then
+    raise exception using
+      errcode = '22023',
+      message = 'Deck aggregate child must be a JSON object.';
+  end if;
+
+  v_child_id := p_child ->> 'id';
+  if nullif(btrim(v_child_id), '') is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Deck aggregate child id is required.';
+  end if;
+
+  if nullif(btrim(coalesce(p_child ->> 'updatedAt', '')), '') is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Deck aggregate child update timestamp is required.';
+  end if;
+
+  begin
+    v_child_updated_at := (p_child ->> 'updatedAt')::timestamptz;
+  exception
+    when invalid_datetime_format or datetime_field_overflow then
+      raise exception using
+        errcode = '22023',
+        message = 'Deck aggregate child update timestamp is invalid.';
+  end;
+
+  if v_child_updated_at is distinct from p_updated_at then
+    raise exception using
+      errcode = '22023',
+      message = 'Deck aggregate child and commit timestamps must match.';
+  end if;
+
+  -- Validate the fields a direct RPC caller could otherwise use to create an
+  -- unusable child. Optional notes and planning fields intentionally retain the
+  -- application's existing free-text behaviour.
+  if p_kind = 'deck-list' then
+    if nullif(btrim(coalesce(p_child ->> 'name', '')), '') is null then
+      raise exception using
+        errcode = '22023',
+        message = 'Deck list name is required.';
+    end if;
+
+    if nullif(btrim(coalesce(p_child ->> 'rawList', '')), '') is null then
+      raise exception using
+        errcode = '22023',
+        message = 'Deck list text is required.';
+    end if;
+
+    if jsonb_typeof(p_child -> 'parsedCards') is distinct from 'array'
+      or jsonb_typeof(p_child -> 'sortedCards') is distinct from 'array'
+      or jsonb_typeof(p_child -> 'sortedCardsVersion') is distinct from 'number'
+    then
+      raise exception using
+        errcode = '22023',
+        message = 'Deck list card data is invalid.';
+    end if;
+  else
+    if nullif(btrim(coalesce(p_child ->> 'deckName', '')), '') is null then
+      raise exception using
+        errcode = '22023',
+        message = 'Matchup deck name is required.';
+    end if;
+
+    if nullif(btrim(coalesce(p_child ->> 'format', '')), '') is null then
+      raise exception using
+        errcode = '22023',
+        message = 'Matchup format is required.';
+    end if;
+
+    if jsonb_typeof(p_child -> 'deckPokemon') is distinct from 'array' then
+      raise exception using
+        errcode = '22023',
+        message = 'Matchup Pokemon are invalid.';
+    end if;
+
+    if jsonb_array_length(p_child -> 'deckPokemon') not between 1 and 2
+      or exists (
+        select 1
+        from jsonb_array_elements(p_child -> 'deckPokemon') as pokemon(value)
+        where jsonb_typeof(pokemon.value) <> 'string'
+          or nullif(btrim(pokemon.value #>> '{}'), '') is null
+      )
+    then
+      raise exception using
+        errcode = '22023',
+        message = 'Matchup Pokemon are invalid.';
+    end if;
+
+    if coalesce(p_child ->> 'goPreference', '') not in ('', 'First', 'Second') then
+      raise exception using
+        errcode = '22023',
+        message = 'Matchup go preference is invalid.';
+    end if;
+  end if;
+
+  -- RLS remains active because this is SECURITY INVOKER. The explicit owner
+  -- predicate is defense in depth and ensures the locked row is the caller's.
+  select case
+      when p_kind = 'deck-list' then deck.deck_lists
+      else deck.matchups
+    end
+  into v_current_children
+  from public.decks as deck
+  where deck.id = p_deck_id
+    and deck.user_id = v_user_id
+  for update;
+
+  if not found then
+    return 'deck-not-found';
+  end if;
+
+  if jsonb_typeof(v_current_children) is distinct from 'array' then
+    v_current_children := '[]'::jsonb;
+  end if;
+
+  -- A same-parent duplicate makes child identity ambiguous. The live audit
+  -- currently reports none; fail closed if corruption appears later instead of
+  -- replacing or upserting multiple entries with one submitted value.
+  if exists (
+    select 1
+    from jsonb_array_elements(v_current_children) as child(value)
+    where jsonb_typeof(child.value) = 'object'
+      and coalesce(child.value ->> 'id', '') <> ''
+    group by child.value ->> 'id'
+    having count(*) > 1
+  ) then
+    return 'conflict';
+  end if;
+
+  select child.value
+  into v_current_child
+  from jsonb_array_elements(v_current_children)
+    with ordinality as child(value, ordinal)
+  where child.value ->> 'id' = v_child_id
+  order by child.ordinal
+  limit 1;
+
+  if p_operation = 'create' then
+    -- Generated child IDs should be unique inside one Deck Aggregate. Treat an
+    -- unexpected duplicate as a concurrency conflict instead of adding a second
+    -- ambiguous child.
+    if v_current_child is not null then
+      return 'conflict';
+    end if;
+
+    if (
+      p_kind = 'deck-list'
+      and exists (
+        select 1
+        from public.deck_lists as relational_child
+        where relational_child.user_id = v_user_id
+          and relational_child.deck_id = p_deck_id
+          and relational_child.id = v_child_id
+      )
+    ) or (
+      p_kind = 'matchup'
+      and exists (
+        select 1
+        from public.deck_matchups as relational_child
+        where relational_child.user_id = v_user_id
+          and relational_child.deck_id = p_deck_id
+          and relational_child.id = v_child_id
+      )
+    ) then
+      return 'conflict';
+    end if;
+
+    if p_kind = 'deck-list' then
+      v_next_children := jsonb_build_array(p_child) || v_current_children;
+    else
+      v_next_children := v_current_children || jsonb_build_array(p_child);
+    end if;
+  else
+    if v_current_child is null then
+      return 'child-not-found';
+    end if;
+
+    v_current_child_updated_at := coalesce(
+      nullif(v_current_child ->> 'updatedAt', ''),
+      v_current_child ->> 'updated_at',
+      ''
+    );
+
+    -- Updates carry the version observed by the editor. This prevents two tabs
+    -- editing the same child from silently replacing one another. Updates to
+    -- different children remain merge-safe because the parent is re-read after
+    -- its row lock is acquired.
+    if p_expected_child_updated_at is null
+      or v_current_child_updated_at <> p_expected_child_updated_at
+    then
+      return 'conflict';
+    end if;
+
+    if v_current_child_updated_at <> '' then
+      begin
+        v_current_child_updated_at_timestamp := v_current_child_updated_at::timestamptz;
+      exception
+        when invalid_datetime_format or datetime_field_overflow then
+          return 'conflict';
+      end;
+
+      if p_updated_at <= v_current_child_updated_at_timestamp then
+        return 'conflict';
+      end if;
+    end if;
+
+    select coalesce(
+      jsonb_agg(
+        case
+          when child.value ->> 'id' = v_child_id then p_child
+          else child.value
+        end
+        order by child.ordinal
+      ),
+      '[]'::jsonb
+    )
+    into v_next_children
+    from jsonb_array_elements(v_current_children)
+      with ordinality as child(value, ordinal);
+  end if;
+
+  if p_kind = 'deck-list' then
+    insert into public.deck_lists (
+      id,
+      user_id,
+      deck_id,
+      name,
+      format,
+      date,
+      created_by,
+      notes,
+      raw_list,
+      parsed_cards,
+      sorted_cards,
+      sorted_cards_version,
+      position,
+      created_at,
+      updated_at
+    )
+    select
+      child.value ->> 'id',
+      v_user_id,
+      p_deck_id,
+      coalesce(child.value ->> 'name', ''),
+      coalesce(child.value ->> 'format', ''),
+      coalesce(child.value ->> 'date', ''),
+      coalesce(
+        nullif(child.value ->> 'createdBy', ''),
+        child.value ->> 'created_by',
+        ''
+      ),
+      coalesce(child.value ->> 'notes', ''),
+      coalesce(
+        nullif(child.value ->> 'rawList', ''),
+        child.value ->> 'raw_list',
+        ''
+      ),
+      case
+        when jsonb_typeof(child.value -> 'parsedCards') = 'array'
+          then child.value -> 'parsedCards'
+        else coalesce(
+          nullif(child.value -> 'parsed_cards', 'null'::jsonb),
+          '[]'::jsonb
+        )
+      end,
+      case
+        when jsonb_typeof(child.value -> 'sortedCards') = 'array'
+          then child.value -> 'sortedCards'
+        else coalesce(
+          nullif(child.value -> 'sorted_cards', 'null'::jsonb),
+          '[]'::jsonb
+        )
+      end,
+      case
+        when jsonb_typeof(child.value -> 'sortedCardsVersion') = 'number'
+          then (child.value ->> 'sortedCardsVersion')::integer
+        when jsonb_typeof(child.value -> 'sorted_cards_version') = 'number'
+          then (child.value ->> 'sorted_cards_version')::integer
+        else null
+      end,
+      child.ordinal::integer - 1,
+      coalesce(
+        nullif(child.value ->> 'createdAt', ''),
+        nullif(child.value ->> 'created_at', ''),
+        nullif(child.value ->> 'updatedAt', ''),
+        nullif(child.value ->> 'updated_at', ''),
+        p_updated_at::text
+      )::timestamptz,
+      coalesce(
+        nullif(child.value ->> 'updatedAt', ''),
+        nullif(child.value ->> 'updated_at', ''),
+        p_updated_at::text
+      )::timestamptz
+    from jsonb_array_elements(v_next_children)
+      with ordinality as child(value, ordinal)
+    where jsonb_typeof(child.value) = 'object'
+      and coalesce(child.value ->> 'id', '') <> ''
+      and coalesce(child.value ->> 'name', '') <> ''
+    on conflict (user_id, deck_id, id)
+    do update set
+      name = excluded.name,
+      format = excluded.format,
+      date = excluded.date,
+      created_by = excluded.created_by,
+      notes = excluded.notes,
+      raw_list = excluded.raw_list,
+      parsed_cards = excluded.parsed_cards,
+      sorted_cards = excluded.sorted_cards,
+      sorted_cards_version = excluded.sorted_cards_version,
+      position = excluded.position,
+      created_at = excluded.created_at,
+      updated_at = excluded.updated_at;
+
+    update public.decks as deck
+    set
+      deck_lists = v_next_children,
+      updated_at = p_updated_at
+    where deck.id = p_deck_id
+      and deck.user_id = v_user_id;
+  else
+    insert into public.deck_matchups (
+      id,
+      user_id,
+      deck_id,
+      deck_name,
+      deck_pokemon,
+      format,
+      go_preference,
+      matchup_favor,
+      ideal_bench,
+      techs_needed,
+      matchup_plan,
+      position,
+      created_at,
+      updated_at
+    )
+    select
+      child.value ->> 'id',
+      v_user_id,
+      p_deck_id,
+      coalesce(
+        nullif(child.value ->> 'deckName', ''),
+        child.value ->> 'deck_name',
+        ''
+      ),
+      case
+        when jsonb_typeof(child.value -> 'deckPokemon') = 'array'
+          then child.value -> 'deckPokemon'
+        else coalesce(
+          nullif(child.value -> 'deck_pokemon', 'null'::jsonb),
+          '[]'::jsonb
+        )
+      end,
+      coalesce(child.value ->> 'format', ''),
+      case coalesce(
+        nullif(child.value ->> 'goPreference', ''),
+        child.value ->> 'go_preference',
+        ''
+      )
+        when 'First' then 'First'
+        when 'Second' then 'Second'
+        else ''
+      end,
+      coalesce(
+        nullif(child.value ->> 'matchupFavor', ''),
+        child.value ->> 'matchup_favor',
+        ''
+      ),
+      coalesce(
+        nullif(child.value ->> 'idealBench', ''),
+        child.value ->> 'ideal_bench',
+        ''
+      ),
+      coalesce(
+        nullif(child.value ->> 'techsNeeded', ''),
+        child.value ->> 'techs_needed',
+        ''
+      ),
+      coalesce(
+        nullif(child.value ->> 'matchupPlan', ''),
+        child.value ->> 'matchup_plan',
+        ''
+      ),
+      child.ordinal::integer - 1,
+      coalesce(
+        nullif(child.value ->> 'createdAt', ''),
+        nullif(child.value ->> 'created_at', ''),
+        p_updated_at::text
+      )::timestamptz,
+      coalesce(
+        nullif(child.value ->> 'updatedAt', ''),
+        nullif(child.value ->> 'updated_at', ''),
+        p_updated_at::text
+      )::timestamptz
+    from jsonb_array_elements(v_next_children)
+      with ordinality as child(value, ordinal)
+    where jsonb_typeof(child.value) = 'object'
+      and coalesce(child.value ->> 'id', '') <> ''
+      and coalesce(
+        nullif(child.value ->> 'deckName', ''),
+        child.value ->> 'deck_name',
+        ''
+      ) <> ''
+    on conflict (user_id, deck_id, id)
+    do update set
+      deck_name = excluded.deck_name,
+      deck_pokemon = excluded.deck_pokemon,
+      format = excluded.format,
+      go_preference = excluded.go_preference,
+      matchup_favor = excluded.matchup_favor,
+      ideal_bench = excluded.ideal_bench,
+      techs_needed = excluded.techs_needed,
+      matchup_plan = excluded.matchup_plan,
+      position = excluded.position,
+      created_at = excluded.created_at,
+      updated_at = excluded.updated_at;
+
+    update public.decks as deck
+    set
+      matchups = v_next_children,
+      updated_at = p_updated_at
+    where deck.id = p_deck_id
+      and deck.user_id = v_user_id;
+  end if;
+
+  return 'committed';
+end;
+$function$;
+
+comment on function public.commit_deck_aggregate_child(
+  text,
+  text,
+  text,
+  jsonb,
+  text,
+  timestamptz
+) is
+  'Atomically locks and updates one owned Deck Aggregate child in both compatibility stores.';
+
+revoke all on function public.commit_deck_aggregate_child(
+  text,
+  text,
+  text,
+  jsonb,
+  text,
+  timestamptz
+) from public, anon, authenticated;
+
+grant execute on function public.commit_deck_aggregate_child(
+  text,
+  text,
+  text,
+  jsonb,
+  text,
+  timestamptz
+) to authenticated;
+
+notify pgrst, 'reload schema';
+
+
+
+
+-- ============================================================
+-- SECURITY HARDENING: SHARES AND PROFILE AUTHORITY
+-- Final bootstrap state. Existing projects receive the same contract through
+-- the staged official migrations in supabase/migrations.
+-- ============================================================
+
+create schema if not exists private;
+grant usage on schema private to authenticated, service_role;
+
+create table if not exists private.deck_aggregate_rekey_ledger (
+  kind text not null check (kind in ('deck-list', 'matchup')),
+  user_id uuid not null,
+  deck_id text not null,
+  old_id text not null,
+  new_id text not null,
+  repaired_at timestamptz not null,
+  compatibility_until timestamptz not null,
+  primary key (kind, user_id, deck_id, old_id),
+  unique (kind, new_id)
+);
+
+alter table private.deck_aggregate_rekey_ledger enable row level security;
+revoke all privileges on table private.deck_aggregate_rekey_ledger
+  from public, anon, authenticated, service_role;
+
+comment on table private.deck_aggregate_rekey_ledger is
+  'Private old-to-new Deck Aggregate ID evidence retained through the 30-day compatibility period; contains identifiers only, never user content.';
+
+-- SHARES: seven-day lifetime, deletion-proof rolling quota, token-only reads.
+alter table public.log_shares
+  alter column expires_at set default (now() + interval '7 days');
+
+create index if not exists log_shares_owner_created_at
+  on public.log_shares (owner_user_id, created_at desc);
+
+create table if not exists private.log_share_creation_events (
+  id bigint generated always as identity primary key,
+  owner_user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table private.log_share_creation_events enable row level security;
+revoke all privileges on table private.log_share_creation_events
+  from public, anon, authenticated;
+grant all privileges on table private.log_share_creation_events to service_role;
+
+create index if not exists log_share_creation_events_owner_created_at
+  on private.log_share_creation_events (owner_user_id, created_at desc);
+
+create or replace function private.enforce_log_share_creation()
+returns trigger
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  created_time timestamptz := statement_timestamp();
+begin
+  if current_user_id is null then
+    raise exception using errcode = '42501', message = 'Authentication required.';
+  end if;
+
+  if new.owner_user_id <> current_user_id then
+    raise exception using
+      errcode = '42501',
+      message = 'Share ownership must match the signed-in user.';
+  end if;
+
+  if new.source_log_id is null or not exists (
+    select 1
+    from public.logs as source_log
+    where source_log.id = new.source_log_id
+      and source_log.user_id = current_user_id
+  ) then
+    raise exception using errcode = 'P0001', message = 'LOG_SHARE_SOURCE_NOT_FOUND';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('pokenotes-log-share:' || current_user_id::text, 0)
+  );
+
+  delete from private.log_share_creation_events as old_event
+  where old_event.owner_user_id = current_user_id
+    and old_event.created_at <= created_time - interval '8 days';
+
+  if (
+    select count(*)
+    from private.log_share_creation_events as recent_event
+    where recent_event.owner_user_id = current_user_id
+      and recent_event.created_at > created_time - interval '24 hours'
+  ) >= 50 then
+    raise exception using
+      errcode = 'P0001',
+      message = 'LOG_SHARE_24_HOUR_LIMIT_REACHED';
+  end if;
+
+  insert into private.log_share_creation_events (owner_user_id, created_at)
+  values (current_user_id, created_time);
+
+  new.expires_at := created_time + interval '7 days';
+  new.created_at := created_time;
+  new.updated_at := created_time;
+  return new;
+end;
+$$;
+
+revoke all on function private.enforce_log_share_creation()
+  from public, anon, authenticated;
+
+drop trigger if exists enforce_log_share_creation on public.log_shares;
+create trigger enforce_log_share_creation
+  before insert on public.log_shares
+  for each row execute function private.enforce_log_share_creation();
+
+create or replace function public.get_active_log_share(p_token text)
+returns table (
+  id text,
+  source_log_id text,
+  payload jsonb,
+  expires_at timestamptz,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select share.id, share.source_log_id, share.payload, share.expires_at, share.created_at
+  from public.log_shares as share
+  where share.id = p_token
+    and share.expires_at > statement_timestamp()
+  limit 1;
+$$;
+
+create or replace function public.create_log_share(
+  p_token text,
+  p_source_log_id text,
+  p_payload jsonb
+)
+returns table (
+  id text,
+  source_log_id text,
+  expires_at timestamptz,
+  created_at timestamptz
+)
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  created_time timestamptz := statement_timestamp();
+begin
+  if current_user_id is null then
+    raise exception using errcode = '42501', message = 'Authentication required.';
+  end if;
+
+  if p_token is null or p_token !~ '^[A-Za-z0-9_-]{16,128}$' then
+    raise exception using errcode = '22023', message = 'Invalid share token.';
+  end if;
+
+  if p_payload is not null and octet_length(p_payload::text) > 262144 then
+    raise exception using
+      errcode = 'P0001',
+      message = 'LOG_SHARE_PAYLOAD_TOO_LARGE';
+  end if;
+
+  return query
+  insert into public.log_shares (
+    id, owner_user_id, source_log_id, payload, expires_at, created_at, updated_at
+  )
+  values (
+    p_token,
+    current_user_id,
+    p_source_log_id,
+    p_payload,
+    created_time + interval '7 days',
+    created_time,
+    created_time
+  )
+  returning
+    log_shares.id,
+    log_shares.source_log_id,
+    log_shares.expires_at,
+    log_shares.created_at;
+end;
+$$;
+
+drop policy if exists "Anyone can read log shares" on public.log_shares;
+drop policy if exists "Anyone can read active log shares" on public.log_shares;
+drop policy if exists "Owners can read own log shares" on public.log_shares;
+drop policy if exists "Owners can create log shares" on public.log_shares;
+drop policy if exists "Owners can delete log shares" on public.log_shares;
+
+create policy "Owners can read own log shares"
+  on public.log_shares for select to authenticated
+  using ((select auth.uid()) = owner_user_id);
+
+create policy "Owners can delete log shares"
+  on public.log_shares for delete to authenticated
+  using ((select auth.uid()) = owner_user_id);
+
+revoke all privileges on table public.log_shares from anon, authenticated;
+grant select, delete on table public.log_shares to authenticated;
+grant all privileges on table public.log_shares to service_role;
+
+revoke all on function public.get_active_log_share(text)
+  from public, anon, authenticated;
+grant execute on function public.get_active_log_share(text)
+  to anon, authenticated, service_role;
+
+revoke all on function public.create_log_share(text, text, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.create_log_share(text, text, jsonb)
+  to authenticated, service_role;
+
+alter table public.log_shares
+  add constraint log_shares_payload_max_256k
+  check (octet_length(payload::text) <= 262144)
+  not valid;
+
+alter table public.log_shares
+  validate constraint log_shares_payload_max_256k;
+
+-- PROFILES: five direct editable fields; database role is authoritative.
+create or replace function private.is_current_user_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.profiles as profile
+    where profile.id = auth.uid()
+      and profile.role = 'admin'
+  );
+$$;
+
+revoke all on function private.is_current_user_admin()
+  from public, anon, authenticated;
+grant execute on function private.is_current_user_admin()
+  to authenticated, service_role;
+
+drop policy if exists "Users can read own profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
+drop policy if exists "Users can insert own profile" on public.profiles;
+drop policy if exists "Admins can read all profiles" on public.profiles;
+drop policy if exists "Users and admins can read profiles" on public.profiles;
+
+create policy "Users and admins can read profiles"
+  on public.profiles for select to authenticated
+  using (
+    (select auth.uid()) = id
+    or (select private.is_current_user_admin())
+  );
+
+create policy "Users can update own profile"
+  on public.profiles for update to authenticated
+  using ((select auth.uid()) = id)
+  with check ((select auth.uid()) = id);
+
+revoke insert, update on table public.profiles from authenticated;
+grant select on table public.profiles to authenticated;
+grant update (display_name, first_name, last_name, ptcgl_username, avatar_color)
+  on table public.profiles to authenticated;
+grant all privileges on table public.profiles to service_role;
+
+create or replace function public.sync_current_profile()
+returns public.profiles
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  auth_email text;
+  auth_created_at timestamptz;
+  auth_last_sign_in_at timestamptz;
+  auth_metadata jsonb;
+  fallback_display_name text;
+  auth_first_name text;
+  auth_last_name text;
+  synced_profile public.profiles;
+begin
+  if current_user_id is null then
+    raise exception using errcode = '42501', message = 'Authentication required.';
+  end if;
+
+  select
+    coalesce(auth_user.email, ''),
+    auth_user.created_at,
+    auth_user.last_sign_in_at,
+    coalesce(auth_user.raw_user_meta_data, '{}'::jsonb)
+  into auth_email, auth_created_at, auth_last_sign_in_at, auth_metadata
+  from auth.users as auth_user
+  where auth_user.id = current_user_id;
+
+  if not found then
+    raise exception using errcode = 'P0001', message = 'AUTH_USER_NOT_FOUND';
+  end if;
+
+  auth_first_name := coalesce(nullif(btrim(auth_metadata ->> 'given_name'), ''), '');
+  auth_last_name := coalesce(nullif(btrim(auth_metadata ->> 'family_name'), ''), '');
+  fallback_display_name := coalesce(
+    nullif(btrim(auth_metadata ->> 'full_name'), ''),
+    nullif(btrim(auth_metadata ->> 'name'), ''),
+    nullif(btrim(concat_ws(' ', auth_first_name, auth_last_name)), ''),
+    nullif(split_part(auth_email, '@', 1), ''),
+    'Trainer'
+  );
+
+  insert into public.profiles (
+    id,
+    display_name,
+    first_name,
+    last_name,
+    email,
+    auth_account_created_at,
+    last_login_at,
+    last_active_at
+  )
+  values (
+    current_user_id,
+    fallback_display_name,
+    auth_first_name,
+    auth_last_name,
+    auth_email,
+    auth_created_at,
+    auth_last_sign_in_at,
+    statement_timestamp()
+  )
+  on conflict (id) do update
+  set
+    display_name = case
+      when btrim(profiles.display_name) = '' then excluded.display_name
+      else profiles.display_name
+    end,
+    first_name = case
+      when btrim(profiles.first_name) = '' then excluded.first_name
+      else profiles.first_name
+    end,
+    last_name = case
+      when btrim(profiles.last_name) = '' then excluded.last_name
+      else profiles.last_name
+    end,
+    email = excluded.email,
+    auth_account_created_at = excluded.auth_account_created_at,
+    last_login_at = excluded.last_login_at,
+    last_active_at = excluded.last_active_at
+  returning * into synced_profile;
+
+  return synced_profile;
+end;
+$$;
+
+create or replace function public.touch_current_profile_activity()
+returns timestamptz
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  activity_time timestamptz;
+begin
+  if current_user_id is null then
+    raise exception using errcode = '42501', message = 'Authentication required.';
+  end if;
+
+  update public.profiles as profile
+  set last_active_at = statement_timestamp()
+  where profile.id = current_user_id
+    and (
+      profile.last_active_at is null
+      or profile.last_active_at <= statement_timestamp() - interval '15 minutes'
+    )
+  returning profile.last_active_at into activity_time;
+
+  if activity_time is null then
+    select profile.last_active_at
+    into activity_time
+    from public.profiles as profile
+    where profile.id = current_user_id;
+  end if;
+
+  return activity_time;
+end;
+$$;
+
+create or replace function public.set_profile_role(
+  p_actor_user_id uuid,
+  p_target_user_id uuid,
+  p_role text
+)
+returns void
+language plpgsql
+volatile
+security invoker
+set search_path = ''
+as $$
+declare
+  target_current_role text;
+begin
+  if p_role not in ('user', 'admin') then
+    raise exception using errcode = '22023', message = 'Choose a valid role.';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('pokenotes-profile-role', 0)
+  );
+
+  if not exists (
+    select 1
+    from public.profiles as actor_profile
+    where actor_profile.id = p_actor_user_id
+      and actor_profile.role = 'admin'
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'You do not have permission to update roles.';
+  end if;
+
+  select profile.role
+  into target_current_role
+  from public.profiles as profile
+  where profile.id = p_target_user_id
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0001', message = 'User profile not found.';
+  end if;
+
+  if target_current_role = 'admin'
+    and p_role = 'user'
+    and (select count(*) from public.profiles where role = 'admin') <= 1 then
+    raise exception using
+      errcode = 'P0001',
+      message = 'You cannot remove admin access from the only admin account.';
+  end if;
+
+  update public.profiles set role = p_role where id = p_target_user_id;
+end;
+$$;
+
+revoke all on function public.sync_current_profile()
+  from public, anon, authenticated;
+grant execute on function public.sync_current_profile()
+  to authenticated, service_role;
+
+revoke all on function public.touch_current_profile_activity()
+  from public, anon, authenticated;
+grant execute on function public.touch_current_profile_activity()
+  to authenticated, service_role;
+
+revoke all on function public.set_profile_role(uuid, uuid, text)
+  from public, anon, authenticated;
+grant execute on function public.set_profile_role(uuid, uuid, text)
+  to service_role;
+
+revoke all on function public.get_admin_dashboard_overview()
+  from public, anon, authenticated;
+grant execute on function public.get_admin_dashboard_overview()
+  to authenticated, service_role;
+
+revoke all on function public.get_admin_users_overview()
+  from public, anon, authenticated;
+grant execute on function public.get_admin_users_overview()
+  to authenticated, service_role;
+
+-- Cache the caller identity once per statement instead of evaluating auth.uid()
+-- for every candidate row. The ownership rules remain the same.
+alter policy "Read public and own archetype catalog rows"
+  on public.archetype_catalog
+  using (source = 'curated' or (select auth.uid()) = user_id);
+
+alter policy "Users can create learned archetype catalog rows"
+  on public.archetype_catalog
+  with check (source = 'learned' and (select auth.uid()) = user_id);
+
+alter policy "Users can update learned archetype catalog rows"
+  on public.archetype_catalog
+  using (source = 'learned' and (select auth.uid()) = user_id)
+  with check (source = 'learned' and (select auth.uid()) = user_id);
+
+alter policy "Users can read own deck lists"
+  on public.deck_lists
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can insert own deck lists"
+  on public.deck_lists
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can update own deck lists"
+  on public.deck_lists
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can delete own deck lists"
+  on public.deck_lists
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can read own deck log stats"
+  on public.deck_log_stats
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can read own deck matchups"
+  on public.deck_matchups
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can insert own deck matchups"
+  on public.deck_matchups
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can update own deck matchups"
+  on public.deck_matchups
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can delete own deck matchups"
+  on public.deck_matchups
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can read own decks"
+  on public.decks
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can insert own decks"
+  on public.decks
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can update own decks"
+  on public.decks
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can delete own decks"
+  on public.decks
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can read own logs"
+  on public.logs
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can insert own logs"
+  on public.logs
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can update own logs"
+  on public.logs
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can delete own logs"
+  on public.logs
+  using ((select auth.uid()) = user_id);
+
+alter policy "Admins can update role permissions"
+  on public.role_permissions
+  to authenticated
+  using ((select private.is_current_user_admin()))
+  with check ((select private.is_current_user_admin()));
+
+alter policy "Users can read own route performance events"
+  on public.route_performance_events
+  to authenticated
+  using (
+    (select auth.uid()) = user_id
+    or (select private.is_current_user_admin())
+  );
+
+alter policy "Users can insert own route performance events"
+  on public.route_performance_events
+  to authenticated
+  with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Admins can read route performance events"
+  on public.route_performance_events;
+
+alter policy "Users can read own tournament rounds"
+  on public.tournament_rounds
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can insert own tournament rounds"
+  on public.tournament_rounds
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can update own tournament rounds"
+  on public.tournament_rounds
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can delete own tournament rounds"
+  on public.tournament_rounds
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can read own tournaments"
+  on public.tournaments
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can insert own tournaments"
+  on public.tournaments
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can update own tournaments"
+  on public.tournaments
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+alter policy "Users can delete own tournaments"
+  on public.tournaments
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can read own archetype matchup stats"
+  on public.user_archetype_matchup_stats
+  using ((select auth.uid()) = user_id);
+
+alter policy "Users can read own log stats"
+  on public.user_log_stats
+  using ((select auth.uid()) = user_id);
+
+-- Postgres does not index the referencing side of a foreign key automatically.
+-- These keep deck deletion and the corresponding joins from scanning full tables.
+create index if not exists deck_lists_deck_id
+  on public.deck_lists (deck_id);
+
+create index if not exists deck_log_stats_deck_id
+  on public.deck_log_stats (deck_id);
+
+create index if not exists deck_matchups_deck_id
+  on public.deck_matchups (deck_id);
+
+create index if not exists logs_linked_deck_id
+  on public.logs (linked_deck_id);
+
+create index if not exists tournament_rounds_user_tournament
+  on public.tournament_rounds (user_id, tournament_id);
+
+create index if not exists tournaments_user_linked_deck
+  on public.tournaments (user_id, linked_deck_id)
+  where linked_deck_id is not null;
+
+-- Keep trigger/event-trigger helpers out of the public API and pin their
+-- namespace resolution so a future object cannot shadow built-in functions.
+alter function public.set_updated_at()
+  set search_path = pg_catalog;
+
+alter function public.update_log_search_vector()
+  set search_path = pg_catalog;
+
+revoke all on function public.rls_auto_enable()
+  from public, anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- The final bootstrap policies retain tenant-scoped deck/list validation after
+-- the RLS performance alterations above.
+alter policy "Users can insert own logs"
+  on public.logs
+  with check (
+    (select auth.uid()) = user_id
+    and (
+      (linked_deck_id is null and linked_deck_list_id is null)
+      or exists (
+        select 1
+        from public.decks as parent
+        where parent.id = logs.linked_deck_id
+          and parent.user_id = (select auth.uid())
+          and (
+            logs.linked_deck_list_id is null
+            or exists (
+              select 1
+              from jsonb_array_elements(
+                case
+                  when jsonb_typeof(parent.deck_lists) = 'array'
+                    then parent.deck_lists
+                  else '[]'::jsonb
+                end
+              ) as item(value)
+              where item.value ->> 'id' = logs.linked_deck_list_id
+            )
+          )
+      )
+    )
+  );
+
+alter policy "Users can update own logs"
+  on public.logs
+  using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and (
+      (linked_deck_id is null and linked_deck_list_id is null)
+      or exists (
+        select 1
+        from public.decks as parent
+        where parent.id = logs.linked_deck_id
+          and parent.user_id = (select auth.uid())
+          and (
+            logs.linked_deck_list_id is null
+            or exists (
+              select 1
+              from jsonb_array_elements(
+                case
+                  when jsonb_typeof(parent.deck_lists) = 'array'
+                    then parent.deck_lists
+                  else '[]'::jsonb
+                end
+              ) as item(value)
+              where item.value ->> 'id' = logs.linked_deck_list_id
+            )
+          )
+      )
+    )
+  );
+
+alter policy "Users can insert own tournaments"
+  on public.tournaments
+  with check (
+    (select auth.uid()) = user_id
+    and (
+      (linked_deck_id is null and linked_deck_list_id is null)
+      or exists (
+        select 1
+        from public.decks as parent
+        where parent.id = tournaments.linked_deck_id
+          and parent.user_id = (select auth.uid())
+          and (
+            tournaments.linked_deck_list_id is null
+            or exists (
+              select 1
+              from jsonb_array_elements(
+                case
+                  when jsonb_typeof(parent.deck_lists) = 'array'
+                    then parent.deck_lists
+                  else '[]'::jsonb
+                end
+              ) as item(value)
+              where item.value ->> 'id' = tournaments.linked_deck_list_id
+            )
+          )
+      )
+    )
+  );
+
+alter policy "Users can update own tournaments"
+  on public.tournaments
+  using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and (
+      (linked_deck_id is null and linked_deck_list_id is null)
+      or exists (
+        select 1
+        from public.decks as parent
+        where parent.id = tournaments.linked_deck_id
+          and parent.user_id = (select auth.uid())
+          and (
+            tournaments.linked_deck_list_id is null
+            or exists (
+              select 1
+              from jsonb_array_elements(
+                case
+                  when jsonb_typeof(parent.deck_lists) = 'array'
+                    then parent.deck_lists
+                  else '[]'::jsonb
+                end
+              ) as item(value)
+              where item.value ->> 'id' = tournaments.linked_deck_list_id
+            )
+          )
+      )
+    )
+  );
+
+notify pgrst, 'reload schema';

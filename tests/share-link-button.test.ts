@@ -21,3 +21,13 @@ test("native share payload does not include the share URL twice", () => {
   );
   assert.match(source, /url:\s*shareUrl/);
 });
+
+test("share confirmation describes the seven-day lifetime", () => {
+  const source = readFileSync(
+    join(process.cwd(), "components/ui/CopyShareLinkButton.tsx"),
+    "utf8"
+  );
+
+  assert.match(source, /for up to 7 days/);
+  assert.doesNotMatch(source, /for 30 days/);
+});

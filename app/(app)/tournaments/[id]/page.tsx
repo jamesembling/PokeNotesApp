@@ -21,7 +21,6 @@ import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
 import { getDeckWithList } from "@/lib/db/decks";
 import {
   getTournamentById,
-  getTournamentDeckChoices,
   getTournamentRounds,
   TournamentSchemaMissingError
 } from "@/lib/db/tournaments";
@@ -200,13 +199,13 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         }
         mobileAction={
           <Suspense fallback={<TournamentEditButtonFallback compact />}>
-            <TournamentEditAction compact tournament={tournament} userId={user.id} />
+            <TournamentEditAction compact tournament={tournament} />
           </Suspense>
         }
         action={
           <PageActions className="hidden sm:flex">
             <Suspense fallback={<TournamentEditButtonFallback />}>
-              <TournamentEditAction tournament={tournament} userId={user.id} />
+              <TournamentEditAction tournament={tournament} />
             </Suspense>
             <Button asChild className="hidden justify-center text-center sm:flex" variant="outline">
               <Link href="/tournaments" prefetch={false}>
@@ -314,19 +313,14 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
 
 async function TournamentEditAction({
   compact = false,
-  tournament,
-  userId
+  tournament
 }: {
   compact?: boolean;
   tournament: NonNullable<Awaited<ReturnType<typeof getTournamentById>>>;
-  userId: string;
 }) {
-  const decks = await getTournamentDeckChoices(userId);
-
   return (
     <LazyTournamentEditorButton
       className="flex-1 justify-center text-center sm:flex-none"
-      decks={decks}
       tournament={tournament}
       triggerChildren={
         compact ? (

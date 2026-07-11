@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { privateJson } from "@/lib/server/api-response";
 import { reportError } from "@/lib/server/report-error";
 // @ts-expect-error Shared sync helper is authored as an ESM .mjs module.
 import { syncCardEffectCatalog } from "@/lib/card-effect-catalog/sync.mjs";
@@ -20,7 +20,7 @@ function isAuthorizedCronRequest(request: Request) {
 export async function GET(request: Request) {
   try {
     if (!isAuthorizedCronRequest(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return privateJson({ error: "Unauthorized" }, { status: 401 });
     }
 
     const summary = await syncCardEffectCatalog({
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       }
     });
 
-    return NextResponse.json({
+    return privateJson({
       ok: true,
       summary
     });
@@ -42,10 +42,10 @@ export async function GET(request: Request) {
       route: "/api/cron/sync-card-effect-catalog"
     });
 
-    return NextResponse.json(
+    return privateJson(
       {
         ok: false,
-        error: error instanceof Error ? error.message : "Card effect catalog sync failed."
+        error: "Card effect catalog sync failed."
       },
       { status: 500 }
     );

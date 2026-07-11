@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { invalidateReferenceDataCaches } from "@/lib/server/cache";
+import { privateJson } from "@/lib/server/api-response";
 import { reportError } from "@/lib/server/report-error";
 // @ts-expect-error Shared sync helper is authored as an ESM .mjs module.
 import { syncPokemonCatalog } from "@/lib/pokemon-catalog/sync.mjs";
@@ -21,7 +21,7 @@ function isAuthorizedCronRequest(request: Request) {
 export async function GET(request: Request) {
   try {
     if (!isAuthorizedCronRequest(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return privateJson({ error: "Unauthorized" }, { status: 401 });
     }
 
     const summary = await syncPokemonCatalog({
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
     invalidateReferenceDataCaches();
 
-    return NextResponse.json({
+    return privateJson({
       ok: true,
       summary,
     });
@@ -45,12 +45,12 @@ export async function GET(request: Request) {
       route: "/api/cron/sync-pokemon-catalog",
     });
 
-    return NextResponse.json(
+    return privateJson(
       {
         ok: false,
-        error: error instanceof Error ? error.message : "Pokemon catalog sync failed.",
+        error: "Pokemon catalog sync failed."
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

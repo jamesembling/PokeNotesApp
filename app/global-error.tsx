@@ -69,8 +69,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               We hit a problem before the app finished loading.
             </h1>
             <p style={{ margin: 0, color: "var(--foreground, #d1d5db)", fontSize: "14px", lineHeight: 1.6 }}>
-              This recovery screen is here to help you get back on track. We’ve logged the
-              failure and can use the reference below to track it down.
+              Try the app again. If the problem continues, report what you were doing. Include the
+              error reference below if one is shown.
             </p>
             {error.digest ? (
               <div

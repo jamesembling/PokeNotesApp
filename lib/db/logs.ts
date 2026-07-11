@@ -9,6 +9,8 @@ import {
 import type { DeckLinkCandidate } from "@/lib/log-import/deck-linking";
 import type { BattleLog, BattleLogSummary, LogSection, Result } from "@/types/index";
 import { compactMap } from "@/lib/array";
+import { decodeLogSections } from "@/lib/battle-log/runtime-validation";
+import { reportError } from "@/lib/server/report-error";
 
 export const logsDbTestHooks = {
   createClient: createSupabaseClient
@@ -190,12 +192,19 @@ function splitSprites(value: string) {
     .split(","), (sprite) => sprite.trim());
 }
 
-function parseSections(value: unknown): LogSection[] {
-  if (!Array.isArray(value)) {
-    return [];
+function parseSections(value: unknown, row: Pick<LogDetailTableRow, "id" | "user_id">): LogSection[] {
+  const sections = decodeLogSections(value);
+  if (sections) {
+    return sections;
   }
 
-  return value as LogSection[];
+  reportError(new Error("Stored battle log sections failed runtime validation."), {
+    area: "logs",
+    boundary: "database-read",
+    logId: row.id,
+    userId: row.user_id
+  });
+  return [];
 }
 
 function mapLogSummary(row: LogsTableRow): BattleLogSummary {
@@ -268,7 +277,7 @@ export function mapBattleLog(row: LogDetailTableRow): BattleLog {
     linkedDeckListId: row.linked_deck_list_id ?? undefined,
     reason: row.reason,
     rawLog: row.raw_log ?? "",
-    sections: parseSections(row.sections),
+    sections: parseSections(row.sections, row),
     importedAt: row.imported_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -326,7 +335,7 @@ function mapBattleLogSummary(row: Omit<LogDetailTableRow, "raw_log" | "sections"
 function mapLogDetailBody(row: LogDetailBodyTableRow): LogDetailBody {
   return {
     rawLog: row.raw_log ?? "",
-    sections: parseSections(row.sections)
+    sections: parseSections(row.sections, row)
   };
 }
 

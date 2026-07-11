@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
 import { request as httpRequest } from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,33 +34,42 @@ for (const arg of process.argv.slice(2)) {
 }
 
 const baseUrl = String(args.get("--base-url") || "http://localhost:3000").replace(/\/$/, "");
+const baseUrlParts = new URL(baseUrl);
 const statePath = resolve(String(args.get("--state") || ".agent-browser/pokenotes-local-auth.json"));
 const session = String(args.get("--session") || `pokenotes-local-auth-${Date.now()}`);
-const secret = process.env.POKE_NOTES_TEST_LOGIN_SECRET || "";
-
-if (!secret) {
-  throw new Error(
-    "Missing POKE_NOTES_TEST_LOGIN_SECRET. Run npm run auth:local:setup first."
-  );
-}
+const pairingCode = String(process.env.POKE_NOTES_LOCAL_LOGIN_CODE || "");
 
 if (!existsSync(agentBrowserBin)) {
   throw new Error("agent-browser is not installed. Run npm install first.");
 }
 
+if (!pairingCode) {
+  throw new Error("Missing local pairing code. Run npm run auth:local:setup first.");
+}
+
 await assertDevServerReady(baseUrl);
 
 mkdirSync(dirname(statePath), { recursive: true });
-const loginUrl = new URL("/auth/test-login", baseUrl);
-loginUrl.searchParams.set("secret", secret);
-
-runAgentBrowser(["open", loginUrl.toString()], { stdio: "inherit" });
+runAgentBrowser(["open", new URL("/login", baseUrl).toString()], { stdio: "inherit" });
+const currentUrl = new URL(runAgentBrowser(["get", "url"]).trim());
+if (currentUrl.pathname === "/login") {
+  runAgentBrowser([
+    "fill",
+    'form[action="/auth/dev-login"] input[name="pairingCode"]',
+    pairingCode
+  ]);
+  runAgentBrowser([
+    "click",
+    'form[action="/auth/dev-login"] button[type="submit"]'
+  ]);
+}
 runAgentBrowser([
   "wait",
   "--fn",
   "document.readyState === 'complete' && location.pathname !== '/login'"
 ]);
 runAgentBrowser(["state", "save", statePath], { stdio: "inherit" });
+sanitizeAuthState();
 chmodSync(statePath, 0o600);
 
 console.log(`Saved local auth state to ${statePath}`);
@@ -65,7 +81,16 @@ function runAgentBrowser(commandArgs, options = {}) {
       "--session",
       session,
       "--allowed-domains",
-      "localhost,127.0.0.1,*.supabase.co,*.supabase.in",
+      Array.from(
+        new Set([
+          baseUrlParts.host,
+          baseUrlParts.hostname,
+          "localhost",
+          "127.0.0.1",
+          "*.supabase.co",
+          "*.supabase.in"
+        ])
+      ).join(","),
       ...commandArgs
     ],
     {
@@ -75,6 +100,31 @@ function runAgentBrowser(commandArgs, options = {}) {
       timeout: options.timeoutMs ?? 30000
     }
   );
+}
+
+function sanitizeAuthState() {
+  let state;
+  try {
+    state = JSON.parse(readFileSync(statePath, "utf8"));
+  } catch (error) {
+    rmSync(statePath, { force: true });
+    throw new Error("Saved local auth state could not be sanitized and was removed.", {
+      cause: error
+    });
+  }
+  const expectedHostname = baseUrlParts.hostname.toLowerCase();
+  const expectedOrigin = baseUrlParts.origin;
+
+  state.cookies = Array.isArray(state.cookies)
+    ? state.cookies.filter((cookie) =>
+        String(cookie?.domain || "").replace(/^\./, "").toLowerCase() === expectedHostname
+      )
+    : [];
+  state.origins = Array.isArray(state.origins)
+    ? state.origins.filter((entry) => entry?.origin === expectedOrigin)
+    : [];
+
+  writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
 }
 
 function assertDevServerReady(baseUrlValue) {

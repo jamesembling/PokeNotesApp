@@ -21,16 +21,17 @@ test("single-day tournaments reuse dateFrom when dateTo is blank", () => {
 });
 
 test("deck list edits fail when the submitted deck list id is missing", () => {
-  const deckListService = source("lib/decks/deck-list-service.ts");
+  const aggregateWriter = source("lib/decks/deck-aggregate-writer.ts");
 
-  assert.match(deckListService, /if \(deckListId && !existingDeckList\)/);
-  assert.match(deckListService, /Deck list could not be found\./);
+  assert.match(aggregateWriter, /if \(deckListId && !existingDeckList\)/);
+  assert.match(aggregateWriter, /Deck list could not be found\./);
 });
 
 test("deck lists and matchup notes use relational rows with JSON compatibility", () => {
   const decksDb = source("lib/db/decks.ts");
   const deckListService = source("lib/decks/deck-list-service.ts");
   const matchupService = source("lib/decks/matchup-service.ts");
+  const aggregateWriter = source("lib/decks/deck-aggregate-writer.ts");
 
   assert.match(decksDb, /from\("deck_lists"\)/);
   assert.match(decksDb, /from\("deck_matchups"\)/);
@@ -39,10 +40,12 @@ test("deck lists and matchup notes use relational rows with JSON compatibility",
   assert.match(decksDb, /parseDeckLists\(row\.deck_lists\)/);
   assert.match(decksDb, /parseDeckMatchups\(row\.matchups\)/);
 
-  assert.match(deckListService, /upsertRelationalDeckLists/);
-  assert.match(deckListService, /deck_lists: updatedDeckLists/);
-  assert.match(matchupService, /upsertRelationalDeckMatchups/);
-  assert.match(matchupService, /matchups: nextMatchups/);
+  assert.match(deckListService, /createServerDeckAggregateWriter/);
+  assert.match(matchupService, /createServerDeckAggregateWriter/);
+  assert.match(aggregateWriter, /loadLegacyChildren/);
+  assert.match(aggregateWriter, /adapter\.commit/);
+  assert.match(aggregateWriter, /rpc\("commit_deck_aggregate_child"/);
+  assert.match(aggregateWriter, /expectedChildUpdatedAt/);
 });
 
 test("user mutations select changed ids before reporting success", () => {
@@ -112,11 +115,14 @@ test("private helper endpoints disable caching and map user-facing share errors"
   assert.match(apiResponse, /PRIVATE_NO_STORE_HEADERS/);
   assert.match(importDialogRoute, /privateJson/);
   assert.match(sharesRoute, /getActionErrorStatus/);
-  assert.match(sharesRoute, /message\.includes\("not found"\)/);
+  assert.match(sharesRoute, /error\.httpStatus \?\? 400/);
+  assert.doesNotMatch(sharesRoute, /message\.includes/);
   assert.match(logDetailBodyRoute, /privateJson/);
   assert.match(logDetailContextRoute, /privateJson/);
   assert.match(tournamentEditorRoute, /privateJson/);
-  assert.match(testLoginRoute, /POKE_NOTES_ENABLE_TEST_LOGIN/);
+  assert.match(testLoginRoute, /deliberately unavailable/);
+  assert.match(testLoginRoute, /status: 404/);
+  assert.doesNotMatch(testLoginRoute, /POKE_NOTES_TEST_LOGIN_SECRET/);
 });
 
 test("admin fallback reads use paginated Supabase fetches", () => {
@@ -130,10 +136,13 @@ test("admin fallback reads use paginated Supabase fetches", () => {
 test("local auth helper reuses the existing Codex test user", () => {
   const packageJson = source("package.json");
   const perfScript = source("scripts/perf-prod.mjs");
+  const devLoginRoute = source("app/auth/dev-login/route.ts");
   const saveAuthScript = source("scripts/save-local-auth-state.mjs");
   const setupScript = source("scripts/setup-local-test-login.mjs");
+  const copyCodeScript = source("scripts/copy-local-login-code.mjs");
 
   assert.match(packageJson, /"auth:local:setup": "node scripts\/setup-local-test-login\.mjs"/);
+  assert.match(packageJson, /"auth:local:copy-code": "node scripts\/copy-local-login-code\.mjs"/);
   assert.match(packageJson, /"auth:local:save": "node scripts\/save-local-auth-state\.mjs"/);
   assert.match(packageJson, /"dev:test-login": "node scripts\/setup-local-test-login\.mjs && next dev(?: [^"]*)?"/);
   assert.match(setupScript, /findConfiguredOrExistingCodexUser/);
@@ -141,8 +150,19 @@ test("local auth helper reuses the existing Codex test user", () => {
   assert.doesNotMatch(setupScript, /role:\s*"admin"/);
   assert.match(setupScript, /writeFileSync\(localEnvPath, `\$\{nextContent\}\\n`, \{ mode: 0o600 \}\)/);
   assert.match(setupScript, /chmodSync\(localEnvPath, 0o600\)/);
+  assert.match(setupScript, /POKE_NOTES_LOCAL_LOGIN_CODE/);
+  assert.match(copyCodeScript, /execFileSync\("pbcopy"/);
+  assert.doesNotMatch(copyCodeScript, /console\.log\(pairingCode\)/);
   assert.match(saveAuthScript, /chmodSync\(statePath, 0o600\)/);
+  assert.match(saveAuthScript, /POKE_NOTES_LOCAL_LOGIN_CODE/);
+  assert.match(saveAuthScript, /input\[name=\"pairingCode\"\]/);
+  assert.doesNotMatch(saveAuthScript, /auth\/test-login/);
+  assert.match(saveAuthScript, /expectedHostname/);
+  assert.match(devLoginRoute, /validateLocalLoginAttempt/);
+  assert.doesNotMatch(devLoginRoute, /requiresPairingCode\s*&&/);
   assert.match(perfScript, /chmodSync\(statePath, 0o600\)/);
+  assert.doesNotMatch(perfScript, /PERF_TEST_LOGIN_SECRET/);
+  assert.match(perfScript, /expectedHostname/);
 });
 
 test("server actions clamp editable redirect targets to app paths", () => {

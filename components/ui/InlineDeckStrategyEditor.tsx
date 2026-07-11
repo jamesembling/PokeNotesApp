@@ -136,7 +136,10 @@ export function InlineDeckStrategyEditor({
           : "";
 
   return (
-    <section className="space-y-5 border-b border-border pb-6">
+    <section
+      aria-labelledby="deck-core-strategy-heading"
+      className="space-y-5 border-b border-border pb-6"
+    >
       <SectionHeader
         actions={statusLabel ? (
           <p
@@ -156,6 +159,8 @@ export function InlineDeckStrategyEditor({
           </p>
         ) : null}
         eyebrow="Core Strategy"
+        eyebrowAs="h2"
+        eyebrowId="deck-core-strategy-heading"
       />
 
       {errorMessage ? (

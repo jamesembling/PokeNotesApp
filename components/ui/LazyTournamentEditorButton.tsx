@@ -3,26 +3,17 @@
 import dynamic from "next/dynamic";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/shadcn/button";
-import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
+import { usePokemonOptionsResource } from "@/lib/pokemon/use-pokemon-options";
 import type { TournamentEditorDialogProps } from "@/components/ui/TournamentEditorDialog";
-import type { PokemonOption, Tournament, TournamentDeckChoice } from "@/types/index";
+import type { Tournament } from "@/types/index";
 
 type LazyTournamentEditorButtonProps = {
   className?: string;
-  decks?: TournamentDeckChoice[];
   tournament?: Tournament;
   triggerChildren?: ReactNode;
   triggerLabel: string;
   triggerVariant?: "default" | "outline" | "ghost";
 };
-
-type TournamentEditorDataResponse = {
-  decks?: TournamentDeckChoice[];
-  pokemonOptions?: PokemonOption[];
-};
-
-let tournamentEditorDataCache: TournamentEditorDataResponse | null = null;
-let tournamentEditorDataPromise: Promise<TournamentEditorDataResponse> | null = null;
 
 const DynamicTournamentEditorDialog = dynamic<TournamentEditorDialogProps>(
   () =>
@@ -32,81 +23,26 @@ const DynamicTournamentEditorDialog = dynamic<TournamentEditorDialogProps>(
   }
 );
 
-async function loadTournamentEditorData() {
-  if (tournamentEditorDataCache) {
-    return tournamentEditorDataCache;
-  }
-
-  if (!tournamentEditorDataPromise) {
-    tournamentEditorDataPromise = fetch("/api/tournament-editor-data", {
-      credentials: "same-origin",
-      cache: "no-store"
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Could not load tournament editor data.");
-        }
-
-        const payload = (await response.json()) as TournamentEditorDataResponse;
-        tournamentEditorDataCache = payload;
-        return payload;
-      })
-      .catch(() => {
-        tournamentEditorDataPromise = null;
-        throw new Error("Could not load tournament editor data.");
-      })
-      .finally(() => {
-        tournamentEditorDataPromise = null;
-      });
-  }
-
-  return tournamentEditorDataPromise;
-}
-
 export function LazyTournamentEditorButton({
   className,
-  decks: initialDecks = [],
   tournament,
   triggerChildren,
   triggerLabel,
   triggerVariant = "default"
 }: LazyTournamentEditorButtonProps) {
-  const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
-  const [decks, setDecks] = useState<TournamentDeckChoice[]>(initialDecks);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
+  const [optionsRequested, setOptionsRequested] = useState(false);
+  const {
+    error: loadError,
+    isLoading,
+    pokemonOptions,
+    reload
+  } = usePokemonOptionsResource(optionsRequested);
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  async function handleOpen() {
-    if (pokemonOptions && decks.length > 0) {
-      return;
-    }
-
-    setIsLoading(true);
-    setLoadError("");
-
-    try {
-      const [nextPokemonOptions, payload] = await Promise.all([
-        loadPokemonOptions(),
-        decks.length > 0 ? Promise.resolve<TournamentEditorDataResponse>({}) : loadTournamentEditorData()
-      ]);
-
-      setPokemonOptions(Array.isArray(payload.pokemonOptions) ? payload.pokemonOptions : nextPokemonOptions);
-      if (Array.isArray(payload.decks)) {
-        setDecks(payload.decks);
-      }
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not load tournament editor.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   if (pokemonOptions) {
     return (
       <>
         <DynamicTournamentEditorDialog
-          decks={decks}
           initialOpen={dialogOpen}
           pokemonOptions={pokemonOptions}
           tournament={tournament}
@@ -131,7 +67,11 @@ export function LazyTournamentEditorButton({
         disabled={isLoading}
         onClick={() => {
           setDialogOpen(true);
-          void handleOpen();
+          if (optionsRequested) {
+            reload();
+          } else {
+            setOptionsRequested(true);
+          }
         }}
         variant={triggerVariant}
       >

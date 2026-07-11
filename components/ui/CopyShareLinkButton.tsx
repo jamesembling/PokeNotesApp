@@ -111,7 +111,7 @@ async function createLogShare(logId: string) {
 
 function showShareConfirmation(shareMethod: ShareMethod) {
   const description =
-    "Anyone with the link can open this battle log snapshot, including linked deck-list details when present, for 30 days.";
+    "Anyone with the link can open this battle log snapshot, including linked deck-list details when present, for up to 7 days.";
 
   if (shareMethod === "cancelled") {
     toast.info("Share cancelled", {

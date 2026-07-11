@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { POKEMON_OPTIONS_REVALIDATE_SECONDS } from "@/lib/cache/freshness";
 import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
 import { CACHE_TAGS } from "@/lib/server/cache";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
@@ -43,7 +44,7 @@ const getPokemonOptionsCached = unstable_cache(
   },
   ["pokemon-options", POKEMON_OPTIONS_CACHE_VERSION],
   {
-    revalidate: 60 * 60,
+    revalidate: POKEMON_OPTIONS_REVALIDATE_SECONDS,
     tags: [CACHE_TAGS.pokemonOptions]
   }
 );

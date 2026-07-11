@@ -1,7 +1,35 @@
+const baselineSecurityHeaders = [
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), geolocation=(), microphone=()"
+  },
+  {
+    key: "Referrer-Policy",
+    value: "strict-origin-when-cross-origin"
+  },
+  {
+    key: "X-Content-Type-Options",
+    value: "nosniff"
+  },
+  {
+    key: "X-Frame-Options",
+    value: "DENY"
+  }
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins: ["192.168.1.195", "Jamess-MacBook-Pro-2.local"],
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: baselineSecurityHeaders
+      }
+    ];
+  },
   outputFileTracingRoot: __dirname,
+  poweredByHeader: false,
   images: {
     remotePatterns: [
       {

@@ -41,7 +41,7 @@ export default async function ProfilePage() {
         <Card>
           <CardHeader>
             <p className="ui-eyebrow">Trainer Profile</p>
-            <CardTitle>Account Details</CardTitle>
+            <CardTitle as="h2">Account Details</CardTitle>
             <CardDescription>
               Your PTCGL username is used to identify your side when importing battle
               logs.
@@ -57,7 +57,7 @@ export default async function ProfilePage() {
           <Card>
             <CardHeader>
               <p className="ui-eyebrow">Signed In</p>
-              <CardTitle>Account Snapshot</CardTitle>
+              <CardTitle as="h2">Account Snapshot</CardTitle>
             </CardHeader>
 
             <CardContent>
@@ -83,7 +83,7 @@ export default async function ProfilePage() {
           <Card>
             <CardHeader>
               <p className="ui-eyebrow">Activity</p>
-              <CardTitle>Profile Metadata</CardTitle>
+              <CardTitle as="h2">Profile Metadata</CardTitle>
             </CardHeader>
 
             <CardContent>
