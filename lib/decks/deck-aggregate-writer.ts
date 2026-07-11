@@ -396,10 +396,19 @@ function createSupabaseDeckAggregateWriteAdapter(input: {
 
   return {
     async commit(plan) {
+      const expectedChildUpdatedAt = plan.expectedChildUpdatedAt;
+
+      // PostgreSQL permits the nullable update version, but generated RPC argument
+      // types do not express parameter nullability. Keep missing update versions
+      // fail-closed; creates use an ignored empty sentinel for the required text arg.
+      if (plan.operation === "update" && !expectedChildUpdatedAt?.trim()) {
+        return "conflict";
+      }
+
       const { data, error } = await supabase.rpc("commit_deck_aggregate_child", {
         p_child: asJson(plan.child),
         p_deck_id: plan.deckId,
-        p_expected_child_updated_at: plan.expectedChildUpdatedAt,
+        p_expected_child_updated_at: expectedChildUpdatedAt ?? "",
         p_kind: plan.kind,
         p_operation: plan.operation,
         p_updated_at: plan.updatedAt

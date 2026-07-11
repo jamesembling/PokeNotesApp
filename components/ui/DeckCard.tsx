@@ -4,18 +4,13 @@ import { CalendarIcon, ClockIcon } from "@/components/ui/icons";
 import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { ItemTitle } from "@/components/ui/Typography";
+import { formatAppCalendarDate } from "@/lib/date-time";
 import type { DeckSummary } from "@/types/index";
 
 export type DeckCardView = "tile" | "list";
 type DeckCardDeck = Pick<DeckSummary, "id" | "deckName" | "deckPokemon" | "updatedAt">;
 
 const listSpriteLaneClassName = "min-h-12 w-[82px] shrink-0 sm:w-[98px]";
-const UPDATED_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric"
-});
-
 type DeckCardProps = {
   deck: DeckCardDeck;
   deckListCount: number;
@@ -24,10 +19,6 @@ type DeckCardProps = {
   view?: DeckCardView;
   winRate: number | null;
 };
-
-function formatUpdatedDate(date: string) {
-  return UPDATED_DATE_FORMATTER.format(new Date(date));
-}
 
 function getListWinRateTextClass(winRate: number | null) {
   if (winRate == null) {
@@ -116,7 +107,9 @@ export function DeckCard({
 
           <div className="text-right text-sm font-medium text-card-foreground">{deckListCount}</div>
 
-          <div className="text-right text-sm text-muted-foreground">{formatUpdatedDate(deck.updatedAt)}</div>
+          <div className="text-right text-sm text-muted-foreground">
+            {formatAppCalendarDate(deck.updatedAt)}
+          </div>
 
           <span className="ui-control-text justify-self-end text-primary">Open</span>
         </div>
@@ -159,7 +152,7 @@ export function DeckCard({
         <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-3 text-xs font-medium text-muted-foreground">
           <span className="flex min-w-0 items-center gap-1.5">
             <ClockIcon className="size-3.5 shrink-0" />
-            <span className="truncate">{formatUpdatedDate(deck.updatedAt)}</span>
+            <span className="truncate">{formatAppCalendarDate(deck.updatedAt)}</span>
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
             <CalendarIcon className="size-3.5" />

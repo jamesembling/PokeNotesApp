@@ -883,7 +883,7 @@ export type Database = {
         Args: {
           p_child: Json
           p_deck_id: string
-          p_expected_child_updated_at: string | null
+          p_expected_child_updated_at: string
           p_kind: string
           p_operation: string
           p_updated_at: string

@@ -1,11 +1,11 @@
 # ADR 0001: Preserve deck aggregates during relational cut-over
 
-- **Status:** Accepted and approved for rollout. Both account copies will be preserved, the scoped re-key is prepared transactionally, and the compatibility layer remains through at least 30 days after production deployment plus the exit checks below.
+- **Status:** Accepted and live. Both account copies were preserved in the production re-key on 11 July 2026 UTC. The compatibility layer remains through at least 10 August 2026 at 23:08 UTC plus the exit checks below.
 - **Date:** 2026-07-11
 
 ## Context
 
-Deck Lists and Matchup Plans currently exist both as JSON inside `decks` and as rows in `deck_lists` and `deck_matchups`. The relational tables are the intended long-term home. Production still uses sequential writes; the local application and migration now contain the transactional replacement but have not been deployed by this review task.
+Deck Lists and Matchup Plans currently exist both as JSON inside `decks` and as rows in `deck_lists` and `deck_matchups`. The relational tables are the intended long-term home. Production now uses the transactional replacement while both stores remain active during the compatibility period.
 
 A privacy-safe read-only live audit found 49 legacy Deck List occurrences versus 30 relational rows, and two legacy Matchup Plan occurrences versus one relational row. The gaps are not globally missing content. Nineteen list occurrences and one matchup occurrence reuse an ID that exists relationally under a different account and Deck Strategy. The original migration treated those historical IDs as globally unique and retained only one relational row per ID. All compared business content matches, but seven preserved legacy list occurrences are referenced by 31 Battle Logs.
 
@@ -23,11 +23,11 @@ Consequently, a same-ID backfill is unsafe: the global relational primary key is
 ## Consequences
 
 - Current users keep seeing their preserved lists and matchup plans. The new read boundary protects a future partial migration from hiding records.
-- The database migration must deploy before the application code. Deploying the application first would make every Deck List and Matchup Plan save call a function that does not exist yet. Deploying the migration first is backward-compatible because the existing application does not call it.
-- Once both layers are deployed, a relational write and its Legacy Deck Copy update either both commit or both roll back. Concurrent edits to different children merge under the parent lock; a stale second edit to the same child receives an explicit refresh-and-retry error.
-- Before the re-key is applied, any list save on a Deck Strategy containing one of the 19 colliding list occurrences can still hit the existing global primary-key conflict, even when creating or editing a different list. The same applies to the affected matchup aggregate. Once the approved repair passes, those collisions are removed without discarding either copy.
+- The database migration deployed before the application code. That order avoided calling a function that did not yet exist and kept the previous application compatible during the database cut-over.
+- A relational write and its Legacy Deck Copy update now either both commit or both roll back. Concurrent edits to different children merge under the parent lock; a stale second edit to the same child receives an explicit refresh-and-retry error.
+- The approved re-key removed the 19 Deck List and one Matchup Plan collisions without discarding either account-scoped copy. It repaired 31 precisely owner/deck-scoped Battle Log links while leaving 43 unrelated same-ID links untouched.
 - Old bookmarked URLs containing one of the 19 replaced list IDs or the replaced matchup ID no longer resolve. Internal navigation is regenerated from the repaired records, and the 31 persisted Battle Log links move with their owner-scoped list.
-- Existing half-write states, if any, are not repaired by installing the function. Compatibility audits and the reviewed data repair remain responsible for historical parity.
+- The post-repair compatibility audit reports 49/49 Deck List and 2/2 Matchup Plan parity with every blocking issue count at zero. Repeated clean audits remain required during observation because future writes could still expose an unreviewed path.
 - The Legacy Deck Copy cannot be removed on a calendar date alone. Exit requires zero true gaps/collisions, comparison parity, migrated readers and writers, transactional persistence, and an agreed observation period.
 
 ## Alternatives rejected

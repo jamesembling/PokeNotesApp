@@ -147,8 +147,8 @@ Deployments are intended for Vercel.
 7. Set `CRON_SECRET` in Vercel so the scheduled catalog sync route can authenticate requests.
 8. `/auth/test-login` deliberately returns `404` in every environment. Production browser checks use an attended Google login captured by `npm run perf:prod:auth`; local automated and phone checks use the development-only flow above.
 
-This revision uses a database-first rollout. Apply these migrations in timestamp order before
-deploying the application caller:
+This revision used a database-first rollout. The following migrations are live in production and
+must remain in this timestamp order when provisioning another environment:
 
 1. `20260711195613_commit_deck_aggregate_children.sql` — required before the application revision
    that calls `commit_deck_aggregate_child`;
@@ -162,10 +162,10 @@ deploying the application caller:
 5. `20260711224858_enforce_log_share_payload_size.sql` — enforces the approved 256 KiB snapshot cap
    and gives the application a stable oversized-payload response.
 
-Run `npm run schema:health` after the migrations, then deploy the application caller and replay the
-documented auth/share/deck smoke tests. Before rollout, the linked schema-health gate intentionally
-reports the missing function, constraint, privilege, ledger, and default-ACL contracts; that red
-result represents pending rollout rather than unknown drift.
+The production rollout completed on 11 July 2026 UTC. `supabase migration list --linked` aligns all
+15 local/remote versions, `npm run schema:health` passes, and the compatibility audit reports 49/49
+Deck List plus 2/2 Matchup Plan parity with no blocking issue. For later environments, run the same
+two gates after migration and replay the documented auth/share/deck smoke tests before promotion.
 
 `vercel.json` schedules `/api/cron/sync-pokemon-catalog` to run daily at `05:00` UTC. The job refreshes `pokemon_catalog` from the upstream sources, then invalidates the cached Pokemon options and identification catalog so UI menus and lookup paths see the new rows without a manual reseed.
 

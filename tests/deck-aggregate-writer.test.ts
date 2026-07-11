@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createDeckAggregateWriter,
+  createServerDeckAggregateWriter,
   type CreateDeckMatchupCommand,
   type DeckAggregateCommitPlan,
   type DeckAggregateCommitResult,
@@ -364,6 +365,56 @@ test("a same-child concurrency conflict gives an actionable user-facing error", 
     harness.commitPlans[0]?.expectedChildUpdatedAt,
     "2026-07-11T17:00:00.000Z"
   );
+});
+
+test("the server adapter fails a blank legacy update version before calling the RPC", async () => {
+  let rpcCalls = 0;
+  const query = {
+    select() {
+      return this;
+    },
+    eq() {
+      return this;
+    },
+    async maybeSingle() {
+      return {
+        data: {
+          id: "deck-2",
+          matchups: [
+            {
+              createdAt: "2026-07-10T12:00:00.000Z",
+              deckName: "Charizard",
+              deckPokemon: ["charizard"],
+              format: "SVI-ASC",
+              id: "matchup-existing",
+              updatedAt: "   "
+            }
+          ]
+        },
+        error: null
+      };
+    }
+  };
+  const writer = createServerDeckAggregateWriter({
+    actor: {
+      defaultCreatedBy: "Trainer",
+      userId: "user-2"
+    },
+    supabase: {
+      from() {
+        return query;
+      },
+      async rpc() {
+        rpcCalls += 1;
+        return { data: "committed", error: null };
+      }
+    } as never
+  });
+
+  await assert.rejects(writer.updateMatchup(updateMatchupCommand()), {
+    message: "This matchup changed in another tab. Refresh the page and try again."
+  });
+  assert.equal(rpcCalls, 0);
 });
 
 test("a list removed after the initial read retains the list-not-found error", async () => {

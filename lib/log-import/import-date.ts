@@ -1,4 +1,4 @@
-const DEFAULT_IMPORT_TIME_ZONE = "Europe/London";
+import { APP_TIME_ZONE } from "@/lib/date-time";
 
 function getDatePart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes) {
   return parts.find((part) => part.type === type)?.value ?? "";
@@ -6,7 +6,7 @@ function getDatePart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormat
 
 export function buildImportDate(
   date = new Date(),
-  timeZone = DEFAULT_IMPORT_TIME_ZONE
+  timeZone = APP_TIME_ZONE
 ) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
