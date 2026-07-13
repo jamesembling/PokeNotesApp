@@ -4,6 +4,7 @@ import {
   buildDeckListCardUrl,
   type DeckListCardImageSize
 } from "@/lib/deck-lists/render";
+import { prepareDeckListVisualCards } from "@/lib/deck-lists/basic-energy";
 import type { DeckCard } from "@/types/index";
 
 type DeckListVisualGridProps = {
@@ -38,9 +39,11 @@ export function DeckListVisualGrid({
   cards,
   variant = "standard"
 }: DeckListVisualGridProps) {
+  const visualCards = prepareDeckListVisualCards(cards);
+
   return (
     <div className={["grid gap-2", variantClasses[variant]].join(" ")}>
-      {cards.map((card, index) => (
+      {visualCards.map((card, index) => (
         <DeckListCard
           cardUrl={buildDeckListCardUrl(card.set, card.number)}
           count={card.count}

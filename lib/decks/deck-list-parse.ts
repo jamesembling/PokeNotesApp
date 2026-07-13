@@ -8,6 +8,7 @@ const HEADER_PATTERNS = [
 ] as const;
 
 const COUNT_LINE_PATTERN = /^(\d+)\s*(?:x)?\s+(.+)$/i;
+const SUMMARY_LINE_PATTERN = /^total\s+cards?\s*:\s*\d+\s*$/i;
 
 type DeckListCategory = "Pokemon" | "Trainer" | "Energy" | "";
 
@@ -26,6 +27,10 @@ export function getDeckListCategoryFromLine(value: string): DeckListCategory {
   }
 
   return "";
+}
+
+export function isDeckListSummaryLine(value: string) {
+  return SUMMARY_LINE_PATTERN.test(String(value || "").trim());
 }
 
 export function parseDeckListCountLine(value: string) {

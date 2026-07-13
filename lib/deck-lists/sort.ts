@@ -1,4 +1,5 @@
 import type { DeckCard } from "@/types/index";
+import { normalizeDeckListCardNameForLookup } from "@/lib/deck-lists/basic-energy";
 import { normalizeLimitlessSetCode } from "@/lib/deck-lists/limitless";
 
 const LIMITLESS_API_ROOT = "https://limitlesstcg.com";
@@ -222,9 +223,10 @@ async function fetchLimitlessPokedexMap() {
 }
 
 async function resolveDeckListCardMetadata(card: DeckCard): Promise<ResolvedDeckCard> {
+  const lookupCardName = normalizeDeckListCardNameForLookup(card.name);
   const baseCard: ResolvedDeckCard = {
     ...card,
-    lookupName: normalizeCardName(card.name),
+    lookupName: normalizeCardName(lookupCardName),
     lookupSet: normalizeSetCode(card.set),
     lookupNumber: normalizeLookupNumber(card.number),
     limitlessIdentity: null,
@@ -244,9 +246,9 @@ async function resolveDeckListCardMetadata(card: DeckCard): Promise<ResolvedDeck
   };
 
   const queries = [
-    baseCard.lookupSet ? `${card.name} set:${baseCard.lookupSet}` : "",
-    `${card.name} ${card.number}`,
-    card.name
+    baseCard.lookupSet ? `${lookupCardName} set:${baseCard.lookupSet}` : "",
+    `${lookupCardName} ${card.number}`,
+    lookupCardName
   ].filter(Boolean);
 
   let searchMatch: LimitlessSearchResult | null = null;

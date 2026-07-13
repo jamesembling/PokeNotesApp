@@ -1,5 +1,6 @@
 import {
   getDeckListCategoryFromLine,
+  isDeckListSummaryLine,
   parseDeckListCountLine,
   parseLines,
   splitDeckListDescription
@@ -359,6 +360,10 @@ function buildWarnings(cards: CalculatorCard[], totals: CalculatorTotals, input:
     }
 
     if (!currentCategory) {
+      return;
+    }
+
+    if (isDeckListSummaryLine(line)) {
       return;
     }
 
