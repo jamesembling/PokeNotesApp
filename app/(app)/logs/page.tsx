@@ -3,10 +3,14 @@ import { Card } from "@/components/shadcn/card";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  ProxyAuthTimingMarker,
+  RouteTimingMarker
+} from "@/components/ui/RouteTimingMarker";
 import { requireUser } from "@/lib/auth";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
 import { getLogSummaryStats, getLogsWindow } from "@/lib/db/logs";
-import { measureServerCall } from "@/lib/server/perf";
+import { measureServerCall, measureServerCallWithTiming } from "@/lib/server/perf";
 
 export default async function LogsPage() {
   const user = await requireUser();
@@ -19,12 +23,15 @@ export default async function LogsPage() {
   );
 
   return (
-    <Suspense fallback={<LogsContentFallback />}>
-      <LogsContent
-        hydratedWindowPromise={hydratedWindowPromise}
-        statsPromise={statsPromise}
-      />
-    </Suspense>
+    <>
+      <ProxyAuthTimingMarker />
+      <Suspense fallback={<LogsContentFallback />}>
+        <LogsContent
+          hydratedWindowPromise={hydratedWindowPromise}
+          statsPromise={statsPromise}
+        />
+      </Suspense>
+    </>
   );
 }
 
@@ -35,15 +42,17 @@ async function LogsContent({
   hydratedWindowPromise: ReturnType<typeof getLogsWindow>;
   statsPromise: ReturnType<typeof getLogSummaryStats>;
 }) {
-  const [stats, hydratedWindow] = await measureServerCall("page.logs.initialData", () =>
+  const initialDataTiming = await measureServerCallWithTiming("page.logs.initialData", () =>
     Promise.all([
       statsPromise,
       hydratedWindowPromise
     ])
   );
+  const [stats, hydratedWindow] = initialDataTiming.value;
 
   return (
     <div className="-mx-4 -my-6 flex min-h-dvh flex-col gap-6 bg-background px-4 py-6 text-foreground sm:-mx-6 sm:-my-8 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8">
+      <RouteTimingMarker durationMs={initialDataTiming.durationMs} phase="route-data" />
       <LogsWorkspaceClient stats={stats} window={hydratedWindow} />
     </div>
   );

@@ -2,10 +2,16 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
+import {
+  getNavigationReportDecision,
+  ROUTE_REPORTER_VERSION
+} from "@/lib/performance/route-performance";
 
 type PendingNavigation = {
   fromPath: string;
+  loadingEndedAt: number | null;
   loadingStartedAt: number | null;
+  pathReadyAt: number | null;
   resourceStartedAt: number;
   sawLoading: boolean;
   startedAt: number;
@@ -29,14 +35,19 @@ type LongTaskEntry = {
   startTime: number;
 };
 
+type ServerTimingSource = PerformanceNavigationTiming | PerformanceResourceTiming;
+
 const REPORT_ENDPOINT = "/api/performance-events";
-const NAVIGATION_RESOURCE_LOOKBACK_MS = 1200;
+const AUTOMATION_HASH = "#pokenotes-perf";
+const AUTOMATION_SESSION_KEY = "poke-notes:performance-automation";
+const NAVIGATION_RESOURCE_LOOKBACK_MS = 50;
 const LONG_TASK_ENTRY_RETENTION_MS = 300000;
+const HARD_LOAD_FALLBACK_MS = 10000;
 const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizePath(path: string) {
-  const [pathname] = path.split("?");
+  const [pathname] = path.split(/[?#]/);
 
   return pathname
     .split("/")
@@ -57,7 +68,11 @@ function getNavigationTiming() {
 }
 
 function shouldIncludeResource(entry: PerformanceEntry, endedAt: number) {
-  if (entry.startTime > endedAt || !entry.name.startsWith(window.location.origin)) {
+  if (
+    entry.startTime > endedAt ||
+    entry.startTime + entry.duration > endedAt ||
+    !entry.name.startsWith(window.location.origin)
+  ) {
     return false;
   }
 
@@ -65,19 +80,17 @@ function shouldIncludeResource(entry: PerformanceEntry, endedAt: number) {
   return pathname !== REPORT_ENDPOINT;
 }
 
-function getSlowestResourceSince(startedAt: number, endedAt = performance.now()) {
-  const sameOriginPrefix = window.location.origin;
-  const resources = performance
+function getResourcesSince(startedAt: number, endedAt = performance.now()) {
+  return performance
     .getEntriesByType("resource")
     .filter(
-      (entry) =>
-        entry.startTime >= startedAt &&
-        entry.name.startsWith(sameOriginPrefix) &&
-        shouldIncludeResource(entry, endedAt)
-    );
-  const slowest = resources.reduce<PerformanceResourceTiming | null>((current, entry) => {
-    const resource = entry as PerformanceResourceTiming;
+      (entry) => entry.startTime >= startedAt && shouldIncludeResource(entry, endedAt)
+    ) as PerformanceResourceTiming[];
+}
 
+function getSlowestResourceSince(startedAt: number, endedAt = performance.now()) {
+  const resources = getResourcesSince(startedAt, endedAt);
+  const slowest = resources.reduce<PerformanceResourceTiming | null>((current, resource) => {
     if (!current || resource.duration > current.duration) {
       return resource;
     }
@@ -95,6 +108,50 @@ function getSlowestResourceSince(startedAt: number, endedAt = performance.now())
   };
 }
 
+function getLatestResourceEndSince(startedAt: number, endedAt: number) {
+  return getResourcesSince(startedAt, endedAt).reduce(
+    (latest, resource) => Math.max(latest, resource.responseEnd || resource.startTime + resource.duration),
+    0
+  );
+}
+
+function getServerTimingDuration(entries: ServerTimingSource[], name: string) {
+  return entries.reduce((maximum, entry) => {
+    const metric = entry.serverTiming?.find((serverTiming) => serverTiming.name === name);
+    return Math.max(maximum, metric?.duration ?? 0);
+  }, 0);
+}
+
+function getMarkerDuration(phase: "proxy-auth" | "route-data" | "shell-profile") {
+  const markers = document.querySelectorAll<HTMLElement>(
+    `[data-route-server-timing="${phase}"]`
+  );
+  const marker = markers.item(markers.length - 1);
+  const duration = Number(marker?.dataset.routeServerTimingMs);
+
+  return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null;
+}
+
+function getServerTimingSnapshot(
+  startedAt: number,
+  endedAt: number,
+  navigation?: PerformanceNavigationTiming
+) {
+  const sources: ServerTimingSource[] = navigation
+    ? [navigation]
+    : getResourcesSince(startedAt, endedAt);
+  const proxyAuthDuration = getServerTimingDuration(sources, "proxy-auth");
+  const proxyAuthMarkerDuration = getMarkerDuration("proxy-auth");
+
+  return {
+    serverAuthMs:
+      proxyAuthMarkerDuration ??
+      (proxyAuthDuration > 0 ? Math.round(proxyAuthDuration) : null),
+    serverRouteDataMs: getMarkerDuration("route-data"),
+    serverShellProfileMs: navigation ? getMarkerDuration("shell-profile") : null
+  };
+}
+
 function getLongTaskStatsSince(entries: LongTaskEntry[], startedAt: number, endedAt: number) {
   return entries
     .filter((entry) => entry.startTime >= startedAt && entry.startTime <= endedAt)
@@ -107,30 +164,47 @@ function getLongTaskStatsSince(entries: LongTaskEntry[], startedAt: number, ende
     );
 }
 
+function getAutomationHint() {
+  try {
+    if (window.location.hash === AUTOMATION_HASH) {
+      window.sessionStorage.setItem(AUTOMATION_SESSION_KEY, "1");
+    }
+
+    return navigator.webdriver || window.sessionStorage.getItem(AUTOMATION_SESSION_KEY) === "1";
+  } catch {
+    return navigator.webdriver;
+  }
+}
+
 function getDeviceSnapshot() {
   const typedNavigator = navigator as NavigatorWithHints;
   const connection = typedNavigator.connection;
+  const hostname = window.location.hostname;
 
   return {
+    automationHint: getAutomationHint(),
     deploymentEnv:
-      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+      hostname === "localhost" || hostname === "127.0.0.1"
         ? "local"
-        : window.location.hostname.endsWith(".vercel.app")
+        : hostname === "poke-notes-app.vercel.app"
           ? "production"
-          : "unknown",
+          : hostname.endsWith(".vercel.app")
+            ? "preview"
+            : "unknown",
     deviceMemory: typeof typedNavigator.deviceMemory === "number" ? typedNavigator.deviceMemory : null,
     downlink: typeof connection?.downlink === "number" ? connection.downlink : null,
     effectiveType: connection?.effectiveType ?? null,
     hardwareConcurrency: navigator.hardwareConcurrency ?? null,
+    reporterVersion: ROUTE_REPORTER_VERSION,
     rtt: typeof connection?.rtt === "number" ? connection.rtt : null,
     saveData: Boolean(connection?.saveData),
     screenHeight: window.screen.height,
     screenWidth: window.screen.width,
     sourceHost: window.location.host,
     sourceOrigin: window.location.origin,
-    userAgent: navigator.userAgent,
     viewportHeight: window.innerHeight,
-    viewportWidth: window.innerWidth
+    viewportWidth: window.innerWidth,
+    visibilityState: document.visibilityState
   };
 }
 
@@ -159,14 +233,10 @@ function sendPerformanceEvent(payload: Record<string, unknown>) {
 
 export function RoutePerformanceReporter() {
   const pathname = usePathname();
-  const currentPathRef = useRef(pathname);
   const longTaskEntriesRef = useRef<LongTaskEntry[]>([]);
   const longTaskStatsRef = useRef({ maxLongTaskMs: 0, totalBlockingTimeMs: 0 });
   const pendingNavigationRef = useRef<PendingNavigation | null>(null);
-
-  useEffect(() => {
-    currentPathRef.current = normalizePath(pathname);
-  }, [pathname]);
+  const scheduleNavigationCheckRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -217,10 +287,17 @@ export function RoutePerformanceReporter() {
             ? Math.min(nav.duration || measuredAt, measuredAt)
             : measuredAt;
       const resourceSnapshot = getSlowestResourceSince(0, hardLoadEndedAt);
+      const responseEndMs = nav && nav.responseEnd > 0 ? Math.round(nav.responseEnd) : null;
+      const responseStartMs = nav && nav.responseStart > 0 ? Math.round(nav.responseStart) : null;
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
         ...resourceSnapshot,
+        ...getServerTimingSnapshot(0, hardLoadEndedAt, nav),
+        documentDownloadMs:
+          responseEndMs !== null && responseStartMs !== null
+            ? Math.max(0, responseEndMs - responseStartMs)
+            : null,
         domContentLoadedMs:
           nav && nav.domContentLoadedEventEnd > 0
             ? Math.round(nav.domContentLoadedEventEnd)
@@ -231,14 +308,16 @@ export function RoutePerformanceReporter() {
         loadEventMs: nav && nav.loadEventEnd > 0 ? Math.round(nav.loadEventEnd) : null,
         loadingMs: null,
         maxLongTaskMs: Math.round(longTaskStatsRef.current.maxLongTaskMs),
+        navigationType: nav?.type ?? "unknown",
+        responseEndMs,
+        routeStabilizationMs: null,
         toPath: getCurrentPath(),
         totalBlockingTimeMs: Math.round(longTaskStatsRef.current.totalBlockingTimeMs),
-        ttfbMs: nav ? Math.round(nav.responseStart) : null
+        ttfbMs: responseStartMs
       });
     }
 
-    const hardLoadTimeoutId = window.setTimeout(reportHardLoad, 2500);
-
+    const hardLoadTimeoutId = window.setTimeout(reportHardLoad, HARD_LOAD_FALLBACK_MS);
     const reportHardLoadAfterLoad = () => {
       window.requestAnimationFrame(reportHardLoad);
     };
@@ -261,37 +340,91 @@ export function RoutePerformanceReporter() {
       return;
     }
 
+    let settleTimeoutId: number | null = null;
+    let resourceObserver: PerformanceObserver | null = null;
+
+    function scheduleNavigationCheck(delayMs = 0) {
+      if (settleTimeoutId !== null) {
+        window.clearTimeout(settleTimeoutId);
+      }
+
+      settleTimeoutId = window.setTimeout(finishPendingNavigationIfReady, delayMs);
+    }
+
     function finishPendingNavigationIfReady() {
       const pendingNavigation = pendingNavigationRef.current;
 
-      if (!pendingNavigation || pendingNavigation.toPath !== getCurrentPath() || getLoadingElement()) {
+      if (!pendingNavigation || pendingNavigation.toPath !== getCurrentPath()) {
         return;
       }
 
-      const finishedAt = performance.now();
+      const observedAt = performance.now();
+      pendingNavigation.pathReadyAt ??= observedAt;
+
+      if (getLoadingElement()) {
+        pendingNavigation.sawLoading = true;
+        pendingNavigation.loadingStartedAt ??= observedAt;
+        pendingNavigation.loadingEndedAt = null;
+        scheduleNavigationCheck(50);
+        return;
+      }
+
+      if (pendingNavigation.sawLoading && pendingNavigation.loadingEndedAt === null) {
+        pendingNavigation.loadingEndedAt = observedAt;
+      }
+
+      const latestResourceEndAt = getLatestResourceEndSince(
+        pendingNavigation.resourceStartedAt,
+        observedAt
+      );
+      const candidateCompletedAt = Math.max(
+        pendingNavigation.pathReadyAt,
+        pendingNavigation.loadingEndedAt ?? 0,
+        latestResourceEndAt
+      );
+      const decision = getNavigationReportDecision({
+        candidateCompletedAt,
+        observedAt,
+        pathReadyAt: pendingNavigation.pathReadyAt,
+        startedAt: pendingNavigation.startedAt
+      });
+
+      if (!decision.shouldReport) {
+        scheduleNavigationCheck(decision.nextCheckMs);
+        return;
+      }
+
       const resourceSnapshot = getSlowestResourceSince(
         pendingNavigation.resourceStartedAt,
-        finishedAt
+        candidateCompletedAt
       );
       const longTaskSnapshot = getLongTaskStatsSince(
         longTaskEntriesRef.current,
         pendingNavigation.startedAt,
-        finishedAt
+        candidateCompletedAt
       );
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
         ...resourceSnapshot,
+        ...getServerTimingSnapshot(
+          pendingNavigation.resourceStartedAt,
+          candidateCompletedAt
+        ),
+        documentDownloadMs: null,
         domContentLoadedMs: null,
-        durationMs: Math.round(finishedAt - pendingNavigation.startedAt),
+        durationMs: Math.round(candidateCompletedAt - pendingNavigation.startedAt),
         eventType: "app-route",
         fromPath: pendingNavigation.fromPath,
         loadEventMs: null,
         loadingMs:
           pendingNavigation.sawLoading && pendingNavigation.loadingStartedAt !== null
-            ? Math.round(finishedAt - pendingNavigation.loadingStartedAt)
+            ? Math.round(candidateCompletedAt - pendingNavigation.loadingStartedAt)
             : null,
         maxLongTaskMs: Math.round(longTaskSnapshot.maxLongTaskMs),
+        navigationType: "app-route",
+        responseEndMs: null,
+        routeStabilizationMs: decision.stabilizationMs,
         toPath: pendingNavigation.toPath,
         totalBlockingTimeMs: Math.round(longTaskSnapshot.totalBlockingTimeMs),
         ttfbMs: null
@@ -299,24 +432,15 @@ export function RoutePerformanceReporter() {
       pendingNavigationRef.current = null;
     }
 
-    function updateLoadingState() {
-      const pendingNavigation = pendingNavigationRef.current;
-
-      if (!pendingNavigation) {
-        return;
-      }
-
-      if (getLoadingElement()) {
-        pendingNavigation.sawLoading = true;
-        pendingNavigation.loadingStartedAt ??= performance.now();
-        return;
-      }
-
-      finishPendingNavigationIfReady();
-    }
-
     function handleClick(event: MouseEvent) {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
         return;
       }
 
@@ -343,56 +467,60 @@ export function RoutePerformanceReporter() {
 
       pendingNavigationRef.current = {
         fromPath,
-        loadingStartedAt: getLoadingElement() ? performance.now() : null,
+        loadingEndedAt: null,
+        loadingStartedAt: getLoadingElement() ? startedAt : null,
+        pathReadyAt: null,
         resourceStartedAt: Math.max(0, startedAt - NAVIGATION_RESOURCE_LOOKBACK_MS),
         sawLoading: Boolean(getLoadingElement()),
         startedAt,
         toPath
       };
+      scheduleNavigationCheck();
     }
 
-    const observer = new MutationObserver(updateLoadingState);
-    observer.observe(document.body, { childList: true, subtree: true });
+    const mutationObserver = new MutationObserver(() => scheduleNavigationCheck());
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+    if (typeof PerformanceObserver !== "undefined") {
+      try {
+        resourceObserver = new PerformanceObserver((entryList) => {
+          const pendingNavigation = pendingNavigationRef.current;
+          if (!pendingNavigation) {
+            return;
+          }
+
+          const hasRelevantResource = entryList.getEntries().some(
+            (entry) =>
+              entry.startTime >= pendingNavigation.resourceStartedAt &&
+              entry.name.startsWith(window.location.origin) &&
+              normalizePath(new URL(entry.name).pathname) !== REPORT_ENDPOINT
+          );
+
+          if (hasRelevantResource) {
+            scheduleNavigationCheck();
+          }
+        });
+        resourceObserver.observe({ type: "resource", buffered: false });
+      } catch {}
+    }
+
+    scheduleNavigationCheckRef.current = () => scheduleNavigationCheck();
     document.addEventListener("click", handleClick, { capture: true });
 
     return () => {
+      if (settleTimeoutId !== null) {
+        window.clearTimeout(settleTimeoutId);
+      }
+      scheduleNavigationCheckRef.current = () => {};
       document.removeEventListener("click", handleClick, { capture: true });
-      observer.disconnect();
+      mutationObserver.disconnect();
+      resourceObserver?.disconnect();
     };
   }, []);
 
   useEffect(() => {
     const animationFrame = window.requestAnimationFrame(() => {
-      const pendingNavigation = pendingNavigationRef.current;
-
-      if (!pendingNavigation || pendingNavigation.toPath !== getCurrentPath() || getLoadingElement()) {
-        return;
-      }
-
-      const finishedAt = performance.now();
-      const resourceSnapshot = getSlowestResourceSince(
-        pendingNavigation.resourceStartedAt,
-        finishedAt
-      );
-
-      sendPerformanceEvent({
-        ...getDeviceSnapshot(),
-        ...resourceSnapshot,
-        domContentLoadedMs: null,
-        durationMs: Math.round(finishedAt - pendingNavigation.startedAt),
-        eventType: "app-route",
-        fromPath: pendingNavigation.fromPath,
-        loadEventMs: null,
-        loadingMs:
-          pendingNavigation.sawLoading && pendingNavigation.loadingStartedAt !== null
-            ? Math.round(finishedAt - pendingNavigation.loadingStartedAt)
-            : null,
-        maxLongTaskMs: Math.round(longTaskStatsRef.current.maxLongTaskMs),
-        toPath: pendingNavigation.toPath,
-        totalBlockingTimeMs: Math.round(longTaskStatsRef.current.totalBlockingTimeMs),
-        ttfbMs: null
-      });
-      pendingNavigationRef.current = null;
+      scheduleNavigationCheckRef.current();
     });
 
     return () => {

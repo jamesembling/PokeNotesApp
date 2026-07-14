@@ -1142,37 +1142,55 @@ comment on table public.role_permissions is
 -- ============================================================
 
 create table public.route_performance_events (
-  id                      uuid primary key default gen_random_uuid(),
-  user_id                 uuid not null references auth.users(id) on delete cascade,
+  browser_family          text not null default 'unknown'
+                          check (browser_family in ('chromium', 'firefox', 'other', 'safari', 'unknown')),
+  created_at              timestamptz not null default now(),
+  deployment_env          text not null default 'unknown',
+  deployment_id           text,
+  device_class            text not null default 'unknown'
+                          check (device_class in ('desktop', 'mobile', 'tablet', 'unknown')),
+  device_memory           numeric,
+  document_download_ms    integer,
+  dom_content_loaded_ms   integer,
+  downlink                numeric,
+  duration_ms             integer not null,
+  effective_type          text,
   event_type              text not null check (event_type in ('hard-load', 'app-route')),
   from_path               text,
-  to_path                 text not null,
-  duration_ms             integer not null,
-  loading_ms              integer,
-  ttfb_ms                 integer,
-  dom_content_loaded_ms   integer,
-  load_event_ms           integer,
-  total_blocking_time_ms  integer,
-  max_long_task_ms        integer,
-  resource_count          integer,
-  slowest_resource_path   text,
-  slowest_resource_ms     integer,
-  transfer_size_bytes     integer,
-  viewport_width          integer,
-  viewport_height         integer,
-  screen_width            integer,
-  screen_height           integer,
   hardware_concurrency    integer,
-  device_memory           numeric,
-  effective_type          text,
-  downlink                numeric,
+  id                      uuid primary key default gen_random_uuid(),
+  load_event_ms           integer,
+  loading_ms              integer,
+  max_long_task_ms        integer,
+  navigation_type         text not null default 'unknown'
+                          check (navigation_type in ('app-route', 'back_forward', 'navigate', 'prerender', 'reload', 'unknown')),
+  reporter_version        smallint not null default 1 check (reporter_version > 0),
+  resource_count          integer,
+  response_end_ms         integer,
+  route_stabilization_ms  integer,
   rtt                     integer,
   save_data               boolean not null default false,
-  user_agent              text,
-  source_origin           text,
+  screen_height           integer,
+  screen_width            integer,
+  server_auth_ms          integer,
+  server_route_data_ms    integer,
+  server_shell_profile_ms integer,
+  slowest_resource_ms     integer,
+  slowest_resource_path   text,
   source_host             text,
-  deployment_env          text not null default 'unknown',
-  created_at              timestamptz not null default now()
+  source_origin           text,
+  to_path                 text not null,
+  total_blocking_time_ms  integer,
+  traffic_class           text not null default 'unclassified'
+                          check (traffic_class in ('automation', 'unclassified')),
+  transfer_size_bytes     integer,
+  ttfb_ms                 integer,
+  user_agent              text,
+  user_id                 uuid not null references auth.users(id) on delete cascade,
+  viewport_height         integer,
+  viewport_width          integer,
+  visibility_state        text not null default 'unknown'
+                          check (visibility_state in ('hidden', 'prerender', 'unknown', 'visible'))
 );
 
 comment on table public.route_performance_events is
@@ -1367,6 +1385,9 @@ create index route_performance_events_route_created_at
 
 create index route_performance_events_env_route_created_at
   on public.route_performance_events (deployment_env, to_path, created_at desc);
+
+create index route_performance_events_env_traffic_route_created_at
+  on public.route_performance_events (deployment_env, traffic_class, to_path, created_at desc);
 
 
 -- ============================================================

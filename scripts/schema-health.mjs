@@ -195,6 +195,7 @@ const REQUIRED_INDEXES = [
   "log_shares_owner_created_at",
   "log_shares_owner_source_log",
   "route_performance_events_env_route_created_at",
+  "route_performance_events_env_traffic_route_created_at",
   "tournament_rounds_user_tournament",
   "tournaments_user_linked_deck"
 ];

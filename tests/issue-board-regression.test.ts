@@ -72,7 +72,7 @@ test("route performance long tasks are scoped to the completed navigation", () =
   assert.match(reporter, /getLongTaskStatsSince/);
   assert.match(
     reporter,
-    /getLongTaskStatsSince\(\s*longTaskEntriesRef\.current,\s*pendingNavigation\.startedAt,\s*finishedAt\s*\)/
+    /getLongTaskStatsSince\(\s*longTaskEntriesRef\.current,\s*pendingNavigation\.startedAt,\s*candidateCompletedAt\s*\)/
   );
 });
 
@@ -85,6 +85,8 @@ test("route performance hard loads snapshot resources at the load boundary", () 
   assert.match(reporter, /hardLoadEndedAt = nav && nav\.loadEventEnd > 0 \? nav\.loadEventEnd : measuredAt/);
   assert.match(reporter, /getSlowestResourceSince\(0, hardLoadEndedAt\)/);
   assert.match(reporter, /window\.addEventListener\("load", reportHardLoadAfterLoad, \{ once: true \}\)/);
+  assert.match(reporter, /responseEndMs/);
+  assert.match(reporter, /documentDownloadMs/);
 });
 
 test("import log save navigates before the lazy dialog parent unmounts", () => {

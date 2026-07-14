@@ -2,13 +2,18 @@ import { cookies } from "next/headers";
 import { AppShell } from "@/components/ui/AppShell";
 import { getCurrentSidebarProfile } from "@/lib/db/profile";
 import { normalizeAvatarColor, PROFILE_AVATAR_COOKIE } from "@/lib/profile-avatar";
+import { measureServerCallWithTiming } from "@/lib/server/perf";
 
 export default async function AppLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [profile, cookieStore] = await Promise.all([getCurrentSidebarProfile(), cookies()]);
+  const [profileTiming, cookieStore] = await Promise.all([
+    measureServerCallWithTiming("page.shell.profile", () => getCurrentSidebarProfile()),
+    cookies()
+  ]);
+  const profile = profileTiming.value;
   const avatarColor = normalizeAvatarColor(
     cookieStore.get(PROFILE_AVATAR_COOKIE)?.value || profile.avatarColor
   );
@@ -21,6 +26,7 @@ export default async function AppLayout({
         avatarColor,
         isAdmin: profile.role === "admin"
       }}
+      shellProfileDurationMs={profileTiming.durationMs}
     >
       {children}
     </AppShell>

@@ -2,7 +2,10 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_CLAIMS_HEADER, createAuthClaimsHeader } from "@/lib/server/auth-claim-header";
 import { logAuthDebug } from "@/lib/server/auth-debug";
-import { measureServerCall } from "@/lib/server/perf";
+import {
+  measureServerCallWithTiming,
+  PROXY_AUTH_DURATION_HEADER
+} from "@/lib/server/perf";
 
 function getSupabaseEnv() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,6 +24,7 @@ export async function proxy(request: NextRequest) {
   const requestPath = request.nextUrl.pathname;
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.delete(AUTH_CLAIMS_HEADER);
+  forwardedHeaders.delete(PROXY_AUTH_DURATION_HEADER);
   let responseCookiesToSet: Array<{ name: string; value: string; options: CookieOptions }> = [];
   let responseHeadersToSet: Record<string, string> = {};
   let response = NextResponse.next({
@@ -70,9 +74,11 @@ export async function proxy(request: NextRequest) {
     }
   });
 
-  const { data, error } = await measureServerCall("proxy.auth.getClaims", async () =>
+  const claimsTiming = await measureServerCallWithTiming("proxy.auth.getClaims", async () =>
     await supabase.auth.getClaims()
   );
+  const { data, error } = claimsTiming.value;
+  forwardedHeaders.set(PROXY_AUTH_DURATION_HEADER, String(claimsTiming.durationMs));
 
   logAuthDebug("proxy.getClaims", {
     path: requestPath,
@@ -121,6 +127,8 @@ export async function proxy(request: NextRequest) {
     response.headers.set("Expires", "0");
     response.headers.set("Pragma", "no-cache");
   }
+
+  response.headers.append("Server-Timing", `proxy-auth;dur=${claimsTiming.durationMs}`);
 
   return response;
 }

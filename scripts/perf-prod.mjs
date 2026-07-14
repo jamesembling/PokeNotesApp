@@ -225,7 +225,7 @@ function readNavigationSnapshot() {
 }
 
 function readPath() {
-  return runWithState(["get", "url"]).trim().replace(baseUrl, "") || "/";
+  return runWithState(["get", "url"]).trim().replace(baseUrl, "").split("#")[0] || "/";
 }
 
 function readPathSafely() {
@@ -237,7 +237,7 @@ function readPathSafely() {
 }
 
 function openPath(path) {
-  runWithState(["open", `${baseUrl}${path}`]);
+  runWithState(["open", `${baseUrl}${path}#pokenotes-perf`]);
   waitForRouteSettled();
 }
 

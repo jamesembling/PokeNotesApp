@@ -4,11 +4,15 @@ import { Button } from "@/components/shadcn/button";
 import { BattleLogDetailShell } from "@/components/ui/BattleLogDetailShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
+import {
+  ProxyAuthTimingMarker,
+  RouteTimingMarker
+} from "@/components/ui/RouteTimingMarker";
 import { PageTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
-import { measureServerCall } from "@/lib/server/perf";
+import { measureServerCallWithTiming } from "@/lib/server/perf";
 
 type LogDetailPageProps = {
   params: Promise<{
@@ -70,9 +74,10 @@ function DetailError() {
 
 export default async function LogDetailPage({ params }: LogDetailPageProps) {
   const [user, { id }] = await Promise.all([requireUser(), params]);
-  const log = await measureServerCall("page.logs.detail.summary", () =>
+  const logTiming = await measureServerCallWithTiming("page.logs.detail.summary", () =>
     getLogDetailSummaryById(user.id, id)
   );
+  const log = logTiming.value;
 
   if (!log) {
     return <DetailError />;
@@ -85,6 +90,8 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
 
   return (
     <PageWidth size="standard">
+      <ProxyAuthTimingMarker />
+      <RouteTimingMarker durationMs={logTiming.durationMs} phase="route-data" />
       <div className="flex flex-col gap-2 sm:gap-6" data-log-detail-summary-visible>
         <PageHeader
           breadcrumb={[

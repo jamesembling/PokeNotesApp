@@ -575,9 +575,13 @@ export type Database = {
       }
       route_performance_events: {
         Row: {
+          browser_family: string
           created_at: string
           deployment_env: string
+          deployment_id: string | null
+          device_class: string
           device_memory: number | null
+          document_download_ms: number | null
           dom_content_loaded_ms: number | null
           downlink: number | null
           duration_ms: number
@@ -589,28 +593,41 @@ export type Database = {
           load_event_ms: number | null
           loading_ms: number | null
           max_long_task_ms: number | null
+          navigation_type: string
+          reporter_version: number
           resource_count: number | null
+          response_end_ms: number | null
+          route_stabilization_ms: number | null
           rtt: number | null
           save_data: boolean
           screen_height: number | null
           screen_width: number | null
+          server_auth_ms: number | null
+          server_route_data_ms: number | null
+          server_shell_profile_ms: number | null
           slowest_resource_ms: number | null
           slowest_resource_path: string | null
           source_host: string | null
           source_origin: string | null
           to_path: string
           total_blocking_time_ms: number | null
+          traffic_class: string
           transfer_size_bytes: number | null
           ttfb_ms: number | null
           user_agent: string | null
           user_id: string
           viewport_height: number | null
           viewport_width: number | null
+          visibility_state: string
         }
         Insert: {
+          browser_family?: string
           created_at?: string
           deployment_env?: string
+          deployment_id?: string | null
+          device_class?: string
           device_memory?: number | null
+          document_download_ms?: number | null
           dom_content_loaded_ms?: number | null
           downlink?: number | null
           duration_ms: number
@@ -622,28 +639,41 @@ export type Database = {
           load_event_ms?: number | null
           loading_ms?: number | null
           max_long_task_ms?: number | null
+          navigation_type?: string
+          reporter_version?: number
           resource_count?: number | null
+          response_end_ms?: number | null
+          route_stabilization_ms?: number | null
           rtt?: number | null
           save_data?: boolean
           screen_height?: number | null
           screen_width?: number | null
+          server_auth_ms?: number | null
+          server_route_data_ms?: number | null
+          server_shell_profile_ms?: number | null
           slowest_resource_ms?: number | null
           slowest_resource_path?: string | null
           source_host?: string | null
           source_origin?: string | null
           to_path: string
           total_blocking_time_ms?: number | null
+          traffic_class?: string
           transfer_size_bytes?: number | null
           ttfb_ms?: number | null
           user_agent?: string | null
           user_id: string
           viewport_height?: number | null
           viewport_width?: number | null
+          visibility_state?: string
         }
         Update: {
+          browser_family?: string
           created_at?: string
           deployment_env?: string
+          deployment_id?: string | null
+          device_class?: string
           device_memory?: number | null
+          document_download_ms?: number | null
           dom_content_loaded_ms?: number | null
           downlink?: number | null
           duration_ms?: number
@@ -655,23 +685,32 @@ export type Database = {
           load_event_ms?: number | null
           loading_ms?: number | null
           max_long_task_ms?: number | null
+          navigation_type?: string
+          reporter_version?: number
           resource_count?: number | null
+          response_end_ms?: number | null
+          route_stabilization_ms?: number | null
           rtt?: number | null
           save_data?: boolean
           screen_height?: number | null
           screen_width?: number | null
+          server_auth_ms?: number | null
+          server_route_data_ms?: number | null
+          server_shell_profile_ms?: number | null
           slowest_resource_ms?: number | null
           slowest_resource_path?: string | null
           source_host?: string | null
           source_origin?: string | null
           to_path?: string
           total_blocking_time_ms?: number | null
+          traffic_class?: string
           transfer_size_bytes?: number | null
           ttfb_ms?: number | null
           user_agent?: string | null
           user_id?: string
           viewport_height?: number | null
           viewport_width?: number | null
+          visibility_state?: string
         }
         Relationships: []
       }

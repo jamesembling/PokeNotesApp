@@ -3,6 +3,10 @@ import { Skeleton } from "@/components/shadcn/skeleton";
 import { LazyTournamentEditorButton } from "@/components/ui/LazyTournamentEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageActions } from "@/components/ui/PageActions";
+import {
+  ProxyAuthTimingMarker,
+  RouteTimingMarker
+} from "@/components/ui/RouteTimingMarker";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { TournamentSummaryList } from "@/components/ui/TournamentSummaryList";
 import { requireUser } from "@/lib/auth";
@@ -10,15 +14,19 @@ import {
   getTournamentSummaries,
   TournamentSchemaMissingError
 } from "@/lib/db/tournaments";
+import { measureServerCallWithTiming } from "@/lib/server/perf";
 import type { TournamentSummary } from "@/types/index";
 
 export default async function TournamentsPage() {
   const user = await requireUser();
   const showSchemaNotice = process.env.NODE_ENV !== "production";
-  const tournamentsPromise = getTournamentSummaries(user.id);
+  const tournamentsPromise = measureServerCallWithTiming("page.tournaments.initialData", () =>
+    getTournamentSummaries(user.id)
+  );
 
   return (
     <>
+      <ProxyAuthTimingMarker />
       <PageHeader
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Tournaments" }]}
         title="Tournaments"
@@ -47,12 +55,18 @@ async function TournamentsContent({
   tournamentsPromise
 }: {
   showSchemaNotice: boolean;
-  tournamentsPromise: Promise<TournamentSummary[]>;
+  tournamentsPromise: Promise<{
+    durationMs: number;
+    value: TournamentSummary[];
+  }>;
 }) {
   let tournaments: TournamentSummary[] = [];
+  let routeDataDurationMs = 0;
 
   try {
-    tournaments = await tournamentsPromise;
+    const tournamentsTiming = await tournamentsPromise;
+    tournaments = tournamentsTiming.value;
+    routeDataDurationMs = tournamentsTiming.durationMs;
   } catch (error) {
     if (error instanceof TournamentSchemaMissingError) {
       if (showSchemaNotice) {
@@ -78,19 +92,27 @@ async function TournamentsContent({
 
   if (tournaments.length === 0) {
     return (
-      <div className="flex flex-col gap-3">
-        <h2 className="text-base font-semibold text-card-foreground">
-          No tournaments saved yet
-        </h2>
-        <p className="text-sm text-foreground">
-          Start with an event you already played or set up an upcoming tournament so you can
-          track each round as you go.
-        </p>
-      </div>
+      <>
+        <RouteTimingMarker durationMs={routeDataDurationMs} phase="route-data" />
+        <div className="flex flex-col gap-3">
+          <h2 className="text-base font-semibold text-card-foreground">
+            No tournaments saved yet
+          </h2>
+          <p className="text-sm text-foreground">
+            Start with an event you already played or set up an upcoming tournament so you can
+            track each round as you go.
+          </p>
+        </div>
+      </>
     );
   }
 
-  return <TournamentSummaryList tournaments={tournaments} />;
+  return (
+    <>
+      <RouteTimingMarker durationMs={routeDataDurationMs} phase="route-data" />
+      <TournamentSummaryList tournaments={tournaments} />
+    </>
+  );
 }
 
 function TournamentsContentFallback() {

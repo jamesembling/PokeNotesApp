@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/shadcn/sidebar";
 import { RoutePerformanceReporter } from "@/components/ui/RoutePerformanceReporter";
+import { RouteTimingMarker } from "@/components/ui/RouteTimingMarker";
 import { Sidebar, SidebarMobileTopbar } from "@/components/ui/Sidebar";
 import { SidebarThemeToggle } from "@/components/ui/SidebarThemeToggle";
 import type { AvatarColor } from "@/types/index";
@@ -15,9 +16,10 @@ type AppShellProfile = {
 type AppShellProps = {
   children: ReactNode;
   profile: AppShellProfile;
+  shellProfileDurationMs: number;
 };
 
-export function AppShell({ children, profile }: AppShellProps) {
+export function AppShell({ children, profile, shellProfileDurationMs }: AppShellProps) {
   return (
     <SidebarProvider>
       <a
@@ -37,6 +39,7 @@ export function AppShell({ children, profile }: AppShellProps) {
           <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6">{children}</div>
         </div>
       </SidebarInset>
+      <RouteTimingMarker durationMs={shellProfileDurationMs} phase="shell-profile" />
       <RoutePerformanceReporter />
     </SidebarProvider>
   );

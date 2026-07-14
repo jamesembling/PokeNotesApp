@@ -5,29 +5,40 @@ import { DeckStrategyCollection } from "@/components/ui/DeckStrategyCollection";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageActions } from "@/components/ui/PageActions";
+import {
+  ProxyAuthTimingMarker,
+  RouteTimingMarker
+} from "@/components/ui/RouteTimingMarker";
 import { requireUser } from "@/lib/auth";
 import { getDeckIndexSummaries } from "@/lib/db/decks";
-import { measureServerCall } from "@/lib/server/perf";
+import { measureServerCallWithTiming } from "@/lib/server/perf";
 
 export default async function DecksPage() {
   const user = await requireUser();
-  const decksPromise = measureServerCall("page.decks.initialData", () =>
+  const decksPromise = measureServerCallWithTiming("page.decks.initialData", () =>
     getDeckIndexSummaries(user.id)
   );
 
   return (
-    <Suspense fallback={<DecksContentFallback />}>
-      <DecksContent decksPromise={decksPromise} />
-    </Suspense>
+    <>
+      <ProxyAuthTimingMarker />
+      <Suspense fallback={<DecksContentFallback />}>
+        <DecksContent decksPromise={decksPromise} />
+      </Suspense>
+    </>
   );
 }
 
 async function DecksContent({
   decksPromise
 }: {
-  decksPromise: ReturnType<typeof getDeckIndexSummaries>;
+  decksPromise: Promise<{
+    durationMs: number;
+    value: Awaited<ReturnType<typeof getDeckIndexSummaries>>;
+  }>;
 }) {
-  const decks = await decksPromise;
+  const decksTiming = await decksPromise;
+  const decks = decksTiming.value;
   const deckCardData = decks.map((deck) => {
     return {
       deck,
@@ -61,6 +72,7 @@ async function DecksContent({
   if (decks.length === 0) {
     return (
       <>
+        <RouteTimingMarker durationMs={decksTiming.durationMs} phase="route-data" />
         {header}
         <PageActions className="sm:hidden" mobile="stack">
           <LazyDeckEditorButton triggerLabel="+ New deck" />
@@ -74,6 +86,7 @@ async function DecksContent({
 
   return (
     <>
+      <RouteTimingMarker durationMs={decksTiming.durationMs} phase="route-data" />
       {header}
       <DeckStrategyCollection decks={deckCardData} />
     </>
