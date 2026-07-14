@@ -4,7 +4,7 @@ Thanks for helping improve Poke Notes.
 
 ## Before You Start
 
-- Install Node.js 20 or newer.
+- Install Node.js 20.9 or newer.
 - Run `npm ci`.
 - Create a local env file with `cp .env.example .env`.
 - Fill in the Supabase and app URL values described in the README.

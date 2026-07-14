@@ -1,6 +1,7 @@
 # PokeNotesV2 Application Health Review
 
 - Date: 11 July 2026
+- Documentation follow-up: 14 July 2026. Migration alignment, the 40-contract schema gate, 49/49 Deck List and 2/2 Matchup Plan parity, current catalog state, 318 repository tests, and the latest seven-day production RUM aggregates were rechecked. Statements tied to the original review remain explicitly dated rather than silently treated as live dashboards.
 - Review status: Complete. The approved database-first remediation and application release are live; production data repair, schema contracts, application gates, and representative production journeys have been verified
 - Production investigation policy: Initial evidence was gathered read-only. The owner then explicitly approved the security, tenant-integrity, collision re-key, 30-day compatibility, 256 KiB share limit, application deployment, and Vercel configuration changes recorded below
 - Production changes made: All previously approved security/tenant changes plus the transactional Deck Aggregate writer, scoped preservation re-key, future-object privilege defaults, share envelope/size guards, approved-origin redirects, browser headers, runtime codecs, catalog boundaries, cache/accessibility/CI repairs, and scheduled-sync secret configuration
@@ -18,7 +19,7 @@ In plain English, the normal product workflows remain: users can share a log, ed
 
 The application is also materially healthier outside the original critical paths. Repairs provide typed `401` responses across private JSON APIs, prevent an infinite battle-log skeleton, enforce same-account parent relationships in the database, retain the newest bounded stats window, harden internal redirects, remove dependency advisories, enforce private local auth-file permissions, and address systemic accessibility/design issues in shared code. The Deck Aggregate now has one no-record-loss read rule and an all-or-nothing production writer. The approved re-key preserved all 19 Deck List and one Matchup Plan account-scoped copies, repaired 31 precisely scoped Battle Log links, left 43 unrelated same-ID links unchanged, and retained a private 20-row identifier-only rollback/compatibility ledger through 10 August 2026 at 23:08 UTC. The post-repair audit reports 49/49 Deck List and 2/2 Matchup Plan parity with no blocking condition.
 
-Current performance is healthy in the measured production sample. On 11 July, `/logs` hard loads had 67 samples, p75 **426 ms**, p95 **652 ms**, and all sampled total-blocking-time values were **0 ms**. An older 30-day aggregate contains slower historical traffic, but it is not evidence of a current `/logs` regression.
+Performance was healthy in the review's 11 July sample: `/logs` hard loads had 67 samples, p75 **426 ms**, p95 **652 ms**, and all sampled total-blocking-time values were **0 ms**. A 14 July follow-up over the preceding seven days found 83 `/logs` hard loads at p75 **540 ms** and p95 **3,564 ms**. That newer tail is outside the working target and warrants investigation, but the aggregate alone does not identify its cause. See [`docs/performance-targets.md`](./performance-targets.md) for the dated route table and measurement rules.
 
 ## Plain-English impact guide
 
@@ -72,10 +73,10 @@ Scores use a 1–5 review scale, where 1 is unsafe/fragile and 5 is strong. They
 | Security and authorization | 4/5 | Strongly improved | All three critical paths, tenant parent integrity, origin/header baseline, future default grants, and share envelope/size protections are live. CSP, leaked-password policy, legacy-key migration, and broader abuse budgets remain. |
 | Architecture and maintainability | 3/5 | Mixed | Clear App Router/data-module boundaries and no import cycles; dual persistence and repeated mutation interfaces weaken locality. |
 | Correctness and resilience | 4/5 | Materially improved | Strong tests/read models, live transactional deck writes, repaired historical collisions, and log/share runtime codecs; tournament/bulk atomicity, catalog publication, and broader deck JSON validation remain. |
-| Performance | 4/5 | Healthy, improved | Current-day RUM is healthy and route payloads are deliberately deferred; RLS init-plan, duplicate-policy, and missing-FK-index advisor findings are fixed, leaving only 11 informational unused-index observations in the final live check. |
+| Performance | 3.5/5 | Improved, with a tail to investigate | The 11 July sample was healthy, while the 14 July seven-day follow-up shows `/logs` and several low-volume hard-load p95s outside target. Route payloads remain deliberately deferred; RLS init-plan, duplicate-policy, and missing-FK-index advisor findings are fixed, leaving only 11 informational unused-index observations in the final live check. |
 | UI, accessibility, and responsiveness | 3.5/5 | Good, improved | Shared design system, responsive sampled routes, and systemic fixes landed; headings, picker groups, and target sizing remain. |
-| Engineering and deployment readiness | 3.5/5 | Good, with delivery debt | Lint/typecheck/314 tests/design/build are green; CI includes design audit; all 15 migrations align and schema health passes 40 security contracts. The owner has deferred pre-push changes, and protected live-schema CI remains. |
-| **Overall** | **3.75/5** | **Materially healthier** | No known critical live path remains; the highest-risk approved architecture and security cut-overs are complete, while several deeper consistency and operational projects remain. |
+| Engineering and deployment readiness | 3.5/5 | Good, with delivery debt | Lint/typecheck/318 tests/design/build are green; CI includes design audit; all 15 migrations align and schema health passes 40 security contracts. The owner has deferred pre-push changes, and protected live-schema CI remains. |
+| **Overall** | **3.6/5** | **Materially healthier** | No known critical live path remains; the highest-risk approved architecture and security cut-overs are complete, while the newer performance tail and several deeper consistency and operational projects remain. |
 
 ## Outcome summary
 
@@ -152,7 +153,7 @@ The final working-tree inventory covered 415 repository files, including:
 - 16 page modules, 3 layouts, 17 route handlers, and 6 action modules under `app/`;
 - 99 shared/component files and 95 library/data/domain files;
 - SQL/schema files, Git hooks, scripts, CI, Next.js, TypeScript, ESLint, Tailwind, and Vercel configuration;
-- 52 current test files and 314 passing tests, including security-boundary, deck transaction/re-key/aggregate, share-size, deterministic-date, catalog-boundary, client-cache, accessibility, and focused regression coverage added during remediation.
+- 54 current test files and 318 passing tests, including security-boundary, deck transaction/re-key/aggregate, share-size, deterministic-date, catalog-boundary, client-cache, accessibility, basic-Energy ordering, and focused regression coverage added during and after remediation.
 
 Static work combined repository-wide inventory/searches with focused reads of every significant route group, mutation boundary, shared shell/design primitive, auth/Supabase adapter, catalog sync, SQL policy/grant surface, configuration gate, and test area. The baseline import analysis covered 235 source modules and 747 static imports with no cycle; the added modules retain one-way domain/server boundaries and the final typecheck/build both pass.
 
@@ -521,12 +522,12 @@ flowchart LR
 
 ### Fixed / informational
 
-#### PERF-03 — Current `/logs` production RUM is healthy
+#### PERF-03 — The 11 July `/logs` RUM sample was healthy; the newer tail needs investigation
 
-- **Severity:** Informational.
-- **Status:** Confirmed positive, not an open performance defect.
-- **Evidence:** 11 July hard-load sample: n=67, p75=426 ms, p95=652 ms; all sampled total blocking time values were 0 ms. Manual desktop/mobile route checks showed no page errors. Older 30-day tail data is retained only as historical context.
-- **Interpretation:** Continue monitoring rather than initiating speculative `/logs` rewrites.
+- **Severity:** Medium follow-up signal; cause unverified.
+- **Status:** The original positive sample is preserved as dated evidence. A 14 July seven-day aggregate re-opened the tail for investigation.
+- **Evidence:** The 11 July hard-load sample was n=67, p75=426 ms, p95=652 ms, with all sampled total blocking time values at 0 ms. The later seven-day aggregate was n=83, p75=540 ms, p95=3,564 ms. Manual desktop/mobile checks from the original review showed no page errors.
+- **Interpretation:** Investigate the slow cohort and resource/network breakdown before changing the read path; the aggregate does not prove an application-code regression.
 
 #### PERF-04 — Existing read-path design avoids unnecessary blocking work
 
@@ -651,7 +652,7 @@ flowchart LR
 #### ENG-03 — Tests emphasize source contracts and omit end-to-end/coverage evidence
 
 - **Status:** Confirmed outstanding.
-- **Evidence:** The suite has grown from a 173-test baseline to 314 passing tests across parser, catalog, stats SQL, routing, security boundaries, deck transaction/re-key/aggregate behavior, share size, deterministic dates, cache behavior, accessibility, and source contracts. Several regressions still assert source text rather than user behavior. There is no committed end-to-end suite or coverage threshold. The probability engine and stage mapping remain large, high-consequence modules without a proportionate behavioral math matrix.
+- **Evidence:** The suite has grown from a 173-test baseline to 318 passing tests across parser, catalog, stats SQL, routing, security boundaries, deck transaction/re-key/aggregate behavior, share size, deterministic dates, cache behavior, accessibility, basic-Energy ordering, and source contracts. Several regressions still assert source text rather than user behavior. There is no committed end-to-end suite or coverage threshold. The probability engine and stage mapping remain large, high-consequence modules without a proportionate behavioral math matrix.
 - **Impact:** Refactors can satisfy textual assertions while breaking behavior, and edge probabilities/user journeys can regress without detection.
 - **Underlying cause:** Fast Node tests grew around regressions, but no test pyramid/coverage policy was established.
 - **Smallest durable fix:** Keep source contracts only for architecture invariants; add pure behavioral probability fixtures, action/API tests with fake Supabase clients, and a small authenticated browser smoke suite.
@@ -753,7 +754,7 @@ Items 3–4 remain proposals. Item 1's transactional write and scoped preservati
 | --- | --- | --- | --- | --- |
 | Entry and auth | `/`, `/login`, `/auth/callback`, `/auth/sign-in/google`, `/auth/dev-login`, `/auth/test-login` | All handlers/pages inspected | Production 404/env/session containment and hostile-Origin fallback verified; local loopback/paired-phone contracts tested | SEC-03/04/08 live-fixed; a fresh Google OAuth and supported preview-host replay were not forced. |
 | Authenticated shell | app/admin layouts, `proxy.ts`, AppShell/Sidebar/theme | Full boundary/design inspection | Desktop and mobile sampled on every top-level app area | No sampled overflow/page errors; skip link/reduced motion fixed. |
-| Logs index/import/edit | `/logs`, logs actions, importer/editor, deck-selection/pokemon APIs | Route, actions, parser seams, loading/read models inspected | `/logs` desktop/mobile and current RUM | Current-day RUM healthy; bulk atomicity remains. Import not submitted in production. |
+| Logs index/import/edit | `/logs`, logs actions, importer/editor, deck-selection/pokemon APIs | Route, actions, parser seams, loading/read models inspected | `/logs` desktop/mobile and dated RUM samples | The 11 July sample was healthy; the 14 July seven-day tail needs investigation. Bulk atomicity remains. Import not submitted in production. |
 | Log detail | `/logs/[id]`, body/context APIs, BattleLogDetail shell/view | Full detail/deferred flow and runtime section codec inspected | Production RUM available; no private record content retained | Infinite skeleton fixed; malformed stored sections fall back with sanitized reporting; sampled `h1`/summary outline released. |
 | Public shares | `/s/[token]`, `/shared/[token]`, log-share API/store/RPC/ledger | Full token/create/read/revoke/quota boundary inspected | Live grants, denied table enumeration, exact-token read, expiry/revocation, and test-share cleanup verified | SEC-01 fixed; seven-day/50-per-rolling-24h contract live. |
 | Decks index | `/decks`, DeckStrategyCollection, `DeckCard` | Full route/component inspection | Desktop/mobile sampled; 320 px issue repaired; production hydration mismatch isolated and fixed | Toolbar fits 320 px. Deck dates use a shared UK timezone so server/client output remains identical. |
@@ -766,7 +767,7 @@ Items 3–4 remain proposals. Item 1's transactional write and scoped preservati
 | Admin | `/admin/dashboard`, admin layout/actions/data/RPCs | Full role/read/mutation boundary inspected | Dashboard render and aggregate final-admin state verified without retaining personal content | Database role is authoritative; self-promotion and last-admin race fixed. |
 | Catalog/site format APIs | `/api/pokemon-options`, `/api/site-formats`, catalog modules | Read/cache/contracts inspected | Private API auth and cache behavior covered; released app exercised through signed-in routes | API auth fixed; account-specific tournament cache removed and public Pokemon cache bounded/subscribed; five other mounted editor snapshots remain. |
 | Cron catalogs | `/api/cron/sync-pokemon-catalog`, `/sync-card-effect-catalog` | Auth, bounded network adapter, pagination/identity/health guards, and publication algorithms inspected | Small read-only upstream metadata probes only; sync jobs not invoked | Network/empty-run boundaries are live and production `CRON_SECRET` is configured; in-place partial publication and Pokemon failure budget remain. |
-| RUM ingestion | `/api/performance-events`, reporter, SQL | Validation/clamping/auth/storage inspected | Live aggregate queried read-only | API auth fixed; current sample healthy. |
+| RUM ingestion | `/api/performance-events`, reporter, SQL | Validation/clamping/auth/storage inspected | Live aggregate queried read-only | API auth fixed; the latest aggregate identifies a slow hard-load tail without exposing private rows. |
 | Errors/loading/not-found | global/app errors, route loading, share not-found | All special files and runtime redaction inspected | Normal route loading observed; failure boundary not forced in production | User copy now matches console-only reality; compact share tokens are redacted; durable observability remains. |
 | Delivery/config | Next, Vercel, CI, TS/ESLint/Tailwind, hooks/scripts, SQL | All significant config surfaces inspected | Live project/deployment, 15 migrations, 40 security contracts, advisors, production headers/origin, and cron-secret presence checked | Release proof, CI design audit, schema health, and baseline headers pass; ENG-01 deliberately deferred; protected schema CI and CSP remain. |
 
@@ -796,7 +797,7 @@ Items 3–4 remain proposals. Item 1's transactional write and scoped preservati
 | `npm run lint` | **Passed** | Full combined tree, ESLint quiet mode. |
 | `npm run typecheck` | **Passed** | Next route type generation and `tsc --noEmit`; generated `next-env.d.ts` churn restored. |
 | `npm run types:supabase` | **Passed against live schema** | Generated definitions include the deployed ownership/share/profile and Deck Aggregate RPC interfaces and pass final TypeScript. |
-| `npm test` | **Passed: 314/314** | Full suite, up from the 173-test baseline; includes share/profile/auth/tenant boundaries, deck compatibility/re-key/transaction contracts, share size, deterministic dates, blank-version conflict handling, runtime JSON codecs, catalog/network guards, default-privilege contracts, cache behavior, accessibility, and typed API errors. |
+| `npm test` | **Passed: 318/318 on 14 July** | Full suite, up from the 173-test baseline and 314 at the original release review; includes share/profile/auth/tenant boundaries, deck compatibility/re-key/transaction contracts, share size, deterministic dates, basic-Energy ordering, runtime JSON codecs, catalog/network guards, default-privilege contracts, cache behavior, accessibility, and typed API errors. |
 | Deck transaction/re-key runtime | **Passed isolated and deployed database-first** | Parent locking, different-child merge, stale same-child conflict, duplicate/relational-only rejection, rollback, exact 19-list/1-matchup/31-link scope, content/timestamp parity, trigger restoration, and 43 unrelated-link preservation. The full five-migration sequence was rehearsed in an explicit rollback before production apply. |
 | `npm run schema:health` | **Passed** | Linked production passed 7 tables, 104 columns, 19 functions, 17 indexes, 16 triggers, 12 constraints, and all 40 security contracts, including Deck Aggregate RPC, default privileges, private ledger, share envelope, and size guard. |
 | `supabase --agent=no migration list --linked` | **15/15 aligned** | Every local/remote version aligns through `20260711224858`; there is no pending migration or false drift. |
@@ -831,7 +832,7 @@ Items 3–4 remain proposals. Item 1's transactional write and scoped preservati
 
 ### Final gate disposition
 
-All application/repository gates passed: lint, typecheck, 314 tests, design audit, both dependency audits, production build, diff check, schema health, migration alignment, compatibility parity, and the reviewed browser smokes. Production schema health is green across 40 security contracts; all 15 migrations align. Browser checks used authenticated read-only navigation without retaining private content. The approved production mutations were restricted to the documented security response and exact scoped re-key, while temporary function/share probes ran inside explicit rollbacks.
+All application/repository gates passed at the 14 July documentation follow-up: lint, typecheck, 318 tests, design audit, dependency audit, production build, diff check, schema health, migration alignment, and compatibility parity. The original review's browser smokes and production mutation evidence remain dated 11 July evidence; they were not unnecessarily replayed for this documentation-only pass. Production schema health is green across 40 security contracts and all 15 migrations align.
 
 ## Recommended remediation order
 

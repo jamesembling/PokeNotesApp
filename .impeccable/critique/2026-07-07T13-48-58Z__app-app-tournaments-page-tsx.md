@@ -1,5 +1,6 @@
 ---
 target: critique - is the tournament page any good
+status: historical-snapshot
 total_score: 23
 p0_count: 0
 p1_count: 2
@@ -7,6 +8,15 @@ timestamp: 2026-07-07T13-48-58Z
 slug: app-app-tournaments-page-tsx
 ---
 Method: dual-agent (A: 019f3cd2-6dd3-75e0-97b1-83edb1c2c111 · B: 019f3cd2-9276-7110-8765-e526dbba33e6)
+
+> **Document status:** Point-in-time critique from 7 July 2026, not the current product backlog.
+> Follow-up verified against the repository on 14 July 2026:
+>
+> - The mobile action-visibility issue is fixed: `TournamentEditorDialog` uses `AppDialogMobileFooter`. Whether the initial form should contain fewer fields remains a product decision.
+> - The populated-history scaffolding issue is fixed: `TournamentSummaryList` now has a labelled “Tournament history” section, event count, “Most recent first” context, and desktop column labels.
+> - Search/filter/grouping is still absent; the empty state remains deliberately small; production schema-error copy still mentions contacting the app owner; mobile rows still hide sprites; and the duplicate component-level empty state and skeleton-radius mismatch remain.
+>
+> Preserve the score and findings below as evidence of the original review. Use current code and the repository issue tracker when deciding what remains actionable.
 
 ## Design Health Score
 

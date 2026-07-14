@@ -1169,6 +1169,9 @@ create table public.route_performance_events (
   rtt                     integer,
   save_data               boolean not null default false,
   user_agent              text,
+  source_origin           text,
+  source_host             text,
+  deployment_env          text not null default 'unknown',
   created_at              timestamptz not null default now()
 );
 
@@ -1361,6 +1364,9 @@ create index route_performance_events_user_created_at
 
 create index route_performance_events_route_created_at
   on public.route_performance_events (to_path, created_at desc);
+
+create index route_performance_events_env_route_created_at
+  on public.route_performance_events (deployment_env, to_path, created_at desc);
 
 
 -- ============================================================

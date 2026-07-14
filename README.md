@@ -4,7 +4,7 @@ Poke Notes is a Next.js App Router app for tracking Pokemon TCG battle logs, dec
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 20.9 or newer (required by the installed Next.js version)
 - npm
 - A Supabase project with Auth enabled
 - A Google OAuth provider configured for Supabase Auth
@@ -27,9 +27,9 @@ cp .env.example .env
 
 4. Bootstrap the database:
 
-- For a new Supabase project, run [`schema.sql`](./schema.sql) in the SQL editor.
-- For an existing project that already has the base schema, apply any newer files in [`sql/`](./sql).
-- Codex can apply a SQL file for you when a database connection string or linked Supabase CLI session is available locally. Ask it to run the specific migration, for example `sql/2026-05-14-data-api-grants.sql`.
+- For a new Supabase project, apply [`schema.sql`](./schema.sql). It is the complete schema snapshot; do not replay the historical incremental SQL over it.
+- For an existing environment, inspect `supabase migration list --linked` and the target schema before applying anything. [`supabase/migrations`](./supabase/migrations) contains the production-aligned migration history introduced during the July 2026 health remediation. [`sql`](./sql) contains older feature SQL still used by the repository's tracked deployment hook; it is not a fresh-install sequence.
+- Database changes must be deployed deliberately to the intended linked project and verified with `npm run schema:health` plus a targeted read-only query. The tracked hook behavior is described in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 5. Configure Supabase Auth redirect URLs for each environment:
 
@@ -88,12 +88,15 @@ npm run dev:reset
 
 ## Environment Variables
 
-Copy the keys from `.env.example` and provide values for:
+Copy the keys from `.env.example`. The running application needs:
 
 - `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+
+Migration and seed utilities also use:
+
 - `NEW_SUPABASE_URL`
 - `NEW_SUPABASE_SERVICE_KEY`
 
@@ -102,6 +105,7 @@ Optional variables:
 - `OLD_SUPABASE_URL`
 - `OLD_SUPABASE_SERVICE_KEY`
 - `CRON_SECRET`
+- `POKEMON_TCG_API_KEY` (optional upstream rate-limit allowance for card-effect sync)
 - `POKE_NOTES_DEBUG_AUTH`
 - `POKE_NOTES_DEBUG_PERF`
 - `POKE_NOTES_AUTH_REDIRECT_ORIGINS`
@@ -112,6 +116,8 @@ Optional variables:
 - `POKE_NOTES_LOCAL_LOGIN_HOSTS`
 
 ## Commands
+
+Run `npm run` for the complete script list. Common commands are:
 
 - `npm run dev` starts the app locally
 - `npm run dev:reset` clears `.next` and starts the dev server again
@@ -128,8 +134,22 @@ Optional variables:
 - `npm run auth:local:setup` configures the existing local test account and allowed LAN hosts
 - `npm run auth:local:copy-code` copies the local pairing code without printing it
 - `npm run auth:local:save` submits that code in the localhost login form and refreshes the host-scoped agent-browser state
+- `npm run perf:probe` probes configured local page/API routes without making localhost the production benchmark
 - `npm run perf:prod:auth` opens an attended Google login and saves host-filtered production auth state
+- `npm run perf:prod` replays the authenticated production route journey
 - `npm run sync:pokemon-catalog` runs the Pokemon catalog sync manually
+
+## Documentation Map
+
+- [`CONTEXT.md`](./CONTEXT.md): product language and data invariants.
+- [`PRODUCT.md`](./PRODUCT.md): users, product intent, brand, and accessibility direction.
+- [`docs/design-system.md`](./docs/design-system.md): current UI tokens and shared-component contracts.
+- [`docs/performance-targets.md`](./docs/performance-targets.md): dated production measurements and performance targets.
+- [`known-edge-cases.md`](./known-edge-cases.md): current cross-feature behavior and compatibility contracts.
+- [`docs/application-health-review.md`](./docs/application-health-review.md): the dated repository/production audit and remaining work.
+- [`docs/adr`](./docs/adr): accepted architectural decisions.
+
+Older local working copies may still contain ignored `HANDOVER.md`, `REBUILD_PLAN.md`, or `ARCHETYPE_CATALOG_STARTER.md` files. They are superseded migration-era artifacts, are not repository documentation, and are candidates for local deletion once no external reference depends on their filenames.
 
 ## Deployment
 
@@ -143,29 +163,16 @@ Deployments are intended for Vercel.
    deployment and branch URLs are approved automatically, but every callback URL must also be
    allowed by Supabase Auth.
 5. In Supabase Auth, add each approved deployed `/auth/callback` URL to the allow list.
-6. Run [`schema.sql`](./schema.sql) for a fresh database or apply any required files in [`sql/`](./sql) before using the app in production. This can be done in the Supabase SQL editor, or by asking Codex to run the SQL when local Supabase/database credentials are configured.
+6. Apply [`schema.sql`](./schema.sql) for a fresh database. For an existing database, reconcile the linked schema and migration history as described in **Local Setup**; do not assume every file in `sql/` or `supabase/migrations/` should be replayed.
 7. Set `CRON_SECRET` in Vercel so the scheduled catalog sync route can authenticate requests.
-8. `/auth/test-login` deliberately returns `404` in every environment. Production browser checks use an attended Google login captured by `npm run perf:prod:auth`; local automated and phone checks use the development-only flow above.
+8. `/auth/test-login` deliberately returns `404` outside development. Production browser checks use an attended Google login captured by `npm run perf:prod:auth`; local automated and phone checks use the development-only flow above.
 
-This revision used a database-first rollout. The following migrations are live in production and
-must remain in this timestamp order when provisioning another environment:
-
-1. `20260711195613_commit_deck_aggregate_children.sql` — required before the application revision
-   that calls `commit_deck_aggregate_child`;
-2. `20260711203447_harden_public_schema_default_privileges.sql` — changes no current grant when
-   installed; later application-owned public object creation/replacement must grant intended roles
-   explicitly; and
-3. `20260711204150_enforce_log_share_payload_envelope.sql` — validates the established `v1` share
-   wrapper;
-4. `20260711224609_rekey_deck_aggregate_collisions.sql` — preserves both account-scoped copies,
-   repairs only owner/deck-scoped links, and retains a private 30-day mapping ledger; and
-5. `20260711224858_enforce_log_share_payload_size.sql` — enforces the approved 256 KiB snapshot cap
-   and gives the application a stable oversized-payload response.
-
-The production rollout completed on 11 July 2026 UTC. `supabase migration list --linked` aligns all
-15 local/remote versions, `npm run schema:health` passes, and the compatibility audit reports 49/49
-Deck List plus 2/2 Matchup Plan parity with no blocking issue. For later environments, run the same
-two gates after migration and replay the documented auth/share/deck smoke tests before promotion.
+The database-first health rollout completed on 11 July 2026 UTC. As re-verified on 14 July,
+`supabase migration list --linked` aligns all 15 files in [`supabase/migrations`](./supabase/migrations),
+`npm run schema:health` passes 40 security contracts, and `npm run audit:deck-compatibility` reports
+49/49 Deck List plus 2/2 Matchup Plan parity with no blocking issue. These are dated production
+facts, not a substitute for running the same gates against the intended project before a later
+deployment.
 
 `vercel.json` schedules `/api/cron/sync-pokemon-catalog` to run daily at `05:00` UTC. The job refreshes `pokemon_catalog` from the upstream sources, then invalidates the cached Pokemon options and identification catalog so UI menus and lookup paths see the new rows without a manual reseed.
 
