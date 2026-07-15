@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { SectionTitle } from "@/components/ui/Typography";
+import {
+  getStatBarHalfWidth,
+  MATCH_SUMMARY_STAT_MAX
+} from "@/lib/battle-log/match-summary-stats";
 import type { BattleLog, LogSection, Result } from "@/types/index";
 
 const STAT_FORMATTER = new Intl.NumberFormat("en-GB");
@@ -8,6 +12,7 @@ const STAT_FORMATTER = new Intl.NumberFormat("en-GB");
 type SummaryStat = {
   id: string;
   label: string;
+  maxValue: number;
   opponentValue: number;
   userValue: number;
 };
@@ -164,8 +169,8 @@ export function ProgressBar({
   rightColor: string;
   rightValue: number;
 }) {
-  const leftRatio = max > 0 ? Math.max(0, Math.min(50, (leftValue / max) * 50)) : 0;
-  const rightRatio = max > 0 ? Math.max(0, Math.min(50, (rightValue / max) * 50)) : 0;
+  const leftRatio = getStatBarHalfWidth(leftValue, max);
+  const rightRatio = getStatBarHalfWidth(rightValue, max);
 
   return (
     <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -189,7 +194,6 @@ export function ProgressBar({
 }
 
 export function StatRow({ stat }: { stat: SummaryStat }) {
-  const maxValue = Math.max(stat.userValue, stat.opponentValue);
   const userTone = STAT_TONE_STYLES.win;
   const opponentTone = STAT_TONE_STYLES.loss;
 
@@ -209,7 +213,7 @@ export function StatRow({ stat }: { stat: SummaryStat }) {
       <ProgressBar
         leftColor={userTone.color}
         leftValue={stat.userValue}
-        max={maxValue}
+        max={stat.maxValue}
         rightColor={opponentTone.color}
         rightValue={stat.opponentValue}
       />
@@ -263,24 +267,28 @@ export function MatchSummary({
     {
       id: "turns",
       label: "Turns",
+      maxValue: MATCH_SUMMARY_STAT_MAX.turns,
       opponentValue: turnCounts.opponentTurns,
       userValue: turnCounts.userTurns
     },
     {
       id: "attack-damage",
       label: "Attack Damage",
+      maxValue: MATCH_SUMMARY_STAT_MAX.attackDamage,
       opponentValue: log.opponentAttackDamage,
       userValue: log.selfAttackDamage
     },
     {
       id: "prizes",
       label: "Prizes Taken",
+      maxValue: MATCH_SUMMARY_STAT_MAX.prizes,
       opponentValue: log.opponentPrizesTaken,
       userValue: log.selfPrizesTaken
     },
     {
       id: "mulligans",
       label: "Mulligans",
+      maxValue: MATCH_SUMMARY_STAT_MAX.mulligans,
       opponentValue: log.opponentMulligans,
       userValue: log.selfMulligans
     }
