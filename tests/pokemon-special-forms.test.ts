@@ -53,6 +53,22 @@ test("buildSpecialPokemonCatalogRows includes current Mega forms", async () => {
   assert(rows.some((row) => row.slug === "lucario-mega"));
   assert(rows.some((row) => row.slug === "venusaur-mega"));
   assert.deepEqual(
+    ["darkrai-mega", "delphox-mega", "slowbro-mega", "zeraora-mega"].map(
+      (slug) => rows.find((row) => row.slug === slug)?.label
+    ),
+    ["Mega Darkrai", "Mega Delphox", "Mega Slowbro", "Mega Zeraora"]
+  );
+  assert.equal(rows.find((row) => row.slug === "delphox-mega")?.evolves_from, "braixen");
+  assert.equal(rows.find((row) => row.slug === "slowbro-mega")?.evolves_from, "slowpoke");
+  assert.equal(
+    rows.find((row) => row.slug === "darkrai-mega")?.sprite_url,
+    "https://r2.limitlesstcg.net/pokemon/gen9/darkrai.png"
+  );
+  assert.equal(
+    rows.find((row) => row.slug === "zeraora-mega")?.sprite_url,
+    "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"
+  );
+  assert.deepEqual(
     ["dragalge-mega", "floette-mega", "gallade-mega", "pyroar-mega"].map((slug) => rows.find((row) => row.slug === slug)?.label),
     ["Mega Dragalge", "Mega Floette", "Mega Gallade", "Mega Pyroar"]
   );

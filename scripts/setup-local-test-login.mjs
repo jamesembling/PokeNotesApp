@@ -18,10 +18,17 @@ loadDotenv({ path: localEnvPath, override: true });
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEW_SUPABASE_URL || "";
 const serviceRoleKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEW_SUPABASE_SERVICE_KEY || "";
+const rotatePassword = process.argv.includes("--rotate-password");
 const localLoginCode = process.env.POKE_NOTES_LOCAL_LOGIN_CODE || randomToken(24);
 const localLoginHosts = discoverLocalLoginHosts();
 
 if (!supabaseUrl || !serviceRoleKey) {
+  if (rotatePassword) {
+    throw new Error(
+      "Cannot rotate the local test-account password because admin Supabase env vars are missing."
+    );
+  }
+
   writeLocalEnv({
     POKE_NOTES_ENABLE_TEST_LOGIN: "1",
     POKE_NOTES_LOCAL_LOGIN_CODE: localLoginCode,
@@ -45,8 +52,14 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 const authUser = await findConfiguredOrExistingCodexUser();
-const password = process.env.POKE_NOTES_TEST_LOGIN_PASSWORD || randomToken(32);
-await updateExistingTestUserPassword(authUser, password);
+const configuredPassword = process.env.POKE_NOTES_TEST_LOGIN_PASSWORD || "";
+const password = rotatePassword || !configuredPassword ? randomToken(32) : configuredPassword;
+const shouldUpdatePassword = rotatePassword || !configuredPassword;
+
+if (shouldUpdatePassword) {
+  await updateExistingTestUserPassword(authUser, password);
+}
+
 writeLocalEnv({
   POKE_NOTES_ENABLE_TEST_LOGIN: "1",
   POKE_NOTES_LOCAL_LOGIN_CODE: localLoginCode,
@@ -54,11 +67,22 @@ writeLocalEnv({
   POKE_NOTES_TEST_LOGIN_EMAIL: authUser.email || "",
   POKE_NOTES_TEST_LOGIN_PASSWORD: password
 }, {
-  replaceKeys: new Set(["POKE_NOTES_LOCAL_LOGIN_HOSTS"])
+  replaceKeys: new Set([
+    "POKE_NOTES_LOCAL_LOGIN_HOSTS",
+    ...(rotatePassword ? ["POKE_NOTES_TEST_LOGIN_PASSWORD"] : [])
+  ])
 });
 
 console.log("Local development login is configured.");
 console.log("Existing test account was reused; no new account was created and no role was changed.");
+if (rotatePassword) {
+  console.log("The local test-account password was explicitly rotated.");
+  console.log("Existing browser sessions were invalidated; run npm run auth:local:save.");
+} else if (shouldUpdatePassword) {
+  console.log("The local test-account password was initialized.");
+} else {
+  console.log("The existing password was preserved; active browser sessions remain valid.");
+}
 console.log("Credentials were written to ignored local env; secret values were not printed.");
 console.log("Use npm run auth:local:copy-code to copy the local pairing code without printing it.");
 

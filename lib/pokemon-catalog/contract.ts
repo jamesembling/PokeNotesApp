@@ -16,6 +16,8 @@ export type SearchQueryExpectation = {
 
 const REQUIRED_ALIASES_BY_SLUG: Record<string, string[]> = {
   "charizard-mega-x": ["Mega Charizard X", "Charizard Mega X", "charizardmegax"],
+  "darkrai-mega": ["Mega Darkrai", "Darkrai Mega"],
+  "delphox-mega": ["Mega Delphox", "Delphox Mega"],
   "dialga-origin": ["Origin Forme Dialga", "Dialga Origin"],
   "dragalge-mega": ["Mega Dragalge", "Dragalge Mega"],
   "floette-mega": ["Mega Floette", "Floette Mega"],
@@ -28,7 +30,9 @@ const REQUIRED_ALIASES_BY_SLUG: Record<string, string[]> = {
   "palkia-origin": ["Origin Forme Palkia", "Palkia Origin"],
   "pyroar-mega": ["Mega Pyroar", "Pyroar Mega"],
   "sharpedo-mega": ["Mega Sharpedo", "Sharpedo Mega"],
+  "slowbro-mega": ["Mega Slowbro", "Slowbro Mega"],
   "ursaluna-bloodmoon": ["Bloodmoon Ursaluna"],
+  "zeraora-mega": ["Mega Zeraora", "Zeraora Mega"],
   "zoroark-hisui": ["Hisuian Zoroark", "Zoroark Hisui"]
 };
 
@@ -52,6 +56,26 @@ export const SEARCH_QUERY_EXPECTATIONS: SearchQueryExpectation[] = [
     bestMatch: "greninja-mega",
     expectedSlugs: ["greninja-mega"],
     query: "Mega Greninja"
+  },
+  {
+    bestMatch: "darkrai-mega",
+    expectedSlugs: ["darkrai-mega"],
+    query: "Mega Darkrai"
+  },
+  {
+    bestMatch: "delphox-mega",
+    expectedSlugs: ["delphox-mega"],
+    query: "Mega Delphox"
+  },
+  {
+    bestMatch: "slowbro-mega",
+    expectedSlugs: ["slowbro-mega"],
+    query: "Mega Slowbro"
+  },
+  {
+    bestMatch: "zeraora-mega",
+    expectedSlugs: ["zeraora-mega"],
+    query: "Mega Zeraora"
   },
   {
     bestMatch: "floette-mega",

@@ -58,6 +58,22 @@ npm run dev:test-login
 npm run auth:local:save
 ```
 
+`auth:local:setup` and `dev:test-login` are safe to run repeatedly: when local credentials already
+exist, setup preserves the existing password so active browser sessions remain valid. If the saved
+agent-browser state redirects to `/login`, run `npm run auth:local:save` and retry with a fresh
+agent-browser session. The in-app Browser and Chrome use separate cookie stores and do not consume
+the saved agent-browser state.
+
+Rotate the test-account password only when credentials may be compromised:
+
+```bash
+npm run auth:local:rotate
+npm run auth:local:save
+```
+
+Rotation intentionally invalidates existing localhost sessions, including manually authenticated
+browser sessions.
+
 For authenticated testing on a phone connected to the same trusted Wi-Fi network:
 
 1. Configure the existing local test account and start the LAN-accessible dev server:

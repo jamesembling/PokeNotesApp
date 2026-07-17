@@ -6,7 +6,7 @@ const LIMITLESS_STANDARD_TOURNAMENTS_URL =
   "https://play.limitlesstcg.com/api/tournaments?game=PTCG&format=STANDARD";
 const FORMAT_CODE_PATTERN = /\b([A-Z]{3}-[A-Z]{3}(?:\/[A-Z]{3})?)\b/g;
 const SAMPLE_TOURNAMENT_COUNT = 20;
-const SITE_FORMATS_CACHE_VERSION = "v3";
+const SITE_FORMATS_CACHE_VERSION = "v4";
 const SITE_FORMATS_REVALIDATE_SECONDS = 60 * 60 * 6;
 
 type LimitlessTournamentSummary = {

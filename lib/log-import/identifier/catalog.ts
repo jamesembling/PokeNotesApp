@@ -16,7 +16,7 @@ type CachedIdentificationCatalogRows = {
   pokemonRows: PokemonCatalogRow[];
 };
 
-const IDENTIFICATION_CATALOG_CACHE_VERSION = "v11";
+const IDENTIFICATION_CATALOG_CACHE_VERSION = "v12";
 
 type ArchetypeRowsClient = {
   from(table: "archetype_catalog"): unknown;

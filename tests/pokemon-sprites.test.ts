@@ -33,6 +33,8 @@ test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => 
     ["Mega Absol", "absol-mega"],
     ["Mega Audino", "audino-mega"],
     ["Mega Chandelure", "chandelure-mega"],
+    ["Mega Darkrai", "darkrai-mega"],
+    ["Mega Delphox", "delphox-mega"],
     ["Mega Diancie", "diancie-mega"],
     ["Mega Excadrill", "excadrill-mega"],
     ["Mega Greninja", "greninja-mega"],
@@ -45,7 +47,9 @@ test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => 
     ["Mega Floette", "floette-mega"],
     ["Mega Dragalge", "dragalge-mega"],
     ["Mega Skarmory", "skarmory-mega"],
+    ["Mega Slowbro", "slowbro-mega"],
     ["Mega Zygarde", "zygarde-mega"],
+    ["Mega Zeraora", "zeraora-mega"],
     ["Pyroar Mega", "pyroar-mega"],
     ["Floette Mega", "floette-mega"],
     ["Dragalge Mega", "dragalge-mega"],
@@ -69,6 +73,14 @@ test("buildPokemonSpriteUrlFromSlug resolves curated non-Pokemon sprite assets",
   assert.equal(
     buildPokemonSpriteUrlFromSlug("Crushing-Hammer"),
     "/pixelated-hammer-sprite-transparent.png"
+  );
+  assert.equal(
+    buildPokemonSpriteUrlFromSlug("darkrai-mega"),
+    "https://r2.limitlesstcg.net/pokemon/gen9/darkrai.png"
+  );
+  assert.equal(
+    buildPokemonSpriteUrlFromSlug("zeraora-mega"),
+    "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"
   );
 });
 

@@ -144,10 +144,19 @@ test("local auth helper reuses the existing Codex test user", () => {
   const copyCodeScript = source("scripts/copy-local-login-code.mjs");
 
   assert.match(packageJson, /"auth:local:setup": "node scripts\/setup-local-test-login\.mjs"/);
+  assert.match(
+    packageJson,
+    /"auth:local:rotate": "node scripts\/setup-local-test-login\.mjs --rotate-password"/
+  );
   assert.match(packageJson, /"auth:local:copy-code": "node scripts\/copy-local-login-code\.mjs"/);
   assert.match(packageJson, /"auth:local:save": "node scripts\/save-local-auth-state\.mjs"/);
   assert.match(packageJson, /"dev:test-login": "node scripts\/setup-local-test-login\.mjs && next dev(?: [^"]*)?"/);
   assert.match(setupScript, /findConfiguredOrExistingCodexUser/);
+  assert.match(setupScript, /const rotatePassword = process\.argv\.includes\("--rotate-password"\)/);
+  assert.match(setupScript, /const shouldUpdatePassword = rotatePassword \|\| !configuredPassword/);
+  assert.match(setupScript, /if \(shouldUpdatePassword\) \{\s+await updateExistingTestUserPassword/);
+  assert.match(setupScript, /rotatePassword \? \["POKE_NOTES_TEST_LOGIN_PASSWORD"\] : \[\]/);
+  assert.match(setupScript, /existing password was preserved; active browser sessions remain valid/);
   assert.doesNotMatch(setupScript, /createUser/);
   assert.doesNotMatch(setupScript, /role:\s*"admin"/);
   assert.match(setupScript, /writeFileSync\(localEnvPath, `\$\{nextContent\}\\n`, \{ mode: 0o600 \}\)/);

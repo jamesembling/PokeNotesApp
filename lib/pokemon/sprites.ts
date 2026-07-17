@@ -20,7 +20,9 @@ const EXPLICIT_NAME_TO_SLUG: Record<string, string> = {
 };
 
 const CUSTOM_SPRITE_URLS: Record<string, string> = {
-  "crushing-hammer": "/pixelated-hammer-sprite-transparent.png"
+  "crushing-hammer": "/pixelated-hammer-sprite-transparent.png",
+  "darkrai-mega": "https://r2.limitlesstcg.net/pokemon/gen9/darkrai.png",
+  "zeraora-mega": "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"
 };
 
 export const CUSTOM_SPRITE_OPTIONS: PokemonOption[] = [

@@ -7,6 +7,7 @@ import {
 } from "../lib/catalog/safe-json-fetch.mjs";
 import {
   assertUsableCardCatalog,
+  normalizeCardCatalogSetId,
   recordUniqueCardIds
 } from "../lib/card-effect-catalog/sync.mjs";
 import {
@@ -170,6 +171,12 @@ test("catalog completeness counts unique valid card identities rather than page 
     () => recordUniqueCardIds([{ id: "sv1-3", name: "" }], new Set()),
     /missing or repeated/
   );
+});
+
+test("set-scoped card catalog sync accepts only canonical set ids", () => {
+  assert.equal(normalizeCardCatalogSetId(" ME5 "), "me5");
+  assert.equal(normalizeCardCatalogSetId(""), null);
+  assert.throws(() => normalizeCardCatalogSetId("me5*"), /letters and numbers/);
 });
 
 test("retains the current Pokemon catalog when an upstream run has no usable species", () => {
