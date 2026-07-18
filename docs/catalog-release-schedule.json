@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "timezone": "Europe/London",
+  "monitoring": {
+    "lookaheadDays": 90,
+    "preparationWindowDays": 21
+  },
+  "automationPolicy": {
+    "allowCodePreparation": true,
+    "allowProductionDataMutation": false,
+    "allowCommitPushOrDeploy": false
+  },
+  "releases": [
+    {
+      "name": "Mega Evolution—Pitch Black",
+      "releaseDate": "2026-07-17",
+      "officialSource": "https://www.pokemon.com/us/news/the-pokemon-tcg-mega-evolution-pitch-black-expansion-arrives-july-17-2026",
+      "pokemonTcgSetId": "me5",
+      "limitlessFormatCode": "TEF-PBL",
+      "status": "released",
+      "notes": "Completed release retained as the verified baseline for the automation."
+    },
+    {
+      "name": "30th Celebration",
+      "releaseDate": "2026-09-16",
+      "officialSource": "https://www.pokemon.com/uk/pokemon-tcg/product-gallery/30th-celebration-pokemon-center-elite-trainer-box",
+      "pokemonTcgSetId": null,
+      "limitlessFormatCode": null,
+      "status": "announced",
+      "notes": "Special expansion announced officially. Discover and verify identifiers rather than guessing them."
+    }
+  ]
+}

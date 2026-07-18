@@ -71,10 +71,14 @@ web_modules/
 !.env.example
 
 # Local agent/editor tooling
-.agents/
+.agents/*
 .agent-browser/
 .codex/
 SKILLS/
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/pokenotes-catalog-release/
+!.agents/skills/pokenotes-catalog-release/**
 plugins/
 AGENT.md
 HANDOVER.md

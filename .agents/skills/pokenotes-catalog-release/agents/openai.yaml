@@ -1,0 +1,4 @@
+interface:
+  display_name: "PokeNotes Catalog Release"
+  short_description: "Safely publish new sets, forms, sprites, and effects"
+  default_prompt: "Use $pokenotes-catalog-release to update PokeNotes for a new Pokémon TCG set and verify formats, Pokémon forms, sprites, card effects, caches, and live publication."
