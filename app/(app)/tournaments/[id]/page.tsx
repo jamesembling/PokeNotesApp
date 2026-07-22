@@ -279,7 +279,6 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         <SectionHeader
           actions={
             <LazyTournamentRoundEditorButton
-              suggestedRoundNumber={rounds.length + 1}
               tournamentId={tournament.id}
               triggerLabel="Add Round"
               triggerVariant="outline"

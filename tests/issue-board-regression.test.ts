@@ -110,7 +110,6 @@ test("private helper endpoints disable caching and map user-facing share errors"
   const sharesRoute = source("app/api/log-shares/route.ts");
   const logDetailBodyRoute = source("app/api/log-detail-body/route.ts");
   const logDetailContextRoute = source("app/api/log-detail-context/route.ts");
-  const tournamentEditorRoute = source("app/api/tournament-editor-data/route.ts");
   const testLoginRoute = source("app/auth/test-login/route.ts");
   const apiResponse = source("lib/server/api-response.ts");
 
@@ -121,7 +120,6 @@ test("private helper endpoints disable caching and map user-facing share errors"
   assert.doesNotMatch(sharesRoute, /message\.includes/);
   assert.match(logDetailBodyRoute, /privateJson/);
   assert.match(logDetailContextRoute, /privateJson/);
-  assert.match(tournamentEditorRoute, /privateJson/);
   assert.match(testLoginRoute, /deliberately unavailable/);
   assert.match(testLoginRoute, /status: 404/);
   assert.doesNotMatch(testLoginRoute, /POKE_NOTES_TEST_LOGIN_SECRET/);
@@ -150,7 +148,10 @@ test("local auth helper reuses the existing Codex test user", () => {
   );
   assert.match(packageJson, /"auth:local:copy-code": "node scripts\/copy-local-login-code\.mjs"/);
   assert.match(packageJson, /"auth:local:save": "node scripts\/save-local-auth-state\.mjs"/);
-  assert.match(packageJson, /"dev:test-login": "node scripts\/setup-local-test-login\.mjs && next dev(?: [^"]*)?"/);
+  assert.match(
+    packageJson,
+    /"dev:test-login": "(?:PORT=3000 )?node scripts\/setup-local-test-login\.mjs && next dev(?: [^"]*)?"/
+  );
   assert.match(setupScript, /findConfiguredOrExistingCodexUser/);
   assert.match(setupScript, /const rotatePassword = process\.argv\.includes\("--rotate-password"\)/);
   assert.match(setupScript, /const shouldUpdatePassword = rotatePassword \|\| !configuredPassword/);

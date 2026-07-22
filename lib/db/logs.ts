@@ -645,61 +645,6 @@ export async function getLogsWindow(
   };
 }
 
-export async function getLogsPage(userId: string, cursor?: string, limit = 30) {
-  const supabase = await logsDbTestHooks.createClient();
-  const pageSize = Math.max(1, limit);
-  const decodedCursor = decodeLogsCursor(cursor);
-
-  let query = supabase
-    .from("logs")
-    .select(
-      [
-        "id",
-        "date",
-        "result",
-        "format",
-        "go_order",
-        "self_player_name",
-        "self_deck_name",
-        "self_deck_sprites",
-        "opponent_player_name",
-        "opponent_deck_name",
-        "opponent_deck_sprites",
-        "total_turns",
-        "linked_deck_id",
-        "linked_deck_list_id",
-        "imported_at"
-      ].join(",")
-    )
-    .eq("user_id", userId)
-    .order("date", { ascending: false })
-    .order("imported_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(pageSize + 1);
-
-  if (decodedCursor) {
-    query = query.or(buildLogsCursorFilter(decodedCursor));
-  }
-
-  const { data, error } = await measureServerCall("db.logs.page", async () => await query);
-
-  if (error) {
-    throw error;
-  }
-
-  const rows = ((data ?? []) as unknown) as LogsTableRow[];
-  const hasMore = rows.length > pageSize;
-  const pageRows = hasMore ? rows.slice(0, pageSize) : rows;
-  const logs = pageRows.map(mapLogSummary);
-  const nextCursor = hasMore && logs.length > 0 ? encodeLogsCursor(logs[logs.length - 1]) : undefined;
-
-  return {
-    logs,
-    hasMore,
-    nextCursor
-  };
-}
-
 export async function getLogById(
   userId: string,
   logId: string
@@ -1007,19 +952,6 @@ export async function getDeckStatsForIndex(
   });
 
   return statsByDeck;
-}
-
-export async function getLogsForDeck(
-  userId: string,
-  deckId: string,
-  decks: DeckLinkCandidate[],
-  limit = 10
-): Promise<BattleLogSummary[]> {
-  if (!decks.some((candidate) => candidate.id === deckId)) {
-    return [];
-  }
-
-  return getLatestLogsForDeck(userId, deckId, limit);
 }
 
 export async function getLatestLogsForDeck(

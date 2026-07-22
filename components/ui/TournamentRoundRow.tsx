@@ -108,7 +108,6 @@ export function TournamentRoundRow({ canEdit, round, tournamentId }: TournamentR
     return (
       <LazyTournamentRoundEditorButton
         round={round}
-        suggestedRoundNumber={round.roundNumber}
         tournamentId={tournamentId}
         trigger={(
           <Button className="h-auto w-full p-0 hover:bg-transparent" type="button" variant="ghost">

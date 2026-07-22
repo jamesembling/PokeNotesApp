@@ -54,8 +54,7 @@ test("all private JSON routes use the API auth guard while pages keep redirectin
     ["app/api/log-shares/route.ts", 2],
     ["app/api/performance-events/route.ts", 1],
     ["app/api/pokemon-options/route.ts", 1],
-    ["app/api/stats-matchups/route.ts", 1],
-    ["app/api/tournament-editor-data/route.ts", 1]
+    ["app/api/stats-matchups/route.ts", 1]
   ]);
 
   for (const [path, expectedCalls] of expectedGuardCalls) {

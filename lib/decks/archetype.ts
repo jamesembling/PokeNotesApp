@@ -15,7 +15,3 @@ export function buildDeckArchetypeId(values: string[]) {
   const normalizedSprites = normalizeDeckArchetypeSprites(values);
   return normalizedSprites.join("+");
 }
-
-export function deckArchetypeMatchesSprites(archetypeId: string, values: string[]) {
-  return buildDeckArchetypeId(values) === String(archetypeId || "").trim().toLowerCase();
-}

@@ -65,7 +65,7 @@ Use these components for repeated app UI:
 - `AppDialogFooter` for desktop dialog actions that belong below a scrollable form.
 - `AppDialogMobileFooter` for persistent mobile dialog actions below a scrollable modal body.
 - `Badge` variants for win, loss, warning, neutral, and action labels.
-- `Card`, `PageHeader`, `PageWidth`, `StatCard`, and existing shadcn primitives for structure.
+- `Card`, `PageHeader`, `PageWidth`, and existing shadcn primitives for structure.
 
 Do not recreate these patterns with ad hoc `rounded-*`, `bg-*`, `border-*`, or `shadow-*` classes in page code.
 

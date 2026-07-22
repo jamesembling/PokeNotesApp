@@ -30,7 +30,6 @@ type TournamentRoundEditorDialogProps = {
   initialOpen?: boolean;
   pokemonOptions: PokemonOption[];
   round?: TournamentRound;
-  suggestedRoundNumber: number;
   tournamentId: string;
   trigger?: ReactElement<{ onClick?: () => void }>;
   triggerClassName?: string;
@@ -51,7 +50,6 @@ export function TournamentRoundEditorDialog({
   initialOpen = false,
   pokemonOptions,
   round,
-  suggestedRoundNumber,
   tournamentId,
   trigger,
   triggerClassName,

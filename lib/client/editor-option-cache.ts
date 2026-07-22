@@ -7,7 +7,3 @@ import type { PokemonOption } from "@/types/index";
 export const pokemonOptionsClientCache = createAsyncTtlCache<PokemonOption[]>({
   ttlMs: EDITOR_OPTION_CACHE_TTL_MS
 });
-
-export function invalidatePokemonEditorOptions() {
-  pokemonOptionsClientCache.invalidate();
-}

@@ -1,6 +1,5 @@
 import type { Language, LogSection, Result } from "@/types/index";
 import { LANGUAGE_STRINGS } from "@/lib/log-import/parser/language";
-import { getPlayerNameFromTurnLine } from "@/lib/log-import/parser/turns";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { compactMap } from "@/lib/array";
 

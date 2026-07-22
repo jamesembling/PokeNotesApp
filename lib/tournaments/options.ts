@@ -2,8 +2,7 @@ import type {
   TournamentCategory,
   TournamentPlacement,
   TournamentRoundGameResult,
-  TournamentRoundSpecialResult,
-  TournamentRoundResult
+  TournamentRoundSpecialResult
 } from "@/types/index";
 
 export const TOURNAMENT_CATEGORY_OPTIONS: Array<{
@@ -54,14 +53,6 @@ export const TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS: Array<{
   { value: "ID", label: "ID" },
   { value: "NO SHOW", label: "NO SHOW" }
 ];
-export const TOURNAMENT_ROUND_RESULT_OPTIONS: TournamentRoundResult[] = [
-  "Win",
-  "Loss",
-  "Tie",
-  ...TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.map((option) => option.value),
-  ...TOURNAMENT_ROUND_GAME_RESULT_OPTIONS
-];
-
 export function getTournamentCategoryLabel(category: TournamentCategory) {
   return (
     TOURNAMENT_CATEGORY_OPTIONS.find((option) => option.value === category)?.label || "Uncategorized"

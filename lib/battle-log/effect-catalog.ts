@@ -180,17 +180,6 @@ async function fetchCandidateRows(args: {
   return rows;
 }
 
-export async function resolveBattleLogEffectCatalogTag(title: string): Promise<BattleLogActionTag | null> {
-  const usedEffectCandidate = extractUsedEffectCandidate(title);
-  const trainerCardName = extractPlayedCardName(title) || extractAttachedCardName(title);
-  const rows = await fetchCandidateRows({
-    effectCandidates: usedEffectCandidate ? [usedEffectCandidate] : [],
-    trainerCardNames: trainerCardName ? [trainerCardName] : []
-  });
-
-  return resolveBattleLogEffectCatalogTagFromRows(title, rows);
-}
-
 export async function resolveBattleLogEffectCatalogTags(titles: string[]) {
   const uniqueTitles = Array.from(new Set(compactMap(titles, (title) => String(title || "").trim())));
   const effectCandidates = uniqueTitles

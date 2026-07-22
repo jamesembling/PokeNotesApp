@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
-import { requireAuth, requireUser } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { updateCurrentProfile, updateCurrentProfileAvatar } from "@/lib/db/profile";
 import { PROFILE_AVATAR_COOKIE } from "@/lib/profile-avatar";
 import { reportError } from "@/lib/server/report-error";

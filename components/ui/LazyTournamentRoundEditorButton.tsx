@@ -9,7 +9,6 @@ import type { PokemonOption, TournamentRound } from "@/types/index";
 
 type LazyTournamentRoundEditorButtonProps = {
   round?: TournamentRound;
-  suggestedRoundNumber: number;
   tournamentId: string;
   trigger?: ReactElement<{ onClick?: () => void }>;
   triggerClassName?: string;
@@ -19,7 +18,6 @@ type LazyTournamentRoundEditorButtonProps = {
 
 export function LazyTournamentRoundEditorButton({
   round,
-  suggestedRoundNumber,
   tournamentId,
   trigger,
   triggerClassName,
@@ -73,7 +71,6 @@ export function LazyTournamentRoundEditorButton({
           initialOpen={mountDialogOpen}
           pokemonOptions={pokemonOptions}
           round={round}
-          suggestedRoundNumber={suggestedRoundNumber}
           tournamentId={tournamentId}
           trigger={trigger}
           triggerClassName={triggerClassName}

@@ -12,7 +12,6 @@ import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import { normalizeText } from "@/lib/log-import/normalization";
 import { resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
-import type { DeckLinkCandidate } from "@/lib/log-import/deck-linking";
 import { measureServerCall } from "@/lib/server/perf";
 import type { PlayerPokemonEvidence } from "@/lib/log-import/types";
 import type { IdentificationCatalog } from "@/lib/log-import/types";
@@ -115,10 +114,6 @@ type DeckListLookupRow = {
 };
 
 type DeckSelectionRow = Pick<DeckSummaryRow, "id" | "deck_name" | "deck_lists">;
-type DeckSelectionAndLinkRow = Pick<
-  DeckSummaryRow,
-  "id" | "deck_name" | "deck_lists" | "deck_pokemon"
->;
 
 type DeckListRelationalRow = {
   id: string;
@@ -305,13 +300,6 @@ function mapRelationalDeckList(row: DeckListRelationalRow): DeckList {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
-}
-
-function parseDeckListOptions(value: unknown): DeckListOption[] {
-  return parseDeckLists(value).map((deckList) => ({
-    id: deckList.id,
-    name: deckList.name
-  }));
 }
 
 function mapDeckListOptions(deckLists: DeckList[]): DeckListOption[] {
@@ -599,14 +587,6 @@ async function mapDeckSummary(
   };
 }
 
-function mapDeckSelection(row: DeckSelectionRow): DeckSelectionOption {
-  return {
-    id: row.id,
-    deckName: row.deck_name,
-    deckLists: parseDeckListOptions(row.deck_lists)
-  };
-}
-
 function mapDeckSelectionWithLists(
   row: DeckSelectionRow,
   relationalDeckLists: Map<string, DeckList[]>
@@ -801,18 +781,6 @@ async function getRelationalDeckMatchupsByDeckId(
   return byDeckId;
 }
 
-function mapDeckLinkCandidate(row: DeckSelectionAndLinkRow): DeckLinkCandidate {
-  return {
-    id: row.id,
-    deckName: row.deck_name,
-    deckPokemon: parseStringArray(row.deck_pokemon)
-  };
-}
-
-async function mapDeck(row: DeckRow, context: DeckMappingContext): Promise<Deck> {
-  return mapDeckWithRelations(row, context);
-}
-
 async function mapDeckWithRelations(
   row: DeckRow,
   context: DeckMappingContext,
@@ -993,38 +961,6 @@ export const getDeckSelectionOptionsByIds = cache(async function getDeckSelectio
   );
 
   return rows.map((row) => mapDeckSelectionWithLists(row, relationalDeckLists));
-});
-
-export const getDeckSelectionAndLinkCandidates = cache(async function getDeckSelectionAndLinkCandidates(
-  userId: string
-): Promise<{
-  userDecks: DeckSelectionOption[];
-  deckLinkCandidates: DeckLinkCandidate[];
-}> {
-  const supabase = await createClient();
-  const { data, error } = await measureServerCall("db.decks.selectionAndLinkCandidates", async () =>
-    await supabase
-      .from("decks")
-      .select(["id", "deck_name", "deck_lists", "deck_pokemon"].join(","))
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-  );
-
-  if (error) {
-    throw error;
-  }
-
-  const rows = (((data ?? []) as unknown) as DeckSelectionAndLinkRow[]).map((row) => row);
-  const relationalDeckLists = await getRelationalDeckListsByDeckId(
-    supabase,
-    userId,
-    rows.map((row) => row.id)
-  );
-
-  return {
-    userDecks: rows.map((row) => mapDeckSelectionWithLists(row, relationalDeckLists)),
-    deckLinkCandidates: rows.map(mapDeckLinkCandidate)
-  };
 });
 
 export const getDeckById = cache(async function getDeckById(

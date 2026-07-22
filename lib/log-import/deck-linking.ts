@@ -119,26 +119,6 @@ function getDeckMatchScoreForIndexedCandidate(
   return 0;
 }
 
-export function getDeckMatchScore(deck: DeckLinkCandidate, identified: {
-  deckName: string;
-  deckSlug?: string;
-  sprites: string[];
-}) {
-  return getDeckMatchScoreForIndexedCandidate(
-    {
-      ...deck,
-      normalizedDeckName: normalizeText(deck.deckName)
-    },
-    {
-      ...identified,
-      logNames: [identified.deckName, identified.deckSlug || ""]
-        .map((value) => normalizeText(value))
-        .filter(Boolean),
-      spriteSet: new Set(identified.sprites)
-    }
-  );
-}
-
 function getDeckLinkScoreForIndexedCandidate(deck: IndexedDeckLinkCandidate, identified: {
   deckName: string;
   deckSlug: string;

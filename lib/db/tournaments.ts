@@ -1,8 +1,7 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { getDeckSelectionAndLinkCandidates } from "@/lib/db/decks";
 import { measureServerCall } from "@/lib/server/perf";
-import type { Tournament, TournamentDeckChoice, TournamentRound, TournamentSummary } from "@/types/index";
+import type { Tournament, TournamentRound, TournamentSummary } from "@/types/index";
 
 type PostgrestLikeError = {
   code?: string | null;
@@ -235,25 +234,6 @@ export const getTournamentById = cache(
   }
 );
 
-export async function getTournamentSummaryById(
-  userId: string,
-  tournamentId: string
-): Promise<TournamentSummary | null> {
-  const [tournament, rounds] = await Promise.all([
-    getTournamentById(userId, tournamentId),
-    getTournamentRounds(userId, tournamentId)
-  ]);
-
-  if (!tournament) {
-    return null;
-  }
-
-  return {
-    ...tournament,
-    rounds
-  };
-}
-
 export async function getTournamentSummaries(userId: string): Promise<TournamentSummary[]> {
   const [tournaments, rounds] = await Promise.all([
     getTournaments(userId),
@@ -276,18 +256,6 @@ export async function getTournamentSummaries(userId: string): Promise<Tournament
   return tournaments.map((tournament) => ({
     ...tournament,
     rounds: roundsByTournamentId.get(tournament.id) ?? []
-  }));
-}
-
-export async function getTournamentDeckChoices(userId: string): Promise<TournamentDeckChoice[]> {
-  const { userDecks, deckLinkCandidates } = await getDeckSelectionAndLinkCandidates(userId);
-  const deckPokemonById = new Map(
-    deckLinkCandidates.map((candidate) => [candidate.id, candidate.deckPokemon] as const)
-  );
-
-  return userDecks.map((deck) => ({
-    ...deck,
-    deckPokemon: deckPokemonById.get(deck.id) ?? []
   }));
 }
 

@@ -3,7 +3,7 @@
   "timezone": "Europe/London",
   "monitoring": {
     "lookaheadDays": 90,
-    "preparationWindowDays": 21
+    "preparationWindowDays": 14
   },
   "automationPolicy": {
     "allowCodePreparation": true,

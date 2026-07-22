@@ -85,14 +85,14 @@ test("/decks/[id] keeps full deck-list editor payload out of the initial client 
 test("visual deck-list entry points open dialogs instead of separate pages", () => {
   const deckPage = source("app/(app)/decks/[id]/page.tsx");
   const lazyViewButton = source("components/ui/LazyDeckListViewButton.tsx");
-  const tournamentPanel = source("components/ui/TournamentDeckListPanel.tsx");
+  const tournamentPage = source("app/(app)/tournaments/[id]/page.tsx");
 
   assert.match(deckPage, /LazyDeckListViewButton/);
   assert.doesNotMatch(deckPage, /\/lists\/\$\{deckList\.id\}/);
   assert.match(lazyViewButton, /\/api\/deck-list/);
   assert.match(lazyViewButton, /DeckListViewDialog/);
-  assert.match(tournamentPanel, /DeckListViewDialog/);
-  assert.doesNotMatch(tournamentPanel, /<details/);
+  assert.match(tournamentPage, /DeckListViewDialog/);
+  assert.doesNotMatch(tournamentPage, /<details/);
 });
 
 test("full related deck logs are fetched only from the opened dialog path", () => {

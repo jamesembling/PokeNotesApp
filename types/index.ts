@@ -77,30 +77,6 @@ export type LogSection = {
   prizesAfterTurn: Record<string, number>  // e.g. { "JammerUK1993": 6, "Guhkirsten": 4 }
 }
 
-// A player within a battle log
-export type LogPlayer = {
-  name: string                    // PTCGL username
-  result: Result
-  deckName: string                // e.g. "Dragapult / Dusknoir"
-  deckSlug: string                // e.g. "dragapult"
-  deckSprites: string[]           // e.g. ["dragapult", "dusknoir"] — always string[], never comma string
-}
-
-// Stats for a single player derived at import time
-export type LogPlayerStats = {
-  name: string
-  attackDamage: number
-  prizesTaken: number
-  mulligans: number
-}
-
-// Game-level stats derived at import time
-export type LogStats = {
-  totalTurns: number
-  coinTossWinner: string          // Player name or empty string
-  players: LogPlayerStats[]
-}
-
 // The full battle log — reflects the normalised DB columns
 export type BattleLog = {
   id: string
@@ -294,11 +270,6 @@ export type DeckSelectionOption = {
   deckLists: DeckListOption[]
 }
 
-export type TournamentDeckChoice = DeckSelectionOption & {
-  deckPokemon: string[]
-}
-
-
 // ============================================================
 // TOURNAMENTS
 // ============================================================
@@ -383,99 +354,14 @@ export type TournamentSummary = Tournament & {
 
 
 // ============================================================
-// LOG SHARE
-// ============================================================
-
-// The full payload stored in the log_shares table
-// A snapshot taken at share time — immutable after creation
-export type LogSharePayload = {
-  log: BattleLog
-  deckList: DeckList | undefined   // Resolved deck list if the log was linked to one
-}
-
-// The log share record as read from the DB
-export type LogShare = {
-  id: string                       // Cryptographically random token, 32+ chars
-  ownerUserId: string
-  payload: LogSharePayload
-  createdAt: string
-  updatedAt: string
-}
-
-
-// ============================================================
 // CATALOG
 // ============================================================
-
-// A single Pokemon entry from the pokemon_catalog table
-export type PokemonCatalogEntry = {
-  slug: string                     // e.g. "dragapult"
-  label: string                    // e.g. "Dragapult"
-  nationalDex: number | undefined
-  stage: PokemonStage
-  evolvesFrom: string | undefined  // Slug of pre-evolution
-  spriteUrl: string
-
-  // Localised names for non-English log identification
-  nameDe: string | undefined
-  nameEs: string | undefined
-  nameFr: string | undefined
-  nameIt: string | undefined
-  namePtBr: string | undefined
-
-  lastSyncedAt: string
-}
 
 export type PokemonOption = {
   slug: string
   label: string
   spriteUrl?: string
 }
-
-// A single archetype entry from the archetype_catalog table
-export type ArchetypeCatalogEntry = {
-  id: string                       // e.g. "dragapult-ex"
-  label: string                    // e.g. "Dragapult ex"
-  sprites: string[]                // e.g. ["dragapult", "dusknoir"]
-  detectionSprites: string[]       // e.g. ["dragapult", "dusknoir", "drakloak", "dreepy"]
-  requiredMatchGroups: string[][]  // e.g. [["charizard", "charmeleon"], ["pidgeot", "pidgeotto"]]
-  isExcluded: boolean
-  lastSyncedAt: string
-}
-
-
-// ============================================================
-// STATS
-// ============================================================
-
-// Overall stats for the stats page — computed by SQL, not JS
-export type OverallStats = {
-  total: number
-  wins: number
-  losses: number
-  winRate: number                  // Percentage 0-100
-  coinFlipWins: number
-  coinFlipTotal: number
-  averageTurns: number
-  selfAttackDamageTotal: number
-  opponentAttackDamageTotal: number
-}
-
-// Win rate broken down by format
-export type FormatStats = {
-  format: string
-  total: number
-  wins: number
-  losses: number
-  winRate: number
-}
-
-// All stats combined for the stats page
-export type StatsPageData = {
-  overall: OverallStats
-  byFormat: FormatStats[]
-}
-
 
 // ============================================================
 // ADMIN
@@ -506,69 +392,4 @@ export type CatalogHealth = {
   pokemonLastSyncedAt: string | undefined
   archetypeLastSyncedAt: string | undefined
   excludedArchetypeCount: number
-}
-
-
-// ============================================================
-// PAGINATION
-// ============================================================
-
-// Used for paginated log list queries
-export type LogPage = {
-  logs: BattleLogSummary[]
-  total: number
-  hasMore: boolean
-  nextCursor: string | undefined   // The date cursor for the next page
-}
-
-
-// ============================================================
-// PARSER
-// ============================================================
-
-// The result of parsing a raw PTCGL log
-// Returned by lib/battle-log/parser.ts
-export type ParsedLog = {
-  language: Language
-  players: LogPlayer[]
-  sections: LogSection[]
-  winner: string                   // Player name
-  stats: LogStats
-  rawLog: string
-}
-
-// The result of archetype identification
-// Returned by lib/battle-log/archetype.ts
-export type ArchetypeMatch = {
-  archetypeId: string
-  label: string
-  sprites: string[]
-  score: number                    // Confidence score — higher is more confident
-} | null
-
-
-// ============================================================
-// FORM STATES
-// ============================================================
-
-// Used by the log import form
-export type LogImportDraft = {
-  rawLog: string
-  error: string | undefined
-  isParsing: boolean
-  parsed: ParsedLog | undefined
-}
-
-// Used by the deck form
-export type DeckDraft = {
-  deckName: string
-  format: string
-  goPreference: GoPreference
-  deckPokemon: string[]
-  coreStrategy: string
-  generalNotes: string
-  setupGoals: string[]
-  resourcePlan: string
-  error: string | undefined
-  isSaving: boolean
 }

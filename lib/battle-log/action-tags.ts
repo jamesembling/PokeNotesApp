@@ -1,8 +1,5 @@
 import { classifyBattleLogActionTitle, type BattleLogActionTag } from "@/lib/battle-log/display";
-import {
-  resolveBattleLogEffectCatalogTag,
-  resolveBattleLogEffectCatalogTags
-} from "@/lib/battle-log/effect-catalog";
+import { resolveBattleLogEffectCatalogTags } from "@/lib/battle-log/effect-catalog";
 import type { LogSection } from "@/types/index";
 import { compactMap } from "@/lib/array";
 
@@ -14,10 +11,6 @@ export type BattleLogResolvedActionTag = {
 };
 
 export type BattleLogActionTagOverrides = Array<Array<BattleLogResolvedActionTag | null>>;
-
-export function resetBattleLogActionTagOverrideCache() {
-  // Retained for tests and callers that reset the previous live lookup cache.
-}
 
 function normalizeValue(value: string | null | undefined) {
   return String(value ?? "")
@@ -106,19 +99,6 @@ function sanitizeCardCandidate(value: string) {
   }
 
   return candidate;
-}
-
-export async function resolveBattleLogActionTagOverride(title: string) {
-  if (!isResolvableActionTitle(title)) {
-    return null;
-  }
-
-  const catalogTag = await resolveBattleLogEffectCatalogTag(title);
-  if (catalogTag) {
-    return buildResolvedCardTag(catalogTag);
-  }
-
-  return null;
 }
 
 export async function resolveBattleLogActionTagOverrides(sections: LogSection[]) {
