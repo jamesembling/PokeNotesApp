@@ -9,6 +9,7 @@ import {
   getLogById,
   getLogDamageTimeline,
   getLogDetailSummaryById,
+  getInitialLogsPageData,
   getLogStatsOverview,
   getLogsWindow,
   logsDbTestHooks,
@@ -56,10 +57,11 @@ type QueryChain = {
 
 function createFakeSupabaseClient(
   resolver: (ctx: QueryContext) => QueryResult,
-  rpcResolver?: (fnName: string) => RpcResult
+  rpcResolver?: (fnName: string, args?: unknown) => RpcResult
 ) {
   const queries: QueryContext[] = [];
   const rpcCalls: string[] = [];
+  const rpcArgs: unknown[] = [];
 
   const makeChain = (ctx: QueryContext) => {
     const chain: QueryChain = {
@@ -116,15 +118,16 @@ function createFakeSupabaseClient(
 
   return {
     client: {
-      rpc(fnName: string) {
+      rpc(fnName: string, args?: unknown) {
         rpcCalls.push(fnName);
+        rpcArgs.push(args);
         if (!rpcResolver) {
           return Promise.resolve({
             data: null,
             error: new Error(`Unexpected rpc call: ${fnName}`)
           });
         }
-        return Promise.resolve(rpcResolver(fnName));
+        return Promise.resolve(rpcResolver(fnName, args));
       },
       from(table: string) {
         const ctx: QueryContext = {
@@ -136,6 +139,7 @@ function createFakeSupabaseClient(
       }
     },
     queries,
+    rpcArgs,
     rpcCalls
   };
 }
@@ -316,6 +320,87 @@ test("getLogDetailSummaryById reads only summary columns for server-rendered det
   assert.deepEqual(log?.sections, []);
   assert.doesNotMatch(select, /\braw_log\b/);
   assert.doesNotMatch(select, /\bsections\b/);
+});
+
+test("getInitialLogsPageData uses one RPC while preserving window and linked-list semantics", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries, rpcArgs, rpcCalls } = createFakeSupabaseClient(
+    () => {
+      throw new Error("The initial read model should not issue table queries.");
+    },
+    (fnName) => {
+      assert.equal(fnName, "get_initial_logs_page_data");
+      return {
+        data: {
+          logs: [
+            buildLogRow({
+              date: "2026-04-26",
+              id: "log-c",
+              imported_at: "2026-04-26T10:00:00.000Z",
+              linked_deck_list_id: "list-1",
+              linked_deck_list_name: "League Cup"
+            }),
+            buildLogRow({
+              date: "2026-04-20",
+              id: "log-b",
+              imported_at: "2026-04-20T10:00:00.000Z"
+            }),
+            buildLogRow({
+              date: "2026-04-19",
+              id: "log-a",
+              imported_at: "2026-04-19T10:00:00.000Z"
+            })
+          ],
+          stats: {
+            games_lost: 5,
+            games_played: 12,
+            games_won: 7
+          }
+        },
+        error: null
+      };
+    }
+  );
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const initialData = await getInitialLogsPageData();
+
+  assert.deepEqual(rpcCalls, ["get_initial_logs_page_data"]);
+  assert.deepEqual(rpcArgs, [{ p_limit: 51 }]);
+  assert.equal(queries.length, 0);
+  assert.deepEqual(initialData?.stats, {
+    losses: 5,
+    total: 12,
+    wins: 7
+  });
+  assert.deepEqual(initialData?.window.logs.map((log) => log.id), ["log-c", "log-b"]);
+  assert.equal(initialData?.window.logs[0]?.linkedDeckListName, "League Cup");
+  assert.equal(initialData?.window.hasMore, true);
+  assert.equal(initialData?.window.nextWindowEndDate, "2026-04-19");
+});
+
+test("getInitialLogsPageData returns null when the optimized RPC is unavailable", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client } = createFakeSupabaseClient(
+    () => {
+      throw new Error("Fallback is owned by the page loader.");
+    },
+    () => ({
+      data: null,
+      error: new Error("function is not available")
+    })
+  );
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  assert.equal(await getInitialLogsPageData(), null);
 });
 
 test("getLogsWindow limits the initial window and orders by stable keyset columns", async (t) => {

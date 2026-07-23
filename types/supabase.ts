@@ -1012,6 +1012,7 @@ export type Database = {
           wins: number
         }[]
       }
+      get_initial_logs_page_data: { Args: { p_limit?: number }; Returns: Json }
       get_log_stats_overview: {
         Args: never
         Returns: {
