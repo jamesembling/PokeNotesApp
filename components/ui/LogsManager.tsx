@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   bulkAssignDeckListAction,
@@ -8,25 +9,13 @@ import {
   deleteLogsAction,
   loadMoreLogsAction
 } from "@/app/(app)/logs/actions";
-import { MoreHorizontalIcon } from "lucide-react";
-import { Checkbox } from "@/components/shadcn/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/shadcn/alert";
 import { Badge } from "@/components/shadcn/badge";
-import { AppSelect } from "@/components/shadcn/app-select";
 import { Button } from "@/components/shadcn/button";
-import { Card } from "@/components/shadcn/card";
 import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
-import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
-import { ChevronIcon, PencilIcon, TrashIcon } from "@/components/ui/icons";
+import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/shadcn/dropdown-menu";
-import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
+import { DropdownMenuItem } from "@/components/shadcn/dropdown-menu";
 import { LogRow } from "@/components/ui/LogRow";
 import { PageActions } from "@/components/ui/PageActions";
 import { ItemTitle } from "@/components/ui/Typography";
@@ -63,6 +52,24 @@ export type LogsManagerProps = {
 type DeckSelectionOptionsResponse = {
   userDecks?: DeckSelectionOption[];
 };
+
+const DynamicDeleteConfirmDialog = dynamic(
+  () =>
+    import("@/components/ui/DeleteConfirmDialog").then(
+      (module) => module.DeleteConfirmDialog
+    ),
+  { ssr: false }
+);
+
+const DynamicLazyEditLogButton = dynamic(
+  () => import("@/components/ui/LazyEditLogButton").then((module) => module.LazyEditLogButton),
+  { ssr: false }
+);
+
+const DynamicLogsManagementDock = dynamic(
+  () => import("@/components/ui/LogsManagementDock").then((module) => module.LogsManagementDock),
+  { ssr: false }
+);
 
 let battleLogDetailAssetsWarmed = false;
 const warmedBattleLogDetailRoutes = new Set<string>();
@@ -506,18 +513,20 @@ export function LogsManager({
 
   return (
     <div className={`flex flex-col ${managementModeActive ? "pb-36 md:pb-20" : ""}`}>
-      <DeleteConfirmDialog
-        confirmLabel={`Delete${deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}`}
-        description={
-          deletePromptCount > 1
-            ? `${deletePromptCount} logs are selected for removal.`
-            : undefined
-        }
-        message={deletePrompt?.message ?? ""}
-        onCancel={cancelDeletePrompt}
-        onConfirm={confirmDeletePrompt}
-        open={Boolean(deletePrompt)}
-      />
+      {deletePrompt ? (
+        <DynamicDeleteConfirmDialog
+          confirmLabel={`Delete${deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}`}
+          description={
+            deletePromptCount > 1
+              ? `${deletePromptCount} logs are selected for removal.`
+              : undefined
+          }
+          message={deletePrompt.message}
+          onCancel={cancelDeletePrompt}
+          onConfirm={confirmDeletePrompt}
+          open
+        />
+      ) : null}
 
       {actionNotice ? (
         <Alert
@@ -648,115 +657,28 @@ export function LogsManager({
       </div>
 
       {managementModeActive ? (
-        <div className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-6">
-          <Card
-            className="mx-auto grid max-w-6xl gap-3 bg-popover p-3 shadow-[var(--shadow-lg)] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
-            size="sm"
-          >
-            <div className="flex items-center justify-between gap-3 md:justify-start">
-              <div className="min-w-[5.5rem]">
-                <p className="ui-eyebrow">Selected</p>
-                <p className="mt-0.5 font-display text-[1.55rem] font-semibold leading-none tracking-[-0.04em] text-card-foreground">
-                  {selectedCount}
-                  <span className="ml-1 text-sm font-medium tracking-normal text-muted-foreground">
-                    / {visibleLogs.length}
-                  </span>
-                </p>
-              </div>
-
-              {visibleLogs.length > 0 ? (
-                <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold text-card-foreground">
-                  <Checkbox
-                    checked={allSelected}
-                    className="cursor-pointer rounded border-border bg-card"
-                    onCheckedChange={toggleSelectAll}
-                  />
-                  <span>{allSelected ? "Clear" : "All"}</span>
-                </label>
-              ) : null}
-            </div>
-
-            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-              {deckOptionsError ? (
-                <p className="text-sm font-medium text-loss-strong md:col-span-2">
-                  {deckOptionsError}
-                </p>
-              ) : null}
-              <AppSelect
-                aria-label="Deck strategy for selected logs"
-                className="min-h-[2.5rem] bg-background px-3 py-2"
-                onChange={setSelectedDeckId}
-                options={[
-                  {
-                    label: isLoadingDeckOptions ? "Loading deck strategies..." : "Deck strategy",
-                    value: ""
-                  },
-                  ...userDecks.map((deck) => ({
-                    label: deck.deckName,
-                    value: deck.id
-                  }))
-                ]}
-                value={selectedDeckId}
-              />
-
-              <AppSelect
-                aria-label="Deck list for selected logs"
-                className="min-h-[2.5rem] bg-background px-3 py-2"
-                disabled={!selectedDeck || availableDeckLists.length === 0}
-                onChange={setSelectedDeckListId}
-                options={[
-                  {
-                    label: selectedDeck
-                      ? availableDeckLists.length > 0
-                        ? "Deck list"
-                        : "No saved deck lists"
-                      : "Choose strategy first",
-                    value: ""
-                  },
-                  ...availableDeckLists.map((deckList) => ({
-                    label: deckList.name,
-                    value: deckList.id
-                  }))
-                ]}
-                value={selectedDeckListId}
-              />
-            </div>
-
-            <div className="grid grid-cols-[1fr_auto] gap-2 md:flex md:justify-end">
-              <Button disabled={!canApplyDeckList} onClick={handleApplyDeckList}>
-                {isMutating ? "Applying..." : "Apply"}
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    aria-label="Open selected log actions"
-                    disabled={!canDeleteSelected}
-                    size="icon-lg"
-                    variant="outline"
-                  >
-                    <MoreHorizontalIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44" forceMount>
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      className="text-loss-strong focus:text-loss-strong"
-                      onClick={handleDeleteSelected}
-                      variant="destructive"
-                    >
-                      <TrashIcon />
-                      Delete selected
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </Card>
-        </div>
+        <DynamicLogsManagementDock
+          allSelected={allSelected}
+          canApplyDeckList={canApplyDeckList}
+          canDeleteSelected={canDeleteSelected}
+          deckOptionsError={deckOptionsError}
+          isLoadingDeckOptions={isLoadingDeckOptions}
+          isMutating={isMutating}
+          onApplyDeckList={handleApplyDeckList}
+          onDeleteSelected={handleDeleteSelected}
+          onSelectDeck={setSelectedDeckId}
+          onSelectDeckList={setSelectedDeckListId}
+          onToggleSelectAll={toggleSelectAll}
+          selectedCount={selectedCount}
+          selectedDeckId={selectedDeckId}
+          selectedDeckListId={selectedDeckListId}
+          userDecks={userDecks}
+          visibleLogCount={visibleLogs.length}
+        />
       ) : null}
 
       {editingLog ? (
-        <LazyEditLogButton
+        <DynamicLazyEditLogButton
           autoOpen
           key={`${editingLog.id}-${editRequestId}`}
           log={editingLog}

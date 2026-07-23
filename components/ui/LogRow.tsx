@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/shadcn/dropdown-menu";
-import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
+import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/deck-display";
 import { formatDayDate } from "@/lib/client/date-format";
 import type { BattleLogSummary, PokemonOption } from "@/types/index";
 
