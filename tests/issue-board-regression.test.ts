@@ -236,12 +236,14 @@ test("tournament round saves verify ownership of the parent tournament", () => {
 
 test("edit-log bulk dock keeps compact selects accessible", () => {
   const appSelect = source("components/shadcn/app-select.tsx");
+  const logsManagementDock = source("components/ui/LogsManagementDock.tsx");
   const logsManager = source("components/ui/LogsManager.tsx");
 
   assert.match(appSelect, /"aria-label"\?: string/);
   assert.match(appSelect, /aria-label=\{ariaLabel\}/);
-  assert.match(logsManager, /aria-label="Deck strategy for selected logs"/);
-  assert.match(logsManager, /aria-label="Deck list for selected logs"/);
+  assert.match(logsManagementDock, /aria-label="Deck strategy for selected logs"/);
+  assert.match(logsManagementDock, /aria-label="Deck list for selected logs"/);
+  assert.match(logsManager, /import\("@\/components\/ui\/LogsManagementDock"\)/);
 });
 
 test("the authenticated app shell provides a keyboard skip link", () => {
