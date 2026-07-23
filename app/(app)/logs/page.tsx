@@ -9,53 +9,63 @@ import {
 } from "@/components/ui/RouteTimingMarker";
 import { requireUser } from "@/lib/auth";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
-import { getLogSummaryStats, getLogsWindow } from "@/lib/db/logs";
+import {
+  getInitialLogsPageData,
+  getLogSummaryStats,
+  getLogsWindow
+} from "@/lib/db/logs";
 import { measureServerCall, measureServerCallWithTiming } from "@/lib/server/perf";
 
 export default async function LogsPage() {
   const user = await requireUser();
-  const statsPromise = getLogSummaryStats(user.id);
-  const windowPromise = getLogsWindow(user.id);
-  const hydratedWindowPromise = windowPromise.then((window) =>
-    measureServerCall("page.logs.linkedDeckListNames", () =>
-      hydrateLogWindowDeckListNames(user.id, window)
-    )
-  );
+  const initialDataPromise = loadInitialLogsPageData(user.id);
 
   return (
     <>
       <ProxyAuthTimingMarker />
       <Suspense fallback={<LogsContentFallback />}>
-        <LogsContent
-          hydratedWindowPromise={hydratedWindowPromise}
-          statsPromise={statsPromise}
-        />
+        <LogsContent initialDataPromise={initialDataPromise} />
       </Suspense>
     </>
   );
 }
 
 async function LogsContent({
-  hydratedWindowPromise,
-  statsPromise
+  initialDataPromise
 }: {
-  hydratedWindowPromise: ReturnType<typeof getLogsWindow>;
-  statsPromise: ReturnType<typeof getLogSummaryStats>;
+  initialDataPromise: ReturnType<typeof loadInitialLogsPageData>;
 }) {
   const initialDataTiming = await measureServerCallWithTiming("page.logs.initialData", () =>
-    Promise.all([
-      statsPromise,
-      hydratedWindowPromise
-    ])
+    initialDataPromise
   );
-  const [stats, hydratedWindow] = initialDataTiming.value;
+  const { stats, window } = initialDataTiming.value;
 
   return (
     <div className="-mx-4 -my-6 flex min-h-dvh flex-col gap-6 bg-background px-4 py-6 text-foreground sm:-mx-6 sm:-my-8 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8">
       <RouteTimingMarker durationMs={initialDataTiming.durationMs} phase="route-data" />
-      <LogsWorkspaceClient stats={stats} window={hydratedWindow} />
+      <LogsWorkspaceClient stats={stats} window={window} />
     </div>
   );
+}
+
+async function loadInitialLogsPageData(userId: string) {
+  const readModel = await getInitialLogsPageData();
+  if (readModel) {
+    return readModel;
+  }
+
+  const [stats, window] = await Promise.all([
+    getLogSummaryStats(userId),
+    getLogsWindow(userId)
+  ]);
+  const hydratedWindow = await measureServerCall("page.logs.linkedDeckListNames", () =>
+    hydrateLogWindowDeckListNames(userId, window)
+  );
+
+  return {
+    stats,
+    window: hydratedWindow
+  };
 }
 
 function LogsContentFallback() {

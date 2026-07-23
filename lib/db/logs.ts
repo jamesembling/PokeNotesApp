@@ -151,7 +151,13 @@ type LogsTableRow = {
   total_turns: number;
   linked_deck_id: string | null;
   linked_deck_list_id: string | null;
+  linked_deck_list_name?: string | null;
   imported_at: string;
+};
+
+type InitialLogsPageDataRpcRow = {
+  logs?: LogsTableRow[] | null;
+  stats?: LogSummaryStatsRow | null;
 };
 
 type LogDetailTableRow = {
@@ -223,6 +229,7 @@ function mapLogSummary(row: LogsTableRow): BattleLogSummary {
     totalTurns: row.total_turns,
     linkedDeckId: row.linked_deck_id ?? undefined,
     linkedDeckListId: row.linked_deck_list_id ?? undefined,
+    linkedDeckListName: row.linked_deck_list_name ?? undefined,
     importedAt: row.imported_at
   };
 }
@@ -447,6 +454,40 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
   };
 }
 
+export async function getInitialLogsPageData() {
+  const supabase = await logsDbTestHooks.createClient();
+  const { data, error } = await measureServerCall("db.logs.initialPageRpc", async () =>
+    await supabase.rpc("get_initial_logs_page_data", {
+      p_limit: DEFAULT_LOG_WINDOW_LIMIT + 1
+    })
+  );
+
+  if (error || !data || Array.isArray(data) || typeof data !== "object") {
+    return null;
+  }
+
+  const payload = data as InitialLogsPageDataRpcRow;
+  if (!Array.isArray(payload.logs)) {
+    return null;
+  }
+
+  const rows = payload.logs;
+
+  return {
+    stats: {
+      total: Number(payload.stats?.games_played ?? 0),
+      wins: Number(payload.stats?.games_won ?? 0),
+      losses: Number(payload.stats?.games_lost ?? 0)
+    },
+    window: buildLogsWindowFromRows(rows, {
+      pageSize: DEFAULT_LOG_WINDOW_LIMIT,
+      queryWindowEndDate: normalizeDateString(),
+      requestedWindowEndDate: undefined,
+      windowDays: DEFAULT_LOG_WINDOW_DAYS
+    })
+  };
+}
+
 export const getLogStatsOverview = cache(async function getLogStatsOverview(
   userId?: string
 ): Promise<LogStatsOverview> {
@@ -620,6 +661,28 @@ export async function getLogsWindow(
   }
 
   const rows = ((data ?? []) as unknown) as LogsTableRow[];
+  return buildLogsWindowFromRows(rows, {
+    pageSize,
+    queryWindowEndDate,
+    requestedWindowEndDate,
+    windowDays
+  });
+}
+
+function buildLogsWindowFromRows(
+  rows: LogsTableRow[],
+  {
+    pageSize,
+    queryWindowEndDate,
+    requestedWindowEndDate,
+    windowDays
+  }: {
+    pageSize: number;
+    queryWindowEndDate: string;
+    requestedWindowEndDate: string | undefined;
+    windowDays: number;
+  }
+) {
   const windowEndDate = requestedWindowEndDate ? queryWindowEndDate : rows[0]?.date ?? queryWindowEndDate;
   const windowStartDate = shiftDateString(windowEndDate, -(windowDays - 1));
   const visibleRows = rows.filter((row) => row.date <= windowEndDate && row.date >= windowStartDate).slice(0, pageSize);
