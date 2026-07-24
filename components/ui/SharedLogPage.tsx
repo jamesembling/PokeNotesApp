@@ -13,7 +13,7 @@ import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
 import { parseDeckList } from "@/lib/decks/deck-list-parse";
 import { getSharedLogSnapshot } from "@/lib/db/log-shares";
 import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
-import type { BattleLog } from "@/types/index";
+import type { PublicBattleLog } from "@/lib/db/log-shares";
 
 const SHARED_LOG_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -41,7 +41,7 @@ function formatSharedLogDate(value: string) {
   return SHARED_LOG_DATE_FORMATTER.format(new Date(value));
 }
 
-function buildSharedLogMetadata(log: BattleLog) {
+function buildSharedLogMetadata(log: PublicBattleLog) {
   const selfDeckName =
     getBattleLogSpriteDisplayName(log.selfDeckSprites) ||
     getBattleLogDeckDisplayName(log.selfDeckName, log.selfDeckSprites);
@@ -110,6 +110,10 @@ export async function SharedLogPage({ token }: { token: string }) {
   const actionTagOverrides = await resolveBattleLogActionTagOverrides(
     sharedLog.payload.log.sections
   );
+  const publicLog = {
+    ...sharedLog.payload.log,
+    matchNotes: null
+  };
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -131,7 +135,7 @@ export async function SharedLogPage({ token }: { token: string }) {
             ) : null
           }
           linkedStrategyLabel={sharedLog.payload.linkedStrategyLabel}
-          log={sharedLog.payload.log}
+          log={publicLog}
           notice={
             <div className="rounded-[20px] border border-[var(--share-notice-border)] bg-[image:var(--share-notice-bg)] px-4 py-3 text-sm leading-6 text-card-foreground shadow-[var(--shadow-sm)]">
               This battle log was opened from a time-limited share link. Linked deck-list details

@@ -8,6 +8,7 @@ import {
 } from "@/lib/battle-log/display";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
+import { normalizeMatchNotes } from "@/lib/battle-log/match-notes";
 import { linkDeckConservatively } from "@/lib/log-import/deck-linking";
 import { buildImportDate } from "@/lib/log-import/import-date";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
@@ -21,6 +22,10 @@ import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
+import {
+  MatchNotesWriteConflictError,
+  persistOwnerMatchNotes
+} from "@/lib/db/log-match-notes";
 import {
   getOrCreateLogShareSnapshot,
   isLogShare24HourLimitError,
@@ -64,6 +69,11 @@ type ParseLogActionResult = ParsedLogReview | { error: string };
 type SaveActionResult = {
   ok: true;
   redirectTo: string;
+};
+
+export type AddMatchNotesResult = {
+  matchNotes: string | null;
+  ok: true;
 };
 
 function joinSprites(slugs: string[]) {
@@ -352,6 +362,7 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       opponent_mulligans: Number(formData.get("opponentMulligans")) || 0,
       linked_deck_id: selectedDeckId || suggestedLinkedDeckId || null,
       linked_deck_list_id: selectedDeckListId || null,
+      match_notes: normalizeMatchNotes(formData.get("matchNotes")),
       reason: String(formData.get("reason") || "").trim(),
       raw_log: rawLog,
       sections
@@ -378,6 +389,45 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       area: "logs",
       fallbackMessage: "We couldn't import that battle log right now.",
       route: "/logs"
+    });
+  }
+}
+
+export async function addMatchNotesAction(
+  formData: FormData
+): Promise<AddMatchNotesResult> {
+  const logId = String(formData.get("logId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
+
+  try {
+    if (!logId) {
+      throw userFacingActionError("This battle log is unavailable.");
+    }
+
+    const matchNotes = await persistOwnerMatchNotes(supabase, {
+      logId,
+      userId: user.id,
+      value: formData.get("matchNotes")
+    });
+
+    revalidatePath(`/logs/${logId}`);
+
+    return {
+      matchNotes,
+      ok: true
+    };
+  } catch (error) {
+    if (error instanceof MatchNotesWriteConflictError) {
+      throw userFacingActionError(
+        "This battle log is unavailable or already has match notes."
+      );
+    }
+
+    throw resolveActionFailure(error, {
+      action: "addMatchNotes",
+      area: "logs",
+      fallbackMessage: "We couldn't save those match notes right now.",
+      route: `/logs/${logId}`
     });
   }
 }

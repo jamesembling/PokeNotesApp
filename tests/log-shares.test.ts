@@ -39,6 +39,7 @@ function buildBattleLog(id = "log-1"): BattleLog {
     opponentMulligans: 1,
     linkedDeckId: undefined,
     linkedDeckListId: undefined,
+    matchNotes: "  Keep the active safe.\nReview turn four.  ",
     reason: "Prizes",
     rawLog: "battle log",
     sections: [],
@@ -131,7 +132,7 @@ test("reuses an active share for the same owner and log", async () => {
 });
 
 test("creates compact URL-safe share tokens", async () => {
-  const { store } = createMemoryStore();
+  const { rows, store } = createMemoryStore();
   const share = await getOrCreateLogShareSnapshot(
     {
       ownerUserId: "user-1",
@@ -144,6 +145,12 @@ test("creates compact URL-safe share tokens", async () => {
 
   assert.match(share.id, /^[A-Za-z0-9_-]{16}$/);
   assert.equal(share.expiresAt, "2026-04-22T10:00:00.000Z");
+  const payload = rows[0]?.payload as { log?: Record<string, unknown> };
+  assert.equal(
+    Object.hasOwn(payload.log ?? {}, "matchNotes"),
+    false,
+    "owner match notes must never enter a public share snapshot"
+  );
 });
 
 test("recognizes only the typed database share errors", () => {

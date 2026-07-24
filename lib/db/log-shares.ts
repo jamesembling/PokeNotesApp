@@ -6,6 +6,8 @@ import { reportError } from "@/lib/server/report-error";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 
+export type PublicBattleLog = Omit<BattleLog, "matchNotes">;
+
 type LogShareLookupRow = {
   id: string;
   source_log_id: string | null;
@@ -51,7 +53,7 @@ type LogShareInsertRow = {
 
 export type BattleLogSharePayload = {
   version: "v1";
-  log: BattleLog;
+  log: PublicBattleLog;
   linkedStrategyLabel: string;
   linkedDeckListFormat?: string;
   linkedDeckListName?: string;
@@ -100,7 +102,8 @@ function decodeBattleLogSharePayload(value: unknown): BattleLogSharePayload | nu
   }
 
   const candidate = value as Record<string, unknown>;
-  const log = decodeBattleLog(candidate.log);
+  const decodedLog = decodeBattleLog(candidate.log);
+  const log = decodedLog ? toPublicBattleLog(decodedLog) : null;
   const optionalStrings = [
     "linkedDeckListFormat",
     "linkedDeckListName",
@@ -149,6 +152,11 @@ function decodeBattleLogSharePayload(value: unknown): BattleLogSharePayload | nu
         : undefined,
     linkedDeckListSortedCards: sortedCards
   };
+}
+
+export function toPublicBattleLog(log: BattleLog): PublicBattleLog {
+  const { matchNotes: _matchNotes, ...publicLog } = log;
+  return publicLog;
 }
 
 function createShareToken() {
@@ -336,7 +344,7 @@ export async function createLogShareSnapshot(
   const now = getEffectiveNow(options.now);
   const payload: BattleLogSharePayload = {
     version: "v1",
-    log: input.log,
+    log: toPublicBattleLog(input.log),
     linkedStrategyLabel: input.linkedStrategyLabel,
     linkedDeckListFormat: input.linkedDeckListFormat,
     linkedDeckListName: input.linkedDeckListName,

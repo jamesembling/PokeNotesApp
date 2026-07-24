@@ -101,7 +101,8 @@ function hasBattleLogScalars(candidate: Record<string, unknown>) {
     isStringArray(candidate.selfDeckSprites) &&
     isStringArray(candidate.opponentDeckSprites) &&
     isOptionalString(candidate.linkedDeckId) &&
-    isOptionalString(candidate.linkedDeckListId)
+    isOptionalString(candidate.linkedDeckListId) &&
+    isOptionalString(candidate.matchNotes)
   );
 }
 
@@ -141,6 +142,7 @@ export function decodeBattleLog(value: unknown): BattleLog | null {
     linkedDeckId: typeof value.linkedDeckId === "string" ? value.linkedDeckId : undefined,
     linkedDeckListId:
       typeof value.linkedDeckListId === "string" ? value.linkedDeckListId : undefined,
+    matchNotes: typeof value.matchNotes === "string" ? value.matchNotes : null,
     reason: value.reason as string,
     rawLog: value.rawLog as string,
     sections,

@@ -174,6 +174,7 @@ function toEditableLog(log: BattleLogSummary): BattleLog {
     opponentMulligans: 0,
     linkedDeckId: log.linkedDeckId,
     linkedDeckListId: log.linkedDeckListId,
+    matchNotes: null,
     reason: "",
     rawLog: "",
     sections: [],
