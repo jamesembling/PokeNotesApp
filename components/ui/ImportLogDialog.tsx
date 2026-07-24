@@ -11,7 +11,7 @@ import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Dialog } from "@/components/shadcn/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { ChevronIcon } from "@/components/ui/icons";
@@ -113,6 +113,7 @@ export function ImportLogDialog({
   const [selectedDeckListId, setSelectedDeckListId] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedFormat, setSelectedFormat] = useState("");
+  const [matchNotes, setMatchNotes] = useState("");
   const [isPasting, setIsPasting] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -170,6 +171,7 @@ export function ImportLogDialog({
     setSelectedDeckListId("");
     setSelectedDate("");
     setSelectedFormat("");
+    setMatchNotes("");
     setIsPasting(false);
   }
 
@@ -693,6 +695,21 @@ export function ImportLogDialog({
                       <ResultChip>{review.language}</ResultChip>
                     </div>
                   </section>
+
+                  <Field>
+                    <FieldLabel htmlFor="import-match-notes">Match notes</FieldLabel>
+                    <Textarea
+                      className="min-h-28 resize-y"
+                      id="import-match-notes"
+                      name="matchNotes"
+                      onChange={(event) => setMatchNotes(event.target.value)}
+                      placeholder="Record key decisions, turning points, or follow-up ideas"
+                      value={matchNotes}
+                    />
+                    <FieldDescription>
+                      Optional and private to you. Match notes are not included in shared links.
+                    </FieldDescription>
+                  </Field>
 
                   <ButtonGroup className="hidden w-full md:flex [&>button]:w-full">
                     <SaveButton

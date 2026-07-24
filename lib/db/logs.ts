@@ -185,6 +185,7 @@ type LogDetailTableRow = {
   opponent_mulligans: number;
   linked_deck_id: string | null;
   linked_deck_list_id: string | null;
+  match_notes: string | null;
   reason: string;
   raw_log?: string;
   sections: unknown;
@@ -282,6 +283,7 @@ export function mapBattleLog(row: LogDetailTableRow): BattleLog {
     opponentMulligans: row.opponent_mulligans,
     linkedDeckId: row.linked_deck_id ?? undefined,
     linkedDeckListId: row.linked_deck_list_id ?? undefined,
+    matchNotes: row.match_notes,
     reason: row.reason,
     rawLog: row.raw_log ?? "",
     sections: parseSections(row.sections, row),
@@ -316,6 +318,7 @@ const logDetailSummarySelect = [
   "opponent_mulligans",
   "linked_deck_id",
   "linked_deck_list_id",
+  "match_notes",
   "reason",
   "imported_at",
   "created_at",
@@ -743,6 +746,7 @@ export async function getLogById(
           "opponent_mulligans",
           "linked_deck_id",
           "linked_deck_list_id",
+          "match_notes",
           "reason",
           "raw_log",
           "sections",

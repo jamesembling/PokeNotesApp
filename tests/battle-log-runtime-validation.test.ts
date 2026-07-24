@@ -45,6 +45,7 @@ function buildBattleLog(): BattleLog {
     opponentMulligans: 1,
     linkedDeckId: undefined,
     linkedDeckListId: undefined,
+    matchNotes: null,
     reason: "Prizes",
     rawLog: "raw",
     sections: buildSections(),

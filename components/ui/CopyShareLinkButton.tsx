@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/shadcn/button";
 
@@ -11,7 +11,8 @@ type CopyShareLinkButtonProps = {
   initialShare?: ShareLinkState | null;
   logId: string;
   onShareReady?: (share: ShareLinkState) => void;
-  variant?: React.ComponentProps<typeof Button>["variant"];
+  size?: ComponentProps<typeof Button>["size"];
+  variant?: ComponentProps<typeof Button>["variant"];
 };
 
 type ShareMethod = "native-share" | "clipboard" | "prompt" | "cancelled";
@@ -139,6 +140,7 @@ export function CopyShareLinkButton({
   initialShare = null,
   logId,
   onShareReady,
+  size,
   variant = "outline"
 }: CopyShareLinkButtonProps) {
   const [isBusy, setIsBusy] = useState(false);
@@ -170,6 +172,7 @@ export function CopyShareLinkButton({
       className={className}
       disabled={isBusy}
       onClick={handleCopy}
+      size={size}
       type="button"
       variant={variant}
     >

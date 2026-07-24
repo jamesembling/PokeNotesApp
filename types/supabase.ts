@@ -349,6 +349,7 @@ export type Database = {
           imported_at: string
           linked_deck_id: string | null
           linked_deck_list_id: string | null
+          match_notes: string | null
           opponent_attack_damage: number
           opponent_deck_name: string
           opponent_deck_slug: string
@@ -382,6 +383,7 @@ export type Database = {
           imported_at?: string
           linked_deck_id?: string | null
           linked_deck_list_id?: string | null
+          match_notes?: string | null
           opponent_attack_damage?: number
           opponent_deck_name?: string
           opponent_deck_slug?: string
@@ -415,6 +417,7 @@ export type Database = {
           imported_at?: string
           linked_deck_id?: string | null
           linked_deck_list_id?: string | null
+          match_notes?: string | null
           opponent_attack_damage?: number
           opponent_deck_name?: string
           opponent_deck_slug?: string

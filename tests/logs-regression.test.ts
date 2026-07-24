@@ -185,6 +185,7 @@ function buildLogRow(overrides: Record<string, unknown> = {}) {
     opponent_mulligans: 1,
     linked_deck_id: "deck-b",
     linked_deck_list_id: null,
+    match_notes: "Kept the active safe.\nReview turn four.",
     reason: "Prizes",
     sections: [],
     imported_at: "2026-04-15T10:00:00.000Z",
@@ -316,8 +317,10 @@ test("getLogDetailSummaryById reads only summary columns for server-rendered det
   const select = String(queries[0]?.operations.find((op) => op.method === "select")?.args[0] ?? "");
 
   assert.equal(log?.id, "log-1");
+  assert.equal(log?.matchNotes, "Kept the active safe.\nReview turn four.");
   assert.equal(log?.rawLog, "");
   assert.deepEqual(log?.sections, []);
+  assert.match(select, /\bmatch_notes\b/);
   assert.doesNotMatch(select, /\braw_log\b/);
   assert.doesNotMatch(select, /\bsections\b/);
 });

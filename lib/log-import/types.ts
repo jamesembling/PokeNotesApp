@@ -149,6 +149,7 @@ export type ImportLogRecord = {
   opponent_mulligans: number;
   linked_deck_id: string | null;
   linked_deck_list_id: string | null;
+  match_notes: string | null;
   reason: string;
   raw_log: string;
   sections: ParsedTurnSection[];

@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExportIcon } from "@phosphor-icons/react";
-import { PencilIcon } from "lucide-react";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Button } from "@/components/shadcn/button";
 import type { ShareLinkState } from "@/components/ui/CopyShareLinkButton";
+import { PencilIcon } from "@/components/ui/icons";
 import { LazyEditLogButton } from "@/components/ui/LazyEditLogButton";
+import { LazyMatchNotesButton } from "@/components/ui/LazyMatchNotesButton";
 import { CopyShareLinkButton } from "@/components/ui/CopyShareLinkButton";
 import { LinkedDeckListDialog } from "@/components/ui/LinkedDeckListPanel";
 import { PageActions } from "@/components/ui/PageActions";
@@ -236,19 +237,30 @@ export function BattleLogDetailShell({
             <LazyEditLogButton
               log={log}
               trigger={
-                <Button className="min-w-0 px-3">
-                  <PencilIcon className="size-4" />
-                  <span>Edit</span>
+                <Button
+                  aria-label="Edit Log"
+                  className="size-11 min-h-11 min-w-11 p-0"
+                  size="icon-lg"
+                >
+                  <PencilIcon className="size-5" />
+                  <span className="sr-only">Edit Log</span>
                 </Button>
               }
               userDecks={resolvedUserDecks}
             />
+            <LazyMatchNotesButton
+              className="size-11 min-h-11 min-w-11 p-0"
+              iconOnly
+              logId={log.id}
+              notes={log.matchNotes}
+            />
             <CopyShareLinkButton
               ariaLabel="Share Log"
-              className="min-w-0 px-3 text-primary hover:border-primary hover:bg-background hover:text-primary"
+              className="size-11 min-h-11 min-w-11 p-0 text-primary hover:border-primary hover:bg-background hover:text-primary"
               initialShare={currentShare}
               logId={log.id}
               onShareReady={setCurrentShare}
+              size="icon-lg"
               variant="outline"
             >
               <ExportIcon className="size-5" weight="bold" />
@@ -258,6 +270,7 @@ export function BattleLogDetailShell({
 
           <PageActions className="hidden sm:flex">
             <LazyEditLogButton log={log} userDecks={resolvedUserDecks} />
+            <LazyMatchNotesButton logId={log.id} notes={log.matchNotes} />
             <CopyShareLinkButton
               initialShare={currentShare}
               logId={log.id}

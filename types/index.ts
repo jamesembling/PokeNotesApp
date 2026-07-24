@@ -114,6 +114,9 @@ export type BattleLog = {
   linkedDeckId: string | undefined
   linkedDeckListId: string | undefined
 
+  // Private owner-only notes captured during import
+  matchNotes: string | null
+
   // Game end reason
   reason: string                  // e.g. "Concede" or ""
 
