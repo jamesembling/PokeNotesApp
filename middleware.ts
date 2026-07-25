@@ -18,7 +18,10 @@ function getSupabaseEnv() {
   return { supabaseUrl, supabaseAnonKey };
 }
 
-export async function proxy(request: NextRequest) {
+// Next.js 16 keeps the deprecated `middleware` convention on the Edge runtime.
+// The equivalent `proxy` convention is Node-only, which adds a separate Node
+// function cold start before every protected page render.
+export async function middleware(request: NextRequest) {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
 
   const requestPath = request.nextUrl.pathname;
