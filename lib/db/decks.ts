@@ -98,6 +98,12 @@ type DeckIndexRow = Omit<DeckSummaryRow, "deck_lists"> & {
   deck_list_count: number | null;
 };
 
+type DeckIndexPageRow = DeckIndexRow & {
+  games_played: number | null;
+  games_won: number | null;
+  games_lost: number | null;
+};
+
 type DeckLogStatsRow = {
   deck_id: string | null;
   games_played: number | null;
@@ -844,29 +850,76 @@ export const getDecks = cache(async function getDecks(userId: string): Promise<D
   );
 });
 
+export const decksDbTestHooks = {
+  createClient,
+  getDecks: async (userId: string) => await getDecks(userId),
+  getDeckLogStatsForIndex: async (userId: string, deckIds: string[]) =>
+    await getDeckLogStatsForIndex(userId, deckIds)
+};
+
+function needsDeckIndexCompatibilityFallback(rows: DeckIndexRow[]) {
+  return rows.some(
+    (row) =>
+      parseStringArray(row.deck_pokemon).length === 0 &&
+      Number(row.deck_list_count ?? 0) > 0
+  );
+}
+
+async function loadDeckIndexCompatibilityFallback(userId: string) {
+  const decks = await decksDbTestHooks.getDecks(userId);
+  const deckIndexSummaries = decks.map(({ deckLists, ...deck }) => ({
+    ...deck,
+    deckListCount: deckLists.length,
+    gamesPlayed: 0,
+    losses: 0,
+    winRate: null,
+    wins: 0
+  }));
+
+  return applyDeckLogStats(
+    deckIndexSummaries,
+    await decksDbTestHooks.getDeckLogStatsForIndex(
+      userId,
+      deckIndexSummaries.map((deck) => deck.id)
+    )
+  );
+}
+
 export const getDeckIndexSummaries = cache(async function getDeckIndexSummaries(
   userId: string
 ): Promise<DeckIndexSummary[]> {
-  const supabase = await createClient();
+  const supabase = await decksDbTestHooks.createClient();
+  const pageResult = await measureServerCall("db.decks.indexPageRpc", async () =>
+    await supabase.rpc("get_deck_index_page_data")
+  );
+
+  if (!pageResult.error && Array.isArray(pageResult.data)) {
+    const rows = ((pageResult.data ?? []) as unknown) as DeckIndexPageRow[];
+    if (needsDeckIndexCompatibilityFallback(rows)) {
+      return await loadDeckIndexCompatibilityFallback(userId);
+    }
+
+    return rows.map((row) => {
+      const deck = mapDeckIndexRow(row);
+      const gamesPlayed = Number(row.games_played ?? 0);
+      const wins = Number(row.games_won ?? 0);
+
+      return {
+        ...deck,
+        gamesPlayed,
+        losses: Number(row.games_lost ?? 0),
+        winRate: gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : null,
+        wins
+      };
+    });
+  }
+
   const { data, error } = await measureServerCall("db.decks.indexRpc", async () =>
     await supabase.rpc("get_deck_index")
   );
 
   if (error) {
-    const decks = await getDecks(userId);
-    const deckIndexSummaries = decks.map(({ deckLists, ...deck }) => ({
-      ...deck,
-      deckListCount: deckLists.length,
-      gamesPlayed: 0,
-      losses: 0,
-      winRate: null,
-      wins: 0
-    }));
-
-    return applyDeckLogStats(
-      deckIndexSummaries,
-      await getDeckLogStatsForIndex(userId, deckIndexSummaries.map((deck) => deck.id))
-    );
+    return await loadDeckIndexCompatibilityFallback(userId);
   }
 
   const rows = (((data ?? []) as unknown) as DeckIndexRow[]);
@@ -874,23 +927,8 @@ export const getDeckIndexSummaries = cache(async function getDeckIndexSummaries(
     return [];
   }
 
-  if (
-    rows.some((row) => parseStringArray(row.deck_pokemon).length === 0 && Number(row.deck_list_count ?? 0) > 0)
-  ) {
-    const decks = await getDecks(userId);
-    const deckIndexSummaries = decks.map(({ deckLists, ...deck }) => ({
-      ...deck,
-      deckListCount: deckLists.length,
-      gamesPlayed: 0,
-      losses: 0,
-      winRate: null,
-      wins: 0
-    }));
-
-    return applyDeckLogStats(
-      deckIndexSummaries,
-      await getDeckLogStatsForIndex(userId, deckIndexSummaries.map((deck) => deck.id))
-    );
+  if (needsDeckIndexCompatibilityFallback(rows)) {
+    return await loadDeckIndexCompatibilityFallback(userId);
   }
 
   const decks = rows.map(mapDeckIndexRow);
