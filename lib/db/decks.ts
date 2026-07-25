@@ -98,6 +98,12 @@ type DeckIndexRow = Omit<DeckSummaryRow, "deck_lists"> & {
   deck_list_count: number | null;
 };
 
+type DeckIndexPageRow = DeckIndexRow & {
+  games_played: number | null;
+  games_won: number | null;
+  games_lost: number | null;
+};
+
 type DeckLogStatsRow = {
   deck_id: string | null;
   games_played: number | null;
@@ -848,6 +854,28 @@ export const getDeckIndexSummaries = cache(async function getDeckIndexSummaries(
   userId: string
 ): Promise<DeckIndexSummary[]> {
   const supabase = await createClient();
+  const pageResult = await measureServerCall("db.decks.indexPageRpc", async () =>
+    await supabase.rpc("get_deck_index_page_data")
+  );
+
+  if (!pageResult.error && Array.isArray(pageResult.data)) {
+    const rows = ((pageResult.data ?? []) as unknown) as DeckIndexPageRow[];
+
+    return rows.map((row) => {
+      const deck = mapDeckIndexRow(row);
+      const gamesPlayed = Number(row.games_played ?? 0);
+      const wins = Number(row.games_won ?? 0);
+
+      return {
+        ...deck,
+        gamesPlayed,
+        losses: Number(row.games_lost ?? 0),
+        winRate: gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : null,
+        wins
+      };
+    });
+  }
+
   const { data, error } = await measureServerCall("db.decks.indexRpc", async () =>
     await supabase.rpc("get_deck_index")
   );

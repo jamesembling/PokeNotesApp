@@ -1006,6 +1006,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_deck_index_page_data: { Args: never; Returns: Json }
       get_deck_index_stats: {
         Args: { target_deck_ids: string[] }
         Returns: {

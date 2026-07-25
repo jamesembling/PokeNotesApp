@@ -162,3 +162,16 @@ test("/logs streams its shell before the initial log window resolves", () => {
   assert.match(page, /measureServerCallWithTiming\("page\.logs\.initialData"/);
   assert.match(page, /<LogsWorkspaceClient stats=\{stats\} window=\{window\}/);
 });
+
+test("/logs limits detail prefetch to sustained row intent", () => {
+  const manager = source("components/ui/LogsManager.tsx");
+  const row = source("components/ui/LogRow.tsx");
+
+  assert.match(manager, /DETAIL_ROUTE_PREFETCH_DWELL_MS/);
+  assert.match(manager, /pendingDetailRouteWarm/);
+  assert.match(manager, /clearTimeout\(pendingDetailRouteWarm\.current\.timeoutId\)/);
+  assert.match(manager, /router\.prefetch\(href\)/);
+  assert.match(row, /onPointerLeave=\{onCancelWarmDetailAssets\}/);
+  assert.match(row, /onBlur=\{onCancelWarmDetailAssets\}/);
+  assert.match(row, /prefetch=\{false\}/);
+});

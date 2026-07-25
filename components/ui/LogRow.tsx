@@ -27,6 +27,7 @@ type LogRowProps = {
   editAction?: ReactNode;
   log: BattleLogSummary;
   managementMode?: boolean;
+  onCancelWarmDetailAssets?: () => void;
   onDelete?: () => void;
   onWarmDetailAssets?: () => void;
   onToggleSelected?: () => void;
@@ -56,6 +57,7 @@ function LogRowComponent({
   editAction,
   log,
   managementMode = false,
+  onCancelWarmDetailAssets,
   onDelete,
   onWarmDetailAssets,
   onToggleSelected,
@@ -171,8 +173,10 @@ function LogRowComponent({
       <Link
         className={cardClasses}
         href={`/logs/${log.id}`}
+        onBlur={onCancelWarmDetailAssets}
         onFocus={onWarmDetailAssets}
         onPointerEnter={onWarmDetailAssets}
+        onPointerLeave={onCancelWarmDetailAssets}
         prefetch={false}
         style={cardStyle}
       >
@@ -189,8 +193,10 @@ function LogRowComponent({
       <Link
         className={managementLinkClasses}
         href={`/logs/${log.id}`}
+        onBlur={onCancelWarmDetailAssets}
         onFocus={onWarmDetailAssets}
         onPointerEnter={onWarmDetailAssets}
+        onPointerLeave={onCancelWarmDetailAssets}
         prefetch={false}
       >
         {content}

@@ -73,6 +73,7 @@ const DynamicLogsManagementDock = dynamic(
 
 let battleLogDetailAssetsWarmed = false;
 const warmedBattleLogDetailRoutes = new Set<string>();
+const DETAIL_ROUTE_PREFETCH_DWELL_MS = 500;
 
 function warmBattleLogDetailAssets() {
   if (battleLogDetailAssetsWarmed || typeof window === "undefined") {
@@ -94,18 +95,6 @@ function warmBattleLogDetailAssets() {
   }
 
   globalThis.setTimeout(warm, 250);
-}
-
-function warmBattleLogDetailRoute(router: ReturnType<typeof useRouter>, logId: string) {
-  warmBattleLogDetailAssets();
-
-  const href = `/logs/${logId}`;
-  if (warmedBattleLogDetailRoutes.has(href)) {
-    return;
-  }
-
-  warmedBattleLogDetailRoutes.add(href);
-  router.prefetch(href);
 }
 
 function summarizeVisibleLogs(logs: BattleLogSummary[]) {
@@ -238,6 +227,10 @@ export function LogsManager({
   renderHeaderAction
 }: LogsManagerProps) {
   const router = useRouter();
+  const pendingDetailRouteWarm = useRef<{
+    href: string;
+    timeoutId: ReturnType<typeof globalThis.setTimeout>;
+  } | null>(null);
   const [isMutating, startMutationTransition] = useTransition();
   const [isLoadingMore, startLoadMoreTransition] = useTransition();
   const [isManagementMode, setIsManagementMode] = useState(false);
@@ -331,6 +324,46 @@ export function LogsManager({
     } finally {
       setIsLoadingDeckOptions(false);
     }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (pendingDetailRouteWarm.current) {
+        globalThis.clearTimeout(pendingDetailRouteWarm.current.timeoutId);
+        pendingDetailRouteWarm.current = null;
+      }
+    };
+  }, []);
+
+  function cancelDetailRouteWarm(logId: string) {
+    const href = `/logs/${logId}`;
+    if (pendingDetailRouteWarm.current?.href !== href) {
+      return;
+    }
+
+    globalThis.clearTimeout(pendingDetailRouteWarm.current.timeoutId);
+    pendingDetailRouteWarm.current = null;
+  }
+
+  function scheduleDetailRouteWarm(logId: string) {
+    warmBattleLogDetailAssets();
+
+    const href = `/logs/${logId}`;
+    if (warmedBattleLogDetailRoutes.has(href) || pendingDetailRouteWarm.current?.href === href) {
+      return;
+    }
+
+    if (pendingDetailRouteWarm.current) {
+      globalThis.clearTimeout(pendingDetailRouteWarm.current.timeoutId);
+    }
+
+    const timeoutId = globalThis.setTimeout(() => {
+      pendingDetailRouteWarm.current = null;
+      warmedBattleLogDetailRoutes.add(href);
+      router.prefetch(href);
+    }, DETAIL_ROUTE_PREFETCH_DWELL_MS);
+
+    pendingDetailRouteWarm.current = { href, timeoutId };
   }
 
   useEffect(() => {
@@ -621,8 +654,9 @@ export function LogsManager({
                         key={log.id}
                         log={log}
                         managementMode={managementModeActive}
+                        onCancelWarmDetailAssets={() => cancelDetailRouteWarm(log.id)}
                         onDelete={() => handleDeleteSingle(log.id)}
-                        onWarmDetailAssets={() => warmBattleLogDetailRoute(router, log.id)}
+                        onWarmDetailAssets={() => scheduleDetailRouteWarm(log.id)}
                         onToggleSelected={() => toggleSelectedLog(log.id)}
                         selected={selectedLogIdSet.has(log.id)}
                         variant="flat"
