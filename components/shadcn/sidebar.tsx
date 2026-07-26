@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { PanelLeftIcon } from "lucide-react"
 import { Slot } from "radix-ui"
 
 import { Button } from "@/components/shadcn/button"
@@ -243,10 +242,30 @@ function Sidebar({
   )
 }
 
+function SidebarPanelIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="size-5 overflow-visible"
+      fill="none"
+      focusable="false"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="M4 5h16v14H4V5Z" />
+      <path d="M9 5v14" />
+    </svg>
+  )
+}
+
 function SidebarTrigger({
   children,
   className,
   onClick,
+  size = "icon-sm",
   ...props
 }: React.ComponentProps<typeof Button>) {
   const { toggleSidebar } = useSidebar()
@@ -260,11 +279,11 @@ function SidebarTrigger({
         onClick?.(event)
         toggleSidebar()
       }}
-      size="icon-sm"
+      size={size}
       variant="ghost"
       {...props}
     >
-      {children ?? <PanelLeftIcon />}
+      {children ?? <SidebarPanelIcon />}
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )
