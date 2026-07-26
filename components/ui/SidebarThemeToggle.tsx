@@ -27,7 +27,11 @@ export function SidebarThemeToggle({ tone = "sidebar" }: SidebarThemeToggleProps
       size="icon-lg"
       variant="ghost"
     >
-      {theme === "dark" ? <SunIcon className="size-5" /> : <MoonIcon className="size-5" />}
+      {theme === "dark" ? (
+        <SunIcon className="size-5 overflow-visible" />
+      ) : (
+        <MoonIcon className="size-5 overflow-visible" />
+      )}
     </Button>
   );
 
