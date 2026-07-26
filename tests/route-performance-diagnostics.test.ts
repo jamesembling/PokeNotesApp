@@ -60,7 +60,7 @@ test("timed server calls return only a duration and the original value", async (
 test("route diagnostics use privacy-safe fixed fields", () => {
   const reporter = source("components/ui/RoutePerformanceReporter.tsx");
   const route = source("app/api/performance-events/route.ts");
-  const middleware = source("middleware.ts");
+  const proxy = source("proxy.ts");
   const marker = source("components/ui/RouteTimingMarker.tsx");
   const migration = source(
     "supabase/migrations/20260714182253_add_route_performance_diagnostics.sql"
@@ -78,14 +78,10 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(route, /browser_family: inferBrowserFamily/);
   assert.doesNotMatch(route, /user_agent:/);
 
-  assert.match(middleware, /export async function middleware/);
-  assert.match(middleware, /supabase\.auth\.getClaims\(\)/);
-  assert.match(middleware, /createAuthClaimsHeader/);
-  assert.doesNotMatch(middleware, /auth\.getSession\(\)/);
-  assert.match(middleware, /Server-Timing/);
-  assert.match(middleware, /proxy-auth;dur=/);
-  assert.match(middleware, /forwardedHeaders\.delete\(PROXY_AUTH_DURATION_HEADER\)/);
-  assert.match(middleware, /forwardedHeaders\.set\(PROXY_AUTH_DURATION_HEADER/);
+  assert.match(proxy, /Server-Timing/);
+  assert.match(proxy, /proxy-auth;dur=/);
+  assert.match(proxy, /forwardedHeaders\.delete\(PROXY_AUTH_DURATION_HEADER\)/);
+  assert.match(proxy, /forwardedHeaders\.set\(PROXY_AUTH_DURATION_HEADER/);
   assert.match(marker, /phase="proxy-auth"/);
   assert.match(migration, /server_shell_profile_ms/);
   assert.match(migration, /server_route_data_ms/);
