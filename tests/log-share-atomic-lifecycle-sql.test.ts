@@ -9,6 +9,13 @@ const migration = readFileSync(
   ),
   "utf8"
 );
+const hardeningMigration = readFileSync(
+  new URL(
+    "../supabase/migrations/20260804212228_harden_log_share_writes_after_atomic_cutover.sql",
+    import.meta.url
+  ),
+  "utf8"
+);
 const schema = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
 const schemaHealth = readFileSync(
   new URL("../scripts/schema-health.mjs", import.meta.url),
@@ -98,6 +105,17 @@ test("rollout keeps direct DELETE until the RPC application cutover is verified"
     /revoke\s+(?:insert, update, delete|delete).*public\.log_shares.*authenticated/i
   );
   assert.match(migration, /Keep its existing table grant/);
+
+  assert.match(hardeningMigration, /POST-CUTOVER ONLY/);
+  assert.match(hardeningMigration, /authenticated create\/reuse\/revoke\/public-invalidation rehearsal has passed/);
+  assert.match(
+    hardeningMigration,
+    /revoke insert, update, delete on table public\.log_shares from authenticated;/
+  );
+
+  const rpcVersion = "20260804210800";
+  const hardeningVersion = "20260804212228";
+  assert.ok(rpcVersion < hardeningVersion, "hardening migration must sort after RPC installation");
 });
 
 test("fresh installs finish with the post-cutover direct-write boundary", () => {
