@@ -17,13 +17,18 @@ For an explicitly disposable remote integration project, also set:
 
 ```bash
 POKENOTES_TOURNAMENT_DB_TEST_CONFIRM=NON_PRODUCTION_DISPOSABLE
+POKENOTES_PRODUCTION_SUPABASE_URL=https://<production-project-ref>.supabase.co
+# Or: POKENOTES_PRODUCTION_SUPABASE_PROJECT_REF=<production-project-ref>
 ```
 
-The harness always refuses a target matching `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_URL`, or `POKENOTES_PRODUCTION_SUPABASE_URL`. Remote targets are refused without the exact non-production confirmation. The ordinary `test:tournament-db` command reports a clear skip when credentials are absent; the release command uses `test:tournament-db:required`, which fails instead.
+Every remote run requires both the exact disposable confirmation and a canonical production identity. The harness compares parsed URL origins and normalized Supabase project references, so case, trailing slashes, default ports, or URL paths cannot disguise the production target. If only a production project reference is supplied for a custom-domain target, also provide `POKENOTES_TOURNAMENT_DB_TEST_PROJECT_REF` so the identities are comparable. Missing or incomparable production identity fails closed.
+
+The ordinary `test:tournament-db` command reports a clear skip when credentials are absent; the release command uses `test:tournament-db:required`, which fails instead. `--safety-check-only` validates target selection and exits before Supabase clients are created; it exists for behavioral safety tests, not database acceptance.
 
 Required release sequence:
 
 1. Apply all migrations through `20260804210932` to a disposable local or remote integration database.
-2. Run `npm run test:tournament-db:required` and retain its PASS output.
-3. Independently inspect function ownership, `SECURITY INVOKER`, and execute grants on that target.
-4. Only then deploy the migration to production, verify its schema and ACLs read-only, and deploy the application commit.
+2. Set the canonical production identity and, for a remote target, the exact disposable confirmation.
+3. Run `npm run test:tournament-db:required` and retain its PASS output for both RPC ACLs, rollback, concurrency, and tenant isolation.
+4. Independently inspect function ownership, `SECURITY INVOKER`, and execute grants on that target.
+5. Only then deploy the migration to production, verify its schema and ACLs read-only, and deploy the application commit.

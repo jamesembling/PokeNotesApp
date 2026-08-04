@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const REQUIRED_CONFIRMATION = "NON_PRODUCTION_DISPOSABLE";
 const requireConfiguredTarget = process.argv.includes("--require");
+const safetyCheckOnly = process.argv.includes("--safety-check-only");
 const databaseUrl = String(process.env.POKENOTES_TOURNAMENT_DB_TEST_URL || "").trim();
 const anonKey = String(process.env.POKENOTES_TOURNAMENT_DB_TEST_ANON_KEY || "").trim();
 const serviceRoleKey = String(
@@ -13,6 +14,39 @@ const serviceRoleKey = String(
 const remoteConfirmation = String(
   process.env.POKENOTES_TOURNAMENT_DB_TEST_CONFIRM || ""
 ).trim();
+const productionDatabaseUrl = String(
+  process.env.POKENOTES_PRODUCTION_SUPABASE_URL || ""
+).trim();
+const productionProjectRef = String(
+  process.env.POKENOTES_PRODUCTION_SUPABASE_PROJECT_REF || ""
+).trim();
+const targetProjectRef = String(
+  process.env.POKENOTES_TOURNAMENT_DB_TEST_PROJECT_REF || ""
+).trim();
+
+function parseHttpUrl(value, variableName) {
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(value);
+  } catch {
+    throw new Error(`${variableName} must be a valid URL.`);
+  }
+
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    throw new Error(`${variableName} must use HTTP or HTTPS.`);
+  }
+
+  return parsedUrl;
+}
+
+function canonicalProjectRef(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function projectRefFromUrl(url) {
+  const match = url.hostname.toLowerCase().match(/^([a-z0-9-]+)\.supabase\.co$/);
+  return match?.[1] || "";
+}
 
 function skipOrFail(message) {
   if (requireConfiguredTarget) {
@@ -29,35 +63,66 @@ if (!databaseUrl || !anonKey || !serviceRoleKey) {
   );
 }
 
-let targetUrl;
-try {
-  targetUrl = new URL(databaseUrl);
-} catch {
-  throw new Error("POKENOTES_TOURNAMENT_DB_TEST_URL must be a valid URL.");
-}
+const targetUrl = parseHttpUrl(databaseUrl, "POKENOTES_TOURNAMENT_DB_TEST_URL");
 
 const loopbackHosts = new Set(["127.0.0.1", "::1", "localhost"]);
-const configuredProductionUrls = [
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_URL,
-  process.env.POKENOTES_PRODUCTION_SUPABASE_URL
-]
-  .map((value) => String(value || "").trim())
-  .filter(Boolean);
-const normalizedTargetUrl = databaseUrl.replace(/\/+$/, "");
+const isRemoteTarget = !loopbackHosts.has(targetUrl.hostname.toLowerCase());
 
-if (
-  configuredProductionUrls.some(
-    (value) => value.replace(/\/+$/, "") === normalizedTargetUrl
-  )
-) {
-  throw new Error("Refusing to run tournament database integration tests against a configured production URL.");
+if (isRemoteTarget) {
+  if (!productionDatabaseUrl && !productionProjectRef) {
+    throw new Error(
+      "Remote database tests require canonical production identity via POKENOTES_PRODUCTION_SUPABASE_URL and/or POKENOTES_PRODUCTION_SUPABASE_PROJECT_REF."
+    );
+  }
+
+  const productionUrl = productionDatabaseUrl
+    ? parseHttpUrl(productionDatabaseUrl, "POKENOTES_PRODUCTION_SUPABASE_URL")
+    : null;
+  const canonicalTargetRefs = new Set(
+    [canonicalProjectRef(targetProjectRef), projectRefFromUrl(targetUrl)].filter(Boolean)
+  );
+  const canonicalProductionRefs = new Set(
+    [
+      canonicalProjectRef(productionProjectRef),
+      productionUrl ? projectRefFromUrl(productionUrl) : ""
+    ].filter(Boolean)
+  );
+  let comparedCanonicalIdentity = false;
+
+  if (productionUrl) {
+    comparedCanonicalIdentity = true;
+    if (targetUrl.origin === productionUrl.origin) {
+      throw new Error("Refusing to run tournament database integration tests against production origin.");
+    }
+  }
+
+  if (canonicalProductionRefs.size > 0 && canonicalTargetRefs.size > 0) {
+    comparedCanonicalIdentity = true;
+    if (
+      [...canonicalProductionRefs].some((projectRef) => canonicalTargetRefs.has(projectRef))
+    ) {
+      throw new Error(
+        "Refusing to run tournament database integration tests against production project ref."
+      );
+    }
+  }
+
+  if (!comparedCanonicalIdentity) {
+    throw new Error(
+      "Remote database target cannot be compared with the configured canonical production identity."
+    );
+  }
+
+  if (remoteConfirmation !== REQUIRED_CONFIRMATION) {
+    throw new Error(
+      `Remote database tests require POKENOTES_TOURNAMENT_DB_TEST_CONFIRM=${REQUIRED_CONFIRMATION}.`
+    );
+  }
 }
 
-if (!loopbackHosts.has(targetUrl.hostname) && remoteConfirmation !== REQUIRED_CONFIRMATION) {
-  throw new Error(
-    `Remote database tests require POKENOTES_TOURNAMENT_DB_TEST_CONFIRM=${REQUIRED_CONFIRMATION}.`
-  );
+if (safetyCheckOnly) {
+  console.log("PASS tournament database target safety checks");
+  process.exit(0);
 }
 
 const clientOptions = {
@@ -169,6 +234,11 @@ async function run() {
   );
 
   assert.ok(expectedCommitError, "The injected aggregate commit failure must reach the caller.");
+  assert.match(
+    `${expectedCommitError.code || ""} ${expectedCommitError.message || ""}`,
+    /22023|Deck list name is required/i,
+    "Authenticated deck-list execute must reach the function body."
+  );
   assert.equal(await maybeSingle("decks", "id", faultDeckId), null);
   assert.equal(await maybeSingle("deck_lists", "id", faultListId), null);
   const faultTournament = await maybeSingle("tournaments", "id", faultTournamentId);
@@ -249,17 +319,43 @@ async function run() {
   assert.equal(ownerRoundCount, 2);
   console.log("PASS cross-tenant RPC calls cannot mutate owner data");
 
-  const { error: anonExecuteError } = await anon.rpc("create_tournament_round", {
+  const { error: anonRoundExecuteError } = await anon.rpc("create_tournament_round", {
     ...roundArgs(`db-test-round-anon-${runId}`),
     p_tournament_id: roundTournamentId
   });
-  assert.ok(anonExecuteError, "Anonymous execute must be denied.");
+  assert.ok(anonRoundExecuteError, "Anonymous round execute must be denied.");
   assert.match(
-    `${anonExecuteError.code || ""} ${anonExecuteError.message || ""}`,
+    `${anonRoundExecuteError.code || ""} ${anonRoundExecuteError.message || ""}`,
+    /42501|permission denied/i
+  );
+  const { error: anonDeckListExecuteError } = await anon.rpc(
+    "commit_tournament_deck_list",
+    {
+      p_archetype_id: "charizard",
+      p_deck_id: `db-test-deck-anon-${runId}`,
+      p_deck_list: {
+        id: `db-test-list-anon-${runId}`,
+        name: "Anonymous",
+        rawList: "1 Test Card TST 1",
+        parsedCards: [],
+        sortedCards: [],
+        sortedCardsVersion: 2,
+        updatedAt: timestamp
+      },
+      p_deck_name: "Charizard",
+      p_deck_sprites: ["charizard"],
+      p_format: "Standard",
+      p_tournament_id: faultTournamentId,
+      p_updated_at: timestamp
+    }
+  );
+  assert.ok(anonDeckListExecuteError, "Anonymous deck-list execute must be denied.");
+  assert.match(
+    `${anonDeckListExecuteError.code || ""} ${anonDeckListExecuteError.message || ""}`,
     /42501|permission denied/i
   );
   assert.equal(roundOne.data === 1 || roundOne.data === 2, true);
-  console.log("PASS anonymous execute is denied and authenticated execute is allowed");
+  console.log("PASS both RPCs deny anonymous execute and allow authenticated execute");
 }
 
 async function cleanup() {
