@@ -7,18 +7,19 @@ import { Input } from "@/components/shadcn/input";
 import { Label } from "@/components/shadcn/label";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getCurrentUser } from "@/lib/auth";
+import { getLoginAuthError } from "@/lib/server/login-error";
 import { getLocalLoginPageState } from "@/lib/server/local-test-login";
 
 type LoginPageProps = {
   searchParams: Promise<{
-    error?: string;
-    localError?: string;
+    error?: string | string[];
+    localError?: string | string[];
   }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const authError = params.error ? decodeURIComponent(params.error) : null;
+  const authError = getLoginAuthError(params.error);
   const user = await getCurrentUser();
   const requestHeaders = await headers();
   const host = requestHeaders.get("host") || "";

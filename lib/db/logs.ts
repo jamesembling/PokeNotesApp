@@ -686,7 +686,17 @@ function buildLogsWindowFromRows(
     windowDays: number;
   }
 ) {
-  const windowEndDate = requestedWindowEndDate ? queryWindowEndDate : rows[0]?.date ?? queryWindowEndDate;
+  const requestedWindowStartDate = shiftDateString(queryWindowEndDate, -(windowDays - 1));
+  const hasRowsInRequestedWindow = rows.some(
+    (row) => row.date <= queryWindowEndDate && row.date >= requestedWindowStartDate
+  );
+  const shouldReanchorSparseWindow =
+    Boolean(requestedWindowEndDate) && rows.length > 0 && !hasRowsInRequestedWindow;
+  const windowEndDate = shouldReanchorSparseWindow
+    ? rows[0].date
+    : requestedWindowEndDate
+      ? queryWindowEndDate
+      : rows[0]?.date ?? queryWindowEndDate;
   const windowStartDate = shiftDateString(windowEndDate, -(windowDays - 1));
   const visibleRows = rows.filter((row) => row.date <= windowEndDate && row.date >= windowStartDate).slice(0, pageSize);
   const hasMoreInWindow = rows.length > pageSize && rows[pageSize]?.date <= windowEndDate && rows[pageSize]?.date >= windowStartDate;
