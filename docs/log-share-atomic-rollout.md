@@ -28,6 +28,13 @@ token, cross-tenant create/revoke denial, anonymous revoke denial, public access
 before revoke, public invalidation after revoke, tenant isolation, and retry
 after an injected lost response.
 
+Cleanup is part of the gate, not best effort. Whether the rehearsal passes or
+fails, it re-queries both supplied fixture logs, revokes every active or observed
+token, verifies that both logs have zero active shares, and verifies every
+observed token through the public reader. Cleanup failures produce a failing
+exit and are reported alongside the original rehearsal failure; PASS is printed
+only after this verification succeeds.
+
 ## Ordered release
 
 1. From the compatibility commit—the parent of the post-cutover hardening

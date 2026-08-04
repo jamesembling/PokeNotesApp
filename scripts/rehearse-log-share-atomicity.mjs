@@ -2,6 +2,12 @@
 
 import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import {
+  cleanupFixtureShares,
+  collectShareTokens,
+  collectSettledShareResults,
+  finalizeRehearsal
+} from "./lib/log-share-rehearsal-safety.mjs";
 
 const REQUIRED_ENV = [
   "POKENOTES_SHARE_REHEARSAL_URL",
@@ -96,6 +102,9 @@ const publicClient = createClient(url, anonKey, {
 
 let userAShareId;
 let userBShareId;
+const observedUserATokens = new Set();
+const observedUserBTokens = new Set();
+let primaryError;
 
 try {
   // Start from an RPC-clean fixture without depending on direct table DELETE.
@@ -110,12 +119,23 @@ try {
     assert(!cleanup.error, `Unable to clean user A fixture: ${cleanup.error?.code ?? "unknown"}`);
   }
 
-  const concurrent = await Promise.all(
+  const concurrentSettled = await Promise.allSettled(
     Array.from({ length: 12 }, (_, index) =>
       createShare(index % 2 === 0 ? clientA : clientASecondSession, userALogId, "Atomic rehearsal")
     )
   );
-  const concurrentRows = concurrent.map((result, index) => oneRow(result, `concurrent create ${index + 1}`));
+  const concurrentOutcome = collectSettledShareResults(
+    concurrentSettled,
+    observedUserATokens,
+    "concurrent create"
+  );
+  if (concurrentOutcome.errors.length > 0) {
+    throw new AggregateError(
+      concurrentOutcome.errors,
+      "Concurrent share creation failed"
+    );
+  }
+  const concurrentRows = concurrentOutcome.rows;
   assert(new Set(concurrentRows.map((row) => row.id)).size === 1, "Concurrent creates returned multiple tokens");
   userAShareId = concurrentRows[0].id;
 
@@ -132,13 +152,18 @@ try {
     "public read before revoke"
   );
   assert(publicBeforeRevoke.id === userAShareId, "Public reader returned the wrong token");
+  observedUserATokens.add(userAShareId);
 
   const crossTenantCreate = await createShare(clientB, userALogId, "Cross-tenant rehearsal");
+  collectShareTokens([crossTenantCreate], observedUserBTokens, "cross-tenant create");
   assert(crossTenantCreate.error?.message === "LOG_SHARE_SOURCE_NOT_FOUND", "Cross-tenant create did not fail closed");
   const crossTenantRevoke = await clientB.rpc("revoke_log_share", { p_share_id: userAShareId });
   assert(!crossTenantRevoke.error && crossTenantRevoke.data === false, "Cross-tenant revoke affected another owner");
 
-  userBShareId = oneRow(await createShare(clientB, userBLogId, "Tenant B control"), "tenant B create").id;
+  const userBCreate = await createShare(clientB, userBLogId, "Tenant B control");
+  collectShareTokens([userBCreate], observedUserBTokens, "tenant B create");
+  userBShareId = oneRow(userBCreate, "tenant B create").id;
+  observedUserBTokens.add(userBShareId);
 
   const revokedA = await clientA.rpc("revoke_log_share", { p_share_id: userAShareId });
   assert(!revokedA.error && revokedA.data === true, "Owner revoke failed");
@@ -162,6 +187,7 @@ try {
     return response;
   });
   const lostResponse = await createShare(faultClient, userALogId, "Fault rehearsal");
+  collectShareTokens([lostResponse], observedUserATokens, "lost-response create");
   assert(injected && lostResponse.error, "Fault injection did not lose the committed response");
   const activeAfterLoss = await clientA
     .from("log_shares")
@@ -171,7 +197,10 @@ try {
   assert(!activeAfterLoss.error, `Unable to inspect lost-response commit: ${activeAfterLoss.error?.code ?? "unknown"}`);
   assert(activeAfterLoss.data?.length === 1, "Lost response did not leave exactly one committed token");
   userAShareId = activeAfterLoss.data[0].id;
-  const retry = oneRow(await createShare(clientA, userALogId, "Fault rehearsal"), "retry after response loss");
+  observedUserATokens.add(userAShareId);
+  const retryResult = await createShare(clientA, userALogId, "Fault rehearsal");
+  collectShareTokens([retryResult], observedUserATokens, "retry after response loss");
+  const retry = oneRow(retryResult, "retry after response loss");
   const activeAfterRetry = await clientA
     .from("log_shares")
     .select("id")
@@ -192,15 +221,26 @@ try {
 
   const anonRevoke = await publicClient.rpc("revoke_log_share", { p_share_id: userBShareId });
   assert(anonRevoke.error?.code === "42501", "Anonymous revocation was not denied");
-
-  console.log(`Atomic share rehearsal passed for ${phase} on the confirmed staging host.`);
-} finally {
-  for (const [client, shareId] of [
-    [clientA, userAShareId],
-    [clientB, userBShareId]
-  ]) {
-    if (shareId) {
-      await client.rpc("revoke_log_share", { p_share_id: shareId });
-    }
-  }
+} catch (error) {
+  primaryError = error;
 }
+
+const cleanupErrors = await cleanupFixtureShares({
+  fixtures: [
+    {
+      client: clientA,
+      label: "user A fixture",
+      logId: userALogId,
+      observedTokens: observedUserATokens
+    },
+    {
+      client: clientB,
+      label: "user B fixture",
+      logId: userBLogId,
+      observedTokens: observedUserBTokens
+    }
+  ],
+  publicClient
+});
+
+finalizeRehearsal({ phase, primaryError, cleanupErrors });
