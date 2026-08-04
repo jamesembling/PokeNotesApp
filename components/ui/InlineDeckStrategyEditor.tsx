@@ -52,11 +52,13 @@ export function InlineDeckStrategyEditor({
   const resourcePlanId = useId();
   const generalNotesId = useId();
   const [strategy, setStrategy] = useState(() => buildStrategyState(deck));
+  const strategyRef = useRef(strategy);
   const deckIdRef = useRef(deck.id);
   const {
     errorMessage,
     queueSave: saveStrategy,
     resetSavedValue,
+    scheduleSave,
     saveStatus
   } = useCoalescedAutosave({
     fallbackError: "Could not save strategy changes.",
@@ -81,15 +83,19 @@ export function InlineDeckStrategyEditor({
 
     deckIdRef.current = deck.id;
     const nextState = buildStrategyState(deck);
+    strategyRef.current = nextState;
     setStrategy(nextState);
     resetSavedValue(nextState);
   }, [deck, resetSavedValue]);
 
   function updateField<K extends keyof StrategyState>(key: K, value: StrategyState[K]) {
-    setStrategy((current) => ({
-      ...current,
+    const nextState = {
+      ...strategyRef.current,
       [key]: value
-    }));
+    };
+    strategyRef.current = nextState;
+    setStrategy(nextState);
+    scheduleSave(nextState);
   }
 
   const statusLabel =
@@ -141,9 +147,10 @@ export function InlineDeckStrategyEditor({
           <Tabs
             onValueChange={(value) => {
               const nextState = {
-                ...strategy,
+                ...strategyRef.current,
                 goPreference: value as GoPreference
               };
+              strategyRef.current = nextState;
               setStrategy(nextState);
               saveStrategy(nextState);
             }}
@@ -170,7 +177,7 @@ export function InlineDeckStrategyEditor({
           <Textarea
             className="min-h-[240px] rounded-xl border border-border bg-card px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             id={coreStrategyId}
-            onBlur={() => saveStrategy(strategy)}
+            onBlur={() => saveStrategy(strategyRef.current)}
             onChange={(event) => updateField("coreStrategy", event.target.value)}
             placeholder="Outline the main plan, sequencing, and key pressure points."
             value={strategy.coreStrategy}
@@ -187,7 +194,7 @@ export function InlineDeckStrategyEditor({
           <Textarea
             className="min-h-[140px] rounded-xl border border-border bg-card px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             id={setupGoalsId}
-            onBlur={() => saveStrategy(strategy)}
+            onBlur={() => saveStrategy(strategyRef.current)}
             onChange={(event) => updateField("setupGoals", event.target.value)}
             placeholder="One ideal bench note per line"
             value={strategy.setupGoals}
@@ -204,7 +211,7 @@ export function InlineDeckStrategyEditor({
           <Textarea
             className="min-h-[140px] rounded-xl border border-border bg-card px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             id={resourcePlanId}
-            onBlur={() => saveStrategy(strategy)}
+            onBlur={() => saveStrategy(strategyRef.current)}
             onChange={(event) => updateField("resourcePlan", event.target.value)}
             placeholder="Track likely swaps, flex slots, and format calls."
             value={strategy.resourcePlan}
@@ -221,7 +228,7 @@ export function InlineDeckStrategyEditor({
           <Textarea
             className="min-h-[140px] rounded-xl border border-border bg-card px-4 py-3 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             id={generalNotesId}
-            onBlur={() => saveStrategy(strategy)}
+            onBlur={() => saveStrategy(strategyRef.current)}
             onChange={(event) => updateField("generalNotes", event.target.value)}
             placeholder="Add matchup trends, testing reminders, and loose notes."
             value={strategy.generalNotes}

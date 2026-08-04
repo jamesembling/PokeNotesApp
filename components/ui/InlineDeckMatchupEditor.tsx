@@ -36,11 +36,13 @@ export function InlineDeckMatchupEditor({
   const techsNeededId = useId();
   const matchupPlanId = useId();
   const [matchupState, setMatchupState] = useState(() => buildMatchupState(matchup));
+  const matchupStateRef = useRef(matchupState);
   const recordKeyRef = useRef(`${deckId}:${matchup.id}`);
   const {
     errorMessage,
     queueSave: saveMatchup,
     resetSavedValue,
+    scheduleSave,
     saveStatus
   } = useCoalescedAutosave({
     fallbackError: "Could not save matchup changes.",
@@ -65,6 +67,7 @@ export function InlineDeckMatchupEditor({
 
     recordKeyRef.current = nextRecordKey;
     const nextState = buildMatchupState(matchup);
+    matchupStateRef.current = nextState;
     setMatchupState(nextState);
     resetSavedValue(nextState);
   }, [deckId, matchup, resetSavedValue]);
@@ -118,13 +121,16 @@ export function InlineDeckMatchupEditor({
           <Textarea
             className="min-h-[160px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             id={idealBenchId}
-            onBlur={() => saveMatchup(matchupState)}
-            onChange={(event) =>
-              setMatchupState((current) => ({
-                ...current,
+            onBlur={() => saveMatchup(matchupStateRef.current)}
+            onChange={(event) => {
+              const nextState = {
+                ...matchupStateRef.current,
                 idealBench: event.target.value
-              }))
-            }
+              };
+              matchupStateRef.current = nextState;
+              setMatchupState(nextState);
+              scheduleSave(nextState);
+            }}
             placeholder="Capture your preferred bench state for this matchup."
             value={matchupState.idealBench}
           />
@@ -140,13 +146,16 @@ export function InlineDeckMatchupEditor({
           <Textarea
             className="min-h-[160px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
             id={techsNeededId}
-            onBlur={() => saveMatchup(matchupState)}
-            onChange={(event) =>
-              setMatchupState((current) => ({
-                ...current,
+            onBlur={() => saveMatchup(matchupStateRef.current)}
+            onChange={(event) => {
+              const nextState = {
+                ...matchupStateRef.current,
                 techsNeeded: event.target.value
-              }))
-            }
+              };
+              matchupStateRef.current = nextState;
+              setMatchupState(nextState);
+              scheduleSave(nextState);
+            }}
             placeholder="List the cards or tech pieces you need for this matchup."
             value={matchupState.techsNeeded}
           />
@@ -163,13 +172,16 @@ export function InlineDeckMatchupEditor({
         <Textarea
           className="min-h-[240px] w-full rounded-2xl border border-border bg-muted px-5 py-4 text-sm leading-7 text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
           id={matchupPlanId}
-          onBlur={() => saveMatchup(matchupState)}
-          onChange={(event) =>
-            setMatchupState((current) => ({
-              ...current,
+          onBlur={() => saveMatchup(matchupStateRef.current)}
+          onChange={(event) => {
+            const nextState = {
+              ...matchupStateRef.current,
               matchupPlan: event.target.value
-            }))
-          }
+            };
+            matchupStateRef.current = nextState;
+            setMatchupState(nextState);
+            scheduleSave(nextState);
+          }}
           placeholder="Capture your matchup plan, sequencing notes, and testing takeaways."
           value={matchupState.matchupPlan}
         />

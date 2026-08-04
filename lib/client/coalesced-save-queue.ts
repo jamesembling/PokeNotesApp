@@ -12,6 +12,75 @@ export type CoalescedSaveQueue<T> = {
   reset(value: T): void;
 };
 
+type TimerHandle = ReturnType<typeof setTimeout>;
+
+type BoundedSaveSchedulerOptions<T> = {
+  delayMs: number;
+  maxWaitMs: number;
+  request: (value: T) => void;
+  setTimer?: (callback: () => void, delayMs: number) => TimerHandle;
+  clearTimer?: (handle: TimerHandle) => void;
+};
+
+export type BoundedSaveScheduler<T> = {
+  cancel(): void;
+  flush(): void;
+  schedule(value: T): void;
+};
+
+export function createBoundedSaveScheduler<T>({
+  clearTimer = clearTimeout,
+  delayMs,
+  maxWaitMs,
+  request,
+  setTimer = setTimeout
+}: BoundedSaveSchedulerOptions<T>): BoundedSaveScheduler<T> {
+  let latestValue: T | null = null;
+  let maxWaitTimer: TimerHandle | null = null;
+  let trailingTimer: TimerHandle | null = null;
+
+  function clearTimers() {
+    if (trailingTimer !== null) {
+      clearTimer(trailingTimer);
+      trailingTimer = null;
+    }
+    if (maxWaitTimer !== null) {
+      clearTimer(maxWaitTimer);
+      maxWaitTimer = null;
+    }
+  }
+
+  function flush() {
+    clearTimers();
+    if (latestValue === null) {
+      return;
+    }
+
+    const value = latestValue;
+    latestValue = null;
+    request(value);
+  }
+
+  return {
+    cancel() {
+      clearTimers();
+      latestValue = null;
+    },
+    flush,
+    schedule(value) {
+      latestValue = value;
+      if (trailingTimer !== null) {
+        clearTimer(trailingTimer);
+      }
+      trailingTimer = setTimer(flush, delayMs);
+
+      if (maxWaitTimer === null) {
+        maxWaitTimer = setTimer(flush, maxWaitMs);
+      }
+    }
+  };
+}
+
 export function createCoalescedSaveQueue<T>({
   initialValue,
   isEqual,

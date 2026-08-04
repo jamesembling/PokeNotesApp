@@ -17,8 +17,10 @@ const NOW = "2026-07-11T18:00:00.000Z";
 type HarnessOptions = {
   commitError?: unknown;
   commitResult?: DeckAggregateCommitResult;
+  commitResults?: DeckAggregateCommitResult[];
   lists?: unknown[] | null;
   matchups?: unknown[] | null;
+  matchupReads?: Array<unknown[] | null>;
 };
 
 function createHarness(options: HarnessOptions = {}) {
@@ -26,6 +28,8 @@ function createHarness(options: HarnessOptions = {}) {
   const commitPlans: DeckAggregateCommitPlan[] = [];
   let defaultFormatCalls = 0;
   let idCalls = 0;
+  let commitCalls = 0;
+  let matchupReadCalls = 0;
 
   const adapter: DeckAggregateWriteAdapter = {
     async commit(plan) {
@@ -34,14 +38,20 @@ function createHarness(options: HarnessOptions = {}) {
       if (options.commitError) {
         throw options.commitError;
       }
-      return options.commitResult ?? "committed";
+      const result = options.commitResults?.[commitCalls] ?? options.commitResult ?? "committed";
+      commitCalls += 1;
+      return result;
     },
     async loadLegacyChildren({ deckId, kind }) {
       calls.push(`load:${kind}:${deckId}`);
       if (kind === "deck-list") {
         return options.lists === undefined ? [] : options.lists;
       }
-      return options.matchups === undefined ? [] : options.matchups;
+      const result =
+        options.matchupReads?.[matchupReadCalls] ??
+        (options.matchups === undefined ? [] : options.matchups);
+      matchupReadCalls += 1;
+      return result;
     }
   };
 
@@ -580,6 +590,64 @@ test("matchup header autosaves preserve the newest planning fields", async () =>
     matchupFavor: "Slightly Favoured",
     updatedAt: NOW
   });
+});
+
+test("a concurrent header commit is reloaded before retrying a planning-field patch", async () => {
+  const initial = {
+    id: "matchup-existing",
+    deckName: "Charizard",
+    deckPokemon: ["charizard", "pidgeot"],
+    format: "SVI-ASC",
+    goPreference: "First",
+    matchupFavor: "Even",
+    idealBench: "Old bench",
+    techsNeeded: "Old tech",
+    matchupPlan: "Old plan",
+    updatedAt: "2026-07-10T12:00:00.000Z"
+  };
+  const afterHeaderCommit = {
+    ...initial,
+    format: "Expanded",
+    goPreference: "Second",
+    matchupFavor: "Slightly Favoured",
+    updatedAt: "2026-07-11T17:59:00.000Z"
+  };
+  const harness = createHarness({
+    commitResults: ["conflict", "committed"],
+    matchupReads: [[initial], [afterHeaderCommit]]
+  });
+
+  await harness.writer.updateMatchupFields({
+    deckId: "deck-2",
+    fields: {
+      idealBench: "New bench",
+      matchupPlan: "New plan",
+      techsNeeded: "New tech"
+    },
+    matchupId: "matchup-existing"
+  });
+
+  assert.deepEqual(harness.calls, [
+    "load:matchup:deck-2",
+    "commit:matchup:update",
+    "load:matchup:deck-2",
+    "commit:matchup:update"
+  ]);
+  assert.equal(
+    harness.commitPlans[0]?.expectedChildUpdatedAt,
+    "2026-07-10T12:00:00.000Z"
+  );
+  assert.deepEqual(harness.commitPlans[1]?.child, {
+    ...afterHeaderCommit,
+    idealBench: "New bench",
+    matchupPlan: "New plan",
+    techsNeeded: "New tech",
+    updatedAt: NOW
+  });
+  assert.equal(
+    harness.commitPlans[1]?.expectedChildUpdatedAt,
+    "2026-07-11T17:59:00.000Z"
+  );
 });
 
 test("matchup field validation retains its existing order and messages", async (t) => {
