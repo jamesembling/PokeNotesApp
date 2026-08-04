@@ -43,8 +43,17 @@ function canonicalProjectRef(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function canonicalHostname(url) {
+  return url.hostname.toLowerCase().replace(/\.+$/, "");
+}
+
+function canonicalOrigin(url) {
+  const port = url.port ? `:${url.port}` : "";
+  return `${url.protocol}//${canonicalHostname(url)}${port}`;
+}
+
 function projectRefFromUrl(url) {
-  const match = url.hostname.toLowerCase().match(/^([a-z0-9-]+)\.supabase\.co$/);
+  const match = canonicalHostname(url).match(/^([a-z0-9-]+)\.supabase\.co$/);
   return match?.[1] || "";
 }
 
@@ -65,8 +74,8 @@ if (!databaseUrl || !anonKey || !serviceRoleKey) {
 
 const targetUrl = parseHttpUrl(databaseUrl, "POKENOTES_TOURNAMENT_DB_TEST_URL");
 
-const loopbackHosts = new Set(["127.0.0.1", "::1", "localhost"]);
-const isRemoteTarget = !loopbackHosts.has(targetUrl.hostname.toLowerCase());
+const loopbackHosts = new Set(["127.0.0.1", "::1", "[::1]", "localhost"]);
+const isRemoteTarget = !loopbackHosts.has(canonicalHostname(targetUrl));
 
 if (isRemoteTarget) {
   if (!productionDatabaseUrl && !productionProjectRef) {
@@ -91,7 +100,7 @@ if (isRemoteTarget) {
 
   if (productionUrl) {
     comparedCanonicalIdentity = true;
-    if (targetUrl.origin === productionUrl.origin) {
+    if (canonicalOrigin(targetUrl) === canonicalOrigin(productionUrl)) {
       throw new Error("Refusing to run tournament database integration tests against production origin.");
     }
   }

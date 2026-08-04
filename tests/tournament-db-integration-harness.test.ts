@@ -63,6 +63,22 @@ test("remote safety behavior canonicalizes equivalent production URL spellings",
   assert.match(result.stderr, /production origin|production project ref/);
 });
 
+test("remote safety behavior strips terminal DNS root dots before production comparison", () => {
+  for (const targetUrl of [
+    "https://production-ref.supabase.co./",
+    "https://production-ref.supabase.co.../"
+  ]) {
+    const result = runSafetyCheck({
+      POKENOTES_PRODUCTION_SUPABASE_URL: "https://production-ref.supabase.co",
+      POKENOTES_TOURNAMENT_DB_TEST_CONFIRM: "NON_PRODUCTION_DISPOSABLE",
+      POKENOTES_TOURNAMENT_DB_TEST_URL: targetUrl
+    });
+
+    assert.notEqual(result.status, 0, targetUrl);
+    assert.match(result.stderr, /production origin|production project ref/, targetUrl);
+  }
+});
+
 test("remote safety behavior cannot override a URL-derived production project ref", () => {
   const result = runSafetyCheck({
     POKENOTES_PRODUCTION_SUPABASE_PROJECT_REF: "production-ref",

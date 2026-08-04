@@ -21,7 +21,7 @@ POKENOTES_PRODUCTION_SUPABASE_URL=https://<production-project-ref>.supabase.co
 # Or: POKENOTES_PRODUCTION_SUPABASE_PROJECT_REF=<production-project-ref>
 ```
 
-Every remote run requires both the exact disposable confirmation and a canonical production identity. The harness compares parsed URL origins and normalized Supabase project references, so case, trailing slashes, default ports, or URL paths cannot disguise the production target. If only a production project reference is supplied for a custom-domain target, also provide `POKENOTES_TOURNAMENT_DB_TEST_PROJECT_REF` so the identities are comparable. Missing or incomparable production identity fails closed.
+Every remote run requires both the exact disposable confirmation and a canonical production identity. The harness compares parsed URL origins and normalized Supabase project references, so case, trailing slashes, terminal DNS root dots, default ports, or URL paths cannot disguise the production target. If only a production project reference is supplied for a custom-domain target, also provide `POKENOTES_TOURNAMENT_DB_TEST_PROJECT_REF` so the identities are comparable. Missing or incomparable production identity fails closed.
 
 The ordinary `test:tournament-db` command reports a clear skip when credentials are absent; the release command uses `test:tournament-db:required`, which fails instead. `--safety-check-only` validates target selection and exits before Supabase clients are created; it exists for behavioral safety tests, not database acceptance.
 
