@@ -125,7 +125,7 @@ test("rollout keeps direct DELETE until the RPC application cutover is verified"
 test("every rehearsal runs from the independently reviewed safe harness checkout", () => {
   assert.match(
     rolloutRunbook,
-    /Every rehearsal must\s+run from the safe-harness checkout pinned to\s+`50baf0bb133b58093b9385ea42ff99a9282ab665` or a later independently reviewed\s+head/
+    /Every rehearsal must\s+run from the safe-harness checkout pinned to\s+`e663da31f9a77407ab74d6c74038eccb7936dba1` or a later independently reviewed\s+head/
   );
   assert.match(
     rolloutRunbook,
@@ -133,7 +133,7 @@ test("every rehearsal runs from the independently reviewed safe harness checkout
   );
   assert.match(
     rolloutRunbook,
-    /staged\s+commits are used only to dry-run and apply their named migration/
+    /staged\s+trees are used only to dry-run and apply their phase-specific migration set/
   );
   assert.match(
     rolloutRunbook,
@@ -147,6 +147,62 @@ test("every rehearsal runs from the independently reviewed safe harness checkout
     rolloutRunbook,
     /Apply only that hardening migration[\s\S]*?Return to the safe-harness checkout[\s\S]*?From the safe-harness checkout, run the staging rehearsal with\s+`POKENOTES_SHARE_REHEARSAL_PHASE=post-hardening`/
   );
+});
+
+test("integrated rollout keeps hardening out of the phase-one migration set", () => {
+  for (const migrationName of [
+    "20260804210800_make_log_share_lifecycle_atomic.sql",
+    "20260804210932_make_tournament_writes_atomic.sql"
+  ]) {
+    assert.match(rolloutRunbook, new RegExp(migrationName.replace(".", "\\.")));
+  }
+
+  assert.match(
+    rolloutRunbook,
+    /explicitly excludes\s+`20260804212228_harden_log_share_writes_after_atomic_cutover\.sql`/
+  );
+  assert.match(
+    rolloutRunbook,
+    /Never apply a generic `supabase db push --include-all` from the final integrated\s+head before the application cutover/
+  );
+  assert.match(
+    rolloutRunbook,
+    /`supabase db push --linked --dry-run --include-all` as an inspection only[\s\S]*?exactly these two pending migrations/
+  );
+  assert.match(
+    rolloutRunbook,
+    /20260804224244_add_coin_toss_losses_to_stats\.sql` is unrelated work:[\s\S]*?stop and reconcile the linked migration state/
+  );
+  assert.match(
+    rolloutRunbook,
+    /final `schema\.sql` snapshot\s+is post-hardening and must not be applied as a shortcut/
+  );
+  assert.match(
+    rolloutRunbook,
+    /phase-two migration checkout[\s\S]*?must report exactly one pending migration:[\s\S]*?20260804212228_harden_log_share_writes_after_atomic_cutover\.sql/
+  );
+  assert.match(
+    rolloutRunbook,
+    /disposable rehearsal must prove this exact apply mechanism[\s\S]*?If the no-include push refuses[\s\S]*?stop and design and review an exact-file, ledger-safe\s+mechanism/
+  );
+  assert.match(
+    rolloutRunbook,
+    /Do not relax the allowlist or fall back to a generic\s+`--include-all` push/
+  );
+});
+
+test("emergency app rollback restores only owner-scoped DELETE and re-hardens", () => {
+  assert.match(rolloutRunbook, /## Emergency application rollback after hardening/);
+  assert.match(rolloutRunbook, /emergency-only compatibility escape hatch/);
+  assert.match(rolloutRunbook, /grant delete on table public\.log_shares to authenticated;/);
+  assert.match(rolloutRunbook, /relation\.relrowsecurity/);
+  assert.match(rolloutRunbook, /policy\.policyname = 'Owners can delete log shares'/);
+  assert.match(rolloutRunbook, /'authenticated' = any\(policy\.roles\)/);
+  assert.match(rolloutRunbook, /cross-tenant direct\s+deletion must affect zero rows/i);
+  assert.match(rolloutRunbook, /revoke delete on table public\.log_shares from authenticated;/);
+  assert.match(rolloutRunbook, /safe harness in `post-hardening` mode/);
+  assert.match(rolloutRunbook, /temporary grant must be removed before promoting the new RPC application/);
+  assert.match(rolloutRunbook, /An emergency grant\s+that remains active is a blocker/);
 });
 
 test("fresh installs finish with the post-cutover direct-write boundary", () => {
@@ -181,6 +237,8 @@ test("staging rehearsal requires two authenticated clients and covers concurrenc
   assert.match(harness, /Promise\.all/);
   assert.match(harness, /Cross-tenant create did not fail closed/);
   assert.match(harness, /Cross-tenant revoke affected another owner/);
+  assert.match(harness, /Cross-tenant direct DELETE bypassed owner RLS/);
+  assert.match(harness, /Cross-tenant direct DELETE retained table access after hardening/);
   assert.match(harness, /Injected response loss after database response/);
   assert.match(harness, /Retry after response loss created a hidden duplicate/);
   assert.match(harness, /phase === "rpc-cutover"/);

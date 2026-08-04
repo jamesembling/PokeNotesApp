@@ -159,6 +159,22 @@ try {
   assert(crossTenantCreate.error?.message === "LOG_SHARE_SOURCE_NOT_FOUND", "Cross-tenant create did not fail closed");
   const crossTenantRevoke = await clientB.rpc("revoke_log_share", { p_share_id: userAShareId });
   assert(!crossTenantRevoke.error && crossTenantRevoke.data === false, "Cross-tenant revoke affected another owner");
+  const crossTenantDirectDelete = await clientB
+    .from("log_shares")
+    .delete()
+    .eq("id", userAShareId)
+    .select("id");
+  if (phase === "rpc-cutover") {
+    assert(
+      !crossTenantDirectDelete.error && crossTenantDirectDelete.data?.length === 0,
+      "Cross-tenant direct DELETE bypassed owner RLS"
+    );
+  } else {
+    assert(
+      crossTenantDirectDelete.error?.code === "42501",
+      "Cross-tenant direct DELETE retained table access after hardening"
+    );
+  }
 
   const userBCreate = await createShare(clientB, userBLogId, "Tenant B control");
   collectShareTokens([userBCreate], observedUserBTokens, "tenant B create");
