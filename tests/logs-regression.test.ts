@@ -496,6 +496,70 @@ test("getLogsWindow uses the full keyset cursor across same-date logs", async (t
   assert.match(cursorFilter, /id\.lt\.log-c/);
 });
 
+test("getLogsWindow reanchors a sparse date cursor and exhausts Load More", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries } = createFakeSupabaseClient((ctx) => {
+    const windowEndDate = ctx.operations.find((op) => op.method === "lte")?.args[1];
+
+    return {
+      data:
+        windowEndDate === "2026-07-17"
+          ? [
+              buildLogRow({
+                id: "log-april-21",
+                date: "2026-04-21",
+                imported_at: "2026-04-21T10:00:00.000Z"
+              }),
+              buildLogRow({
+                id: "log-april-20",
+                date: "2026-04-20",
+                imported_at: "2026-04-20T10:00:00.000Z"
+              }),
+              buildLogRow({
+                id: "log-april-14",
+                date: "2026-04-14",
+                imported_at: "2026-04-14T10:00:00.000Z"
+              })
+            ]
+          : [
+              buildLogRow({
+                id: "log-april-14",
+                date: "2026-04-14",
+                imported_at: "2026-04-14T10:00:00.000Z"
+              })
+            ],
+      error: null
+    };
+  });
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const sparsePage = await getLogsWindow("tenant-user", { cursor: "2026-07-17" });
+  const finalPage = await getLogsWindow("tenant-user", {
+    cursor: sparsePage.nextWindowEndDate
+  });
+
+  assert.deepEqual(sparsePage.logs.map((log) => log.id), ["log-april-21", "log-april-20"]);
+  assert.equal(sparsePage.windowEndDate, "2026-04-21");
+  assert.equal(sparsePage.windowStartDate, "2026-04-15");
+  assert.equal(sparsePage.hasMore, true);
+  assert.equal(sparsePage.nextWindowEndDate, "2026-04-14");
+
+  assert.deepEqual(finalPage.logs.map((log) => log.id), ["log-april-14"]);
+  assert.equal(finalPage.hasMore, false);
+  assert.equal(finalPage.nextWindowEndDate, "");
+  assert.deepEqual(
+    queries.map((query) => query.operations.find((op) => op.method === "eq")?.args),
+    [
+      ["user_id", "tenant-user"],
+      ["user_id", "tenant-user"]
+    ]
+  );
+});
+
 test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const { client, queries, rpcCalls } = createFakeSupabaseClient(
