@@ -935,6 +935,30 @@ export type Database = {
         }
         Returns: string
       }
+      commit_tournament_deck_list: {
+        Args: {
+          p_archetype_id: string
+          p_deck_id: string
+          p_deck_list: Json
+          p_deck_name: string
+          p_deck_sprites: Json
+          p_format: string
+          p_tournament_id: string
+          p_updated_at: string
+        }
+        Returns: string
+      }
+      create_tournament_round: {
+        Args: {
+          p_notes: string
+          p_opponent_deck_name: string
+          p_opponent_deck_sprites: Json
+          p_result: string
+          p_round_id: string
+          p_tournament_id: string
+        }
+        Returns: number
+      }
       create_log_share: {
         Args: { p_payload: Json; p_source_log_id: string; p_token: string }
         Returns: {

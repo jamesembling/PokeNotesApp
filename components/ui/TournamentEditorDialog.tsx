@@ -24,6 +24,7 @@ import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS
 } from "@/lib/tournaments/options";
+import { isTournamentMultiDay } from "@/lib/tournaments/date-range";
 import type { PokemonOption, Tournament } from "@/types/index";
 
 export type TournamentEditorDialogProps = {
@@ -142,7 +143,9 @@ export function TournamentEditorDialog({
   const [placement, setPlacement] = useState<string>(tournament?.placement ?? "");
   const [format, setFormat] = useState<string>(tournament?.format || defaultFormat);
   const [dateTo, setDateTo] = useState(tournament?.dateTo ?? "");
-  const [isMultiDay, setIsMultiDay] = useState(Boolean(tournament?.dateTo));
+  const [isMultiDay, setIsMultiDay] = useState(
+    isTournamentMultiDay(tournament?.dateFrom, tournament?.dateTo)
+  );
   const [selectedSprites, setSelectedSprites] = useState<string[]>(tournament?.deckSprites.slice(0, 2) ?? []);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [deleteState, setDeleteState] = useState<DeleteState>("idle");
@@ -201,7 +204,7 @@ export function TournamentEditorDialog({
     setPlacement(tournament?.placement ?? "");
     setFormat(tournament?.format || defaultFormat);
     setDateTo(tournament?.dateTo ?? "");
-    setIsMultiDay(Boolean(tournament?.dateTo));
+    setIsMultiDay(isTournamentMultiDay(tournament?.dateFrom, tournament?.dateTo));
     setSelectedSprites(tournament?.deckSprites.slice(0, 2) ?? []);
     setSaveState("idle");
     setDeleteState("idle");

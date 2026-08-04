@@ -220,6 +220,9 @@ test("tournament round deletion is scoped to its parent tournament", () => {
 
 test("tournament round saves verify ownership of the parent tournament", () => {
   const tournamentsActions = source("app/(app)/tournaments/actions.ts");
+  const tournamentMigration = source(
+    "supabase/migrations/20260804210932_make_tournament_writes_atomic.sql"
+  );
   const saveRoundStart = tournamentsActions.indexOf(
     "export async function saveTournamentRoundAction"
   );
@@ -230,10 +233,11 @@ test("tournament round saves verify ownership of the parent tournament", () => {
   const saveRoundBlock = tournamentsActions.slice(saveRoundStart, deleteRoundStart);
 
   assert.ok(saveRoundStart >= 0 && deleteRoundStart > saveRoundStart);
-  assert.match(saveRoundBlock, /\.from\("tournaments"\)/);
-  assert.match(saveRoundBlock, /\.eq\("id", tournamentId\)/);
+  assert.match(saveRoundBlock, /rpc\("create_tournament_round"/);
+  assert.match(saveRoundBlock, /\.eq\("tournament_id", tournamentId\)/);
   assert.match(saveRoundBlock, /\.eq\("user_id", user\.id\)/);
-  assert.match(saveRoundBlock, /if \(!ownedTournament\)/);
+  assert.match(tournamentMigration, /tournament\.user_id = v_user_id[\s\S]*for update;/);
+  assert.match(tournamentMigration, /security invoker/);
 });
 
 test("edit-log bulk dock keeps compact selects accessible", () => {

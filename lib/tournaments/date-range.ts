@@ -11,9 +11,21 @@ export function parseIsoDate(value: FormDataEntryValue | null, fallback?: string
 
 export function normalizeTournamentDateRange(formData: FormData) {
   const dateFrom = parseIsoDate(formData.get("dateFrom"));
+  const dateTo = parseIsoDate(formData.get("dateTo"), dateFrom);
+
+  if (dateTo < dateFrom) {
+    throw userFacingActionError("Choose an end date on or after the start date.");
+  }
 
   return {
     dateFrom,
-    dateTo: parseIsoDate(formData.get("dateTo"), dateFrom)
+    dateTo
   };
+}
+
+export function isTournamentMultiDay(dateFrom?: string, dateTo?: string) {
+  const normalizedDateFrom = String(dateFrom || "").trim();
+  const normalizedDateTo = String(dateTo || "").trim();
+
+  return Boolean(normalizedDateFrom && normalizedDateTo && normalizedDateFrom !== normalizedDateTo);
 }
