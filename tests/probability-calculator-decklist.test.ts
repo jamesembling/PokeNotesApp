@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeDecklist } from "@/lib/probability-calculator/index";
+import {
+  analyzeDecklist,
+  probabilityCardInPlayableOpeningHand
+} from "@/lib/probability-calculator/index";
 
 const DECKLIST_WITH_TOTAL_FOOTER = `Pokémon: 12
 2 Munkidori SFA 72
@@ -59,3 +62,77 @@ test("ignores a Total Cards footer when validating a decklist", () => {
   });
   assert.deepEqual(analysis.warnings, []);
 });
+
+test("Basic-card setup probability conditions exactly on a playable opening hand", () => {
+  const probability = probabilityCardInPlayableOpeningHand(4, 4, 8);
+  const expected = probabilityAtLeastOne(4) / probabilityAtLeastOne(8);
+
+  assert.ok(Math.abs(probability - expected) < 1e-12);
+});
+
+test("evolution-card setup probability uses the joint target-and-Basic event", () => {
+  const probability = probabilityCardInPlayableOpeningHand(4, 0, 8);
+  const expected =
+    (1 - probabilityNone(4) - probabilityNone(8) + probabilityNone(12)) /
+    probabilityAtLeastOne(8);
+
+  assert.ok(Math.abs(probability - expected) < 1e-12);
+  assert.ok(probability < probabilityAtLeastOne(4) / probabilityAtLeastOne(8));
+});
+
+test("setup probability is zero when the deck contains no Basic Pokemon", () => {
+  assert.equal(probabilityCardInPlayableOpeningHand(4, 0, 0), 0);
+});
+
+test("deck analysis applies playable-hand conditioning to Basic and evolution rows", () => {
+  const analysis = analyzeDecklist(`Pokemon: 12
+4 Pikachu MEW 25
+4 Charmander MEW 4
+4 Raichu MEW 26
+
+Trainer: 48
+48 Judge SVI 176`);
+  const pikachu = analysis.setupRows.find((row) => row.card.name === "Pikachu");
+  const raichu = analysis.setupRows.find((row) => row.card.name === "Raichu");
+
+  assert.equal(analysis.basicPokemonCount, 8);
+  assert.ok(pikachu);
+  assert.ok(raichu);
+  assert.ok(
+    Math.abs(
+      pikachu.inStartingSeven - probabilityCardInPlayableOpeningHand(4, 4, 8)
+    ) < 1e-12
+  );
+  assert.ok(
+    Math.abs(
+      raichu.inStartingSeven - probabilityCardInPlayableOpeningHand(4, 0, 8)
+    ) < 1e-12
+  );
+});
+
+test("deck analysis reports zero setup probability for evolution-only Pokemon", () => {
+  const analysis = analyzeDecklist(`Pokemon: 4
+4 Raichu MEW 26
+
+Trainer: 56
+56 Judge SVI 176`);
+
+  assert.equal(analysis.basicPokemonCount, 0);
+  assert.equal(analysis.setupRows[0]?.inStartingSeven, 0);
+});
+
+function choose(n: number, k: number) {
+  let result = 1;
+  for (let index = 1; index <= k; index += 1) {
+    result *= (n - k + index) / index;
+  }
+  return result;
+}
+
+function probabilityNone(copies: number) {
+  return choose(60 - copies, 7) / choose(60, 7);
+}
+
+function probabilityAtLeastOne(copies: number) {
+  return 1 - probabilityNone(copies);
+}

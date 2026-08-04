@@ -105,12 +105,15 @@ export function analyzeDecklist(input: string): CalculatorAnalysis {
 
   const pokemonCards = aggregateCardsByName(cards.filter((card) => card.category === "Pokemon"));
   const setupRows = pokemonCards.map((card) => {
-    const rawInStartingSeven = 1 - hypergeom(DECK_SIZE, card.count, OPENING_HAND, 0);
     const rawOnlyStarter = probabilityOnlyStarterCount(card.basicCount, basicPokemonCount);
 
     return {
       card,
-      inStartingSeven: conditionalOnNonMulligan(rawInStartingSeven, mulliganProbability),
+      inStartingSeven: probabilityCardInPlayableOpeningHand(
+        card.count,
+        card.basicCount,
+        basicPokemonCount
+      ),
       onlyStarter: conditionalOnNonMulligan(rawOnlyStarter, mulliganProbability)
     };
   });
@@ -505,6 +508,42 @@ function conditionalOnNonMulligan(unconditionalProb: number, mulliganProb: numbe
   }
 
   return clamp01(unconditionalProb / nonMulligan);
+}
+
+export function probabilityCardInPlayableOpeningHand(
+  targetCopies: number,
+  targetBasicCopies: number,
+  basicPokemonCount: number
+) {
+  if (
+    ![targetCopies, targetBasicCopies, basicPokemonCount].every(Number.isInteger) ||
+    targetCopies < 0 ||
+    targetBasicCopies < 0 ||
+    basicPokemonCount <= 0 ||
+    targetBasicCopies > targetCopies ||
+    targetBasicCopies > basicPokemonCount
+  ) {
+    return 0;
+  }
+
+  const targetOrBasicCopies = targetCopies + basicPokemonCount - targetBasicCopies;
+  if (targetOrBasicCopies > DECK_SIZE) {
+    return 0;
+  }
+
+  const noTarget = hypergeom(DECK_SIZE, targetCopies, OPENING_HAND, 0);
+  const mulliganProbability = hypergeom(DECK_SIZE, basicPokemonCount, OPENING_HAND, 0);
+  const noTargetOrBasic = hypergeom(
+    DECK_SIZE,
+    targetOrBasicCopies,
+    OPENING_HAND,
+    0
+  );
+  const targetAndPlayable = clamp01(
+    1 - noTarget - mulliganProbability + noTargetOrBasic
+  );
+
+  return conditionalOnNonMulligan(targetAndPlayable, mulliganProbability);
 }
 
 function probabilityOnlyStarterCount(targetBasicCopies: number, basicPokemonCount: number) {

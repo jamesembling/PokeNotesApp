@@ -9,6 +9,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { SectionTitle } from "@/components/ui/Typography";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
+import { compareDamageTotals } from "@/lib/stats/damage-comparison";
 import { summarizeDamageTimelineWindow } from "@/lib/stats/damage-timeline";
 import type {
   ArchetypeMatchupStats,
@@ -53,29 +54,33 @@ function getOverviewWinRate(overview: LogStatsOverview) {
 }
 
 function getDamageComparison(overview: LogStatsOverview) {
-  const advantage = overview.attackDamage - overview.opponentAttackDamage;
-  const absoluteAdvantage = Math.abs(advantage);
-  const percentage =
-    absoluteAdvantage > 0 && Math.max(overview.attackDamage, overview.opponentAttackDamage) > 0
-      ? Math.round((absoluteAdvantage / Math.max(overview.attackDamage, overview.opponentAttackDamage)) * 100)
-      : 0;
+  const comparison = compareDamageTotals(
+    overview.attackDamage,
+    overview.opponentAttackDamage
+  );
 
-  if (advantage > 0) {
+  if (comparison.leader === "self") {
     return {
-      detail: `You dealt ${percentage}% more damage than opponents`,
+      detail:
+        comparison.percentage === null
+          ? "You dealt damage while opponents dealt none"
+          : `You dealt ${comparison.percentage}% more damage than opponents`,
       label: "Damage Advantage",
-      percentage,
-      value: `+${formatMetric(advantage)}`,
+      percentage: comparison.percentage,
+      value: `+${formatMetric(comparison.difference)}`,
       valueClassName: "text-win-strong"
     };
   }
 
-  if (advantage < 0) {
+  if (comparison.leader === "opponent") {
     return {
-      detail: `Opponents dealt ${percentage}% more damage than you`,
+      detail:
+        comparison.percentage === null
+          ? "Opponents dealt damage while you dealt none"
+          : `Opponents dealt ${comparison.percentage}% more damage than you`,
       label: "Damage Deficit",
-      percentage,
-      value: `-${formatMetric(absoluteAdvantage)}`,
+      percentage: comparison.percentage,
+      value: `-${formatMetric(comparison.difference)}`,
       valueClassName: "text-loss-strong"
     };
   }
@@ -83,7 +88,7 @@ function getDamageComparison(overview: LogStatsOverview) {
   return {
     detail: "You dealt the same damage as opponents",
     label: "Damage Advantage",
-    percentage,
+    percentage: comparison.percentage,
     value: formatMetric(0),
     valueClassName: "text-card-foreground"
   };
