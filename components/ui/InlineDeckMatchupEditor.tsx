@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useTransition } from "react";
-import { updateDeckMatchupAction } from "@/app/(app)/decks/actions";
+import { useEffect, useId, useRef, useState } from "react";
+import { updateDeckMatchupPlanAction } from "@/app/(app)/decks/actions";
+import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Field, FieldLabel } from "@/components/shadcn/field";
 import { Textarea } from "@/components/shadcn/textarea";
@@ -12,8 +13,6 @@ type InlineDeckMatchupEditorProps = {
   deckId: string;
   matchup: DeckMatchup;
 };
-
-type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type MatchupState = {
   idealBench: string;
@@ -36,82 +35,42 @@ export function InlineDeckMatchupEditor({
   const idealBenchId = useId();
   const techsNeededId = useId();
   const matchupPlanId = useId();
-  const [isPending, startTransition] = useTransition();
   const [matchupState, setMatchupState] = useState(() => buildMatchupState(matchup));
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const [errorMessage, setErrorMessage] = useState("");
-  const savedStateRef = useRef<MatchupState | null>(null);
-  if (savedStateRef.current === null) {
-    savedStateRef.current = buildMatchupState(matchup);
-  }
-  const saveStatusTimerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const nextState = buildMatchupState(matchup);
-    setMatchupState(nextState);
-    savedStateRef.current = nextState;
-    setSaveStatus("idle");
-    setErrorMessage("");
-  }, [matchup]);
-
-  useEffect(() => {
-    return () => {
-      if (saveStatusTimerRef.current !== null) {
-        window.clearTimeout(saveStatusTimerRef.current);
-      }
-    };
-  }, []);
-
-  function queueSavedReset() {
-    if (saveStatusTimerRef.current !== null) {
-      window.clearTimeout(saveStatusTimerRef.current);
-    }
-
-    saveStatusTimerRef.current = window.setTimeout(() => {
-      setSaveStatus("idle");
-    }, 1400);
-  }
-
-  function saveMatchup(nextState: MatchupState) {
-    if (JSON.stringify(nextState) === JSON.stringify(savedStateRef.current)) {
-      return;
-    }
-
-    setSaveStatus("saving");
-    setErrorMessage("");
-
-    startTransition(async () => {
+  const recordKeyRef = useRef(`${deckId}:${matchup.id}`);
+  const {
+    errorMessage,
+    queueSave: saveMatchup,
+    resetSavedValue,
+    saveStatus
+  } = useCoalescedAutosave({
+    fallbackError: "Could not save matchup changes.",
+    initialValue: buildMatchupState(matchup),
+    async save(nextState) {
       const formData = new FormData();
       formData.set("deckId", deckId);
       formData.set("matchupId", matchup.id);
-      formData.set("deckName", matchup.deckName);
-      formData.set("format", matchup.format);
-      formData.set("goPreference", matchup.goPreference);
-      formData.set("matchupFavor", matchup.matchupFavor);
       formData.set("idealBench", nextState.idealBench);
       formData.set("techsNeeded", nextState.techsNeeded);
       formData.set("matchupPlan", nextState.matchupPlan);
-      matchup.deckPokemon.forEach((sprite) => {
-        formData.append("matchupSprites", sprite);
-      });
 
-      try {
-        await updateDeckMatchupAction(formData);
-        savedStateRef.current = nextState;
-        setMatchupState(savedStateRef.current);
-        setSaveStatus("saved");
-        queueSavedReset();
-      } catch (error) {
-        setSaveStatus("error");
-        setErrorMessage(
-          error instanceof Error ? error.message : "Could not save matchup changes."
-        );
-      }
-    });
-  }
+      await updateDeckMatchupPlanAction(formData);
+    }
+  });
+
+  useEffect(() => {
+    const nextRecordKey = `${deckId}:${matchup.id}`;
+    if (recordKeyRef.current === nextRecordKey) {
+      return;
+    }
+
+    recordKeyRef.current = nextRecordKey;
+    const nextState = buildMatchupState(matchup);
+    setMatchupState(nextState);
+    resetSavedValue(nextState);
+  }, [deckId, matchup, resetSavedValue]);
 
   const statusLabel =
-    saveStatus === "saving" || isPending
+    saveStatus === "saving"
       ? "Saving..."
       : saveStatus === "saved"
         ? "Saved"

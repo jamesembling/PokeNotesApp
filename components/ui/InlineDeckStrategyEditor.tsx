@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { updateDeckStrategyAction } from "@/app/(app)/decks/actions";
+import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Field, FieldLabel } from "@/components/shadcn/field";
 import { Tabs } from "@/components/shadcn/tabs";
@@ -24,8 +25,6 @@ type InlineDeckStrategy = Pick<
 type InlineDeckStrategyEditorProps = {
   deck: InlineDeckStrategy;
 };
-
-type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type StrategyState = {
   coreStrategy: string;
@@ -52,51 +51,17 @@ export function InlineDeckStrategyEditor({
   const setupGoalsId = useId();
   const resourcePlanId = useId();
   const generalNotesId = useId();
-  const [isPending, startTransition] = useTransition();
   const [strategy, setStrategy] = useState(() => buildStrategyState(deck));
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const [errorMessage, setErrorMessage] = useState("");
-  const savedStateRef = useRef<StrategyState | null>(null);
-  if (savedStateRef.current === null) {
-    savedStateRef.current = buildStrategyState(deck);
-  }
-  const saveStatusTimerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const nextState = buildStrategyState(deck);
-    setStrategy(nextState);
-    savedStateRef.current = nextState;
-    setSaveStatus("idle");
-    setErrorMessage("");
-  }, [deck]);
-
-  useEffect(() => {
-    return () => {
-      if (saveStatusTimerRef.current !== null) {
-        window.clearTimeout(saveStatusTimerRef.current);
-      }
-    };
-  }, []);
-
-  function queueSavedReset() {
-    if (saveStatusTimerRef.current !== null) {
-      window.clearTimeout(saveStatusTimerRef.current);
-    }
-
-    saveStatusTimerRef.current = window.setTimeout(() => {
-      setSaveStatus("idle");
-    }, 1400);
-  }
-
-  function saveStrategy(nextState: StrategyState) {
-    if (JSON.stringify(nextState) === JSON.stringify(savedStateRef.current)) {
-      return;
-    }
-
-    setSaveStatus("saving");
-    setErrorMessage("");
-
-    startTransition(async () => {
+  const deckIdRef = useRef(deck.id);
+  const {
+    errorMessage,
+    queueSave: saveStrategy,
+    resetSavedValue,
+    saveStatus
+  } = useCoalescedAutosave({
+    fallbackError: "Could not save strategy changes.",
+    initialValue: buildStrategyState(deck),
+    async save(nextState) {
       const formData = new FormData();
       formData.set("deckId", deck.id);
       formData.set("goPreference", nextState.goPreference);
@@ -105,19 +70,20 @@ export function InlineDeckStrategyEditor({
       formData.set("resourcePlan", nextState.resourcePlan);
       formData.set("generalNotes", nextState.generalNotes);
 
-      try {
-        await updateDeckStrategyAction(formData);
-        savedStateRef.current = nextState;
-        setSaveStatus("saved");
-        queueSavedReset();
-      } catch (error) {
-        setSaveStatus("error");
-        setErrorMessage(
-          error instanceof Error ? error.message : "Could not save strategy changes."
-        );
-      }
-    });
-  }
+      await updateDeckStrategyAction(formData);
+    }
+  });
+
+  useEffect(() => {
+    if (deckIdRef.current === deck.id) {
+      return;
+    }
+
+    deckIdRef.current = deck.id;
+    const nextState = buildStrategyState(deck);
+    setStrategy(nextState);
+    resetSavedValue(nextState);
+  }, [deck, resetSavedValue]);
 
   function updateField<K extends keyof StrategyState>(key: K, value: StrategyState[K]) {
     setStrategy((current) => ({
@@ -127,7 +93,7 @@ export function InlineDeckStrategyEditor({
   }
 
   const statusLabel =
-    saveStatus === "saving" || isPending
+    saveStatus === "saving"
       ? "Saving..."
       : saveStatus === "saved"
         ? "Saved"

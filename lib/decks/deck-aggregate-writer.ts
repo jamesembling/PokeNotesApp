@@ -42,6 +42,24 @@ export type UpdateDeckMatchupCommand = CreateDeckMatchupCommand & {
   matchupPlan: string;
 };
 
+export type UpdateDeckMatchupFieldsCommand = {
+  deckId: string;
+  fields: Partial<
+    Pick<
+      UpdateDeckMatchupCommand,
+      | "deckName"
+      | "format"
+      | "goPreference"
+      | "idealBench"
+      | "matchupFavor"
+      | "matchupPlan"
+      | "matchupSprites"
+      | "techsNeeded"
+    >
+  >;
+  matchupId: string;
+};
+
 export type DeckAggregateCommitResult =
   | "child-not-found"
   | "committed"
@@ -72,6 +90,9 @@ export type DeckAggregateWriter = {
   saveList(command: SaveDeckListCommand): Promise<{ deckId: string; deckListId: string }>;
   updateMatchup(
     command: UpdateDeckMatchupCommand
+  ): Promise<{ deckId: string; matchupId: string }>;
+  updateMatchupFields(
+    command: UpdateDeckMatchupFieldsCommand
   ): Promise<{ deckId: string; matchupId: string }>;
 };
 
@@ -305,7 +326,7 @@ export function createDeckAggregateWriter(
     };
   }
 
-  async function updateMatchup(command: UpdateDeckMatchupCommand) {
+  async function updateMatchupFields(command: UpdateDeckMatchupFieldsCommand) {
     const deckId = String(command.deckId || "").trim();
     const matchupId = String(command.matchupId || "").trim();
 
@@ -334,18 +355,35 @@ export function createDeckAggregateWriter(
       throw userFacingActionError("That matchup could not be found.");
     }
 
-    const { deckName, format, matchupSprites } = getRequiredMatchupFields(command);
+    const currentFields = currentMatchup as Record<string, unknown>;
+    const mergedCommand: UpdateDeckMatchupCommand = {
+      deckId,
+      matchupId,
+      deckName: String(command.fields.deckName ?? currentFields.deckName ?? ""),
+      format: String(command.fields.format ?? currentFields.format ?? ""),
+      goPreference: (command.fields.goPreference ?? currentFields.goPreference ?? "") as GoPreference,
+      idealBench: String(command.fields.idealBench ?? currentFields.idealBench ?? ""),
+      matchupFavor: String(command.fields.matchupFavor ?? currentFields.matchupFavor ?? ""),
+      matchupPlan: String(command.fields.matchupPlan ?? currentFields.matchupPlan ?? ""),
+      matchupSprites:
+        command.fields.matchupSprites ??
+        (Array.isArray(currentFields.deckPokemon)
+          ? currentFields.deckPokemon.map((value) => String(value || ""))
+          : []),
+      techsNeeded: String(command.fields.techsNeeded ?? currentFields.techsNeeded ?? "")
+    };
+    const { deckName, format, matchupSprites } = getRequiredMatchupFields(mergedCommand);
     const timestamp = now();
     const nextMatchup = {
-      ...(currentMatchup as Record<string, unknown>),
+      ...currentFields,
       deckName,
       deckPokemon: matchupSprites,
       format,
-      goPreference: command.goPreference,
-      matchupFavor: String(command.matchupFavor || "").trim(),
-      idealBench: String(command.idealBench || ""),
-      techsNeeded: String(command.techsNeeded || ""),
-      matchupPlan: String(command.matchupPlan || ""),
+      goPreference: mergedCommand.goPreference,
+      matchupFavor: String(mergedCommand.matchupFavor || "").trim(),
+      idealBench: String(mergedCommand.idealBench || ""),
+      techsNeeded: String(mergedCommand.techsNeeded || ""),
+      matchupPlan: String(mergedCommand.matchupPlan || ""),
       updatedAt: timestamp
     };
     const commitResult = await adapter.commit({
@@ -381,10 +419,28 @@ export function createDeckAggregateWriter(
     };
   }
 
+  async function updateMatchup(command: UpdateDeckMatchupCommand) {
+    return updateMatchupFields({
+      deckId: command.deckId,
+      fields: {
+        deckName: command.deckName,
+        format: command.format,
+        goPreference: command.goPreference,
+        idealBench: command.idealBench,
+        matchupFavor: command.matchupFavor,
+        matchupPlan: command.matchupPlan,
+        matchupSprites: command.matchupSprites,
+        techsNeeded: command.techsNeeded
+      },
+      matchupId: command.matchupId
+    });
+  }
+
   return {
     createMatchup,
     saveList,
-    updateMatchup
+    updateMatchup,
+    updateMatchupFields
   };
 }
 

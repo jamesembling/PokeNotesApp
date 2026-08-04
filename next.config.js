@@ -31,6 +31,7 @@ const nextConfig = {
   outputFileTracingRoot: __dirname,
   poweredByHeader: false,
   images: {
+    qualities: [75, 80, 95],
     remotePatterns: [
       {
         protocol: "https",

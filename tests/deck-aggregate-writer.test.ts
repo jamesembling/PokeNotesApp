@@ -512,6 +512,76 @@ test("matchup updates retain creation time and untrimmed strategy fields", async
   });
 });
 
+test("matchup plan autosaves preserve concurrently managed header fields", async () => {
+  const existing = {
+    id: "matchup-existing",
+    deckName: "Charizard",
+    deckPokemon: ["charizard", "pidgeot"],
+    format: "SVI-ASC",
+    goPreference: "First",
+    matchupFavor: "Even",
+    idealBench: "Old bench",
+    techsNeeded: "Old tech",
+    matchupPlan: "Old plan",
+    createdAt: "2025-03-04T05:06:07.000Z",
+    updatedAt: "2026-07-10T12:00:00.000Z"
+  };
+  const harness = createHarness({ matchups: [existing] });
+
+  await harness.writer.updateMatchupFields({
+    deckId: "deck-2",
+    fields: {
+      idealBench: "New bench",
+      matchupPlan: "New plan",
+      techsNeeded: "New tech"
+    },
+    matchupId: "matchup-existing"
+  });
+
+  assert.deepEqual(harness.commitPlans[0]?.child, {
+    ...existing,
+    idealBench: "New bench",
+    matchupPlan: "New plan",
+    techsNeeded: "New tech",
+    updatedAt: NOW
+  });
+});
+
+test("matchup header autosaves preserve the newest planning fields", async () => {
+  const existing = {
+    id: "matchup-existing",
+    deckName: "Charizard",
+    deckPokemon: ["charizard", "pidgeot"],
+    format: "SVI-ASC",
+    goPreference: "First",
+    matchupFavor: "Even",
+    idealBench: "Newest bench",
+    techsNeeded: "Newest tech",
+    matchupPlan: "Newest plan",
+    createdAt: "2025-03-04T05:06:07.000Z",
+    updatedAt: "2026-07-10T12:00:00.000Z"
+  };
+  const harness = createHarness({ matchups: [existing] });
+
+  await harness.writer.updateMatchupFields({
+    deckId: "deck-2",
+    fields: {
+      format: "Expanded",
+      goPreference: "Second",
+      matchupFavor: "Slightly Favoured"
+    },
+    matchupId: "matchup-existing"
+  });
+
+  assert.deepEqual(harness.commitPlans[0]?.child, {
+    ...existing,
+    format: "Expanded",
+    goPreference: "Second",
+    matchupFavor: "Slightly Favoured",
+    updatedAt: NOW
+  });
+});
+
 test("matchup field validation retains its existing order and messages", async (t) => {
   const cases: Array<{
     command: CreateDeckMatchupCommand;
