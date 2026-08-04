@@ -170,9 +170,9 @@ revoke all on function public.revoke_log_share(text)
 grant execute on function public.revoke_log_share(text)
   to authenticated, service_role;
 
--- Owners retain read access for the private share-management UI. All writes
--- now pass through the authenticated, owner-scoped RPCs above.
-revoke insert, update, delete on table public.log_shares from authenticated;
+-- Rollout compatibility: the currently deployed application still revokes
+-- shares with an owner-scoped direct DELETE. Keep its existing table grant
+-- until the RPC application cutover is deployed and verified.
 
 notify pgrst, 'reload schema';
 

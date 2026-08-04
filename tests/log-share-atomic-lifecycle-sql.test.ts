@@ -27,14 +27,13 @@ function atomicLifecycleBlock(source: string) {
   return source.slice(start, end + endMarker.length);
 }
 
-test("migration and fresh-install schema keep the same atomic lifecycle contract", () => {
+test("RPC migration and fresh-install schema keep the same atomic lifecycle contract", () => {
   for (const source of [atomicLifecycleBlock(schema), atomicLifecycleBlock(migration)]) {
     assert.match(source, /create or replace function public\.create_log_share/);
     assert.match(source, /create or replace function public\.revoke_log_share/);
     assert.match(source, /pg_advisory_xact_lock/g);
     assert.match(source, /duplicate_share\.id <> active_share\.id/);
     assert.match(source, /owned_share\.source_log_id = target_source_log_id/);
-    assert.match(source, /revoke insert, update, delete on table public\.log_shares/);
   }
 });
 
@@ -83,18 +82,29 @@ test("revocation shares the lock key and removes all owner-scoped duplicates", (
   assert.match(revokeFunction, /if target_source_log_id is null/);
 });
 
-test("only authenticated callers can mutate shares and direct writes are removed", () => {
+test("only authenticated callers can use the atomic mutation RPCs", () => {
   assert.match(migration, /security definer\s+set search_path = ''/g);
   assert.match(migration, /current_user_id uuid := auth\.uid\(\)/g);
   assert.match(
     migration,
     /revoke all on function public\.revoke_log_share\(text\)[\s\S]*?from public, anon, authenticated, service_role;[\s\S]*?grant execute[\s\S]*?to authenticated, service_role;/
   );
-  assert.match(
+  assert.doesNotMatch(migration, /grant execute[\s\S]*?revoke_log_share[\s\S]*?to anon/);
+});
+
+test("rollout keeps direct DELETE until the RPC application cutover is verified", () => {
+  assert.doesNotMatch(
     migration,
+    /revoke\s+(?:insert, update, delete|delete).*public\.log_shares.*authenticated/i
+  );
+  assert.match(migration, /Keep its existing table grant/);
+});
+
+test("fresh installs finish with the post-cutover direct-write boundary", () => {
+  assert.match(
+    atomicLifecycleBlock(schema),
     /revoke insert, update, delete on table public\.log_shares from authenticated;/
   );
-  assert.doesNotMatch(migration, /grant execute[\s\S]*?revoke_log_share[\s\S]*?to anon/);
 });
 
 test("linked schema health checks atomicity, access and direct-write removal", () => {
@@ -107,4 +117,24 @@ test("linked schema health checks atomicity, access and direct-write removal", (
   ]) {
     assert.match(schemaHealth, new RegExp(contract));
   }
+});
+
+test("staging rehearsal requires two authenticated clients and covers concurrency, access and response loss", () => {
+  const harness = readFileSync(
+    new URL("../scripts/rehearse-log-share-atomicity.mjs", import.meta.url),
+    "utf8"
+  );
+  const packageJson = readFileSync(new URL("../package.json", import.meta.url), "utf8");
+
+  assert.match(harness, /POKENOTES_SHARE_REHEARSAL_CONFIRM/);
+  assert.match(harness, /Rehearsal URL does not match the confirmed staging host/);
+  assert.match(harness, /clientASecondSession/);
+  assert.match(harness, /Promise\.all/);
+  assert.match(harness, /Cross-tenant create did not fail closed/);
+  assert.match(harness, /Cross-tenant revoke affected another owner/);
+  assert.match(harness, /Injected response loss after database response/);
+  assert.match(harness, /Retry after response loss created a hidden duplicate/);
+  assert.match(harness, /phase === "rpc-cutover"/);
+  assert.match(harness, /Direct DELETE still succeeds after hardening/);
+  assert.match(packageJson, /"verify:log-share-atomicity"/);
 });
