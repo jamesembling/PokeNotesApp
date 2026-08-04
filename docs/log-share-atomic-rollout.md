@@ -37,25 +37,41 @@ only after this verification succeeds.
 
 ## Ordered release
 
-1. From the compatibility commit—the parent of the post-cutover hardening
-   commit—dry-run the linked migration push. It must contain only
+Use two separate clean checkouts for the entire release. Every rehearsal must
+run from the safe-harness checkout pinned to
+`50baf0bb133b58093b9385ea42ff99a9282ab665` or a later independently reviewed
+head that contains the fail-closed cleanup harness. Never run a rehearsal or
+deploy the application from either staged migration checkout. Those staged
+commits are used only to dry-run and apply their named migration; return to the
+safe-harness checkout before every rehearsal and after every migration or
+application deployment boundary.
+
+1. In a dedicated migration checkout pinned to compatibility commit
+   `3b9d6503542ef9bc3c533a783f580dbfe51dd57e`, dry-run the linked migration
+   push. It must contain only
    `20260804210800_make_log_share_lifecycle_atomic.sql`.
 2. Apply that migration and verify the new RPC definitions and grants. Direct
    authenticated `DELETE` must still be available to the previously deployed
-   application.
-3. Run the staging rehearsal with `POKENOTES_SHARE_REHEARSAL_PHASE=rpc-cutover`.
-4. Deploy the application commit that calls `revoke_log_share`. Verify the
-   authenticated create/reuse/revoke journey and public invalidation in the
-   supported browser surface.
-5. Re-run the `rpc-cutover` staging rehearsal against the deployed application
+   application. Do not use this checkout for any later step.
+3. Return to the separate safe-harness checkout at the latest independently
+   reviewed head. Run the staging rehearsal with
+   `POKENOTES_SHARE_REHEARSAL_PHASE=rpc-cutover`.
+4. Deploy the application from that same latest independently reviewed safe
+   head. Verify the authenticated create/reuse/revoke journey and public
+   invalidation in the supported browser surface.
+5. After the application deployment, return to the safe-harness checkout and
+   re-run the `rpc-cutover` staging rehearsal against the deployed application
    database boundary. Stop on any failure; do not apply hardening.
-6. From the post-cutover hardening commit, dry-run the linked migration push. It
-   must contain only
+6. In a separate migration checkout pinned to post-cutover hardening commit
+   `c220d94e07938453b91f117977c5c6e801f95f54` or a later reviewed commit that
+   leaves the hardening migration unchanged, dry-run the linked migration push.
+   It must contain only
    `20260804212228_harden_log_share_writes_after_atomic_cutover.sql`.
-7. Apply the hardening migration. Run linked migration alignment and full schema
-   health; direct authenticated DML must now be absent while both authenticated
-   RPCs and token-only public reads retain their intended grants.
-8. Run the staging rehearsal with
+7. Apply only that hardening migration, then leave the migration checkout.
+   Return to the safe-harness checkout and run linked migration alignment and
+   full schema health; direct authenticated DML must now be absent while both
+   authenticated RPCs and token-only public reads retain their intended grants.
+8. From the safe-harness checkout, run the staging rehearsal with
    `POKENOTES_SHARE_REHEARSAL_PHASE=post-hardening`, then repeat the authenticated
    production create/reuse/revoke/public-invalidation smoke with disposable
    data.

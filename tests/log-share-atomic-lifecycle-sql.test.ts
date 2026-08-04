@@ -21,6 +21,10 @@ const schemaHealth = readFileSync(
   new URL("../scripts/schema-health.mjs", import.meta.url),
   "utf8"
 );
+const rolloutRunbook = readFileSync(
+  new URL("../docs/log-share-atomic-rollout.md", import.meta.url),
+  "utf8"
+);
 
 function atomicLifecycleBlock(source: string) {
   const start = source.lastIndexOf(
@@ -116,6 +120,33 @@ test("rollout keeps direct DELETE until the RPC application cutover is verified"
   const rpcVersion = "20260804210800";
   const hardeningVersion = "20260804212228";
   assert.ok(rpcVersion < hardeningVersion, "hardening migration must sort after RPC installation");
+});
+
+test("every rehearsal runs from the independently reviewed safe harness checkout", () => {
+  assert.match(
+    rolloutRunbook,
+    /Every rehearsal must\s+run from the safe-harness checkout pinned to\s+`50baf0bb133b58093b9385ea42ff99a9282ab665` or a later independently reviewed\s+head/
+  );
+  assert.match(
+    rolloutRunbook,
+    /Never run a rehearsal or\s+deploy the application from either staged migration checkout/
+  );
+  assert.match(
+    rolloutRunbook,
+    /staged\s+commits are used only to dry-run and apply their named migration/
+  );
+  assert.match(
+    rolloutRunbook,
+    /Return to the separate safe-harness checkout at the latest independently\s+reviewed head[\s\S]*?POKENOTES_SHARE_REHEARSAL_PHASE=rpc-cutover/
+  );
+  assert.match(
+    rolloutRunbook,
+    /After the application deployment, return to the safe-harness checkout and\s+re-run the `rpc-cutover` staging rehearsal/
+  );
+  assert.match(
+    rolloutRunbook,
+    /Apply only that hardening migration[\s\S]*?Return to the safe-harness checkout[\s\S]*?From the safe-harness checkout, run the staging rehearsal with\s+`POKENOTES_SHARE_REHEARSAL_PHASE=post-hardening`/
+  );
 });
 
 test("fresh installs finish with the post-cutover direct-write boundary", () => {
