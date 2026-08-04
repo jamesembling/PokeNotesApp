@@ -545,7 +545,8 @@ test("matchup plan autosaves preserve concurrently managed header fields", async
       matchupPlan: "New plan",
       techsNeeded: "New tech"
     },
-    matchupId: "matchup-existing"
+    matchupId: "matchup-existing",
+    scope: "plan"
   });
 
   assert.deepEqual(harness.commitPlans[0]?.child, {
@@ -580,7 +581,8 @@ test("matchup header autosaves preserve the newest planning fields", async () =>
       goPreference: "Second",
       matchupFavor: "Slightly Favoured"
     },
-    matchupId: "matchup-existing"
+    matchupId: "matchup-existing",
+    scope: "header"
   });
 
   assert.deepEqual(harness.commitPlans[0]?.child, {
@@ -624,7 +626,8 @@ test("a concurrent header commit is reloaded before retrying a planning-field pa
       matchupPlan: "New plan",
       techsNeeded: "New tech"
     },
-    matchupId: "matchup-existing"
+    matchupId: "matchup-existing",
+    scope: "plan"
   });
 
   assert.deepEqual(harness.calls, [
@@ -647,6 +650,49 @@ test("a concurrent header commit is reloaded before retrying a planning-field pa
   assert.equal(
     harness.commitPlans[1]?.expectedChildUpdatedAt,
     "2026-07-11T17:59:00.000Z"
+  );
+});
+
+test("a full matchup edit fails closed instead of reapplying stale fields after conflict", async () => {
+  const initial = {
+    id: "matchup-existing",
+    deckName: "Charizard",
+    deckPokemon: ["charizard", "pidgeot"],
+    format: "SVI-ASC",
+    goPreference: "First",
+    matchupFavor: "Even",
+    idealBench: "Old bench",
+    techsNeeded: "Old tech",
+    matchupPlan: "Old plan",
+    updatedAt: "2026-07-10T12:00:00.000Z"
+  };
+  const concurrentEdit = {
+    ...initial,
+    matchupPlan: "Concurrent plan that must not be overwritten",
+    updatedAt: "2026-07-11T17:59:00.000Z"
+  };
+  const harness = createHarness({
+    commitResults: ["conflict", "committed"],
+    matchupReads: [[initial], [concurrentEdit]]
+  });
+
+  await assert.rejects(
+    harness.writer.updateMatchup(
+      updateMatchupCommand({
+        matchupPlan: "Stale full-dialog plan"
+      })
+    ),
+    { message: "This matchup changed in another tab. Refresh the page and try again." }
+  );
+
+  assert.deepEqual(harness.calls, [
+    "load:matchup:deck-2",
+    "commit:matchup:update"
+  ]);
+  assert.equal(harness.commitPlans.length, 1);
+  assert.equal(
+    harness.commitPlans[0]?.expectedChildUpdatedAt,
+    "2026-07-10T12:00:00.000Z"
   );
 });
 

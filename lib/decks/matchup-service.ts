@@ -73,7 +73,8 @@ export async function updateDeckMatchupPlan(args: {
       matchupPlan: String(formData.get("matchupPlan") || ""),
       techsNeeded: String(formData.get("techsNeeded") || "")
     },
-    matchupId: String(formData.get("matchupId") || "")
+    matchupId: String(formData.get("matchupId") || ""),
+    scope: "plan"
   });
 }
 
@@ -91,6 +92,7 @@ export async function updateDeckMatchupHeader(args: {
       goPreference: parseGoPreference(formData.get("goPreference")),
       matchupFavor: String(formData.get("matchupFavor") || "")
     },
-    matchupId: String(formData.get("matchupId") || "")
+    matchupId: String(formData.get("matchupId") || ""),
+    scope: "header"
   });
 }

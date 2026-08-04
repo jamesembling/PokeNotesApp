@@ -42,23 +42,42 @@ export type UpdateDeckMatchupCommand = CreateDeckMatchupCommand & {
   matchupPlan: string;
 };
 
-export type UpdateDeckMatchupFieldsCommand = {
+type UpdateDeckMatchupFields = Partial<
+  Pick<
+    UpdateDeckMatchupCommand,
+    | "deckName"
+    | "format"
+    | "goPreference"
+    | "idealBench"
+    | "matchupFavor"
+    | "matchupPlan"
+    | "matchupSprites"
+    | "techsNeeded"
+  >
+>;
+
+type UpdateDeckMatchupFieldsCommandBase = {
   deckId: string;
-  fields: Partial<
-    Pick<
-      UpdateDeckMatchupCommand,
-      | "deckName"
-      | "format"
-      | "goPreference"
-      | "idealBench"
-      | "matchupFavor"
-      | "matchupPlan"
-      | "matchupSprites"
-      | "techsNeeded"
-    >
-  >;
   matchupId: string;
 };
+
+export type UpdateDeckMatchupFieldsCommand = UpdateDeckMatchupFieldsCommandBase &
+  (
+    | {
+      fields: Pick<
+        UpdateDeckMatchupCommand,
+        "idealBench" | "matchupPlan" | "techsNeeded"
+      >;
+      scope: "plan";
+    }
+    | {
+      fields: Pick<
+        UpdateDeckMatchupCommand,
+        "format" | "goPreference" | "matchupFavor"
+      >;
+      scope: "header";
+    }
+  );
 
 export type DeckAggregateCommitResult =
   | "child-not-found"
@@ -326,7 +345,10 @@ export function createDeckAggregateWriter(
     };
   }
 
-  async function updateMatchupFields(command: UpdateDeckMatchupFieldsCommand) {
+  async function commitMatchupUpdate(
+    command: UpdateDeckMatchupFieldsCommandBase & { fields: UpdateDeckMatchupFields },
+    conflictPolicy: "fail-closed" | "retry-safe-field-patch"
+  ) {
     const deckId = String(command.deckId || "").trim();
     const matchupId = String(command.matchupId || "").trim();
 
@@ -334,7 +356,8 @@ export function createDeckAggregateWriter(
       throw userFacingActionError("Deck and matchup ids are required.");
     }
 
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    const maxAttempts = conflictPolicy === "retry-safe-field-patch" ? 2 : 1;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const existingMatchups = await adapter.loadLegacyChildren({
         deckId,
         kind: "matchup"
@@ -407,7 +430,7 @@ export function createDeckAggregateWriter(
       }
 
       if (commitResult === "conflict") {
-        if (attempt === 0) {
+        if (attempt + 1 < maxAttempts) {
           continue;
         }
         throw userFacingActionError(
@@ -424,8 +447,28 @@ export function createDeckAggregateWriter(
     throw new Error("Unreachable matchup update state.");
   }
 
+  async function updateMatchupFields(command: UpdateDeckMatchupFieldsCommand) {
+    const fields = command.scope === "plan"
+      ? {
+          idealBench: command.fields.idealBench,
+          matchupPlan: command.fields.matchupPlan,
+          techsNeeded: command.fields.techsNeeded
+        }
+      : {
+          format: command.fields.format,
+          goPreference: command.fields.goPreference,
+          matchupFavor: command.fields.matchupFavor
+        };
+
+    return commitMatchupUpdate({
+      deckId: command.deckId,
+      fields,
+      matchupId: command.matchupId
+    }, "retry-safe-field-patch");
+  }
+
   async function updateMatchup(command: UpdateDeckMatchupCommand) {
-    return updateMatchupFields({
+    return commitMatchupUpdate({
       deckId: command.deckId,
       fields: {
         deckName: command.deckName,
@@ -438,7 +481,7 @@ export function createDeckAggregateWriter(
         techsNeeded: command.techsNeeded
       },
       matchupId: command.matchupId
-    });
+    }, "fail-closed");
   }
 
   return {
