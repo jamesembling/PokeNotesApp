@@ -3,10 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
+import { deleteOwnedDeck } from "@/lib/decks/delete-service";
 import { parseLines } from "@/lib/decks/deck-list-parse";
 import { saveDeckList } from "@/lib/decks/deck-list-service";
 import {
   createDeckMatchup,
+  updateDeckMatchupHeader,
+  updateDeckMatchupPlan,
   updateDeckMatchup
 } from "@/lib/decks/matchup-service";
 import { getDefaultSyncedSiteFormat } from "@/lib/formats/catalog";
@@ -216,30 +219,9 @@ export async function deleteDeckAction(formData: FormData): Promise<SaveActionRe
       throw userFacingActionError("Deck id is required.");
     }
 
-    const { error: unlinkLogsError } = await supabase
-      .from("logs")
-      .update({
-        linked_deck_id: null,
-        linked_deck_list_id: null
-      })
-      .eq("user_id", user.id)
-      .eq("linked_deck_id", deckId);
-
-    if (unlinkLogsError) {
-      throw unlinkLogsError;
-    }
-
-    const { data: deletedDeck, error: deleteError } = await supabase
-      .from("decks")
-      .delete()
-      .eq("id", deckId)
-      .eq("user_id", user.id)
-      .select("id")
-      .maybeSingle();
-
-    if (deleteError) {
-      throw deleteError;
-    }
+    // The tenant-scoped foreign keys and orphan-link trigger clear linked log
+    // and tournament references inside the same database delete transaction.
+    const deletedDeck = await deleteOwnedDeck({ deckId, supabase, userId: user.id });
 
     assertSingleMutationResult(deletedDeck, "Deck could not be found.");
 
@@ -318,6 +300,64 @@ export async function updateDeckMatchupAction(formData: FormData): Promise<SaveA
       area: "decks",
       deckId,
       fallbackMessage: "We couldn't save that matchup right now.",
+      route: deckId ? `/decks/${deckId}/matchups/${matchupId}` : "/decks"
+    });
+  }
+}
+
+export async function updateDeckMatchupPlanAction(
+  formData: FormData
+): Promise<SaveActionResult> {
+  const deckId = String(formData.get("deckId") || "").trim();
+  const matchupId = String(formData.get("matchupId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
+
+  try {
+    const result = await updateDeckMatchupPlan({ formData, supabase, user });
+
+    revalidateDeckAndLogWorkspace();
+    revalidatePath(`/decks/${result.deckId}`, "page");
+    revalidatePath(`/decks/${result.deckId}/matchups/${result.matchupId}`, "page");
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(`/decks/${result.deckId}/matchups/${result.matchupId}`)
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "updateDeckMatchupPlan",
+      area: "decks",
+      deckId,
+      fallbackMessage: "We couldn't save that matchup plan right now.",
+      route: deckId ? `/decks/${deckId}/matchups/${matchupId}` : "/decks"
+    });
+  }
+}
+
+export async function updateDeckMatchupHeaderAction(
+  formData: FormData
+): Promise<SaveActionResult> {
+  const deckId = String(formData.get("deckId") || "").trim();
+  const matchupId = String(formData.get("matchupId") || "").trim();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
+
+  try {
+    const result = await updateDeckMatchupHeader({ formData, supabase, user });
+
+    revalidateDeckAndLogWorkspace();
+    revalidatePath(`/decks/${result.deckId}`, "page");
+    revalidatePath(`/decks/${result.deckId}/matchups/${result.matchupId}`, "page");
+
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(`/decks/${result.deckId}/matchups/${result.matchupId}`)
+    };
+  } catch (error) {
+    throw resolveActionFailure(error, {
+      action: "updateDeckMatchupHeader",
+      area: "decks",
+      deckId,
+      fallbackMessage: "We couldn't save that matchup preference right now.",
       route: deckId ? `/decks/${deckId}/matchups/${matchupId}` : "/decks"
     });
   }

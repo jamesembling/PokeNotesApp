@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { updateDeckMatchupAction } from "@/app/(app)/decks/actions";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { updateDeckMatchupHeaderAction } from "@/app/(app)/decks/actions";
+import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import type { DeckMatchup, GoPreference, MatchupFavorability } from "@/types/index";
@@ -11,8 +11,6 @@ type InlineDeckMatchupHeaderControlsProps = {
   deckId: string;
   matchup: DeckMatchup;
 };
-
-type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type HeaderState = {
   format: string;
@@ -40,36 +38,43 @@ export function InlineDeckMatchupHeaderControls({
   deckId,
   matchup
 }: InlineDeckMatchupHeaderControlsProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const [headerState, setHeaderState] = useState<HeaderState>(() => buildHeaderState(matchup));
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const [errorMessage, setErrorMessage] = useState("");
-  const savedStateRef = useRef<HeaderState | null>(null);
-  if (savedStateRef.current === null) {
-    savedStateRef.current = buildHeaderState(matchup);
-  }
-  const saveStatusTimerRef = useRef<number | null>(null);
+  const recordKeyRef = useRef(`${deckId}:${matchup.id}`);
+  const {
+    errorMessage,
+    queueSave: saveHeader,
+    resetSavedValue,
+    saveStatus
+  } = useCoalescedAutosave({
+    fallbackError: "Could not save matchup preference.",
+    initialValue: buildHeaderState(matchup),
+    async save(nextState) {
+      const formData = new FormData();
+      formData.set("deckId", deckId);
+      formData.set("matchupId", matchup.id);
+      formData.set("format", String(nextState.format || "").trim() || defaultFormat);
+      formData.set("goPreference", nextState.goPreference);
+      formData.set("matchupFavor", nextState.matchupFavor);
+
+      await updateDeckMatchupHeaderAction(formData);
+    }
+  });
 
   useEffect(() => {
+    const nextRecordKey = `${deckId}:${matchup.id}`;
+    if (recordKeyRef.current === nextRecordKey) {
+      return;
+    }
+
+    recordKeyRef.current = nextRecordKey;
     const nextState = buildHeaderState(matchup);
     setHeaderState(nextState);
-    savedStateRef.current = nextState;
-    setSaveStatus("idle");
-    setErrorMessage("");
-  }, [matchup]);
-
-  useEffect(() => {
-    return () => {
-      if (saveStatusTimerRef.current !== null) {
-        window.clearTimeout(saveStatusTimerRef.current);
-      }
-    };
-  }, []);
+    resetSavedValue(nextState);
+  }, [deckId, matchup, resetSavedValue]);
 
   const statusLabel = useMemo(() => {
-    if (saveStatus === "saving" || isPending) {
+    if (saveStatus === "saving") {
       return "Saving...";
     }
     if (saveStatus === "saved") {
@@ -79,7 +84,7 @@ export function InlineDeckMatchupHeaderControls({
       return "Save failed";
     }
       return "";
-  }, [isPending, saveStatus]);
+  }, [saveStatus]);
 
   const formatOptions = useMemo(() => {
     const normalizedFormat = String(headerState.format || "").trim();
@@ -91,58 +96,6 @@ export function InlineDeckMatchupHeaderControls({
       ? [...siteFormatOptions]
       : [normalizedFormat, ...siteFormatOptions];
   }, [headerState.format, siteFormatOptions]);
-
-  function queueSavedReset() {
-    if (saveStatusTimerRef.current !== null) {
-      window.clearTimeout(saveStatusTimerRef.current);
-    }
-
-    saveStatusTimerRef.current = window.setTimeout(() => {
-      setSaveStatus("idle");
-    }, 1400);
-  }
-
-  function saveHeader(nextState: HeaderState) {
-    if (JSON.stringify(nextState) === JSON.stringify(savedStateRef.current)) {
-      return;
-    }
-
-    setSaveStatus("saving");
-    setErrorMessage("");
-
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("deckId", deckId);
-      formData.set("deckName", matchup.deckName);
-      formData.set("format", String(nextState.format || "").trim() || defaultFormat);
-      formData.set("goPreference", nextState.goPreference);
-      formData.set("matchupFavor", nextState.matchupFavor);
-      formData.set("idealBench", matchup.idealBench);
-      formData.set("techsNeeded", matchup.techsNeeded);
-      formData.set("matchupPlan", matchup.matchupPlan);
-      matchup.deckPokemon.forEach((sprite) => {
-        formData.append("matchupSprites", sprite);
-      });
-
-      try {
-        formData.set("matchupId", matchup.id);
-        await updateDeckMatchupAction(formData);
-        savedStateRef.current = {
-          ...nextState,
-          format: String(nextState.format || "").trim() || defaultFormat
-        };
-        setHeaderState(savedStateRef.current);
-        setSaveStatus("saved");
-        router.refresh();
-        queueSavedReset();
-      } catch (error) {
-        setSaveStatus("error");
-        setErrorMessage(
-          error instanceof Error ? error.message : "Could not save matchup preference."
-        );
-      }
-    });
-  }
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">

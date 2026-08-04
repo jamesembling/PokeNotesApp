@@ -58,3 +58,41 @@ export async function updateDeckMatchup(args: {
     matchupPlan: String(formData.get("matchupPlan") || "")
   });
 }
+
+export async function updateDeckMatchupPlan(args: {
+  formData: FormData;
+  supabase: SupabaseClient;
+  user: AuthenticatedUser;
+}) {
+  const { formData, supabase, user } = args;
+
+  return createWriter({ supabase, user }).updateMatchupFields({
+    deckId: String(formData.get("deckId") || ""),
+    fields: {
+      idealBench: String(formData.get("idealBench") || ""),
+      matchupPlan: String(formData.get("matchupPlan") || ""),
+      techsNeeded: String(formData.get("techsNeeded") || "")
+    },
+    matchupId: String(formData.get("matchupId") || ""),
+    scope: "plan"
+  });
+}
+
+export async function updateDeckMatchupHeader(args: {
+  formData: FormData;
+  supabase: SupabaseClient;
+  user: AuthenticatedUser;
+}) {
+  const { formData, supabase, user } = args;
+
+  return createWriter({ supabase, user }).updateMatchupFields({
+    deckId: String(formData.get("deckId") || ""),
+    fields: {
+      format: String(formData.get("format") || ""),
+      goPreference: parseGoPreference(formData.get("goPreference")),
+      matchupFavor: String(formData.get("matchupFavor") || "")
+    },
+    matchupId: String(formData.get("matchupId") || ""),
+    scope: "header"
+  });
+}

@@ -5,6 +5,7 @@ import { Button } from "@/components/shadcn/button";
 import { AppDialogContent } from "@/components/ui/AppDialog";
 import {
   Dialog,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger
@@ -48,6 +49,9 @@ export function DeckListViewDialog({
       <AppDialogContent className="p-4" size="xl">
         <DialogHeader className="min-w-0 w-full">
           <DialogTitle className="min-w-0 truncate pr-10">{deckListName}</DialogTitle>
+          <DialogDescription className="sr-only">
+            View the parsed cards in {deckListName}. Each card image opens its card page in a new tab.
+          </DialogDescription>
           <div className="w-full">
             <CopyDeckListButton className="flex w-full" text={rawList ?? ""} variant="default" />
           </div>

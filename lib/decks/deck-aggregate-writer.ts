@@ -42,6 +42,43 @@ export type UpdateDeckMatchupCommand = CreateDeckMatchupCommand & {
   matchupPlan: string;
 };
 
+type UpdateDeckMatchupFields = Partial<
+  Pick<
+    UpdateDeckMatchupCommand,
+    | "deckName"
+    | "format"
+    | "goPreference"
+    | "idealBench"
+    | "matchupFavor"
+    | "matchupPlan"
+    | "matchupSprites"
+    | "techsNeeded"
+  >
+>;
+
+type UpdateDeckMatchupFieldsCommandBase = {
+  deckId: string;
+  matchupId: string;
+};
+
+export type UpdateDeckMatchupFieldsCommand = UpdateDeckMatchupFieldsCommandBase &
+  (
+    | {
+      fields: Pick<
+        UpdateDeckMatchupCommand,
+        "idealBench" | "matchupPlan" | "techsNeeded"
+      >;
+      scope: "plan";
+    }
+    | {
+      fields: Pick<
+        UpdateDeckMatchupCommand,
+        "format" | "goPreference" | "matchupFavor"
+      >;
+      scope: "header";
+    }
+  );
+
 export type DeckAggregateCommitResult =
   | "child-not-found"
   | "committed"
@@ -72,6 +109,9 @@ export type DeckAggregateWriter = {
   saveList(command: SaveDeckListCommand): Promise<{ deckId: string; deckListId: string }>;
   updateMatchup(
     command: UpdateDeckMatchupCommand
+  ): Promise<{ deckId: string; matchupId: string }>;
+  updateMatchupFields(
+    command: UpdateDeckMatchupFieldsCommand
   ): Promise<{ deckId: string; matchupId: string }>;
 };
 
@@ -305,7 +345,10 @@ export function createDeckAggregateWriter(
     };
   }
 
-  async function updateMatchup(command: UpdateDeckMatchupCommand) {
+  async function commitMatchupUpdate(
+    command: UpdateDeckMatchupFieldsCommandBase & { fields: UpdateDeckMatchupFields },
+    conflictPolicy: "fail-closed" | "retry-safe-field-patch"
+  ) {
     const deckId = String(command.deckId || "").trim();
     const matchupId = String(command.matchupId || "").trim();
 
@@ -313,78 +356,139 @@ export function createDeckAggregateWriter(
       throw userFacingActionError("Deck and matchup ids are required.");
     }
 
-    const existingMatchups = await adapter.loadLegacyChildren({
-      deckId,
-      kind: "matchup"
-    });
+    const maxAttempts = conflictPolicy === "retry-safe-field-patch" ? 2 : 1;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const existingMatchups = await adapter.loadLegacyChildren({
+        deckId,
+        kind: "matchup"
+      });
 
-    if (!existingMatchups) {
-      throw userFacingActionError("That deck could not be found.");
-    }
-
-    const currentMatchup = existingMatchups.find((entry) => {
-      if (!entry || typeof entry !== "object") {
-        return false;
+      if (!existingMatchups) {
+        throw userFacingActionError("That deck could not be found.");
       }
 
-      return String((entry as { id?: unknown }).id || "") === matchupId;
-    });
+      const currentMatchup = existingMatchups.find((entry) => {
+        if (!entry || typeof entry !== "object") {
+          return false;
+        }
 
-    if (!currentMatchup) {
-      throw userFacingActionError("That matchup could not be found.");
+        return String((entry as { id?: unknown }).id || "") === matchupId;
+      });
+
+      if (!currentMatchup) {
+        throw userFacingActionError("That matchup could not be found.");
+      }
+
+      const currentFields = currentMatchup as Record<string, unknown>;
+      const mergedCommand: UpdateDeckMatchupCommand = {
+        deckId,
+        matchupId,
+        deckName: String(command.fields.deckName ?? currentFields.deckName ?? ""),
+        format: String(command.fields.format ?? currentFields.format ?? ""),
+        goPreference: (command.fields.goPreference ??
+          currentFields.goPreference ??
+          "") as GoPreference,
+        idealBench: String(command.fields.idealBench ?? currentFields.idealBench ?? ""),
+        matchupFavor: String(command.fields.matchupFavor ?? currentFields.matchupFavor ?? ""),
+        matchupPlan: String(command.fields.matchupPlan ?? currentFields.matchupPlan ?? ""),
+        matchupSprites:
+          command.fields.matchupSprites ??
+          (Array.isArray(currentFields.deckPokemon)
+            ? currentFields.deckPokemon.map((value) => String(value || ""))
+            : []),
+        techsNeeded: String(command.fields.techsNeeded ?? currentFields.techsNeeded ?? "")
+      };
+      const { deckName, format, matchupSprites } = getRequiredMatchupFields(mergedCommand);
+      const timestamp = now();
+      const nextMatchup = {
+        ...currentFields,
+        deckName,
+        deckPokemon: matchupSprites,
+        format,
+        goPreference: mergedCommand.goPreference,
+        matchupFavor: String(mergedCommand.matchupFavor || "").trim(),
+        idealBench: String(mergedCommand.idealBench || ""),
+        techsNeeded: String(mergedCommand.techsNeeded || ""),
+        matchupPlan: String(mergedCommand.matchupPlan || ""),
+        updatedAt: timestamp
+      };
+      const commitResult = await adapter.commit({
+        child: nextMatchup,
+        deckId,
+        expectedChildUpdatedAt: getJsonTimestamp(currentFields, "updatedAt", "updated_at"),
+        kind: "matchup",
+        operation: "update",
+        updatedAt: timestamp
+      });
+
+      if (commitResult === "deck-not-found") {
+        throw userFacingActionError("That deck could not be found.");
+      }
+
+      if (commitResult === "child-not-found") {
+        throw userFacingActionError("That matchup could not be found.");
+      }
+
+      if (commitResult === "conflict") {
+        if (attempt + 1 < maxAttempts) {
+          continue;
+        }
+        throw userFacingActionError(
+          "This matchup changed in another tab. Refresh the page and try again."
+        );
+      }
+
+      return {
+        deckId,
+        matchupId
+      };
     }
 
-    const { deckName, format, matchupSprites } = getRequiredMatchupFields(command);
-    const timestamp = now();
-    const nextMatchup = {
-      ...(currentMatchup as Record<string, unknown>),
-      deckName,
-      deckPokemon: matchupSprites,
-      format,
-      goPreference: command.goPreference,
-      matchupFavor: String(command.matchupFavor || "").trim(),
-      idealBench: String(command.idealBench || ""),
-      techsNeeded: String(command.techsNeeded || ""),
-      matchupPlan: String(command.matchupPlan || ""),
-      updatedAt: timestamp
-    };
-    const commitResult = await adapter.commit({
-      child: nextMatchup,
-      deckId,
-      expectedChildUpdatedAt: getJsonTimestamp(
-        currentMatchup as Record<string, unknown>,
-        "updatedAt",
-        "updated_at"
-      ),
-      kind: "matchup",
-      operation: "update",
-      updatedAt: timestamp
-    });
+    throw new Error("Unreachable matchup update state.");
+  }
 
-    if (commitResult === "deck-not-found") {
-      throw userFacingActionError("That deck could not be found.");
-    }
+  async function updateMatchupFields(command: UpdateDeckMatchupFieldsCommand) {
+    const fields = command.scope === "plan"
+      ? {
+          idealBench: command.fields.idealBench,
+          matchupPlan: command.fields.matchupPlan,
+          techsNeeded: command.fields.techsNeeded
+        }
+      : {
+          format: command.fields.format,
+          goPreference: command.fields.goPreference,
+          matchupFavor: command.fields.matchupFavor
+        };
 
-    if (commitResult === "child-not-found") {
-      throw userFacingActionError("That matchup could not be found.");
-    }
+    return commitMatchupUpdate({
+      deckId: command.deckId,
+      fields,
+      matchupId: command.matchupId
+    }, "retry-safe-field-patch");
+  }
 
-    if (commitResult === "conflict") {
-      throw userFacingActionError(
-        "This matchup changed in another tab. Refresh the page and try again."
-      );
-    }
-
-    return {
-      deckId,
-      matchupId
-    };
+  async function updateMatchup(command: UpdateDeckMatchupCommand) {
+    return commitMatchupUpdate({
+      deckId: command.deckId,
+      fields: {
+        deckName: command.deckName,
+        format: command.format,
+        goPreference: command.goPreference,
+        idealBench: command.idealBench,
+        matchupFavor: command.matchupFavor,
+        matchupPlan: command.matchupPlan,
+        matchupSprites: command.matchupSprites,
+        techsNeeded: command.techsNeeded
+      },
+      matchupId: command.matchupId
+    }, "fail-closed");
   }
 
   return {
     createMatchup,
     saveList,
-    updateMatchup
+    updateMatchup,
+    updateMatchupFields
   };
 }
 
