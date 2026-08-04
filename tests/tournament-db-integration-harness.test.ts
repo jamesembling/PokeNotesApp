@@ -120,12 +120,29 @@ test("the tournament database harness supports required mode", () => {
   assert.match(packageJson, /"test:tournament-db:required"/);
 });
 
-test("the real database harness covers rollback, concurrency, tenant isolation, and ACLs", () => {
+test("the real database harness covers success, rollback, ordering, concurrency, isolation, and ACLs", () => {
   const harness = source("scripts/verify-tournament-db-atomicity.mjs");
 
   assert.match(harness, /expectedCommitError/);
   assert.match(harness, /assert\.equal\(await maybeSingle\("decks", "id", faultDeckId\), null\)/);
   assert.match(harness, /assert\.equal\(await maybeSingle\("deck_lists", "id", faultListId\), null\)/);
+  assert.match(harness, /assert\.equal\(successCommitResult, "committed"\)/);
+  assert.match(harness, /assert\.equal\(ownerDecks\.length, 1\)/);
+  assert.match(harness, /assert\.deepEqual\(ownerDeck\.deck_lists\[0\]\.sortedCards, expectedSortedCards\)/);
+  assert.match(harness, /assert\.deepEqual\(relationalList\.sorted_cards, expectedSortedCards\)/);
+  assert.match(harness, /assert\.equal\(relationalList\.sorted_cards_version, 2\)/);
+  assert.match(harness, /assert\.equal\(linkedTournament\.linked_deck_id, successDeckId\)/);
+  assert.match(harness, /assert\.equal\(linkedTournament\.linked_deck_list_id, successListId\)/);
+  assert.match(harness, /assert\.equal\(retryCommitResult, "already-linked"\)/);
+  assert.match(harness, /assert\.equal\(deckCountAfterRetry, 1\)/);
+  assert.match(harness, /assert\.equal\(listCountAfterRetry, 1\)/);
+  assert.match(harness, /Promise\.allSettled\(/);
+  assert.match(harness, /verify tracked tournaments removed/);
+  assert.match(harness, /verify tracked rounds removed/);
+  assert.match(harness, /verify tracked decks removed/);
+  assert.match(harness, /verify tracked deck lists removed/);
+  assert.match(harness, /Tournament database integration and cleanup both failed/);
+  assert.match(harness, /integration suite completed after verified cleanup/);
   assert.match(harness, /Promise\.all\(\[[\s\S]*create_tournament_round/);
   assert.match(harness, /\[1, 2\]/);
   assert.match(harness, /otherSession\.rpc/);

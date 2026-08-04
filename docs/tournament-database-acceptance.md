@@ -2,7 +2,7 @@
 
 Migration `20260804210932_make_tournament_writes_atomic.sql` must pass the real database harness before it is deployed to production.
 
-The harness creates disposable users and records, exercises the RPCs through PostgREST in separate authenticated sessions, and cleans up afterward. It verifies transaction rollback after an injected aggregate failure, concurrent sequential round allocation, cross-tenant isolation, and anonymous/authenticated execute permissions.
+The harness creates disposable users and records, exercises the RPCs through PostgREST in separate authenticated sessions, and cleans up afterward. It verifies a successful atomic deck/list/link commit across the relational and compatibility stores, exact canonical card order and sort version, idempotent retry without duplicate rows, transaction rollback after an injected aggregate failure, concurrent sequential round allocation, cross-tenant isolation, and anonymous/authenticated execute permissions.
 
 Run it against a local Supabase database after migrations are applied:
 
@@ -29,6 +29,6 @@ Required release sequence:
 
 1. Apply all migrations through `20260804210932` to a disposable local or remote integration database.
 2. Set the canonical production identity and, for a remote target, the exact disposable confirmation.
-3. Run `npm run test:tournament-db:required` and retain its PASS output for both RPC ACLs, rollback, concurrency, and tenant isolation.
+3. Run `npm run test:tournament-db:required` and retain its PASS output for successful deck/list/link commit and retry, exact deck ordering in both stores, both RPC ACLs, rollback, concurrency, and tenant isolation.
 4. Independently inspect function ownership, `SECURITY INVOKER`, and execute grants on that target.
 5. Only then deploy the migration to production, verify its schema and ACLs read-only, and deploy the application commit.

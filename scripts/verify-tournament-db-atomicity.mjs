@@ -148,6 +148,7 @@ const password = `${randomUUID()}Aa1!`;
 const userIds = [];
 const recordIds = {
   decks: [],
+  deckLists: [],
   tournaments: []
 };
 
@@ -205,6 +206,18 @@ async function maybeSingle(table, column, value) {
   return data;
 }
 
+async function captureCleanup(cleanupErrors, label, operation) {
+  try {
+    await operation();
+  } catch (error) {
+    cleanupErrors.push(
+      new Error(`${label}: ${error instanceof Error ? error.message : String(error)}`, {
+        cause: error
+      })
+    );
+  }
+}
+
 async function run() {
   const owner = await createTestUser("owner");
   const otherTenant = await createTestUser("other");
@@ -218,6 +231,7 @@ async function run() {
   const faultDeckId = `db-test-deck-fault-${runId}`;
   const faultListId = `db-test-list-fault-${runId}`;
   recordIds.decks.push(faultDeckId);
+  recordIds.deckLists.push(faultListId);
   const timestamp = new Date().toISOString();
   const { error: expectedCommitError } = await ownerSessionOne.rpc(
     "commit_tournament_deck_list",
@@ -255,6 +269,100 @@ async function run() {
   assert.equal(faultTournament.linked_deck_list_id, null);
   console.log("PASS aggregate failure rolls back deck, list, and tournament link");
 
+  const successTournamentId = await createTournament(
+    owner.id,
+    "success",
+    ["charizard", "pidgeot"]
+  );
+  const successDeckId = `db-test-deck-success-${runId}`;
+  const successListId = `db-test-list-success-${runId}`;
+  recordIds.decks.push(successDeckId);
+  recordIds.deckLists.push(successListId);
+  const expectedSortedCards = [
+    { count: 2, name: "Ordered Pokemon", number: "1", set: "TST" },
+    { count: 4, name: "Ordered Trainer", number: "2", set: "TST" }
+  ];
+  const successCommitArgs = {
+    p_archetype_id: "charizard+pidgeot",
+    p_deck_id: successDeckId,
+    p_deck_list: {
+      id: successListId,
+      name: "Ordered tournament list",
+      format: "Standard",
+      rawList: "2 Ordered Pokemon TST 1\n4 Ordered Trainer TST 2",
+      parsedCards: [...expectedSortedCards].reverse(),
+      sortedCards: expectedSortedCards,
+      sortedCardsVersion: 2,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    p_deck_name: "Charizard / Pidgeot",
+    p_deck_sprites: ["charizard", "pidgeot"],
+    p_format: "Standard",
+    p_tournament_id: successTournamentId,
+    p_updated_at: timestamp
+  };
+  const { data: successCommitResult, error: successCommitError } =
+    await ownerSessionOne.rpc("commit_tournament_deck_list", successCommitArgs);
+  assert.ifError(successCommitError);
+  assert.equal(successCommitResult, "committed");
+
+  const { data: ownerDecks, error: ownerDecksError } = await admin
+    .from("decks")
+    .select("id,user_id,deck_lists")
+    .eq("user_id", owner.id);
+  assert.ifError(ownerDecksError);
+  assert.equal(ownerDecks.length, 1);
+  const [ownerDeck] = ownerDecks;
+  assert.equal(ownerDeck.id, successDeckId);
+  assert.equal(ownerDeck.user_id, owner.id);
+  assert.ok(Array.isArray(ownerDeck.deck_lists));
+  assert.equal(ownerDeck.deck_lists.length, 1);
+  assert.equal(ownerDeck.deck_lists[0].id, successListId);
+  assert.deepEqual(ownerDeck.deck_lists[0].sortedCards, expectedSortedCards);
+  assert.equal(ownerDeck.deck_lists[0].sortedCardsVersion, 2);
+
+  const { data: ownerDeckLists, error: ownerDeckListsError } = await admin
+    .from("deck_lists")
+    .select("id,deck_id,user_id,sorted_cards,sorted_cards_version,position")
+    .eq("user_id", owner.id);
+  assert.ifError(ownerDeckListsError);
+  assert.equal(ownerDeckLists.length, 1);
+  const [relationalList] = ownerDeckLists;
+  assert.equal(relationalList.id, successListId);
+  assert.equal(relationalList.deck_id, successDeckId);
+  assert.equal(relationalList.user_id, owner.id);
+  assert.deepEqual(relationalList.sorted_cards, expectedSortedCards);
+  assert.equal(relationalList.sorted_cards_version, 2);
+  assert.equal(relationalList.position, 0);
+
+  const linkedTournament = await maybeSingle("tournaments", "id", successTournamentId);
+  assert.equal(linkedTournament.linked_deck_id, successDeckId);
+  assert.equal(linkedTournament.linked_deck_list_id, successListId);
+
+  const { data: retryCommitResult, error: retryCommitError } =
+    await ownerSessionTwo.rpc("commit_tournament_deck_list", successCommitArgs);
+  assert.ifError(retryCommitError);
+  assert.equal(retryCommitResult, "already-linked");
+  const { count: deckCountAfterRetry, error: deckCountAfterRetryError } = await admin
+    .from("decks")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", owner.id);
+  assert.ifError(deckCountAfterRetryError);
+  assert.equal(deckCountAfterRetry, 1);
+  const { count: listCountAfterRetry, error: listCountAfterRetryError } = await admin
+    .from("deck_lists")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", owner.id);
+  assert.ifError(listCountAfterRetryError);
+  assert.equal(listCountAfterRetry, 1);
+  const deckAfterRetry = await maybeSingle("decks", "id", successDeckId);
+  assert.equal(deckAfterRetry.deck_lists.length, 1);
+  assert.deepEqual(deckAfterRetry.deck_lists[0].sortedCards, expectedSortedCards);
+  console.log(
+    "PASS successful aggregate commit preserves deck ordering and retry idempotence"
+  );
+
   const roundTournamentId = await createTournament(owner.id, "rounds");
   const roundOneId = `db-test-round-a-${runId}`;
   const roundTwoId = `db-test-round-b-${runId}`;
@@ -284,7 +392,9 @@ async function run() {
   console.log("PASS concurrent sessions receive distinct sequential round numbers");
 
   const crossTenantDeckId = `db-test-deck-cross-tenant-${runId}`;
+  const crossTenantListId = `db-test-list-cross-tenant-${runId}`;
   recordIds.decks.push(crossTenantDeckId);
+  recordIds.deckLists.push(crossTenantListId);
   const { data: crossTenantRound, error: crossTenantRoundError } = await otherSession.rpc(
     "create_tournament_round",
     roundArgs(`db-test-round-cross-tenant-${runId}`)
@@ -297,7 +407,7 @@ async function run() {
       p_archetype_id: "charizard",
       p_deck_id: crossTenantDeckId,
       p_deck_list: {
-        id: `db-test-list-cross-tenant-${runId}`,
+        id: crossTenantListId,
         name: "Cross tenant",
         format: "Standard",
         rawList: "1 Test Card TST 1",
@@ -337,13 +447,17 @@ async function run() {
     `${anonRoundExecuteError.code || ""} ${anonRoundExecuteError.message || ""}`,
     /42501|permission denied/i
   );
+  const anonDeckId = `db-test-deck-anon-${runId}`;
+  const anonListId = `db-test-list-anon-${runId}`;
+  recordIds.decks.push(anonDeckId);
+  recordIds.deckLists.push(anonListId);
   const { error: anonDeckListExecuteError } = await anon.rpc(
     "commit_tournament_deck_list",
     {
       p_archetype_id: "charizard",
-      p_deck_id: `db-test-deck-anon-${runId}`,
+      p_deck_id: anonDeckId,
       p_deck_list: {
-        id: `db-test-list-anon-${runId}`,
+        id: anonListId,
         name: "Anonymous",
         rawList: "1 Test Card TST 1",
         parsedCards: [],
@@ -368,27 +482,111 @@ async function run() {
 }
 
 async function cleanup() {
-  if (recordIds.tournaments.length > 0) {
+  const cleanupErrors = [];
+
+  await captureCleanup(cleanupErrors, "delete tracked tournaments", async () => {
+    if (recordIds.tournaments.length === 0) return;
     const { error } = await admin.from("tournaments").delete().in("id", recordIds.tournaments);
     assert.ifError(error);
-  }
+  });
 
-  if (recordIds.decks.length > 0) {
+  await captureCleanup(cleanupErrors, "delete tracked decks", async () => {
+    if (recordIds.decks.length === 0) return;
     const { error } = await admin.from("decks").delete().in("id", recordIds.decks);
     assert.ifError(error);
-  }
+  });
 
-  const userDeletionResults = await Promise.all(
+  const userDeletionResults = await Promise.allSettled(
     userIds.map((userId) => admin.auth.admin.deleteUser(userId))
   );
-  for (const { error } of userDeletionResults) {
+  for (const result of userDeletionResults) {
+    if (result.status === "rejected") {
+      cleanupErrors.push(
+        new Error(
+          `delete test user: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+          { cause: result.reason }
+        )
+      );
+      continue;
+    }
+    if (result.value.error) {
+      cleanupErrors.push(
+        new Error(`delete test user: ${result.value.error.message}`, {
+          cause: result.value.error
+        })
+      );
+    }
+  }
+
+  await captureCleanup(cleanupErrors, "verify tracked tournaments removed", async () => {
+    if (recordIds.tournaments.length === 0) return;
+    const { count, error } = await admin
+      .from("tournaments")
+      .select("id", { count: "exact", head: true })
+      .in("id", recordIds.tournaments);
     assert.ifError(error);
+    assert.equal(count, 0);
+  });
+
+  await captureCleanup(cleanupErrors, "verify tracked rounds removed", async () => {
+    if (recordIds.tournaments.length === 0) return;
+    const { count, error } = await admin
+      .from("tournament_rounds")
+      .select("id", { count: "exact", head: true })
+      .in("tournament_id", recordIds.tournaments);
+    assert.ifError(error);
+    assert.equal(count, 0);
+  });
+
+  await captureCleanup(cleanupErrors, "verify tracked decks removed", async () => {
+    if (recordIds.decks.length === 0) return;
+    const { count, error } = await admin
+      .from("decks")
+      .select("id", { count: "exact", head: true })
+      .in("id", recordIds.decks);
+    assert.ifError(error);
+    assert.equal(count, 0);
+  });
+
+  await captureCleanup(cleanupErrors, "verify tracked deck lists removed", async () => {
+    if (recordIds.deckLists.length === 0) return;
+    const { count, error } = await admin
+      .from("deck_lists")
+      .select("id", { count: "exact", head: true })
+      .in("id", recordIds.deckLists);
+    assert.ifError(error);
+    assert.equal(count, 0);
+  });
+
+  if (cleanupErrors.length > 0) {
+    throw new AggregateError(cleanupErrors, "Tournament database cleanup failed.");
   }
 }
 
+let runError;
 try {
   await run();
-  console.log("PASS tournament database integration suite completed");
-} finally {
-  await cleanup();
+} catch (error) {
+  runError = error;
 }
+
+let cleanupError;
+try {
+  await cleanup();
+} catch (error) {
+  cleanupError = error;
+}
+
+if (runError && cleanupError) {
+  throw new AggregateError(
+    [runError, cleanupError],
+    "Tournament database integration and cleanup both failed."
+  );
+}
+if (runError) {
+  throw runError;
+}
+if (cleanupError) {
+  throw cleanupError;
+}
+console.log("PASS tournament database integration suite completed after verified cleanup");
