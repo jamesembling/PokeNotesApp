@@ -219,6 +219,7 @@ const REQUIRED_FUNCTIONS = [
   "refresh_deck_log_stats",
   "refresh_user_archetype_matchup_stats",
   "refresh_user_log_stats",
+  "revoke_log_share",
   "sync_deck_log_stats_from_log_row",
   "sync_current_profile",
   "sync_user_archetype_matchup_stats_from_log_row",
@@ -395,6 +396,8 @@ const [securityContract = {}] = runSupabaseJson(`
       as anon_cannot_select_log_shares,
     not has_table_privilege('authenticated', 'public.log_shares', 'INSERT')
       as authenticated_cannot_insert_log_shares_directly,
+    not has_table_privilege('authenticated', 'public.log_shares', 'DELETE')
+      as authenticated_cannot_delete_log_shares_directly,
     has_function_privilege('anon', 'public.get_active_log_share(text)', 'EXECUTE')
       as anon_can_use_token_scoped_share_reader,
     has_function_privilege(
@@ -402,6 +405,31 @@ const [securityContract = {}] = runSupabaseJson(`
       'public.create_log_share(text,text,jsonb)',
       'EXECUTE'
     ) as authenticated_can_use_rate_limited_share_creator,
+    has_function_privilege(
+      'authenticated',
+      'public.revoke_log_share(text)',
+      'EXECUTE'
+    ) as authenticated_can_use_atomic_share_revoker,
+    not has_function_privilege('anon', 'public.revoke_log_share(text)', 'EXECUTE')
+      as anon_cannot_revoke_log_shares,
+    coalesce((
+      select position('pg_advisory_xact_lock' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+        and position('owner_user_id = current_user_id' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+        and position('source_log_id = p_source_log_id' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+      from pg_catalog.pg_proc as procedure
+      where procedure.oid = pg_catalog.to_regprocedure(
+        'public.create_log_share(text,text,jsonb)'
+      )
+    ), false) as share_creator_is_owner_source_atomic,
+    coalesce((
+      select position('pg_advisory_xact_lock' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+        and position('owner_user_id = current_user_id' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+        and position('source_log_id = target_source_log_id' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+      from pg_catalog.pg_proc as procedure
+      where procedure.oid = pg_catalog.to_regprocedure(
+        'public.revoke_log_share(text)'
+      )
+    ), false) as share_revoker_is_owner_source_atomic,
     coalesce((
       select position('LOG_SHARE_PAYLOAD_TOO_LARGE' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
         and position('262144' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
