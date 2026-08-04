@@ -61,12 +61,7 @@ function getDamageComparison(overview: LogStatsOverview) {
 
   if (comparison.leader === "self") {
     return {
-      detail:
-        comparison.percentage === null
-          ? "You dealt damage while opponents dealt none"
-          : `You dealt ${comparison.percentage}% more damage than opponents`,
       label: "Damage Advantage",
-      percentage: comparison.percentage,
       value: `+${formatMetric(comparison.difference)}`,
       valueClassName: "text-win-strong"
     };
@@ -74,21 +69,14 @@ function getDamageComparison(overview: LogStatsOverview) {
 
   if (comparison.leader === "opponent") {
     return {
-      detail:
-        comparison.percentage === null
-          ? "Opponents dealt damage while you dealt none"
-          : `Opponents dealt ${comparison.percentage}% more damage than you`,
       label: "Damage Deficit",
-      percentage: comparison.percentage,
       value: `-${formatMetric(comparison.difference)}`,
       valueClassName: "text-loss-strong"
     };
   }
 
   return {
-    detail: "You dealt the same damage as opponents",
     label: "Damage Advantage",
-    percentage: comparison.percentage,
     value: formatMetric(0),
     valueClassName: "text-card-foreground"
   };
@@ -176,11 +164,6 @@ function DamageSplitChart({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Damage Split
           </h3>
-          {isTruncated ? (
-            <p className="text-xs text-muted-foreground">
-              Latest {formatMetric(damageTimeline.length)} games
-            </p>
-          ) : null}
         </div>
         <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
@@ -391,12 +374,10 @@ function getDamageChartGeometry(
 }
 
 function OverviewTile({
-  detail,
   label,
   value,
   valueClassName = "text-card-foreground"
 }: {
-  detail?: string;
   label: string;
   value: string;
   valueClassName?: string;
@@ -411,25 +392,21 @@ function OverviewTile({
       >
         {value}
       </p>
-      {detail ? <p className="mt-2 text-sm font-medium leading-snug text-muted-foreground">{detail}</p> : null}
     </div>
   );
 }
 
 function GameStatRow({
-  detail,
   label,
   value
 }: {
-  detail: string;
   label: string;
   value: string;
 }) {
   return (
     <div className="flex min-h-14 items-center gap-3 border-b border-border py-4 last:border-b-0">
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-card-foreground">{label}</span>
-        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-card-foreground">
+        {label}
       </span>
       <span className="font-mono text-lg font-semibold text-card-foreground">{value}</span>
     </div>
@@ -489,7 +466,6 @@ function StatsOverviewGrid({
             value={formatMetric(overview.opponentAttackDamage)}
           />
           <OverviewTile
-            detail={damageComparison.detail}
             label={damageComparison.label}
             value={damageComparison.value}
             valueClassName={damageComparison.valueClassName}
@@ -512,28 +488,18 @@ function StatsOverviewGrid({
             Game Stats
           </h2>
           <GameStatRow
-            detail="Total prize cards collected"
             label="Prizes taken"
             value={formatMetric(overview.prizesTaken)}
           />
           <GameStatRow
-            detail="Successful coin flips"
-            label="Coin flips won"
-            value={formatMetric(overview.coinFlipsWon)}
+            label="Opening coin toss W/L"
+            value={formatRecord(overview.coinFlipsWon, overview.coinFlipsLost)}
           />
           <GameStatRow
-            detail="Games mulliganed"
             label="Mulligans taken"
             value={formatMetric(overview.mulligansTaken)}
           />
         </div>
-      </div>
-
-      <div className="mx-auto flex w-fit max-w-full border-t border-border px-5 py-3 text-sm text-muted-foreground">
-        <span className="min-w-0">
-          Tracked {formatMetric(overview.trackedDamage)} damage and{" "}
-          {formatMetric(overview.trackedPrizes)} prize cards from imported logs.
-        </span>
       </div>
     </div>
   );

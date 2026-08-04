@@ -6,6 +6,7 @@ create table if not exists public.user_log_stats (
   attack_damage            bigint not null default 0,
   opponent_attack_damage   bigint not null default 0,
   coin_flips_won           bigint not null default 0,
+  coin_flips_lost          bigint not null default 0,
   mulligans_taken          bigint not null default 0,
   prizes_taken             bigint not null default 0,
   tracked_damage           bigint not null default 0,
@@ -13,6 +14,9 @@ create table if not exists public.user_log_stats (
   created_at               timestamptz not null default now(),
   updated_at               timestamptz not null default now()
 );
+
+alter table public.user_log_stats
+  add column if not exists coin_flips_lost bigint not null default 0;
 
 comment on table public.user_log_stats is
   'Per-user rollup totals for the stats page. Updated whenever logs are inserted, deleted, or stat fields change.';
@@ -39,6 +43,7 @@ begin
     attack_damage,
     opponent_attack_damage,
     coin_flips_won,
+    coin_flips_lost,
     mulligans_taken,
     prizes_taken,
     tracked_damage,
@@ -51,7 +56,22 @@ begin
     count(*) filter (where result = 'Loss')::bigint as games_lost,
     coalesce(sum(self_attack_damage), 0)::bigint as attack_damage,
     coalesce(sum(opponent_attack_damage), 0)::bigint as opponent_attack_damage,
-    count(*) filter (where coin_toss_won is true)::bigint as coin_flips_won,
+    count(*) filter (
+      where nullif(self_player_name, '') is not null
+        and position(self_player_name || ' won the coin toss' in raw_log) > 0
+        and (
+          nullif(opponent_player_name, '') is null
+          or position(opponent_player_name || ' won the coin toss' in raw_log) = 0
+        )
+    )::bigint as coin_flips_won,
+    count(*) filter (
+      where nullif(opponent_player_name, '') is not null
+        and position(opponent_player_name || ' won the coin toss' in raw_log) > 0
+        and (
+          nullif(self_player_name, '') is null
+          or position(self_player_name || ' won the coin toss' in raw_log) = 0
+        )
+    )::bigint as coin_flips_lost,
     coalesce(sum(self_mulligans), 0)::bigint as mulligans_taken,
     coalesce(sum(self_prizes_taken), 0)::bigint as prizes_taken,
     coalesce(sum(self_attack_damage + opponent_attack_damage), 0)::bigint as tracked_damage,
@@ -65,6 +85,7 @@ begin
       attack_damage = excluded.attack_damage,
       opponent_attack_damage = excluded.opponent_attack_damage,
       coin_flips_won = excluded.coin_flips_won,
+      coin_flips_lost = excluded.coin_flips_lost,
       mulligans_taken = excluded.mulligans_taken,
       prizes_taken = excluded.prizes_taken,
       tracked_damage = excluded.tracked_damage,
@@ -114,8 +135,9 @@ create trigger refresh_user_log_stats_after_delete
 
 drop trigger if exists refresh_user_log_stats_after_stats_update on public.logs;
 create trigger refresh_user_log_stats_after_stats_update
-  after update of user_id, result, coin_toss_won, self_prizes_taken, opponent_prizes_taken,
-    self_attack_damage, opponent_attack_damage, self_mulligans
+  after update of user_id, result, raw_log, self_player_name, opponent_player_name,
+    self_prizes_taken, opponent_prizes_taken, self_attack_damage,
+    opponent_attack_damage, self_mulligans
   on public.logs
   for each row execute function public.sync_user_log_stats_from_log_row();
 
@@ -127,6 +149,7 @@ insert into public.user_log_stats (
   attack_damage,
   opponent_attack_damage,
   coin_flips_won,
+  coin_flips_lost,
   mulligans_taken,
   prizes_taken,
   tracked_damage,
@@ -139,7 +162,22 @@ select
   count(*) filter (where result = 'Loss')::bigint as games_lost,
   coalesce(sum(self_attack_damage), 0)::bigint as attack_damage,
   coalesce(sum(opponent_attack_damage), 0)::bigint as opponent_attack_damage,
-  count(*) filter (where coin_toss_won is true)::bigint as coin_flips_won,
+  count(*) filter (
+    where nullif(self_player_name, '') is not null
+      and position(self_player_name || ' won the coin toss' in raw_log) > 0
+      and (
+        nullif(opponent_player_name, '') is null
+        or position(opponent_player_name || ' won the coin toss' in raw_log) = 0
+      )
+  )::bigint as coin_flips_won,
+  count(*) filter (
+    where nullif(opponent_player_name, '') is not null
+      and position(opponent_player_name || ' won the coin toss' in raw_log) > 0
+      and (
+        nullif(self_player_name, '') is null
+        or position(self_player_name || ' won the coin toss' in raw_log) = 0
+      )
+  )::bigint as coin_flips_lost,
   coalesce(sum(self_mulligans), 0)::bigint as mulligans_taken,
   coalesce(sum(self_prizes_taken), 0)::bigint as prizes_taken,
   coalesce(sum(self_attack_damage + opponent_attack_damage), 0)::bigint as tracked_damage,
@@ -153,6 +191,7 @@ set games_played = excluded.games_played,
     attack_damage = excluded.attack_damage,
     opponent_attack_damage = excluded.opponent_attack_damage,
     coin_flips_won = excluded.coin_flips_won,
+    coin_flips_lost = excluded.coin_flips_lost,
     mulligans_taken = excluded.mulligans_taken,
     prizes_taken = excluded.prizes_taken,
     tracked_damage = excluded.tracked_damage,
@@ -167,6 +206,7 @@ returns table (
   attack_damage bigint,
   opponent_attack_damage bigint,
   coin_flips_won bigint,
+  coin_flips_lost bigint,
   mulligans_taken bigint,
   prizes_taken bigint,
   tracked_damage bigint,
@@ -183,6 +223,7 @@ as $$
     coalesce(stats.attack_damage, 0)::bigint as attack_damage,
     coalesce(stats.opponent_attack_damage, 0)::bigint as opponent_attack_damage,
     coalesce(stats.coin_flips_won, 0)::bigint as coin_flips_won,
+    coalesce(stats.coin_flips_lost, 0)::bigint as coin_flips_lost,
     coalesce(stats.mulligans_taken, 0)::bigint as mulligans_taken,
     coalesce(stats.prizes_taken, 0)::bigint as prizes_taken,
     coalesce(stats.tracked_damage, 0)::bigint as tracked_damage,

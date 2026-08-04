@@ -148,6 +148,15 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
   assert.match(page, /<StatsTabsClient overview=\{overview\}/);
   assert.match(apiRoute, /getArchetypeMatchupStats/);
   assert.match(source("components/ui/StatsTabsClient.tsx"), /\/api\/stats-matchups/);
+  assert.match(source("components/ui/StatsTabsClient.tsx"), /Opening coin toss W\/L/);
+  assert.match(
+    source("components/ui/StatsTabsClient.tsx"),
+    /overview\.coinFlipsWon, overview\.coinFlipsLost/
+  );
+  assert.doesNotMatch(
+    source("components/ui/StatsTabsClient.tsx"),
+    /Total prize cards collected|W: you chose|Games mulliganed|Latest \{formatMetric\(damageTimeline\.length\)\} games|Tracked \{formatMetric\(overview\.trackedDamage\)\}/
+  );
   assert.match(logsDb, /from\("user_archetype_matchup_stats"\)/);
   assert.doesNotMatch(logsDb, /from\("logs"\)[\s\S]{0,300}opponent_deck_slug[\s\S]{0,300}group/);
 });

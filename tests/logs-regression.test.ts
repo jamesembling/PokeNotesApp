@@ -28,6 +28,7 @@ type QueryContext = {
 };
 
 type QueryResult = {
+  count?: number | null;
   data: unknown;
   error: unknown;
 };
@@ -38,7 +39,7 @@ type RpcResult = {
 };
 
 type QueryChain = {
-  select(value: string): QueryChain;
+  select(value: string, options?: unknown): QueryChain;
   eq(...args: unknown[]): QueryChain;
   in(...args: unknown[]): QueryChain;
   is(...args: unknown[]): QueryChain;
@@ -65,8 +66,8 @@ function createFakeSupabaseClient(
 
   const makeChain = (ctx: QueryContext) => {
     const chain: QueryChain = {
-      select(value: string) {
-        ctx.operations.push({ method: "select", args: [value] });
+      select(value: string, options?: unknown) {
+        ctx.operations.push({ method: "select", args: [value, options] });
         return chain;
       },
       eq(...args: unknown[]) {
@@ -576,6 +577,7 @@ test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (
             games_lost: 5,
             attack_damage: 1820,
             opponent_attack_damage: 1660,
+            coin_flips_lost: 4,
             coin_flips_won: 8,
             mulligans_taken: 3,
             prizes_taken: 29,
@@ -601,6 +603,7 @@ test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (
     gamesLost: 5,
     attackDamage: 1820,
     opponentAttackDamage: 1660,
+    coinFlipsLost: 4,
     coinFlipsWon: 8,
     mulligansTaken: 3,
     prizesTaken: 29,
@@ -609,6 +612,82 @@ test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (
   });
   assert.deepEqual(rpcCalls, ["get_log_stats_overview"]);
   assert.equal(queries.length, 0);
+});
+
+test("getLogStatsOverview counts explicit toss losses while the live RPC is on the old shape", async (t) => {
+  const originalCreateClient = logsDbTestHooks.createClient;
+  const { client, queries } = createFakeSupabaseClient(
+    (ctx) => {
+      assert.equal(ctx.table, "logs");
+      if (ctx.operations.some((operation) => operation.method === "is")) {
+        return {
+          data: [
+            {
+              opponent_player_name: "OpponentOne",
+              raw_log: "Me won the coin toss.\nMe decided to go second.",
+              self_player_name: "Me"
+            },
+            {
+              opponent_player_name: "OpponentTwo",
+              raw_log: "OpponentTwo won the coin toss.\nOpponentTwo decided to go first.",
+              self_player_name: "Me"
+            },
+            {
+              opponent_player_name: "OpponentThree",
+              raw_log: "Setup without a toss result.",
+              self_player_name: "Me"
+            }
+          ],
+          error: null
+        };
+      }
+      return { count: 4, data: null, error: null };
+    },
+    () => ({
+      data: [
+        {
+          games_played: 12,
+          games_won: 7,
+          games_lost: 5,
+          attack_damage: 1820,
+          opponent_attack_damage: 1660,
+          coin_flips_won: 8,
+          mulligans_taken: 3,
+          prizes_taken: 29,
+          tracked_damage: 3480,
+          tracked_prizes: 54
+        }
+      ],
+      error: null
+    })
+  );
+
+  logsDbTestHooks.createClient = async () => client as never;
+  t.after(() => {
+    logsDbTestHooks.createClient = originalCreateClient;
+  });
+
+  const overview = await getLogStatsOverview("user-1");
+
+  assert.equal(overview.coinFlipsWon, 9);
+  assert.equal(overview.coinFlipsLost, 5);
+  assert.equal(queries.length, 2);
+  assert.equal(
+    queries.some((query) =>
+      query.operations.some(
+        (operation) => operation.method === "eq" && operation.args[0] === "coin_toss_won" && operation.args[1] === false
+      )
+    ),
+    true
+  );
+  assert.equal(
+    queries.some((query) =>
+      query.operations.some(
+        (operation) => operation.method === "is" && operation.args[0] === "coin_toss_won" && operation.args[1] === null
+      )
+    ),
+    true
+  );
 });
 
 test("getLogStatsOverview falls back to the user_log_stats read model if the RPC errors", async (t) => {
@@ -621,6 +700,7 @@ test("getLogStatsOverview falls back to the user_log_stats read model if the RPC
         games_lost: 5,
         attack_damage: 1820,
         opponent_attack_damage: 1660,
+        coin_flips_lost: 4,
         coin_flips_won: 8,
         mulligans_taken: 3,
         prizes_taken: 29,
@@ -648,6 +728,7 @@ test("getLogStatsOverview falls back to the user_log_stats read model if the RPC
     gamesLost: 5,
     attackDamage: 1820,
     opponentAttackDamage: 1660,
+    coinFlipsLost: 4,
     coinFlipsWon: 8,
     mulligansTaken: 3,
     prizesTaken: 29,

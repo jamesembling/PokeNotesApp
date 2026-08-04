@@ -871,6 +871,7 @@ export type Database = {
       user_log_stats: {
         Row: {
           attack_damage: number
+          coin_flips_lost: number
           coin_flips_won: number
           created_at: string
           games_lost: number
@@ -886,6 +887,7 @@ export type Database = {
         }
         Insert: {
           attack_damage?: number
+          coin_flips_lost?: number
           coin_flips_won?: number
           created_at?: string
           games_lost?: number
@@ -901,6 +903,7 @@ export type Database = {
         }
         Update: {
           attack_damage?: number
+          coin_flips_lost?: number
           coin_flips_won?: number
           created_at?: string
           games_lost?: number
@@ -1021,6 +1024,7 @@ export type Database = {
         Args: never
         Returns: {
           attack_damage: number
+          coin_flips_lost: number
           coin_flips_won: number
           games_lost: number
           games_played: number

@@ -49,6 +49,7 @@ export type LogStatsOverview = {
   gamesLost: number;
   attackDamage: number;
   opponentAttackDamage: number;
+  coinFlipsLost: number;
   coinFlipsWon: number;
   mulligansTaken: number;
   prizesTaken: number;
@@ -80,11 +81,18 @@ type LogStatsOverviewRpcRow = {
   games_lost: number | null;
   attack_damage: number | null;
   opponent_attack_damage: number | null;
+  coin_flips_lost?: number | null;
   coin_flips_won: number | null;
   mulligans_taken: number | null;
   prizes_taken: number | null;
   tracked_damage: number | null;
   tracked_prizes: number | null;
+};
+
+type LegacyCoinTossLogRow = {
+  opponent_player_name: string | null;
+  raw_log: string | null;
+  self_player_name: string | null;
 };
 
 type ArchetypeMatchupStatsRow = {
@@ -111,12 +119,31 @@ function mapLogStatsOverviewRow(row: LogStatsOverviewRpcRow | null): LogStatsOve
     gamesLost: Number(row?.games_lost ?? 0),
     attackDamage: Number(row?.attack_damage ?? 0),
     opponentAttackDamage: Number(row?.opponent_attack_damage ?? 0),
+    coinFlipsLost: Number(row?.coin_flips_lost ?? 0),
     coinFlipsWon: Number(row?.coin_flips_won ?? 0),
     mulligansTaken: Number(row?.mulligans_taken ?? 0),
     prizesTaken: Number(row?.prizes_taken ?? 0),
     trackedDamage: Number(row?.tracked_damage ?? 0),
     trackedPrizes: Number(row?.tracked_prizes ?? 0)
   };
+}
+
+function getCoinTossOutcomeFromRawLog(row: LegacyCoinTossLogRow) {
+  const rawLog = String(row.raw_log ?? "");
+  const selfPlayerName = String(row.self_player_name ?? "").trim();
+  const opponentPlayerName = String(row.opponent_player_name ?? "").trim();
+  const selfWon = Boolean(
+    selfPlayerName && rawLog.includes(`${selfPlayerName} won the coin toss`)
+  );
+  const opponentWon = Boolean(
+    opponentPlayerName && rawLog.includes(`${opponentPlayerName} won the coin toss`)
+  );
+
+  if (selfWon === opponentWon) {
+    return null;
+  }
+
+  return selfWon ? "win" : "loss";
 }
 
 function mapArchetypeMatchupStatsRow(row: ArchetypeMatchupStatsRow): ArchetypeMatchupStats {
@@ -505,6 +532,54 @@ export const getLogStatsOverview = cache(async function getLogStatsOverview(
       : (((data ?? null) as unknown) as LogStatsOverviewRpcRow | null);
 
     if (row) {
+      if (row.coin_flips_lost === undefined) {
+        const resolvedUserId = userId || (await measureServerCall(
+          "db.logs.statsOverviewLegacyCoinLosses.requireUser",
+          async () => await requireUser()
+        )).id;
+        const [storedLossResult, historicalTossResult] = await Promise.all([
+          measureServerCall("db.logs.statsOverviewLegacyCoinLosses", async () =>
+            await supabase
+              .from("logs")
+              .select("id", { count: "exact", head: true })
+              .eq("user_id", resolvedUserId)
+              .eq("coin_toss_won", false)
+          ),
+          measureServerCall("db.logs.statsOverviewHistoricalCoinTosses", async () =>
+            await supabase
+              .from("logs")
+              .select("raw_log,self_player_name,opponent_player_name")
+              .eq("user_id", resolvedUserId)
+              .is("coin_toss_won", null)
+          )
+        ]);
+
+        if (storedLossResult.error) {
+          throw storedLossResult.error;
+        }
+        if (historicalTossResult.error) {
+          throw historicalTossResult.error;
+        }
+
+        const inferredRecord = (((historicalTossResult.data ?? []) as unknown) as LegacyCoinTossLogRow[])
+          .reduce(
+            (record, tossRow) => {
+              const outcome = getCoinTossOutcomeFromRawLog(tossRow);
+              if (outcome) {
+                record[outcome] += 1;
+              }
+              return record;
+            },
+            { loss: 0, win: 0 }
+          );
+
+        return mapLogStatsOverviewRow({
+          ...row,
+          coin_flips_lost: Number(storedLossResult.count ?? 0) + inferredRecord.loss,
+          coin_flips_won: Number(row.coin_flips_won ?? 0) + inferredRecord.win
+        });
+      }
+
       return mapLogStatsOverviewRow(row);
     }
   }
@@ -524,6 +599,7 @@ export const getLogStatsOverview = cache(async function getLogStatsOverview(
             "games_lost",
             "attack_damage",
             "opponent_attack_damage",
+            "coin_flips_lost",
             "coin_flips_won",
             "mulligans_taken",
             "prizes_taken",
