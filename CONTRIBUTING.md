@@ -39,6 +39,12 @@ deployed to the linked Supabase project before the push continues. Successful
 deployments are tracked in `codex_private.sql_deployments` by file path and
 SHA-256 hash, so unchanged SQL is not re-applied.
 
+Changes under `supabase/migrations/` use the authority-separated
+[isolated migration release path](./docs/migration-release.md). Migration workers keep their
+worktree unlinked and hand an immutable commit plus source evidence to an approved release owner;
+disposable rehearsal, cleanup, production migration, and application promotion remain separate
+approval gates.
+
 ## Pull Requests
 
 - Link the issue or context for the change when possible.

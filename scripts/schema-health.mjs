@@ -2,6 +2,39 @@
 
 import { spawnSync } from "node:child_process";
 
+function databaseTargetArgs(args = process.argv.slice(2), env = process.env) {
+  if (args.length === 0) {
+    return ["--linked"];
+  }
+
+  if (args.length !== 2 || args[0] !== "--db-url-env") {
+    throw new Error(
+      "Usage: node scripts/schema-health.mjs [--db-url-env ENVIRONMENT_VARIABLE]"
+    );
+  }
+
+  const variableName = args[1];
+  if (!/^[A-Z][A-Z0-9_]*$/.test(variableName)) {
+    throw new Error("Database URL environment variable must use an uppercase shell-safe name.");
+  }
+
+  const databaseUrl = env[variableName];
+  if (!databaseUrl) {
+    throw new Error(`Database URL environment variable ${variableName} is not set.`);
+  }
+
+  return ["--db-url", databaseUrl];
+}
+
+let databaseTarget;
+
+try {
+  databaseTarget = databaseTargetArgs();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(2);
+}
+
 const REQUIRED_COLUMNS = {
   deck_log_stats: [
     "user_id",
@@ -222,7 +255,7 @@ const REQUIRED_TRIGGERS = [
 function runSupabaseJson(sql) {
   const result = spawnSync(
     "supabase",
-    ["--agent=no", "db", "query", "--linked", "-o", "json", sql],
+    ["--agent=no", "db", "query", ...databaseTarget, "-o", "json", sql],
     {
       cwd: process.cwd(),
       encoding: "utf8",
@@ -237,7 +270,7 @@ function runSupabaseJson(sql) {
     if (result.stderr.trim()) {
       process.stderr.write(result.stderr);
     }
-    throw new Error("Supabase linked query failed.");
+    throw new Error("Supabase schema health query failed for the configured target.");
   }
 
   if (result.stderr.trim()) {
