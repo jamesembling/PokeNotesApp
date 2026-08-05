@@ -73,23 +73,34 @@ supabase branches get "$POKENOTES_BRANCH_NAME" --project-ref "$POKENOTES_PARENT_
 Set `POKENOTES_BRANCH_NAME` to the approved `pokenotes-migration-...` name and
 `POKENOTES_PARENT_PROJECT_REF` to the separately verified parent reference. Reject empty or
 unexpected values before running either command. Freeze the returned immutable branch ID as
-`POKENOTES_BRANCH_ID` in the evidence record; cleanup must use that ID, not the mutable name. Do not
-use `--with-data`. Obtain the branch database URL through the approved secret channel and inject it as
-`POKENOTES_DISPOSABLE_DATABASE_URL`. From a clean checkout of the handed-off commit:
+`POKENOTES_BRANCH_ID` and its returned `project_ref` as `POKENOTES_BRANCH_REF` in the evidence record;
+cleanup must use the ID, not the mutable name. Do not use `--with-data`. Obtain the branch database
+URL through the approved secret channel and inject it as `POKENOTES_DISPOSABLE_DATABASE_URL`.
+
+A database URL is not target proof by itself. From a clean checkout of the handed-off commit, use the
+rehearsal wrapper as the only disposable `db push` path:
 
 ```sh
-supabase db push --db-url "$POKENOTES_DISPOSABLE_DATABASE_URL" --dry-run
-supabase db push --db-url "$POKENOTES_DISPOSABLE_DATABASE_URL"
+npm run migration:rehearse
+npm run migration:rehearse -- --apply
 supabase migration list --db-url "$POKENOTES_DISPOSABLE_DATABASE_URL"
 npm run schema:health -- --db-url-env POKENOTES_DISPOSABLE_DATABASE_URL
 supabase db advisors --db-url "$POKENOTES_DISPOSABLE_DATABASE_URL" --type security --fail-on error
 supabase db advisors --db-url "$POKENOTES_DISPOSABLE_DATABASE_URL" --type performance --fail-on error
 ```
 
-Capture the dry-run migration list before applying it. After applying, capture exact local/remote
-alignment, the schema-health totals, advisor output, targeted read-only ACL/RLS/ownership queries,
-and the Stage 1 concurrency and fault-injection scenarios against the disposable branch. Advisor
-findings are not waived silently: fix them or record a reviewer-approved disposition.
+Immediately before each dry run or apply, the wrapper re-fetches `POKENOTES_BRANCH_ID` through the
+authenticated branch API scoped to `POKENOTES_PARENT_PROJECT_REF`. It fails closed unless the live
+ID and project ref match the frozen approved record and the database URL encodes that exact project
+ref in a supported Supabase direct host or pooler username. It then runs the dry run; `--apply` runs
+the reviewed dry run, repeats the live identity lookup and full binding check, then applies. Never
+bypass it with a raw disposable `db push`.
+
+Capture the verified ID/ref binding and dry-run migration list before applying it. After applying,
+capture exact local/remote alignment, the schema-health totals, advisor output, targeted read-only
+ACL/RLS/ownership queries, and the Stage 1 concurrency and fault-injection scenarios against the
+disposable branch. Advisor findings are not waived silently: fix them or record a reviewer-approved
+disposition.
 
 Cleanup is a separate destructive action. After explicit cleanup approval, the release owner records
 the branch name and ref, deletes that exact disposable branch, then lists branches and proves that
@@ -151,7 +162,8 @@ Fault-injection rollback: PASS | FAIL | NOT APPLICABLE — injection point and r
 ACL / RLS / ownership matrix: PASS | FAIL | NOT APPLICABLE — role-by-role proof
 
 Disposable approval: approver, UTC time, branch, lifetime, maximum cost, programme spend before/after
-Disposable dry run / apply / migration alignment: PASS | FAIL — evidence
+Disposable ID/ref/URL binding: PASS | FAIL — live lookup and wrapper evidence
+Disposable dry run / apply / migration alignment: PASS | FAIL — wrapper evidence
 Schema health / security advisors / performance advisors: PASS | FAIL — evidence and dispositions
 Disposable targeted checks: PASS | FAIL — evidence
 Cleanup approval and result: branch name/ref, delete status, UTC time, post-delete absence proof

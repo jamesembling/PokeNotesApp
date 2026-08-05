@@ -9,6 +9,7 @@ import test from "node:test";
 const schemaHealthUrl = new URL("../scripts/schema-health.mjs", import.meta.url);
 const schemaHealthPath = fileURLToPath(schemaHealthUrl);
 const repositoryRoot = dirname(dirname(schemaHealthPath));
+const rehearsalPath = join(repositoryRoot, "scripts/rehearse-migrations.mjs");
 const runbook = readFileSync(new URL("../docs/migration-release.md", import.meta.url), "utf8");
 const contributing = readFileSync(new URL("../CONTRIBUTING.md", import.meta.url), "utf8");
 
@@ -53,6 +54,69 @@ process.stdout.write("[]\\n");
   }
 }
 
+function runRehearsal({
+  apply = false,
+  databaseUrl,
+  liveBranchId = "branch-12345678",
+  liveBranchRef = "abcdefghijklmnopqrst"
+}: {
+  apply?: boolean;
+  databaseUrl: string;
+  liveBranchId?: string;
+  liveBranchRef?: string;
+}) {
+  const directory = mkdtempSync(join(tmpdir(), "pokenotes-migration-rehearsal-"));
+  const executable = join(directory, "supabase");
+  const argumentLog = join(directory, "arguments.jsonl");
+
+  writeFileSync(
+    executable,
+    `#!/usr/bin/env node
+const { appendFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+appendFileSync(process.env.POKENOTES_TEST_ARGUMENT_LOG, JSON.stringify(args) + "\\n");
+if (args.includes("branches") && args.includes("get")) {
+  process.stdout.write(JSON.stringify({
+    id: process.env.POKENOTES_TEST_LIVE_BRANCH_ID,
+    project_ref: process.env.POKENOTES_TEST_LIVE_BRANCH_REF
+  }) + "\\n");
+}
+`
+  );
+  chmodSync(executable, 0o700);
+
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [rehearsalPath, ...(apply ? ["--apply"] : [])],
+      {
+        cwd: repositoryRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${directory}:${process.env.PATH ?? ""}`,
+          POKENOTES_TEST_ARGUMENT_LOG: argumentLog,
+          POKENOTES_TEST_LIVE_BRANCH_ID: liveBranchId,
+          POKENOTES_TEST_LIVE_BRANCH_REF: liveBranchRef,
+          POKENOTES_PARENT_PROJECT_REF: "zyxwvutsrqponmlkjihg",
+          POKENOTES_BRANCH_ID: "branch-12345678",
+          POKENOTES_BRANCH_REF: "abcdefghijklmnopqrst",
+          POKENOTES_DISPOSABLE_DATABASE_URL: databaseUrl
+        }
+      }
+    );
+    const calls = readFileSync(argumentLog, "utf8")
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as string[]);
+
+    return { result, calls };
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 test("migration release path separates worker, rehearsal, and production authority", () => {
   assert.match(runbook, /Migration worker/);
   assert.match(runbook, /Release owner/);
@@ -77,7 +141,79 @@ test("migration evidence gate covers security, failure, and verified cleanup", (
   assert.match(runbook, /migration-before-application order/);
   assert.match(runbook, /NOT AUTHORIZED \/ NOT RUN/);
   assert.match(runbook, /--db-url-env POKENOTES_PRODUCTION_DATABASE_URL/);
+  assert.match(runbook, /only disposable `db push` path/);
+  assert.match(runbook, /Never\s+bypass it with a raw disposable `db push`/);
   assert.doesNotMatch(runbook, /--project-ref </);
+});
+
+test("disposable rehearsal binds the live branch ref to the direct database URL before dry run", () => {
+  const databaseUrl =
+    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
+  const { result, calls } = runRehearsal({ databaseUrl });
+
+  assert.equal(result.status, 0);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].slice(1), [
+    "branches",
+    "get",
+    "branch-12345678",
+    "--project-ref",
+    "zyxwvutsrqponmlkjihg",
+    "-o",
+    "json"
+  ]);
+  assert.ok(calls[1].includes("--dry-run"));
+  assert.ok(calls[1].includes(databaseUrl));
+});
+
+test("disposable rehearsal fails before db push when a stale URL targets another project", () => {
+  const databaseUrl =
+    "postgresql://postgres:secret@db.bcdefghijklmnopqrstu.supabase.co:5432/postgres";
+  const { result, calls } = runRehearsal({ databaseUrl });
+
+  assert.equal(result.status, 1);
+  assert.equal(calls.length, 1);
+  assert.match(result.stderr, /not bound to the frozen approved branch ref/);
+});
+
+test("disposable apply repeats verified dry run before the mutating push", () => {
+  const databaseUrl =
+    "postgresql://postgres.abcdefghijklmnopqrst:secret@aws-0-eu-west-1.pooler.supabase.com:5432/postgres";
+  const { result, calls } = runRehearsal({ apply: true, databaseUrl });
+
+  assert.equal(result.status, 0);
+  assert.equal(calls.length, 4);
+  assert.ok(calls[1].includes("--dry-run"));
+  assert.ok(calls[2].includes("branches"));
+  assert.ok(calls[2].includes("get"));
+  assert.ok(!calls[3].includes("--dry-run"));
+  assert.ok(calls[3].includes(databaseUrl));
+});
+
+test("disposable rehearsal rejects changed live branch identity before db push", () => {
+  const databaseUrl =
+    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
+  const { result, calls } = runRehearsal({
+    databaseUrl,
+    liveBranchRef: "bcdefghijklmnopqrstu"
+  });
+
+  assert.equal(result.status, 1);
+  assert.equal(calls.length, 1);
+  assert.match(result.stderr, /does not match the frozen approved record/);
+});
+
+test("disposable rehearsal rejects changed live branch ID before db push", () => {
+  const databaseUrl =
+    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
+  const { result, calls } = runRehearsal({
+    databaseUrl,
+    liveBranchId: "branch-87654321"
+  });
+
+  assert.equal(result.status, 1);
+  assert.equal(calls.length, 1);
+  assert.match(result.stderr, /does not match the frozen approved record/);
 });
 
 test("schema health keeps linked queries as its no-argument default", () => {
