@@ -29,10 +29,30 @@ const requiredEnvironment = [
   "POKE_NOTES_TEST_LOGIN_EMAIL",
   "POKE_NOTES_TEST_LOGIN_PASSWORD",
 ]
+const localGitEnvironmentNames = [
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_CONFIG",
+  "GIT_CONFIG_PARAMETERS",
+  "GIT_CONFIG_COUNT",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_IMPLICIT_WORK_TREE",
+  "GIT_GRAFT_FILE",
+  "GIT_INDEX_FILE",
+  "GIT_NO_REPLACE_OBJECTS",
+  "GIT_REPLACE_REF_BASE",
+  "GIT_PREFIX",
+  "GIT_SHALLOW_FILE",
+  "GIT_COMMON_DIR",
+]
 
 function git(root, args) {
+  const environment = { ...process.env }
+  for (const name of localGitEnvironmentNames) delete environment[name]
   return execFileSync("git", ["-C", root, ...args], {
     encoding: "utf8",
+    env: environment,
     stdio: ["ignore", "pipe", "pipe"],
   }).trim()
 }

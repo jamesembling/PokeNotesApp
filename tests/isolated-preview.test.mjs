@@ -11,8 +11,46 @@ import {
   validatePreviewPort,
 } from "../scripts/start-isolated-preview.mjs"
 
+// Git exports repository-local variables while hooks run. They must not leak
+// into the temporary repositories used by these tests. This list is Git's
+// documented `rev-parse --local-env-vars` output; normal system environment
+// such as PATH and HOME remains available to each subprocess.
+const localGitEnvironmentNames = [
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+  "GIT_CONFIG",
+  "GIT_CONFIG_PARAMETERS",
+  "GIT_CONFIG_COUNT",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_IMPLICIT_WORK_TREE",
+  "GIT_GRAFT_FILE",
+  "GIT_INDEX_FILE",
+  "GIT_NO_REPLACE_OBJECTS",
+  "GIT_REPLACE_REF_BASE",
+  "GIT_PREFIX",
+  "GIT_SHALLOW_FILE",
+  "GIT_COMMON_DIR",
+]
+
+function gitEnvironment() {
+  const environment = { ...process.env }
+  for (const name of localGitEnvironmentNames) delete environment[name]
+  return environment
+}
+
 function git(root, args) {
-  execFileSync("git", ["-C", root, ...args], { stdio: "ignore" })
+  execFileSync("git", ["-C", root, ...args], {
+    env: gitEnvironment(),
+    stdio: "ignore",
+  })
+}
+
+function gitOutput(root, args) {
+  return execFileSync("git", ["-C", root, ...args], {
+    encoding: "utf8",
+    env: gitEnvironment(),
+  }).trim()
 }
 
 function fixture() {
@@ -64,6 +102,47 @@ test("loads an explicit ignored same-repository source into the child environmen
   assert.match(result.environment.POKE_NOTES_LOCAL_LOGIN_HOSTS, /127\.0\.0\.1:3313/)
   assert.equal(Object.hasOwn(result.environment, "NODE_OPTIONS"), false)
   assert.equal(process.execArgv.some((arg) => /env-file|dotenv/.test(arg)), false)
+})
+
+test("fixture repositories ignore inherited hook-local Git environment", (t) => {
+  const protectedRoot = mkdtempSync(join(tmpdir(), "pokenotes-protected-repository-test-"))
+  git(protectedRoot, ["init"])
+  writeFileSync(join(protectedRoot, "protected"), "must remain unchanged\n")
+  git(protectedRoot, ["add", "protected"])
+  git(protectedRoot, [
+    "-c",
+    "user.name=Codex",
+    "-c",
+    "user.email=codex@example.invalid",
+    "commit",
+    "-m",
+    "protected",
+  ])
+  git(protectedRoot, ["config", "codex.fixture-guard", "protected"])
+  const protectedHead = gitOutput(protectedRoot, ["rev-parse", "HEAD"])
+
+  const previousDirectory = process.env.GIT_DIR
+  const previousWorkTree = process.env.GIT_WORK_TREE
+  t.after(() => {
+    if (previousDirectory === undefined) delete process.env.GIT_DIR
+    else process.env.GIT_DIR = previousDirectory
+    if (previousWorkTree === undefined) delete process.env.GIT_WORK_TREE
+    else process.env.GIT_WORK_TREE = previousWorkTree
+  })
+  t.after(() => rmSync(protectedRoot, { recursive: true, force: true }))
+  process.env.GIT_DIR = join(protectedRoot, ".git")
+  process.env.GIT_WORK_TREE = protectedRoot
+
+  const { root } = fixture()
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  git(root, ["config", "codex.fixture-guard", "fixture"])
+  git(root, ["add", "tracked"])
+
+  assert.equal(gitOutput(root, ["rev-parse", "--is-inside-work-tree"]), "true")
+  assert.equal(gitOutput(root, ["config", "codex.fixture-guard"]), "fixture")
+  assert.equal(gitOutput(protectedRoot, ["rev-parse", "HEAD"]), protectedHead)
+  assert.equal(gitOutput(protectedRoot, ["config", "codex.fixture-guard"]), "protected")
+  assert.equal(gitOutput(protectedRoot, ["status", "--porcelain"]), "")
 })
 
 test("approved source values override harmless ambient collisions", (t) => {
