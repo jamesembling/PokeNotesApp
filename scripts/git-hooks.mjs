@@ -2,6 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { prePushFileSets, remoteMainSha } from "./git-hook-files.mjs";
 
 const mode = process.argv[2];
 
@@ -45,39 +46,6 @@ function lines(value) {
 
 function stagedFiles() {
   return lines(output("git", ["diff", "--cached", "--name-only", "--diff-filter=ACMRT"]));
-}
-
-function prePushFiles() {
-  const input = readFileSync(0, "utf8").trim();
-  const changed = new Set();
-  const zeroSha = /^0+$/;
-
-  for (const line of lines(input)) {
-    const [, localSha, , remoteSha] = line.split(/\s+/);
-    if (!localSha || zeroSha.test(localSha)) {
-      continue;
-    }
-
-    let diffBase = remoteSha;
-    if (!remoteSha || zeroSha.test(remoteSha)) {
-      diffBase = output("git", ["merge-base", "HEAD", "origin/main"]);
-    }
-
-    if (!diffBase) {
-      continue;
-    }
-
-    for (const file of lines(output("git", ["diff", "--name-only", "--diff-filter=ACMRT", `${diffBase}..${localSha}`]))) {
-      changed.add(file);
-    }
-  }
-
-  if (changed.size > 0) {
-    return [...changed].sort();
-  }
-
-  const upstreamDiff = output("git", ["diff", "--name-only", "--diff-filter=ACMRT", "@{u}...HEAD"]);
-  return lines(upstreamDiff).sort();
 }
 
 function matchesAny(files, patterns) {
@@ -163,7 +131,26 @@ if (mode === "pre-commit") {
 }
 
 if (mode === "pre-push") {
-  const files = prePushFiles();
+  let fileSets;
+  try {
+    const remoteName = process.argv[3]?.trim();
+    const pushLocation = process.argv[4]?.trim();
+    const pushTarget = pushLocation || remoteName;
+    if (!pushTarget) {
+      throw new Error(
+        "The push destination is required. Git supplies it automatically; for a manual check run npm run hooks:pre-push -- <push-location>."
+      );
+    }
+    const targetMainSha = remoteMainSha(pushTarget);
+    fileSets = prePushFileSets(readFileSync(0, "utf8"), { targetMainSha });
+  } catch (error) {
+    console.error("Could not determine the pushed changes safely. Push stopped.");
+    console.error(error instanceof Error ? error.message : String(error));
+    console.error("Ensure the push destination exposes refs/heads/main and retry.");
+    process.exit(1);
+  }
+
+  const { pushedFiles: files, branchOwnedFiles } = fileSets;
 
   if (files.length === 0) {
     console.log("No pushed file changes detected.");
@@ -182,7 +169,7 @@ if (mode === "pre-push") {
     runNpmScript("build");
   }
 
-  const changedSqlFiles = files.filter((file) => /^sql\/.*\.sql$/.test(file));
+  const changedSqlFiles = branchOwnedFiles.filter((file) => /^sql\/.*\.sql$/.test(file));
   if (changedSqlFiles.length > 0) {
     console.log("");
     console.log("SQL files changed. Deploying undeployed SQL to linked Supabase before push.");
