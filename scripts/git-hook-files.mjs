@@ -96,18 +96,10 @@ export function prePushFileSets(
     const localSha = gitOutput(["rev-parse", "HEAD"], cwd);
     const branchBase = targetDiffBase(localSha, targetMainSha, cwd);
 
-    let pushBase = branchBase;
-    const upstream = spawnSync("git", ["rev-parse", "@{u}"], {
-      cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      shell: false
-    });
-    if (upstream.status === 0 && upstream.stdout.trim()) {
-      pushBase = upstream.stdout.trim();
-    }
-
-    for (const file of changedFiles(pushBase, localSha, cwd)) {
+    // A manual invocation has no ref-update stream, so the explicit destination's
+    // main branch is the only authoritative base. The configured upstream may be
+    // unrelated to that destination or may already contain HEAD.
+    for (const file of changedFiles(branchBase, localSha, cwd)) {
       pushedFiles.add(file);
     }
     for (const file of changedFiles(branchBase, localSha, cwd)) {

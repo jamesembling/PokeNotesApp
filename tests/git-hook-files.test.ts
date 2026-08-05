@@ -286,6 +286,65 @@ test("the pre-push wrapper classifies SQL against the actual push location", (t)
   assert.match(commands, /node:scripts\/deploy-changed-sql\.mjs sql\/branch\.sql/);
 });
 
+test("manual pre-push compares broad gates with the explicit destination instead of upstream", (t) => {
+  const { cwd, base } = fixture();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const remoteParent = mkdtempSync(join(tmpdir(), "pokenotes-git-hook-remotes-"));
+  t.after(() => rmSync(remoteParent, { recursive: true, force: true }));
+  const upstreamRemote = bareRemote(remoteParent, "upstream.git");
+  const destinationRemote = bareRemote(remoteParent, "destination.git");
+  git(cwd, "push", "--no-verify", upstreamRemote, `${base}:refs/heads/main`);
+  git(cwd, "push", "--no-verify", destinationRemote, `${base}:refs/heads/main`);
+
+  git(cwd, "checkout", "-b", "feature", base);
+  mkdirSync(join(cwd, "app/x"), { recursive: true });
+  writeFileSync(join(cwd, "app/x/page.tsx"), "export default function Page() { return null; }\n");
+  const localSha = commit(cwd, "feature page");
+  git(cwd, "remote", "add", "upstream", upstreamRemote);
+  git(cwd, "push", "--no-verify", "--set-upstream", "upstream", "feature");
+  assert.equal(git(cwd, "rev-parse", "@{u}"), localSha);
+  const destinationFeature = spawnSync(
+    "git",
+    ["--git-dir", destinationRemote, "show-ref", "--verify", "--quiet", "refs/heads/feature"],
+    { encoding: "utf8", env: isolatedGitEnv() }
+  );
+  assert.equal(destinationFeature.status, 1);
+
+  const fakeBin = join(cwd, "fake-bin");
+  const commandLog = join(cwd, "hook-commands.log");
+  mkdirSync(fakeBin);
+  writeFileSync(commandLog, "");
+  writeFileSync(
+    join(fakeBin, "npm"),
+    "#!/bin/sh\nprintf 'npm:%s\\n' \"$*\" >> \"$HOOK_COMMAND_LOG\"\n"
+  );
+  chmodSync(join(fakeBin, "npm"), 0o755);
+
+  const result = spawnSync(
+    process.execPath,
+    [HOOK_SCRIPT, "pre-push", destinationRemote],
+    {
+      cwd,
+      encoding: "utf8",
+      input: "",
+      env: isolatedGitEnv({
+        HOOK_COMMAND_LOG: commandLog,
+        PATH: `${fakeBin}:${process.env.PATH ?? ""}`
+      })
+    }
+  );
+  const output = `${result.stdout}${result.stderr}`;
+  const commands = readFileSync(commandLog, "utf8");
+
+  assert.equal(result.status, 0, output);
+  assert.match(output, /Running pre-push quality gate/);
+  assert.match(output, /Build-sensitive files changed/);
+  assert.match(commands, /npm:run lint/);
+  assert.match(commands, /npm:run typecheck/);
+  assert.match(commands, /npm:run test/);
+  assert.match(commands, /npm:run build/);
+});
+
 test("manual pre-push invocation requires an explicit push destination", () => {
   const result = spawnSync(process.execPath, [HOOK_SCRIPT, "pre-push"], {
     encoding: "utf8",
