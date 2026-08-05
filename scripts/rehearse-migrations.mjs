@@ -65,6 +65,18 @@ function projectRefFromDatabaseUrl(databaseUrl) {
     throw new Error("POKENOTES_DISPOSABLE_DATABASE_URL must use PostgreSQL.");
   }
 
+  const allowedSslModes = new Set(["require", "verify-ca", "verify-full"]);
+  for (const [name, value] of parsed.searchParams) {
+    if (name !== "sslmode" || !allowedSslModes.has(value)) {
+      throw new Error(
+        "Disposable database URL contains a query parameter that could alter the approved target."
+      );
+    }
+  }
+  if (parsed.searchParams.getAll("sslmode").length > 1) {
+    throw new Error("Disposable database URL must not repeat TLS query parameters.");
+  }
+
   const direct = /^db\.([a-z]{20})\.supabase\.co$/.exec(parsed.hostname);
   if (direct) return direct[1];
 
@@ -93,6 +105,9 @@ try {
     /^[a-z]{20}$/,
     "frozen Supabase branch project reference"
   );
+  if (branchRef === parentProjectRef) {
+    throw new Error("POKENOTES_BRANCH_REF must differ from POKENOTES_PARENT_PROJECT_REF.");
+  }
   const databaseUrl = process.env.POKENOTES_DISPOSABLE_DATABASE_URL?.trim();
   if (!databaseUrl) {
     throw new Error("POKENOTES_DISPOSABLE_DATABASE_URL is not set.");

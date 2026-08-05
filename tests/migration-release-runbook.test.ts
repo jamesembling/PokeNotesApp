@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +19,28 @@ const repositoryRoot = dirname(dirname(schemaHealthPath));
 const rehearsalPath = join(repositoryRoot, "scripts/rehearse-migrations.mjs");
 const runbook = readFileSync(new URL("../docs/migration-release.md", import.meta.url), "utf8");
 const contributing = readFileSync(new URL("../CONTRIBUTING.md", import.meta.url), "utf8");
+
+function readArgumentCalls(argumentLog: string) {
+  if (!existsSync(argumentLog)) return [];
+
+  return readFileSync(argumentLog, "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as string[]);
+}
+
+function testEnvironment(extraEnv: Record<string, string | undefined>) {
+  const environment: NodeJS.ProcessEnv = { ...process.env };
+  for (const [name, value] of Object.entries(extraEnv)) {
+    if (value === undefined) {
+      delete environment[name];
+    } else {
+      environment[name] = value;
+    }
+  }
+  return environment;
+}
 
 function runWithFakeSupabase(
   args: string[],
@@ -35,18 +64,13 @@ process.stdout.write("[]\\n");
     const result = spawnSync(process.execPath, [schemaHealthPath, ...args], {
       cwd: repositoryRoot,
       encoding: "utf8",
-      env: {
-        ...process.env,
+      env: testEnvironment({
         ...extraEnv,
         PATH: `${directory}:${process.env.PATH ?? ""}`,
         POKENOTES_TEST_ARGUMENT_LOG: argumentLog
-      }
+      })
     });
-    const calls = readFileSync(argumentLog, "utf8")
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as string[]);
+    const calls = readArgumentCalls(argumentLog);
 
     return { result, calls };
   } finally {
@@ -57,11 +81,13 @@ process.stdout.write("[]\\n");
 function runRehearsal({
   apply = false,
   databaseUrl,
+  parentProjectRef = "zyxwvutsrqponmlkjihg",
   liveBranchId = "branch-12345678",
   liveBranchRef = "abcdefghijklmnopqrst"
 }: {
   apply?: boolean;
   databaseUrl: string;
+  parentProjectRef?: string;
   liveBranchId?: string;
   liveBranchRef?: string;
 }) {
@@ -98,18 +124,14 @@ if (args.includes("branches") && args.includes("get")) {
           POKENOTES_TEST_ARGUMENT_LOG: argumentLog,
           POKENOTES_TEST_LIVE_BRANCH_ID: liveBranchId,
           POKENOTES_TEST_LIVE_BRANCH_REF: liveBranchRef,
-          POKENOTES_PARENT_PROJECT_REF: "zyxwvutsrqponmlkjihg",
+          POKENOTES_PARENT_PROJECT_REF: parentProjectRef,
           POKENOTES_BRANCH_ID: "branch-12345678",
           POKENOTES_BRANCH_REF: "abcdefghijklmnopqrst",
           POKENOTES_DISPOSABLE_DATABASE_URL: databaseUrl
         }
       }
     );
-    const calls = readFileSync(argumentLog, "utf8")
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as string[]);
+    const calls = readArgumentCalls(argumentLog);
 
     return { result, calls };
   } finally {
@@ -176,6 +198,45 @@ test("disposable rehearsal fails before db push when a stale URL targets another
   assert.match(result.stderr, /not bound to the frozen approved branch ref/);
 });
 
+test("disposable rehearsal rejects a direct URL host override before db push", () => {
+  const databaseUrl =
+    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres" +
+    "?host=db.zyxwvutsrqponmlkjihg.supabase.co";
+  const { result, calls } = runRehearsal({ databaseUrl });
+
+  assert.equal(result.status, 1);
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].includes("branches"));
+  assert.ok(!calls.some((call) => call.includes("push")));
+  assert.match(result.stderr, /query parameter that could alter the approved target/);
+  assert.doesNotMatch(result.stderr, /secret/);
+});
+
+test("disposable rehearsal rejects a pooler service override before db push", () => {
+  const databaseUrl =
+    "postgresql://postgres.abcdefghijklmnopqrst:secret@aws-0-eu-west-1.pooler.supabase.com:5432/postgres" +
+    "?service=production";
+  const { result, calls } = runRehearsal({ databaseUrl });
+
+  assert.equal(result.status, 1);
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].includes("branches"));
+  assert.ok(!calls.some((call) => call.includes("push")));
+  assert.match(result.stderr, /query parameter that could alter the approved target/);
+  assert.doesNotMatch(result.stderr, /secret/);
+});
+
+test("disposable rehearsal allows strict TLS mode without weakening target binding", () => {
+  const databaseUrl =
+    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres" +
+    "?sslmode=verify-full";
+  const { result, calls } = runRehearsal({ databaseUrl });
+
+  assert.equal(result.status, 0);
+  assert.equal(calls.length, 2);
+  assert.ok(calls[1].includes("--dry-run"));
+});
+
 test("disposable apply repeats verified dry run before the mutating push", () => {
   const databaseUrl =
     "postgresql://postgres.abcdefghijklmnopqrst:secret@aws-0-eu-west-1.pooler.supabase.com:5432/postgres";
@@ -216,6 +277,19 @@ test("disposable rehearsal rejects changed live branch ID before db push", () =>
   assert.match(result.stderr, /does not match the frozen approved record/);
 });
 
+test("disposable rehearsal rejects a parent project ref as the disposable branch before Supabase", () => {
+  const databaseUrl =
+    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
+  const { result, calls } = runRehearsal({
+    databaseUrl,
+    parentProjectRef: "abcdefghijklmnopqrst"
+  });
+
+  assert.equal(result.status, 1);
+  assert.deepEqual(calls, []);
+  assert.match(result.stderr, /must differ from POKENOTES_PARENT_PROJECT_REF/);
+});
+
 test("schema health keeps linked queries as its no-argument default", () => {
   const { result, calls } = runWithFakeSupabase([]);
 
@@ -251,12 +325,12 @@ test("schema health fails closed before invoking Supabase for invalid target con
     ["--db-url-env", "not_shell_safe"],
     ["--db-url-env", "POKENOTES_UNSET_DATABASE_URL"]
   ]) {
-    const result = spawnSync(process.execPath, [schemaHealthPath, ...args], {
-      cwd: repositoryRoot,
-      encoding: "utf8"
+    const { result, calls } = runWithFakeSupabase(args, {
+      POKENOTES_UNSET_DATABASE_URL: undefined
     });
 
     assert.equal(result.status, 2);
+    assert.deepEqual(calls, []);
   }
 });
 
