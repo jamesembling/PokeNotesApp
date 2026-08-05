@@ -75,7 +75,7 @@ A quoted heredoc preserves Markdown backticks, dollar signs, and command-like te
 Validate the file locally and confirm the installed GitHub CLI supports `--body-file`:
 
 ```zsh
-pr_body_file="$(mktemp "${TMPDIR:-/tmp}/pokenotes-pr-body.XXXXXX.md")"
+pr_body_file="$(mktemp "${TMPDIR:-/tmp}/pokenotes-pr-body.md.XXXXXX")"
 cat > "$pr_body_file" <<'POKENOTES_PR_BODY'
 ## Summary
 
