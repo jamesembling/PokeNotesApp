@@ -54,6 +54,61 @@ function sameFileIdentity(left, right) {
   return left.dev === right.dev && left.ino === right.ino
 }
 
+function replaceProcessEnvironment(environment) {
+  for (const key of Object.keys(process.env)) {
+    if (!Object.hasOwn(environment, key)) delete process.env[key]
+  }
+  Object.assign(process.env, environment)
+}
+
+function replaceNextInitialEnvironment(environment) {
+  const current = nextEnv.initialEnv || {}
+  const updates = {}
+  for (const key of new Set([...Object.keys(current), ...Object.keys(environment)])) {
+    updates[key] = environment[key]
+  }
+  nextEnv.updateInitialEnv(updates)
+}
+
+function processApprovedEnvironment(loadedEnvFiles, sourceRoot, log) {
+  const ambientEnvironment = { ...process.env }
+  const previousNextInitialEnvironment = nextEnv.initialEnv
+    ? { ...nextEnv.initialEnv }
+    : undefined
+
+  try {
+    if (nextEnv.initialEnv) {
+      replaceNextInitialEnvironment(ambientEnvironment)
+      nextEnv.resetEnv()
+    }
+
+    // Use Next's parser to discover every name declared by the approved files.
+    // The values from this probe are discarded because ambient values still have
+    // Next's normal first priority during this pass.
+    nextEnv.processEnv(loadedEnvFiles, sourceRoot, log, true)
+    const sourceKeys = new Set(loadedEnvFiles.flatMap(({ env }) => Object.keys(env)))
+
+    // An explicit, validated source is the authority for the names it declares.
+    // Keep unrelated ambient variables (PATH, HOME, interpolation inputs, etc.)
+    // while allowing Next to apply its normal highest-to-lowest file precedence.
+    const sanitizedEnvironment = { ...ambientEnvironment }
+    for (const key of sourceKeys) delete sanitizedEnvironment[key]
+    replaceNextInitialEnvironment(sanitizedEnvironment)
+    nextEnv.resetEnv()
+
+    const [combinedEnv] = nextEnv.processEnv(
+      loadedEnvFiles,
+      sourceRoot,
+      log,
+      true,
+    )
+    return { combinedEnv: { ...combinedEnv }, sourceKeys }
+  } finally {
+    replaceNextInitialEnvironment(previousNextInitialEnvironment || ambientEnvironment)
+    replaceProcessEnvironment(ambientEnvironment)
+  }
+}
+
 function securelyReadEnvironmentFile(path, name, initialState, beforeEnvironmentOpen) {
   beforeEnvironmentOpen({ name, path })
   let descriptor
@@ -182,14 +237,16 @@ export function preparePreviewEnvironment({
   })
 
   const quietLog = { info() {}, error() {} }
-  nextEnv.resetEnv()
-  const [combinedEnv] = nextEnv.processEnv(loadedEnvFiles, sourceRoot, quietLog, true)
+  const { combinedEnv, sourceKeys } = processApprovedEnvironment(
+    loadedEnvFiles,
+    sourceRoot,
+    quietLog,
+  )
   const loadedNames = loadedEnvFiles.map(({ path }) => path)
   if (loadedNames.some((name) => !approvedFiles.includes(name))) {
     throw new Error("Next.js loaded an environment file outside the approved source set")
   }
 
-  const sourceKeys = new Set(loadedEnvFiles.flatMap(({ env }) => Object.keys(env)))
   for (const key of requiredEnvironment) {
     if (!sourceKeys.has(key) || !combinedEnv[key]) {
       throw new Error(`Approved environment is missing required key ${key}`)

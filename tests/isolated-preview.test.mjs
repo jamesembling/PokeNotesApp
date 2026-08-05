@@ -27,16 +27,20 @@ function fixture() {
   return { root, source }
 }
 
-function writeEnvironment(source) {
+function writeEnvironment(source, overrides = {}) {
+  const values = {
+    NEXT_PUBLIC_SUPABASE_URL: "https://example.invalid",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "fixture-anon",
+    POKE_NOTES_ENABLE_TEST_LOGIN: "1",
+    POKE_NOTES_LOCAL_LOGIN_CODE: "fixture-code",
+    POKE_NOTES_LOCAL_LOGIN_HOSTS: "localhost:3000",
+    POKE_NOTES_TEST_LOGIN_EMAIL: "codex@example.invalid",
+    POKE_NOTES_TEST_LOGIN_PASSWORD: "fixture-password",
+    NODE_OPTIONS: "--trace-warnings",
+    ...overrides,
+  }
   const contents = [
-    "NEXT_PUBLIC_SUPABASE_URL=https://example.invalid",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY=fixture-anon",
-    "POKE_NOTES_ENABLE_TEST_LOGIN=1",
-    "POKE_NOTES_LOCAL_LOGIN_CODE=fixture-code",
-    "POKE_NOTES_LOCAL_LOGIN_HOSTS=localhost:3000",
-    "POKE_NOTES_TEST_LOGIN_EMAIL=codex@example.invalid",
-    "POKE_NOTES_TEST_LOGIN_PASSWORD=fixture-password",
-    "NODE_OPTIONS=--trace-warnings",
+    ...Object.entries(values).map(([key, value]) => `${key}=${value}`),
     "",
   ].join("\n")
   writeFileSync(join(source, ".env.local"), contents, { mode: 0o600 })
@@ -60,6 +64,70 @@ test("loads an explicit ignored same-repository source into the child environmen
   assert.match(result.environment.POKE_NOTES_LOCAL_LOGIN_HOSTS, /127\.0\.0\.1:3313/)
   assert.equal(Object.hasOwn(result.environment, "NODE_OPTIONS"), false)
   assert.equal(process.execArgv.some((arg) => /env-file|dotenv/.test(arg)), false)
+})
+
+test("approved source values override harmless ambient collisions", (t) => {
+  const { root, source } = fixture()
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  writeEnvironment(source)
+
+  const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const previousCode = process.env.POKE_NOTES_LOCAL_LOGIN_CODE
+  const previousPath = process.env.PATH
+  t.after(() => {
+    if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl
+    if (previousCode === undefined) delete process.env.POKE_NOTES_LOCAL_LOGIN_CODE
+    else process.env.POKE_NOTES_LOCAL_LOGIN_CODE = previousCode
+  })
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://ambient.invalid"
+  process.env.POKE_NOTES_LOCAL_LOGIN_CODE = "ambient-code"
+
+  const result = preparePreviewEnvironment({
+    repositoryRoot: root,
+    environmentSource: source,
+    port: 3313,
+  })
+
+  assert.equal(result.environment.NEXT_PUBLIC_SUPABASE_URL, "https://example.invalid")
+  assert.equal(result.environment.POKE_NOTES_LOCAL_LOGIN_CODE, "fixture-code")
+  assert.equal(result.environment.PATH, previousPath)
+  assert.equal(process.env.NEXT_PUBLIC_SUPABASE_URL, "https://ambient.invalid")
+  assert.equal(process.env.POKE_NOTES_LOCAL_LOGIN_CODE, "ambient-code")
+})
+
+test("uses Next development environment file precedence for duplicate keys", (t) => {
+  const { root, source } = fixture()
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  writeEnvironment(source, {
+    NEXT_PUBLIC_SUPABASE_URL: "https://local.invalid",
+    POKE_NOTES_LOCAL_LOGIN_CODE: "local-code",
+  })
+  writeFileSync(
+    join(source, ".env.development.local"),
+    [
+      "NEXT_PUBLIC_SUPABASE_URL=https://development-local.invalid",
+      "POKE_NOTES_LOCAL_LOGIN_CODE=development-local-code",
+      "",
+    ].join("\n"),
+    { mode: 0o600 },
+  )
+
+  const result = preparePreviewEnvironment({
+    repositoryRoot: root,
+    environmentSource: source,
+    port: 3313,
+  })
+
+  assert.deepEqual(result.loadedNames, [".env.development.local", ".env.local"])
+  assert.equal(
+    result.environment.NEXT_PUBLIC_SUPABASE_URL,
+    "https://development-local.invalid",
+  )
+  assert.equal(
+    result.environment.POKE_NOTES_LOCAL_LOGIN_CODE,
+    "development-local-code",
+  )
 })
 
 test("reserves the primary checkout port", () => {
