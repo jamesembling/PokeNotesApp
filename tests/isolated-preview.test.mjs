@@ -1,0 +1,119 @@
+import assert from "node:assert/strict"
+import { execFileSync } from "node:child_process"
+import { chmodSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import test from "node:test"
+
+import {
+  preparePreviewEnvironment,
+  validateEnvironmentSource,
+  validatePreviewPort,
+} from "../scripts/start-isolated-preview.mjs"
+
+function git(root, args) {
+  execFileSync("git", ["-C", root, ...args], { stdio: "ignore" })
+}
+
+function fixture() {
+  const root = mkdtempSync(join(tmpdir(), "pokenotes-isolated-preview-test-"))
+  git(root, ["init"])
+  writeFileSync(join(root, ".gitignore"), ".env\n.env.*\n")
+  writeFileSync(join(root, "tracked"), "fixture\n")
+  git(root, ["add", ".gitignore", "tracked"])
+  git(root, ["-c", "user.name=Codex", "-c", "user.email=codex@example.invalid", "commit", "-m", "fixture"])
+  const source = join(root, "source")
+  git(root, ["worktree", "add", "--detach", source, "HEAD"])
+  return { root, source }
+}
+
+function writeEnvironment(source) {
+  const contents = [
+    "NEXT_PUBLIC_SUPABASE_URL=https://example.invalid",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY=fixture-anon",
+    "POKE_NOTES_ENABLE_TEST_LOGIN=1",
+    "POKE_NOTES_LOCAL_LOGIN_CODE=fixture-code",
+    "POKE_NOTES_LOCAL_LOGIN_HOSTS=localhost:3000",
+    "POKE_NOTES_TEST_LOGIN_EMAIL=codex@example.invalid",
+    "POKE_NOTES_TEST_LOGIN_PASSWORD=fixture-password",
+    "",
+  ].join("\n")
+  writeFileSync(join(source, ".env.local"), contents, { mode: 0o600 })
+  chmodSync(join(source, ".env.local"), 0o600)
+}
+
+test("loads an explicit ignored same-repository source into the child environment", (t) => {
+  const { root, source } = fixture()
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  writeEnvironment(source)
+
+  const result = preparePreviewEnvironment({
+    repositoryRoot: root,
+    environmentSource: source,
+    port: 3313,
+  })
+
+  assert.deepEqual(result.loadedNames, [".env.local"])
+  assert.equal(result.environment.NEXT_PUBLIC_SUPABASE_ANON_KEY, "fixture-anon")
+  assert.equal(result.environment.PORT, "3313")
+  assert.match(result.environment.POKE_NOTES_LOCAL_LOGIN_HOSTS, /127\.0\.0\.1:3313/)
+  assert.equal(process.execArgv.some((arg) => /env-file|dotenv/.test(arg)), false)
+})
+
+test("reserves the primary checkout port", () => {
+  assert.throws(() => validatePreviewPort(3000), /reserved for the primary PokeNotes checkout/)
+  assert.equal(validatePreviewPort(3313), 3313)
+})
+
+test("rejects missing, permissive, and symlinked environment sources", (t) => {
+  const { root, source } = fixture()
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+
+  assert.throws(
+    () => validateEnvironmentSource({ repositoryRoot: root, environmentSource: source }),
+    /no ignored development environment files/,
+  )
+
+  writeEnvironment(source)
+  chmodSync(join(source, ".env.local"), 0o644)
+  assert.throws(
+    () => validateEnvironmentSource({ repositoryRoot: root, environmentSource: source }),
+    /must not be readable or writable by group or other users/,
+  )
+
+  rmSync(join(source, ".env.local"))
+  writeFileSync(join(source, "secret-source"), "fixture\n", { mode: 0o600 })
+  symlinkSync(join(source, "secret-source"), join(source, ".env.local"))
+  assert.throws(
+    () => validateEnvironmentSource({ repositoryRoot: root, environmentSource: source }),
+    /must be a regular file/,
+  )
+})
+
+test("rejects an environment checkout from another repository", (t) => {
+  const first = fixture()
+  const second = fixture()
+  t.after(() => rmSync(first.root, { recursive: true, force: true }))
+  t.after(() => rmSync(second.root, { recursive: true, force: true }))
+  writeEnvironment(second.source)
+
+  assert.throws(
+    () =>
+      validateEnvironmentSource({
+        repositoryRoot: first.root,
+        environmentSource: second.source,
+      }),
+    /another checkout of this Git repository/,
+  )
+})
+
+test("rejects the isolated checkout itself as the environment source", (t) => {
+  const { root } = fixture()
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  writeEnvironment(root)
+
+  assert.throws(
+    () => validateEnvironmentSource({ repositoryRoot: root, environmentSource: root }),
+    /must be a separate checkout/,
+  )
+})
