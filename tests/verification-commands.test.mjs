@@ -8,6 +8,17 @@ import test from "node:test";
 const referenceUrl = new URL("../docs/verification-commands.md", import.meta.url);
 const reference = await readFile(referenceUrl, "utf8");
 
+function zshIsAvailable({ error, status }) {
+  if (error) {
+    assert.equal(error.code, "ENOENT", `zsh probe failed unexpectedly: ${error.message}`);
+    assert.equal(status, null, "a missing zsh executable must not report a process exit status");
+    return false;
+  }
+
+  assert.equal(status, 0, `zsh availability probe exited with status ${status}`);
+  return true;
+}
+
 test("verification reference keeps repository-native shell-safe command contracts", () => {
   const requiredContracts = [
     "npm run test -- tests/app-url.test.ts",
@@ -32,6 +43,12 @@ test("verification reference keeps repository-native shell-safe command contract
 });
 
 test("typecheck failure restores known-clean next-env before returning the failure", async (t) => {
+  const zshProbe = spawnSync("zsh", ["-c", "exit 0"], { encoding: "utf8" });
+  if (!zshIsAvailable(zshProbe)) {
+    t.skip("zsh is not installed; dynamic zsh proof requires a supported environment");
+    return;
+  }
+
   const fixtureRoot = await mkdtemp(join(tmpdir(), "pokenotes-verification-commands-"));
   const fixtureRepo = join(fixtureRoot, "repo");
   const fixtureBin = join(fixtureRoot, "bin");
@@ -77,6 +94,21 @@ test("typecheck failure restores known-clean next-env before returning the failu
   assert.equal(result.status, 23, result.stderr);
   assert.equal(await readFile(join(fixtureRepo, "next-env.d.ts"), "utf8"), "original\n");
   assert.equal(runGit("status", "--short").stdout, "");
+});
+
+test("zsh availability guard distinguishes a missing shell from failed proof", () => {
+  const missingShellError = Object.assign(new Error("spawnSync zsh ENOENT"), { code: "ENOENT" });
+  assert.equal(zshIsAvailable({ error: missingShellError, status: null }), false);
+
+  const unexpectedShellError = Object.assign(new Error("spawnSync zsh EACCES"), { code: "EACCES" });
+  assert.throws(
+    () => zshIsAvailable({ error: unexpectedShellError, status: null }),
+    /zsh probe failed unexpectedly/,
+  );
+  assert.throws(
+    () => zshIsAvailable({ error: undefined, status: null }),
+    /zsh availability probe exited with status null/,
+  );
 });
 
 test("verification reference retains runbook dependency and authority boundaries", () => {
