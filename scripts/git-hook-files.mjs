@@ -34,10 +34,15 @@ function changedFiles(base, tip, cwd) {
   );
 }
 
-function targetDiffBase(localSha, cwd) {
-  const base = gitOutput(["merge-base", localSha, "origin/main"], cwd);
+function targetDiffBase(localSha, targetMainSha, cwd) {
+  if (!targetMainSha) {
+    throw new Error("The remote main commit is required for safe pre-push classification.");
+  }
+
+  gitOutput(["cat-file", "-e", `${targetMainSha}^{commit}`], cwd);
+  const base = gitOutput(["merge-base", localSha, targetMainSha], cwd);
   if (!base) {
-    throw new Error(`No merge base found between ${localSha} and origin/main.`);
+    throw new Error(`No merge base found between ${localSha} and remote main ${targetMainSha}.`);
   }
   return base;
 }
@@ -46,7 +51,26 @@ function sorted(values) {
   return [...new Set(values)].sort();
 }
 
-export function prePushFileSets(input, { cwd = process.cwd() } = {}) {
+export function remoteMainSha(remote, { cwd = process.cwd() } = {}) {
+  if (!remote) {
+    throw new Error("The push remote is required to resolve its main branch safely.");
+  }
+
+  const result = gitOutput(
+    ["ls-remote", "--exit-code", remote, "refs/heads/main"],
+    cwd
+  );
+  const [sha, ref, ...extra] = result.split(/\s+/);
+  if (!/^[0-9a-f]{40}$/i.test(sha ?? "") || ref !== "refs/heads/main" || extra.length > 0) {
+    throw new Error(`Could not parse the main branch returned by remote ${remote}.`);
+  }
+  return sha;
+}
+
+export function prePushFileSets(
+  input,
+  { cwd = process.cwd(), targetMainSha } = {}
+) {
   const pushedFiles = new Set();
   const branchOwnedFiles = new Set();
   const updates = lines(input);
@@ -57,7 +81,7 @@ export function prePushFileSets(input, { cwd = process.cwd() } = {}) {
       continue;
     }
 
-    const branchBase = targetDiffBase(localSha, cwd);
+    const branchBase = targetDiffBase(localSha, targetMainSha, cwd);
     const pushBase = remoteSha && !zeroSha.test(remoteSha) ? remoteSha : branchBase;
 
     for (const file of changedFiles(pushBase, localSha, cwd)) {
@@ -70,7 +94,7 @@ export function prePushFileSets(input, { cwd = process.cwd() } = {}) {
 
   if (updates.length === 0) {
     const localSha = gitOutput(["rev-parse", "HEAD"], cwd);
-    const branchBase = targetDiffBase(localSha, cwd);
+    const branchBase = targetDiffBase(localSha, targetMainSha, cwd);
 
     let pushBase = branchBase;
     const upstream = spawnSync("git", ["rev-parse", "@{u}"], {

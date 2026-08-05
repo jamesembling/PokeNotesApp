@@ -2,7 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { prePushFileSets } from "./git-hook-files.mjs";
+import { prePushFileSets, remoteMainSha } from "./git-hook-files.mjs";
 
 const mode = process.argv[2];
 
@@ -133,10 +133,13 @@ if (mode === "pre-commit") {
 if (mode === "pre-push") {
   let fileSets;
   try {
-    fileSets = prePushFileSets(readFileSync(0, "utf8"));
+    const remote = process.argv[3] ?? "origin";
+    const targetMainSha = remoteMainSha(remote);
+    fileSets = prePushFileSets(readFileSync(0, "utf8"), { targetMainSha });
   } catch (error) {
     console.error("Could not determine the pushed changes safely. Push stopped.");
     console.error(error instanceof Error ? error.message : String(error));
+    console.error("Fetch the push remote's main branch and retry.");
     process.exit(1);
   }
 

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { prePushFileSets } from "../scripts/git-hook-files.mjs";
+import { prePushFileSets, remoteMainSha } from "../scripts/git-hook-files.mjs";
 
 const ZERO_SHA = "0".repeat(40);
 const HOOK_SCRIPT = fileURLToPath(new URL("../scripts/git-hooks.mjs", import.meta.url));
@@ -54,7 +54,7 @@ function runHook(cwd: string, input: string) {
     chmodSync(path, 0o755);
   }
 
-  const stdout = execFileSync(process.execPath, [HOOK_SCRIPT, "pre-push"], {
+  const stdout = execFileSync(process.execPath, [HOOK_SCRIPT, "pre-push", "."], {
     cwd,
     encoding: "utf8",
     input,
@@ -82,7 +82,7 @@ test("an existing branch push excludes unchanged SQL inherited by a rebase onto 
 
   const result = prePushFileSets(
     `refs/heads/feature ${localSha} refs/heads/feature ${remoteSha}\n`,
-    { cwd }
+    { cwd, targetMainSha: main }
   );
 
   assert.deepEqual(result.pushedFiles, ["sql/inherited.sql"]);
@@ -134,7 +134,7 @@ test("new and modified branch-owned SQL remains protected", (t) => {
   writeFileSync(join(cwd, "sql/new.sql"), "select 'new branch SQL';\n");
   const localSha = commit(cwd, "change SQL");
 
-  const result = prePushFileSets(newBranchInput(localSha), { cwd });
+  const result = prePushFileSets(newBranchInput(localSha), { cwd, targetMainSha: main });
 
   assert.deepEqual(result.branchOwnedFiles, ["sql/inherited.sql", "sql/new.sql"]);
 });
@@ -146,7 +146,7 @@ test("deleted branch-owned SQL remains protected", (t) => {
   rmSync(join(cwd, "sql/inherited.sql"));
   const localSha = commit(cwd, "delete SQL");
 
-  const result = prePushFileSets(newBranchInput(localSha), { cwd });
+  const result = prePushFileSets(newBranchInput(localSha), { cwd, targetMainSha: main });
 
   assert.deepEqual(result.branchOwnedFiles, ["sql/inherited.sql"]);
 });
@@ -158,18 +158,43 @@ test("renamed branch-owned SQL reports both sides so moves cannot evade protecti
   git(cwd, "mv", "sql/inherited.sql", "sql/renamed.sql");
   const localSha = commit(cwd, "rename SQL");
 
-  const result = prePushFileSets(newBranchInput(localSha), { cwd });
+  const result = prePushFileSets(newBranchInput(localSha), { cwd, targetMainSha: main });
 
   assert.deepEqual(result.branchOwnedFiles, ["sql/inherited.sql", "sql/renamed.sql"]);
 });
 
-test("missing target ancestry fails closed instead of silently skipping SQL", (t) => {
-  const { cwd, main } = fixture();
+test("a stale-ahead origin/main cannot hide SQL absent from the actual remote main", (t) => {
+  const { cwd, base } = fixture();
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  git(cwd, "update-ref", "-d", "refs/remotes/origin/main");
+  git(cwd, "checkout", "-b", "feature", base);
+  git(cwd, "update-ref", "refs/heads/main", base);
+  mkdirSync(join(cwd, "sql"));
+  writeFileSync(join(cwd, "sql/branch.sql"), "select 'branch SQL';\n");
+  const sqlCommit = commit(cwd, "branch SQL");
+  writeFileSync(join(cwd, "feature.txt"), "feature\n");
+  const localSha = commit(cwd, "feature");
+  git(cwd, "update-ref", "refs/remotes/origin/main", sqlCommit);
+
+  const actualRemoteMain = remoteMainSha(".", { cwd });
+  const result = prePushFileSets(newBranchInput(localSha), {
+    cwd,
+    targetMainSha: actualRemoteMain
+  });
+
+  assert.equal(actualRemoteMain, base);
+  assert.deepEqual(result.branchOwnedFiles, ["feature.txt", "sql/branch.sql"]);
+
+  const { stdout, commands } = runHook(cwd, newBranchInput(localSha));
+  assert.match(stdout, /SQL files changed/);
+  assert.match(commands, /node:scripts\/deploy-changed-sql\.mjs sql\/branch\.sql/);
+});
+
+test("an unavailable remote main fails closed instead of using origin/main", (t) => {
+  const { cwd } = fixture();
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
 
   assert.throws(
-    () => prePushFileSets(newBranchInput(main), { cwd }),
-    /merge-base .* origin\/main failed/
+    () => remoteMainSha("missing-remote", { cwd }),
+    /git ls-remote --exit-code missing-remote refs\/heads\/main failed/
   );
 });
