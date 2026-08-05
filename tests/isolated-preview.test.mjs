@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
-import { chmodSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { chmodSync, linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
@@ -36,6 +36,7 @@ function writeEnvironment(source) {
     "POKE_NOTES_LOCAL_LOGIN_HOSTS=localhost:3000",
     "POKE_NOTES_TEST_LOGIN_EMAIL=codex@example.invalid",
     "POKE_NOTES_TEST_LOGIN_PASSWORD=fixture-password",
+    "NODE_OPTIONS=--trace-warnings",
     "",
   ].join("\n")
   writeFileSync(join(source, ".env.local"), contents, { mode: 0o600 })
@@ -57,6 +58,7 @@ test("loads an explicit ignored same-repository source into the child environmen
   assert.equal(result.environment.NEXT_PUBLIC_SUPABASE_ANON_KEY, "fixture-anon")
   assert.equal(result.environment.PORT, "3313")
   assert.match(result.environment.POKE_NOTES_LOCAL_LOGIN_HOSTS, /127\.0\.0\.1:3313/)
+  assert.equal(Object.hasOwn(result.environment, "NODE_OPTIONS"), false)
   assert.equal(process.execArgv.some((arg) => /env-file|dotenv/.test(arg)), false)
 })
 
@@ -104,6 +106,54 @@ test("rejects an environment checkout from another repository", (t) => {
         environmentSource: second.source,
       }),
     /another checkout of this Git repository/,
+  )
+})
+
+test("rejects a nested directory inside an otherwise valid source worktree", (t) => {
+  const { root, source } = fixture()
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const nestedSource = join(source, "nested")
+  mkdirSync(nestedSource)
+  writeEnvironment(nestedSource)
+
+  assert.throws(
+    () => validateEnvironmentSource({ repositoryRoot: root, environmentSource: nestedSource }),
+    /must be the top-level directory of a separate Git worktree/,
+  )
+})
+
+test("rejects a hard-linked environment file", (t) => {
+  const { root, source } = fixture()
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const otherPath = join(source, "hardlink-source")
+  writeFileSync(otherPath, "fixture\n", { mode: 0o600 })
+  linkSync(otherPath, join(source, ".env.local"))
+
+  assert.throws(
+    () => validateEnvironmentSource({ repositoryRoot: root, environmentSource: source }),
+    /must not be hard-linked to another filesystem path/,
+  )
+})
+
+test("rejects an environment file replaced between validation and secure open", (t) => {
+  const { root, source } = fixture()
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  writeEnvironment(source)
+  let replaced = false
+
+  assert.throws(
+    () =>
+      validateEnvironmentSource({
+        repositoryRoot: root,
+        environmentSource: source,
+        beforeEnvironmentOpen({ name, path }) {
+          if (name !== ".env.local" || replaced) return
+          replaced = true
+          rmSync(path)
+          writeEnvironment(source)
+        },
+      }),
+    /changed between validation and secure read/,
   )
 })
 

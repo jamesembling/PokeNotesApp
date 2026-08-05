@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawn } from "node:child_process"
-import { lstatSync, realpathSync } from "node:fs"
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+} from "node:fs"
 import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import nextEnv from "@next/env"
@@ -42,6 +50,42 @@ function commonGitDirectory(root) {
   return realpathSync(git(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]))
 }
 
+function sameFileIdentity(left, right) {
+  return left.dev === right.dev && left.ino === right.ino
+}
+
+function securelyReadEnvironmentFile(path, name, initialState, beforeEnvironmentOpen) {
+  beforeEnvironmentOpen({ name, path })
+  let descriptor
+  try {
+    descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+    const openedState = fstatSync(descriptor)
+    if (!openedState.isFile() || openedState.nlink !== 1) {
+      throw new Error(`${name} must remain a single-linked regular file while it is read`)
+    }
+    if ((openedState.mode & 0o077) !== 0) {
+      throw new Error(`${name} permissions changed before its secure read`)
+    }
+    if (!sameFileIdentity(initialState, openedState)) {
+      throw new Error(`${name} changed between validation and secure read`)
+    }
+
+    const contents = readFileSync(descriptor, "utf8")
+    const finalState = lstatSync(path)
+    if (
+      finalState.isSymbolicLink() ||
+      finalState.nlink !== 1 ||
+      (finalState.mode & 0o077) !== 0 ||
+      !sameFileIdentity(openedState, finalState)
+    ) {
+      throw new Error(`${name} changed while its validated contents were read`)
+    }
+    return contents
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor)
+  }
+}
+
 export function validatePreviewPort(value) {
   const port = Number(value)
   if (!Number.isInteger(port) || port < 1024 || port > 65535) {
@@ -56,6 +100,7 @@ export function validatePreviewPort(value) {
 export function validateEnvironmentSource({
   repositoryRoot = defaultRepositoryRoot,
   environmentSource,
+  beforeEnvironmentOpen = () => {},
 } = {}) {
   if (!environmentSource || !isAbsolute(environmentSource)) {
     throw new Error("--env-source must be an explicit absolute checkout path")
@@ -71,11 +116,15 @@ export function validateEnvironmentSource({
   if (sourceRoot === targetRoot) {
     throw new Error("--env-source must be a separate checkout, not the isolated worktree")
   }
+  const sourceTopLevel = realpathSync(git(sourceRoot, ["rev-parse", "--show-toplevel"]))
+  if (sourceRoot !== sourceTopLevel) {
+    throw new Error("--env-source must be the top-level directory of a separate Git worktree")
+  }
   if (commonGitDirectory(sourceRoot) !== commonGitDirectory(targetRoot)) {
     throw new Error("--env-source must be another checkout of this Git repository")
   }
 
-  const approvedFiles = []
+  const loadedEnvFiles = []
   for (const name of developmentEnvFiles) {
     const path = join(sourceRoot, name)
     let state
@@ -89,6 +138,9 @@ export function validateEnvironmentSource({
     if (!state.isFile() || state.isSymbolicLink()) {
       throw new Error(`${name} must be a regular file, not a symlink or special file`)
     }
+    if (state.nlink !== 1) {
+      throw new Error(`${name} must not be hard-linked to another filesystem path`)
+    }
     if ((state.mode & 0o077) !== 0) {
       throw new Error(`${name} must not be readable or writable by group or other users`)
     }
@@ -100,14 +152,22 @@ export function validateEnvironmentSource({
     if (!gitSucceeds(sourceRoot, ["check-ignore", "--quiet", "--", relativePath])) {
       throw new Error(`${name} is not ignored by the source checkout`)
     }
-    approvedFiles.push(name)
+    loadedEnvFiles.push({
+      path: name,
+      contents: securelyReadEnvironmentFile(path, name, state, beforeEnvironmentOpen),
+      env: {},
+    })
   }
 
-  if (approvedFiles.length === 0) {
+  if (loadedEnvFiles.length === 0) {
     throw new Error("The approved source checkout has no ignored development environment files")
   }
 
-  return { approvedFiles, sourceRoot }
+  return {
+    approvedFiles: loadedEnvFiles.map(({ path }) => path),
+    loadedEnvFiles,
+    sourceRoot,
+  }
 }
 
 export function preparePreviewEnvironment({
@@ -116,22 +176,14 @@ export function preparePreviewEnvironment({
   port,
 } = {}) {
   const previewPort = validatePreviewPort(port)
-  const { approvedFiles, sourceRoot } = validateEnvironmentSource({
+  const { approvedFiles, loadedEnvFiles, sourceRoot } = validateEnvironmentSource({
     repositoryRoot,
     environmentSource,
   })
 
-  if (/(?:^|\s)--(?:env-file|require|r)(?:=|\s)/.test(process.env.NODE_OPTIONS || "")) {
-    throw new Error("NODE_OPTIONS contains an unsupported environment-loading flag")
-  }
-
   const quietLog = { info() {}, error() {} }
-  const { combinedEnv, loadedEnvFiles } = nextEnv.loadEnvConfig(
-    sourceRoot,
-    true,
-    quietLog,
-    true,
-  )
+  nextEnv.resetEnv()
+  const [combinedEnv] = nextEnv.processEnv(loadedEnvFiles, sourceRoot, quietLog, true)
   const loadedNames = loadedEnvFiles.map(({ path }) => path)
   if (loadedNames.some((name) => !approvedFiles.includes(name))) {
     throw new Error("Next.js loaded an environment file outside the approved source set")
@@ -157,15 +209,18 @@ export function preparePreviewEnvironment({
     .map((host) => host.trim())
     .filter(Boolean)
 
+  const environment = {
+    ...combinedEnv,
+    NODE_ENV: "development",
+    PORT: String(previewPort),
+    POKE_NOTES_LOCAL_LOGIN_HOSTS: Array.from(
+      new Set([...configuredHosts, ...loopbackHosts]),
+    ).join(","),
+  }
+  delete environment.NODE_OPTIONS
+
   return {
-    environment: {
-      ...combinedEnv,
-      NODE_ENV: "development",
-      PORT: String(previewPort),
-      POKE_NOTES_LOCAL_LOGIN_HOSTS: Array.from(
-        new Set([...configuredHosts, ...loopbackHosts]),
-      ).join(","),
-    },
+    environment,
     loadedNames,
     port: previewPort,
     sourceRoot,
@@ -179,6 +234,9 @@ export async function startIsolatedPreview({
   spawnCommand = spawn,
 } = {}) {
   const prepared = preparePreviewEnvironment({ repositoryRoot, environmentSource, port })
+  console.log(
+    `Starting isolated preview from ${prepared.loadedNames.length} approved ignored environment file(s); values are not logged.`,
+  )
   const nextCli = join(repositoryRoot, "node_modules", "next", "dist", "bin", "next")
   const child = spawnCommand(
     process.execPath,
@@ -235,10 +293,6 @@ function parseArguments(argv) {
 if (process.argv[1] && resolve(process.argv[1]) === scriptPath) {
   try {
     const options = parseArguments(process.argv.slice(2))
-    const prepared = validateEnvironmentSource({ environmentSource: options.environmentSource })
-    console.log(
-      `Starting isolated preview from ${prepared.approvedFiles.length} approved ignored environment file(s); values are not logged.`,
-    )
     process.exitCode = await startIsolatedPreview(options)
   } catch (error) {
     console.error(`Isolated preview failed: ${error.message}`)
