@@ -133,13 +133,20 @@ if (mode === "pre-commit") {
 if (mode === "pre-push") {
   let fileSets;
   try {
-    const remote = process.argv[3] ?? "origin";
-    const targetMainSha = remoteMainSha(remote);
+    const remoteName = process.argv[3]?.trim();
+    const pushLocation = process.argv[4]?.trim();
+    const pushTarget = pushLocation || remoteName;
+    if (!pushTarget) {
+      throw new Error(
+        "The push destination is required. Git supplies it automatically; for a manual check run npm run hooks:pre-push -- <push-location>."
+      );
+    }
+    const targetMainSha = remoteMainSha(pushTarget);
     fileSets = prePushFileSets(readFileSync(0, "utf8"), { targetMainSha });
   } catch (error) {
     console.error("Could not determine the pushed changes safely. Push stopped.");
     console.error(error instanceof Error ? error.message : String(error));
-    console.error("Fetch the push remote's main branch and retry.");
+    console.error("Ensure the push destination exposes refs/heads/main and retry.");
     process.exit(1);
   }
 
