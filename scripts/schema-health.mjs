@@ -2,9 +2,9 @@
 
 import { spawnSync } from "node:child_process";
 
-function databaseTargetArgs(args = process.argv.slice(2), env = process.env) {
+function databaseTarget(args = process.argv.slice(2), env = process.env) {
   if (args.length === 0) {
-    return ["--linked"];
+    return { args: ["--linked"], redact: (output) => output };
   }
 
   if (args.length !== 2 || args[0] !== "--db-url-env") {
@@ -23,13 +23,62 @@ function databaseTargetArgs(args = process.argv.slice(2), env = process.env) {
     throw new Error(`Database URL environment variable ${variableName} is not set.`);
   }
 
-  return ["--db-url", databaseUrl];
+  const secrets = new Set([databaseUrl]);
+  try {
+    const parsed = new URL(databaseUrl);
+    const addCredential = (value) => {
+      if (!value) return;
+      secrets.add(value);
+      try {
+        secrets.add(decodeURIComponent(value));
+      } catch {
+        // Keep the original credential when it is not valid percent-encoding.
+      }
+    };
+
+    for (const value of [parsed.username, parsed.password]) {
+      addCredential(value);
+    }
+
+    const credentialParameters = new Set(["user", "password", "sslpassword"]);
+    for (const name of credentialParameters) {
+      for (const value of parsed.searchParams.getAll(name)) {
+        addCredential(value);
+      }
+    }
+    for (const parameter of parsed.search.slice(1).split("&")) {
+      const separator = parameter.indexOf("=");
+      const rawName = separator < 0 ? parameter : parameter.slice(0, separator);
+      const rawValue = separator < 0 ? "" : parameter.slice(separator + 1);
+      try {
+        if (credentialParameters.has(decodeURIComponent(rawName))) {
+          addCredential(rawValue);
+        }
+      } catch {
+        // The exact database URL remains redacted if a parameter name is malformed.
+      }
+    }
+  } catch {
+    // Target validation belongs to Supabase; redact the exact supplied value regardless.
+  }
+  const orderedSecrets = [...secrets].filter(Boolean).sort((left, right) => right.length - left.length);
+
+  return {
+    args: ["--db-url", databaseUrl],
+    redact(output) {
+      let redacted = output;
+      for (const secret of orderedSecrets) {
+        redacted = redacted.replaceAll(secret, "[REDACTED]");
+      }
+      return redacted;
+    }
+  };
 }
 
-let databaseTarget;
+let target;
 
 try {
-  databaseTarget = databaseTargetArgs();
+  target = databaseTarget();
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(2);
@@ -255,7 +304,7 @@ const REQUIRED_TRIGGERS = [
 function runSupabaseJson(sql) {
   const result = spawnSync(
     "supabase",
-    ["--agent=no", "db", "query", ...databaseTarget, "-o", "json", sql],
+    ["--agent=no", "db", "query", ...target.args, "-o", "json", sql],
     {
       cwd: process.cwd(),
       encoding: "utf8",
@@ -265,16 +314,16 @@ function runSupabaseJson(sql) {
 
   if (result.status !== 0) {
     if (result.stdout.trim()) {
-      process.stdout.write(result.stdout);
+      process.stdout.write(target.redact(result.stdout));
     }
     if (result.stderr.trim()) {
-      process.stderr.write(result.stderr);
+      process.stderr.write(target.redact(result.stderr));
     }
     throw new Error("Supabase schema health query failed for the configured target.");
   }
 
   if (result.stderr.trim()) {
-    process.stderr.write(result.stderr);
+    process.stderr.write(target.redact(result.stderr));
   }
 
   const output = result.stdout.trim();
@@ -282,10 +331,14 @@ function runSupabaseJson(sql) {
   const end = output.lastIndexOf("]");
 
   if (start < 0 || end < start) {
-    throw new Error(`Could not parse Supabase JSON output: ${output}`);
+    throw new Error(`Could not parse Supabase JSON output: ${target.redact(output)}`);
   }
 
-  return JSON.parse(output.slice(start, end + 1));
+  try {
+    return JSON.parse(output.slice(start, end + 1));
+  } catch {
+    throw new Error(`Could not parse Supabase JSON output: ${target.redact(output)}`);
+  }
 }
 
 function sqlList(values) {

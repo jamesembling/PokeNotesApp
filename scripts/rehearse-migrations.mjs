@@ -20,18 +20,44 @@ function requiredEnvironment(name, pattern, description) {
   return value;
 }
 
-function runSupabase(args, { capture = false, label }) {
+function redactorForDatabaseTarget(databaseUrl, parsedUrl) {
+  const secrets = new Set([databaseUrl, parsedUrl.username, parsedUrl.password]);
+
+  for (const value of [parsedUrl.username, parsedUrl.password]) {
+    try {
+      secrets.add(decodeURIComponent(value));
+    } catch {
+      // The full URL is still redacted when a credential is not valid percent-encoding.
+    }
+  }
+
+  const orderedSecrets = [...secrets].filter(Boolean).sort((left, right) => right.length - left.length);
+  return (output) => {
+    let redacted = output;
+    for (const secret of orderedSecrets) {
+      redacted = redacted.replaceAll(secret, "[REDACTED]");
+    }
+    return redacted;
+  };
+}
+
+function forwardRedacted(output, destination, redact) {
+  if (output) destination.write(redact(output));
+}
+
+function runSupabase(args, { capture = false, label, redact }) {
   const result = spawnSync("supabase", ["--agent=no", ...args], {
     cwd: process.cwd(),
     encoding: "utf8",
-    stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit"
+    stdio: ["ignore", "pipe", "pipe"]
   });
 
+  if (!capture || result.status !== 0) {
+    forwardRedacted(result.stdout, process.stdout, redact);
+  }
+  forwardRedacted(result.stderr, process.stderr, redact);
+
   if (result.status !== 0) {
-    if (capture) {
-      if (result.stdout.trim()) process.stdout.write(result.stdout);
-      if (result.stderr.trim()) process.stderr.write(result.stderr);
-    }
     throw new Error(`${label} failed.`);
   }
 
@@ -53,7 +79,7 @@ function parseBranchDetails(output) {
   return details;
 }
 
-function projectRefFromDatabaseUrl(databaseUrl) {
+function databaseTargetFromUrl(databaseUrl) {
   let parsed;
   try {
     parsed = new URL(databaseUrl);
@@ -78,11 +104,15 @@ function projectRefFromDatabaseUrl(databaseUrl) {
   }
 
   const direct = /^db\.([a-z]{20})\.supabase\.co$/.exec(parsed.hostname);
-  if (direct) return direct[1];
+  if (direct) {
+    return { projectRef: direct[1], redact: redactorForDatabaseTarget(databaseUrl, parsed) };
+  }
 
   const poolerHost = /^[a-z0-9-]+\.pooler\.supabase\.com$/.test(parsed.hostname);
   const poolerUser = /^postgres\.([a-z]{20})$/.exec(decodeURIComponent(parsed.username));
-  if (poolerHost && poolerUser) return poolerUser[1];
+  if (poolerHost && poolerUser) {
+    return { projectRef: poolerUser[1], redact: redactorForDatabaseTarget(databaseUrl, parsed) };
+  }
 
   throw new Error(
     "Disposable database URL does not expose a supported Supabase project reference."
@@ -112,12 +142,20 @@ try {
   if (!databaseUrl) {
     throw new Error("POKENOTES_DISPOSABLE_DATABASE_URL is not set.");
   }
+  const databaseTarget = databaseTargetFromUrl(databaseUrl);
+  if (databaseTarget.projectRef !== branchRef) {
+    throw new Error("Disposable database URL is not bound to the frozen approved branch ref.");
+  }
 
   const verifyTargetBinding = () => {
     const details = parseBranchDetails(
       runSupabase(
         ["branches", "get", branchId, "--project-ref", parentProjectRef, "-o", "json"],
-        { capture: true, label: "Disposable branch identity lookup" }
+        {
+          capture: true,
+          label: "Disposable branch identity lookup",
+          redact: databaseTarget.redact
+        }
       )
     );
 
@@ -125,16 +163,13 @@ try {
       throw new Error("Live disposable branch identity does not match the frozen approved record.");
     }
 
-    if (projectRefFromDatabaseUrl(databaseUrl) !== branchRef) {
-      throw new Error("Disposable database URL is not bound to the frozen approved branch ref.");
-    }
-
     console.log(`Verified disposable target binding: branch ${branchId}, ref ${branchRef}.`);
   };
 
   verifyTargetBinding();
   runSupabase(["db", "push", "--db-url", databaseUrl, "--dry-run"], {
-    label: "Disposable migration dry run"
+    label: "Disposable migration dry run",
+    redact: databaseTarget.redact
   });
 
   if (!apply) {
@@ -144,7 +179,8 @@ try {
 
   verifyTargetBinding();
   runSupabase(["db", "push", "--db-url", databaseUrl], {
-    label: "Disposable migration apply"
+    label: "Disposable migration apply",
+    redact: databaseTarget.redact
   });
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
