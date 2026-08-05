@@ -1,14 +1,30 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 
+const migrationsDirectory = new URL("../supabase/migrations/", import.meta.url);
+const routeMigrationFilename = "20260725224841_optimize_route_read_models.sql";
 const migration = readFileSync(
-  new URL(
-    "../supabase/migrations/20260725221213_optimize_route_read_models.sql",
-    import.meta.url
-  ),
+  new URL(routeMigrationFilename, migrationsDirectory),
   "utf8"
 );
+
+test("route read model source history matches the authoritative migration ledger", () => {
+  const migrationFilenames = readdirSync(migrationsDirectory);
+  const routeMigrations = migrationFilenames.filter((filename) =>
+    filename.endsWith("_optimize_route_read_models.sql")
+  );
+
+  assert.deepEqual(routeMigrations, [routeMigrationFilename]);
+  assert.deepEqual(
+    migrationFilenames.filter((filename) => filename.startsWith("20260725224841_")),
+    [routeMigrationFilename]
+  );
+  assert.equal(
+    routeMigrations.some((filename) => filename.startsWith("20260725221213_")),
+    false
+  );
+});
 
 test("deck index page data combines deck summaries and stats in one tenant-scoped read", () => {
   assert.match(migration, /function public\.get_deck_index_page_data\(\)/i);
