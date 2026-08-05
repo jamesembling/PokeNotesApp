@@ -122,30 +122,30 @@ test("rollout keeps direct DELETE until the RPC application cutover is verified"
   assert.ok(rpcVersion < hardeningVersion, "hardening migration must sort after RPC installation");
 });
 
-test("every rehearsal runs from the independently reviewed safe harness checkout", () => {
+test("every rehearsal runs from the independently reviewed integration checkout", () => {
   assert.match(
     rolloutRunbook,
-    /Every rehearsal must\s+run from the safe-harness checkout pinned to\s+`e663da31f9a77407ab74d6c74038eccb7936dba1` or a later independently reviewed\s+head/
+    /clean, independently reviewed integration checkout[\s\S]*?combine current `origin\/main`[\s\S]*?reviewed PR #18 sharing commits[\s\S]*?reviewed PR #19 tournament migration/
   );
   assert.match(
     rolloutRunbook,
-    /Never run a rehearsal or\s+deploy the application from either staged migration checkout/
+    /not the standalone PR #18 head,\s+because phase one requires both migrations/
   );
   assert.match(
     rolloutRunbook,
-    /staged\s+trees are used only to dry-run and apply their phase-specific migration set/
+    /target-bound migration wrapper creates its own temporary\s+phase-specific Supabase workdir/
   );
   assert.match(
     rolloutRunbook,
-    /Return to the separate safe-harness checkout at the latest independently\s+reviewed head[\s\S]*?POKENOTES_SHARE_REHEARSAL_PHASE=rpc-cutover/
+    /From the integration checkout, run the staging rehearsal with\s+`POKENOTES_SHARE_REHEARSAL_PHASE=rpc-cutover`/
   );
   assert.match(
     rolloutRunbook,
-    /After the application deployment, return to the safe-harness checkout and\s+re-run the `rpc-cutover` staging rehearsal/
+    /After the application deployment, re-run the `rpc-cutover` staging rehearsal/
   );
   assert.match(
     rolloutRunbook,
-    /Apply only that hardening migration[\s\S]*?Return to the safe-harness checkout[\s\S]*?From the safe-harness checkout, run the staging rehearsal with\s+`POKENOTES_SHARE_REHEARSAL_PHASE=post-hardening`/
+    /apply only the hardening migration through\s+the separately bound wrapper[\s\S]*?Run the staging rehearsal with\s+`POKENOTES_SHARE_REHEARSAL_PHASE=post-hardening`/i
   );
 });
 
@@ -159,35 +159,51 @@ test("integrated rollout keeps hardening out of the phase-one migration set", ()
 
   assert.match(
     rolloutRunbook,
-    /explicitly excludes\s+`20260804212228_harden_log_share_writes_after_atomic_cutover\.sql`/
+    /staged workdir excludes\s+`20260804212228_harden_log_share_writes_after_atomic_cutover\.sql`/
   );
   assert.match(
     rolloutRunbook,
-    /Never apply a generic `supabase db push --include-all` from the final integrated\s+head before the application cutover/
+    /Never run the generic migration wrapper or a raw `supabase db push` from the\s+final integrated head before the application cutover/
   );
   assert.match(
     rolloutRunbook,
-    /`supabase db push --linked --dry-run --include-all` as an inspection only[\s\S]*?exactly these two pending migrations/
+    /npm run migration:rehearse -- --phase share-phase-one[\s\S]*?exactly these two pending migrations/
   );
   assert.match(
     rolloutRunbook,
-    /20260804224244_add_coin_toss_losses_to_stats\.sql` is unrelated work:[\s\S]*?stop and reconcile the linked migration state/
+    /20260804224244_add_coin_toss_losses_to_stats\.sql`[\s\S]*?ledger-aligned\s+`20260725224841_optimize_route_read_models\.sql` baseline[\s\S]*?Do not repair, ignore, or mask it/
   );
   assert.match(
     rolloutRunbook,
-    /final `schema\.sql` snapshot\s+is post-hardening and must not be applied as a shortcut/
+    /final\s+`schema\.sql` snapshot is post-hardening and must not be applied as a shortcut/
   );
   assert.match(
     rolloutRunbook,
-    /phase-two migration checkout[\s\S]*?must report exactly one pending migration:[\s\S]*?20260804212228_harden_log_share_writes_after_atomic_cutover\.sql/
+    /POKENOTES_SHARE_APP_CUTOVER_CONFIRM=verified-share-rpc-cutover[\s\S]*?must report exactly one\s+pending migration:[\s\S]*?20260804212228_harden_log_share_writes_after_atomic_cutover\.sql/
   );
   assert.match(
     rolloutRunbook,
-    /disposable rehearsal must prove this exact apply mechanism[\s\S]*?If the no-include push refuses[\s\S]*?stop and design and review an exact-file, ledger-safe\s+mechanism/
+    /disposable rehearsal must prove this exact apply mechanism[\s\S]*?If the wrapper refuses[\s\S]*?stop and design and review an exact-file, ledger-safe\s+reconciliation/
   );
   assert.match(
     rolloutRunbook,
-    /Do not relax the allowlist or fall back to a generic\s+`--include-all` push/
+    /Do not relax the allowlist, repair history inside this\s+release, or fall back to a generic push/
+  );
+  assert.match(
+    rolloutRunbook,
+    /## Production release[\s\S]*?--target production --phase share-phase-one[\s\S]*?deploy the exact reviewed compatible\s+application commit[\s\S]*?--target production --phase share-phase-two[\s\S]*?--target production --phase coin-stats/
+  );
+  assert.match(
+    rolloutRunbook,
+    /verify the approved project ref through the live project\s+list before dry-run and again before apply/
+  );
+  assert.match(
+    rolloutRunbook,
+    /hardening, coin toss, additional, missing,\s+duplicate, reordered, or ledger-divergent plans stop before mutation/
+  );
+  assert.match(
+    rolloutRunbook,
+    /fresh read-only production data-impact recount[\s\S]*?permits only `20260804224244`[\s\S]*?Never use `--include-all` or raw `supabase db push`/
   );
 });
 
