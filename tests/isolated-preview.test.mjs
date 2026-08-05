@@ -1,6 +1,15 @@
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
-import { chmodSync, linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import {
+  chmodSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
@@ -286,6 +295,8 @@ test("rejects an environment file replaced between validation and secure open", 
   const { root, source } = fixture()
   t.after(() => rmSync(root, { recursive: true, force: true }))
   writeEnvironment(source)
+  const replacementPath = join(source, ".env.local.replacement")
+  writeFileSync(replacementPath, "HARMLESS_REPLACEMENT=1\n", { mode: 0o600 })
   let replaced = false
 
   assert.throws(
@@ -297,7 +308,7 @@ test("rejects an environment file replaced between validation and secure open", 
           if (name !== ".env.local" || replaced) return
           replaced = true
           rmSync(path)
-          writeEnvironment(source)
+          renameSync(replacementPath, path)
         },
       }),
     /changed between validation and secure read/,
