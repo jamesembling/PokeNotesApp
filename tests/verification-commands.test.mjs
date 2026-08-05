@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
+import { execFile, spawnSync } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { promisify } from "node:util";
 import test from "node:test";
 
 const referenceUrl = new URL("../docs/verification-commands.md", import.meta.url);
 const reference = await readFile(referenceUrl, "utf8");
+const execFileAsync = promisify(execFile);
 
 function zshIsAvailable({ error, status }) {
   if (error) {
@@ -28,6 +30,7 @@ test("verification reference keeps repository-native shell-safe command contract
     "--output \"$download_file\" --write-out '%{http_code}'",
     "gh pr create --help | rg -- '--body-file'",
     "gh pr create --draft --base main --title 'Reviewed title' --body-file \"$pr_body_file\"",
+    "pokenotes-pr-body.md.XXXXXX",
     "pokenotes_vercel_cli='./node_modules/.bin/vercel'",
     "env -i PATH=\"$PATH\" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git",
     "if ! git diff --quiet -- next-env.d.ts || ! git diff --cached --quiet -- next-env.d.ts; then",
@@ -40,6 +43,32 @@ test("verification reference keeps repository-native shell-safe command contract
 
   assert.doesNotMatch(reference, /^\s*npx\s+vercel(?:\s|$)/m);
   assert.doesNotMatch(reference, /^\s*curl[^\n]*\|[^\n]*(?:head|sed\s+-n)(?:\s|$)/m);
+});
+
+test("PR body mktemp template creates concurrent unique files and cleans exact paths", async (t) => {
+  const templateName = reference.match(/pokenotes-pr-body\.md\.X{6}/)?.[0];
+  assert.ok(templateName, "missing suffix-ending PR body mktemp template");
+
+  const fixtureRoot = await mkdtemp(join(tmpdir(), "pokenotes-pr-body-template-"));
+  t.after(() => rm(fixtureRoot, { force: true, recursive: true }));
+  const templatePath = join(fixtureRoot, templateName);
+  const [{ stdout: firstOutput }, { stdout: secondOutput }] = await Promise.all([
+    execFileAsync("mktemp", [templatePath]),
+    execFileAsync("mktemp", [templatePath]),
+  ]);
+  const firstPath = firstOutput.trim();
+  const secondPath = secondOutput.trim();
+
+  assert.notEqual(firstPath, secondPath);
+  assert.doesNotMatch(firstPath, /X{6}/);
+  assert.doesNotMatch(secondPath, /X{6}/);
+  assert.equal(await readFile(firstPath, "utf8"), "");
+  assert.equal(await readFile(secondPath, "utf8"), "");
+
+  await rm(firstPath);
+  await rm(secondPath);
+  await assert.rejects(readFile(firstPath), { code: "ENOENT" });
+  await assert.rejects(readFile(secondPath), { code: "ENOENT" });
 });
 
 test("typecheck failure restores known-clean next-env before returning the failure", async (t) => {
