@@ -107,18 +107,41 @@ reached an accepted terminal state. Treat command exits as diagnostics and verif
 a separate read. Never retry a merge based only on the merge command's exit code.
 
 Before an authorized integration, bind every read and write to the exact repository, pull request,
-and reviewed head commit. The pull request number below is illustrative and must be replaced:
+independently reviewed head commit, and actual Git push destination. The reviewed SHA is an operator
+input from completed review evidence; never derive it from the pull request snapshot. Every
+placeholder below must be replaced:
 
 ```zsh
 pokenotes_repo='jamesembling/PokeNotesApp'
 pokenotes_pr_number='123'
+pokenotes_reviewed_head='replace-with-independently-reviewed-full-40-character-sha'
+pokenotes_push_remote='origin'
+
+printf '%s\n' "$pokenotes_reviewed_head" | rg -q '^[0-9a-f]{40}$'
+pokenotes_push_urls="$(git remote get-url --push --all "$pokenotes_push_remote")"
+test "$(awk 'END { print NR }' <<< "$pokenotes_push_urls")" -eq 1
+pokenotes_push_url="$pokenotes_push_urls"
+case "$pokenotes_push_url" in
+  "https://github.com/$pokenotes_repo.git"|"git@github.com:$pokenotes_repo.git"|\
+  "ssh://git@github.com/$pokenotes_repo.git") ;;
+  *) echo 'Push destination does not match the reviewed repository.' >&2
+     return 1 2>/dev/null || exit 1 ;;
+esac
+
+pokenotes_premerge_main_line="$(git ls-remote "$pokenotes_push_url" refs/heads/main)"
+test "$(awk 'END { print NR }' <<< "$pokenotes_premerge_main_line")" -eq 1
+test "$(awk '{ print $2 }' <<< "$pokenotes_premerge_main_line")" = refs/heads/main
+pokenotes_premerge_main="$(awk '{ print $1 }' <<< "$pokenotes_premerge_main_line")"
+printf '%s\n' "$pokenotes_premerge_main" | rg -q '^[0-9a-f]{40}$'
+
 pokenotes_premerge_snapshot="$(gh pr view "$pokenotes_pr_number" --repo "$pokenotes_repo" \
   --json state,headRefName,headRefOid,baseRefName)"
-pokenotes_expected_head="$(jq -r '.headRefOid' <<< "$pokenotes_premerge_snapshot")"
 pokenotes_head_branch="$(jq -r '.headRefName' <<< "$pokenotes_premerge_snapshot")"
 test "$(jq -r '.state' <<< "$pokenotes_premerge_snapshot")" = OPEN
-test -n "$pokenotes_expected_head"
-test "$pokenotes_expected_head" != null
+test "$(jq -r '.baseRefName' <<< "$pokenotes_premerge_snapshot")" = main
+test "$(jq -r '.headRefOid' <<< "$pokenotes_premerge_snapshot")" = "$pokenotes_reviewed_head"
+test -n "$pokenotes_head_branch"
+test "$pokenotes_head_branch" != null
 ```
 
 ### Phase 1: verify check state
@@ -163,55 +186,103 @@ merge command's exit code:
 ```zsh
 set +e
 gh pr merge "$pokenotes_pr_number" --repo "$pokenotes_repo" --squash \
-  --match-head-commit "$pokenotes_expected_head"
+  --match-head-commit "$pokenotes_reviewed_head"
 pokenotes_merge_command_exit_code=$?
 set -e
 
 pokenotes_postmerge_snapshot="$(gh pr view "$pokenotes_pr_number" --repo "$pokenotes_repo" \
-  --json state,mergedAt,mergeCommit,headRefOid)"
+  --json state,mergedAt,mergeCommit,headRefOid,baseRefName)"
 test "$(jq -r '.state' <<< "$pokenotes_postmerge_snapshot")" = MERGED
-test "$(jq -r '.headRefOid' <<< "$pokenotes_postmerge_snapshot")" = "$pokenotes_expected_head"
+test "$(jq -r '.baseRefName' <<< "$pokenotes_postmerge_snapshot")" = main
+test "$(jq -r '.headRefOid' <<< "$pokenotes_postmerge_snapshot")" = "$pokenotes_reviewed_head"
 test -n "$(jq -r '.mergedAt // empty' <<< "$pokenotes_postmerge_snapshot")"
-test -n "$(jq -r '.mergeCommit.oid // empty' <<< "$pokenotes_postmerge_snapshot")"
+pokenotes_merge_commit="$(jq -r '.mergeCommit.oid // empty' <<< "$pokenotes_postmerge_snapshot")"
+printf '%s\n' "$pokenotes_merge_commit" | rg -q '^[0-9a-f]{40}$'
+
+pokenotes_postmerge_main_line="$(git ls-remote "$pokenotes_push_url" refs/heads/main)"
+test "$(awk 'END { print NR }' <<< "$pokenotes_postmerge_main_line")" -eq 1
+test "$(awk '{ print $2 }' <<< "$pokenotes_postmerge_main_line")" = refs/heads/main
+pokenotes_postmerge_main="$(awk '{ print $1 }' <<< "$pokenotes_postmerge_main_line")"
+test "$pokenotes_postmerge_main" = "$pokenotes_merge_commit"
+test "$pokenotes_postmerge_main" != "$pokenotes_premerge_main"
 ```
 
 Only the post-merge snapshot establishes remote success. A non-zero merge command plus a verified
 `MERGED` snapshot means the merge succeeded and a later phase failed; do not issue a duplicate merge.
-A zero exit without the verified snapshot is not sufficient evidence.
+A zero exit without the verified snapshot is not sufficient evidence. This contract deliberately
+requires the merge commit to be the exact live `refs/heads/main` tip. If concurrent integration moves
+`main` before the read, the equality fails closed: stop without retrying or cleaning up, then have a
+reviewer establish ancestry and race ordering separately.
 
 ### Cleanup is separately authorized and verified
 
 Cleanup is not part of the merge proof. After the merge is verified, obtain separate authority for
 the exact completed worktree, local branch, and remote branch before running these destructive
 examples. Run local cleanup from a retained checkout outside the completed worktree, and never infer
-cleanup success from the merge command. A squash merge does not make the old head a Git ancestor of
-the base, so verify its exact recorded tip before the separately authorized force-delete:
+cleanup success from the merge command. The guards below prove that the exact canonical path is one
+clean registered worktree of the current common repository, is not the operator's current directory,
+and owns the reviewed branch and commit. A squash merge does not make the old head a Git ancestor of
+the base, so the separately authorized local branch deletion is intentionally forced only after
+those exact checks:
 
 ```zsh
 pokenotes_completed_worktree='/absolute/path/to/completed-worktree'
-test "$(git rev-parse "refs/heads/$pokenotes_head_branch")" = "$pokenotes_expected_head"
-git worktree remove "$pokenotes_completed_worktree"
+case "$pokenotes_completed_worktree" in
+  /*) ;;
+  *) echo 'Completed worktree path must be absolute.' >&2
+     return 1 2>/dev/null || exit 1 ;;
+esac
+test -d "$pokenotes_completed_worktree"
+pokenotes_completed_worktree="$(cd "$pokenotes_completed_worktree" && pwd -P)"
+pokenotes_operator_cwd="$(pwd -P)"
+test "$pokenotes_completed_worktree" != "$pokenotes_operator_cwd"
+
+pokenotes_common_dir="$(cd "$(git rev-parse --path-format=absolute --git-common-dir)" && pwd -P)"
+pokenotes_target_common_dir="$(cd "$(git -C "$pokenotes_completed_worktree" \
+  rev-parse --path-format=absolute --git-common-dir)" && pwd -P)"
+test "$pokenotes_target_common_dir" = "$pokenotes_common_dir"
+pokenotes_registration_count="$(git worktree list --porcelain | awk \
+  -v target="worktree $pokenotes_completed_worktree" \
+  '$0 == target { count++ } END { print count + 0 }')"
+test "$pokenotes_registration_count" -eq 1
+test -z "$(git -C "$pokenotes_completed_worktree" status --porcelain=v1 --untracked-files=all)"
+test "$(git -C "$pokenotes_completed_worktree" symbolic-ref --quiet HEAD)" = \
+  "refs/heads/$pokenotes_head_branch"
+test "$(git -C "$pokenotes_completed_worktree" rev-parse HEAD)" = "$pokenotes_reviewed_head"
+test "$(git rev-parse "refs/heads/$pokenotes_head_branch")" = "$pokenotes_reviewed_head"
+
+git worktree remove -- "$pokenotes_completed_worktree"
 git branch -D -- "$pokenotes_head_branch"
-if git worktree list --porcelain | rg -F "branch refs/heads/$pokenotes_head_branch"; then
-  echo 'Completed branch is still attached to a worktree.' >&2
+if test -e "$pokenotes_completed_worktree"; then
+  echo 'Completed worktree path still exists.' >&2
   return 1 2>/dev/null || exit 1
 fi
+pokenotes_registration_count="$(git worktree list --porcelain | awk \
+  -v target="worktree $pokenotes_completed_worktree" \
+  '$0 == target { count++ } END { print count + 0 }')"
+test "$pokenotes_registration_count" -eq 0
 if git show-ref --verify --quiet "refs/heads/$pokenotes_head_branch"; then
   echo 'Completed local branch still exists.' >&2
   return 1 2>/dev/null || exit 1
 fi
 ```
 
-Remote branch deletion is a distinct external write and requires its own authorization. Bind it to
-the same exact repository and verify absence through a read-only remote-ref query:
+Remote branch deletion is a distinct external write and requires its own authorization. Reuse the
+previously validated actual push URL for the read, deletion, and final absence proof. If the branch
+still exists, refuse to delete it unless its tip is the independently reviewed SHA:
 
 ```zsh
-pokenotes_remote_head="$(git ls-remote "https://github.com/$pokenotes_repo.git" \
-  "refs/heads/$pokenotes_head_branch" | awk '{print $1}')"
-test "$pokenotes_remote_head" = "$pokenotes_expected_head"
-gh api --method DELETE "repos/$pokenotes_repo/git/refs/heads/$pokenotes_head_branch"
-test -z "$(git ls-remote "https://github.com/$pokenotes_repo.git" \
+pokenotes_remote_branch_line="$(git ls-remote "$pokenotes_push_url" \
   "refs/heads/$pokenotes_head_branch")"
+if test -n "$pokenotes_remote_branch_line"; then
+  test "$(awk 'END { print NR }' <<< "$pokenotes_remote_branch_line")" -eq 1
+  test "$(awk '{ print $2 }' <<< "$pokenotes_remote_branch_line")" = \
+    "refs/heads/$pokenotes_head_branch"
+  test "$(awk '{ print $1 }' <<< "$pokenotes_remote_branch_line")" = \
+    "$pokenotes_reviewed_head"
+  git push "$pokenotes_push_url" --delete "$pokenotes_head_branch"
+fi
+test -z "$(git ls-remote "$pokenotes_push_url" "refs/heads/$pokenotes_head_branch")"
 ```
 
 ## Vercel inspection
