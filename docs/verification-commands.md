@@ -99,6 +99,121 @@ After use, delete only the exact file created by `mktemp`:
 find "$pr_body_file" -type f -delete
 ```
 
+## Pull request integration is a two-phase contract
+
+GitHub CLI commands can span remote work and later local cleanup. A non-zero exit can therefore
+follow a successful remote merge, while a watcher exit does not by itself prove that every check
+reached an accepted terminal state. Treat command exits as diagnostics and verify remote state with
+a separate read. Never retry a merge based only on the merge command's exit code.
+
+Before an authorized integration, bind every read and write to the exact repository, pull request,
+and reviewed head commit. The pull request number below is illustrative and must be replaced:
+
+```zsh
+pokenotes_repo='jamesembling/PokeNotesApp'
+pokenotes_pr_number='123'
+pokenotes_premerge_snapshot="$(gh pr view "$pokenotes_pr_number" --repo "$pokenotes_repo" \
+  --json state,headRefName,headRefOid,baseRefName)"
+pokenotes_expected_head="$(jq -r '.headRefOid' <<< "$pokenotes_premerge_snapshot")"
+pokenotes_head_branch="$(jq -r '.headRefName' <<< "$pokenotes_premerge_snapshot")"
+test "$(jq -r '.state' <<< "$pokenotes_premerge_snapshot")" = OPEN
+test -n "$pokenotes_expected_head"
+test "$pokenotes_expected_head" != null
+```
+
+### Phase 1: verify check state
+
+The aggregate watcher is useful progress output, but its exit is not acceptance evidence. Capture it,
+then always take a fresh read-only snapshot. This repository's release gate accepts only `pass` and
+`skipping` buckets; any `pending`, `fail`, or `cancel` bucket stops integration:
+
+```zsh
+set +e
+gh pr checks "$pokenotes_pr_number" --watch --repo "$pokenotes_repo"
+pokenotes_checks_watch_exit_code=$?
+set -e
+
+set +e
+pokenotes_check_snapshot="$(gh pr checks "$pokenotes_pr_number" --repo "$pokenotes_repo" \
+  --json bucket,name,state,workflow)"
+pokenotes_check_snapshot_exit_code=$?
+set -e
+
+test -n "$pokenotes_check_snapshot"
+pokenotes_unaccepted_check_count="$(jq \
+  '[.[] | select(.bucket != "pass" and .bucket != "skipping")] | length' \
+  <<< "$pokenotes_check_snapshot")"
+test "$pokenotes_check_snapshot_exit_code" -eq 0
+test "$pokenotes_unaccepted_check_count" -eq 0
+jq -r '.[] | [.workflow, .name, .bucket, .state] | @tsv' <<< "$pokenotes_check_snapshot"
+```
+
+Record both exit codes for diagnosis. The fresh snapshot must itself succeed, and its bucket assertion
+must pass; neither condition substitutes for the other. If an individual workflow needs attended
+monitoring, use `gh run watch <run-id> --exit-status`, then confirm its `status`, `conclusion`, and
+`headSha` through a separate `gh run view --json` read.
+
+### Phase 2: merge, then read remote truth
+
+The merge itself is an **illustrative external write**. Run it only after review and merge authority
+are explicit. Pin the reviewed head with `--match-head-commit` and omit `--delete-branch` so local and
+remote cleanup cannot obscure the merge result. The follow-up read is mandatory regardless of the
+merge command's exit code:
+
+```zsh
+set +e
+gh pr merge "$pokenotes_pr_number" --repo "$pokenotes_repo" --squash \
+  --match-head-commit "$pokenotes_expected_head"
+pokenotes_merge_command_exit_code=$?
+set -e
+
+pokenotes_postmerge_snapshot="$(gh pr view "$pokenotes_pr_number" --repo "$pokenotes_repo" \
+  --json state,mergedAt,mergeCommit,headRefOid)"
+test "$(jq -r '.state' <<< "$pokenotes_postmerge_snapshot")" = MERGED
+test "$(jq -r '.headRefOid' <<< "$pokenotes_postmerge_snapshot")" = "$pokenotes_expected_head"
+test -n "$(jq -r '.mergedAt // empty' <<< "$pokenotes_postmerge_snapshot")"
+test -n "$(jq -r '.mergeCommit.oid // empty' <<< "$pokenotes_postmerge_snapshot")"
+```
+
+Only the post-merge snapshot establishes remote success. A non-zero merge command plus a verified
+`MERGED` snapshot means the merge succeeded and a later phase failed; do not issue a duplicate merge.
+A zero exit without the verified snapshot is not sufficient evidence.
+
+### Cleanup is separately authorized and verified
+
+Cleanup is not part of the merge proof. After the merge is verified, obtain separate authority for
+the exact completed worktree, local branch, and remote branch before running these destructive
+examples. Run local cleanup from a retained checkout outside the completed worktree, and never infer
+cleanup success from the merge command. A squash merge does not make the old head a Git ancestor of
+the base, so verify its exact recorded tip before the separately authorized force-delete:
+
+```zsh
+pokenotes_completed_worktree='/absolute/path/to/completed-worktree'
+test "$(git rev-parse "refs/heads/$pokenotes_head_branch")" = "$pokenotes_expected_head"
+git worktree remove "$pokenotes_completed_worktree"
+git branch -D -- "$pokenotes_head_branch"
+if git worktree list --porcelain | rg -F "branch refs/heads/$pokenotes_head_branch"; then
+  echo 'Completed branch is still attached to a worktree.' >&2
+  return 1 2>/dev/null || exit 1
+fi
+if git show-ref --verify --quiet "refs/heads/$pokenotes_head_branch"; then
+  echo 'Completed local branch still exists.' >&2
+  return 1 2>/dev/null || exit 1
+fi
+```
+
+Remote branch deletion is a distinct external write and requires its own authorization. Bind it to
+the same exact repository and verify absence through a read-only remote-ref query:
+
+```zsh
+pokenotes_remote_head="$(git ls-remote "https://github.com/$pokenotes_repo.git" \
+  "refs/heads/$pokenotes_head_branch" | awk '{print $1}')"
+test "$pokenotes_remote_head" = "$pokenotes_expected_head"
+gh api --method DELETE "repos/$pokenotes_repo/git/refs/heads/$pokenotes_head_branch"
+test -z "$(git ls-remote "https://github.com/$pokenotes_repo.git" \
+  "refs/heads/$pokenotes_head_branch")"
+```
+
 ## Vercel inspection
 
 Do not run an unversioned on-demand `npx vercel`. This repository currently has no local Vercel CLI,

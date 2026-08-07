@@ -30,6 +30,14 @@ test("verification reference keeps repository-native shell-safe command contract
     "--output \"$download_file\" --write-out '%{http_code}'",
     "gh pr create --help | rg -- '--body-file'",
     "gh pr create --draft --base main --title 'Reviewed title' --body-file \"$pr_body_file\"",
+    "gh pr checks \"$pokenotes_pr_number\" --watch --repo \"$pokenotes_repo\"",
+    "--json bucket,name,state,workflow",
+    "test \"$pokenotes_check_snapshot_exit_code\" -eq 0",
+    "gh pr merge \"$pokenotes_pr_number\" --repo \"$pokenotes_repo\" --squash",
+    "--match-head-commit \"$pokenotes_expected_head\"",
+    "--json state,mergedAt,mergeCommit,headRefOid",
+    "gh api --method DELETE \"repos/$pokenotes_repo/git/refs/heads/$pokenotes_head_branch\"",
+    "test \"$pokenotes_remote_head\" = \"$pokenotes_expected_head\"",
     "pokenotes-pr-body.md.XXXXXX",
     "pokenotes_vercel_cli='./node_modules/.bin/vercel'",
     "env -i PATH=\"$PATH\" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git",
@@ -43,6 +51,20 @@ test("verification reference keeps repository-native shell-safe command contract
 
   assert.doesNotMatch(reference, /^\s*npx\s+vercel(?:\s|$)/m);
   assert.doesNotMatch(reference, /^\s*curl[^\n]*\|[^\n]*(?:head|sed\s+-n)(?:\s|$)/m);
+});
+
+test("PR integration contract verifies remote truth before separately authorized cleanup", () => {
+  assert.match(reference, /Treat command exits as diagnostics and verify remote state with/);
+  assert.match(reference, /\.bucket != "pass" and \.bucket != "skipping"/);
+  assert.match(reference, /mandatory regardless of the\s+merge command's exit code/);
+  assert.match(reference, /Only the post-merge snapshot establishes remote success/);
+  assert.match(reference, /Cleanup is separately authorized and verified/);
+  assert.match(reference, /Remote branch deletion is a distinct external write/);
+  assert.match(reference, /git branch -D -- "\$pokenotes_head_branch"/);
+
+  assert.doesNotMatch(reference, /gh pr merge[^\n]*--delete-branch/);
+  assert.doesNotMatch(reference, /gh pr checks[^\n]*--watch[^\n]*(?:&&|\|\|)\s*gh pr merge/);
+  assert.doesNotMatch(reference, /gh pr merge[^\n]*(?:&&|\|\|)\s*(?:git|gh)\s+(?:branch|api)/);
 });
 
 test("PR body mktemp template creates concurrent unique files and cleans exact paths", async (t) => {
