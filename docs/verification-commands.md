@@ -116,8 +116,14 @@ pokenotes_repo='jamesembling/PokeNotesApp'
 pokenotes_pr_number='123'
 pokenotes_reviewed_head='replace-with-independently-reviewed-full-40-character-sha'
 pokenotes_push_remote='origin'
+pokenotes_expected_gate_ids=$'replace-workflow/replace-check-name\nexternal/replace-provider-check'
 
 printf '%s\n' "$pokenotes_reviewed_head" | rg -q '^[0-9a-f]{40}$'
+test -n "$pokenotes_expected_gate_ids"
+if rg -q 'replace-(workflow|check-name|provider-check)' <<< "$pokenotes_expected_gate_ids"; then
+  echo 'Replace every expected gate placeholder with an operator-reviewed identity.' >&2
+  return 1 2>/dev/null || exit 1
+fi
 pokenotes_push_urls="$(git remote get-url --push --all "$pokenotes_push_remote")"
 test "$(awk 'END { print NR }' <<< "$pokenotes_push_urls")" -eq 1
 pokenotes_push_url="$pokenotes_push_urls"
@@ -135,10 +141,11 @@ pokenotes_premerge_main="$(awk '{ print $1 }' <<< "$pokenotes_premerge_main_line
 printf '%s\n' "$pokenotes_premerge_main" | rg -q '^[0-9a-f]{40}$'
 
 pokenotes_premerge_snapshot="$(gh pr view "$pokenotes_pr_number" --repo "$pokenotes_repo" \
-  --json state,headRefName,headRefOid,baseRefName)"
+  --json state,headRefName,headRefOid,baseRefName,baseRefOid)"
 pokenotes_head_branch="$(jq -r '.headRefName' <<< "$pokenotes_premerge_snapshot")"
 test "$(jq -r '.state' <<< "$pokenotes_premerge_snapshot")" = OPEN
 test "$(jq -r '.baseRefName' <<< "$pokenotes_premerge_snapshot")" = main
+test "$(jq -r '.baseRefOid' <<< "$pokenotes_premerge_snapshot")" = "$pokenotes_premerge_main"
 test "$(jq -r '.headRefOid' <<< "$pokenotes_premerge_snapshot")" = "$pokenotes_reviewed_head"
 test -n "$pokenotes_head_branch"
 test "$pokenotes_head_branch" != null
@@ -147,8 +154,12 @@ test "$pokenotes_head_branch" != null
 ### Phase 1: verify check state
 
 The aggregate watcher is useful progress output, but its exit is not acceptance evidence. Capture it,
-then always take a fresh read-only snapshot. This repository's release gate accepts only `pass` and
-`skipping` buckets; any `pending`, `fail`, or `cancel` bucket stops integration:
+then always take a fresh read-only snapshot. This private repository has no branch-protection or
+ruleset API that exposes a required-check set, so the operator must supply the independently reviewed
+complete identity set above. Each stable identity is `workflow/name`; checks without a workflow use
+`external/name`. Customize the set for the reviewed release plan rather than copying an incidental
+duplicate from today's output. Empty, duplicate, missing, unexpected, `pending`, `fail`, or `cancel`
+observations all stop integration:
 
 ```zsh
 set +e
@@ -163,11 +174,25 @@ pokenotes_check_snapshot_exit_code=$?
 set -e
 
 test -n "$pokenotes_check_snapshot"
+pokenotes_observed_gate_count="$(jq 'length' <<< "$pokenotes_check_snapshot")"
+test "$pokenotes_observed_gate_count" -gt 0
 pokenotes_unaccepted_check_count="$(jq \
   '[.[] | select(.bucket != "pass" and .bucket != "skipping")] | length' \
   <<< "$pokenotes_check_snapshot")"
 test "$pokenotes_check_snapshot_exit_code" -eq 0
 test "$pokenotes_unaccepted_check_count" -eq 0
+pokenotes_expected_gate_count="$(printf '%s\n' "$pokenotes_expected_gate_ids" | awk 'NF { count++ } END { print count + 0 }')"
+pokenotes_expected_unique_count="$(printf '%s\n' "$pokenotes_expected_gate_ids" | awk 'NF' | LC_ALL=C sort -u | awk 'END { print NR }')"
+test "$pokenotes_expected_gate_count" -gt 0
+test "$pokenotes_expected_gate_count" -eq "$pokenotes_expected_unique_count"
+pokenotes_observed_gate_ids="$(jq -r \
+  '.[] | [if (.workflow // "") == "" then "external" else .workflow end, .name] | join("/")' \
+  <<< "$pokenotes_check_snapshot")"
+pokenotes_observed_unique_count="$(printf '%s\n' "$pokenotes_observed_gate_ids" | awk 'NF' | LC_ALL=C sort -u | awk 'END { print NR }')"
+test "$pokenotes_observed_gate_count" -eq "$pokenotes_observed_unique_count"
+pokenotes_expected_gate_set="$(printf '%s\n' "$pokenotes_expected_gate_ids" | awk 'NF' | LC_ALL=C sort)"
+pokenotes_observed_gate_set="$(printf '%s\n' "$pokenotes_observed_gate_ids" | awk 'NF' | LC_ALL=C sort)"
+test "$pokenotes_observed_gate_set" = "$pokenotes_expected_gate_set"
 jq -r '.[] | [.workflow, .name, .bucket, .state] | @tsv' <<< "$pokenotes_check_snapshot"
 ```
 
@@ -184,6 +209,25 @@ remote cleanup cannot obscure the merge result. The follow-up read is mandatory 
 merge command's exit code:
 
 ```zsh
+set -e
+set +e
+pokenotes_prewrite_main_line="$(git ls-remote "$pokenotes_push_url" refs/heads/main)"
+pokenotes_prewrite_main_exit_code=$?
+pokenotes_prewrite_snapshot="$(gh pr view "$pokenotes_pr_number" --repo "$pokenotes_repo" \
+  --json state,headRefOid,baseRefName,baseRefOid)"
+pokenotes_prewrite_snapshot_exit_code=$?
+set -e
+test "$pokenotes_prewrite_main_exit_code" -eq 0
+test "$pokenotes_prewrite_snapshot_exit_code" -eq 0
+test "$(awk 'END { print NR }' <<< "$pokenotes_prewrite_main_line")" -eq 1
+test "$(awk '{ print $2 }' <<< "$pokenotes_prewrite_main_line")" = refs/heads/main
+pokenotes_prewrite_main="$(awk '{ print $1 }' <<< "$pokenotes_prewrite_main_line")"
+test "$pokenotes_prewrite_main" = "$pokenotes_premerge_main"
+test "$(jq -r '.state' <<< "$pokenotes_prewrite_snapshot")" = OPEN
+test "$(jq -r '.baseRefName' <<< "$pokenotes_prewrite_snapshot")" = main
+test "$(jq -r '.baseRefOid' <<< "$pokenotes_prewrite_snapshot")" = "$pokenotes_premerge_main"
+test "$(jq -r '.headRefOid' <<< "$pokenotes_prewrite_snapshot")" = "$pokenotes_reviewed_head"
+
 set +e
 gh pr merge "$pokenotes_pr_number" --repo "$pokenotes_repo" --squash \
   --match-head-commit "$pokenotes_reviewed_head"
@@ -199,7 +243,11 @@ test -n "$(jq -r '.mergedAt // empty' <<< "$pokenotes_postmerge_snapshot")"
 pokenotes_merge_commit="$(jq -r '.mergeCommit.oid // empty' <<< "$pokenotes_postmerge_snapshot")"
 printf '%s\n' "$pokenotes_merge_commit" | rg -q '^[0-9a-f]{40}$'
 
+set +e
 pokenotes_postmerge_main_line="$(git ls-remote "$pokenotes_push_url" refs/heads/main)"
+pokenotes_postmerge_main_exit_code=$?
+set -e
+test "$pokenotes_postmerge_main_exit_code" -eq 0
 test "$(awk 'END { print NR }' <<< "$pokenotes_postmerge_main_line")" -eq 1
 test "$(awk '{ print $2 }' <<< "$pokenotes_postmerge_main_line")" = refs/heads/main
 pokenotes_postmerge_main="$(awk '{ print $1 }' <<< "$pokenotes_postmerge_main_line")"
@@ -226,6 +274,8 @@ the base, so the separately authorized local branch deletion is intentionally fo
 those exact checks:
 
 ```zsh
+set -e
+set -o pipefail
 pokenotes_completed_worktree='/absolute/path/to/completed-worktree'
 case "$pokenotes_completed_worktree" in
   /*) ;;
@@ -233,23 +283,65 @@ case "$pokenotes_completed_worktree" in
      return 1 2>/dev/null || exit 1 ;;
 esac
 test -d "$pokenotes_completed_worktree"
+set +e
 pokenotes_completed_worktree="$(cd "$pokenotes_completed_worktree" && pwd -P)"
+pokenotes_completed_path_exit_code=$?
+set -e
+test "$pokenotes_completed_path_exit_code" -eq 0
+set +e
 pokenotes_operator_cwd="$(pwd -P)"
-test "$pokenotes_completed_worktree" != "$pokenotes_operator_cwd"
+pokenotes_operator_cwd_exit_code=$?
+set -e
+test "$pokenotes_operator_cwd_exit_code" -eq 0
+case "$pokenotes_operator_cwd/" in
+  "$pokenotes_completed_worktree/"*)
+    echo 'Run cleanup outside the completed worktree and all of its descendants.' >&2
+    return 1 2>/dev/null || exit 1 ;;
+esac
 
-pokenotes_common_dir="$(cd "$(git rev-parse --path-format=absolute --git-common-dir)" && pwd -P)"
-pokenotes_target_common_dir="$(cd "$(git -C "$pokenotes_completed_worktree" \
-  rev-parse --path-format=absolute --git-common-dir)" && pwd -P)"
+set +e
+pokenotes_common_candidate="$(git rev-parse --path-format=absolute --git-common-dir)"
+pokenotes_common_candidate_exit_code=$?
+pokenotes_target_common_candidate="$(git -C "$pokenotes_completed_worktree" \
+  rev-parse --path-format=absolute --git-common-dir)"
+pokenotes_target_common_candidate_exit_code=$?
+set -e
+test "$pokenotes_common_candidate_exit_code" -eq 0
+test "$pokenotes_target_common_candidate_exit_code" -eq 0
+set +e
+pokenotes_common_dir="$(cd "$pokenotes_common_candidate" && pwd -P)"
+pokenotes_common_dir_exit_code=$?
+pokenotes_target_common_dir="$(cd "$pokenotes_target_common_candidate" && pwd -P)"
+pokenotes_target_common_dir_exit_code=$?
+set -e
+test "$pokenotes_common_dir_exit_code" -eq 0
+test "$pokenotes_target_common_dir_exit_code" -eq 0
 test "$pokenotes_target_common_dir" = "$pokenotes_common_dir"
+set +e
 pokenotes_registration_count="$(git worktree list --porcelain | awk \
   -v target="worktree $pokenotes_completed_worktree" \
   '$0 == target { count++ } END { print count + 0 }')"
+pokenotes_registration_exit_code=$?
+pokenotes_target_status="$(git -C "$pokenotes_completed_worktree" \
+  status --porcelain=v1 --untracked-files=all)"
+pokenotes_target_status_exit_code=$?
+pokenotes_target_branch="$(git -C "$pokenotes_completed_worktree" symbolic-ref --quiet HEAD)"
+pokenotes_target_branch_exit_code=$?
+pokenotes_target_head="$(git -C "$pokenotes_completed_worktree" rev-parse HEAD)"
+pokenotes_target_head_exit_code=$?
+pokenotes_local_branch_head="$(git rev-parse "refs/heads/$pokenotes_head_branch")"
+pokenotes_local_branch_head_exit_code=$?
+set -e
+test "$pokenotes_registration_exit_code" -eq 0
+test "$pokenotes_target_status_exit_code" -eq 0
+test "$pokenotes_target_branch_exit_code" -eq 0
+test "$pokenotes_target_head_exit_code" -eq 0
+test "$pokenotes_local_branch_head_exit_code" -eq 0
 test "$pokenotes_registration_count" -eq 1
-test -z "$(git -C "$pokenotes_completed_worktree" status --porcelain=v1 --untracked-files=all)"
-test "$(git -C "$pokenotes_completed_worktree" symbolic-ref --quiet HEAD)" = \
-  "refs/heads/$pokenotes_head_branch"
-test "$(git -C "$pokenotes_completed_worktree" rev-parse HEAD)" = "$pokenotes_reviewed_head"
-test "$(git rev-parse "refs/heads/$pokenotes_head_branch")" = "$pokenotes_reviewed_head"
+test -z "$pokenotes_target_status"
+test "$pokenotes_target_branch" = "refs/heads/$pokenotes_head_branch"
+test "$pokenotes_target_head" = "$pokenotes_reviewed_head"
+test "$pokenotes_local_branch_head" = "$pokenotes_reviewed_head"
 
 git worktree remove -- "$pokenotes_completed_worktree"
 git branch -D -- "$pokenotes_head_branch"
@@ -257,14 +349,17 @@ if test -e "$pokenotes_completed_worktree"; then
   echo 'Completed worktree path still exists.' >&2
   return 1 2>/dev/null || exit 1
 fi
+set +e
 pokenotes_registration_count="$(git worktree list --porcelain | awk \
   -v target="worktree $pokenotes_completed_worktree" \
   '$0 == target { count++ } END { print count + 0 }')"
+pokenotes_registration_exit_code=$?
+git show-ref --verify --quiet "refs/heads/$pokenotes_head_branch"
+pokenotes_local_branch_absence_exit_code=$?
+set -e
+test "$pokenotes_registration_exit_code" -eq 0
 test "$pokenotes_registration_count" -eq 0
-if git show-ref --verify --quiet "refs/heads/$pokenotes_head_branch"; then
-  echo 'Completed local branch still exists.' >&2
-  return 1 2>/dev/null || exit 1
-fi
+test "$pokenotes_local_branch_absence_exit_code" -eq 1
 ```
 
 Remote branch deletion is a distinct external write and requires its own authorization. Reuse the
@@ -272,17 +367,36 @@ previously validated actual push URL for the read, deletion, and final absence p
 still exists, refuse to delete it unless its tip is the independently reviewed SHA:
 
 ```zsh
+set -e
+set -o pipefail
+pokenotes_remote_branch_ref="refs/heads/$pokenotes_head_branch"
+set +e
 pokenotes_remote_branch_line="$(git ls-remote "$pokenotes_push_url" \
-  "refs/heads/$pokenotes_head_branch")"
+  "$pokenotes_remote_branch_ref")"
+pokenotes_remote_branch_read_exit_code=$?
+set -e
+test "$pokenotes_remote_branch_read_exit_code" -eq 0
 if test -n "$pokenotes_remote_branch_line"; then
   test "$(awk 'END { print NR }' <<< "$pokenotes_remote_branch_line")" -eq 1
   test "$(awk '{ print $2 }' <<< "$pokenotes_remote_branch_line")" = \
-    "refs/heads/$pokenotes_head_branch"
+    "$pokenotes_remote_branch_ref"
   test "$(awk '{ print $1 }' <<< "$pokenotes_remote_branch_line")" = \
     "$pokenotes_reviewed_head"
-  git push "$pokenotes_push_url" --delete "$pokenotes_head_branch"
+  set +e
+  git push "$pokenotes_push_url" \
+    --force-with-lease="$pokenotes_remote_branch_ref:$pokenotes_reviewed_head" \
+    ":$pokenotes_remote_branch_ref"
+  pokenotes_remote_delete_exit_code=$?
+  set -e
+  test "$pokenotes_remote_delete_exit_code" -eq 0
 fi
-test -z "$(git ls-remote "$pokenotes_push_url" "refs/heads/$pokenotes_head_branch")"
+set +e
+pokenotes_remote_branch_after="$(git ls-remote "$pokenotes_push_url" \
+  "$pokenotes_remote_branch_ref")"
+pokenotes_remote_branch_after_exit_code=$?
+set -e
+test "$pokenotes_remote_branch_after_exit_code" -eq 0
+test -z "$pokenotes_remote_branch_after"
 ```
 
 ## Vercel inspection
