@@ -228,6 +228,40 @@ test "$(jq -r '.baseRefName' <<< "$pokenotes_prewrite_snapshot")" = main
 test "$(jq -r '.baseRefOid' <<< "$pokenotes_prewrite_snapshot")" = "$pokenotes_premerge_main"
 test "$(jq -r '.headRefOid' <<< "$pokenotes_prewrite_snapshot")" = "$pokenotes_reviewed_head"
 
+# Re-read and revalidate the complete gate policy under fail-fast semantics immediately before the
+# write. A healthy Phase 1 snapshot is deliberately not reusable here.
+pokenotes_prewrite_check_snapshot="$(gh pr checks "$pokenotes_pr_number" \
+  --repo "$pokenotes_repo" --json bucket,name,state,workflow)"
+test -n "$pokenotes_prewrite_check_snapshot"
+pokenotes_prewrite_observed_gate_count="$(jq 'length' \
+  <<< "$pokenotes_prewrite_check_snapshot")"
+test "$pokenotes_prewrite_observed_gate_count" -gt 0
+pokenotes_prewrite_unaccepted_check_count="$(jq \
+  '[.[] | select(.bucket != "pass" and .bucket != "skipping")] | length' \
+  <<< "$pokenotes_prewrite_check_snapshot")"
+test "$pokenotes_prewrite_unaccepted_check_count" -eq 0
+pokenotes_prewrite_expected_gate_count="$(printf '%s\n' "$pokenotes_expected_gate_ids" | \
+  awk 'NF { count++ } END { print count + 0 }')"
+pokenotes_prewrite_expected_unique_count="$(printf '%s\n' "$pokenotes_expected_gate_ids" | \
+  awk 'NF' | LC_ALL=C sort -u | awk 'END { print NR }')"
+test "$pokenotes_prewrite_expected_gate_count" -gt 0
+test "$pokenotes_prewrite_expected_gate_count" -eq \
+  "$pokenotes_prewrite_expected_unique_count"
+pokenotes_prewrite_observed_gate_ids="$(jq -r \
+  '.[] | [if (.workflow // "") == "" then "external" else .workflow end, .name] | join("/")' \
+  <<< "$pokenotes_prewrite_check_snapshot")"
+pokenotes_prewrite_observed_unique_count="$(printf '%s\n' \
+  "$pokenotes_prewrite_observed_gate_ids" | awk 'NF' | LC_ALL=C sort -u | awk 'END { print NR }')"
+test "$pokenotes_prewrite_observed_gate_count" -eq \
+  "$pokenotes_prewrite_observed_unique_count"
+pokenotes_prewrite_expected_gate_set="$(printf '%s\n' "$pokenotes_expected_gate_ids" | \
+  awk 'NF' | LC_ALL=C sort)"
+pokenotes_prewrite_observed_gate_set="$(printf '%s\n' \
+  "$pokenotes_prewrite_observed_gate_ids" | awk 'NF' | LC_ALL=C sort)"
+test "$pokenotes_prewrite_observed_gate_set" = "$pokenotes_prewrite_expected_gate_set"
+jq -r '.[] | [.workflow, .name, .bucket, .state] | @tsv' \
+  <<< "$pokenotes_prewrite_check_snapshot"
+
 set +e
 gh pr merge "$pokenotes_pr_number" --repo "$pokenotes_repo" --squash \
   --match-head-commit "$pokenotes_reviewed_head"
@@ -269,9 +303,13 @@ the exact completed worktree, local branch, and remote branch before running the
 examples. Run local cleanup from a retained checkout outside the completed worktree, and never infer
 cleanup success from the merge command. The guards below prove that the exact canonical path is one
 clean registered worktree of the current common repository, is not the operator's current directory,
-and owns the reviewed branch and commit. A squash merge does not make the old head a Git ancestor of
-the base, so the separately authorized local branch deletion is intentionally forced only after
-those exact checks:
+and owns the reviewed branch and commit. Require the target worktree and branch to be quiescent: stop
+all shells, editors, agents, hooks, and automation that could change either during cleanup. Git cannot
+atomically combine worktree removal with branch-ref deletion, so a residual race remains after the
+last guard. The compare-and-delete below refuses to remove a branch that advances away from the
+reviewed SHA; if it fails after worktree removal, preserve the advanced branch and inspect the partial
+cleanup rather than forcing it. A squash merge does not make the old head a Git ancestor of the base,
+so ancestry is not used as the deletion guard:
 
 ```zsh
 set -e
@@ -343,8 +381,39 @@ test "$pokenotes_target_branch" = "refs/heads/$pokenotes_head_branch"
 test "$pokenotes_target_head" = "$pokenotes_reviewed_head"
 test "$pokenotes_local_branch_head" = "$pokenotes_reviewed_head"
 
+# Re-read the mutable target state as close as possible to worktree removal. These checks reduce the
+# race window but do not replace the quiescence requirement or make the two destructive operations
+# atomic.
+set +e
+pokenotes_preremove_registration_count="$(git worktree list --porcelain | awk \
+  -v target="worktree $pokenotes_completed_worktree" \
+  '$0 == target { count++ } END { print count + 0 }')"
+pokenotes_preremove_registration_exit_code=$?
+pokenotes_preremove_target_status="$(git -C "$pokenotes_completed_worktree" \
+  status --porcelain=v1 --untracked-files=all)"
+pokenotes_preremove_target_status_exit_code=$?
+pokenotes_preremove_target_branch="$(git -C "$pokenotes_completed_worktree" \
+  symbolic-ref --quiet HEAD)"
+pokenotes_preremove_target_branch_exit_code=$?
+pokenotes_preremove_target_head="$(git -C "$pokenotes_completed_worktree" rev-parse HEAD)"
+pokenotes_preremove_target_head_exit_code=$?
+pokenotes_preremove_local_branch_head="$(git rev-parse \
+  "refs/heads/$pokenotes_head_branch")"
+pokenotes_preremove_local_branch_head_exit_code=$?
+set -e
+test "$pokenotes_preremove_registration_exit_code" -eq 0
+test "$pokenotes_preremove_target_status_exit_code" -eq 0
+test "$pokenotes_preremove_target_branch_exit_code" -eq 0
+test "$pokenotes_preremove_target_head_exit_code" -eq 0
+test "$pokenotes_preremove_local_branch_head_exit_code" -eq 0
+test "$pokenotes_preremove_registration_count" -eq 1
+test -z "$pokenotes_preremove_target_status"
+test "$pokenotes_preremove_target_branch" = "refs/heads/$pokenotes_head_branch"
+test "$pokenotes_preremove_target_head" = "$pokenotes_reviewed_head"
+test "$pokenotes_preremove_local_branch_head" = "$pokenotes_reviewed_head"
+
 git worktree remove -- "$pokenotes_completed_worktree"
-git branch -D -- "$pokenotes_head_branch"
+git update-ref -d "refs/heads/$pokenotes_head_branch" "$pokenotes_reviewed_head"
 if test -e "$pokenotes_completed_worktree"; then
   echo 'Completed worktree path still exists.' >&2
   return 1 2>/dev/null || exit 1

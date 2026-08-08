@@ -103,6 +103,7 @@ test("verification reference keeps repository-native shell-safe command contract
     "symbolic-ref --quiet HEAD",
     "test \"$pokenotes_target_head\" = \"$pokenotes_reviewed_head\"",
     "git worktree remove -- \"$pokenotes_completed_worktree\"",
+    "git update-ref -d \"refs/heads/$pokenotes_head_branch\" \"$pokenotes_reviewed_head\"",
     "--force-with-lease=\"$pokenotes_remote_branch_ref:$pokenotes_reviewed_head\"",
     "\":$pokenotes_remote_branch_ref\"",
     "pokenotes-pr-body.md.XXXXXX",
@@ -132,7 +133,11 @@ test("PR integration contract verifies remote truth before separately authorized
   assert.match(reference, /Only the post-merge snapshot establishes remote success/);
   assert.match(reference, /Cleanup is separately authorized and verified/);
   assert.match(reference, /Remote branch deletion is a distinct external write/);
-  assert.match(reference, /git branch -D -- "\$pokenotes_head_branch"/);
+  assert.match(
+    reference,
+    /git update-ref -d "refs\/heads\/\$pokenotes_head_branch" "\$pokenotes_reviewed_head"/,
+  );
+  assert.doesNotMatch(reference, /git branch -D -- "\$pokenotes_head_branch"/);
   assert.match(integrationSection, /never derive it from the pull request snapshot/);
   assert.match(integrationSection, /refs\/heads\/main/);
   assert.match(integrationSection, /exact live `refs\/heads\/main` tip/);
@@ -140,6 +145,8 @@ test("PR integration contract verifies remote truth before separately authorized
   assert.match(integrationSection, /"\$pokenotes_completed_worktree\/"\*/);
   assert.match(integrationSection, /test "\$pokenotes_registration_count" -eq 1/);
   assert.match(integrationSection, /test "\$pokenotes_registration_count" -eq 0/);
+  assert.match(integrationSection, /Require the target worktree and branch to be quiescent/);
+  assert.match(integrationSection, /a residual race remains/);
   assert.equal(
     integrationSection.match(/git ls-remote "\$pokenotes_push_url" refs\/heads\/main/g)?.length,
     3,
@@ -199,7 +206,22 @@ test("PR integration contract verifies remote truth before separately authorized
     'test "$pokenotes_target_branch" = "refs/heads/$pokenotes_head_branch"',
     'test "$pokenotes_target_head" = "$pokenotes_reviewed_head"',
     'test "$pokenotes_local_branch_head" = "$pokenotes_reviewed_head"',
+    'test "$pokenotes_preremove_registration_exit_code" -eq 0',
+    'test "$pokenotes_preremove_target_status_exit_code" -eq 0',
+    'test "$pokenotes_preremove_target_branch_exit_code" -eq 0',
+    'test "$pokenotes_preremove_target_head_exit_code" -eq 0',
+    'test "$pokenotes_preremove_local_branch_head_exit_code" -eq 0',
+    'test "$pokenotes_preremove_registration_count" -eq 1',
+    'test -z "$pokenotes_preremove_target_status"',
+    'test "$pokenotes_preremove_target_branch" = "refs/heads/$pokenotes_head_branch"',
+    'test "$pokenotes_preremove_target_head" = "$pokenotes_reviewed_head"',
+    'test "$pokenotes_preremove_local_branch_head" = "$pokenotes_reviewed_head"',
   ]);
+  assertTokensBeforeWrite(
+    localCleanupBlock,
+    'git update-ref -d "refs/heads/$pokenotes_head_branch" "$pokenotes_reviewed_head"',
+    ['git worktree remove -- "$pokenotes_completed_worktree"'],
+  );
   assertTokensBeforeWrite(remoteCleanupBlock, 'git push "$pokenotes_push_url"', [
     'test "$pokenotes_remote_branch_read_exit_code" -eq 0',
     'test "$(awk \'END { print NR }\' <<< "$pokenotes_remote_branch_line")" -eq 1',
@@ -214,6 +236,14 @@ test("PR integration contract verifies remote truth before separately authorized
     'test "$(jq -r \'.baseRefName\' <<< "$pokenotes_prewrite_snapshot")" = main',
     'test "$(jq -r \'.baseRefOid\' <<< "$pokenotes_prewrite_snapshot")" = "$pokenotes_premerge_main"',
     'test "$(jq -r \'.headRefOid\' <<< "$pokenotes_prewrite_snapshot")" = "$pokenotes_reviewed_head"',
+    'pokenotes_prewrite_check_snapshot="$(gh pr checks "$pokenotes_pr_number"',
+    'test -n "$pokenotes_prewrite_check_snapshot"',
+    'test "$pokenotes_prewrite_observed_gate_count" -gt 0',
+    'test "$pokenotes_prewrite_unaccepted_check_count" -eq 0',
+    'test "$pokenotes_prewrite_expected_gate_count" -gt 0',
+    'test "$pokenotes_prewrite_expected_gate_count" -eq',
+    'test "$pokenotes_prewrite_observed_gate_count" -eq',
+    'test "$pokenotes_prewrite_observed_gate_set" = "$pokenotes_prewrite_expected_gate_set"',
   ]);
 
   const unsafeMutationFixtures = [
@@ -253,6 +283,126 @@ test("expected gate policy rejects delayed, incomplete, duplicate, and unhealthy
     () => assertCompleteGateSnapshot(["CI/verify", "CI/verify"], complete),
     assert.AssertionError,
   );
+});
+
+test("prewrite shell rechecks the complete live gate set and never merges stale Phase 1 health", async (t) => {
+  const integrationSection = reference.match(
+    /## Pull request integration is a two-phase contract[\s\S]*?(?=\n## Vercel inspection)/,
+  )?.[0];
+  const mergeBlock = zshBlocks(integrationSection ?? "").find((block) =>
+    block.includes("gh pr merge"),
+  );
+  assert.ok(mergeBlock, "missing guarded merge block");
+
+  const fixtureRoot = await mkdtemp(join(tmpdir(), "pokenotes-prewrite-gates-"));
+  const fixtureBin = join(fixtureRoot, "bin");
+  await mkdir(fixtureBin);
+  t.after(() => rm(fixtureRoot, { force: true, recursive: true }));
+
+  const fakeGit = join(fixtureBin, "git");
+  await writeFile(
+    fakeGit,
+    [
+      "#!/bin/sh",
+      "if [ \"$1\" = ls-remote ]; then",
+      "  if [ -e \"$MERGE_MARKER\" ]; then printf '%s\\trefs/heads/main\\n' \"$MERGE_SHA\"; else printf '%s\\trefs/heads/main\\n' \"$MAIN_SHA\"; fi",
+      "  exit 0",
+      "fi",
+      "exit 99",
+      "",
+    ].join("\n"),
+  );
+  await chmod(fakeGit, 0o700);
+
+  const fakeGh = join(fixtureBin, "gh");
+  await writeFile(
+    fakeGh,
+    [
+      "#!/bin/sh",
+      "if [ \"$1 $2\" = 'pr view' ]; then",
+      "  if [ -e \"$MERGE_MARKER\" ]; then",
+      "    printf '{\"state\":\"MERGED\",\"mergedAt\":\"2026-08-08T00:00:00Z\",\"mergeCommit\":{\"oid\":\"%s\"},\"headRefOid\":\"%s\",\"baseRefName\":\"main\"}\\n' \"$MERGE_SHA\" \"$REVIEWED_SHA\"",
+      "  else",
+      "    printf '{\"state\":\"OPEN\",\"headRefOid\":\"%s\",\"baseRefName\":\"main\",\"baseRefOid\":\"%s\"}\\n' \"$REVIEWED_SHA\" \"$MAIN_SHA\"",
+      "  fi",
+      "  exit 0",
+      "fi",
+      "if [ \"$1 $2\" = 'pr checks' ]; then",
+      "  case \"$CHECK_STAGE\" in",
+      "    nonzero) exit 41 ;;",
+      "    malformed) printf '{not-json\\n'; exit 0 ;;",
+      "    empty) exit 0 ;;",
+      "    incomplete) printf '%s\\n' '[{\"workflow\":\"CI\",\"name\":\"verify\",\"bucket\":\"pass\",\"state\":\"SUCCESS\"}]' ;;",
+      "    duplicate) printf '%s\\n' '[{\"workflow\":\"CI\",\"name\":\"verify\",\"bucket\":\"pass\",\"state\":\"SUCCESS\"},{\"workflow\":\"CI\",\"name\":\"verify\",\"bucket\":\"pass\",\"state\":\"SUCCESS\"}]' ;;",
+      "    unexpected) printf '%s\\n' '[{\"workflow\":\"CI\",\"name\":\"verify\",\"bucket\":\"pass\",\"state\":\"SUCCESS\"},{\"workflow\":\"\",\"name\":\"Vercel\",\"bucket\":\"skipping\",\"state\":\"SKIPPED\"},{\"workflow\":\"CI\",\"name\":\"extra\",\"bucket\":\"pass\",\"state\":\"SUCCESS\"}]' ;;",
+      "    pending|fail|cancel) printf '[{\"workflow\":\"CI\",\"name\":\"verify\",\"bucket\":\"%s\",\"state\":\"%s\"},{\"workflow\":\"\",\"name\":\"Vercel\",\"bucket\":\"skipping\",\"state\":\"SKIPPED\"}]\\n' \"$CHECK_STAGE\" \"$CHECK_STAGE\" ;;",
+      "    success) printf '%s\\n' '[{\"workflow\":\"CI\",\"name\":\"verify\",\"bucket\":\"pass\",\"state\":\"SUCCESS\"},{\"workflow\":\"\",\"name\":\"Vercel\",\"bucket\":\"skipping\",\"state\":\"SKIPPED\"}]' ;;",
+      "    *) exit 42 ;;",
+      "  esac",
+      "  exit 0",
+      "fi",
+      "if [ \"$1 $2\" = 'pr merge' ]; then",
+      "  : > \"$MERGE_MARKER\"",
+      "  exit 0",
+      "fi",
+      "exit 99",
+      "",
+    ].join("\n"),
+  );
+  await chmod(fakeGh, 0o700);
+
+  const reviewedSha = "c".repeat(40);
+  const mainSha = "d".repeat(40);
+  const mergeSha = "f".repeat(40);
+  const runFixture = async (stage) => {
+    const caseRoot = join(fixtureRoot, stage);
+    await mkdir(caseRoot);
+    const mergeMarker = join(caseRoot, "merged");
+    const script = [
+      "pokenotes_repo='jamesembling/PokeNotesApp'",
+      "pokenotes_pr_number='123'",
+      `pokenotes_reviewed_head='${reviewedSha}'`,
+      "pokenotes_push_url='validated-push-target'",
+      `pokenotes_premerge_main='${mainSha}'`,
+      "pokenotes_expected_gate_ids=$'CI/verify\\nexternal/Vercel'",
+      // This deliberately healthy Phase 1 value must never authorize the later write.
+      "pokenotes_check_snapshot='[{\"workflow\":\"CI\",\"name\":\"verify\",\"bucket\":\"pass\"},{\"workflow\":\"\",\"name\":\"Vercel\",\"bucket\":\"skipping\"}]'",
+      mergeBlock,
+    ].join("\n");
+    const result = spawnSync("zsh", ["-c", script], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${fixtureBin}:${process.env.PATH}`,
+        CHECK_STAGE: stage,
+        MAIN_SHA: mainSha,
+        REVIEWED_SHA: reviewedSha,
+        MERGE_MARKER: mergeMarker,
+        MERGE_SHA: mergeSha,
+      },
+    });
+    return { mergeMarker, result };
+  };
+
+  for (const stage of [
+    "nonzero",
+    "malformed",
+    "empty",
+    "incomplete",
+    "duplicate",
+    "unexpected",
+    "pending",
+    "fail",
+    "cancel",
+  ]) {
+    const { mergeMarker, result } = await runFixture(stage);
+    assert.notEqual(result.status, 0, `fixture unexpectedly merged: ${stage}`);
+    await assert.rejects(readFile(mergeMarker), { code: "ENOENT" });
+  }
+
+  const { mergeMarker, result } = await runFixture("success");
+  assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+  assert.equal(await readFile(mergeMarker, "utf8"), "");
 });
 
 test("remote cleanup executes the leased deletion only after every live-ref guard passes", async (t) => {
@@ -376,18 +526,19 @@ test("local cleanup reaches worktree removal only after every exact target guard
     fakeGit,
     [
       "#!/bin/sh",
+      "bump() { counter_file=\"$COUNTER_DIR/$1\"; counter=0; [ -f \"$counter_file\" ] && counter=$(cat \"$counter_file\"); counter=$((counter + 1)); printf '%s\\n' \"$counter\" > \"$counter_file\"; printf '%s' \"$counter\"; }",
       "args=\"$*\"",
       "case \"$args\" in",
       "  'rev-parse --path-format=absolute --git-common-dir') [ \"$FAIL_STAGE\" = common_read ] && exit 21; [ \"$FAIL_STAGE\" = common_missing ] && { printf '/missing/common\\n'; exit 0; }; printf '%s\\n' \"$COMMON_DIR\" ;;",
       "  *'rev-parse --path-format=absolute --git-common-dir') [ \"$FAIL_STAGE\" = target_common_read ] && exit 22; [ \"$FAIL_STAGE\" = target_common_missing ] && { printf '/missing/target-common\\n'; exit 0; }; [ \"$FAIL_STAGE\" = different_common ] && { printf '%s\\n' \"$OTHER_COMMON_DIR\"; exit 0; }; printf '%s\\n' \"$COMMON_DIR\" ;;",
-      "  'worktree list --porcelain') [ \"$FAIL_STAGE\" = registration_read ] && exit 23; [ -e \"$WRITE_MARKER\" ] && exit 0; [ \"$FAIL_STAGE\" = registration_missing ] && exit 0; printf 'worktree %s\\nHEAD %s\\nbranch refs/heads/%s\\n' \"$TARGET_DIR\" \"$REVIEWED_SHA\" \"$HEAD_BRANCH\" ;;",
-      "  *'status --porcelain=v1 --untracked-files=all') [ \"$FAIL_STAGE\" = status_read ] && exit 24; [ \"$FAIL_STAGE\" = dirty ] && { printf ' M user-file\\n'; exit 0; }; exit 0 ;;",
-      "  *'symbolic-ref --quiet HEAD') [ \"$FAIL_STAGE\" = branch_read ] && exit 25; [ \"$FAIL_STAGE\" = wrong_branch ] && { printf 'refs/heads/other\\n'; exit 0; }; printf 'refs/heads/%s\\n' \"$HEAD_BRANCH\" ;;",
-      "  *'rev-parse HEAD') [ \"$FAIL_STAGE\" = target_head_read ] && exit 26; [ \"$FAIL_STAGE\" = wrong_target_head ] && { printf '%040d\\n' 0; exit 0; }; printf '%s\\n' \"$REVIEWED_SHA\" ;;",
-      "  rev-parse\\ refs/heads/*) [ \"$FAIL_STAGE\" = local_ref_read ] && exit 27; [ \"$FAIL_STAGE\" = wrong_local_ref ] && { printf '%040d\\n' 0; exit 0; }; printf '%s\\n' \"$REVIEWED_SHA\" ;;",
-      "  worktree\\ remove\\ --*) : > \"$WRITE_MARKER\"; rmdir \"$TARGET_DIR\" ;;",
-      "  branch\\ -D\\ --*) exit 0 ;;",
-      "  show-ref\\ --verify\\ --quiet*) exit 1 ;;",
+      "  'worktree list --porcelain') count=$(bump registration); [ \"$FAIL_STAGE\" = registration_read ] && exit 23; [ \"$FAIL_STAGE\" = preremove_registration_read ] && [ \"$count\" -eq 2 ] && exit 23; [ -e \"$WRITE_MARKER\" ] && exit 0; [ \"$FAIL_STAGE\" = registration_missing ] && exit 0; [ \"$FAIL_STAGE\" = preremove_registration_missing ] && [ \"$count\" -eq 2 ] && exit 0; printf 'worktree %s\\nHEAD %s\\nbranch refs/heads/%s\\n' \"$TARGET_DIR\" \"$REVIEWED_SHA\" \"$HEAD_BRANCH\" ;;",
+      "  *'status --porcelain=v1 --untracked-files=all') count=$(bump status); [ \"$FAIL_STAGE\" = status_read ] && exit 24; [ \"$FAIL_STAGE\" = preremove_status_read ] && [ \"$count\" -eq 2 ] && exit 24; [ \"$FAIL_STAGE\" = dirty ] && { printf ' M user-file\\n'; exit 0; }; [ \"$FAIL_STAGE\" = preremove_dirty ] && [ \"$count\" -eq 2 ] && { printf ' M user-file\\n'; exit 0; }; exit 0 ;;",
+      "  *'symbolic-ref --quiet HEAD') count=$(bump branch); [ \"$FAIL_STAGE\" = branch_read ] && exit 25; [ \"$FAIL_STAGE\" = preremove_branch_read ] && [ \"$count\" -eq 2 ] && exit 25; [ \"$FAIL_STAGE\" = wrong_branch ] && { printf 'refs/heads/other\\n'; exit 0; }; [ \"$FAIL_STAGE\" = preremove_wrong_branch ] && [ \"$count\" -eq 2 ] && { printf 'refs/heads/other\\n'; exit 0; }; printf 'refs/heads/%s\\n' \"$HEAD_BRANCH\" ;;",
+      "  *'rev-parse HEAD') count=$(bump target_head); [ \"$FAIL_STAGE\" = target_head_read ] && exit 26; [ \"$FAIL_STAGE\" = preremove_target_head_read ] && [ \"$count\" -eq 2 ] && exit 26; [ \"$FAIL_STAGE\" = wrong_target_head ] && { printf '%040d\\n' 0; exit 0; }; [ \"$FAIL_STAGE\" = preremove_wrong_target_head ] && [ \"$count\" -eq 2 ] && { printf '%040d\\n' 0; exit 0; }; printf '%s\\n' \"$REVIEWED_SHA\" ;;",
+      "  rev-parse\\ refs/heads/*) count=$(bump local_ref); [ \"$FAIL_STAGE\" = local_ref_read ] && exit 27; [ \"$FAIL_STAGE\" = preremove_local_ref_read ] && [ \"$count\" -eq 2 ] && exit 27; [ \"$FAIL_STAGE\" = wrong_local_ref ] && { printf '%040d\\n' 0; exit 0; }; [ \"$FAIL_STAGE\" = preremove_wrong_local_ref ] && [ \"$count\" -eq 2 ] && { printf '%040d\\n' 0; exit 0; }; cat \"$REF_STATE\" ;;",
+      "  worktree\\ remove\\ --*) : > \"$WRITE_MARKER\"; rmdir \"$TARGET_DIR\"; [ \"$FAIL_STAGE\" = post_guard_ref_advance ] && printf '%s\\n' \"$ADVANCED_SHA\" > \"$REF_STATE\"; exit 0 ;;",
+      "  update-ref\\ -d\\ refs/heads/*) current=$(cat \"$REF_STATE\"); if [ \"$current\" != \"$4\" ]; then : > \"$PRESERVED_MARKER\"; exit 28; fi; : > \"$REF_STATE\" ;;",
+      "  show-ref\\ --verify\\ --quiet*) [ -s \"$REF_STATE\" ] && exit 0; exit 1 ;;",
       "  *) exit 99 ;;",
       "esac",
       "",
@@ -412,6 +563,16 @@ test("local cleanup reaches worktree removal only after every exact target guard
     "wrong_target_head",
     "local_ref_read",
     "wrong_local_ref",
+    "preremove_registration_read",
+    "preremove_registration_missing",
+    "preremove_status_read",
+    "preremove_dirty",
+    "preremove_branch_read",
+    "preremove_wrong_branch",
+    "preremove_target_head_read",
+    "preremove_wrong_target_head",
+    "preremove_local_ref_read",
+    "preremove_wrong_local_ref",
   ];
   const runFixture = async (stage, cwd = operatorDir, targetOverride) => {
     const caseRoot = join(fixtureRoot, `case-${stage}`);
@@ -422,8 +583,13 @@ test("local cleanup reaches worktree removal only after every exact target guard
       targetDir = await realpath(targetDir);
     }
     const writeMarker = join(caseRoot, "write");
+    const preservedMarker = join(caseRoot, "preserved");
+    const refState = join(caseRoot, "ref-state");
+    const counterDir = join(caseRoot, "counters");
     const otherCommonDir = join(caseRoot, "other-common");
     await mkdir(otherCommonDir);
+    await mkdir(counterDir);
+    await writeFile(refState, `${reviewedSha}\n`);
     const script = [
       "pokenotes_head_branch='codex/reviewed'",
       `pokenotes_reviewed_head='${reviewedSha}'`,
@@ -445,9 +611,13 @@ test("local cleanup reaches worktree removal only after every exact target guard
         WRITE_MARKER: writeMarker,
         REVIEWED_SHA: reviewedSha,
         HEAD_BRANCH: "codex/reviewed",
+        ADVANCED_SHA: "e".repeat(40),
+        COUNTER_DIR: counterDir,
+        PRESERVED_MARKER: preservedMarker,
+        REF_STATE: refState,
       },
     });
-    return { result, targetDir, writeMarker };
+    return { preservedMarker, refState, result, targetDir, writeMarker };
   };
 
   for (const stage of stages) {
@@ -463,6 +633,12 @@ test("local cleanup reaches worktree removal only after every exact target guard
     `${successful.result.stderr}\n${successful.result.stdout}`,
   );
   assert.equal(await readFile(successful.writeMarker, "utf8"), "");
+  assert.equal(await readFile(successful.refState, "utf8"), "");
+
+  const advanced = await runFixture("post_guard_ref_advance");
+  assert.notEqual(advanced.result.status, 0, "advanced ref must stop compare-and-delete cleanup");
+  assert.equal(await readFile(advanced.refState, "utf8"), `${"e".repeat(40)}\n`);
+  assert.equal(await readFile(advanced.preservedMarker, "utf8"), "");
 
   const relative = await runFixture("relative", operatorDir, "relative-target");
   assert.notEqual(relative.result.status, 0);
