@@ -16,6 +16,7 @@ import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { ChevronIcon } from "@/components/ui/icons";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
+import { useImportDialogData } from "@/components/ui/ImportDialogDataProvider";
 import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
 import {
   getBattleLogDeckDisplayName,
@@ -23,22 +24,19 @@ import {
 } from "@/lib/battle-log/display";
 import type {
   DeckListOption,
-  DeckSelectionOption,
   ParsedLogReview,
   PokemonOption
 } from "@/types/index";
+import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
+import { pokemonOptionsClientCache } from "@/lib/client/editor-option-cache";
 
 export type ImportLogDialogProps = {
   className?: string;
   initialOpen?: boolean;
-  importDataError?: string;
   onOpen?: () => void | Promise<void>;
   onClose?: () => void;
-  pokemonOptions: PokemonOption[];
   renderTrigger?: boolean;
-  ptcglUsername?: string;
   triggerLabel?: string;
-  userDecks: DeckSelectionOption[];
 };
 
 type Stage = "raw" | "review";
@@ -90,18 +88,21 @@ function normalizeRedirectPath(value: string) {
 export function ImportLogDialog({
   className,
   initialOpen = false,
-  importDataError = "",
   onClose,
   onOpen,
-  pokemonOptions,
   renderTrigger = true,
-  ptcglUsername = "",
-  triggerLabel = "Import PTCGL Log",
-  userDecks
+  triggerLabel = "Import PTCGL Log"
 }: ImportLogDialogProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
+  const {
+    ensureUserDecks,
+    isLoadingUserDecks,
+    userDecks: sharedUserDecks,
+    userDecksError
+  } = useImportDialogData();
+  const userDecks = sharedUserDecks ?? [];
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [stage, setStage] = useState<Stage>("raw");
   const [rawLog, setRawLog] = useState("");
@@ -114,6 +115,11 @@ export function ImportLogDialog({
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedFormat, setSelectedFormat] = useState("");
   const [matchNotes, setMatchNotes] = useState("");
+  const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[]>(
+    () => pokemonOptionsClientCache.read() ?? []
+  );
+  const [isLoadingPokemonOptions, setIsLoadingPokemonOptions] = useState(false);
+  const [pokemonOptionsError, setPokemonOptionsError] = useState("");
   const [isPasting, setIsPasting] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -285,10 +291,6 @@ export function ImportLogDialog({
     async (rawLogValue: string, requestId: number) => {
       const formData = new FormData();
       formData.set("rawLog", rawLogValue.trim());
-      if (ptcglUsername) {
-        formData.set("ptcglUsername", ptcglUsername);
-      }
-
       const result = await parseLogAction(formData);
 
       if (autoParseRequestIdRef.current !== requestId) {
@@ -302,8 +304,27 @@ export function ImportLogDialog({
 
       moveToReviewStage(result);
     },
-    [moveToReviewStage, ptcglUsername]
+    [moveToReviewStage]
   );
+
+  const loadSpritePickerOptions = useCallback(async () => {
+    if (pokemonOptions.length > 0 || isLoadingPokemonOptions) {
+      return;
+    }
+
+    setIsLoadingPokemonOptions(true);
+    setPokemonOptionsError("");
+
+    try {
+      setPokemonOptions(await loadPokemonOptions());
+    } catch (error) {
+      setPokemonOptionsError(
+        error instanceof Error ? error.message : "Could not load Pokemon options."
+      );
+    } finally {
+      setIsLoadingPokemonOptions(false);
+    }
+  }, [isLoadingPokemonOptions, pokemonOptions.length]);
 
   function handleReviewLog() {
     setParseError(null);
@@ -322,6 +343,7 @@ export function ImportLogDialog({
     try {
       const result = await importLogAction(formData);
       setSaveState("success");
+      router.prefetch(result.redirectTo);
 
       clearCloseTimer();
       closeTimerRef.current = window.setTimeout(() => {
@@ -380,6 +402,12 @@ export function ImportLogDialog({
       window.clearTimeout(timeoutId);
     };
   }, [isOpen, isTrainingCourtUrl, requestParseReview, stage, trimmedRawLog]);
+
+  useEffect(() => {
+    if (stage === "review" && sharedUserDecks === null) {
+      void ensureUserDecks().catch(() => undefined);
+    }
+  }, [ensureUserDecks, sharedUserDecks, stage]);
 
   function renderHeader() {
     if (stage === "raw") {
@@ -531,15 +559,25 @@ export function ImportLogDialog({
                     </Alert>
                   ) : null}
 
+                  {pokemonOptionsError ? (
+                    <Alert variant="loss">
+                      <AlertDescription>{pokemonOptionsError}</AlertDescription>
+                    </Alert>
+                  ) : null}
+
                   <BattleLogSpritePicker
+                    isLoadingOptions={isLoadingPokemonOptions}
                     onChange={setSelectedSelfSprites}
+                    onSearchIntent={loadSpritePickerOptions}
                     pokemonOptions={pokemonOptions}
                     sprites={selectedSelfSprites}
                     title={`${review.selfPlayerName}'s deck`}
                   />
 
                   <BattleLogSpritePicker
+                    isLoadingOptions={isLoadingPokemonOptions}
                     onChange={setSelectedOpponentSprites}
+                    onSearchIntent={loadSpritePickerOptions}
                     pokemonOptions={pokemonOptions}
                     sprites={selectedOpponentSprites}
                     title={"Opponent's deck"}
@@ -577,10 +615,16 @@ export function ImportLogDialog({
                         <Field>
                           <FieldLabel htmlFor="import-deck-mobile">Deck Strategy</FieldLabel>
                           <AppSelect
+                            disabled={isLoadingUserDecks}
                             id="import-deck-mobile"
                             onChange={setSelectedDeckId}
                             options={[
-                              { label: "No linked deck", value: "" },
+                              {
+                                label: isLoadingUserDecks
+                                  ? "Loading deck strategies..."
+                                  : "No linked deck",
+                                value: ""
+                              },
                               ...userDecks.map((deck) => ({
                                 label: deck.deckName,
                                 value: deck.id
@@ -593,15 +637,17 @@ export function ImportLogDialog({
                         <Field>
                           <FieldLabel htmlFor="import-deck-list-mobile">Deck List</FieldLabel>
                           <AppSelect
-                            disabled={availableDeckLists.length === 0}
+                            disabled={isLoadingUserDecks || availableDeckLists.length === 0}
                             id="import-deck-list-mobile"
                             onChange={setSelectedDeckListId}
                             options={[
                               {
                                 label:
-                                  availableDeckLists.length > 0
-                                    ? "No linked deck list"
-                                    : "Select a deck strategy first",
+                                  isLoadingUserDecks
+                                    ? "Loading deck lists..."
+                                    : availableDeckLists.length > 0
+                                      ? "No linked deck list"
+                                      : "Select a deck strategy first",
                                 value: ""
                               },
                               ...availableDeckLists.map((deckList: DeckListOption) => ({
@@ -612,6 +658,11 @@ export function ImportLogDialog({
                             value={selectedDeckListId}
                           />
                         </Field>
+                        {userDecksError ? (
+                          <p className="text-sm text-loss-strong" role="status">
+                            {userDecksError}
+                          </p>
+                        ) : null}
                       </div>
                     </details>
                   </FieldGroup>
@@ -641,10 +692,16 @@ export function ImportLogDialog({
                     <Field className="min-w-0">
                       <FieldLabel htmlFor="import-deck">Deck Strategy</FieldLabel>
                       <AppSelect
+                        disabled={isLoadingUserDecks}
                         id="import-deck"
                         onChange={setSelectedDeckId}
                         options={[
-                          { label: "No linked deck", value: "" },
+                          {
+                            label: isLoadingUserDecks
+                              ? "Loading deck strategies..."
+                              : "No linked deck",
+                            value: ""
+                          },
                           ...userDecks.map((deck) => ({
                             label: deck.deckName,
                             value: deck.id
@@ -657,15 +714,17 @@ export function ImportLogDialog({
                     <Field className="min-w-0">
                       <FieldLabel htmlFor="import-deck-list">Deck List</FieldLabel>
                       <AppSelect
-                        disabled={availableDeckLists.length === 0}
+                        disabled={isLoadingUserDecks || availableDeckLists.length === 0}
                         id="import-deck-list"
                         onChange={setSelectedDeckListId}
                         options={[
                           {
                             label:
-                              availableDeckLists.length > 0
-                                ? "No linked deck list"
-                                : "Select a deck strategy first",
+                              isLoadingUserDecks
+                                ? "Loading deck lists..."
+                                : availableDeckLists.length > 0
+                                  ? "No linked deck list"
+                                  : "Select a deck strategy first",
                             value: ""
                           },
                           ...availableDeckLists.map((deckList: DeckListOption) => ({
@@ -720,12 +779,6 @@ export function ImportLogDialog({
                 </form>
               ) : (
                 <div className="flex min-w-0 flex-col gap-6">
-                  {importDataError ? (
-                    <Alert variant="loss">
-                      <AlertDescription>{importDataError}</AlertDescription>
-                    </Alert>
-                  ) : null}
-
                   <Field>
                     <FieldLabel htmlFor="battle-log">Battle log</FieldLabel>
                     <Textarea

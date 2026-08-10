@@ -106,7 +106,8 @@ test("import log save navigates before the lazy dialog parent unmounts", () => {
 });
 
 test("private helper endpoints disable caching and map user-facing share errors", () => {
-  const importDialogRoute = source("app/api/import-dialog-data/route.ts");
+  const deckSelectionOptionsRoute = source("app/api/deck-selection-options/route.ts");
+  const pokemonOptionsRoute = source("app/api/pokemon-options/route.ts");
   const sharesRoute = source("app/api/log-shares/route.ts");
   const logDetailBodyRoute = source("app/api/log-detail-body/route.ts");
   const logDetailContextRoute = source("app/api/log-detail-context/route.ts");
@@ -114,7 +115,8 @@ test("private helper endpoints disable caching and map user-facing share errors"
   const apiResponse = source("lib/server/api-response.ts");
 
   assert.match(apiResponse, /PRIVATE_NO_STORE_HEADERS/);
-  assert.match(importDialogRoute, /privateJson/);
+  assert.match(deckSelectionOptionsRoute, /privateJson/);
+  assert.match(pokemonOptionsRoute, /privateJson/);
   assert.match(sharesRoute, /getActionErrorStatus/);
   assert.match(sharesRoute, /error\.httpStatus \?\? 400/);
   assert.doesNotMatch(sharesRoute, /message\.includes/);

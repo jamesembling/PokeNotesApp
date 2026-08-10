@@ -1,21 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/shadcn/button";
+import { useImportDialogData } from "@/components/ui/ImportDialogDataProvider";
 import type { ImportLogDialogProps } from "@/components/ui/ImportLogDialog";
-import type { DeckSelectionOption, PokemonOption } from "@/types/index";
+import type { DeckSelectionOption } from "@/types/index";
 
 type LazyImportLogButtonProps = {
   className?: string;
   initialUserDecks?: DeckSelectionOption[];
   label?: string;
-};
-
-type ImportDialogDataResponse = {
-  pokemonOptions?: PokemonOption[];
-  ptcglUsername?: string;
-  userDecks?: DeckSelectionOption[];
 };
 
 const DynamicImportLogDialog = dynamic<ImportLogDialogProps>(
@@ -39,83 +34,37 @@ function warmImportDialogAssets() {
 
 export function LazyImportLogButton({
   className,
-  initialUserDecks = [],
+  initialUserDecks,
   label = "Import PTCGL Log"
 }: LazyImportLogButtonProps) {
-  const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
-  const [ptcglUsername, setPtcglUsername] = useState("");
-  const [userDecks, setUserDecks] = useState<DeckSelectionOption[]>(initialUserDecks);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [hasLoadedImportData, setHasLoadedImportData] = useState(false);
+  const { seedUserDecks } = useImportDialogData();
 
-  async function handleImporterOpen() {
-    if (hasLoadedImportData) {
-      return;
+  useEffect(() => {
+    if (initialUserDecks !== undefined) {
+      seedUserDecks(initialUserDecks);
     }
-
-    if (isLoading) {
-      return;
-    }
-
-    setIsLoading(true);
-    setLoadError("");
-
-    try {
-      const response = await fetch("/api/import-dialog-data", {
-        credentials: "same-origin",
-        cache: "no-store"
-      });
-
-      if (!response.ok) {
-        throw new Error("Could not load import tools.");
-      }
-
-      const payload = (await response.json()) as ImportDialogDataResponse;
-      setPokemonOptions(Array.isArray(payload.pokemonOptions) ? payload.pokemonOptions : []);
-      setPtcglUsername(String(payload.ptcglUsername || "").trim());
-      if (Array.isArray(payload.userDecks)) {
-        setUserDecks(payload.userDecks);
-      }
-      setHasLoadedImportData(true);
-    } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Could not load import tools.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  }, [initialUserDecks, seedUserDecks]);
 
   return (
     <>
       <Button
         className={className}
-        disabled={isLoading}
         onFocus={warmImportDialogAssets}
         onClick={() => {
           setDialogOpen(true);
           warmImportDialogAssets();
-          void handleImporterOpen();
         }}
         onPointerEnter={warmImportDialogAssets}
       >
-        {isLoading ? "Loading..." : label}
+        {label}
       </Button>
       {dialogOpen ? (
         <DynamicImportLogDialog
-          importDataError={loadError}
           initialOpen
           onClose={() => setDialogOpen(false)}
-          pokemonOptions={pokemonOptions ?? []}
-          ptcglUsername={ptcglUsername}
           renderTrigger={false}
-          userDecks={userDecks}
         />
-      ) : null}
-      {loadError ? (
-        <p className="text-sm text-loss-strong" role="status">
-          {loadError}
-        </p>
       ) : null}
     </>
   );
