@@ -6,7 +6,6 @@ import { ChevronIcon } from "@/components/ui/icons";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
 import { PageActions } from "@/components/ui/PageActions";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { SectionHeader } from "@/components/ui/SectionHeader";
 import type { DeckSummary } from "@/types/index";
 import { Button } from "@/components/shadcn/button";
 import { Tabs } from "@/components/shadcn/tabs";
@@ -126,8 +125,6 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
       }
     });
   }, [decks, sort]);
-  const deckCountLabel = `${orderedDecks.length} ${orderedDecks.length === 1 ? "deck" : "decks"}`;
-
   return (
     <Tabs
       className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3"
@@ -152,71 +149,64 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
       </div>
 
       {viewMode === "list" ? (
-        <section className="flex flex-col gap-4" aria-labelledby="deck-strategy-list-heading">
-          <SectionHeader
-            eyebrow={`${deckCountLabel} · Sortable list`}
-            title="Deck library"
-            titleId="deck-strategy-list-heading"
-          />
-          <div className="overflow-hidden rounded-lg border border-border bg-background">
-            <div className="hidden border-b border-border bg-muted px-4 py-2.5 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(6.5rem,0.55fr)_minmax(7rem,0.65fr)_minmax(4.5rem,0.4fr)_minmax(7.5rem,0.6fr)_auto] md:items-center md:gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(7rem,0.55fr)_minmax(7.5rem,0.7fr)_minmax(5rem,0.4fr)_minmax(8rem,0.65fr)_auto] lg:px-5">
-              <SortHeaderButton
-                active={sort?.key === "deck"}
-                direction={sort?.key === "deck" ? sort.direction : undefined}
-                label="Deck"
-                onClick={() => setSort({ key: "deck", direction: getNextSortDirection("deck", sort) })}
-              />
-              <SortHeaderButton
-                active={sort?.key === "winRate"}
-                align="right"
-                direction={sort?.key === "winRate" ? sort.direction : undefined}
-                label="Win rate"
-                onClick={() =>
-                  setSort({ key: "winRate", direction: getNextSortDirection("winRate", sort) })
-                }
-              />
-              <SortHeaderButton
-                active={sort?.key === "record"}
-                align="right"
-                direction={sort?.key === "record" ? sort.direction : undefined}
-                label="Record"
-                onClick={() =>
-                  setSort({ key: "record", direction: getNextSortDirection("record", sort) })
-                }
-              />
-              <SortHeaderButton
-                active={sort?.key === "lists"}
-                align="right"
-                direction={sort?.key === "lists" ? sort.direction : undefined}
-                label="Decklists"
-                onClick={() => setSort({ key: "lists", direction: getNextSortDirection("lists", sort) })}
-              />
-              <SortHeaderButton
-                active={sort?.key === "updated"}
-                align="right"
-                direction={sort?.key === "updated" ? sort.direction : undefined}
-                label="Updated"
-                onClick={() =>
-                  setSort({ key: "updated", direction: getNextSortDirection("updated", sort) })
-                }
-              />
-              <div className="justify-self-end text-right">Open</div>
-            </div>
-            <div className="divide-y divide-border">
-              {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
-                <DeckCard
-                  deck={deck}
-                  deckListCount={deckListCount}
-                  gamesPlayed={gamesPlayed}
-                  key={deck.id}
-                  recordLabel={gamesPlayed > 0 ? `${gamesPlayed - losses}-${losses}` : "No record"}
-                  view="list"
-                  winRate={winRate}
-                />
-              ))}
-            </div>
+        <div className="overflow-hidden rounded-lg border border-border bg-background">
+          <div className="hidden border-b border-border bg-muted px-4 py-2.5 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(6.5rem,0.55fr)_minmax(7rem,0.65fr)_minmax(4.5rem,0.4fr)_minmax(7.5rem,0.6fr)_auto] md:items-center md:gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(7rem,0.55fr)_minmax(7.5rem,0.7fr)_minmax(5rem,0.4fr)_minmax(8rem,0.65fr)_auto] lg:px-5">
+            <SortHeaderButton
+              active={sort?.key === "deck"}
+              direction={sort?.key === "deck" ? sort.direction : undefined}
+              label="Deck"
+              onClick={() => setSort({ key: "deck", direction: getNextSortDirection("deck", sort) })}
+            />
+            <SortHeaderButton
+              active={sort?.key === "winRate"}
+              align="right"
+              direction={sort?.key === "winRate" ? sort.direction : undefined}
+              label="Win rate"
+              onClick={() =>
+                setSort({ key: "winRate", direction: getNextSortDirection("winRate", sort) })
+              }
+            />
+            <SortHeaderButton
+              active={sort?.key === "record"}
+              align="right"
+              direction={sort?.key === "record" ? sort.direction : undefined}
+              label="Record"
+              onClick={() =>
+                setSort({ key: "record", direction: getNextSortDirection("record", sort) })
+              }
+            />
+            <SortHeaderButton
+              active={sort?.key === "lists"}
+              align="right"
+              direction={sort?.key === "lists" ? sort.direction : undefined}
+              label="Decklists"
+              onClick={() => setSort({ key: "lists", direction: getNextSortDirection("lists", sort) })}
+            />
+            <SortHeaderButton
+              active={sort?.key === "updated"}
+              align="right"
+              direction={sort?.key === "updated" ? sort.direction : undefined}
+              label="Updated"
+              onClick={() =>
+                setSort({ key: "updated", direction: getNextSortDirection("updated", sort) })
+              }
+            />
+            <div className="justify-self-end text-right">Open</div>
           </div>
-        </section>
+          <div className="divide-y divide-border">
+            {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
+              <DeckCard
+                deck={deck}
+                deckListCount={deckListCount}
+                gamesPlayed={gamesPlayed}
+                key={deck.id}
+                recordLabel={gamesPlayed > 0 ? `${gamesPlayed - losses}-${losses}` : "No record"}
+                view="list"
+                winRate={winRate}
+              />
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="deck-strategy-ledger-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
