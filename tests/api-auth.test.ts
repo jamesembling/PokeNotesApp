@@ -48,7 +48,6 @@ test("all private JSON routes use the API auth guard while pages keep redirectin
   const expectedGuardCalls = new Map([
     ["app/api/deck-list/route.ts", 1],
     ["app/api/deck-selection-options/route.ts", 1],
-    ["app/api/import-dialog-data/route.ts", 1],
     ["app/api/log-detail-body/route.ts", 1],
     ["app/api/log-detail-context/route.ts", 1],
     ["app/api/log-shares/route.ts", 2],

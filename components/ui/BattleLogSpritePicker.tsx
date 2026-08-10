@@ -17,6 +17,8 @@ import { buildPokemonSpriteUrlFromSlug, buildSelectableSpriteOptions } from "@/l
 import type { PokemonOption } from "@/types/index";
 
 type BattleLogSpritePickerProps = {
+  isLoadingOptions?: boolean;
+  onSearchIntent?: () => void | Promise<void>;
   title: string;
   sprites: string[];
   onChange: (nextSprites: string[]) => void;
@@ -116,6 +118,8 @@ function SpriteSearchSlot({
   currentSlug,
   index,
   onChange,
+  onSearchIntent,
+  isLoadingOptions,
   pokemonOptionsBySlug,
   pokemonOptions,
   sprites,
@@ -124,6 +128,8 @@ function SpriteSearchSlot({
   currentSlug: string;
   index: number;
   onChange: (nextSprites: string[]) => void;
+  onSearchIntent?: () => void | Promise<void>;
+  isLoadingOptions: boolean;
   pokemonOptionsBySlug: Map<string, PokemonOption>;
   pokemonOptions: PokemonOption[];
   sprites: string[];
@@ -278,7 +284,9 @@ function SpriteSearchSlot({
         </Button>
       </div>
 
-      {isOpen && normalizePokemonSearchValue(query) ? (
+      {isLoadingOptions && pokemonOptions.length === 0 ? (
+        <p className="px-1 text-sm text-muted-foreground">Loading Pokemon options…</p>
+      ) : isOpen && normalizePokemonSearchValue(query) ? (
         <div className="overflow-hidden rounded-lg border border-border bg-muted">
           {filteredOptions.length > 0 ? (
             <div
@@ -353,6 +361,7 @@ function SpriteSearchSlot({
               onClick={() => {
                 setIsEditingSearch(true);
                 setIsOpen(true);
+                void onSearchIntent?.();
               }}
               type="button"
               variant="ghost"
@@ -409,9 +418,11 @@ function SpriteSearchSlot({
 }
 
 export function BattleLogSpritePicker({
+  isLoadingOptions = false,
   title,
   sprites,
   onChange,
+  onSearchIntent,
   pokemonOptions
 }: BattleLogSpritePickerProps) {
   const groupDescriptionId = useId();
@@ -465,6 +476,8 @@ export function BattleLogSpritePicker({
               index={index}
               key={`${title}-${index}`}
               onChange={onChange}
+              onSearchIntent={onSearchIntent}
+              isLoadingOptions={isLoadingOptions}
               pokemonOptionsBySlug={pokemonSearchIndex.optionsBySlug}
               pokemonOptions={selectableSpriteOptions}
               sprites={sprites}

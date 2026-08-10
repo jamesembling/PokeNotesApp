@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAuth, requireUser } from "@/lib/auth";
+import { after } from "next/server";
+import { requireAuth } from "@/lib/auth";
 import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
@@ -9,7 +10,10 @@ import {
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
 import { normalizeMatchNotes } from "@/lib/battle-log/match-notes";
-import { linkDeckConservatively } from "@/lib/log-import/deck-linking";
+import {
+  getDeckLinkCandidates,
+  resolveConservativeDeckLink
+} from "@/lib/log-import/deck-linking";
 import { buildImportDate } from "@/lib/log-import/import-date";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
@@ -59,7 +63,7 @@ type ProfileRow = {
 };
 
 type ImportContext = {
-  user: Awaited<ReturnType<typeof requireUser>>;
+  user: Awaited<ReturnType<typeof requireAuth>>;
   supabase: Awaited<ReturnType<typeof createClient>>;
   catalog: Awaited<ReturnType<typeof loadIdentificationCatalog>>;
   ptcglUsername: string;
@@ -89,26 +93,26 @@ function splitJoinedSprites(value: string) {
     .split(","), (slug) => slug.trim());
 }
 
-async function getImportContext(): Promise<ImportContext> {
-  const [user, supabase] = await Promise.all([
-    measureServerCall("logs.import.requireUser", () => requireUser()),
-    measureServerCall("logs.import.createClient", () => createClient())
-  ]);
-  const catalog = await measureServerCall("logs.import.loadIdentificationCatalog", () =>
-    loadIdentificationCatalog({
-      supabase,
-      userId: user.id
-    })
-  );
-  const { data: profile, error: profileError } = await measureServerCall(
-    "logs.import.loadProfile",
-    async () =>
+async function getImportContext(
+  user: Awaited<ReturnType<typeof requireAuth>>,
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<ImportContext> {
+  const [catalog, profileResult] = await Promise.all([
+    measureServerCall("logs.import.loadIdentificationCatalog", () =>
+      loadIdentificationCatalog({
+        supabase,
+        userId: user.id
+      })
+    ),
+    measureServerCall("logs.import.loadProfile", async () =>
       await supabase
         .from("profiles")
         .select("ptcgl_username")
         .eq("id", user.id)
         .single()
-  );
+    )
+  ]);
+  const { data: profile, error: profileError } = profileResult;
 
   if (profileError) {
     throw profileError;
@@ -132,36 +136,20 @@ async function getImportContext(): Promise<ImportContext> {
 
 async function buildParsedLogReview(
   rawLog: string,
-  context?: ImportContext,
-  ptcglUsernameOverride?: string
+  context: ImportContext | Promise<ImportContext>
 ): Promise<ParsedLogReview> {
-  const resolvedRawLog = await measureServerCall(
-    "logs.import.resolveBattleLogImportInput",
-    () => resolveBattleLogImportInput(rawLog)
-  );
+  const [resolvedRawLog, importContext] = await Promise.all([
+    measureServerCall("logs.import.resolveBattleLogImportInput", () =>
+      resolveBattleLogImportInput(rawLog)
+    ),
+    context
+  ]);
   const trimmedRawLog = String(resolvedRawLog || "").trim();
 
   if (!trimmedRawLog) {
     throw new ImportLogValidationError("EMPTY_INPUT", "Paste a PTCGL battle log before importing.");
   }
 
-  const normalizedPtcglUsername = String(ptcglUsernameOverride || "").trim();
-  const importContext =
-    context ??
-    (normalizedPtcglUsername
-      ? await measureServerCall("logs.import.getOverrideImportContext", async () => {
-          const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
-          return {
-            user,
-            supabase,
-            catalog: await loadIdentificationCatalog({
-              supabase,
-              userId: user.id
-            }),
-            ptcglUsername: normalizedPtcglUsername
-          };
-        })
-      : await measureServerCall("logs.import.getImportContext", () => getImportContext()));
   const { catalog, ptcglUsername } = importContext;
   const parsed = measureServerStep("logs.import.parseBattleLog", () =>
     parseBattleLog({
@@ -261,12 +249,14 @@ function assertMutatedRows(
 }
 
 export async function parseLogAction(formData: FormData): Promise<ParseLogActionResult> {
-  await requireAuth();
+  const [user, supabase] = await Promise.all([
+    measureServerCall("logs.import.requireUser", () => requireAuth()),
+    measureServerCall("logs.import.createClient", () => createClient())
+  ]);
 
   try {
     const rawLog = String(formData.get("rawLog") || "");
-    const ptcglUsername = String(formData.get("ptcglUsername") || "").trim();
-    return await buildParsedLogReview(rawLog, undefined, ptcglUsername);
+    return await buildParsedLogReview(rawLog, getImportContext(user, supabase));
   } catch (error) {
     if (error instanceof ImportLogValidationError) {
       return {
@@ -307,14 +297,21 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
     const selectedSelfDeckSlug = buildDeckArchetypeId(selectedSelfSprites);
     const shouldCheckLearnedSelfArchetype =
       selectedSelfSprites.length > 0 && submittedSelfDeckSlug !== selectedSelfDeckSlug;
-    const catalog = shouldCheckLearnedSelfArchetype
-      ? await measureServerCall("logs.import.loadIdentificationCatalogForSave", () =>
-          loadIdentificationCatalog({
-            supabase,
-            userId: user.id
-          })
-        )
-      : null;
+    const [catalog, deckLinkCandidates] = await Promise.all([
+      shouldCheckLearnedSelfArchetype
+        ? measureServerCall("logs.import.loadIdentificationCatalogForSave", () =>
+            loadIdentificationCatalog({
+              supabase,
+              userId: user.id
+            })
+          )
+        : Promise.resolve(null),
+      selectedDeckId
+        ? Promise.resolve([])
+        : measureServerCall("logs.import.getDeckLinkCandidates", () =>
+            getDeckLinkCandidates(user.id, supabase)
+          )
+    ]);
     const learnedSelfArchetype =
       !catalog
       ? null
@@ -329,14 +326,11 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
         );
     const suggestedLinkedDeckId = selectedDeckId
       ? ""
-      : (await measureServerCall("logs.import.linkDeckConservatively", () =>
-          linkDeckConservatively({
-            userId: user.id,
-            identifiedDeckName: learnedSelfArchetype?.label ?? submittedSelfDeckName,
-            identifiedDeckSlug: learnedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
-            identifiedSprites: selectedSelfSprites
-          })
-        )) ?? "";
+      : resolveConservativeDeckLink(deckLinkCandidates, {
+          deckName: learnedSelfArchetype?.label ?? submittedSelfDeckName,
+          deckSlug: learnedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
+          sprites: selectedSelfSprites
+        }) ?? "";
 
     const record: ImportLogRecord = {
       id: crypto.randomUUID(),
@@ -377,7 +371,9 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       throw insertError;
     }
 
-    revalidateDeckAndLogWorkspace();
+    after(() => {
+      revalidateDeckAndLogWorkspace();
+    });
 
     return {
       ok: true,

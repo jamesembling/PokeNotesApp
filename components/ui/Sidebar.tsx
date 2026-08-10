@@ -151,7 +151,7 @@ export function SidebarMobileTopbar() {
   );
 }
 
-function SidebarNav({ userDecks }: { userDecks: DeckSelectionOption[] }) {
+function SidebarNav({ userDecks }: { userDecks?: DeckSelectionOption[] }) {
   return (
     <SidebarContent className="px-2 py-3 group-data-[collapsible=icon]:px-0">
       <SidebarGroup className="group-data-[collapsible=icon]:p-0">
@@ -271,7 +271,7 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
   );
 }
 
-export function Sidebar({ profile, userDecks = [] }: SidebarProps) {
+export function Sidebar({ profile, userDecks }: SidebarProps) {
   const { setOpenMobile } = useSidebar();
 
   return (

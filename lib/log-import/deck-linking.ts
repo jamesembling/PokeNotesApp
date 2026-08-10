@@ -7,6 +7,8 @@ type DeckLinkCandidateRow = {
   deck_pokemon: unknown;
 };
 
+type DeckLinkCandidatesClient = Awaited<ReturnType<typeof createClient>>;
+
 export type DeckLinkCandidate = {
   id: string;
   deckName: string;
@@ -187,8 +189,11 @@ function getUniqueBestCandidate(
   return decision.status === "linked" ? decision.linkedDeckId : null;
 }
 
-export async function getDeckLinkCandidates(userId: string) {
-  const supabase = await createClient();
+export async function getDeckLinkCandidates(
+  userId: string,
+  client?: DeckLinkCandidatesClient
+) {
+  const supabase = client ?? await createClient();
   const { data, error } = await supabase
     .from("decks")
     .select("id,deck_name,deck_pokemon")
