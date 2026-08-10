@@ -22,7 +22,7 @@ export function DeckLinkedLogsDialog({ deckId }: DeckLinkedLogsDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!isOpen || logs.length > 0 || isLoading) {
+    if (!isOpen || logs.length > 0) {
       return;
     }
 
@@ -50,7 +50,7 @@ export function DeckLinkedLogsDialog({ deckId }: DeckLinkedLogsDialogProps) {
     return () => {
       isActive = false;
     };
-  }, [deckId, isLoading, isOpen, logs.length]);
+  }, [deckId, isOpen, logs.length]);
 
   return (
     <Dialog onOpenChange={setIsOpen} open={isOpen}>
