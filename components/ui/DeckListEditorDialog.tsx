@@ -446,7 +446,7 @@ export function DeckListEditorDialog({
                       <span className="text-sm font-semibold text-muted-foreground">List name</span>
                       <Input
                         id="deck-list-name"
-                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+                        className="h-auto min-h-[2.75rem] w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setListName(event.target.value)}
                         required
                         value={listName}
@@ -473,7 +473,7 @@ export function DeckListEditorDialog({
                       <span className="text-sm font-semibold text-muted-foreground">Created by</span>
                       <Input
                         id="deck-list-created-by"
-                        className="w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
+                        className="h-auto min-h-[2.75rem] w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"
                         onChange={(event) => setCreatedBy(event.target.value)}
                         value={createdBy}
                       />
