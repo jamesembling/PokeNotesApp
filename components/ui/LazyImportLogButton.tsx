@@ -41,7 +41,7 @@ export function LazyImportLogButton({
   const { seedUserDecks } = useImportDialogData();
 
   useEffect(() => {
-    if (initialUserDecks !== undefined) {
+    if (initialUserDecks?.length) {
       seedUserDecks(initialUserDecks);
     }
   }, [initialUserDecks, seedUserDecks]);

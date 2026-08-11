@@ -18,6 +18,7 @@ test("the battle-log importer opens without blocking on option data", () => {
 });
 
 test("importer option data is shared and loaded only when its review controls need it", () => {
+  const lazyButton = source("components/ui/LazyImportLogButton.tsx");
   const provider = source("components/ui/ImportDialogDataProvider.tsx");
   const dialog = source("components/ui/ImportLogDialog.tsx");
   const picker = source("components/ui/BattleLogSpritePicker.tsx");
@@ -30,6 +31,8 @@ test("importer option data is shared and loaded only when its review controls ne
   assert.match(dialog, /loadPokemonOptions\(\)/);
   assert.match(dialog, /onSearchIntent=\{loadSpritePickerOptions\}/);
   assert.match(picker, /void onSearchIntent\?\.\(\);/);
+  assert.match(lazyButton, /if \(initialUserDecks\?\.length\)/);
+  assert.doesNotMatch(lazyButton, /initialUserDecks !== undefined/);
   assert.match(sidebar, /export function Sidebar\(\{ profile, userDecks \}: SidebarProps\)/);
   assert.doesNotMatch(sidebar, /userDecks = \[\]/);
 });
