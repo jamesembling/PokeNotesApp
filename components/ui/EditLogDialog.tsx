@@ -16,7 +16,12 @@ import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
+import {
+  AppDialogContent,
+  AppDialogFooter,
+  AppDialogHeader,
+  AppDialogMobileFooter
+} from "@/components/ui/AppDialog";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Dialog } from "@/components/shadcn/dialog";
 import { FormatSelect } from "@/components/ui/FormatSelect";
@@ -363,15 +368,16 @@ export function EditLogDialog({
                   />
                 </label>
               </section>
-
-              <ButtonGroup className="hidden border-t border-border pt-4 sm:ml-auto sm:flex sm:w-auto">
-                <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
-              </ButtonGroup>
             </form>
-            </div>
-            <AppDialogMobileFooter>
+          </div>
+          <AppDialogFooter>
+            <ButtonGroup className="w-auto">
               <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
-            </AppDialogMobileFooter>
+            </ButtonGroup>
+          </AppDialogFooter>
+          <AppDialogMobileFooter>
+            <SaveButton onClick={() => formRef.current?.requestSubmit()} saveState={saveState} />
+          </AppDialogMobileFooter>
       </AppDialogContent>
     </Dialog>
   );
