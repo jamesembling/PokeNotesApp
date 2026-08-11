@@ -12,7 +12,12 @@ import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
-import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
+import {
+  AppDialogContent,
+  AppDialogFooter,
+  AppDialogHeader,
+  AppDialogMobileFooter
+} from "@/components/ui/AppDialog";
 import { Dialog } from "@/components/shadcn/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
@@ -414,7 +419,10 @@ export function DeckEditorDialog({
                 </div>
               ) : null}
 
-              <ButtonGroup className="hidden border-t border-border pt-4 sm:ml-auto sm:flex sm:w-auto sm:flex-row sm:justify-end sm:gap-0">
+            </form>
+            </div>
+            <AppDialogFooter>
+              <ButtonGroup className="w-auto flex-row justify-end gap-0">
                 {isEditing ? (
                   <Button
                     disabled={isBusy}
@@ -434,8 +442,7 @@ export function DeckEditorDialog({
                   saveState={saveState}
                 />
               </ButtonGroup>
-            </form>
-            </div>
+            </AppDialogFooter>
             <AppDialogMobileFooter>
               <SaveButton
                 isEditing={isEditing}
