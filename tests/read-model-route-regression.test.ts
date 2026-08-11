@@ -140,6 +140,7 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
   const page = source("app/(app)/stats/page.tsx");
   const apiRoute = source("app/api/stats-matchups/route.ts");
   const logsDb = source("lib/db/logs.ts");
+  const statsTabs = source("components/ui/StatsTabsClient.tsx");
 
   assert.match(page, /getLogStatsOverview/);
   assert.doesNotMatch(page, /getArchetypeMatchupStats/);
@@ -147,16 +148,25 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
   assert.match(page, /<StatsContent overviewPromise=\{overviewPromise\}/);
   assert.match(page, /<StatsTabsClient overview=\{overview\}/);
   assert.match(apiRoute, /getArchetypeMatchupStats/);
-  assert.match(source("components/ui/StatsTabsClient.tsx"), /\/api\/stats-matchups/);
-  assert.match(source("components/ui/StatsTabsClient.tsx"), /Opening coin toss W\/L/);
+  assert.match(statsTabs, /\/api\/stats-matchups/);
+  assert.match(statsTabs, /Opening coin toss W\/L/);
   assert.match(
-    source("components/ui/StatsTabsClient.tsx"),
+    statsTabs,
     /overview\.coinFlipsWon, overview\.coinFlipsLost/
   );
   assert.doesNotMatch(
     source("components/ui/StatsTabsClient.tsx"),
     /Total prize cards collected|W: you chose|Games mulliganed|Latest \{formatMetric\(damageTimeline\.length\)\} games|Tracked \{formatMetric\(overview\.trackedDamage\)\}/
   );
+  assert.match(statsTabs, /const MIN_MATCHUP_GAMES = 3/);
+  assert.match(statsTabs, /useState\(false\)/);
+  assert.match(
+    statsTabs,
+    /showAllMatchups \|\| matchup\.gamesPlayed >= MIN_MATCHUP_GAMES/
+  );
+  assert.match(statsTabs, /checked=\{showAllMatchups\}/);
+  assert.match(statsTabs, /onCheckedChange=\{setShowAllMatchups\}/);
+  assert.match(statsTabs, />Show all matchups<\/span>/);
   assert.match(logsDb, /from\("user_archetype_matchup_stats"\)/);
   assert.doesNotMatch(logsDb, /from\("logs"\)[\s\S]{0,300}opponent_deck_slug[\s\S]{0,300}group/);
 });

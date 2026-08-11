@@ -1,8 +1,9 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
+import { Switch } from "@/components/shadcn/switch";
 import { Tabs, TabsContent } from "@/components/shadcn/tabs";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -632,23 +633,32 @@ function MatchupSortHeaderButton({
   );
 }
 
-function ArchetypeMatchupsTable({ matchups }: { matchups: ArchetypeMatchupStats[] }) {
+function ArchetypeMatchupsTable({
+  matchups,
+  showAllMatchups
+}: {
+  matchups: ArchetypeMatchupStats[];
+  showAllMatchups: boolean;
+}) {
   const [sort, setSort] = useState<{ key: MatchupSortKey; direction: SortDirection }>(
     DEFAULT_MATCHUP_SORT
   );
   const visibleMatchups = useMemo(
     () =>
       [...matchups]
-        .filter((matchup) => matchup.gamesPlayed >= MIN_MATCHUP_GAMES)
+        .filter(
+          (matchup) => showAllMatchups || matchup.gamesPlayed >= MIN_MATCHUP_GAMES
+        )
         .sort((left, right) => compareMatchupsBySort(sort, left, right)),
-    [matchups, sort]
+    [matchups, showAllMatchups, sort]
   );
 
   if (visibleMatchups.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-        No matchup stats with at least {MIN_MATCHUP_GAMES} games yet. Import more battle logs with
-        identified opponent archetypes to build this table.
+        {showAllMatchups
+          ? "No matchup stats yet. Import battle logs with identified opponent archetypes to build this table."
+          : `No matchup stats with at least ${MIN_MATCHUP_GAMES} games yet. Turn on Show all matchups to include smaller samples.`}
       </div>
     );
   }
@@ -773,7 +783,9 @@ export function StatsTabsClient({
   matchups: initialMatchups,
   overview
 }: StatsTabsClientProps) {
+  const showAllMatchupsId = useId();
   const [activeTab, setActiveTab] = useState("overview");
+  const [showAllMatchups, setShowAllMatchups] = useState(false);
   const [matchups, setMatchups] = useState<ArchetypeMatchupStats[] | null>(
     initialMatchups ?? null
   );
@@ -835,8 +847,8 @@ export function StatsTabsClient({
       return <ArchetypeMatchupsFallback />;
     }
 
-    return <ArchetypeMatchupsTable matchups={matchups} />;
-  }, [isLoadingMatchups, matchups, matchupsError]);
+    return <ArchetypeMatchupsTable matchups={matchups} showAllMatchups={showAllMatchups} />;
+  }, [isLoadingMatchups, matchups, matchupsError, showAllMatchups]);
 
   return (
       <Tabs
@@ -864,9 +876,22 @@ export function StatsTabsClient({
 
       <TabsContent value="matchups">
         <div className="grid gap-4">
-          <div className="space-y-2">
-            <p className="ui-eyebrow">Matchups</p>
-            <SectionTitle>Win % vs Archetypes</SectionTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-2">
+              <p className="ui-eyebrow">Matchups</p>
+              <SectionTitle>Win % vs Archetypes</SectionTitle>
+            </div>
+            <label
+              className="inline-flex min-h-11 cursor-pointer items-center gap-3 self-start text-sm font-medium text-card-foreground sm:self-auto"
+              htmlFor={showAllMatchupsId}
+            >
+              <span>Show all matchups</span>
+              <Switch
+                checked={showAllMatchups}
+                id={showAllMatchupsId}
+                onCheckedChange={setShowAllMatchups}
+              />
+            </label>
           </div>
 
           {matchupContent}
