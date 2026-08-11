@@ -425,13 +425,14 @@ export function DeckEditorDialog({
               <ButtonGroup className="w-auto flex-row justify-end gap-0">
                 {isEditing ? (
                   <Button
+                    className="whitespace-nowrap text-loss-strong hover:bg-destructive/10 hover:text-loss-strong"
                     disabled={isBusy}
                     onClick={() => {
                       setActionError("");
                       setShowDeleteConfirmation((currentValue) => !currentValue);
                     }}
                     type="button"
-                    variant="destructive"
+                    variant="outline"
                   >
                     Delete Deck
                   </Button>

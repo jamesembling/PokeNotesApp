@@ -17,6 +17,10 @@ test("deck editor desktop actions use the full-width dialog footer", () => {
   assert.ok(footerStart > formEnd, "the desktop footer should sit outside the scrolling form");
   assert.ok(mobileFooterStart > footerStart, "the mobile footer should remain after the desktop footer");
   assert.match(desktopFooter, /<ButtonGroup className="w-auto flex-row justify-end gap-0">/);
+  assert.match(
+    desktopFooter,
+    /className="whitespace-nowrap text-loss-strong hover:bg-destructive\/10 hover:text-loss-strong"[\s\S]*variant="outline"/
+  );
   assert.match(desktopFooter, /Delete Deck/);
   assert.match(desktopFooter, /<SaveButton/);
   assert.doesNotMatch(editor.slice(0, formEnd), /hidden border-t border-border pt-4 sm:ml-auto/);
