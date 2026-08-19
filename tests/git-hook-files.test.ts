@@ -131,7 +131,6 @@ test("an existing branch push excludes unchanged SQL inherited by a rebase onto 
   );
 
   assert.deepEqual(result.pushedFiles, ["sql/inherited.sql"]);
-  assert.deepEqual(result.branchOwnedFiles, ["feature.txt"]);
 });
 
 test("the pre-push hook does not deploy inherited SQL from an existing branch push", (t) => {
@@ -158,7 +157,7 @@ test("the pre-push hook does not deploy inherited SQL from an existing branch pu
   assert.doesNotMatch(commands, /node:scripts\/deploy-changed-sql\.mjs/);
 });
 
-test("the pre-push hook still deploys modified branch-owned SQL", (t) => {
+test("the pre-push hook validates modified SQL without deploying it", (t) => {
   const { cwd, main } = fixture();
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   git(cwd, "checkout", "-b", "feature", main);
@@ -167,45 +166,11 @@ test("the pre-push hook still deploys modified branch-owned SQL", (t) => {
 
   const { stdout, commands } = runHook(cwd, newBranchInput(localSha));
 
-  assert.match(stdout, /SQL files changed/);
-  assert.match(commands, /node:scripts\/deploy-changed-sql\.mjs sql\/inherited\.sql/);
-});
-
-test("new and modified branch-owned SQL remains protected", (t) => {
-  const { cwd, main } = fixture();
-  t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  git(cwd, "checkout", "-b", "feature", main);
-  writeFileSync(join(cwd, "sql/inherited.sql"), "select 'branch modification';\n");
-  writeFileSync(join(cwd, "sql/new.sql"), "select 'new branch SQL';\n");
-  const localSha = commit(cwd, "change SQL");
-
-  const result = prePushFileSets(newBranchInput(localSha), { cwd, targetMainSha: main });
-
-  assert.deepEqual(result.branchOwnedFiles, ["sql/inherited.sql", "sql/new.sql"]);
-});
-
-test("deleted branch-owned SQL remains protected", (t) => {
-  const { cwd, main } = fixture();
-  t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  git(cwd, "checkout", "-b", "feature", main);
-  rmSync(join(cwd, "sql/inherited.sql"));
-  const localSha = commit(cwd, "delete SQL");
-
-  const result = prePushFileSets(newBranchInput(localSha), { cwd, targetMainSha: main });
-
-  assert.deepEqual(result.branchOwnedFiles, ["sql/inherited.sql"]);
-});
-
-test("renamed branch-owned SQL reports both sides so moves cannot evade protection", (t) => {
-  const { cwd, main } = fixture();
-  t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  git(cwd, "checkout", "-b", "feature", main);
-  git(cwd, "mv", "sql/inherited.sql", "sql/renamed.sql");
-  const localSha = commit(cwd, "rename SQL");
-
-  const result = prePushFileSets(newBranchInput(localSha), { cwd, targetMainSha: main });
-
-  assert.deepEqual(result.branchOwnedFiles, ["sql/inherited.sql", "sql/renamed.sql"]);
+  assert.doesNotMatch(stdout, /SQL files changed/);
+  assert.match(commands, /npm:run lint/);
+  assert.match(commands, /npm:run typecheck/);
+  assert.match(commands, /npm:run test/);
+  assert.doesNotMatch(commands, /deploy-changed-sql/);
 });
 
 test("a stale-ahead origin/main cannot hide SQL absent from the actual remote main", (t) => {
@@ -227,11 +192,11 @@ test("a stale-ahead origin/main cannot hide SQL absent from the actual remote ma
   });
 
   assert.equal(actualRemoteMain, base);
-  assert.deepEqual(result.branchOwnedFiles, ["feature.txt", "sql/branch.sql"]);
+  assert.deepEqual(result.pushedFiles, ["feature.txt", "sql/branch.sql"]);
 
   const { stdout, commands } = runHook(cwd, newBranchInput(localSha));
-  assert.match(stdout, /SQL files changed/);
-  assert.match(commands, /node:scripts\/deploy-changed-sql\.mjs sql\/branch\.sql/);
+  assert.doesNotMatch(stdout, /SQL files changed/);
+  assert.doesNotMatch(commands, /deploy-changed-sql/);
 });
 
 test("the pre-push wrapper classifies SQL against the actual push location", (t) => {
@@ -257,6 +222,7 @@ test("the pre-push wrapper classifies SQL against the actual push location", (t)
   const fakeBin = join(cwd, "fake-bin");
   const commandLog = join(cwd, "hook-commands.log");
   mkdirSync(fakeBin);
+  writeFileSync(commandLog, "");
   writeFileSync(
     join(fakeBin, "npm"),
     "#!/bin/sh\nprintf 'npm:%s\\n' \"$*\" >> \"$HOOK_COMMAND_LOG\"\n"
@@ -282,8 +248,8 @@ test("the pre-push wrapper classifies SQL against the actual push location", (t)
 
   assert.equal(push.status, 0, output);
   assert.equal(git(cwd, "--git-dir", pushRemote, "rev-parse", "refs/heads/feature"), localSha);
-  assert.match(output, /SQL files changed/);
-  assert.match(commands, /node:scripts\/deploy-changed-sql\.mjs sql\/branch\.sql/);
+  assert.doesNotMatch(output, /SQL files changed/);
+  assert.doesNotMatch(commands, /deploy-changed-sql/);
 });
 
 test("manual pre-push compares broad gates with the explicit destination instead of upstream", (t) => {

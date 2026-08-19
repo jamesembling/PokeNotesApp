@@ -43,28 +43,42 @@ async function StatsContent({
 
 function StatsOverviewFallback() {
   return (
-    <div className="-mt-2 grid gap-5 sm:mt-5">
-      <div className="flex gap-2">
-        <Skeleton className="h-9 w-24 rounded-lg" />
-        <Skeleton className="h-9 w-28 rounded-lg" />
+    <div className="-mt-2 grid gap-6 sm:mt-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Skeleton className="h-11 w-24 rounded-lg" />
+        <Skeleton className="h-4 w-24 rounded" />
       </div>
-      <div className="grid gap-5 rounded-lg border border-border bg-card p-4 sm:p-6">
-        <div className="hidden space-y-2 sm:block">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-5 w-40" />
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.5fr)] xl:items-start">
+        <div className="overflow-hidden rounded-lg border border-border bg-card xl:col-start-1 xl:row-start-1">
+          <div className="space-y-5 p-5">
+            <Skeleton className="h-6 w-20 rounded" />
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-16 rounded" />
+              <Skeleton className="h-10 w-24 rounded" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 border-t border-border">
+            <Skeleton className="h-24 rounded-none" />
+            <Skeleton className="h-24 rounded-none border-l border-border" />
+          </div>
         </div>
-        <div className="grid gap-5">
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton className="h-24 rounded-lg" key={index} />
-            ))}
+
+        <div className="overflow-hidden rounded-lg border border-border bg-card xl:col-start-2 xl:row-span-2 xl:row-start-1">
+          <div className="p-5">
+            <Skeleton className="h-6 w-36 rounded" />
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <Skeleton className="h-24 rounded-lg" />
-            <Skeleton className="h-24 rounded-lg" />
-            <Skeleton className="col-span-2 h-24 rounded-lg" />
+          <div className="grid grid-cols-2 border-t border-border sm:grid-cols-3">
+            <Skeleton className="h-24 rounded-none" />
+            <Skeleton className="h-24 rounded-none border-l border-border" />
+            <Skeleton className="col-span-2 h-24 rounded-none border-t border-border sm:col-span-1 sm:border-l sm:border-t-0" />
           </div>
-          <Skeleton className="h-32 rounded-lg" />
+          <Skeleton className="h-80 rounded-none border-t border-border sm:h-96" />
+        </div>
+
+        <div className="space-y-4 rounded-lg border border-border bg-card p-5 xl:col-start-1 xl:row-start-2">
+          <Skeleton className="h-6 w-28 rounded" />
+          <Skeleton className="h-44 rounded-lg" />
         </div>
       </div>
     </div>

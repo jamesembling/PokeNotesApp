@@ -19,6 +19,10 @@ const repositoryRoot = dirname(dirname(schemaHealthPath));
 const rehearsalPath = join(repositoryRoot, "scripts/rehearse-migrations.mjs");
 const runbook = readFileSync(new URL("../docs/migration-release.md", import.meta.url), "utf8");
 const contributing = readFileSync(new URL("../CONTRIBUTING.md", import.meta.url), "utf8");
+const productionWorkflow = readFileSync(
+  new URL("../.github/workflows/deploy-production-database.yml", import.meta.url),
+  "utf8"
+);
 
 function readArgumentCalls(argumentLog: string) {
   if (!existsSync(argumentLog)) return [];
@@ -175,33 +179,30 @@ if (process.env.POKENOTES_TEST_CHILD_FAILURE && args.includes("push")) {
   }
 }
 
-test("migration release path separates worker, rehearsal, and production authority", () => {
-  assert.match(runbook, /Migration worker/);
-  assert.match(runbook, /Release owner/);
-  assert.match(runbook, /Independent reviewer/);
-  assert.match(runbook, /Production operator/);
-  assert.match(runbook, /Application release owner/);
-  assert.match(runbook, /unlinked commit/);
-  assert.match(runbook, /US\$1 total/);
-  assert.match(runbook, /production migration before application/i);
-  assert.match(runbook, /`supabase\/migrations\/` is the release authority/);
-  assert.match(runbook, /legacy pre-push deployment as migration evidence/);
+test("migration release path gives production authority only to the controlled workflow", () => {
+  assert.match(
+    runbook,
+    /`supabase\/migrations\/` and Supabase's migration history are the release authority/
+  );
+  assert.match(runbook, /Git hooks validate migrations/);
+  assert.match(runbook, /manually dispatched \*\*Deploy production database\*\*/);
+  assert.match(runbook, /workflow is the only production migration path/i);
+  assert.match(runbook, /expand-and-contract/);
 });
 
-test("migration evidence gate covers security, failure, and verified cleanup", () => {
-  assert.match(runbook, /ACL \/ RLS \/ ownership matrix/);
-  assert.match(runbook, /Concurrency test/);
-  assert.match(runbook, /Fault-injection rollback/);
-  assert.match(runbook, /post-delete absence proof/);
-  assert.match(runbook, /supabase branches delete "\$POKENOTES_BRANCH_ID"/);
-  assert.match(runbook, /explicit reset approval/);
-  assert.match(runbook, /confirmed\s+disposable local instance/);
-  assert.match(runbook, /migration-before-application order/);
-  assert.match(runbook, /NOT AUTHORIZED \/ NOT RUN/);
-  assert.match(runbook, /--db-url-env POKENOTES_PRODUCTION_DATABASE_URL/);
-  assert.match(runbook, /only disposable `db push` path/);
-  assert.match(runbook, /Never\s+bypass it with a raw disposable `db push`/);
-  assert.doesNotMatch(runbook, /--project-ref </);
+test("production workflow is manual, serialized, main-only, and verifies the live result", () => {
+  assert.match(productionWorkflow, /^  workflow_dispatch:/m);
+  assert.doesNotMatch(productionWorkflow, /^  push:/m);
+  assert.match(productionWorkflow, /group: production-database/);
+  assert.match(productionWorkflow, /cancel-in-progress: false/);
+  assert.match(productionWorkflow, /environment: Production/);
+  assert.match(productionWorkflow, /refs\/heads\/main/);
+  assert.match(productionWorkflow, /CONFIRMATION" != "DEPLOY"/);
+  assert.match(productionWorkflow, /version: 2\.115\.0/);
+  assert.match(productionWorkflow, /supabase db push[^\n]+--dry-run/);
+  assert.match(productionWorkflow, /supabase migration list/);
+  assert.match(productionWorkflow, /schema:health/);
+  assert.match(productionWorkflow, /db advisors[^\n]+--type security --fail-on error/);
 });
 
 test("disposable rehearsal binds the live branch ref to the direct database URL before dry run", () => {
@@ -495,6 +496,10 @@ test("schema health redacts normalized query credentials without the original UR
 });
 
 test("contributor guidance points migration authors to the release gate", () => {
-  assert.match(contributing, /isolated migration release path/);
+  assert.match(
+    contributing,
+    /hooks[\s\S]*do not connect to or mutate the\s+production database/
+  );
   assert.match(contributing, /docs\/migration-release\.md/);
+  assert.match(contributing, /manually dispatched production workflow/);
 });

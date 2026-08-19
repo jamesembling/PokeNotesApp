@@ -1,6 +1,5 @@
 export interface PrePushFileSets {
   pushedFiles: string[];
-  branchOwnedFiles: string[];
 }
 
 export function prePushFileSets(

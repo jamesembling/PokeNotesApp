@@ -34,16 +34,13 @@ This repo uses tracked hooks under `.githooks/`. Install them for a checkout wit
 - `npm run hooks:install`
 
 The hooks run targeted regression checks for protected deck-list ordering paths,
-read-model routes, and SQL/data changes. On push, changed `sql/*.sql` files are
-deployed to the linked Supabase project before the push continues. Successful
-deployments are tracked in `codex_private.sql_deployments` by file path and
-SHA-256 hash, so unchanged SQL is not re-applied.
+read-model routes, and SQL/data changes. They do not connect to or mutate the
+production database.
 
-Changes under `supabase/migrations/` use the authority-separated
-[isolated migration release path](./docs/migration-release.md). Migration workers keep their
-worktree unlinked and hand an immutable commit plus source evidence to an approved release owner;
-disposable rehearsal, cleanup, production migration, and application promotion remain separate
-approval gates.
+Create every new schema change under `supabase/migrations/` with the Supabase CLI.
+The older `sql/` directory is historical and does not accept new migrations. Follow the
+[migration release path](./docs/migration-release.md) for local or isolated rehearsal,
+review, and the manually dispatched production workflow after merge to `main`.
 
 ## Pull Requests
 

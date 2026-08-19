@@ -1,0 +1,65 @@
+name: Deploy production database
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DEPLOY to apply pending migrations from main
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-database
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Apply native migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: Production
+    env:
+      SUPABASE_PRODUCTION_DB_URL: ${{ secrets.SUPABASE_PRODUCTION_DB_URL }}
+    steps:
+      - name: Require an explicit main-branch deployment
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Production database deployments must run from main."
+            exit 1
+          fi
+          if [ "$CONFIRMATION" != "DEPLOY" ]; then
+            echo "Confirmation must be exactly DEPLOY."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_PRODUCTION_DB_URL" ]; then
+            echo "The Production environment secret SUPABASE_PRODUCTION_DB_URL is required."
+            exit 1
+          fi
+
+      - name: Checkout reviewed main commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
+        with:
+          version: 2.115.0
+
+      - name: Preview pending migrations
+        run: supabase db push --db-url "$SUPABASE_PRODUCTION_DB_URL" --dry-run
+
+      - name: Apply pending migrations
+        run: supabase db push --db-url "$SUPABASE_PRODUCTION_DB_URL"
+
+      - name: Verify migration history
+        run: supabase migration list --db-url "$SUPABASE_PRODUCTION_DB_URL"
+
+      - name: Verify schema contracts
+        run: npm run schema:health -- --db-url-env SUPABASE_PRODUCTION_DB_URL
+
+      - name: Run security advisors
+        run: supabase db advisors --db-url "$SUPABASE_PRODUCTION_DB_URL" --type security --fail-on error

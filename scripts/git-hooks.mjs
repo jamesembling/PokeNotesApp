@@ -75,6 +75,7 @@ const readModelRoutePatterns = [
 
 const sqlPatterns = [
   /^sql\/.*\.sql$/,
+  /^supabase\/migrations\/.*\.sql$/,
   /^schema\.sql$/,
   /^tests\/.*-sql\.test\.ts$/,
   /^lib\/db\//
@@ -123,7 +124,8 @@ if (mode === "pre-commit") {
     console.log("SQL/data paths changed. Checking SQL regression tests.");
     runNpmScript("test", [
       "tests/deck-log-stats-sql.test.ts",
-      "tests/archetype-matchup-stats-sql.test.ts"
+      "tests/archetype-matchup-stats-sql.test.ts",
+      "tests/migration-release-runbook.test.ts"
     ]);
   }
 
@@ -150,7 +152,7 @@ if (mode === "pre-push") {
     process.exit(1);
   }
 
-  const { pushedFiles: files, branchOwnedFiles } = fileSets;
+  const { pushedFiles: files } = fileSets;
 
   if (files.length === 0) {
     console.log("No pushed file changes detected.");
@@ -167,13 +169,6 @@ if (mode === "pre-push") {
     console.log("");
     console.log("Build-sensitive files changed. Running production build.");
     runNpmScript("build");
-  }
-
-  const changedSqlFiles = branchOwnedFiles.filter((file) => /^sql\/.*\.sql$/.test(file));
-  if (changedSqlFiles.length > 0) {
-    console.log("");
-    console.log("SQL files changed. Deploying undeployed SQL to linked Supabase before push.");
-    run("node", ["scripts/deploy-changed-sql.mjs", ...changedSqlFiles]);
   }
 
   if (matchesAny(files, performanceSensitivePatterns)) {

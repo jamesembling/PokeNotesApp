@@ -119,25 +119,6 @@ function getWinRateTone(value: number | null) {
   };
 }
 
-function OverviewSection({
-  children,
-  title
-}: {
-  children: ReactNode;
-  title: string;
-}) {
-  return (
-    <section className="grid gap-2">
-      <div className="flex min-h-7 items-center justify-between gap-3">
-        <h2 className="text-xs font-semibold uppercase leading-none tracking-wide text-muted-foreground">
-          {title}
-        </h2>
-      </div>
-      {children}
-    </section>
-  );
-}
-
 function DamageSplitChart({
   attackDamage,
   damageTimeline,
@@ -159,14 +140,14 @@ function DamageSplitChart({
     : "";
 
   return (
-    <div className="grid gap-5 rounded-lg border border-border bg-card p-5">
-      <div className="flex items-center justify-between gap-4">
+    <div className="grid gap-4 p-4 sm:gap-5 sm:p-5">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="space-y-1">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Damage Split
           </h3>
         </div>
-        <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-muted-foreground sm:justify-end">
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2 rounded-full bg-[var(--chart-damage-self-start)]" />
             You dealt
@@ -180,7 +161,7 @@ function DamageSplitChart({
 
       <div
         aria-label={`Damage split line chart${rangeDescription}. You dealt ${formatMetric(attackDamage)}. Opponents dealt ${formatMetric(opponentAttackDamage)}.`}
-        className="relative overflow-hidden p-3"
+        className="relative overflow-hidden"
         role="img"
       >
         <svg
@@ -266,20 +247,18 @@ function DamageSplitChart({
             Game {formatMetric(endGame)}
           </text>
         </svg>
-        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-          <div className="flex items-center justify-between gap-3 border-t border-border px-1 py-3">
-            <span className="font-medium text-muted-foreground">
-              You dealt{isTruncated ? " in window" : ""}
-            </span>
-            <span className="font-mono font-semibold text-card-foreground">{formatMetric(attackDamage)}</span>
+        {isTruncated ? (
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-3 border-t border-border px-1 py-3">
+              <span className="font-medium text-muted-foreground">You dealt in window</span>
+              <span className="font-mono font-semibold text-card-foreground">{formatMetric(attackDamage)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-border px-1 py-3">
+              <span className="font-medium text-muted-foreground">Opponents dealt in window</span>
+              <span className="font-mono font-semibold text-card-foreground">{formatMetric(opponentAttackDamage)}</span>
+            </div>
           </div>
-          <div className="flex items-center justify-between gap-3 border-t border-border px-1 py-3">
-            <span className="font-medium text-muted-foreground">
-              Opponents dealt{isTruncated ? " in window" : ""}
-            </span>
-            <span className="font-mono font-semibold text-card-foreground">{formatMetric(opponentAttackDamage)}</span>
-          </div>
-        </div>
+        ) : null}
       </div>
     </div>
   );
@@ -374,17 +353,19 @@ function getDamageChartGeometry(
   };
 }
 
-function OverviewTile({
+function DamageMetric({
+  className = "",
   label,
   value,
   valueClassName = "text-card-foreground"
 }: {
+  className?: string;
   label: string;
-  value: string;
+  value: ReactNode;
   valueClassName?: string;
 }) {
   return (
-    <div className="min-h-24 p-5">
+    <div className={`min-w-0 p-4 sm:p-5 ${className}`}>
       <p className="text-xs font-semibold uppercase leading-none tracking-wide text-muted-foreground">
         {label}
       </p>
@@ -399,18 +380,116 @@ function OverviewTile({
 
 function GameStatRow({
   label,
-  value
+  value,
+  valueClassName = "text-card-foreground"
 }: {
   label: string;
   value: string;
+  valueClassName?: string;
 }) {
   return (
     <div className="flex min-h-14 items-center gap-3 border-b border-border py-4 last:border-b-0">
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-card-foreground">
+      <span className="min-w-0 flex-1 text-sm font-semibold leading-snug text-card-foreground">
         {label}
       </span>
-      <span className="font-mono text-lg font-semibold text-card-foreground">{value}</span>
+      <span className={`shrink-0 font-mono text-lg font-semibold ${valueClassName}`}>{value}</span>
     </div>
+  );
+}
+
+function RecordSummary({
+  className = "",
+  overview,
+  winRate
+}: {
+  className?: string;
+  overview: LogStatsOverview;
+  winRate: number | null;
+}) {
+  return (
+    <section className={`min-w-0 overflow-hidden rounded-lg border border-border bg-card ${className}`}>
+      <div className="p-5">
+        <SectionTitle size="sm">Results</SectionTitle>
+        <div className="mt-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Win Rate</p>
+          <p className="mt-2 text-[2.5rem] font-semibold leading-none tracking-[-0.03em] text-win-strong [font-variant-numeric:tabular-nums]">
+            {formatWinRate(winRate)}
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 border-t border-border">
+        <DamageMetric label="W–L Record" value={formatRecord(overview.gamesWon, overview.gamesLost)} />
+        <DamageMetric
+          className="border-l border-border"
+          label="Games Played"
+          value={formatMetric(overview.gamesPlayed)}
+        />
+      </div>
+    </section>
+  );
+}
+
+function GameStatsLedger({
+  className = "",
+  overview
+}: {
+  className?: string;
+  overview: LogStatsOverview;
+}) {
+  return (
+    <section className={`min-w-0 rounded-lg border border-border bg-card p-5 ${className}`}>
+      <SectionTitle size="sm">Game Stats</SectionTitle>
+      <div className="mt-3">
+        <GameStatRow label="Prizes taken" value={formatMetric(overview.prizesTaken)} />
+        <GameStatRow
+          label="Opening coin toss W/L"
+          value={formatRecord(overview.coinFlipsWon, overview.coinFlipsLost)}
+        />
+        <GameStatRow label="Mulligans taken" value={formatMetric(overview.mulligansTaken)} />
+      </div>
+    </section>
+  );
+}
+
+function DamageAnalysis({
+  className = "",
+  damageComparison,
+  damageTimeline,
+  damageWindow,
+  overview
+}: {
+  className?: string;
+  damageComparison: ReturnType<typeof getDamageComparison>;
+  damageTimeline: LogDamageTimelinePoint[];
+  damageWindow: ReturnType<typeof summarizeDamageTimelineWindow>;
+  overview: LogStatsOverview;
+}) {
+  return (
+    <section className={`min-w-0 overflow-hidden rounded-lg border border-border bg-card ${className}`}>
+      <div className="p-4 sm:p-5">
+        <SectionTitle size="sm">Damage Analysis</SectionTitle>
+      </div>
+      <div className="grid grid-cols-2 border-t border-border [&>*:nth-child(2)]:border-l [&>*:nth-child(3)]:border-t sm:grid-cols-3 sm:[&>*:nth-child(3)]:border-l sm:[&>*:nth-child(3)]:border-t-0">
+        <DamageMetric label="Attack Damage" value={formatMetric(overview.attackDamage)} />
+        <DamageMetric label="Opponent Damage" value={formatMetric(overview.opponentAttackDamage)} />
+        <DamageMetric
+          className="col-span-2 sm:col-span-1"
+          label={damageComparison.label}
+          value={damageComparison.value}
+          valueClassName={damageComparison.valueClassName}
+        />
+      </div>
+      <div className="border-t border-border">
+        <DamageSplitChart
+          attackDamage={damageWindow.attackDamage}
+          damageTimeline={damageTimeline}
+          endGame={damageWindow.endGame}
+          isTruncated={damageWindow.isTruncated}
+          opponentAttackDamage={damageWindow.opponentAttackDamage}
+          startGame={damageWindow.startGame}
+        />
+      </div>
+    </section>
   );
 }
 
@@ -431,77 +510,16 @@ function StatsOverviewGrid({
   const winRate = getOverviewWinRate(overview);
 
   return (
-    <div className="grid gap-6">
-      <OverviewSection title="Results">
-        <div className="grid overflow-hidden rounded-lg border border-border bg-card [&>*+*]:border-t sm:grid-cols-2 sm:[&>*+*]:border-t-0 sm:[&>*:nth-child(2n)]:border-l sm:[&>*:nth-child(n+3)]:border-t xl:grid-cols-4 xl:[&>*:nth-child(n)]:border-l xl:[&>*:first-child]:border-l-0 xl:[&>*:nth-child(n+3)]:border-t-0">
-          <OverviewTile
-            label="Games Played"
-            value={formatMetric(overview.gamesPlayed)}
-          />
-          <OverviewTile
-            label="Win Rate"
-            value={formatWinRate(winRate)}
-            valueClassName="text-win-strong"
-          />
-          <OverviewTile
-            label="Won"
-            value={formatMetric(overview.gamesWon)}
-            valueClassName="text-win-strong"
-          />
-          <OverviewTile
-            label="Lost"
-            value={formatMetric(overview.gamesLost)}
-            valueClassName="text-loss-strong"
-          />
-        </div>
-      </OverviewSection>
-
-      <OverviewSection title="Damage">
-        <div className="grid overflow-hidden rounded-lg border border-border bg-card [&>*+*]:border-t sm:grid-cols-2 sm:[&>*+*]:border-t-0 sm:[&>*:nth-child(2n)]:border-l sm:[&>*:nth-child(n+3)]:border-t lg:grid-cols-[1fr_1fr_1.45fr] lg:[&>*:nth-child(n)]:border-l lg:[&>*:first-child]:border-l-0 lg:[&>*:nth-child(n+3)]:border-t-0">
-          <OverviewTile
-            label="Attack Damage"
-            value={formatMetric(overview.attackDamage)}
-          />
-          <OverviewTile
-            label="Opponent Damage"
-            value={formatMetric(overview.opponentAttackDamage)}
-          />
-          <OverviewTile
-            label={damageComparison.label}
-            value={damageComparison.value}
-            valueClassName={damageComparison.valueClassName}
-          />
-        </div>
-      </OverviewSection>
-
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)]">
-        <DamageSplitChart
-          attackDamage={damageWindow.attackDamage}
-          damageTimeline={damageTimeline}
-          endGame={damageWindow.endGame}
-          isTruncated={damageWindow.isTruncated}
-          opponentAttackDamage={damageWindow.opponentAttackDamage}
-          startGame={damageWindow.startGame}
-        />
-
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="mb-3 text-xs font-semibold uppercase leading-none tracking-wide text-muted-foreground">
-            Game Stats
-          </h2>
-          <GameStatRow
-            label="Prizes taken"
-            value={formatMetric(overview.prizesTaken)}
-          />
-          <GameStatRow
-            label="Opening coin toss W/L"
-            value={formatRecord(overview.coinFlipsWon, overview.coinFlipsLost)}
-          />
-          <GameStatRow
-            label="Mulligans taken"
-            value={formatMetric(overview.mulligansTaken)}
-          />
-        </div>
-      </div>
+    <div className="grid gap-4 xl:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.5fr)] xl:items-start">
+      <RecordSummary className="xl:col-start-1 xl:row-start-1" overview={overview} winRate={winRate} />
+      <DamageAnalysis
+        className="xl:col-start-2 xl:row-span-2 xl:row-start-1"
+        damageComparison={damageComparison}
+        damageTimeline={damageTimeline}
+        damageWindow={damageWindow}
+        overview={overview}
+      />
+      <GameStatsLedger className="xl:col-start-1 xl:row-start-2" overview={overview} />
     </div>
   );
 }
@@ -865,9 +883,10 @@ export function StatsTabsClient({
             { value: "matchups", label: "Matchups" }
           ]}
         />
-        <div className="inline-flex h-11 w-fit items-center gap-2 rounded-lg border border-border bg-card/80 px-4 text-sm font-medium text-card-foreground shadow-sm">
-          <span>All time</span>
-        </div>
+        <p className="inline-flex w-fit items-baseline gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <span>Scope</span>
+          <span className="text-sm normal-case tracking-normal text-card-foreground">All time</span>
+        </p>
       </div>
 
       <TabsContent value="overview">

@@ -72,7 +72,6 @@ export function prePushFileSets(
   { cwd = process.cwd(), targetMainSha } = {}
 ) {
   const pushedFiles = new Set();
-  const branchOwnedFiles = new Set();
   const updates = lines(input);
 
   for (const line of updates) {
@@ -87,9 +86,6 @@ export function prePushFileSets(
     for (const file of changedFiles(pushBase, localSha, cwd)) {
       pushedFiles.add(file);
     }
-    for (const file of changedFiles(branchBase, localSha, cwd)) {
-      branchOwnedFiles.add(file);
-    }
   }
 
   if (updates.length === 0) {
@@ -102,13 +98,9 @@ export function prePushFileSets(
     for (const file of changedFiles(branchBase, localSha, cwd)) {
       pushedFiles.add(file);
     }
-    for (const file of changedFiles(branchBase, localSha, cwd)) {
-      branchOwnedFiles.add(file);
-    }
   }
 
   return {
-    pushedFiles: sorted(pushedFiles),
-    branchOwnedFiles: sorted(branchOwnedFiles)
+    pushedFiles: sorted(pushedFiles)
   };
 }

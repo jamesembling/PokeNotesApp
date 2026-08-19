@@ -28,8 +28,8 @@ cp .env.example .env
 4. Bootstrap the database:
 
 - For a new Supabase project, apply [`schema.sql`](./schema.sql). It is the complete schema snapshot; do not replay the historical incremental SQL over it.
-- For an existing environment, inspect `supabase migration list --linked` and the target schema before applying anything. [`supabase/migrations`](./supabase/migrations) contains the production-aligned migration history introduced during the July 2026 health remediation. [`sql`](./sql) contains older feature SQL still used by the repository's tracked deployment hook; it is not a fresh-install sequence.
-- Database changes must be deployed deliberately to the intended linked project and verified with `npm run schema:health` plus a targeted read-only query. The tracked hook behavior is described in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- For an existing environment, inspect migration history and the target schema before applying anything. [`supabase/migrations`](./supabase/migrations) is the release authority. [`sql`](./sql) is historical reference material, not a fresh-install sequence or a destination for new migrations.
+- Local Git hooks validate database changes without deploying them. Production migrations run only through the manually dispatched `Deploy production database` workflow after merge to `main`; see [`docs/migration-release.md`](./docs/migration-release.md).
 
 5. Configure Supabase Auth redirect URLs for each environment:
 
@@ -179,16 +179,12 @@ Deployments are intended for Vercel.
    deployment and branch URLs are approved automatically, but every callback URL must also be
    allowed by Supabase Auth.
 5. In Supabase Auth, add each approved deployed `/auth/callback` URL to the allow list.
-6. Apply [`schema.sql`](./schema.sql) for a fresh database. For an existing database, reconcile the linked schema and migration history as described in **Local Setup**; do not assume every file in `sql/` or `supabase/migrations/` should be replayed.
+6. Apply [`schema.sql`](./schema.sql) for a fresh database. For an existing database, deploy only unapplied native migrations through the controlled production workflow.
 7. Set `CRON_SECRET` in Vercel so the scheduled catalog sync route can authenticate requests.
 8. `/auth/test-login` deliberately returns `404` outside development. Production browser checks use an attended Google login captured by `npm run perf:prod:auth`; local automated and phone checks use the development-only flow above.
 
-The database-first health rollout completed on 11 July 2026 UTC. As re-verified on 14 July,
-`supabase migration list --linked` aligns all 15 files in [`supabase/migrations`](./supabase/migrations),
-`npm run schema:health` passes 40 security contracts, and `npm run audit:deck-compatibility` reports
-49/49 Deck List plus 2/2 Matchup Plan parity with no blocking issue. These are dated production
-facts, not a substitute for running the same gates against the intended project before a later
-deployment.
+Migration alignment, schema health, and application behavior are release evidence, not cached
+repository facts. Capture them from the intended production target for each database deployment.
 
 `vercel.json` schedules `/api/cron/sync-pokemon-catalog` to run daily at `05:00` UTC. The job refreshes `pokemon_catalog` from the upstream sources, then invalidates the cached Pokemon options and identification catalog so UI menus and lookup paths see the new rows without a manual reseed.
 

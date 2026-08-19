@@ -15,7 +15,6 @@
     "dev:isolated-preview": "node scripts/start-isolated-preview.mjs",
     "dev:test-login": "PORT=3000 node scripts/setup-local-test-login.mjs && next dev -H 0.0.0.0 --port 3000",
     "design:audit": "node scripts/design-system-audit.mjs",
-    "deploy:changed-sql": "node scripts/deploy-changed-sql.mjs",
     "build": "next build",
     "hooks:install": "git config core.hooksPath .githooks",
     "hooks:pre-commit": "node scripts/git-hooks.mjs pre-commit",
