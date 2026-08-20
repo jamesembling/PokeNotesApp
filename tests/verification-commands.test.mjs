@@ -286,6 +286,12 @@ test("expected gate policy rejects delayed, incomplete, duplicate, and unhealthy
 });
 
 test("prewrite shell rechecks the complete live gate set and never merges stale Phase 1 health", async (t) => {
+  const zshProbe = spawnSync("zsh", ["-c", "exit 0"], { encoding: "utf8" });
+  if (!zshIsAvailable(zshProbe)) {
+    t.skip("zsh is not installed; dynamic zsh proof requires a supported environment");
+    return;
+  }
+
   const integrationSection = reference.match(
     /## Pull request integration is a two-phase contract[\s\S]*?(?=\n## Vercel inspection)/,
   )?.[0];
@@ -406,6 +412,12 @@ test("prewrite shell rechecks the complete live gate set and never merges stale 
 });
 
 test("remote cleanup executes the leased deletion only after every live-ref guard passes", async (t) => {
+  const zshProbe = spawnSync("zsh", ["-c", "exit 0"], { encoding: "utf8" });
+  if (!zshIsAvailable(zshProbe)) {
+    t.skip("zsh is not installed; dynamic zsh proof requires a supported environment");
+    return;
+  }
+
   const integrationSection = reference.match(
     /## Pull request integration is a two-phase contract[\s\S]*?(?=\n## Vercel inspection)/,
   )?.[0];
@@ -505,6 +517,12 @@ test("remote cleanup executes the leased deletion only after every live-ref guar
 });
 
 test("local cleanup reaches worktree removal only after every exact target guard passes", async (t) => {
+  const zshProbe = spawnSync("zsh", ["-c", "exit 0"], { encoding: "utf8" });
+  if (!zshIsAvailable(zshProbe)) {
+    t.skip("zsh is not installed; dynamic zsh proof requires a supported environment");
+    return;
+  }
+
   const integrationSection = reference.match(
     /## Pull request integration is a two-phase contract[\s\S]*?(?=\n## Vercel inspection)/,
   )?.[0];
