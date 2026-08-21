@@ -129,7 +129,7 @@ test("log import, edit, bulk relink, and delete actions write through logs table
   );
 
   assert.match(source, /from\("logs"\)\.insert/);
-  assert.match(source, /from\("logs"\) \.update\(\{[^}]*linked_deck_id: linkeddeckid \|\| null/);
-  assert.match(source, /from\("logs"\) \.update\(\{ linked_deck_id: linkeddeckid, linked_deck_list_id: linkeddecklistid \}\)/);
+  assert.match(source, /from\("logs"\) \.update\(\{[^}]*linked_deck_id: validatedreference\.deckid/);
+  assert.match(source, /linked_deck_list_id: validatedreference\.decklistid/);
   assert.match(source, /from\("logs"\) \.delete\(\)/);
 });

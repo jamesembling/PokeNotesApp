@@ -25,8 +25,20 @@ import {
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Dialog } from "@/components/shadcn/dialog";
 import { FormatSelect } from "@/components/ui/FormatSelect";
+import {
+  makeDeckListSelectionKey,
+  parseDeckListSelectionKey,
+  selectDeck,
+  selectDeckList,
+  type DeckListSelectionState
+} from "@/lib/log-import/deck-list-selection";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
-import type { BattleLog, DeckListOption, DeckSelectionOption, PokemonOption } from "@/types/index";
+import type {
+  BattleLog,
+  DeckListSelectionOption,
+  DeckSelectionOption,
+  PokemonOption
+} from "@/types/index";
 
 export type EditLogDialogProps = {
   hideTrigger?: boolean;
@@ -37,6 +49,7 @@ export type EditLogDialogProps = {
     onClick?: () => void;
     onSelect?: (event: Event) => void;
   }>;
+  userDeckLists: DeckListSelectionOption[];
   userDecks: DeckSelectionOption[];
 };
 
@@ -83,6 +96,7 @@ export function EditLogDialog({
   log,
   pokemonOptions,
   trigger,
+  userDeckLists,
   userDecks
 }: EditLogDialogProps) {
   const router = useRouter();
@@ -96,7 +110,14 @@ export function EditLogDialog({
     () => log.opponentDeckSprites.slice(0, 2)
   );
   const [selectedDeckId, setSelectedDeckId] = useState(log.linkedDeckId ?? "");
-  const [selectedDeckListId, setSelectedDeckListId] = useState(log.linkedDeckListId ?? "");
+  const [selectedDeckListSelectionKey, setSelectedDeckListSelectionKey] = useState(() =>
+    log.linkedDeckListId
+      ? makeDeckListSelectionKey({
+          deckId: log.linkedDeckId ?? null,
+          deckListId: log.linkedDeckListId
+        })
+      : ""
+  );
   const [selectedDate, setSelectedDate] = useState(log.date);
   const [selectedFormat, setSelectedFormat] = useState(log.format);
   const [saveError, setSaveError] = useState("");
@@ -105,10 +126,42 @@ export function EditLogDialog({
   const navigationTimerRef = useRef<number | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  const selectedDeck = useMemo(
-    () => userDecks.find((deck) => deck.id === selectedDeckId) ?? null,
-    [selectedDeckId, userDecks]
-  );
+  const availableDeckLists = userDeckLists;
+  const selectedDeckListId =
+    parseDeckListSelectionKey(selectedDeckListSelectionKey)?.deckListId ?? "";
+
+  function applyDeckListSelection(next: DeckListSelectionState) {
+    setSelectedDeckId(next.deckId);
+    setSelectedDeckListSelectionKey(next.selectionKey);
+  }
+
+  function handleDeckChange(nextDeckId: string) {
+    applyDeckListSelection(
+      selectDeck(
+        {
+          deckId: selectedDeckId,
+          deckListId: selectedDeckListId,
+          selectionKey: selectedDeckListSelectionKey
+        },
+        nextDeckId,
+        availableDeckLists
+      )
+    );
+  }
+
+  function handleDeckListChange(nextSelectionKey: string) {
+    applyDeckListSelection(
+      selectDeckList(
+        {
+          deckId: selectedDeckId,
+          deckListId: selectedDeckListId,
+          selectionKey: selectedDeckListSelectionKey
+        },
+        nextSelectionKey,
+        availableDeckLists
+      )
+    );
+  }
   const formatOptions = useMemo(() => {
     const normalizedSelectedFormat = String(selectedFormat || "").trim();
     if (!normalizedSelectedFormat) {
@@ -120,13 +173,18 @@ export function EditLogDialog({
       : [normalizedSelectedFormat, ...siteFormatOptions];
   }, [selectedFormat, siteFormatOptions]);
 
-  const availableDeckLists = selectedDeck?.deckLists ?? [];
-
   function resetEditorState() {
     setSelectedSelfSprites(log.selfDeckSprites.slice(0, 2));
     setSelectedOpponentSprites(log.opponentDeckSprites.slice(0, 2));
     setSelectedDeckId(log.linkedDeckId ?? "");
-    setSelectedDeckListId(log.linkedDeckListId ?? "");
+    setSelectedDeckListSelectionKey(
+      log.linkedDeckListId
+        ? makeDeckListSelectionKey({
+            deckId: log.linkedDeckId ?? null,
+            deckListId: log.linkedDeckListId
+          })
+        : ""
+    );
     setSelectedDate(log.date);
     setSelectedFormat(log.format);
     setSaveError("");
@@ -139,16 +197,22 @@ export function EditLogDialog({
   }
 
   useEffect(() => {
-    if (!selectedDeckId) {
-      setSelectedDeckListId("");
+    if (userDeckLists.length === 0 || !selectedDeckListSelectionKey) {
       return;
     }
 
-    const stillValid = availableDeckLists.some((deckList) => deckList.id === selectedDeckListId);
-    if (!stillValid) {
-      setSelectedDeckListId("");
+    const deckList = userDeckLists.find(
+      (option) =>
+        (option.selectionKey ??
+          makeDeckListSelectionKey({ deckId: option.deckId, deckListId: option.id })) ===
+        selectedDeckListSelectionKey
+    );
+    if (!deckList) {
+      setSelectedDeckListSelectionKey("");
+    } else if (selectedDeckId && deckList.deckId !== selectedDeckId) {
+      setSelectedDeckListSelectionKey("");
     }
-  }, [availableDeckLists, selectedDeckId, selectedDeckListId]);
+  }, [selectedDeckId, selectedDeckListSelectionKey, userDeckLists]);
 
   useEffect(() => {
     return () => {
@@ -332,7 +396,7 @@ export function EditLogDialog({
                   <AppSelect
                     aria-label="Deck strategy"
                     id="edit-log-deck-strategy"
-                    onChange={setSelectedDeckId}
+                    onChange={handleDeckChange}
                     options={[
                       { label: "No linked deck", value: "" },
                       ...userDecks.map((deck) => ({
@@ -350,7 +414,7 @@ export function EditLogDialog({
                     aria-label="Deck list"
                     disabled={availableDeckLists.length === 0}
                     id="edit-log-deck-list"
-                    onChange={setSelectedDeckListId}
+                    onChange={handleDeckListChange}
                     options={[
                       {
                         label:
@@ -359,12 +423,17 @@ export function EditLogDialog({
                             : "Select a deck strategy first",
                         value: ""
                       },
-                      ...availableDeckLists.map((deckList: DeckListOption) => ({
+                      ...availableDeckLists.map((deckList: DeckListSelectionOption) => ({
                         label: deckList.name,
-                        value: deckList.id
+                        value:
+                          deckList.selectionKey ??
+                          makeDeckListSelectionKey({
+                            deckId: deckList.deckId,
+                            deckListId: deckList.id
+                          })
                       }))
                     ]}
-                    value={selectedDeckListId}
+                    value={selectedDeckListSelectionKey}
                   />
                 </label>
               </section>

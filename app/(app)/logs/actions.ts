@@ -24,7 +24,9 @@ import {
 } from "@/lib/log-import/learned-self-archetypes";
 import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
+import { getDeckListById } from "@/lib/db/deck-lists";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
+import { validateDeckListReference } from "@/lib/db/deck-lists";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
 import {
   MatchNotesWriteConflictError,
@@ -331,6 +333,13 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
           deckSlug: learnedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
           sprites: selectedSelfSprites
         }) ?? "";
+    const validatedReference = await validateDeckListReference({
+      linkedDeckId:
+        selectedDeckId || (selectedDeckListId ? null : suggestedLinkedDeckId) || null,
+      linkedDeckListId: selectedDeckListId || null,
+      supabase,
+      userId: user.id
+    });
 
     const record: ImportLogRecord = {
       id: crypto.randomUUID(),
@@ -354,8 +363,8 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       opponent_attack_damage: Number(formData.get("opponentAttackDamage")) || 0,
       self_mulligans: Number(formData.get("selfMulligans")) || 0,
       opponent_mulligans: Number(formData.get("opponentMulligans")) || 0,
-      linked_deck_id: selectedDeckId || suggestedLinkedDeckId || null,
-      linked_deck_list_id: selectedDeckListId || null,
+      linked_deck_id: validatedReference.deckId,
+      linked_deck_list_id: validatedReference.deckListId,
       match_notes: normalizeMatchNotes(formData.get("matchNotes")),
       reason: String(formData.get("reason") || "").trim(),
       raw_log: rawLog,
@@ -460,14 +469,20 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
     const opponentSpritesChanged = nextOpponentSprites !== existingOpponentSprites;
     const nextSelfSpriteList = splitJoinedSprites(nextSelfSprites);
     const nextOpponentSpriteList = splitJoinedSprites(nextOpponentSprites);
+    const validatedReference = await validateDeckListReference({
+      linkedDeckId: linkedDeckId || null,
+      linkedDeckListId: linkedDeckListId || null,
+      supabase,
+      userId: user.id
+    });
 
     const { data: updatedLogs, error } = await supabase
       .from("logs")
       .update({
         date,
         format,
-        linked_deck_id: linkedDeckId || null,
-        linked_deck_list_id: linkedDeckListId || null,
+        linked_deck_id: validatedReference.deckId,
+        linked_deck_list_id: validatedReference.deckListId,
         self_deck_sprites: nextSelfSprites,
         opponent_deck_sprites: nextOpponentSprites,
         ...(selfSpritesChanged
@@ -512,7 +527,7 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
 
 export async function bulkAssignDeckListAction(input: {
   logIds: string[];
-  linkedDeckId: string;
+  linkedDeckId?: string | null;
   linkedDeckListId: string;
 }): Promise<void> {
   const logIds = Array.from(
@@ -520,7 +535,7 @@ export async function bulkAssignDeckListAction(input: {
       compactMap(input.logIds ?? [], (value) => String(value || "").trim())
     )
   );
-  const linkedDeckId = String(input.linkedDeckId || "").trim();
+  const linkedDeckId = String(input.linkedDeckId || "").trim() || null;
   const linkedDeckListId = String(input.linkedDeckListId || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
@@ -529,25 +544,22 @@ export async function bulkAssignDeckListAction(input: {
       throw userFacingActionError("Select at least one battle log.");
     }
 
-    if (!linkedDeckId || !linkedDeckListId) {
-      throw userFacingActionError("Choose both a deck strategy and deck list first.");
+    if (!linkedDeckListId) {
+      throw userFacingActionError("Choose a deck list first.");
     }
 
-    const userDecks = await getDecks(user.id);
-    const selectedDeck = userDecks.find((deck) => deck.id === linkedDeckId);
-    const selectedDeckList = selectedDeck?.deckLists.find(
-      (deckList) => deckList.id === linkedDeckListId
-    );
-
-    if (!selectedDeck || !selectedDeckList) {
-      throw userFacingActionError("That deck list could not be found.");
-    }
+    const validatedReference = await validateDeckListReference({
+      linkedDeckId,
+      linkedDeckListId,
+      supabase,
+      userId: user.id
+    });
 
     const { data: updatedLogs, error } = await supabase
       .from("logs")
       .update({
-        linked_deck_id: linkedDeckId,
-        linked_deck_list_id: linkedDeckListId
+        linked_deck_id: validatedReference.deckId,
+        linked_deck_list_id: validatedReference.deckListId
       })
       .eq("user_id", user.id)
       .in("id", logIds)
@@ -654,13 +666,17 @@ export async function createLogShareAction(logId: string): Promise<{
     const linkedDeck = log.linkedDeckId
       ? userDecks.find((deck) => deck.id === log.linkedDeckId) ?? null
       : null;
+    const deckListById = log.linkedDeckListId
+      ? await getDeckListById(user.id, log.linkedDeckListId, log.linkedDeckId ?? null)
+        : null;
     const linkedDeckList = linkedDeck?.deckLists.find(
       (deckList) => deckList.id === log.linkedDeckListId
-    );
+    ) ?? deckListById;
     const hydratedLinkedDeckList =
       linkedDeck?.id && linkedDeckList?.id
         ? await getDeckWithList(user.id, linkedDeck.id, linkedDeckList.id)
         : null;
+    const resolvedDeckList = hydratedLinkedDeckList?.deckList ?? linkedDeckList;
     const linkedStrategyLabel =
       linkedDeckList?.name ?? linkedDeck?.deckName ?? "No strategy linked";
     const sharedLog = {
@@ -675,11 +691,11 @@ export async function createLogShareAction(logId: string): Promise<{
       sourceLogId: normalizedLogId,
       log: sharedLog,
       linkedStrategyLabel,
-      linkedDeckListFormat: hydratedLinkedDeckList?.deckList.format ?? linkedDeckList?.format,
-      linkedDeckListName: hydratedLinkedDeckList?.deckList.name ?? linkedDeckList?.name,
-      linkedDeckListNotes: hydratedLinkedDeckList?.deckList.notes ?? linkedDeckList?.notes,
-      linkedDeckListRawList: hydratedLinkedDeckList?.deckList.rawList ?? linkedDeckList?.rawList,
-      linkedDeckListSortedCards: hydratedLinkedDeckList?.deckList.sortedCards ?? []
+      linkedDeckListFormat: resolvedDeckList?.format,
+      linkedDeckListName: resolvedDeckList?.name,
+      linkedDeckListNotes: resolvedDeckList?.notes,
+      linkedDeckListRawList: resolvedDeckList?.rawList,
+      linkedDeckListSortedCards: resolvedDeckList?.sortedCards ?? []
     });
 
     const shareUrl = await getPublicSharedLogUrl(share.id);

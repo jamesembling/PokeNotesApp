@@ -9,16 +9,19 @@ import {
   useState,
   type ReactNode
 } from "react";
-import type { DeckSelectionOption } from "@/types/index";
+import type { DeckListSelectionOption, DeckSelectionOption } from "@/types/index";
 
 type DeckSelectionOptionsResponse = {
+  deckLists?: DeckListSelectionOption[];
   userDecks?: DeckSelectionOption[];
 };
 
 type ImportDialogDataContextValue = {
   ensureUserDecks: () => Promise<DeckSelectionOption[]>;
   isLoadingUserDecks: boolean;
+  seedUserDeckLists: (deckLists: DeckListSelectionOption[]) => void;
   seedUserDecks: (userDecks: DeckSelectionOption[]) => void;
+  userDeckLists: DeckListSelectionOption[];
   userDecks: DeckSelectionOption[] | null;
   userDecksError: string;
 };
@@ -27,6 +30,7 @@ const ImportDialogDataContext = createContext<ImportDialogDataContextValue | nul
 
 export function ImportDialogDataProvider({ children }: { children: ReactNode }) {
   const [userDecks, setUserDecks] = useState<DeckSelectionOption[] | null>(null);
+  const [userDeckLists, setUserDeckLists] = useState<DeckListSelectionOption[]>([]);
   const [isLoadingUserDecks, setIsLoadingUserDecks] = useState(false);
   const [userDecksError, setUserDecksError] = useState("");
   const pendingUserDecksRef = useRef<Promise<DeckSelectionOption[]> | null>(null);
@@ -34,6 +38,10 @@ export function ImportDialogDataProvider({ children }: { children: ReactNode }) 
   const seedUserDecks = useCallback((nextUserDecks: DeckSelectionOption[]) => {
     setUserDecks(nextUserDecks);
     setUserDecksError("");
+  }, []);
+
+  const seedUserDeckLists = useCallback((nextUserDeckLists: DeckListSelectionOption[]) => {
+    setUserDeckLists(nextUserDeckLists);
   }, []);
 
   const ensureUserDecks = useCallback(async () => {
@@ -59,6 +67,7 @@ export function ImportDialogDataProvider({ children }: { children: ReactNode }) 
 
         const payload = (await response.json()) as DeckSelectionOptionsResponse;
         const nextUserDecks = Array.isArray(payload.userDecks) ? payload.userDecks : [];
+        setUserDeckLists(Array.isArray(payload.deckLists) ? payload.deckLists : []);
         setUserDecks(nextUserDecks);
         return nextUserDecks;
       })
@@ -79,11 +88,21 @@ export function ImportDialogDataProvider({ children }: { children: ReactNode }) 
     () => ({
       ensureUserDecks,
       isLoadingUserDecks,
+      seedUserDeckLists,
       seedUserDecks,
+      userDeckLists,
       userDecks,
       userDecksError
     }),
-    [ensureUserDecks, isLoadingUserDecks, seedUserDecks, userDecks, userDecksError]
+    [
+      ensureUserDecks,
+      isLoadingUserDecks,
+      seedUserDeckLists,
+      seedUserDecks,
+      userDeckLists,
+      userDecks,
+      userDecksError
+    ]
   );
 
   return (

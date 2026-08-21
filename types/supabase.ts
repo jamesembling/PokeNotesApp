@@ -97,10 +97,11 @@ export type Database = {
       }
       deck_lists: {
         Row: {
+          creation_key: string | null
           created_at: string
           created_by: string
           date: string
-          deck_id: string
+          deck_id: string | null
           format: string
           id: string
           name: string
@@ -114,10 +115,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          creation_key?: string | null
           created_at?: string
           created_by?: string
           date?: string
-          deck_id: string
+          deck_id?: string | null
           format?: string
           id: string
           name?: string
@@ -131,10 +133,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          creation_key?: string | null
           created_at?: string
           created_by?: string
           date?: string
-          deck_id?: string
+          deck_id?: string | null
           format?: string
           id?: string
           name?: string
@@ -924,6 +927,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_use_deck_list_reference: {
+        Args: {
+          p_deck_id: string | null
+          p_deck_list_id: string | null
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       commit_deck_aggregate_child: {
         Args: {
           p_child: Json
@@ -934,6 +945,30 @@ export type Database = {
           p_updated_at: string
         }
         Returns: string
+      }
+      commit_first_class_deck_list: {
+        Args: {
+          p_creation_key: string
+          p_deck_id: string | null
+          p_expected_updated_at: string | null
+          p_operation: string
+          p_payload: Json
+          p_updated_at: string
+        }
+        Returns: Json
+      }
+      delete_first_class_deck_list: {
+        Args: {
+          p_deck_list_id: string
+          p_expected_updated_at: string
+        }
+        Returns: Json
+      }
+      delete_owned_deck: {
+        Args: {
+          p_deck_id: string
+        }
+        Returns: Json
       }
       create_tournament_round: {
         Args: {
@@ -1070,6 +1105,15 @@ export type Database = {
           p_target_user_id: string
         }
         Returns: undefined
+      }
+      set_deck_list_association: {
+        Args: {
+          p_deck_id: string | null
+          p_deck_list_id: string
+          p_expected_updated_at: string
+          p_updated_at: string
+        }
+        Returns: Json
       }
       sync_current_profile: {
         Args: never

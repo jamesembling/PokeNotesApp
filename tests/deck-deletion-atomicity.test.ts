@@ -9,33 +9,16 @@ function readSource(path: string) {
 }
 
 function createDeleteClient(result: { data: { id: string } | null; error: Error | null }) {
-  const tables: string[] = [];
-  const filters: Array<[string, string]> = [];
-  const query = {
-    delete() {
-      return this;
-    },
-    eq(column: string, value: string) {
-      filters.push([column, value]);
-      return this;
-    },
-    select() {
-      return this;
-    },
-    async maybeSingle() {
-      return result;
-    }
-  };
+  const rpcCalls: Array<{ name: string; args: Record<string, string> }> = [];
 
   return {
     client: {
-      from(table: string) {
-        tables.push(table);
-        return query;
+      rpc(name: string, args: Record<string, string>) {
+        rpcCalls.push({ args, name });
+        return Promise.resolve(result);
       }
     } as never,
-    filters,
-    tables
+    rpcCalls
   };
 }
 
@@ -49,10 +32,8 @@ test("deck deletion is one owned database mutation and returns its deleted row",
   });
 
   assert.deepEqual(deleted, { id: "deck-7" });
-  assert.deepEqual(harness.tables, ["decks"]);
-  assert.deepEqual(harness.filters, [
-    ["id", "deck-7"],
-    ["user_id", "user-3"]
+  assert.deepEqual(harness.rpcCalls, [
+    { name: "delete_owned_deck", args: { p_deck_id: "deck-7" } }
   ]);
 });
 
@@ -68,7 +49,9 @@ test("a forced deck delete failure cannot leave an earlier log unlink behind", a
     }),
     (error) => error === failure
   );
-  assert.deepEqual(harness.tables, ["decks"]);
+  assert.deepEqual(harness.rpcCalls, [
+    { name: "delete_owned_deck", args: { p_deck_id: "deck-7" } }
+  ]);
 });
 
 test("database cascades clear both deck and list links inside the delete transaction", () => {
@@ -90,4 +73,5 @@ test("database cascades clear both deck and list links inside the delete transac
   );
   assert.doesNotMatch(actions, /from\("logs"\)[\s\S]{0,300}linked_deck_id: null/);
   assert.match(actions, /deleteOwnedDeck\(\{ deckId, supabase, userId: user\.id \}\)/);
+  assert.doesNotMatch(actions, /from\("decks"\)[\s\S]{0,300}\.delete\(/);
 });

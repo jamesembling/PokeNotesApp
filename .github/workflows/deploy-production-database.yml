@@ -49,6 +49,9 @@ jobs:
         with:
           version: 2.115.0
 
+      - name: Verify Deck List release contract
+        run: npm run verify:deck-list-release
+
       - name: Preview pending migrations
         run: supabase db push --db-url "$SUPABASE_PRODUCTION_DB_URL" --dry-run
 

@@ -1,5 +1,11 @@
 import { getDeckSelectionOptionsByIds } from "@/lib/db/decks";
+import { getDeckListSelectionOptions } from "@/lib/db/deck-lists";
+import {
+  composeDeckListNameOptions,
+  resolveDeckListName
+} from "@/lib/deck-lists/resolve-name";
 import type { BattleLogSummary, DeckSelectionOption } from "@/types/index";
+import type { DeckListSelectionOption } from "@/types/index";
 import { compactMap } from "@/lib/array";
 
 type LogWindowWithSummaries = {
@@ -12,24 +18,21 @@ function getLinkedDeckIds(logs: BattleLogSummary[]) {
 
 function attachLinkedDeckListNames(
   logs: BattleLogSummary[],
-  userDecks: DeckSelectionOption[]
+  userDecks: DeckSelectionOption[],
+  accountDeckLists: DeckListSelectionOption[]
 ) {
-  const deckListNamesByKey = new Map<string, string>();
-
-  userDecks.forEach((deck) => {
-    deck.deckLists.forEach((deckList) => {
-      deckListNamesByKey.set(`${deck.id}:${deckList.id}`, deckList.name);
-    });
-  });
+  const options = composeDeckListNameOptions(accountDeckLists, userDecks);
 
   return logs.map((log) => {
-    if (!log.linkedDeckId || !log.linkedDeckListId) {
+    if (!log.linkedDeckListId) {
       return log;
     }
 
     return {
       ...log,
-      linkedDeckListName: deckListNamesByKey.get(`${log.linkedDeckId}:${log.linkedDeckListId}`)
+      linkedDeckListName:
+        resolveDeckListName(options, log.linkedDeckId, log.linkedDeckListId) ??
+        log.linkedDeckListName
     };
   });
 }
@@ -38,10 +41,13 @@ export async function hydrateLogWindowDeckListNames<TWindow extends LogWindowWit
   userId: string,
   window: TWindow
 ) {
-  const linkedDecks = await getDeckSelectionOptionsByIds(userId, getLinkedDeckIds(window.logs));
+  const [linkedDecks, accountDeckLists] = await Promise.all([
+    getDeckSelectionOptionsByIds(userId, getLinkedDeckIds(window.logs)),
+    getDeckListSelectionOptions(userId)
+  ]);
 
   return {
     ...window,
-    logs: attachLinkedDeckListNames(window.logs, linkedDecks)
+    logs: attachLinkedDeckListNames(window.logs, linkedDecks, accountDeckLists)
   };
 }

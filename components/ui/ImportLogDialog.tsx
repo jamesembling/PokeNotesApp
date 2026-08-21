@@ -19,11 +19,18 @@ import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { useImportDialogData } from "@/components/ui/ImportDialogDataProvider";
 import { isTrainingCourtLogUrl } from "@/lib/battle-log/training-court";
 import {
+  makeDeckListSelectionKey,
+  parseDeckListSelectionKey,
+  selectDeck,
+  selectDeckList,
+  type DeckListSelectionState
+} from "@/lib/log-import/deck-list-selection";
+import {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName
 } from "@/lib/battle-log/display";
 import type {
-  DeckListOption,
+  DeckListSelectionOption,
   ParsedLogReview,
   PokemonOption
 } from "@/types/index";
@@ -99,6 +106,7 @@ export function ImportLogDialog({
   const {
     ensureUserDecks,
     isLoadingUserDecks,
+    userDeckLists,
     userDecks: sharedUserDecks,
     userDecksError
   } = useImportDialogData();
@@ -111,7 +119,7 @@ export function ImportLogDialog({
   const [selectedSelfSprites, setSelectedSelfSprites] = useState<string[]>([]);
   const [selectedOpponentSprites, setSelectedOpponentSprites] = useState<string[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState("");
-  const [selectedDeckListId, setSelectedDeckListId] = useState("");
+  const [selectedDeckListSelectionKey, setSelectedDeckListSelectionKey] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedFormat, setSelectedFormat] = useState("");
   const [matchNotes, setMatchNotes] = useState("");
@@ -131,12 +139,42 @@ export function ImportLogDialog({
   const formRef = useRef<HTMLFormElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
-  const selectedDeck = useMemo(
-    () => userDecks.find((deck) => deck.id === selectedDeckId) ?? null,
-    [selectedDeckId, userDecks]
-  );
+  const availableDeckLists = userDeckLists;
+  const selectedDeckListId =
+    parseDeckListSelectionKey(selectedDeckListSelectionKey)?.deckListId ?? "";
 
-  const availableDeckLists = selectedDeck?.deckLists ?? [];
+  function applyDeckListSelection(next: DeckListSelectionState) {
+    setSelectedDeckId(next.deckId);
+    setSelectedDeckListSelectionKey(next.selectionKey);
+  }
+
+  function handleDeckChange(nextDeckId: string) {
+    applyDeckListSelection(
+      selectDeck(
+        {
+          deckId: selectedDeckId,
+          deckListId: selectedDeckListId,
+          selectionKey: selectedDeckListSelectionKey
+        },
+        nextDeckId,
+        availableDeckLists
+      )
+    );
+  }
+
+  function handleDeckListChange(nextSelectionKey: string) {
+    applyDeckListSelection(
+      selectDeckList(
+        {
+          deckId: selectedDeckId,
+          deckListId: selectedDeckListId,
+          selectionKey: selectedDeckListSelectionKey
+        },
+        nextSelectionKey,
+        availableDeckLists
+      )
+    );
+  }
   const resultLabel = review?.result === "Loss" ? "L" : "W";
   const trimmedRawLog = rawLog.trim();
   const isTrainingCourtUrl = isTrainingCourtLogUrl(trimmedRawLog);
@@ -174,7 +212,7 @@ export function ImportLogDialog({
     setSelectedSelfSprites([]);
     setSelectedOpponentSprites([]);
     setSelectedDeckId("");
-    setSelectedDeckListId("");
+    setSelectedDeckListSelectionKey("");
     setSelectedDate("");
     setSelectedFormat("");
     setMatchNotes("");
@@ -223,16 +261,22 @@ export function ImportLogDialog({
   }, [initialOpen]);
 
   useEffect(() => {
-    if (!selectedDeckId) {
-      setSelectedDeckListId("");
+    if (userDeckLists.length === 0 || !selectedDeckListSelectionKey) {
       return;
     }
 
-    const stillValid = availableDeckLists.some((deckList) => deckList.id === selectedDeckListId);
-    if (!stillValid) {
-      setSelectedDeckListId("");
+    const deckList = userDeckLists.find(
+      (option) =>
+        (option.selectionKey ??
+          makeDeckListSelectionKey({ deckId: option.deckId, deckListId: option.id })) ===
+        selectedDeckListSelectionKey
+    );
+    if (!deckList) {
+      setSelectedDeckListSelectionKey("");
+    } else if (selectedDeckId && deckList.deckId !== selectedDeckId) {
+      setSelectedDeckListSelectionKey("");
     }
-  }, [availableDeckLists, selectedDeckId, selectedDeckListId]);
+  }, [selectedDeckId, selectedDeckListSelectionKey, userDeckLists]);
 
   function openDialog() {
     void onOpen?.();
@@ -259,7 +303,7 @@ export function ImportLogDialog({
       setSelectedSelfSprites(nextReview.selfSprites.slice(0, 2));
       setSelectedOpponentSprites(nextReview.opponentSprites.slice(0, 2));
       setSelectedDeckId(nextReview.suggestedLinkedDeckId ?? "");
-      setSelectedDeckListId("");
+      setSelectedDeckListSelectionKey("");
       setSelectedDate(nextReview.date);
       setSelectedFormat(defaultFormat);
       setSaveError("");
@@ -617,7 +661,7 @@ export function ImportLogDialog({
                           <AppSelect
                             disabled={isLoadingUserDecks}
                             id="import-deck-mobile"
-                            onChange={setSelectedDeckId}
+                            onChange={handleDeckChange}
                             options={[
                               {
                                 label: isLoadingUserDecks
@@ -639,7 +683,7 @@ export function ImportLogDialog({
                           <AppSelect
                             disabled={isLoadingUserDecks || availableDeckLists.length === 0}
                             id="import-deck-list-mobile"
-                            onChange={setSelectedDeckListId}
+                            onChange={handleDeckListChange}
                             options={[
                               {
                                 label:
@@ -650,12 +694,17 @@ export function ImportLogDialog({
                                       : "Select a deck strategy first",
                                 value: ""
                               },
-                              ...availableDeckLists.map((deckList: DeckListOption) => ({
+                              ...availableDeckLists.map((deckList: DeckListSelectionOption) => ({
                                 label: deckList.name,
-                                value: deckList.id
+                                value:
+                                  deckList.selectionKey ??
+                                  makeDeckListSelectionKey({
+                                    deckId: deckList.deckId,
+                                    deckListId: deckList.id
+                                  })
                               }))
                             ]}
-                            value={selectedDeckListId}
+                            value={selectedDeckListSelectionKey}
                           />
                         </Field>
                         {userDecksError ? (
@@ -694,7 +743,7 @@ export function ImportLogDialog({
                       <AppSelect
                         disabled={isLoadingUserDecks}
                         id="import-deck"
-                        onChange={setSelectedDeckId}
+                        onChange={handleDeckChange}
                         options={[
                           {
                             label: isLoadingUserDecks
@@ -716,7 +765,7 @@ export function ImportLogDialog({
                       <AppSelect
                         disabled={isLoadingUserDecks || availableDeckLists.length === 0}
                         id="import-deck-list"
-                        onChange={setSelectedDeckListId}
+                        onChange={handleDeckListChange}
                         options={[
                           {
                             label:
@@ -727,12 +776,17 @@ export function ImportLogDialog({
                                   : "Select a deck strategy first",
                             value: ""
                           },
-                          ...availableDeckLists.map((deckList: DeckListOption) => ({
+                          ...availableDeckLists.map((deckList: DeckListSelectionOption) => ({
                             label: deckList.name,
-                            value: deckList.id
+                            value:
+                              deckList.selectionKey ??
+                              makeDeckListSelectionKey({
+                                deckId: deckList.deckId,
+                                deckListId: deckList.id
+                              })
                           }))
                         ]}
-                        value={selectedDeckListId}
+                        value={selectedDeckListSelectionKey}
                       />
                     </Field>
                   </FieldGroup>

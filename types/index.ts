@@ -198,6 +198,8 @@ export type DeckCard = {
 // A saved deck list (one deck can have multiple lists)
 export type DeckList = {
   id: string
+  deckId?: string | null
+  storage?: "legacy" | "relational"
   name: string                    // User-given name e.g. "Pult/Blaziken"
   format: string
   date: string                    // YYYY-MM-DD
@@ -212,6 +214,17 @@ export type DeckList = {
 }
 
 export type DeckListOption = Pick<DeckList, "id" | "name">
+
+export type DeckListSelectionOption = {
+  id: string
+  name: string
+  deckId: string | null
+  deckName: string | null
+  /** Storage provenance used to keep exact legacy identity ahead of relational fallback. */
+  source?: "legacy" | "relational"
+  /** Stable selector identity; includes nullable strategy and list IDs. */
+  selectionKey?: string
+}
 
 export type DeckMatchup = {
   id: string
