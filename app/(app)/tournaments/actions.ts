@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
+import { saveDeckList } from "@/lib/decks/deck-list-service";
 import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
 import { getDefaultSyncedSiteFormat, isKnownSyncedSiteFormat } from "@/lib/formats/catalog";
 import {
@@ -13,7 +14,6 @@ import { getFormRedirectPath, withRefreshToken } from "@/lib/server/action-redir
 import type { FailedActionResult } from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeTournamentDateRange } from "@/lib/tournaments/date-range";
-import { buildTournamentDeckList } from "@/lib/tournaments/deck-list";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS,
@@ -27,7 +27,6 @@ import type {
   TournamentRoundSpecialResult,
   TournamentRoundResult
 } from "@/types/index";
-import type { Json } from "@/types/supabase";
 import { compactMap } from "@/lib/array";
 
 type SaveActionResult = {
@@ -44,6 +43,16 @@ type PostgrestLikeError = {
 
 function isMissingTournamentDeckListColumns(error: PostgrestLikeError | null) {
   return error?.code === "42703";
+}
+
+function isMissingTournamentRoundRpc(error: PostgrestLikeError | null) {
+  if (!error || !["42883", "PGRST202"].includes(String(error.code || ""))) {
+    return false;
+  }
+
+  return [error.message, error.details, error.hint]
+    .filter(Boolean)
+    .some((value) => /create_tournament_round/i.test(String(value)));
 }
 
 function isOutdatedTournamentRoundResultConstraint(error: PostgrestLikeError) {
@@ -71,15 +80,6 @@ function toUserFacingDatabaseError(error: PostgrestLikeError) {
   }
 
   return userFacingActionError("We couldn't save that tournament update right now.");
-}
-
-function getCurrentDisplayName(user: Awaited<ReturnType<typeof requireAuth>>) {
-  return (
-    user.user_metadata?.full_name ||
-    user.user_metadata?.name ||
-    user.email?.split("@")[0] ||
-    "Trainer"
-  );
 }
 
 function parseCategory(value: FormDataEntryValue | null): TournamentCategory {
@@ -196,28 +196,47 @@ async function resolveDeckSnapshot(userId: string, linkedDeckId: string) {
   };
 }
 
-async function assertTournamentRoundExists(params: {
+async function resolveTournamentRoundNumber(params: {
   roundId: string;
   tournamentId: string;
   userId: string;
 }) {
   const supabase = await createClient();
 
+  if (params.roundId) {
+    const { data, error } = await supabase
+      .from("tournament_rounds")
+      .select("round_number")
+      .eq("id", params.roundId)
+      .eq("tournament_id", params.tournamentId)
+      .eq("user_id", params.userId)
+      .maybeSingle();
+
+    if (error) {
+      throw toUserFacingDatabaseError(error);
+    }
+
+    if (!data?.round_number) {
+      throw userFacingActionError("Could not find that round.");
+    }
+
+    return Number(data.round_number);
+  }
+
   const { data, error } = await supabase
     .from("tournament_rounds")
-    .select("id")
-    .eq("id", params.roundId)
+    .select("round_number")
     .eq("tournament_id", params.tournamentId)
     .eq("user_id", params.userId)
+    .order("round_number", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) {
     throw toUserFacingDatabaseError(error);
   }
 
-  if (!data) {
-    throw userFacingActionError("Could not find that round.");
-  }
+  return Number(data?.round_number || 0) + 1;
 }
 
 export async function createTournamentAction(formData: FormData): Promise<SaveActionResult> {
@@ -441,22 +460,37 @@ async function ensureTournamentDeckListDeck(params: {
     return {
       deckId: existingDeckId,
       deckName,
-      deckSprites,
-      format:
-        format ||
-        String((tournament as { format?: unknown }).format || "").trim() ||
-        (await getDefaultSyncedSiteFormat())
+      deckSprites
     };
   }
 
+  const deckId = crypto.randomUUID();
+  const timestamp = new Date().toISOString();
+  const { error: insertError } = await supabase.from("decks").insert({
+    id: deckId,
+    user_id: userId,
+    deck_name: deckName,
+    archetype_id: buildDeckArchetypeId(deckSprites),
+    format: format || String((tournament as { format?: unknown }).format || "").trim() || (await getDefaultSyncedSiteFormat()),
+    go_preference: "",
+    deck_pokemon: deckSprites,
+    core_strategy: "",
+    general_notes: "",
+    setup_goals: [],
+    resource_plan: "",
+    deck_lists: [],
+    created_at: timestamp,
+    updated_at: timestamp
+  });
+
+  if (insertError) {
+    throw toUserFacingDatabaseError(insertError);
+  }
+
   return {
-    deckId: existingDeckId || crypto.randomUUID(),
+    deckId,
     deckName,
-    deckSprites,
-    format:
-      format ||
-      String((tournament as { format?: unknown }).format || "").trim() ||
-      (await getDefaultSyncedSiteFormat())
+    deckSprites
   };
 }
 
@@ -476,40 +510,31 @@ export async function saveTournamentDeckListAction(formData: FormData): Promise<
       userId: user.id
     });
 
-    const deckList = await buildTournamentDeckList({
-      defaultCreatedBy: getCurrentDisplayName(user),
-      formData
+    const deckListFormData = new FormData();
+    for (const [key, value] of formData.entries()) {
+      deckListFormData.append(key, value);
+    }
+    deckListFormData.set("deckId", backingDeck.deckId);
+
+    const result = await saveDeckList({
+      formData: deckListFormData,
+      supabase,
+      user
     });
-    const { data: commitResult, error: commitError } = await supabase.rpc(
-      "commit_tournament_deck_list",
-      {
-        p_archetype_id: buildDeckArchetypeId(backingDeck.deckSprites),
-        p_deck_id: backingDeck.deckId,
-        p_deck_list: deckList as unknown as Json,
-        p_deck_name: backingDeck.deckName,
-        p_deck_sprites: backingDeck.deckSprites,
-        p_format: backingDeck.format,
-        p_tournament_id: tournamentId,
-        p_updated_at: deckList.updatedAt
-      }
-    );
 
-    if (commitError) {
-      throw toUserFacingDatabaseError(commitError);
-    }
+    const { error: updateError } = await supabase
+      .from("tournaments")
+      .update({
+        linked_deck_id: result.deckId,
+        linked_deck_list_id: result.deckListId,
+        deck_name: backingDeck.deckName,
+        deck_sprites: backingDeck.deckSprites
+      })
+      .eq("id", tournamentId)
+      .eq("user_id", user.id);
 
-    if (commitResult === "tournament-not-found") {
-      throw userFacingActionError("Tournament could not be found.");
-    }
-
-    if (commitResult === "already-linked") {
-      throw userFacingActionError(
-        "This tournament already has a deck list. Refresh the page to view it."
-      );
-    }
-
-    if (commitResult !== "committed") {
-      throw userFacingActionError("We couldn't save that tournament deck list right now.");
+    if (updateError) {
+      throw toUserFacingDatabaseError(updateError);
     }
 
     revalidateTournamentWorkspace(tournamentId);
@@ -584,7 +609,31 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
       throw userFacingActionError("Tournament id is required.");
     }
 
+    const { data: ownedTournament, error: tournamentError } = await supabase
+      .from("tournaments")
+      .select("id")
+      .eq("id", tournamentId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (tournamentError) {
+      throw toUserFacingDatabaseError(tournamentError);
+    }
+
+    if (!ownedTournament) {
+      throw userFacingActionError("Tournament could not be found.");
+    }
+
+    const roundNumber = await resolveTournamentRoundNumber({
+      roundId,
+      tournamentId,
+      userId: user.id
+    });
+
     const payload = {
+      tournament_id: tournamentId,
+      user_id: user.id,
+      round_number: roundNumber,
       opponent_deck_name: "",
       opponent_deck_sprites: opponentDeckSprites,
       result: parseRoundResult(formData),
@@ -592,12 +641,10 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
     };
 
     if (roundId) {
-      await assertTournamentRoundExists({ roundId, tournamentId, userId: user.id });
       const { data: updatedRound, error } = await supabase
         .from("tournament_rounds")
         .update(payload)
         .eq("id", roundId)
-        .eq("tournament_id", tournamentId)
         .eq("user_id", user.id)
         .select("id")
         .maybeSingle();
@@ -610,21 +657,29 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
         throw userFacingActionError("Could not find that round.");
       }
     } else {
-      const { data: createdRoundNumber, error } = await supabase.rpc("create_tournament_round", {
+      const newRoundId = crypto.randomUUID();
+      const { error: rpcError } = await supabase.rpc("create_tournament_round", {
         p_notes: payload.notes,
         p_opponent_deck_name: payload.opponent_deck_name,
         p_opponent_deck_sprites: payload.opponent_deck_sprites,
         p_result: payload.result,
-        p_round_id: crypto.randomUUID(),
+        p_round_id: newRoundId,
         p_tournament_id: tournamentId
       });
 
-      if (error) {
-        throw toUserFacingDatabaseError(error);
+      if (rpcError && !isMissingTournamentRoundRpc(rpcError)) {
+        throw toUserFacingDatabaseError(rpcError);
       }
 
-      if (!createdRoundNumber) {
-        throw userFacingActionError("Tournament could not be found.");
+      if (rpcError) {
+        const { error } = await supabase.from("tournament_rounds").insert({
+          id: newRoundId,
+          ...payload
+        });
+
+        if (error) {
+          throw toUserFacingDatabaseError(error);
+        }
       }
     }
 

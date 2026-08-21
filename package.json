@@ -36,8 +36,6 @@
     "sync:pokemon-catalog": "node seed-pokemon.mjs",
     "start": "next start",
     "test": "tsx --test",
-    "test:tournament-db": "node scripts/verify-tournament-db-atomicity.mjs",
-    "test:tournament-db:required": "node scripts/verify-tournament-db-atomicity.mjs --require",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
