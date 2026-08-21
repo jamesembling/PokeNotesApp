@@ -57,7 +57,7 @@ export function LazyDeckListEditorButton({
     setLoadError("");
 
     try {
-      const params = new URLSearchParams({ deckId, listId: deckListId });
+      const params = new URLSearchParams({ deckId: deckId ?? "", listId: deckListId });
       const response = await fetch(`/api/deck-list?${params.toString()}`, {
         cache: "no-store",
         credentials: "same-origin"

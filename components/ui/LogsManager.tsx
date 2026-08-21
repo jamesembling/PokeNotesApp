@@ -20,7 +20,19 @@ import { LogRow } from "@/components/ui/LogRow";
 import { PageActions } from "@/components/ui/PageActions";
 import { ItemTitle } from "@/components/ui/Typography";
 import { formatDayDate } from "@/lib/client/date-format";
-import type { BattleLog, BattleLogSummary, DeckSelectionOption } from "@/types/index";
+import {
+  makeDeckListSelectionKey,
+  parseDeckListSelectionKey,
+  selectDeck,
+  selectDeckList,
+  type DeckListSelectionState
+} from "@/lib/log-import/deck-list-selection";
+import type {
+  BattleLog,
+  BattleLogSummary,
+  DeckListSelectionOption,
+  DeckSelectionOption
+} from "@/types/index";
 
 type LogGroup = {
   date: string;
@@ -45,11 +57,13 @@ export type LogsManagerProps = {
   initialNextWindowEndDate: string;
   initialWindowEndDate: string;
   initialWindowStartDate: string;
+  initialUserDeckLists?: DeckListSelectionOption[];
   initialUserDecks?: DeckSelectionOption[];
   renderHeaderAction?: (action: ReactNode) => ReactNode;
 };
 
 type DeckSelectionOptionsResponse = {
+  deckLists?: DeckListSelectionOption[];
   userDecks?: DeckSelectionOption[];
 };
 
@@ -193,8 +207,13 @@ function mergeLogs(current: BattleLogSummary[], incoming: BattleLogSummary[]) {
   });
 }
 
-function attachLinkedDeckListNames(logs: BattleLogSummary[], userDecks: DeckSelectionOption[]) {
+function attachLinkedDeckListNames(
+  logs: BattleLogSummary[],
+  userDecks: DeckSelectionOption[],
+  userDeckLists: DeckListSelectionOption[]
+) {
   const deckListNamesByKey = new Map<string, string>();
+  const deckListNamesById = new Map(userDeckLists.map((deckList) => [deckList.id, deckList.name]));
 
   userDecks.forEach((deck) => {
     deck.deckLists.forEach((deckList) => {
@@ -203,16 +222,16 @@ function attachLinkedDeckListNames(logs: BattleLogSummary[], userDecks: DeckSele
   });
 
   return logs.map((log) => {
-    if (!log.linkedDeckId || !log.linkedDeckListId) {
-      return {
-        ...log,
-        linkedDeckListName: undefined
-      };
+    if (!log.linkedDeckListId) {
+      return log;
     }
 
     return {
       ...log,
-      linkedDeckListName: deckListNamesByKey.get(`${log.linkedDeckId}:${log.linkedDeckListId}`)
+      linkedDeckListName:
+        (log.linkedDeckId
+          ? deckListNamesByKey.get(`${log.linkedDeckId}:${log.linkedDeckListId}`)
+          : deckListNamesById.get(log.linkedDeckListId)) ?? log.linkedDeckListName
     };
   });
 }
@@ -223,6 +242,7 @@ export function LogsManager({
   initialNextWindowEndDate,
   initialWindowEndDate,
   initialWindowStartDate,
+  initialUserDeckLists = [],
   initialUserDecks = [],
   renderHeaderAction
 }: LogsManagerProps) {
@@ -236,10 +256,10 @@ export function LogsManager({
   const [isManagementMode, setIsManagementMode] = useState(false);
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState("");
-  const [selectedDeckListId, setSelectedDeckListId] = useState("");
+  const [selectedDeckListSelectionKey, setSelectedDeckListSelectionKey] = useState("");
   const [visibleLogs, setVisibleLogs] = useState(() =>
-    initialUserDecks.length > 0
-      ? attachLinkedDeckListNames(initialLogs, initialUserDecks)
+    initialUserDecks.length > 0 || initialUserDeckLists.length > 0
+      ? attachLinkedDeckListNames(initialLogs, initialUserDecks, initialUserDeckLists)
       : initialLogs
   );
   const [canLoadMore, setCanLoadMore] = useState(initialCanLoadMore);
@@ -254,27 +274,63 @@ export function LogsManager({
   const [editingLog, setEditingLog] = useState<BattleLog | null>(null);
   const [editRequestId, setEditRequestId] = useState(0);
   const [userDecks, setUserDecks] = useState(initialUserDecks);
+  const [userDeckLists, setUserDeckLists] = useState(initialUserDeckLists);
   const [openGroupDates, setOpenGroupDates] = useState<string[]>(() =>
     initialLogs.length > 0 ? [initialLogs[0].date] : []
   );
   const visibleSummary = useMemo(() => summarizeVisibleLogs(visibleLogs), [visibleLogs]);
   const groups = visibleSummary.groups;
-  const selectedDeck = useMemo(
-    () => userDecks.find((deck) => deck.id === selectedDeckId) ?? null,
-    [selectedDeckId, userDecks]
-  );
-  const availableDeckLists = selectedDeck?.deckLists ?? [];
+  const availableDeckLists = userDeckLists;
+  const selectedDeckListId =
+    parseDeckListSelectionKey(selectedDeckListSelectionKey)?.deckListId ?? "";
+
+  function applyDeckListSelection(next: DeckListSelectionState) {
+    setSelectedDeckId(next.deckId);
+    setSelectedDeckListSelectionKey(next.selectionKey);
+  }
+
+  function handleDeckChange(nextDeckId: string) {
+    applyDeckListSelection(
+      selectDeck(
+        {
+          deckId: selectedDeckId,
+          deckListId: selectedDeckListId,
+          selectionKey: selectedDeckListSelectionKey
+        },
+        nextDeckId,
+        availableDeckLists
+      )
+    );
+  }
+
+  function handleDeckListChange(nextSelectionKey: string) {
+    applyDeckListSelection(
+      selectDeckList(
+        {
+          deckId: selectedDeckId,
+          deckListId: selectedDeckListId,
+          selectionKey: selectedDeckListSelectionKey
+        },
+        nextSelectionKey,
+        availableDeckLists
+      )
+    );
+  }
   const selectedLogIdSet = useMemo(() => new Set(selectedLogIds), [selectedLogIds]);
   const allSelected = visibleLogs.length > 0 && selectedLogIds.length === visibleLogs.length;
   const selectedCount = selectedLogIds.length;
   const managementModeActive = isManagementMode;
   const canApplyDeckList =
-    selectedCount > 0 && Boolean(selectedDeckId) && Boolean(selectedDeckListId) && !isMutating;
+    selectedCount > 0 && Boolean(selectedDeckListId) && !isMutating;
   const canDeleteSelected = selectedCount > 0 && !isMutating;
   const deletePromptCount = deletePrompt?.ids.length ?? 0;
 
   useEffect(() => {
-    setVisibleLogs(userDecks.length > 0 ? attachLinkedDeckListNames(initialLogs, userDecks) : initialLogs);
+    setVisibleLogs(
+      userDecks.length > 0 || userDeckLists.length > 0
+        ? attachLinkedDeckListNames(initialLogs, userDecks, userDeckLists)
+        : initialLogs
+    );
     setCanLoadMore(initialCanLoadMore);
     nextWindowEndDateRef.current = initialNextWindowEndDate;
     windowStartDateRef.current = initialWindowStartDate;
@@ -289,6 +345,7 @@ export function LogsManager({
     initialNextWindowEndDate,
     initialWindowEndDate,
     initialWindowStartDate,
+    userDeckLists,
     userDecks
   ]);
 
@@ -297,6 +354,12 @@ export function LogsManager({
       setUserDecks(initialUserDecks);
     }
   }, [initialUserDecks]);
+
+  useEffect(() => {
+    if (initialUserDeckLists.length > 0) {
+      setUserDeckLists(initialUserDeckLists);
+    }
+  }, [initialUserDeckLists]);
 
   async function loadDeckOptions() {
     if (userDecks.length > 0 || isLoadingDeckOptions) {
@@ -318,6 +381,7 @@ export function LogsManager({
 
       const payload = (await response.json()) as DeckSelectionOptionsResponse;
       setUserDecks(Array.isArray(payload.userDecks) ? payload.userDecks : []);
+      setUserDeckLists(Array.isArray(payload.deckLists) ? payload.deckLists : []);
     } catch (error) {
       console.error(error);
       setDeckOptionsError("Couldn't load deck strategies right now.");
@@ -367,12 +431,14 @@ export function LogsManager({
   }
 
   useEffect(() => {
-    if (userDecks.length === 0) {
+    if (userDecks.length === 0 && userDeckLists.length === 0) {
       return;
     }
 
-    setVisibleLogs((current) => attachLinkedDeckListNames(current, userDecks));
-  }, [userDecks]);
+    setVisibleLogs((current) =>
+      attachLinkedDeckListNames(current, userDecks, userDeckLists)
+    );
+  }, [userDeckLists, userDecks]);
 
   useEffect(() => {
     if (!managementModeActive && selectedLogIds.length > 0) {
@@ -386,16 +452,22 @@ export function LogsManager({
   }, [visibleLogs]);
 
   useEffect(() => {
-    if (!selectedDeckId) {
-      setSelectedDeckListId("");
+    if (availableDeckLists.length === 0 || !selectedDeckListSelectionKey) {
       return;
     }
 
-    const stillValid = availableDeckLists.some((deckList) => deckList.id === selectedDeckListId);
-    if (!stillValid) {
-      setSelectedDeckListId("");
+    const deckList = availableDeckLists.find(
+      (option) =>
+        (option.selectionKey ??
+          makeDeckListSelectionKey({ deckId: option.deckId, deckListId: option.id })) ===
+        selectedDeckListSelectionKey
+    );
+    if (!deckList) {
+      setSelectedDeckListSelectionKey("");
+    } else if (selectedDeckId && deckList.deckId !== selectedDeckId) {
+      setSelectedDeckListSelectionKey("");
     }
-  }, [availableDeckLists, selectedDeckId, selectedDeckListId]);
+  }, [availableDeckLists, selectedDeckId, selectedDeckListSelectionKey]);
 
   useEffect(() => {
     if (!groups.length) {
@@ -481,7 +553,7 @@ export function LogsManager({
       try {
         setLoadMoreError("");
         const result = await loadMoreLogsAction(nextWindowEndDateRef.current);
-        const nextLogs = attachLinkedDeckListNames(result.logs, userDecks);
+        const nextLogs = attachLinkedDeckListNames(result.logs, userDecks, userDeckLists);
 
         setVisibleLogs((current) => mergeLogs(current, nextLogs));
         setCanLoadMore(result.hasMore);
@@ -582,7 +654,11 @@ export function LogsManager({
           </div>
 
           <PageActions mobile="stack">
-            <LazyImportLogButton className="w-full justify-center" initialUserDecks={userDecks} />
+            <LazyImportLogButton
+              className="w-full justify-center"
+              initialUserDeckLists={userDeckLists}
+              initialUserDecks={userDecks}
+            />
           </PageActions>
         </div>
 
@@ -701,12 +777,13 @@ export function LogsManager({
           isMutating={isMutating}
           onApplyDeckList={handleApplyDeckList}
           onDeleteSelected={handleDeleteSelected}
-          onSelectDeck={setSelectedDeckId}
-          onSelectDeckList={setSelectedDeckListId}
+          onSelectDeck={handleDeckChange}
+          onSelectDeckList={handleDeckListChange}
           onToggleSelectAll={toggleSelectAll}
           selectedCount={selectedCount}
           selectedDeckId={selectedDeckId}
-          selectedDeckListId={selectedDeckListId}
+          selectedDeckListSelectionKey={selectedDeckListSelectionKey}
+          userDeckLists={userDeckLists}
           userDecks={userDecks}
           visibleLogCount={visibleLogs.length}
         />
@@ -718,6 +795,7 @@ export function LogsManager({
           key={`${editingLog.id}-${editRequestId}`}
           log={editingLog}
           userDecks={userDecks}
+          userDeckLists={userDeckLists}
         />
       ) : null}
     </div>

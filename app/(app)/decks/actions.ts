@@ -52,6 +52,29 @@ function assertSingleMutationResult(row: { id?: unknown } | null, message: strin
   }
 }
 
+async function getAffectedTournamentIdsForDeckList(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  deckListId: string
+) {
+  if (!deckListId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("tournaments")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("linked_deck_list_id", deckListId);
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as Array<{ id?: unknown }>)
+    .map((row) => String(row.id || "").trim())
+    .filter(Boolean);
+}
+
 export async function createDeckAction(formData: FormData): Promise<SaveActionResult> {
   const deckId = crypto.randomUUID();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
@@ -219,13 +242,55 @@ export async function deleteDeckAction(formData: FormData): Promise<SaveActionRe
       throw userFacingActionError("Deck id is required.");
     }
 
+    const [deckListResult, tournamentResult] = await Promise.all([
+      supabase
+        .from("deck_lists")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("deck_id", deckId),
+      supabase
+        .from("tournaments")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("linked_deck_id", deckId)
+    ]);
+    if (deckListResult.error) {
+      throw deckListResult.error;
+    }
+    if (tournamentResult.error) {
+      throw tournamentResult.error;
+    }
+
+    const deckListIds = (deckListResult.data ?? []).map((row) => row.id);
+    let listTournamentIds: string[] = [];
+    if (deckListIds.length > 0) {
+      const { data, error } = await supabase
+        .from("tournaments")
+        .select("id")
+        .eq("user_id", user.id)
+        .in("linked_deck_list_id", deckListIds);
+      if (error) {
+        throw error;
+      }
+      listTournamentIds = (data ?? []).map((row) => row.id);
+    }
+
     // The tenant-scoped foreign keys and orphan-link trigger clear linked log
     // and tournament references inside the same database delete transaction.
     const deletedDeck = await deleteOwnedDeck({ deckId, supabase, userId: user.id });
 
     assertSingleMutationResult(deletedDeck, "Deck could not be found.");
 
-    revalidateDeckAndLogWorkspace();
+    revalidateDeckAndLogWorkspace({
+      deckId,
+      deckListIds,
+      tournamentIds: Array.from(
+        new Set([
+          ...(tournamentResult.data ?? []).map((row) => row.id),
+          ...listTournamentIds
+        ])
+      )
+    });
 
     return {
       ok: true,
@@ -255,7 +320,9 @@ export async function createDeckMatchupAction(formData: FormData): Promise<SaveA
       user
     });
 
-    revalidateDeckAndLogWorkspace();
+    revalidateDeckAndLogWorkspace({
+      deckId: result.deckId
+    });
     revalidatePath(`/decks/${result.deckId}`, "page");
     revalidatePath(`/decks/${result.deckId}/matchups/${result.matchupId}`, "page");
 
@@ -369,17 +436,31 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
+    const tournamentIds = await getAffectedTournamentIdsForDeckList(
+      supabase,
+      user.id,
+      deckListId
+    );
     const result = await saveDeckList({
       formData,
       supabase,
       user
     });
 
-    revalidateDeckAndLogWorkspace();
+    revalidateDeckAndLogWorkspace({
+      deckId: result.deckId,
+      deckListId: result.deckListId,
+      tournamentIds
+    });
+
+    const redirectPath =
+      deckListId && result.deckListId !== deckListId && result.deckId
+        ? `/deck-lists/${encodeURIComponent(result.deckListId)}?deckId=${encodeURIComponent(result.deckId)}`
+        : getFormRedirectPath(formData, result.deckId ? `/decks/${result.deckId}` : "/deck-lists");
 
     return {
       ok: true,
-      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/decks/${result.deckId}`))
+      redirectTo: withRefreshToken(redirectPath)
     };
   } catch (error) {
     throw resolveActionFailure(error, {
@@ -387,7 +468,7 @@ export async function saveDeckListAction(formData: FormData): Promise<SaveAction
       area: "decks",
       deckId,
       fallbackMessage: "We couldn't save that deck list right now.",
-      route: "/decks"
+      route: deckId ? "/decks" : "/deck-lists"
     });
   }
 }

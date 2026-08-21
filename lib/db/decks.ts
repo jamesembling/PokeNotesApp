@@ -1,5 +1,4 @@
 import { cache } from "react";
-import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
 import { getReadSortedDeckCards } from "@/lib/deck-lists/read-sort";
 import { createClient } from "@/lib/supabase/server";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
@@ -123,7 +122,7 @@ type DeckSelectionRow = Pick<DeckSummaryRow, "id" | "deck_name" | "deck_lists">;
 
 type DeckListRelationalRow = {
   id: string;
-  deck_id: string;
+  deck_id: string | null;
   name: string;
   format: string | null;
   date: string | null;
@@ -216,11 +215,11 @@ function parseDeckList(value: unknown): DeckList | null {
         .filter((card): card is DeckCard => card !== null)
     : [];
   const sortedCardsSource = candidate.sortedCards ?? candidate.sorted_cards;
-  const sortedCards = Array.isArray(sortedCardsSource)
+  const storedSortedCards = Array.isArray(sortedCardsSource)
     ? sortedCardsSource
         .map((card) => parseDeckCard(card))
         .filter((card): card is DeckCard => card !== null)
-    : sortDeckListCardsLocally(parsedCards);
+    : [];
 
   const id = typeof candidate.id === "string" ? candidate.id : "";
   const name = typeof candidate.name === "string" ? candidate.name : "";
@@ -228,6 +227,13 @@ function parseDeckList(value: unknown): DeckList | null {
   if (!id || !name) {
     return null;
   }
+
+  const sortedCardsVersion =
+    typeof candidate.sortedCardsVersion === "number"
+      ? candidate.sortedCardsVersion
+      : typeof candidate.sorted_cards_version === "number"
+        ? candidate.sorted_cards_version
+        : undefined;
 
   return {
     id,
@@ -248,13 +254,12 @@ function parseDeckList(value: unknown): DeckList | null {
           ? candidate.raw_list
           : "",
     parsedCards,
-    sortedCards,
-    sortedCardsVersion:
-      typeof candidate.sortedCardsVersion === "number"
-        ? candidate.sortedCardsVersion
-        : typeof candidate.sorted_cards_version === "number"
-          ? candidate.sorted_cards_version
-          : undefined,
+    sortedCards: getReadSortedDeckCards({
+      parsedCards,
+      sortedCards: storedSortedCards,
+      sortedCardsVersion
+    }),
+    sortedCardsVersion,
     createdAt:
       typeof candidate.createdAt === "string"
         ? candidate.createdAt
@@ -286,13 +291,18 @@ function mapRelationalDeckList(row: DeckListRelationalRow): DeckList {
         .map((card) => parseDeckCard(card))
         .filter((card): card is DeckCard => card !== null)
     : [];
-  const sortedCards = Array.isArray(row.sorted_cards)
-    ? row.sorted_cards
-        .map((card) => parseDeckCard(card))
-        .filter((card): card is DeckCard => card !== null)
-    : sortDeckListCardsLocally(parsedCards);
+  const sortedCards = getReadSortedDeckCards({
+    parsedCards,
+    sortedCards: Array.isArray(row.sorted_cards)
+      ? row.sorted_cards
+          .map((card) => parseDeckCard(card))
+          .filter((card): card is DeckCard => card !== null)
+      : [],
+    sortedCardsVersion: row.sorted_cards_version ?? undefined
+  });
 
   return {
+    deckId: row.deck_id,
     id: row.id,
     name: row.name,
     format: row.format ?? "",
@@ -732,6 +742,9 @@ async function getRelationalDeckListsByDeckId(
 
   const byDeckId = new Map<string, DeckList[]>();
   (((data ?? []) as unknown) as DeckListRelationalRow[]).forEach((row) => {
+    if (!row.deck_id) {
+      return;
+    }
     const deckLists = byDeckId.get(row.deck_id) ?? [];
     deckLists.push(mapRelationalDeckList(row));
     byDeckId.set(row.deck_id, deckLists);

@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import { useImportDialogData } from "@/components/ui/ImportDialogDataProvider";
 import type { ImportLogDialogProps } from "@/components/ui/ImportLogDialog";
-import type { DeckSelectionOption } from "@/types/index";
+import type { DeckListSelectionOption, DeckSelectionOption } from "@/types/index";
 
 type LazyImportLogButtonProps = {
   className?: string;
+  initialUserDeckLists?: DeckListSelectionOption[];
   initialUserDecks?: DeckSelectionOption[];
   label?: string;
 };
@@ -34,17 +35,21 @@ function warmImportDialogAssets() {
 
 export function LazyImportLogButton({
   className,
+  initialUserDeckLists,
   initialUserDecks,
   label = "Import PTCGL Log"
 }: LazyImportLogButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const { seedUserDecks } = useImportDialogData();
+  const { seedUserDeckLists, seedUserDecks } = useImportDialogData();
 
   useEffect(() => {
+    if (initialUserDeckLists) {
+      seedUserDeckLists(initialUserDeckLists);
+    }
     if (initialUserDecks?.length) {
       seedUserDecks(initialUserDecks);
     }
-  }, [initialUserDecks, seedUserDecks]);
+  }, [initialUserDeckLists, initialUserDecks, seedUserDeckLists, seedUserDecks]);
 
   return (
     <>

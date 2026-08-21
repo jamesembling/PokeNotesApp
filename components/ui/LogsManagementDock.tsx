@@ -13,7 +13,8 @@ import {
   DropdownMenuTrigger
 } from "@/components/shadcn/dropdown-menu";
 import { TrashIcon } from "@/components/ui/icons";
-import type { DeckSelectionOption } from "@/types/index";
+import { makeDeckListSelectionKey } from "@/lib/log-import/deck-list-selection";
+import type { DeckListSelectionOption, DeckSelectionOption } from "@/types/index";
 
 export type LogsManagementDockProps = {
   allSelected: boolean;
@@ -25,12 +26,13 @@ export type LogsManagementDockProps = {
   onApplyDeckList: () => void;
   onDeleteSelected: () => void;
   onSelectDeck: (deckId: string) => void;
-  onSelectDeckList: (deckListId: string) => void;
+  onSelectDeckList: (selectionKey: string) => void;
   onToggleSelectAll: () => void;
   selectedCount: number;
   selectedDeckId: string;
-  selectedDeckListId: string;
+  selectedDeckListSelectionKey: string;
   userDecks: DeckSelectionOption[];
+  userDeckLists: DeckListSelectionOption[];
   visibleLogCount: number;
 };
 
@@ -48,12 +50,12 @@ export function LogsManagementDock({
   onToggleSelectAll,
   selectedCount,
   selectedDeckId,
-  selectedDeckListId,
+  selectedDeckListSelectionKey,
   userDecks,
+  userDeckLists,
   visibleLogCount
 }: LogsManagementDockProps) {
-  const selectedDeck = userDecks.find((deck) => deck.id === selectedDeckId) ?? null;
-  const availableDeckLists = selectedDeck?.deckLists ?? [];
+  const availableDeckLists = userDeckLists;
 
   return (
     <div className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-6">
@@ -110,23 +112,24 @@ export function LogsManagementDock({
           <AppSelect
             aria-label="Deck list for selected logs"
             className="min-h-[2.5rem] bg-background px-3 py-2"
-            disabled={!selectedDeck || availableDeckLists.length === 0}
+            disabled={availableDeckLists.length === 0}
             onChange={onSelectDeckList}
             options={[
               {
-                label: selectedDeck
-                  ? availableDeckLists.length > 0
-                    ? "Deck list"
-                    : "No saved deck lists"
-                  : "Choose strategy first",
+                label: availableDeckLists.length > 0 ? "Deck list" : "No saved deck lists",
                 value: ""
               },
               ...availableDeckLists.map((deckList) => ({
                 label: deckList.name,
-                value: deckList.id
+                value:
+                  deckList.selectionKey ??
+                  makeDeckListSelectionKey({
+                    deckId: deckList.deckId,
+                    deckListId: deckList.id
+                  })
               }))
             ]}
-            value={selectedDeckListId}
+            value={selectedDeckListSelectionKey}
           />
         </div>
 

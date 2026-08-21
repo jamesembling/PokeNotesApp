@@ -7,17 +7,13 @@ export async function deleteOwnedDeck(input: {
   supabase: SupabaseClient;
   userId: string;
 }) {
-  const { data, error } = await input.supabase
-    .from("decks")
-    .delete()
-    .eq("id", input.deckId)
-    .eq("user_id", input.userId)
-    .select("id")
-    .maybeSingle();
+  const { data, error } = await input.supabase.rpc("delete_owned_deck", {
+    p_deck_id: input.deckId
+  });
 
   if (error) {
     throw error;
   }
 
-  return data;
+  return data as { id: string } | null;
 }

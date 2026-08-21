@@ -12,7 +12,12 @@ import { useState } from "react";
 import { Button } from "@/components/shadcn/button";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { EditLogDialogProps } from "@/components/ui/EditLogDialog";
-import type { BattleLog, DeckSelectionOption, PokemonOption } from "@/types/index";
+import type {
+  BattleLog,
+  DeckListSelectionOption,
+  DeckSelectionOption,
+  PokemonOption
+} from "@/types/index";
 
 type LazyEditLogButtonProps = {
   autoOpen?: boolean;
@@ -22,11 +27,13 @@ type LazyEditLogButtonProps = {
     onClick?: () => void;
     onSelect?: (event: Event) => void;
   }>;
+  userDeckLists?: DeckListSelectionOption[];
   userDecks: DeckSelectionOption[];
   variant?: ComponentProps<typeof Button>["variant"];
 };
 
 type DeckSelectionOptionsResponse = {
+  deckLists?: DeckListSelectionOption[];
   userDecks?: DeckSelectionOption[];
 };
 
@@ -42,17 +49,21 @@ export function LazyEditLogButton({
   className,
   log,
   trigger,
+  userDeckLists = [],
   userDecks,
   variant = "outline"
 }: LazyEditLogButtonProps) {
   const [pokemonOptions, setPokemonOptions] = useState<PokemonOption[] | null>(null);
   const [loadedUserDecks, setLoadedUserDecks] = useState<DeckSelectionOption[] | null>(null);
+  const [loadedUserDeckLists, setLoadedUserDeckLists] = useState<DeckListSelectionOption[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   async function handleOpen() {
-    if (pokemonOptions && (userDecks.length > 0 || loadedUserDecks)) {
+    const hasDeckOptions = userDecks.length > 0 || loadedUserDecks !== null;
+    const hasDeckListOptions = userDeckLists.length > 0 || loadedUserDeckLists !== null;
+    if (pokemonOptions && hasDeckOptions && hasDeckListOptions) {
       return;
     }
 
@@ -60,10 +71,13 @@ export function LazyEditLogButton({
     setLoadError("");
 
     try {
-      const [nextPokemonOptions, nextUserDecks] = await Promise.all([
+      const [nextPokemonOptions, nextOptions] = await Promise.all([
         pokemonOptions ? Promise.resolve(pokemonOptions) : loadPokemonOptions(),
-        userDecks.length > 0 || loadedUserDecks
-          ? Promise.resolve(userDecks.length > 0 ? userDecks : loadedUserDecks)
+        hasDeckOptions && hasDeckListOptions
+          ? Promise.resolve({
+              deckLists: userDeckLists.length > 0 ? userDeckLists : loadedUserDeckLists ?? [],
+              userDecks: userDecks.length > 0 ? userDecks : loadedUserDecks ?? []
+            })
           : fetch("/api/deck-selection-options", {
               cache: "no-store",
               credentials: "same-origin"
@@ -73,12 +87,16 @@ export function LazyEditLogButton({
               }
 
               const payload = (await response.json()) as DeckSelectionOptionsResponse;
-              return payload.userDecks ?? [];
+              return {
+                deckLists: payload.deckLists ?? [],
+                userDecks: payload.userDecks ?? []
+              };
             })
       ]);
 
       setPokemonOptions(nextPokemonOptions);
-      setLoadedUserDecks(nextUserDecks);
+      setLoadedUserDecks(nextOptions.userDecks);
+      setLoadedUserDeckLists(nextOptions.deckLists);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Could not load edit options.");
     } finally {
@@ -99,6 +117,7 @@ export function LazyEditLogButton({
 
   if (pokemonOptions) {
     const resolvedUserDecks = userDecks.length > 0 ? userDecks : loadedUserDecks ?? [];
+    const resolvedUserDeckLists = userDeckLists.length > 0 ? userDeckLists : loadedUserDeckLists ?? [];
 
     return (
       <>
@@ -108,6 +127,7 @@ export function LazyEditLogButton({
           log={log}
           pokemonOptions={pokemonOptions}
           trigger={trigger}
+          userDeckLists={resolvedUserDeckLists}
           userDecks={resolvedUserDecks}
         />
         {loadError ? (

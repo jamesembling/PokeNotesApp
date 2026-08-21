@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getDeckListById } from "@/lib/db/deck-lists";
 import { getDeckWithList } from "@/lib/db/decks";
 import { listActiveSharesForOwnerLog } from "@/lib/db/log-shares";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
@@ -26,11 +27,17 @@ export async function GET(request: NextRequest) {
       log.linkedDeckId && log.linkedDeckListId
         ? getDeckWithList(user.id, log.linkedDeckId, log.linkedDeckListId)
         : Promise.resolve(null);
-    const [[activeShare], appOrigin, linkedDeck] = await Promise.all([
+    const standaloneDeckList =
+      !log.linkedDeckId && log.linkedDeckListId
+        ? getDeckListById(user.id, log.linkedDeckListId)
+        : Promise.resolve(null);
+    const [[activeShare], appOrigin, linkedDeck, standaloneList] = await Promise.all([
       listActiveSharesForOwnerLog(user.id, log.id),
       getPublicAppOrigin(),
-      linkedDeckWithList
+      linkedDeckWithList,
+      standaloneDeckList
     ]);
+    const linkedList = linkedDeck?.deckList ?? standaloneList;
 
     return privateJson(
       {
@@ -42,14 +49,14 @@ export async function GET(request: NextRequest) {
             }
           : null,
         linkedDeckId: log.linkedDeckId,
-        linkedDeckListFormat: linkedDeck?.deckList.format,
-        linkedDeckListId: linkedDeck?.deckList.id ?? log.linkedDeckListId,
-        linkedDeckListName: linkedDeck?.deckList.name,
-        linkedDeckListNotes: linkedDeck?.deckList.notes,
-        linkedDeckListRawList: linkedDeck?.deckList.rawList,
-        linkedDeckListSortedCards: linkedDeck?.deckList.sortedCards ?? [],
+        linkedDeckListFormat: linkedList?.format,
+        linkedDeckListId: linkedList?.id ?? log.linkedDeckListId,
+        linkedDeckListName: linkedList?.name,
+        linkedDeckListNotes: linkedList?.notes,
+        linkedDeckListRawList: linkedList?.rawList,
+        linkedDeckListSortedCards: linkedList?.sortedCards ?? [],
         linkedStrategyLabel:
-          linkedDeck?.deckList.name ??
+          linkedList?.name ??
           linkedDeck?.deckName ??
           (log.linkedDeckId ? "Linked strategy" : "No strategy linked"),
         userDecks: []

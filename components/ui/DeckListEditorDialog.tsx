@@ -28,7 +28,7 @@ type DeckListSaveActionResult = {
 };
 
 export type DeckListEditorDialogProps = {
-  deckId: string;
+  deckId?: string;
   deckList?: DeckList;
   defaultListName?: string;
   defaultFormat?: string;
@@ -153,6 +153,7 @@ export function DeckListEditorDialog({
   const [date, setDate] = useState(deckList?.date ?? "");
   const [createdBy, setCreatedBy] = useState(deckList?.createdBy || defaultCreatedBy);
   const [notes, setNotes] = useState(deckList?.notes ?? "");
+  const [creationKey, setCreationKey] = useState(() => crypto.randomUUID());
   const [saveError, setSaveError] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const closeTimerRef = useRef<number | null>(null);
@@ -232,6 +233,9 @@ export function DeckListEditorDialog({
     setDate(deckList?.date ?? "");
     setCreatedBy(deckList?.createdBy || defaultCreatedBy);
     setNotes(deckList?.notes ?? "");
+    if (!deckList?.id) {
+      setCreationKey(crypto.randomUUID());
+    }
     setIsOpen(true);
   }
 
@@ -366,8 +370,9 @@ export function DeckListEditorDialog({
                 }}
                 ref={formRef}
               >
-                <input name="deckId" type="hidden" value={deckId} />
+                <input name="deckId" type="hidden" value={deckId ?? ""} />
                 <input name="deckListId" type="hidden" value={deckList?.id ?? ""} />
+                <input name="creationKey" type="hidden" value={creationKey} />
                 <input name="createdAt" type="hidden" value={deckList?.createdAt ?? ""} />
                 <input name="redirectTo" type="hidden" value={pathname} />
                 <input name="name" type="hidden" value={listName} />

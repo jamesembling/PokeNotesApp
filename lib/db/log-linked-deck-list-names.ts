@@ -1,5 +1,7 @@
 import { getDeckSelectionOptionsByIds } from "@/lib/db/decks";
+import { getDeckListSelectionOptions } from "@/lib/db/deck-lists";
 import type { BattleLogSummary, DeckSelectionOption } from "@/types/index";
+import type { DeckListSelectionOption } from "@/types/index";
 import { compactMap } from "@/lib/array";
 
 type LogWindowWithSummaries = {
@@ -12,9 +14,15 @@ function getLinkedDeckIds(logs: BattleLogSummary[]) {
 
 function attachLinkedDeckListNames(
   logs: BattleLogSummary[],
-  userDecks: DeckSelectionOption[]
+  userDecks: DeckSelectionOption[],
+  accountDeckLists: DeckListSelectionOption[]
 ) {
   const deckListNamesByKey = new Map<string, string>();
+  const deckListNamesById = new Map<string, string>();
+
+  accountDeckLists.forEach((deckList) => {
+    deckListNamesById.set(deckList.id, deckList.name);
+  });
 
   userDecks.forEach((deck) => {
     deck.deckLists.forEach((deckList) => {
@@ -23,13 +31,16 @@ function attachLinkedDeckListNames(
   });
 
   return logs.map((log) => {
-    if (!log.linkedDeckId || !log.linkedDeckListId) {
+    if (!log.linkedDeckListId) {
       return log;
     }
 
     return {
       ...log,
-      linkedDeckListName: deckListNamesByKey.get(`${log.linkedDeckId}:${log.linkedDeckListId}`)
+      linkedDeckListName: log.linkedDeckId
+        ? deckListNamesByKey.get(`${log.linkedDeckId}:${log.linkedDeckListId}`) ??
+          log.linkedDeckListName
+        : deckListNamesById.get(log.linkedDeckListId) ?? log.linkedDeckListName
     };
   });
 }
@@ -38,10 +49,13 @@ export async function hydrateLogWindowDeckListNames<TWindow extends LogWindowWit
   userId: string,
   window: TWindow
 ) {
-  const linkedDecks = await getDeckSelectionOptionsByIds(userId, getLinkedDeckIds(window.logs));
+  const [linkedDecks, accountDeckLists] = await Promise.all([
+    getDeckSelectionOptionsByIds(userId, getLinkedDeckIds(window.logs)),
+    getDeckListSelectionOptions(userId)
+  ]);
 
   return {
     ...window,
-    logs: attachLinkedDeckListNames(window.logs, linkedDecks)
+    logs: attachLinkedDeckListNames(window.logs, linkedDecks, accountDeckLists)
   };
 }

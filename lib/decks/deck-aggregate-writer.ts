@@ -1,10 +1,15 @@
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
+import { getReadSortedDeckCards } from "@/lib/deck-lists/read-sort";
 import { CANONICAL_DECK_LIST_SORT_VERSION } from "@/lib/deck-lists/version";
 import { parseDeckList } from "@/lib/decks/deck-list-parse";
 import { getDefaultSyncedSiteFormat } from "@/lib/formats/catalog";
 import { userFacingActionError } from "@/lib/server/action-errors";
+import {
+  getDeckListStaleVersionMessage,
+  isDeckListStaleVersionError
+} from "@/lib/decks/deck-list-errors";
 import type { createClient } from "@/lib/supabase/server";
-import type { DeckCard, GoPreference } from "@/types/index";
+import type { DeckCard, DeckList, GoPreference } from "@/types/index";
 import type { Json } from "@/types/supabase";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -17,13 +22,14 @@ export type DeckWriteActor = {
 export type SaveDeckListCommand = {
   createdBy: string;
   date: string;
-  deckId: string;
+  deckId: string | null;
   deckListId: string;
   format: string;
   name: string;
   notes: string;
   rawList: string;
   submittedCreatedAt: string;
+  creationKey?: string;
 };
 
 export type CreateDeckMatchupCommand = {
@@ -94,19 +100,73 @@ export type DeckAggregateCommitPlan = {
   updatedAt: string;
 };
 
+export type DeckListCommitPlan = {
+  child: Record<string, unknown>;
+  creationKey: string;
+  deckId: string | null;
+  expectedChildUpdatedAt: string | null;
+  legacySourceDeckId?: string | null;
+  operation: "create" | "update";
+  updatedAt: string;
+};
+
+export type DeckListCommitResult = {
+  deckId: string | null;
+  deckListId: string;
+  status: "committed" | "idempotent";
+};
+
 export type DeckAggregateWriteAdapter = {
   commit(plan: DeckAggregateCommitPlan): Promise<DeckAggregateCommitResult>;
+  commitDeckList?(plan: DeckListCommitPlan): Promise<DeckListCommitResult>;
+  loadDeckList?(input: {
+    deckId: string | null;
+    deckListId: string;
+  }): Promise<import("@/types/index").DeckList | null>;
   loadLegacyChildren(input: {
     deckId: string;
     kind: "deck-list" | "matchup";
   }): Promise<unknown[] | null>;
 };
 
+export { isDeckListStaleVersionError } from "@/lib/decks/deck-list-errors";
+
+export function isMissingFirstClassDeckListRpc(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as {
+    code?: unknown;
+    details?: unknown;
+    hint?: unknown;
+    message?: unknown;
+  };
+  const code = String(candidate.code || "");
+  if (code !== "42883" && code !== "PGRST202") {
+    return false;
+  }
+
+  const text = [candidate.message, candidate.details, candidate.hint]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  const identifiesFunction = /(?:public\.)?commit_first_class_deck_list\b/i.test(text);
+  const identifiesSignature =
+    /p_(?:creation_key|deck_id|operation|payload|expected_updated_at|updated_at)/i.test(text) ||
+    (/jsonb/i.test(text) && /timestamp with time zone/i.test(text));
+  const identifiesMissingFunction =
+    /function .* does not exist|searched for the function|schema cache|function .* not found/i.test(
+      text
+    );
+
+  return identifiesFunction && identifiesSignature && identifiesMissingFunction;
+}
+
 export type DeckAggregateWriter = {
   createMatchup(
     command: CreateDeckMatchupCommand
   ): Promise<{ deckId: string; matchupId: string }>;
-  saveList(command: SaveDeckListCommand): Promise<{ deckId: string; deckListId: string }>;
+  saveList(command: SaveDeckListCommand): Promise<{ deckId: string | null; deckListId: string }>;
   updateMatchup(
     command: UpdateDeckMatchupCommand
   ): Promise<{ deckId: string; matchupId: string }>;
@@ -177,23 +237,20 @@ export function createDeckAggregateWriter(
   } = dependencies;
 
   async function saveList(command: SaveDeckListCommand) {
-    const deckId = String(command.deckId || "").trim();
+    const deckId = String(command.deckId || "").trim() || null;
     const deckListId = String(command.deckListId || "").trim();
 
-    if (!deckId) {
+    if (!deckId && !adapter.commitDeckList) {
       throw userFacingActionError("Deck id is required.");
     }
 
-    const existingDeckLists = await adapter.loadLegacyChildren({
-      deckId,
-      kind: "deck-list"
-    });
-
-    if (!existingDeckLists) {
-      throw userFacingActionError("Deck could not be found.");
-    }
-
-    const existingDeckList = deckListId
+    const existingDeckList = deckListId && adapter.loadDeckList
+      ? await adapter.loadDeckList({ deckId, deckListId })
+      : null;
+    const existingDeckLists = deckId && (!adapter.loadDeckList || !existingDeckList)
+      ? await adapter.loadLegacyChildren({ deckId, kind: "deck-list" })
+      : null;
+    const legacyExistingDeckList = deckListId && existingDeckLists
       ? existingDeckLists.find(
           (entry) =>
             entry &&
@@ -206,7 +263,9 @@ export function createDeckAggregateWriter(
     const rawList = String(command.rawList || "").trim();
 
     if (deckListId && !existingDeckList) {
-      throw userFacingActionError("Deck list could not be found.");
+      if (!legacyExistingDeckList) {
+        throw userFacingActionError("Deck list could not be found.");
+      }
     }
 
     if (!name) {
@@ -229,8 +288,12 @@ export function createDeckAggregateWriter(
       );
     }
 
+    const operation = deckListId ? "update" : "create";
+    const creationKey = operation === "create"
+      ? String(command.creationKey || "").trim() || createId()
+      : String(command.creationKey || "").trim() || deckListId;
     const nextDeckList = {
-      id: deckListId || createId(),
+      id: deckListId || creationKey,
       name,
       format: String(command.format || "").trim() || (await getDefaultFormat()),
       date: String(command.date || "").trim() || timestamp.slice(0, 10),
@@ -243,25 +306,54 @@ export function createDeckAggregateWriter(
       createdAt:
         String(command.submittedCreatedAt || "").trim() ||
         (deckListId
-          ? String((existingDeckList as { createdAt?: unknown } | null)?.createdAt || "").trim()
+          ? String(
+              existingDeckList?.createdAt ??
+                (legacyExistingDeckList as { createdAt?: unknown } | null)?.createdAt ??
+                ""
+            ).trim()
           : "") ||
         timestamp,
       updatedAt: timestamp
     };
 
-    const commitResult = await adapter.commit({
-      child: nextDeckList,
-      deckId,
-      expectedChildUpdatedAt:
-        deckListId && existingDeckList && typeof existingDeckList === "object"
+    const expectedChildUpdatedAt = deckListId
+      ? existingDeckList
+        ? existingDeckList.updatedAt
+        : legacyExistingDeckList && typeof legacyExistingDeckList === "object"
           ? getJsonTimestamp(
-              existingDeckList as Record<string, unknown>,
+              legacyExistingDeckList as Record<string, unknown>,
               "updatedAt",
               "updated_at"
             )
-          : null,
+          : null
+      : null;
+    const legacySourceDeckId =
+      operation === "update" && !existingDeckList && legacyExistingDeckList && deckId
+        ? deckId
+        : null;
+    if (adapter.commitDeckList) {
+      const commitResult = await adapter.commitDeckList({
+        child: nextDeckList,
+        creationKey,
+        deckId,
+        expectedChildUpdatedAt,
+        legacySourceDeckId,
+        operation,
+        updatedAt: timestamp
+      });
+
+      return {
+        deckId: commitResult.deckId,
+        deckListId: commitResult.deckListId
+      };
+    }
+
+    const commitResult = await adapter.commit({
+      child: nextDeckList,
+      deckId: deckId as string,
+      expectedChildUpdatedAt,
       kind: "deck-list",
-      operation: deckListId ? "update" : "create",
+      operation,
       updatedAt: timestamp
     });
 
@@ -498,40 +590,245 @@ function createSupabaseDeckAggregateWriteAdapter(input: {
 }): DeckAggregateWriteAdapter {
   const { supabase, userId } = input;
 
+  async function commitLegacy(
+    plan: DeckListCommitPlan | DeckAggregateCommitPlan
+  ): Promise<DeckAggregateCommitResult> {
+    const expectedChildUpdatedAt = plan.expectedChildUpdatedAt;
+    if (plan.operation === "update" && !expectedChildUpdatedAt?.trim()) {
+      return "conflict";
+    }
+
+    const { data, error } = await supabase.rpc("commit_deck_aggregate_child", {
+      p_child: asJson(plan.child),
+      p_deck_id: plan.deckId as string,
+      p_expected_child_updated_at: expectedChildUpdatedAt ?? "",
+      p_kind: "kind" in plan ? plan.kind : "deck-list",
+      p_operation: plan.operation,
+      p_updated_at: plan.updatedAt
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    if (
+      data === "child-not-found" ||
+      data === "committed" ||
+      data === "conflict" ||
+      data === "deck-not-found"
+    ) {
+      return data;
+    }
+
+    throw new Error("Deck aggregate commit returned an unexpected status.");
+  }
+
   return {
-    async commit(plan) {
-      const expectedChildUpdatedAt = plan.expectedChildUpdatedAt;
-
-      // PostgreSQL permits the nullable update version, but generated RPC argument
-      // types do not express parameter nullability. Keep missing update versions
-      // fail-closed; creates use an ignored empty sentinel for the required text arg.
-      if (plan.operation === "update" && !expectedChildUpdatedAt?.trim()) {
-        return "conflict";
-      }
-
-      const { data, error } = await supabase.rpc("commit_deck_aggregate_child", {
-        p_child: asJson(plan.child),
+    async commitDeckList(plan: DeckListCommitPlan) {
+      const { data, error } = await supabase.rpc("commit_first_class_deck_list", {
+        p_creation_key: plan.creationKey,
         p_deck_id: plan.deckId,
-        p_expected_child_updated_at: expectedChildUpdatedAt ?? "",
-        p_kind: plan.kind,
+        p_expected_updated_at: plan.expectedChildUpdatedAt,
         p_operation: plan.operation,
+        p_payload: asJson({
+          ...plan.child,
+          ...(plan.legacySourceDeckId
+            ? { _legacySourceDeckId: plan.legacySourceDeckId }
+            : {})
+        }),
         p_updated_at: plan.updatedAt
       });
 
       if (error) {
+        if (isDeckListStaleVersionError(error)) {
+          throw userFacingActionError(getDeckListStaleVersionMessage(error), {
+            code: "DECK_LIST_STALE_VERSION"
+          });
+        }
+
+        if (!isMissingFirstClassDeckListRpc(error)) {
+          throw error;
+        }
+
+        if (!plan.deckId) {
+          throw userFacingActionError(
+            "Deck Lists are not ready on this server yet. Try again after the database migration is applied."
+          );
+        }
+
+        const legacyResult = await commitLegacy(plan);
+        if (legacyResult === "deck-not-found") {
+          throw userFacingActionError("Deck could not be found.");
+        }
+        if (legacyResult === "child-not-found") {
+          throw userFacingActionError("Deck list could not be found.");
+        }
+        if (legacyResult === "conflict") {
+          throw userFacingActionError(
+            "This deck list changed in another tab. Refresh the page and try again."
+          );
+        }
+
+        return {
+          deckId: plan.deckId,
+          deckListId: String(plan.child.id),
+          status: "committed"
+        } satisfies DeckListCommitResult;
+      }
+
+      const result = data as {
+        deckList?: { deck_id?: string | null; id?: string };
+        status?: "committed" | "idempotent";
+      } | null;
+      const deckListId = String(result?.deckList?.id || "").trim();
+      if (!deckListId || (result?.status !== "committed" && result?.status !== "idempotent")) {
+        throw new Error("First-class Deck List commit returned an unexpected status.");
+      }
+
+      return {
+        deckId: result?.deckList?.deck_id ?? plan.deckId,
+        deckListId,
+        status: result.status
+      } satisfies DeckListCommitResult;
+    },
+
+    async commit(plan) {
+      return commitLegacy(plan);
+    },
+
+    async loadDeckList({ deckId, deckListId }) {
+      let query = supabase
+        .from("deck_lists")
+        .select([
+          "id",
+          "deck_id",
+          "name",
+          "format",
+          "date",
+          "created_by",
+          "notes",
+          "raw_list",
+          "parsed_cards",
+          "sorted_cards",
+          "sorted_cards_version",
+          "created_at",
+          "updated_at"
+        ].join(","))
+        .eq("user_id", userId)
+        .eq("id", deckListId);
+
+      query = deckId ? query.eq("deck_id", deckId) : query.is("deck_id", null);
+      const { data, error } = await query.maybeSingle();
+      if (error) {
         throw error;
       }
 
-      if (
-        data === "child-not-found" ||
-        data === "committed" ||
-        data === "conflict" ||
-        data === "deck-not-found"
-      ) {
-        return data;
+      if (!data) {
+        if (!deckId) {
+          return null;
+        }
+
+        const { data: legacyDeck, error: legacyError } = await supabase
+          .from("decks")
+          .select("deck_lists")
+          .eq("user_id", userId)
+          .eq("id", deckId)
+          .maybeSingle();
+        if (legacyError) {
+          throw legacyError;
+        }
+
+        const legacyList = Array.isArray(legacyDeck?.deck_lists)
+          ? legacyDeck.deck_lists.find(
+              (entry) =>
+                entry &&
+                typeof entry === "object" &&
+                String((entry as { id?: unknown }).id || "") === deckListId
+            )
+          : null;
+        if (!legacyList || typeof legacyList !== "object") {
+          return null;
+        }
+
+        const legacy = legacyList as Record<string, unknown>;
+        const parsedCards = (Array.isArray(legacy.parsedCards)
+          ? legacy.parsedCards
+          : Array.isArray(legacy.parsed_cards)
+            ? legacy.parsed_cards
+            : []) as DeckCard[];
+        const sortedCards = (Array.isArray(legacy.sortedCards)
+          ? legacy.sortedCards
+          : Array.isArray(legacy.sorted_cards)
+            ? legacy.sorted_cards
+            : []) as DeckCard[];
+        return {
+          createdAt: String(legacy.createdAt || legacy.created_at || ""),
+          createdBy: String(legacy.createdBy || legacy.created_by || ""),
+          date: String(legacy.date || ""),
+          deckId,
+          format: String(legacy.format || ""),
+          id: deckListId,
+          name: String(legacy.name || ""),
+          notes: String(legacy.notes || ""),
+          parsedCards,
+          rawList: String(legacy.rawList || legacy.raw_list || ""),
+          sortedCards: getReadSortedDeckCards({
+            parsedCards,
+            sortedCards,
+            sortedCardsVersion:
+              typeof legacy.sortedCardsVersion === "number"
+                ? legacy.sortedCardsVersion
+                : typeof legacy.sorted_cards_version === "number"
+                  ? legacy.sorted_cards_version
+                  : undefined
+          }),
+          sortedCardsVersion:
+            typeof legacy.sortedCardsVersion === "number"
+              ? legacy.sortedCardsVersion
+              : typeof legacy.sorted_cards_version === "number"
+                ? legacy.sorted_cards_version
+                : undefined,
+          updatedAt: String(legacy.updatedAt || legacy.updated_at || "")
+        } satisfies DeckList;
       }
 
-      throw new Error("Deck aggregate commit returned an unexpected status.");
+      const row = data as unknown as {
+        created_at: string;
+        created_by: string | null;
+        date: string | null;
+        deck_id: string | null;
+        format: string | null;
+        id: string;
+        name: string;
+        notes: string | null;
+        parsed_cards: unknown;
+        raw_list: string | null;
+        sorted_cards: unknown;
+        sorted_cards_version: number | null;
+        updated_at: string;
+      };
+
+      const parsedCards = (Array.isArray(row.parsed_cards) ? row.parsed_cards : []) as DeckCard[];
+      const sortedCards = (Array.isArray(row.sorted_cards) ? row.sorted_cards : []) as DeckCard[];
+      return {
+        createdAt: row.created_at,
+        createdBy: row.created_by ?? "",
+        date: row.date ?? "",
+        deckId: row.deck_id,
+        format: row.format ?? "",
+        id: row.id,
+        name: row.name,
+        notes: row.notes ?? "",
+        parsedCards,
+        rawList: row.raw_list ?? "",
+        sortedCards: getReadSortedDeckCards({
+          parsedCards,
+          sortedCards,
+          sortedCardsVersion: row.sorted_cards_version ?? undefined
+        }),
+        sortedCardsVersion: row.sorted_cards_version ?? undefined,
+        updatedAt: row.updated_at
+      } satisfies DeckList;
     },
 
     async loadLegacyChildren({ deckId, kind }) {
