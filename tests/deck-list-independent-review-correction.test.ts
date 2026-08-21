@@ -230,7 +230,7 @@ test("strategy deletion never adopts an unrelated standalone list collision", ()
   }
 });
 
-test("Deck List index and detail read models retain strategy-scoped legacy-only records", () => {
+test("Deck List detail retains strategy-scoped legacy records without a standalone index", () => {
   const db = source("lib/db/deck-lists.ts");
   const indexPage = source("app/(app)/deck-lists/page.tsx");
   const detailPage = source("app/(app)/deck-lists/[listId]/page.tsx");
@@ -239,8 +239,8 @@ test("Deck List index and detail read models retain strategy-scoped legacy-only 
   assert.match(db, /parseLegacyDeckList/);
   assert.match(db, /getDeckListById\([\s\S]*deckId\?/);
   assert.match(db, /from\("decks"\)[\s\S]*deck_lists/);
-  assert.match(indexPage, /deckList\.deckId/);
-  assert.match(indexPage, /deckId=/);
+  assert.match(indexPage, /redirect\("\/decks"\)/);
+  assert.doesNotMatch(indexPage, /deckList\.deckId/);
   assert.match(detailPage, /searchParams/);
   assert.match(detailPage, /getDeckListById\([\s\S]*deckId/);
   assert.match(detailPage, /deckId=\{deckList\.deckId/);

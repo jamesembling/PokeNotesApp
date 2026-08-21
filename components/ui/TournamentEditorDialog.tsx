@@ -389,8 +389,11 @@ export function TournamentEditorDialog({
             ) : null}
 
             <form
-              action={handleSubmit}
               className="grid min-w-0 gap-6 sm:gap-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSubmit(new FormData(event.currentTarget));
+              }}
               ref={formRef}
             >
               {isEditing && tournament ? <input name="tournamentId" type="hidden" value={tournament.id} /> : null}

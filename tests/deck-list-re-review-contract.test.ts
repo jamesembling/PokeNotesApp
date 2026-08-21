@@ -123,8 +123,8 @@ test("standalone list-only consumers hydrate details, ordering, sharing, and sav
   assert.match(names, /if \(!log\.linkedDeckListId\)/);
   assert.match(context, /getDeckListById/);
   assert.match(shareAction, /getDeckListById/);
-  assert.doesNotMatch(tournamentPage, /getDeckListById/);
-  assert.match(tournamentPage, /getDeckWithList/);
+  assert.match(tournamentPage, /getDeckListById/);
+  assert.doesNotMatch(tournamentPage, /getDeckWithList/);
   assert.match(deckListRoute, /if \(!listId\)/);
   assert.match(initialReadModel, /create or replace function public\.get_initial_logs_page_data/);
   assert.match(

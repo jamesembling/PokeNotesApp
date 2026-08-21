@@ -123,7 +123,7 @@ test("URL identity selection keeps a relational list when its requested strategy
   );
 });
 
-test("associated index URLs keep the relational mirror and its controls", () => {
+test("associated detail URLs keep the relational mirror and its controls", () => {
   const relational = deckList({ deckId: "strategy-a", name: "Relational A" });
   const compatibilityMirror = deckList({
     deckId: "strategy-a",
@@ -152,8 +152,5 @@ test("associated index URLs keep the relational mirror and its controls", () => 
   assert.match(detailPageSource, /getDeckListById\(user\.id, listId, deckId\)/);
   assert.match(detailPageSource, /!isLegacyOnly[\s\S]*DeleteDeckListButton/);
   assert.match(detailPageSource, /!isLegacyOnly[\s\S]*setDeckListAssociationAction/);
-  assert.match(
-    indexPageSource,
-    /\/deck-lists\/\$\{deckList\.id\}\?deckId=\$\{encodeURIComponent\(deckList\.deckId\)\}/
-  );
+  assert.match(indexPageSource, /redirect\("\/decks"\)/);
 });

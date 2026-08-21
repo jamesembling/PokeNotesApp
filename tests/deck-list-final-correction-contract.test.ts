@@ -102,13 +102,12 @@ test("log dialogs select from flat account-owned lists and preserve list-only st
   assert.match(dock, /userDeckLists/);
 });
 
-test("standalone Deck List CRUD is reachable and exposes a normal create action", () => {
+test("Deck Lists remain contextual and are not exposed as a standalone site section", () => {
   const sidebar = source("components/ui/Sidebar.tsx");
   const page = source("app/(app)/deck-lists/page.tsx");
 
-  assert.match(sidebar, /label: "Deck Lists", href: "\/deck-lists"/);
-  assert.match(page, /triggerLabel="\+ New Deck List"/);
-  assert.match(page, /LazyDeckListEditorButton/);
-  assert.match(page, /: `\/deck-lists\/\$\{deckList\.id\}`/);
-  assert.match(page, /\?deckId=\$\{encodeURIComponent\(deckList\.deckId\)\}/);
+  assert.doesNotMatch(sidebar, /label: "Deck Lists"/);
+  assert.doesNotMatch(sidebar, /href: "\/deck-lists"/);
+  assert.match(page, /redirect\("\/decks"\)/);
+  assert.doesNotMatch(page, /LazyDeckListEditorButton/);
 });

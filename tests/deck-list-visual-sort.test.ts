@@ -221,7 +221,7 @@ test("tournament detail deck visuals use the hydrated deck-list read path", () =
     "utf8"
   );
 
-  assert.equal(source.includes("getDeckWithList"), true);
+  assert.equal(source.includes("getDeckListById"), true);
   assert.equal(source.includes("sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}"), true);
 });
 

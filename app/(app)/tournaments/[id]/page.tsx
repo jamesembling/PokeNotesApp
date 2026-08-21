@@ -18,13 +18,14 @@ import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
-import { getDeckWithList } from "@/lib/db/decks";
+import { getDeckListById } from "@/lib/db/deck-lists";
 import {
   getTournamentById,
   getTournamentRounds,
   TournamentSchemaMissingError
 } from "@/lib/db/tournaments";
 import { formatTournamentDateRange, getTournamentRecord } from "@/lib/tournaments/display";
+import { resolveTournamentDeckListForDisplay } from "@/lib/tournaments/deck-list-workflow";
 import { getTournamentCategoryLabel, getTournamentPlacementLabel } from "@/lib/tournaments/options";
 import { getTournamentPlacementPillClassName } from "@/lib/tournaments/placement-pill";
 
@@ -156,10 +157,11 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
     user.email?.split("@")[0] ||
     "Trainer";
   const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
-  const resolvedTournamentDeckList =
-    tournament.linkedDeckId && tournament.linkedDeckListId
-      ? (await getDeckWithList(user.id, tournament.linkedDeckId, tournament.linkedDeckListId))?.deckList ?? null
-      : null;
+  const resolvedTournamentDeckList = await resolveTournamentDeckListForDisplay({
+    loadDeckList: getDeckListById,
+    tournament,
+    userId: user.id
+  });
 
   return (
     <PageWidth size="standard">
@@ -227,7 +229,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
                 </ItemTitle>
               </div>
               <div className="flex shrink-0">
-                {tournament.linkedDeckId && tournament.linkedDeckListId ? (
+                {resolvedTournamentDeckList ? (
                   <DeckListViewDialog
                     deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
                     rawList={resolvedTournamentDeckList?.rawList}

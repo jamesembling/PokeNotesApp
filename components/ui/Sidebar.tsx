@@ -9,7 +9,6 @@ import {
   CardsIcon,
   ChartLineIcon,
   ClipboardTextIcon,
-  ListBulletsIcon,
   TrophyIcon,
   type Icon
 } from "@phosphor-icons/react";
@@ -58,7 +57,6 @@ type SidebarProps = {
 const navItems: Array<{ label: string; href: string; icon: Icon }> = [
   { label: "Battle Logs", href: "/logs", icon: ClipboardTextIcon },
   { label: "Deck Strategy", href: "/decks", icon: CardsIcon },
-  { label: "Deck Lists", href: "/deck-lists", icon: ListBulletsIcon },
   { label: "Tournaments", href: "/tournaments", icon: TrophyIcon },
   { label: "Stats", href: "/stats", icon: ChartLineIcon },
   { label: "Probability Calculator", href: "/calculator", icon: CalculatorIcon }
