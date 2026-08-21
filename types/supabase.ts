@@ -944,6 +944,10 @@ export type Database = {
           source_log_id: string
         }[]
       }
+      revoke_log_share: {
+        Args: { p_share_id: string }
+        Returns: boolean
+      }
       get_active_log_share: {
         Args: { p_token: string }
         Returns: {

@@ -71,14 +71,14 @@ export type SharedBattleLogSnapshot = {
 };
 
 export type LogShareStore = {
-  deleteOwnedShare: (shareId: string, ownerUserId: string) => Promise<boolean>;
+  getOrCreate: (row: LogShareInsertRow) => Promise<LogShareLookupRow>;
+  revokeOwnedShare: (shareId: string, ownerUserId: string) => Promise<boolean>;
   findActiveByOwnerLog: (
     ownerUserId: string,
     sourceLogId: string,
     nowIso: string
   ) => Promise<LogShareRow | null>;
   findByToken: (token: string) => Promise<PublicLogShareRow | null>;
-  insert: (row: LogShareInsertRow) => Promise<void>;
   listActiveByOwnerLog: (
     ownerUserId: string,
     sourceLogId: string,
@@ -95,6 +95,20 @@ const SHARE_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const LOG_SHARE_24_HOUR_LIMIT_MESSAGE = "LOG_SHARE_24_HOUR_LIMIT_REACHED";
 const LOG_SHARE_PAYLOAD_TOO_LARGE_MESSAGE = "LOG_SHARE_PAYLOAD_TOO_LARGE";
 const LOG_SHARE_SOURCE_NOT_FOUND_MESSAGE = "LOG_SHARE_SOURCE_NOT_FOUND";
+
+export function isMissingLogShareRevokerError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as Record<string, unknown>;
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  const text = [candidate.message, candidate.details, candidate.hint]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+
+  return (code === "42883" || code === "PGRST202") && /revoke_log_share/i.test(text);
+}
 
 function decodeBattleLogSharePayload(value: unknown): BattleLogSharePayload | null {
   if (!value || typeof value !== "object") {
@@ -260,19 +274,49 @@ async function createSupabaseLogShareStore(): Promise<LogShareStore> {
   const publicSupabase = createPublicClient();
 
   return {
-    async deleteOwnedShare(shareId, ownerUserId) {
-      const { data, error } = await supabase
-        .from("log_shares")
-        .delete()
-        .eq("id", shareId)
-        .eq("owner_user_id", ownerUserId)
-        .select("id");
+    async getOrCreate(row) {
+      const { data, error } = await supabase.rpc("create_log_share", {
+        p_payload: row.payload as unknown as Json,
+        p_source_log_id: row.source_log_id,
+        p_token: row.id
+      });
 
       if (error) {
         throw error;
       }
 
-      return Array.isArray(data) && data.length > 0;
+      const [share] = data ?? [];
+      if (!share) {
+        throw new Error("Share creation returned no row.");
+      }
+
+      return share;
+    },
+    async revokeOwnedShare(shareId, ownerUserId) {
+      const { data, error } = await supabase.rpc("revoke_log_share", {
+        p_share_id: shareId
+      });
+
+      if (error) {
+        if (!isMissingLogShareRevokerError(error)) {
+          throw error;
+        }
+
+        const fallback = await supabase
+          .from("log_shares")
+          .delete()
+          .eq("id", shareId)
+          .eq("owner_user_id", ownerUserId)
+          .select("id");
+
+        if (fallback.error) {
+          throw fallback.error;
+        }
+
+        return Array.isArray(fallback.data) && fallback.data.length > 0;
+      }
+
+      return data;
     },
     async findActiveByOwnerLog(ownerUserId, sourceLogId, nowIso) {
       const { data, error } = await supabase
@@ -303,17 +347,6 @@ async function createSupabaseLogShareStore(): Promise<LogShareStore> {
       const [row] = data ?? [];
       return row ?? null;
     },
-    async insert(row) {
-      const { error } = await supabase.rpc("create_log_share", {
-        p_payload: row.payload as unknown as Json,
-        p_source_log_id: row.source_log_id,
-        p_token: row.id
-      });
-
-      if (error) {
-        throw error;
-      }
-    },
     async listActiveByOwnerLog(ownerUserId, sourceLogId, nowIso) {
       const { data, error } = await supabase
         .from("log_shares")
@@ -336,10 +369,10 @@ async function getLogShareStore(store?: LogShareStore) {
   return store ?? (await createSupabaseLogShareStore());
 }
 
-export async function createLogShareSnapshot(
+async function getOrCreateShareRow(
   input: CreateLogShareSnapshotInput,
   options: LogShareQueryOptions = {}
-): Promise<string> {
+): Promise<LogShareLookupRow> {
   const store = await getLogShareStore(options.store);
   const now = getEffectiveNow(options.now);
   const payload: BattleLogSharePayload = {
@@ -356,14 +389,13 @@ export async function createLogShareSnapshot(
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const token = createShareToken();
     try {
-      await store.insert({
+      return await store.getOrCreate({
         id: token,
         owner_user_id: input.ownerUserId,
         source_log_id: input.sourceLogId,
         expires_at: getShareExpiry(now),
         payload
       });
-      return token;
     } catch (error) {
       if (!isUniqueViolation(error)) {
         throw error;
@@ -395,33 +427,14 @@ export async function getOrCreateLogShareSnapshot(
   options: LogShareQueryOptions = {}
 ): Promise<ActiveLogShare> {
   const now = getEffectiveNow(options.now);
-  const existingShare = await getActiveShareForLog(input.ownerUserId, input.sourceLogId, {
-    ...options,
-    now
-  });
+  const row = await getOrCreateShareRow(input, { ...options, now });
+  const share = mapActiveLogShare(row, now.getTime());
 
-  if (existingShare) {
-    return existingShare;
+  if (!share) {
+    throw new Error("Share creation returned an expired row.");
   }
 
-  const token = await createLogShareSnapshot(input, {
-    ...options,
-    now
-  });
-
-  const createdShare = await getActiveShareForLog(input.ownerUserId, input.sourceLogId, {
-    ...options,
-    now
-  });
-
-  return (
-    createdShare ?? {
-      id: token,
-      sourceLogId: input.sourceLogId,
-      createdAt: now.toISOString(),
-      expiresAt: getShareExpiry(now)
-    }
-  );
+  return share;
 }
 
 export async function listActiveSharesForOwnerLog(
@@ -444,7 +457,7 @@ export async function revokeLogShare(
   options: LogShareQueryOptions = {}
 ) {
   const store = await getLogShareStore(options.store);
-  return store.deleteOwnedShare(shareId, ownerUserId);
+  return store.revokeOwnedShare(shareId, ownerUserId);
 }
 
 export async function getSharedLogSnapshot(

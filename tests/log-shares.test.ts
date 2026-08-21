@@ -4,6 +4,7 @@ import {
   getOrCreateLogShareSnapshot,
   getSharedLogSnapshot,
   isLogShare24HourLimitError,
+  isMissingLogShareRevokerError,
   isLogSharePayloadTooLargeError,
   isLogShareSourceNotFoundError,
   revokeLogShare,
@@ -12,6 +13,24 @@ import {
 } from "@/lib/db/log-shares";
 import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
 import type { BattleLog } from "@/types/index";
+
+test("revocation fallback is limited to a missing revoke RPC", () => {
+  assert.equal(
+    isMissingLogShareRevokerError({
+      code: "PGRST202",
+      message: "Could not find the function public.revoke_log_share(text)"
+    }),
+    true
+  );
+  assert.equal(
+    isMissingLogShareRevokerError({ code: "42501", message: "permission denied" }),
+    false
+  );
+  assert.equal(
+    isMissingLogShareRevokerError({ code: "PGRST202", message: "Could not find another function" }),
+    false
+  );
+});
 
 function buildBattleLog(id = "log-1"): BattleLog {
   return {
@@ -49,20 +68,70 @@ function buildBattleLog(id = "log-1"): BattleLog {
   };
 }
 
-function createMemoryStore(initialRows: LogShareRow[] = []) {
+function createMemoryStore(
+  initialRows: LogShareRow[] = [],
+  options: { failAfterFirstCommit?: boolean } = {}
+) {
   const rows = [...initialRows];
   let insertCount = 0;
+  let didInjectFailure = false;
 
   const store: LogShareStore = {
-    async deleteOwnedShare(shareId, ownerUserId) {
-      const index = rows.findIndex(
+    async getOrCreate(row) {
+      const existing = rows
+        .filter(
+          (candidate) =>
+            candidate.owner_user_id === row.owner_user_id &&
+            candidate.source_log_id === row.source_log_id &&
+            Date.parse(candidate.expires_at) > Date.parse("2026-04-15T10:00:00.000Z")
+        )
+        .sort((left, right) => right.created_at.localeCompare(left.created_at))[0];
+
+      if (existing) {
+        return existing;
+      }
+
+      if (rows.some((candidate) => candidate.id === row.id)) {
+        const error = new Error("duplicate");
+        Object.assign(error, { code: "23505" });
+        throw error;
+      }
+
+      insertCount += 1;
+      const created = {
+        ...row,
+        created_at: `2026-04-15T10:00:0${insertCount}.000Z`,
+        updated_at: `2026-04-15T10:00:0${insertCount}.000Z`
+      };
+      rows.push(created);
+
+      if (options.failAfterFirstCommit && !didInjectFailure) {
+        didInjectFailure = true;
+        throw new Error("connection lost after commit");
+      }
+
+      return created;
+    },
+    async revokeOwnedShare(shareId, ownerUserId) {
+      const target = rows.find(
         (row) => row.id === shareId && row.owner_user_id === ownerUserId
       );
-      if (index === -1) {
+      if (!target) {
         return false;
       }
 
-      rows.splice(index, 1);
+      for (let index = rows.length - 1; index >= 0; index -= 1) {
+        const candidate = rows[index];
+        const isOwnedTarget =
+          candidate?.owner_user_id === ownerUserId &&
+          (target.source_log_id === null
+            ? candidate.id === shareId
+            : candidate.source_log_id === target.source_log_id);
+        if (isOwnedTarget) {
+          rows.splice(index, 1);
+        }
+      }
+
       return true;
     },
     async findActiveByOwnerLog(ownerUserId, sourceLogId, nowIso) {
@@ -80,20 +149,6 @@ function createMemoryStore(initialRows: LogShareRow[] = []) {
     },
     async findByToken(token) {
       return rows.find((row) => row.id === token) ?? null;
-    },
-    async insert(row) {
-      if (rows.some((candidate) => candidate.id === row.id)) {
-        const error = new Error("duplicate");
-        Object.assign(error, { code: "23505" });
-        throw error;
-      }
-
-      insertCount += 1;
-      rows.push({
-        ...row,
-        created_at: `2026-04-15T10:00:0${insertCount}.000Z`,
-        updated_at: `2026-04-15T10:00:0${insertCount}.000Z`
-      });
     },
     async listActiveByOwnerLog(ownerUserId, sourceLogId, nowIso) {
       const now = Date.parse(nowIso);
@@ -128,6 +183,44 @@ test("reuses an active share for the same owner and log", async () => {
   const secondShare = await getOrCreateLogShareSnapshot(input, { now, store });
 
   assert.equal(firstShare.id, secondShare.id);
+  assert.equal(rows.length, 1);
+});
+
+test("concurrent get-or-create calls return one public token", async () => {
+  const { rows, store } = createMemoryStore();
+  const input = {
+    ownerUserId: "user-1",
+    sourceLogId: "log-1",
+    log: buildBattleLog(),
+    linkedStrategyLabel: "Dragapult ex"
+  };
+  const now = new Date("2026-04-15T10:00:00.000Z");
+
+  const shares = await Promise.all(
+    Array.from({ length: 12 }, () => getOrCreateLogShareSnapshot(input, { now, store }))
+  );
+
+  assert.equal(new Set(shares.map((share) => share.id)).size, 1);
+  assert.equal(rows.length, 1);
+});
+
+test("a retry after a lost create response reuses the committed token", async () => {
+  const { rows, store } = createMemoryStore([], { failAfterFirstCommit: true });
+  const input = {
+    ownerUserId: "user-1",
+    sourceLogId: "log-1",
+    log: buildBattleLog(),
+    linkedStrategyLabel: "Dragapult ex"
+  };
+  const now = new Date("2026-04-15T10:00:00.000Z");
+
+  await assert.rejects(
+    getOrCreateLogShareSnapshot(input, { now, store }),
+    /connection lost after commit/
+  );
+  const retried = await getOrCreateLogShareSnapshot(input, { now, store });
+
+  assert.equal(retried.id, rows[0]?.id);
   assert.equal(rows.length, 1);
 });
 
@@ -237,6 +330,34 @@ test("revoking a share removes access immediately", async () => {
 
   assert.equal(didRevoke, true);
   assert.equal(sharedLog, null);
+});
+
+test("revoking the visible share removes historical duplicate tokens for that owner and log", async () => {
+  const row = {
+    owner_user_id: "user-1",
+    source_log_id: "log-1",
+    payload: {
+      version: "v1" as const,
+      log: buildBattleLog(),
+      linkedStrategyLabel: "Dragapult ex"
+    },
+    expires_at: "2026-05-15T10:00:00.000Z"
+  };
+  const { rows, store } = createMemoryStore([
+    { ...row, id: "visible-share", created_at: "2026-04-15T10:00:02.000Z" },
+    { ...row, id: "hidden-share", created_at: "2026-04-15T10:00:01.000Z" },
+    {
+      ...row,
+      id: "other-owner-share",
+      owner_user_id: "user-2",
+      created_at: "2026-04-15T10:00:03.000Z"
+    }
+  ]);
+
+  const didRevoke = await revokeLogShare("visible-share", "user-1", { store });
+
+  assert.equal(didRevoke, true);
+  assert.deepEqual(rows.map((candidate) => candidate.id), ["other-owner-share"]);
 });
 
 test("legacy rows without source_log_id still load shared snapshots", async () => {

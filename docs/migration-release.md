@@ -45,6 +45,12 @@ The pull request records:
 
 Merge only migrations that are safe while the previous and next application versions may both be live. A breaking change uses an expand-and-contract sequence or an explicitly coordinated application deployment.
 
+The atomic log-sharing release is the compatibility phase only:
+`20260821000033_make_log_share_lifecycle_atomic.sql`. It installs the RPCs but
+retains the existing authenticated owner-scoped `DELETE` grant. Any later
+direct-write hardening requires a separate reviewed forward migration after
+the application cutover; it must not be included in this release.
+
 ## 4. Deploy through GitHub Actions
 
 Configure the GitHub `Production` environment with the `SUPABASE_PRODUCTION_DB_URL` secret. Restrict that environment to `main` and add a required reviewer when the repository plan supports it.
