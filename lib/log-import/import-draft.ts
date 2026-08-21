@@ -57,7 +57,7 @@ export type BattleLogImportDraft = {
   userId: string;
   createdAt: string;
   expiresAt: string;
-  immutable: BattleLogImportImmutableFacts;
+  readonly immutable: BattleLogImportImmutableFacts;
   editable: BattleLogImportEditableFields;
   consumed: BattleLogImportDraftConsumption | null;
 };
@@ -137,6 +137,13 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
   }
 
   return value as DeepReadonly<T>;
+}
+
+function freezeDraft(draft: BattleLogImportDraft): BattleLogImportDraft {
+  // Protect authoritative top-level fields while leaving the nested editable
+  // copy available to validated review transitions.
+  Object.freeze(draft);
+  return draft;
 }
 
 function cloneSections(sections: ReadonlyArray<DeepReadonly<LogSection>>): LogSection[] {
@@ -359,7 +366,7 @@ export function createBattleLogImportDraft(args: {
     matchNotes: null
   });
 
-  return {
+  return freezeDraft({
     id,
     userId,
     createdAt,
@@ -367,7 +374,7 @@ export function createBattleLogImportDraft(args: {
     immutable,
     editable,
     consumed: null
-  };
+  });
 }
 
 export function buildBattleLogImportReviewProjection(
@@ -532,11 +539,11 @@ export function consumeBattleLogImportDraft(args: {
   });
 
   if (decision.status === "replay") {
-    return {
+    return freezeDraft({
       ...args.draft,
       immutable: cloneImmutable(args.draft.immutable),
       editable: cloneEditable(args.draft.editable)
-    };
+    });
   }
 
   if (decision.status !== "ready") {
@@ -550,7 +557,7 @@ export function consumeBattleLogImportDraft(args: {
     );
   }
 
-  return {
+  return freezeDraft({
     ...args.draft,
     immutable: cloneImmutable(args.draft.immutable),
     editable: cloneEditable(args.draft.editable),
@@ -560,5 +567,5 @@ export function consumeBattleLogImportDraft(args: {
       battleLogId: requireOpaqueReference(args.battleLogId, "battleLogId"),
       consumedAt: requireTimestamp(args.consumedAt, "consumedAt")
     }
-  };
+  });
 }

@@ -27,7 +27,13 @@ function assertImmutableFactsAreReadonly(facts: BattleLogImportImmutableFacts) {
   facts.sections[0]!.prizesAfterTurn.James = 0;
 }
 
+function assertDraftImmutablePropertyIsReadonly(draft: BattleLogImportDraft) {
+  // @ts-expect-error The authoritative immutable property must not be replaceable.
+  draft.immutable = draft.immutable;
+}
+
 void assertImmutableFactsAreReadonly;
+void assertDraftImmutablePropertyIsReadonly;
 
 function buildReview(): ParsedLogReview {
   return {
@@ -109,6 +115,15 @@ test("drafts retain parser-derived facts separately from editable review values"
   });
   assert.equal("userId" in projection, false);
 
+  assert.equal(Object.isFrozen(draft), true);
+  assert.throws(
+    () =>
+      Object.assign(draft, {
+        immutable: { ...draft.immutable, rawLog: "forged facts" }
+      }),
+    TypeError
+  );
+  assert.equal(draft.immutable.rawLog, "immutable raw log");
   assert.equal(Object.isFrozen(draft.immutable), true);
   assert.equal(Object.isFrozen(draft.immutable.sections), true);
   assert.equal(Object.isFrozen(draft.immutable.sections[0]), true);
@@ -317,6 +332,14 @@ test("validation and temporary persistence failures leave the draft available fo
   });
   assert.equal(consumed.consumed?.battleLogId, "log-1");
   assert.notEqual(consumed, draft);
+  assert.equal(Object.isFrozen(consumed), true);
+  assert.throws(
+    () =>
+      Object.assign(consumed, {
+        immutable: { ...consumed.immutable, rawLog: "forged after save" }
+      }),
+    TypeError
+  );
   assert.equal(Object.isFrozen(consumed.immutable), true);
   assert.throws(
     () => Object.assign(consumed.immutable, { rawLog: "tampered after save" }),
