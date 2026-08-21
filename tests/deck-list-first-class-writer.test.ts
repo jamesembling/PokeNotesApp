@@ -167,6 +167,50 @@ test("legacy-only lists remain loadable and editable through the compatibility a
   assert.equal(plans[0]?.legacySourceDeckId, "strategy-1");
 });
 
+test("a server-loaded legacy-only list is still adopted with its exact source strategy", async () => {
+  const plans: DeckListCommitPlan[] = [];
+  const legacyList = {
+    id: "legacy-server-list",
+    name: "Legacy server list",
+    format: "Standard",
+    date: "2026-08-19",
+    createdBy: "Trainer",
+    notes: "Old notes",
+    rawList: "2 Dragapult ex TWM 130",
+    parsedCards: CARDS,
+    sortedCards: CARDS,
+    sortedCardsVersion: 2,
+    createdAt: "2026-08-19T00:40:00.000Z",
+    updatedAt: EXISTING_UPDATED_AT,
+    deckId: "strategy-1",
+    storage: "legacy" as const
+  };
+  const writer = createDeckAggregateWriter({
+    actor: { defaultCreatedBy: "Trainer", userId: "user-1" },
+    adapter: {
+      async commitDeckList(plan) {
+        plans.push(plan);
+        return { deckId: "strategy-1", deckListId: legacyList.id, status: "committed" };
+      },
+      async loadDeckList() { return legacyList; },
+      async commit() { return "committed"; },
+      async loadLegacyChildren() { return [legacyList]; }
+    },
+    now: () => NOW,
+    parseCards: () => CARDS,
+    sortCards: async () => CARDS
+  });
+
+  await writer.saveList(command({
+    deckId: "strategy-1",
+    deckListId: legacyList.id,
+    name: "Edited server legacy list"
+  }));
+
+  assert.equal(plans[0]?.operation, "update");
+  assert.equal(plans[0]?.legacySourceDeckId, "strategy-1");
+});
+
 test("standalone updates carry the observed version for stale-write rejection", async () => {
   const harness = createHarness();
 

@@ -30,6 +30,7 @@
     "auth:local:save": "node scripts/save-local-auth-state.mjs",
     "seed:archetypes": "node seed-archetypes.mjs",
     "schema:health": "node scripts/schema-health.mjs",
+    "verify:deck-list-release": "node scripts/verify-deck-list-release.mjs",
     "verify:log-share-atomicity": "node scripts/rehearse-log-share-atomicity.mjs",
     "types:supabase": "supabase --agent=no gen types typescript --linked --schema public > types/supabase.ts",
     "sync:card-effect-catalog": "node sync-card-effect-catalog.mjs",

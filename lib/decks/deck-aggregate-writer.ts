@@ -245,20 +245,24 @@ export function createDeckAggregateWriter(
       throw userFacingActionError("Deck id is required.");
     }
 
-    const existingDeckList = deckListId && adapter.loadDeckList
+    const loadedDeckList = deckListId && adapter.loadDeckList
       ? await adapter.loadDeckList({ deckId, deckListId })
       : null;
+    // The server adapter can return a legacy compatibility copy from this
+    // lookup. Keep that copy in the exact-source path instead of treating it
+    // as a relational row and dropping _legacySourceDeckId.
+    const existingDeckList = loadedDeckList?.storage === "legacy" ? null : loadedDeckList;
     const existingDeckLists = deckId && (!adapter.loadDeckList || !existingDeckList)
       ? await adapter.loadLegacyChildren({ deckId, kind: "deck-list" })
       : null;
-    const legacyExistingDeckList = deckListId && existingDeckLists
-      ? existingDeckLists.find(
+    const legacyExistingDeckList = deckListId
+      ? (existingDeckLists?.find(
           (entry) =>
             entry &&
             typeof entry === "object" &&
             "id" in entry &&
             String((entry as { id?: unknown }).id || "") === deckListId
-        )
+        ) ?? (loadedDeckList?.storage === "legacy" ? loadedDeckList : null))
       : null;
     const name = String(command.name || "").trim();
     const rawList = String(command.rawList || "").trim();
@@ -785,6 +789,7 @@ function createSupabaseDeckAggregateWriteAdapter(input: {
               : typeof legacy.sorted_cards_version === "number"
                 ? legacy.sorted_cards_version
                 : undefined,
+          storage: "legacy",
           updatedAt: String(legacy.updatedAt || legacy.updated_at || "")
         } satisfies DeckList;
       }
@@ -824,6 +829,7 @@ function createSupabaseDeckAggregateWriteAdapter(input: {
           sortedCardsVersion: row.sorted_cards_version ?? undefined
         }),
         sortedCardsVersion: row.sorted_cards_version ?? undefined,
+        storage: "relational",
         updatedAt: row.updated_at
       } satisfies DeckList;
     },

@@ -1,5 +1,6 @@
 import { getDeckSelectionOptionsByIds } from "@/lib/db/decks";
 import { getDeckListSelectionOptions } from "@/lib/db/deck-lists";
+import { resolveDeckListName } from "@/lib/deck-lists/resolve-name";
 import type { BattleLogSummary, DeckSelectionOption } from "@/types/index";
 import type { DeckListSelectionOption } from "@/types/index";
 import { compactMap } from "@/lib/array";
@@ -17,18 +18,17 @@ function attachLinkedDeckListNames(
   userDecks: DeckSelectionOption[],
   accountDeckLists: DeckListSelectionOption[]
 ) {
-  const deckListNamesByKey = new Map<string, string>();
-  const deckListNamesById = new Map<string, string>();
-
-  accountDeckLists.forEach((deckList) => {
-    deckListNamesById.set(deckList.id, deckList.name);
-  });
-
-  userDecks.forEach((deck) => {
-    deck.deckLists.forEach((deckList) => {
-      deckListNamesByKey.set(`${deck.id}:${deckList.id}`, deckList.name);
-    });
-  });
+  const options: DeckListSelectionOption[] = [
+    ...accountDeckLists,
+    ...userDecks.flatMap((deck) =>
+      deck.deckLists.map((deckList) => ({
+        id: deckList.id,
+        name: deckList.name,
+        deckId: deck.id,
+        deckName: deck.deckName
+      }))
+    )
+  ];
 
   return logs.map((log) => {
     if (!log.linkedDeckListId) {
@@ -37,10 +37,9 @@ function attachLinkedDeckListNames(
 
     return {
       ...log,
-      linkedDeckListName: log.linkedDeckId
-        ? deckListNamesByKey.get(`${log.linkedDeckId}:${log.linkedDeckListId}`) ??
-          log.linkedDeckListName
-        : deckListNamesById.get(log.linkedDeckListId) ?? log.linkedDeckListName
+      linkedDeckListName:
+        resolveDeckListName(options, log.linkedDeckId, log.linkedDeckListId) ??
+        log.linkedDeckListName
     };
   });
 }

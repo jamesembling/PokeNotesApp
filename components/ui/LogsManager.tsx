@@ -20,6 +20,7 @@ import { LogRow } from "@/components/ui/LogRow";
 import { PageActions } from "@/components/ui/PageActions";
 import { ItemTitle } from "@/components/ui/Typography";
 import { formatDayDate } from "@/lib/client/date-format";
+import { resolveDeckListName } from "@/lib/deck-lists/resolve-name";
 import {
   makeDeckListSelectionKey,
   parseDeckListSelectionKey,
@@ -212,14 +213,17 @@ function attachLinkedDeckListNames(
   userDecks: DeckSelectionOption[],
   userDeckLists: DeckListSelectionOption[]
 ) {
-  const deckListNamesByKey = new Map<string, string>();
-  const deckListNamesById = new Map(userDeckLists.map((deckList) => [deckList.id, deckList.name]));
-
-  userDecks.forEach((deck) => {
-    deck.deckLists.forEach((deckList) => {
-      deckListNamesByKey.set(`${deck.id}:${deckList.id}`, deckList.name);
-    });
-  });
+  const options: DeckListSelectionOption[] = [
+    ...userDeckLists,
+    ...userDecks.flatMap((deck) =>
+      deck.deckLists.map((deckList) => ({
+        id: deckList.id,
+        name: deckList.name,
+        deckId: deck.id,
+        deckName: deck.deckName
+      }))
+    )
+  ];
 
   return logs.map((log) => {
     if (!log.linkedDeckListId) {
@@ -229,9 +233,8 @@ function attachLinkedDeckListNames(
     return {
       ...log,
       linkedDeckListName:
-        (log.linkedDeckId
-          ? deckListNamesByKey.get(`${log.linkedDeckId}:${log.linkedDeckListId}`)
-          : deckListNamesById.get(log.linkedDeckListId)) ?? log.linkedDeckListName
+        resolveDeckListName(options, log.linkedDeckId, log.linkedDeckListId) ??
+        log.linkedDeckListName
     };
   });
 }

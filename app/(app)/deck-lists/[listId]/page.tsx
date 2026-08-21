@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
+import { DeleteDeckListButton } from "@/components/ui/DeleteDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
 import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
 import { PageActions } from "@/components/ui/PageActions";
@@ -71,11 +72,11 @@ export default async function FirstClassDeckListPage({ params, searchParams }: D
               triggerVariant="outline"
             />
             {!isLegacyOnly ? (
-              <form action={deleteDeckListAction}>
-                <input name="deckListId" type="hidden" value={deckList.id} />
-                <input name="updatedAt" type="hidden" value={deckList.updatedAt} />
-                <Button type="submit" variant="destructive">Delete List</Button>
-              </form>
+              <DeleteDeckListButton
+                action={deleteDeckListAction}
+                deckListId={deckList.id}
+                updatedAt={deckList.updatedAt}
+              />
             ) : null}
           </PageActions>
         }

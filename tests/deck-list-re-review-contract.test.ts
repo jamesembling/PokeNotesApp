@@ -137,6 +137,17 @@ test("standalone list-only consumers hydrate details, ordering, sharing, and sav
   );
 });
 
+test("Deck List deletion requires deliberate confirmation and explains reference cleanup", () => {
+  const page = source("app/(app)/deck-lists/[listId]/page.tsx");
+  const button = source("components/ui/DeleteDeckListButton.tsx");
+
+  assert.match(page, /DeleteDeckListButton/);
+  assert.doesNotMatch(page, /<Button type="submit" variant="destructive">Delete List<\/Button>/);
+  assert.match(button, /linked logs|tournaments|references/i);
+  assert.match(button, /disabled=\{isSubmitting\}/);
+  assert.match(button, /onSubmit=\{\(\) => setIsSubmitting\(true\)\}/);
+});
+
 test("Deck List direct DML is revoked while reviewed RPCs are definer-owned", () => {
   assert.match(
     migration,
