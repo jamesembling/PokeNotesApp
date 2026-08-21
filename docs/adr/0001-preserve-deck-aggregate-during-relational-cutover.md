@@ -1,7 +1,11 @@
 # ADR 0001: Preserve deck aggregates during relational cut-over
 
-- **Status:** Accepted and live. Both account copies were preserved in the production re-key on 11 July 2026 UTC. The compatibility layer remains through at least 10 August 2026 at 23:08 UTC plus the exit checks below.
+- **Status:** Accepted and live. Both account copies were preserved in the production re-key on 11 July 2026 UTC. The minimum observation date of 10 August 2026 at 23:08 UTC has passed; compatibility protections remain in force until the reviewed exit checks below are completed and explicitly approved.
 - **Date:** 2026-07-11
+
+## Relationship to later decisions
+
+ADR 0002 makes Deck Lists first-class account-owned records whose Deck Strategy association is optional and introduces immutable Tournament Deck List Snapshots. That future model extends rather than invalidates this ADR: every existing Legacy Deck Copy and relational child remains protected by the compatibility and exit rules below until a reviewed transition preserves all valid account-owned records.
 
 ## Context
 
