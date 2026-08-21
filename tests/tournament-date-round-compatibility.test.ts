@@ -30,7 +30,11 @@ test("round allocation locks the owned tournament and is independently deployabl
   assert.match(migration, /select coalesce\(max\(round\.round_number\), 0\) \+ 1/);
   assert.match(migration, /insert into public\.tournament_rounds/);
   assert.match(migration, /grant execute on function public\.create_tournament_round/);
+  assert.match(migration, /raise exception using errcode = 'P0002', message = 'Tournament could not be found\.'/);
   assert.doesNotMatch(migration, /commit_tournament_deck_list|deck_lists|public\.decks/);
+
+  const canonicalSchema = readFileSync(join(process.cwd(), "schema.sql"), "utf8");
+  assert.match(canonicalSchema, /create or replace function public\.create_tournament_round[\s\S]*raise exception using errcode = 'P0002'/);
 });
 
 test("pre-migration round creation keeps a narrowly classified RPC fallback", () => {

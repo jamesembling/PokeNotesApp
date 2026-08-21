@@ -1921,7 +1921,9 @@ begin
   perform 1 from public.tournaments as tournament
     where tournament.id = p_tournament_id and tournament.user_id = v_user_id
     for update;
-  if not found then return null; end if;
+  if not found then
+    raise exception using errcode = 'P0002', message = 'Tournament could not be found.';
+  end if;
   select coalesce(max(round.round_number), 0) + 1 into v_round_number
     from public.tournament_rounds as round
     where round.tournament_id = p_tournament_id and round.user_id = v_user_id;

@@ -73,6 +73,10 @@ function revalidateTournamentWorkspace(tournamentId?: string) {
 }
 
 function toUserFacingDatabaseError(error: PostgrestLikeError) {
+  if (error.code === "P0002" && /tournament could not be found/i.test(String(error.message || ""))) {
+    return userFacingActionError("Tournament could not be found.");
+  }
+
   if (isOutdatedTournamentRoundResultConstraint(error)) {
     return userFacingActionError(
       "Your Supabase tournament round constraint is out of date. Run the latest tournament rounds SQL update, then try again."

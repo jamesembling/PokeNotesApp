@@ -44,7 +44,7 @@ begin
   for update;
 
   if not found then
-    return null;
+    raise exception using errcode = 'P0002', message = 'Tournament could not be found.';
   end if;
 
   select coalesce(max(round.round_number), 0) + 1
