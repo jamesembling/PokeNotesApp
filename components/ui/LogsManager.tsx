@@ -20,7 +20,10 @@ import { LogRow } from "@/components/ui/LogRow";
 import { PageActions } from "@/components/ui/PageActions";
 import { ItemTitle } from "@/components/ui/Typography";
 import { formatDayDate } from "@/lib/client/date-format";
-import { resolveDeckListName } from "@/lib/deck-lists/resolve-name";
+import {
+  composeDeckListNameOptions,
+  resolveDeckListName
+} from "@/lib/deck-lists/resolve-name";
 import {
   makeDeckListSelectionKey,
   parseDeckListSelectionKey,
@@ -213,18 +216,7 @@ function attachLinkedDeckListNames(
   userDecks: DeckSelectionOption[],
   userDeckLists: DeckListSelectionOption[]
 ) {
-  const options: DeckListSelectionOption[] = [
-    ...userDeckLists,
-    ...userDecks.flatMap((deck) =>
-      deck.deckLists.map((deckList) => ({
-        id: deckList.id,
-        name: deckList.name,
-        deckId: deck.id,
-        deckName: deck.deckName,
-        source: "legacy" as const
-      }))
-    )
-  ];
+  const options = composeDeckListNameOptions(userDeckLists, userDecks);
 
   return logs.map((log) => {
     if (!log.linkedDeckListId) {

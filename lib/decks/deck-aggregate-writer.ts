@@ -255,14 +255,23 @@ export function createDeckAggregateWriter(
     const existingDeckLists = deckId && (!adapter.loadDeckList || !existingDeckList)
       ? await adapter.loadLegacyChildren({ deckId, kind: "deck-list" })
       : null;
-    const legacyExistingDeckList = deckListId
-      ? (existingDeckLists?.find(
+    const legacyMatches = deckListId
+      ? (existingDeckLists ?? []).filter(
           (entry) =>
             entry &&
             typeof entry === "object" &&
             "id" in entry &&
             String((entry as { id?: unknown }).id || "") === deckListId
-        ) ?? (loadedDeckList?.storage === "legacy" ? loadedDeckList : null))
+        )
+      : [];
+    const legacyExistingDeckList = deckListId
+      ? (legacyMatches.length === 1
+          ? legacyMatches[0]
+          : legacyMatches.length > 1
+            ? null
+            : loadedDeckList?.storage === "legacy"
+              ? loadedDeckList
+              : null)
       : null;
     const name = String(command.name || "").trim();
     const rawList = String(command.rawList || "").trim();
@@ -698,60 +707,12 @@ function createSupabaseDeckAggregateWriteAdapter(input: {
     },
 
     async loadDeckList({ deckId, deckListId }) {
-      let query = supabase
-        .from("deck_lists")
-        .select([
-          "id",
-          "deck_id",
-          "name",
-          "format",
-          "date",
-          "created_by",
-          "notes",
-          "raw_list",
-          "parsed_cards",
-          "sorted_cards",
-          "sorted_cards_version",
-          "created_at",
-          "updated_at"
-        ].join(","))
-        .eq("user_id", userId)
-        .eq("id", deckListId);
-
-      query = deckId ? query.eq("deck_id", deckId) : query.is("deck_id", null);
-      const { data, error } = await query.maybeSingle();
-      if (error) {
-        throw error;
-      }
-
-      if (!data) {
-        if (!deckId) {
+      function mapLegacyList(value: unknown, sourceDeckId: string): DeckList | null {
+        if (!value || typeof value !== "object") {
           return null;
         }
 
-        const { data: legacyDeck, error: legacyError } = await supabase
-          .from("decks")
-          .select("deck_lists")
-          .eq("user_id", userId)
-          .eq("id", deckId)
-          .maybeSingle();
-        if (legacyError) {
-          throw legacyError;
-        }
-
-        const legacyList = Array.isArray(legacyDeck?.deck_lists)
-          ? legacyDeck.deck_lists.find(
-              (entry) =>
-                entry &&
-                typeof entry === "object" &&
-                String((entry as { id?: unknown }).id || "") === deckListId
-            )
-          : null;
-        if (!legacyList || typeof legacyList !== "object") {
-          return null;
-        }
-
-        const legacy = legacyList as Record<string, unknown>;
+        const legacy = value as Record<string, unknown>;
         const parsedCards = (Array.isArray(legacy.parsedCards)
           ? legacy.parsedCards
           : Array.isArray(legacy.parsed_cards)
@@ -766,7 +727,7 @@ function createSupabaseDeckAggregateWriteAdapter(input: {
           createdAt: String(legacy.createdAt || legacy.created_at || ""),
           createdBy: String(legacy.createdBy || legacy.created_by || ""),
           date: String(legacy.date || ""),
-          deckId,
+          deckId: sourceDeckId,
           format: String(legacy.format || ""),
           id: deckListId,
           name: String(legacy.name || ""),
@@ -792,6 +753,70 @@ function createSupabaseDeckAggregateWriteAdapter(input: {
           storage: "legacy",
           updatedAt: String(legacy.updatedAt || legacy.updated_at || "")
         } satisfies DeckList;
+      }
+
+      const query = supabase
+        .from("deck_lists")
+        .select([
+          "id",
+          "deck_id",
+          "name",
+          "format",
+          "date",
+          "created_by",
+          "notes",
+          "raw_list",
+          "parsed_cards",
+          "sorted_cards",
+          "sorted_cards_version",
+          "created_at",
+          "updated_at"
+        ].join(","))
+        .eq("user_id", userId)
+        .eq("id", deckListId);
+
+      const { data, error } = await query.maybeSingle();
+      if (error) {
+        throw error;
+      }
+
+      const { data: targetDeck, error: targetDeckError } = deckId
+        ? await supabase
+            .from("decks")
+            .select("id,deck_lists")
+            .eq("user_id", userId)
+            .eq("id", deckId)
+            .maybeSingle()
+        : { data: null, error: null };
+      if (targetDeckError) {
+        throw targetDeckError;
+      }
+
+      const legacyCandidates = deckId && targetDeck
+        ? (Array.isArray(targetDeck.deck_lists) ? targetDeck.deck_lists : [])
+            .filter(
+              (entry) =>
+                entry &&
+                typeof entry === "object" &&
+                String((entry as { id?: unknown }).id || "") === deckListId
+            )
+            .map((entry) => mapLegacyList(entry, deckId))
+            .filter((entry): entry is DeckList => entry !== null)
+        : [];
+
+      if (!data) {
+        if (!deckId) {
+          return null;
+        }
+        return legacyCandidates.length === 1 ? legacyCandidates[0] : null;
+      }
+
+      if (legacyCandidates.length > 1) {
+        return null;
+      }
+
+      if (legacyCandidates.length === 1) {
+        return legacyCandidates[0];
       }
 
       const row = data as unknown as {

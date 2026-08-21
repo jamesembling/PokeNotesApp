@@ -1,6 +1,9 @@
 import { getDeckSelectionOptionsByIds } from "@/lib/db/decks";
 import { getDeckListSelectionOptions } from "@/lib/db/deck-lists";
-import { resolveDeckListName } from "@/lib/deck-lists/resolve-name";
+import {
+  composeDeckListNameOptions,
+  resolveDeckListName
+} from "@/lib/deck-lists/resolve-name";
 import type { BattleLogSummary, DeckSelectionOption } from "@/types/index";
 import type { DeckListSelectionOption } from "@/types/index";
 import { compactMap } from "@/lib/array";
@@ -18,18 +21,7 @@ function attachLinkedDeckListNames(
   userDecks: DeckSelectionOption[],
   accountDeckLists: DeckListSelectionOption[]
 ) {
-  const options: DeckListSelectionOption[] = [
-    ...accountDeckLists,
-    ...userDecks.flatMap((deck) =>
-      deck.deckLists.map((deckList) => ({
-        id: deckList.id,
-        name: deckList.name,
-        deckId: deck.id,
-        deckName: deck.deckName,
-        source: "legacy" as const
-      }))
-    )
-  ];
+  const options = composeDeckListNameOptions(accountDeckLists, userDecks);
 
   return logs.map((log) => {
     if (!log.linkedDeckListId) {

@@ -1,4 +1,49 @@
-import type { DeckListSelectionOption } from "@/types/index";
+import type {
+  DeckListSelectionOption,
+  DeckSelectionOption
+} from "@/types/index";
+
+function nameOptionIdentity(option: DeckListSelectionOption) {
+  return [
+    option.source ?? "legacy",
+    option.id,
+    option.deckId ?? null,
+    option.name,
+    option.deckName ?? null
+  ].join("\u0000");
+}
+
+/**
+ * Compose account-owned relational/legacy options with the strategy payload
+ * used by older callers. The account option list already contains any legacy
+ * fallback, so an identical raw strategy copy is only a duplicate transport
+ * representation. Distinct names or identities remain separate so genuine
+ * legacy ambiguity still fails closed in resolveDeckListName.
+ */
+export function composeDeckListNameOptions(
+  accountDeckLists: DeckListSelectionOption[],
+  userDecks: DeckSelectionOption[]
+) {
+  const options = [...accountDeckLists];
+  const accountOptionIdentities = new Set(accountDeckLists.map(nameOptionIdentity));
+
+  for (const deck of userDecks) {
+    for (const deckList of deck.deckLists) {
+      const option: DeckListSelectionOption = {
+        deckId: deck.id,
+        deckName: deck.deckName,
+        id: deckList.id,
+        name: deckList.name,
+        source: "legacy"
+      };
+      if (!accountOptionIdentities.has(nameOptionIdentity(option))) {
+        options.push(option);
+      }
+    }
+  }
+
+  return options;
+}
 
 /**
  * Resolve a display name using the same composite identity as a persisted

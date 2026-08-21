@@ -294,6 +294,27 @@ async function getLegacyReference(
   return candidates.length === 1 ? candidates[0] : null;
 }
 
+export function resolveDeckListByIdentity(
+  relationalList: DeckList | null,
+  legacyCandidates: DeckList[],
+  requestedDeckId: string | null | undefined,
+  requestedStrategyExists: boolean
+) {
+  if (!relationalList) {
+    return legacyCandidates.length === 1 ? legacyCandidates[0] : null;
+  }
+
+  if (!requestedDeckId || !requestedStrategyExists) {
+    return relationalList;
+  }
+
+  if (legacyCandidates.length === 1) {
+    return legacyCandidates[0];
+  }
+
+  return legacyCandidates.length > 1 ? null : relationalList;
+}
+
 export async function validateDeckListReference(input: {
   linkedDeckId?: string | null;
   linkedDeckListId?: string | null;
@@ -396,7 +417,7 @@ export async function getDeckListById(
   }
 
   if (relationalList) {
-    if (!deckId || relationalList.deckId === deckId) {
+    if (!deckId) {
       return relationalList;
     }
 
@@ -409,20 +430,18 @@ export async function getDeckListById(
     if (targetDeckError) {
       throw targetDeckError;
     }
-    if (!targetDeck) {
-      return null;
-    }
 
-    const legacyCandidates = await getLegacyCandidates(deckId);
-    return legacyCandidates.length === 1
-      ? legacyCandidates[0]
-      : legacyCandidates.length > 1
-        ? null
-        : relationalList;
+    const legacyCandidates = targetDeck ? await getLegacyCandidates(deckId) : [];
+    return resolveDeckListByIdentity(
+      relationalList,
+      legacyCandidates,
+      deckId,
+      Boolean(targetDeck)
+    );
   }
 
   const candidates = await getLegacyCandidates(deckId);
-  return candidates.length === 1 ? candidates[0] : null;
+  return resolveDeckListByIdentity(null, candidates, deckId, Boolean(deckId));
 }
 
 export async function getDeckLists(userId: string): Promise<DeckList[]> {
