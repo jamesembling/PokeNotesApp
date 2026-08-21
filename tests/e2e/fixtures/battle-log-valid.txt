@@ -1,0 +1,13 @@
+Setup
+E2ETrainer drew 7 cards for the opening hand.
+FixtureOpponent drew 7 cards for the opening hand.
+E2ETrainer won the coin toss.
+E2ETrainer decided to go first.
+Turn # 1 - E2ETrainer's Turn
+E2ETrainer played Dreepy to the Bench.
+E2ETrainer's Dragapult ex used Phantom Dive for 200 damage.
+E2ETrainer took a Prize card.
+Turn # 2 - FixtureOpponent's Turn
+FixtureOpponent played Charmander to the Bench.
+FixtureOpponent's Charizard ex used Burning Darkness for 180 damage.
+FixtureOpponent conceded. E2ETrainer wins.

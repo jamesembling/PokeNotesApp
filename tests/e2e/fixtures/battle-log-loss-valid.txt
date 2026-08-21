@@ -1,0 +1,17 @@
+Setup
+E2ETrainer drew 7 cards for the opening hand.
+FixtureGardevoir drew 7 cards for the opening hand.
+FixtureGardevoir won the coin toss.
+FixtureGardevoir decided to go first.
+Turn # 1 - FixtureGardevoir's Turn
+FixtureGardevoir played Ralts to the Bench.
+FixtureGardevoir's Gardevoir ex used Miracle Force for 190 damage.
+FixtureGardevoir took a Prize card.
+Turn # 2 - E2ETrainer's Turn
+E2ETrainer played Dreepy to the Bench.
+E2ETrainer's Dragapult ex used Phantom Dive for 200 damage.
+E2ETrainer took a Prize card.
+Turn # 3 - FixtureGardevoir's Turn
+FixtureGardevoir's Gardevoir ex used Miracle Force for 190 damage.
+FixtureGardevoir took a Prize card.
+E2ETrainer conceded. FixtureGardevoir wins.

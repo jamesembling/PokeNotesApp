@@ -44,6 +44,19 @@ npm run dev
 
 ### Authenticated local testing
 
+For repeatable state-changing browser journeys, use the isolated local Supabase stack. It contains synthetic fixtures and cannot target a linked hosted project:
+
+```bash
+npm run e2e:local:setup
+npm run dev:e2e
+# In another terminal:
+npm run auth:e2e:save
+```
+
+Reset with `npm run e2e:local:reset` before a full run, then save auth again because reset replaces the local user. See [`docs/agents/local-e2e.md`](./docs/agents/local-e2e.md) for fixture IDs, safety rules, lifecycle commands, and verification.
+
+The existing-account flow below remains available for non-destructive local checks against a configured development project. Do not use it for the resettable browser suite.
+
 The production app does not provide a test-login route. The development-only local login requires
 the current pairing code on both localhost and a phone; there is no trusted-host shortcut.
 
@@ -150,6 +163,9 @@ Run `npm run` for the complete script list. Common commands are:
 - `npm run auth:local:setup` configures the existing local test account and allowed LAN hosts
 - `npm run auth:local:copy-code` copies the local pairing code without printing it
 - `npm run auth:local:save` submits that code in the localhost login form and refreshes the host-scoped agent-browser state
+- `npm run e2e:local:setup` starts and resets isolated local Supabase, then loads synthetic browser fixtures
+- `npm run dev:e2e` starts the app against the isolated local database
+- `npm run auth:e2e:save` refreshes the localhost-only browser state for the synthetic account
 - `npm run perf:probe` probes configured local page/API routes without making localhost the production benchmark
 - `npm run perf:prod:auth` opens an attended Google login and saves host-filtered production auth state
 - `npm run perf:prod` replays the authenticated production route journey

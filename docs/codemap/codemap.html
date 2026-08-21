@@ -155,7 +155,7 @@ svg{width:100%;height:100%;display:block;touch-action:none}.boundary{fill:#0b132
       "path": "app/(app)/tournaments/actions.ts",
       "role": "Records tournament metadata, deck snapshots and lists, placements, rounds, game results, and notes.",
       "entrypoints": ["createTournamentAction", "saveTournamentDeckListAction", "saveTournamentRoundAction"],
-      "tests": ["tests/tournament-display.test.ts", "tests/issue-board-regression.test.ts"],
+      "tests": ["tests/tournament-display.test.ts", "tests/tournament-date-round-compatibility.test.ts"],
       "constraints": ["Tournament format must be in the synced site-format catalogue.", "Round and linked-deck ownership are enforced in actions and database constraints."],
       "evidence": [{"path": "app/(app)/tournaments/actions.ts", "symbol": "saveTournamentRoundAction"}]
     },

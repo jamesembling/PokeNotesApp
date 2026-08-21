@@ -20,6 +20,17 @@ test("reversed tournament dates fail before persistence", () => {
   );
 });
 
+test("blank tournament end dates normalize to the start date", () => {
+  const formData = new FormData();
+  formData.set("dateFrom", "2026-05-10");
+  formData.set("dateTo", "");
+
+  assert.deepEqual(normalizeTournamentDateRange(formData), {
+    dateFrom: "2026-05-10",
+    dateTo: "2026-05-10"
+  });
+});
+
 test("equal dates remain single-day when reopening the editor", () => {
   assert.equal(isTournamentMultiDay("2026-08-10", "2026-08-10"), false);
   assert.equal(isTournamentMultiDay("2026-08-10", "2026-08-11"), true);

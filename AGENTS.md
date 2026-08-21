@@ -17,3 +17,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Deck-list ordering:** Before changing a deck-list sort, snapshot, share, or `sortedCards` path, read `docs/agents/deck-list-ordering.md`.
 - **Performance:** Before making or reporting a performance claim, read `docs/performance-targets.md` and identify the measurement source.
 - **Authenticated browser checks:** When a PokeNotes page reaches a login wall, use the `pokenotes-browser-auth` skill when available; otherwise follow README **Authenticated local testing**.
+- **Local database and browser E2E:** Before starting or resetting local Supabase, changing browser fixtures, or running authenticated state-changing UI checks, read `docs/agents/local-e2e.md`. Use the committed synthetic fixtures and fixed local-only commands; production data and hosted databases stay outside this workflow.
+- **Tests:** Before adding, renaming, consolidating, or reviewing tests, read `docs/agents/testing.md`. Tests are owned by durable behavior and production seams, not by PRs, review rounds, fixes, or implementation phases.

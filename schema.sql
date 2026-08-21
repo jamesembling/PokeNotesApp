@@ -269,12 +269,23 @@ create table public.logs (
   raw_log                 text not null default '',
   sections                jsonb not null default '[]',
 
+  -- Private owner-authored annotation, normalized at the database boundary
+  match_notes             text,
+
   -- Full text search vector — updated by trigger
   search_vector           tsvector,
 
   imported_at             timestamptz not null default now(),
   created_at              timestamptz not null default now(),
-  updated_at              timestamptz not null default now()
+  updated_at              timestamptz not null default now(),
+  constraint logs_match_notes_normalized
+    check (
+      match_notes is null
+      or (
+        match_notes = btrim(match_notes, E' \t\n\r')
+        and length(match_notes) > 0
+      )
+    )
 );
 
 comment on table public.logs is
@@ -287,6 +298,8 @@ comment on column public.logs.coin_toss_won is
   'Whether the self player won the opening coin toss. Null if not determinable from the log.';
 comment on column public.logs.linked_deck_list_id is
   'References a deck list within linked_deck_id. Not a foreign key as deck lists are stored in JSONB.';
+comment on column public.logs.match_notes is
+  'Private owner-authored notes. Null means no note; non-null values are trimmed and non-empty.';
 
 create table public.user_log_stats (
   user_id                  uuid primary key references auth.users(id) on delete cascade,
@@ -3782,8 +3795,8 @@ alter function public.set_updated_at()
 alter function public.update_log_search_vector()
   set search_path = pg_catalog;
 
-revoke all on function public.rls_auto_enable()
-  from public, anon, authenticated;
+-- rls_auto_enable was an environment helper rather than part of this schema.
+-- A fresh project has no such function, so there is nothing to revoke here.
 
 notify pgrst, 'reload schema';
 

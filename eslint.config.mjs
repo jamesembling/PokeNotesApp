@@ -12,6 +12,14 @@ export default [
     }
   },
   {
-    ignores: ["node_modules/**", ".next/**", "coverage/**", "dist/**", "out/**", "next-env.d.ts"]
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      ".next-e2e/**",
+      "coverage/**",
+      "dist/**",
+      "out/**",
+      "next-env.d.ts"
+    ]
   }
 ];

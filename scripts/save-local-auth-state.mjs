@@ -26,6 +26,9 @@ const agentBrowserBin = resolve(
 
 loadDotenv({ path: envPath, override: false });
 loadDotenv({ path: localEnvPath, override: true });
+if (process.env.POKENOTES_ENV_FILE) {
+  loadDotenv({ path: resolve(rootDir, process.env.POKENOTES_ENV_FILE), override: true });
+}
 
 const args = new Map();
 for (const arg of process.argv.slice(2)) {
@@ -44,7 +47,11 @@ if (!existsSync(agentBrowserBin)) {
 }
 
 if (!pairingCode) {
-  throw new Error("Missing local pairing code. Run npm run auth:local:setup first.");
+  throw new Error(
+    process.env.POKENOTES_ENV_FILE
+      ? "Missing local E2E pairing code. Run npm run e2e:local:setup first."
+      : "Missing local pairing code. Run npm run auth:local:setup first."
+  );
 }
 
 await assertDevServerReady(baseUrl);
@@ -139,7 +146,11 @@ function assertDevServerReady(baseUrlValue) {
     });
     request.on("error", () => {
       rejectReady(
-        new Error(`Local dev server is not reachable at ${baseUrlValue}. Start it with npm run dev:test-login.`)
+        new Error(
+          `Local dev server is not reachable at ${baseUrlValue}. Start it with ${
+            process.env.POKENOTES_ENV_FILE ? "npm run dev:e2e" : "npm run dev:test-login"
+          }.`
+        )
       );
     });
     request.end();

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createDeckAggregateWriter,
+  isDeckListStaleVersionError,
+  isMissingFirstClassDeckListRpc,
   type DeckListCommitPlan,
   type DeckListCommitResult,
   type SaveDeckListCommand
@@ -225,4 +227,59 @@ test("standalone updates carry the observed version for stale-write rejection", 
   assert.equal(harness.plans[0].operation, "update");
   assert.equal(harness.plans[0].expectedChildUpdatedAt, EXISTING_UPDATED_AT);
   assert.equal(harness.plans[0].deckId, null);
+});
+
+test("rollout fallback recognizes only the intended missing first-class RPC", () => {
+  assert.equal(
+    isMissingFirstClassDeckListRpc({
+      code: "42883",
+      message:
+        "function public.commit_first_class_deck_list(text, text, jsonb, text, timestamp with time zone, timestamp with time zone) does not exist"
+    }),
+    true
+  );
+  assert.equal(
+    isMissingFirstClassDeckListRpc({
+      code: "PGRST202",
+      details:
+        "Searched for the function public.commit_first_class_deck_list with parameters p_deck_id, p_operation, p_payload, p_creation_key, p_expected_updated_at, p_updated_at"
+    }),
+    true
+  );
+  assert.equal(
+    isMissingFirstClassDeckListRpc({
+      code: "42883",
+      message: "function public.commit_first_class_deck_list_internal(text) does not exist"
+    }),
+    false
+  );
+  assert.equal(
+    isMissingFirstClassDeckListRpc({ code: "42883", message: "operator does not exist" }),
+    false
+  );
+});
+
+test("stale RPC errors are narrowly classified for refresh-and-retry guidance", () => {
+  assert.equal(
+    isDeckListStaleVersionError({
+      code: "P0001",
+      message: "Deck List changed; refresh-and-retry before saving."
+    }),
+    true
+  );
+  assert.equal(
+    isDeckListStaleVersionError({
+      code: "P0001",
+      message: "Deck List association changed; refresh-and-retry before changing its association."
+    }),
+    true
+  );
+  assert.equal(
+    isDeckListStaleVersionError({ code: "P0001", message: "Deck Strategy could not be found." }),
+    false
+  );
+  assert.equal(
+    isDeckListStaleVersionError({ code: "23505", message: "Deck List changed; refresh-and-retry." }),
+    false
+  );
 });

@@ -77,7 +77,7 @@ type SaveActionResult = {
   redirectTo: string;
 };
 
-export type AddMatchNotesResult = {
+export type SaveMatchNotesResult = {
   matchNotes: string | null;
   ok: true;
 };
@@ -398,9 +398,9 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
   }
 }
 
-export async function addMatchNotesAction(
+export async function saveMatchNotesAction(
   formData: FormData
-): Promise<AddMatchNotesResult> {
+): Promise<SaveMatchNotesResult> {
   const logId = String(formData.get("logId") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
@@ -423,13 +423,11 @@ export async function addMatchNotesAction(
     };
   } catch (error) {
     if (error instanceof MatchNotesWriteConflictError) {
-      throw userFacingActionError(
-        "This battle log is unavailable or already has match notes."
-      );
+      throw userFacingActionError("This battle log is unavailable.");
     }
 
     throw resolveActionFailure(error, {
-      action: "addMatchNotes",
+      action: "saveMatchNotes",
       area: "logs",
       fallbackMessage: "We couldn't save those match notes right now.",
       route: `/logs/${logId}`

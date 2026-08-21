@@ -28,7 +28,7 @@ export function LazyMatchNotesButton({
   const [hasOpened, setHasOpened] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const label = notes ? "View match notes" : "Add match notes";
+  const label = notes ? "Edit match notes" : "Add match notes";
 
   return (
     <>

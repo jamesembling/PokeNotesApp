@@ -105,6 +105,32 @@ test("legacy JSON remains a read-compatible fallback for an owned strategy", asy
   assert.equal(result.deckListId, "legacy-list");
 });
 
+test("an exact legacy copy wins over a same-id relational list from another strategy", async () => {
+  const supabase = createSupabase({
+    deckLists: [
+      { deck_id: "strategy-a", id: "shared-id", name: "Relational A", user_id: "user-1" }
+    ],
+    decks: [
+      {
+        deck_lists: [{ id: "shared-id", name: "Legacy B" }],
+        deck_name: "Strategy B",
+        id: "strategy-b",
+        user_id: "user-1"
+      }
+    ]
+  });
+
+  const result = await validateDeckListReference({
+    linkedDeckId: "strategy-b",
+    linkedDeckListId: "shared-id",
+    supabase: supabase as never,
+    userId: "user-1"
+  });
+
+  assert.equal(result.deckId, "strategy-b");
+  assert.equal(result.list?.name, "Legacy B");
+});
+
 test("legacy JSON cannot be selected without an explicitly supplied strategy", async () => {
   const supabase = createSupabase({
     decks: [

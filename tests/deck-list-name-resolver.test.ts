@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { DeckListSelectionSource } from "@/lib/db/deck-lists";
-import { resolveDeckListName } from "@/lib/deck-lists/resolve-name";
-import type { DeckListSelectionOption } from "@/types/index";
+import { composeDeckListNameOptions, resolveDeckListName } from "@/lib/deck-lists/resolve-name";
+import type { DeckListSelectionOption, DeckSelectionOption } from "@/types/index";
 
 const options: DeckListSelectionOption[] = [
   { id: "shared", name: "Strategy A copy", deckId: "strategy-a", deckName: "A" },
@@ -86,4 +86,33 @@ test("exact legacy identity wins, while ambiguous legacy copies cannot overwrite
 
   assert.equal(resolveDeckListName(exactLegacy, "strategy-b", "shared"), "Legacy B");
   assert.equal(resolveDeckListName(ambiguousLegacy, "strategy-b", "shared"), "Relational A");
+});
+
+test("name hydration preserves provenance without hiding ambiguous legacy copies", () => {
+  const relational: DeckListSelectionOption = {
+    deckId: "strategy-a",
+    deckName: "A",
+    id: "shared",
+    name: "Relational A",
+    source: "relational"
+  };
+  const legacy: DeckListSelectionOption = {
+    deckId: "strategy-b",
+    deckName: "B",
+    id: "shared",
+    name: "Legacy B",
+    source: "legacy"
+  };
+  const userDecks: DeckSelectionOption[] = [
+    { deckName: "B", deckLists: [{ id: "shared", name: "Legacy B" }], id: "strategy-b" }
+  ];
+
+  const composed = composeDeckListNameOptions([relational, legacy], userDecks);
+  assert.equal(resolveDeckListName(composed, "strategy-b", "shared"), "Legacy B");
+
+  const ambiguous = composeDeckListNameOptions(
+    [relational, legacy, { ...legacy, name: "Legacy B duplicate" }],
+    userDecks
+  );
+  assert.equal(resolveDeckListName(ambiguous, "strategy-b", "shared"), "Relational A");
 });

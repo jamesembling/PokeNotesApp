@@ -19,10 +19,12 @@ type MatchNotesQueryOp = {
 
 function createMatchNotesClient({
   error = null,
+  initialValue = null,
   logId = "log-1",
   ownerUserId = "owner-1"
 }: {
   error?: unknown;
+  initialValue?: string | null;
   logId?: string;
   ownerUserId?: string;
 } = {}) {
@@ -52,10 +54,16 @@ function createMatchNotesClient({
           operation.args[0] === "id" &&
           operation.args[1] === logId
       );
+      const requiresEmptyNote = operations.some(
+        (operation) =>
+          operation.method === "is" &&
+          operation.args[0] === "match_notes" &&
+          operation.args[1] === null
+      );
 
       return Promise.resolve({
         data:
-          !error && hasOwner && hasLog
+          !error && hasOwner && hasLog && (!requiresEmptyNote || initialValue === null)
             ? [{ id: logId, match_notes: updatedValue ?? null }]
             : [],
         error
@@ -114,15 +122,15 @@ test("import review exposes an accessible private optional notes field", () => {
   assert.doesNotMatch(dialog, /name="matchNotes"[\s\S]{0,300}maxLength=/);
 });
 
-test("owner match summary switches between exact add and view notes actions", () => {
+test("owner match summary switches between exact add and edit notes actions", () => {
   const shell = source("components/ui/BattleLogDetailShell.tsx");
   const button = source("components/ui/LazyMatchNotesButton.tsx");
 
   assert.match(shell, /<LazyMatchNotesButton/);
   assert.match(shell, /logId=\{log\.id\}/);
   assert.match(shell, /notes=\{log\.matchNotes\}/);
-  assert.match(button, /const label = notes \? "View match notes" : "Add match notes"/);
-  assert.equal(button.match(/View match notes/g)?.length, 1);
+  assert.match(button, /const label = notes \? "Edit match notes" : "Add match notes"/);
+  assert.equal(button.match(/Edit match notes/g)?.length, 1);
   assert.equal(button.match(/Add match notes/g)?.length, 1);
   assert.match(button, /aria-haspopup="dialog"/);
   assert.match(button, /min-h-11/);
@@ -149,26 +157,27 @@ test("mobile Match Summary actions are icon-only with exact accessible names and
   );
 });
 
-test("match notes render as multiline plain text and use the shared add dialog", () => {
+test("existing match notes open in the shared editable notes field", () => {
   const dialog = source("components/ui/MatchNotesDialog.tsx");
 
   assert.match(dialog, /<AppDialogContent/);
   assert.match(dialog, /<AppDialogHeader/);
   assert.match(dialog, /<AppDialogFooter>/);
   assert.match(dialog, /<AppDialogMobileFooter>/);
-  assert.match(dialog, /whitespace-pre-wrap/);
-  assert.match(dialog, /break-words/);
-  assert.match(dialog, /\{notes\}/);
+  assert.match(dialog, /useState\(notes \?\? ""\)/);
   assert.match(dialog, /<FieldLabel htmlFor=\{fieldId\}>Match notes<\/FieldLabel>/);
   assert.match(dialog, /aria-describedby=\{descriptionId\}/);
   assert.match(dialog, /name="matchNotes"/);
-  assert.equal(dialog.match(/\{isSaving \? "Saving\.\.\." : "Save"\}/g)?.length, 2);
+  assert.equal(
+    dialog.match(/\{isSaving \? "Saving\.\.\." : notes \? "Save changes" : "Save"\}/g)?.length,
+    2
+  );
   assert.doesNotMatch(dialog, /dangerouslySetInnerHTML|ReactMarkdown|markdown/i);
 });
 
-test("adding notes is authenticated, owner-scoped, and cannot overwrite an existing note", () => {
+test("saving notes is authenticated, owner-scoped, and refreshes the log route", () => {
   const action = source("app/(app)/logs/actions.ts");
-  const start = action.indexOf("export async function addMatchNotesAction");
+  const start = action.indexOf("export async function saveMatchNotesAction");
   const end = action.indexOf("export async function updateLogAction", start);
   const addAction = action.slice(start, end);
 
@@ -177,10 +186,10 @@ test("adding notes is authenticated, owner-scoped, and cannot overwrite an exist
   assert.match(addAction, /userId: user\.id/);
   assert.match(addAction, /value: formData\.get\("matchNotes"\)/);
   assert.match(addAction, /revalidatePath\(`\/logs\/\$\{logId\}`\)/);
-  assert.match(addAction, /already has match notes/);
+  assert.doesNotMatch(addAction, /already has match notes/);
 });
 
-test("owner-scoped persistence trims notes and performs a guarded empty-only update", async () => {
+test("owner-scoped persistence trims notes and updates the exact owned log", async () => {
   const harness = createMatchNotesClient();
 
   const saved = await persistOwnerMatchNotes(harness.client as never, {
@@ -199,7 +208,6 @@ test("owner-scoped persistence trims notes and performs a guarded empty-only upd
     },
     { args: ["user_id", "owner-1"], method: "eq" },
     { args: ["id", "log-1"], method: "eq" },
-    { args: ["match_notes", null], method: "is" },
     { args: ["id,match_notes"], method: "select" }
   ]);
 });
@@ -217,7 +225,20 @@ test("owner-scoped persistence normalizes empty input to null", async () => {
   assert.equal(harness.updatedValue, null);
 });
 
-test("owner-scoped persistence rejects another owner or an existing note", async () => {
+test("owner-scoped persistence replaces an existing match note", async () => {
+  const harness = createMatchNotesClient({ initialValue: "Original note" });
+
+  const saved = await persistOwnerMatchNotes(harness.client as never, {
+    logId: "log-1",
+    userId: "owner-1",
+    value: "  Updated note after reviewing the match.  "
+  });
+
+  assert.equal(saved, "Updated note after reviewing the match.");
+  assert.equal(harness.updatedValue, "Updated note after reviewing the match.");
+});
+
+test("owner-scoped persistence rejects another owner", async () => {
   const harness = createMatchNotesClient();
 
   await assert.rejects(
@@ -244,10 +265,10 @@ test("owner-scoped persistence propagates database failures for action feedback"
   );
 });
 
-test("the add dialog refreshes into the saved state and reports failures inline", () => {
+test("the notes dialog refreshes into the saved state and reports failures inline", () => {
   const dialog = source("components/ui/MatchNotesDialog.tsx");
 
-  assert.match(dialog, /await addMatchNotesAction\(formData\)/);
+  assert.match(dialog, /await saveMatchNotesAction\(formData\)/);
   assert.match(dialog, /onOpenChange\(false\)/);
   assert.match(dialog, /router\.refresh\(\)/);
   assert.match(dialog, /setSaveError\(error instanceof Error \? error\.message/);

@@ -27,6 +27,19 @@ Before opening a pull request, run the relevant checks:
 
 If your change touches production behavior, also run `npm run build` when practical.
 
+## Test Strategy
+
+Tests protect durable behavior through the narrowest observable production seam. Add a case when it covers a distinct failure class, boundary, state transition, permission, or integration—not merely because a review comment or implementation branch exists.
+
+- Extend the existing behavior-owned file when that seam already has coverage. Create a new file only for a genuinely new subsystem or test level.
+- Name files and cases after product behavior or production seams. PR numbers, issue numbers, review rounds, fixes, corrections, and implementation phases belong in Git history rather than test names.
+- Use source-text assertions only when text is the real contract, such as configuration, generated artifacts, migration ledgers, or workflow policy. UI behavior requires rendered interaction or browser evidence; database behavior requires an executable database boundary.
+- Before opening a pull request, inspect the test delta for duplication, temporary review artifacts, superseded cases, and tests that can pass without the claimed behavior.
+
+The complete admission, placement, evidence, and consolidation rules are in [the testing guide](./docs/agents/testing.md).
+
+Authenticated, state-changing browser checks use the resettable synthetic Supabase environment, not a production-backed account. Follow [the local browser-test database guide](./docs/agents/local-e2e.md); `npm run e2e:local:reset` restores the known fixture state.
+
 ## Git Hooks
 
 This repo uses tracked hooks under `.githooks/`. Install them for a checkout with:

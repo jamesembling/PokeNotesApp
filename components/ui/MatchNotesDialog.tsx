@@ -2,7 +2,7 @@
 
 import { useId, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
-import { addMatchNotesAction } from "@/app/(app)/logs/actions";
+import { saveMatchNotesAction } from "@/app/(app)/logs/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
 import { Dialog } from "@/components/shadcn/dialog";
@@ -37,7 +37,7 @@ export function MatchNotesDialog({
   const router = useRouter();
   const descriptionId = useId();
   const fieldId = useId();
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(notes ?? "");
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -46,7 +46,7 @@ export function MatchNotesDialog({
     setIsSaving(true);
 
     try {
-      await addMatchNotesAction(formData);
+      await saveMatchNotesAction(formData);
       onOpenChange(false);
       router.refresh();
     } catch (error) {
@@ -70,28 +70,21 @@ export function MatchNotesDialog({
         <AppDialogHeader
           description={
             notes
-              ? "Private notes recorded for this battle log."
+              ? "Edit the private notes recorded for this battle log."
               : "Add private notes to this battle log."
           }
           descriptionHidden={false}
           title="Match notes"
         />
-        {notes ? (
+        <form
+          className="contents"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSubmit(new FormData(event.currentTarget));
+          }}
+        >
+          <input name="logId" type="hidden" value={logId} />
           <div className="min-h-0 overflow-y-auto px-4 py-5 sm:px-5">
-            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-card-foreground">
-              {notes}
-            </p>
-          </div>
-        ) : (
-          <form
-            className="contents"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleSubmit(new FormData(event.currentTarget));
-            }}
-          >
-            <input name="logId" type="hidden" value={logId} />
-            <div className="min-h-0 overflow-y-auto px-4 py-5 sm:px-5">
               {saveError ? (
                 <Alert className="mb-4" variant="loss">
                   <AlertDescription>{saveError}</AlertDescription>
@@ -113,19 +106,18 @@ export function MatchNotesDialog({
                   Optional and private to you. Match notes are not included in shared links.
                 </FieldDescription>
               </Field>
-            </div>
-            <AppDialogFooter>
-              <Button disabled={isSaving} type="submit">
-                {isSaving ? "Saving..." : "Save"}
-              </Button>
-            </AppDialogFooter>
-            <AppDialogMobileFooter>
-              <Button className="min-h-11 w-full" disabled={isSaving} type="submit">
-                {isSaving ? "Saving..." : "Save"}
-              </Button>
-            </AppDialogMobileFooter>
-          </form>
-        )}
+          </div>
+          <AppDialogFooter>
+            <Button disabled={isSaving} type="submit">
+              {isSaving ? "Saving..." : notes ? "Save changes" : "Save"}
+            </Button>
+          </AppDialogFooter>
+          <AppDialogMobileFooter>
+            <Button className="min-h-11 w-full" disabled={isSaving} type="submit">
+              {isSaving ? "Saving..." : notes ? "Save changes" : "Save"}
+            </Button>
+          </AppDialogMobileFooter>
+        </form>
       </AppDialogContent>
     </Dialog>
   );

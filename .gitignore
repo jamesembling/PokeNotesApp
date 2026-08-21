@@ -92,6 +92,7 @@ ARCHETYPE_CATALOG_STARTER.md
 
 # Next.js build output
 .next
+.next-e2e
 out
 
 # Nuxt.js build / generate output
@@ -155,3 +156,9 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vercel
+
+# Generated local Supabase E2E runtime. The committed config lives beside it;
+# the current schema snapshot is copied here by scripts/local-e2e.mjs.
+/tests/e2e/supabase/.branches/
+/tests/e2e/supabase/.temp/
+/tests/e2e/supabase/migrations/

@@ -1,15 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import test from "node:test";
 import {
   resolveTournamentDeckListForDisplay,
   saveTournamentDeckListForTournament
 } from "@/lib/tournaments/deck-list-workflow";
-
-function source(path: string) {
-  return readFileSync(join(process.cwd(), path), "utf8");
-}
 
 test("Tournament detail displays a standalone Deck List after its Strategy is deleted", async () => {
   const calls: Array<{ deckId: string | null; deckListId: string; userId: string }> = [];
@@ -90,16 +84,4 @@ test("adding a Tournament Deck List creates a standalone list without a hidden S
     }
   ]);
   assert.deepEqual(result, { deckId: null, deckListId: "list-1" });
-});
-
-test("Tournament validation errors preserve every value already entered in the editor", () => {
-  const dialog = source("components/ui/TournamentEditorDialog.tsx");
-  const formStart = dialog.indexOf("<form");
-  const formEnd = dialog.indexOf("ref={formRef}", formStart) + "ref={formRef}".length;
-  const formOpeningTag = dialog.slice(formStart, formEnd + 1);
-
-  assert.match(formOpeningTag, /onSubmit=\{\(event\) => \{/);
-  assert.match(formOpeningTag, /event\.preventDefault\(\)/);
-  assert.match(formOpeningTag, /handleSubmit\(new FormData\(event\.currentTarget\)\)/);
-  assert.doesNotMatch(formOpeningTag, /action=\{handleSubmit\}/);
 });

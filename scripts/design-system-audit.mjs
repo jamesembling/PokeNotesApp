@@ -68,6 +68,10 @@ const disallowedPatterns = [
     message: "Use AppDialogContent instead of copying dialog shell classes."
   },
   {
+    pattern: /<ButtonGroup[^>]*className="[^"]*\bborder-t\b[^"]*"/,
+    message: "Keep dialog separators on AppDialogFooter instead of button-width groups."
+  },
+  {
     pattern: emptyPageHeaderTitlePattern,
     message: "Do not pass empty PageHeader titles; use a shared detail header pattern instead."
   },
@@ -117,6 +121,28 @@ const componentScopedTokens = new Set([
   "skeleton-width"
 ]);
 const failures = [];
+
+if (
+  !/@media \(max-width: 859px\) \{[\s\S]*?input:not\(\[type="hidden"\]\),[\s\S]*?font-size: 1rem !important;/.test(
+    globals
+  )
+) {
+  failures.push("app/globals.css: Mobile editable controls must retain the 16px text safeguard.");
+}
+
+const appDialogPath = path.join(root, "components/ui/AppDialog.tsx");
+const appDialogSource = fs.readFileSync(appDialogPath, "utf8");
+for (const [name, nextName] of [
+  ["AppDialogMobileFooter", "AppDialogFooter"],
+  ["AppDialogFooter", "AppDialogBody"]
+]) {
+  const start = appDialogSource.indexOf(`export function ${name}(`);
+  const end = appDialogSource.indexOf(`export function ${nextName}(`, start);
+  const body = appDialogSource.slice(start, end < 0 ? undefined : end);
+  if (start < 0 || !/border-t border-border/.test(body)) {
+    failures.push(`components/ui/AppDialog.tsx: ${name} must own the full-width dialog separator.`);
+  }
+}
 
 for (const filePath of files) {
   const relativePath = path.relative(root, filePath);

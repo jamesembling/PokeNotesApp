@@ -9,6 +9,14 @@ const migration = readFileSync(
 );
 const schema = readFileSync(join(process.cwd(), "schema.sql"), "utf8");
 
+function sqlFunction(source: string, name: string, endMarker: string) {
+  const start = source.indexOf(`create or replace function public.${name}`);
+  const end = source.indexOf(endMarker, start);
+  assert.ok(start >= 0, `${name} must exist`);
+  assert.ok(end > start, `${name} must have a bounded body`);
+  return source.slice(start, end);
+}
+
 test("first-class Deck List migration keeps ownership while making strategy association optional", () => {
   assert.match(migration, /alter table public\.deck_lists\s+alter column deck_id drop not null/i);
   assert.match(
@@ -73,6 +81,83 @@ test("compatibility and association paths document a single lock order", () => {
   assert.match(migration, /commit_deck_aggregate_child_legacy_parent_first/i);
   assert.match(migration, /commit_deck_aggregate_child[\s\S]*?pg_advisory_xact_lock[\s\S]*?deck_lists[\s\S]*?for update/i);
   assert.match(migration, /remove_deleted_deck_list_legacy_copy[\s\S]*?linked_deck_list_id = null[\s\S]*?old\.deck_id/i);
+});
+
+test("legacy adoption is owner-scoped, exact, and fail-closed when identity is ambiguous", () => {
+  const commit = sqlFunction(
+    migration,
+    "commit_first_class_deck_list(",
+    "revoke all on function public.commit_first_class_deck_list"
+  );
+
+  assert.match(commit, /_legacySourceDeckId/);
+  assert.match(commit, /from public\.decks[\s\S]*where user_id = v_user_id/i);
+  assert.match(commit, /v_legacy_match_count\s*<>\s*1/i);
+  assert.match(commit, /v_legacy_match_count\s*>\s*1/i);
+  assert.match(commit, /v_target_id\s*:=\s*gen_random_uuid\(\)::text/i);
+  assert.match(commit, /update public\.logs[\s\S]*linked_deck_list_id = v_list_id/i);
+  assert.match(commit, /update public\.tournaments[\s\S]*linked_deck_list_id = v_list_id/i);
+});
+
+test("deletion preserves verified independent references and clears unresolved collisions", () => {
+  for (const source of [migration, schema]) {
+    const strategyDelete = sqlFunction(
+      source,
+      "preserve_deleted_deck_legacy_references(",
+      "revoke all on function public.preserve_deleted_deck_legacy_references"
+    );
+    const listDelete = sqlFunction(
+      source,
+      "remove_deleted_deck_list_legacy_copy()",
+      "revoke all on function public.remove_deleted_deck_list_legacy_copy"
+    );
+
+    assert.match(strategyDelete, /v_legacy_count > 1/);
+    assert.match(strategyDelete, /insert into public\.deck_lists/);
+    assert.match(strategyDelete, /update public\.logs/);
+    assert.match(strategyDelete, /update public\.tournaments/);
+    assert.doesNotMatch(
+      strategyDelete,
+      /deck_list\.deck_id\s*=\s*p_deck_id\s+or\s+deck_list\.deck_id\s+is\s+null/i
+    );
+    assert.match(listDelete, /linked_deck_list_id = old\.id/);
+    assert.match(listDelete, /linked_deck_id = old\.deck_id/);
+  }
+});
+
+test("initial log reads resolve exact legacy identity without arbitrary duplicate selection", () => {
+  for (const source of [migration, schema.slice(schema.indexOf("-- Final first-class Deck List state"))]) {
+    const readModel = sqlFunction(
+      source,
+      "get_initial_logs_page_data(",
+      "revoke execute on function public.get_initial_logs_page_data"
+    );
+
+    assert.match(readModel, /legacy_deck\.user_id\s*=\s*ordered_logs\.user_id/i);
+    assert.match(readModel, /legacy_deck\.id\s*=\s*ordered_logs\.linked_deck_id/i);
+    assert.match(readModel, /having\s+count\(\*\)\s*=\s*1/i);
+    assert.match(readModel, /\)\s*<>\s*1/i);
+    assert.doesNotMatch(
+      readModel,
+      /select\s+deck_list\s*->>\s*'name'[\s\S]*?limit\s+1/i
+    );
+  }
+});
+
+test("direct writes stay revoked and schema health tracks every privileged boundary", () => {
+  const schemaHealth = readFileSync(join(process.cwd(), "scripts/schema-health.mjs"), "utf8");
+
+  assert.match(migration, /revoke all privileges on table public\.deck_lists from public, anon, authenticated/i);
+  assert.match(migration, /grant select on table public\.deck_lists to authenticated/i);
+  for (const name of [
+    "commit_first_class_deck_list",
+    "set_deck_list_association",
+    "delete_first_class_deck_list",
+    "delete_owned_deck"
+  ]) {
+    assert.match(schemaHealth, new RegExp(`\\"${name}\\"`));
+  }
+  assert.match(schemaHealth, /first_class_deck_list_rpcs_are_callable/);
 });
 
 test("the release plan expands the schema before app RPC use and keeps fallback local", () => {
