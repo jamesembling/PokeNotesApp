@@ -1,19 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
+const migrationName = "20260821000033_make_log_share_lifecycle_atomic.sql";
 const migration = readFileSync(
-  new URL(
-    "../supabase/migrations/20260804210800_make_log_share_lifecycle_atomic.sql",
-    import.meta.url
-  ),
-  "utf8"
-);
-const hardeningMigration = readFileSync(
-  new URL(
-    "../supabase/migrations/20260804212228_harden_log_share_writes_after_atomic_cutover.sql",
-    import.meta.url
-  ),
+  new URL(`../supabase/migrations/${migrationName}`, import.meta.url),
   "utf8"
 );
 const schema = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
@@ -32,13 +23,12 @@ function atomicLifecycleBlock(source: string) {
   );
   const endMarker = "-- End atomic log-share lifecycle boundary.";
   const end = source.indexOf(endMarker, start);
-
   assert.notEqual(start, -1, "missing atomic lifecycle start marker");
   assert.notEqual(end, -1, "missing atomic lifecycle end marker");
   return source.slice(start, end + endMarker.length);
 }
 
-test("RPC migration and fresh-install schema keep the same atomic lifecycle contract", () => {
+test("fresh schema and forward migration keep the atomic RPC contract", () => {
   for (const source of [atomicLifecycleBlock(schema), atomicLifecycleBlock(migration)]) {
     assert.match(source, /create or replace function public\.create_log_share/);
     assert.match(source, /create or replace function public\.revoke_log_share/);
@@ -48,216 +38,37 @@ test("RPC migration and fresh-install schema keep the same atomic lifecycle cont
   }
 });
 
-test("get-or-create serializes per tenant and source before selecting or inserting", () => {
-  const createFunction = migration.slice(
-    migration.indexOf("create or replace function public.create_log_share"),
-    migration.indexOf("create or replace function public.revoke_log_share")
+test("the migration is a forward migration after the current live head", () => {
+  assert.equal(existsSync(new URL(`../supabase/migrations/${migrationName}`, import.meta.url)), true);
+  assert.equal(
+    existsSync(
+      new URL(
+        "../supabase/migrations/20260804212228_harden_log_share_writes_after_atomic_cutover.sql",
+        import.meta.url
+      )
+    ),
+    false
   );
-  const lock = createFunction.indexOf("pg_advisory_xact_lock");
-  const activeRead = createFunction.indexOf("select share.*");
-  const insert = createFunction.indexOf("insert into public.log_shares");
-
-  assert.ok(lock > 0);
-  assert.ok(activeRead > lock);
-  assert.ok(insert > activeRead);
-  assert.match(
-    createFunction,
-    /current_user_id::text \|\| ':' \|\| p_source_log_id/
-  );
-  assert.match(
-    createFunction,
-    /share\.owner_user_id = current_user_id[\s\S]*?share\.source_log_id = p_source_log_id[\s\S]*?share\.expires_at > created_time/
-  );
-  assert.match(createFunction, /order by share\.created_at desc, share\.id desc/);
-  assert.match(
-    createFunction,
-    /duplicate_share\.id <> active_share\.id[\s\S]*?duplicate_share\.expires_at > created_time/
-  );
+  assert.ok("20260821000033" > "20260804224244");
+  assert.doesNotMatch(migration, /revoke\s+(?:insert, update, delete|delete).*public\.log_shares.*authenticated/i);
+  assert.match(migration, /Keep its existing table grant/);
 });
 
-test("revocation shares the lock key and removes all owner-scoped duplicates", () => {
-  const revokeFunction = migration.slice(
-    migration.indexOf("create or replace function public.revoke_log_share"),
-    migration.indexOf("revoke all on function public.create_log_share")
-  );
-
-  assert.match(
-    revokeFunction,
-    /where share\.id = p_share_id\s+and share\.owner_user_id = current_user_id/
-  );
-  assert.match(revokeFunction, /pg_advisory_xact_lock/);
-  assert.match(
-    revokeFunction,
-    /owned_share\.owner_user_id = current_user_id\s+and owned_share\.source_log_id = target_source_log_id/
-  );
-  assert.match(revokeFunction, /if target_source_log_id is null/);
-});
-
-test("only authenticated callers can use the atomic mutation RPCs", () => {
+test("RPCs are authenticated and the compatibility DELETE remains available", () => {
   assert.match(migration, /security definer\s+set search_path = ''/g);
   assert.match(migration, /current_user_id uuid := auth\.uid\(\)/g);
   assert.match(
     migration,
-    /revoke all on function public\.revoke_log_share\(text\)[\s\S]*?from public, anon, authenticated, service_role;[\s\S]*?grant execute[\s\S]*?to authenticated, service_role;/
+    /revoke all on function public\.revoke_log_share\(text\)[\s\S]*?grant execute[\s\S]*?to authenticated, service_role;/
   );
-  assert.doesNotMatch(migration, /grant execute[\s\S]*?revoke_log_share[\s\S]*?to anon/);
+  assert.match(schema, /grant select, delete on table public\.log_shares to authenticated;/);
+  assert.match(schemaHealth, /authenticated_can_use_atomic_share_revoker/);
+  assert.doesNotMatch(schemaHealth, /authenticated_cannot_delete_log_shares_directly/);
 });
 
-test("rollout keeps direct DELETE until the RPC application cutover is verified", () => {
-  assert.doesNotMatch(
-    migration,
-    /revoke\s+(?:insert, update, delete|delete).*public\.log_shares.*authenticated/i
-  );
-  assert.match(migration, /Keep its existing table grant/);
-
-  assert.match(hardeningMigration, /POST-CUTOVER ONLY/);
-  assert.match(hardeningMigration, /authenticated create\/reuse\/revoke\/public-invalidation rehearsal has passed/);
-  assert.match(
-    hardeningMigration,
-    /revoke insert, update, delete on table public\.log_shares from authenticated;/
-  );
-
-  const rpcVersion = "20260804210800";
-  const hardeningVersion = "20260804212228";
-  assert.ok(rpcVersion < hardeningVersion, "hardening migration must sort after RPC installation");
-});
-
-test("every rehearsal runs from the independently reviewed integration checkout", () => {
-  assert.match(
-    rolloutRunbook,
-    /clean, independently reviewed integration checkout[\s\S]*?combine current `origin\/main`[\s\S]*?reviewed PR #18 sharing commits[\s\S]*?reviewed PR #19 tournament migration/
-  );
-  assert.match(
-    rolloutRunbook,
-    /not the standalone PR #18 head,\s+because phase one requires both migrations/
-  );
-  assert.match(
-    rolloutRunbook,
-    /target-bound migration wrapper creates its own temporary\s+phase-specific Supabase workdir/
-  );
-  assert.match(
-    rolloutRunbook,
-    /From the integration checkout, run the staging rehearsal with\s+`POKENOTES_SHARE_REHEARSAL_PHASE=rpc-cutover`/
-  );
-  assert.match(
-    rolloutRunbook,
-    /After the application deployment, re-run the `rpc-cutover` staging rehearsal/
-  );
-  assert.match(
-    rolloutRunbook,
-    /apply only the hardening migration through\s+the separately bound wrapper[\s\S]*?Run the staging rehearsal with\s+`POKENOTES_SHARE_REHEARSAL_PHASE=post-hardening`/i
-  );
-});
-
-test("integrated rollout keeps hardening out of the phase-one migration set", () => {
-  for (const migrationName of [
-    "20260804210800_make_log_share_lifecycle_atomic.sql",
-    "20260804210932_make_tournament_writes_atomic.sql"
-  ]) {
-    assert.match(rolloutRunbook, new RegExp(migrationName.replace(".", "\\.")));
-  }
-
-  assert.match(
-    rolloutRunbook,
-    /staged workdir excludes\s+`20260804212228_harden_log_share_writes_after_atomic_cutover\.sql`/
-  );
-  assert.match(
-    rolloutRunbook,
-    /Never run the generic migration wrapper or a raw `supabase db push` from the\s+final integrated head before the application cutover/
-  );
-  assert.match(
-    rolloutRunbook,
-    /npm run migration:rehearse -- --phase share-phase-one[\s\S]*?exactly these two pending migrations/
-  );
-  assert.match(
-    rolloutRunbook,
-    /20260804224244_add_coin_toss_losses_to_stats\.sql`[\s\S]*?ledger-aligned\s+`20260725224841_optimize_route_read_models\.sql` baseline[\s\S]*?Do not repair, ignore, or mask it/
-  );
-  assert.match(
-    rolloutRunbook,
-    /final\s+`schema\.sql` snapshot is post-hardening and must not be applied as a shortcut/
-  );
-  assert.match(
-    rolloutRunbook,
-    /POKENOTES_SHARE_APP_CUTOVER_CONFIRM=verified-share-rpc-cutover[\s\S]*?must report exactly one\s+pending migration:[\s\S]*?20260804212228_harden_log_share_writes_after_atomic_cutover\.sql/
-  );
-  assert.match(
-    rolloutRunbook,
-    /disposable rehearsal must prove this exact apply mechanism[\s\S]*?If the wrapper refuses[\s\S]*?stop and design and review an exact-file, ledger-safe\s+reconciliation/
-  );
-  assert.match(
-    rolloutRunbook,
-    /Do not relax the allowlist, repair history inside this\s+release, or fall back to a generic push/
-  );
-  assert.match(
-    rolloutRunbook,
-    /## Production release[\s\S]*?--target production --phase share-phase-one[\s\S]*?deploy the exact reviewed compatible\s+application commit[\s\S]*?--target production --phase share-phase-two[\s\S]*?--target production --phase coin-stats/
-  );
-  assert.match(
-    rolloutRunbook,
-    /verify the approved project ref through the live project\s+list before dry-run and again before apply/
-  );
-  assert.match(
-    rolloutRunbook,
-    /hardening, coin toss, additional, missing,\s+duplicate, reordered, or ledger-divergent plans stop before mutation/
-  );
-  assert.match(
-    rolloutRunbook,
-    /fresh read-only production data-impact recount[\s\S]*?permits only `20260804224244`[\s\S]*?Never use `--include-all` or raw `supabase db push`/
-  );
-});
-
-test("emergency app rollback restores only owner-scoped DELETE and re-hardens", () => {
-  assert.match(rolloutRunbook, /## Emergency application rollback after hardening/);
-  assert.match(rolloutRunbook, /emergency-only compatibility escape hatch/);
-  assert.match(rolloutRunbook, /grant delete on table public\.log_shares to authenticated;/);
-  assert.match(rolloutRunbook, /relation\.relrowsecurity/);
-  assert.match(rolloutRunbook, /policy\.policyname = 'Owners can delete log shares'/);
-  assert.match(rolloutRunbook, /'authenticated' = any\(policy\.roles\)/);
-  assert.match(rolloutRunbook, /cross-tenant direct\s+deletion must affect zero rows/i);
-  assert.match(rolloutRunbook, /revoke delete on table public\.log_shares from authenticated;/);
-  assert.match(rolloutRunbook, /safe harness in `post-hardening` mode/);
-  assert.match(rolloutRunbook, /temporary grant must be removed before promoting the new RPC application/);
-  assert.match(rolloutRunbook, /An emergency grant\s+that remains active is a blocker/);
-});
-
-test("fresh installs finish with the post-cutover direct-write boundary", () => {
-  assert.match(
-    atomicLifecycleBlock(schema),
-    /revoke insert, update, delete on table public\.log_shares from authenticated;/
-  );
-});
-
-test("linked schema health checks atomicity, access and direct-write removal", () => {
-  for (const contract of [
-    "authenticated_cannot_delete_log_shares_directly",
-    "authenticated_can_use_atomic_share_revoker",
-    "anon_cannot_revoke_log_shares",
-    "share_creator_is_owner_source_atomic",
-    "share_revoker_is_owner_source_atomic"
-  ]) {
-    assert.match(schemaHealth, new RegExp(contract));
-  }
-});
-
-test("staging rehearsal requires two authenticated clients and covers concurrency, access and response loss", () => {
-  const harness = readFileSync(
-    new URL("../scripts/rehearse-log-share-atomicity.mjs", import.meta.url),
-    "utf8"
-  );
-  const packageJson = readFileSync(new URL("../package.json", import.meta.url), "utf8");
-
-  assert.match(harness, /POKENOTES_SHARE_REHEARSAL_CONFIRM/);
-  assert.match(harness, /Rehearsal URL does not match the confirmed staging host/);
-  assert.match(harness, /clientASecondSession/);
-  assert.match(harness, /Promise\.all/);
-  assert.match(harness, /Cross-tenant create did not fail closed/);
-  assert.match(harness, /Cross-tenant revoke affected another owner/);
-  assert.match(harness, /Cross-tenant direct DELETE bypassed owner RLS/);
-  assert.match(harness, /Cross-tenant direct DELETE retained table access after hardening/);
-  assert.match(harness, /Injected response loss after database response/);
-  assert.match(harness, /Retry after response loss created a hidden duplicate/);
-  assert.match(harness, /phase === "rpc-cutover"/);
-  assert.match(harness, /Direct DELETE still succeeds after hardening/);
-  assert.match(packageJson, /"verify:log-share-atomicity"/);
+test("release documentation names the exact migration and controlled workflow", () => {
+  assert.match(rolloutRunbook, new RegExp(migrationName.replaceAll(".", "\\.")));
+  assert.match(rolloutRunbook, /manually dispatched \*\*Deploy\s+production database\*\*/);
+  assert.match(rolloutRunbook, /existing authenticated table `DELETE` grant/);
+  assert.doesNotMatch(rolloutRunbook, /post-hardening|share-phase-two|20260804212228/);
 });

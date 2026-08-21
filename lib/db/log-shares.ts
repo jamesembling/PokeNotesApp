@@ -96,6 +96,20 @@ const LOG_SHARE_24_HOUR_LIMIT_MESSAGE = "LOG_SHARE_24_HOUR_LIMIT_REACHED";
 const LOG_SHARE_PAYLOAD_TOO_LARGE_MESSAGE = "LOG_SHARE_PAYLOAD_TOO_LARGE";
 const LOG_SHARE_SOURCE_NOT_FOUND_MESSAGE = "LOG_SHARE_SOURCE_NOT_FOUND";
 
+export function isMissingLogShareRevokerError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as Record<string, unknown>;
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  const text = [candidate.message, candidate.details, candidate.hint]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+
+  return (code === "42883" || code === "PGRST202") && /revoke_log_share/i.test(text);
+}
+
 function decodeBattleLogSharePayload(value: unknown): BattleLogSharePayload | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -278,13 +292,28 @@ async function createSupabaseLogShareStore(): Promise<LogShareStore> {
 
       return share;
     },
-    async revokeOwnedShare(shareId) {
+    async revokeOwnedShare(shareId, ownerUserId) {
       const { data, error } = await supabase.rpc("revoke_log_share", {
         p_share_id: shareId
       });
 
       if (error) {
-        throw error;
+        if (!isMissingLogShareRevokerError(error)) {
+          throw error;
+        }
+
+        const fallback = await supabase
+          .from("log_shares")
+          .delete()
+          .eq("id", shareId)
+          .eq("owner_user_id", ownerUserId)
+          .select("id");
+
+        if (fallback.error) {
+          throw fallback.error;
+        }
+
+        return Array.isArray(fallback.data) && fallback.data.length > 0;
       }
 
       return data;

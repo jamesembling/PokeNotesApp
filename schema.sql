@@ -3287,8 +3287,6 @@ revoke all on function public.revoke_log_share(text)
 grant execute on function public.revoke_log_share(text)
   to authenticated, service_role;
 
-revoke insert, update, delete on table public.log_shares from authenticated;
-
 notify pgrst, 'reload schema';
 
 -- End atomic log-share lifecycle boundary.

@@ -4,6 +4,7 @@ import {
   getOrCreateLogShareSnapshot,
   getSharedLogSnapshot,
   isLogShare24HourLimitError,
+  isMissingLogShareRevokerError,
   isLogSharePayloadTooLargeError,
   isLogShareSourceNotFoundError,
   revokeLogShare,
@@ -12,6 +13,24 @@ import {
 } from "@/lib/db/log-shares";
 import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
 import type { BattleLog } from "@/types/index";
+
+test("revocation fallback is limited to a missing revoke RPC", () => {
+  assert.equal(
+    isMissingLogShareRevokerError({
+      code: "PGRST202",
+      message: "Could not find the function public.revoke_log_share(text)"
+    }),
+    true
+  );
+  assert.equal(
+    isMissingLogShareRevokerError({ code: "42501", message: "permission denied" }),
+    false
+  );
+  assert.equal(
+    isMissingLogShareRevokerError({ code: "PGRST202", message: "Could not find another function" }),
+    false
+  );
+});
 
 function buildBattleLog(id = "log-1"): BattleLog {
   return {

@@ -141,13 +141,13 @@ test("cleanup failures are surfaced with the primary failure and PASS is suppres
 test("PASS is emitted only after cleanup returns with no residual errors", () => {
   const messages = [];
   finalizeRehearsal({
-    phase: "post-hardening",
+    phase: "rpc-cutover",
     primaryError: undefined,
     cleanupErrors: [],
     log: (message) => messages.push(message)
   });
 
   assert.deepEqual(messages, [
-    "Atomic share rehearsal passed for post-hardening on the confirmed staging host."
+    "Atomic share rehearsal passed for rpc-cutover on the confirmed staging host."
   ]);
 });

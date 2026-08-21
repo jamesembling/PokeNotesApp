@@ -396,8 +396,6 @@ const [securityContract = {}] = runSupabaseJson(`
       as anon_cannot_select_log_shares,
     not has_table_privilege('authenticated', 'public.log_shares', 'INSERT')
       as authenticated_cannot_insert_log_shares_directly,
-    not has_table_privilege('authenticated', 'public.log_shares', 'DELETE')
-      as authenticated_cannot_delete_log_shares_directly,
     has_function_privilege('anon', 'public.get_active_log_share(text)', 'EXECUTE')
       as anon_can_use_token_scoped_share_reader,
     has_function_privilege(

@@ -76,8 +76,8 @@ if (missing.length > 0) {
 
 const phase = requiredEnv("POKENOTES_SHARE_REHEARSAL_PHASE");
 assert(
-  phase === "rpc-cutover" || phase === "post-hardening",
-  "POKENOTES_SHARE_REHEARSAL_PHASE must be rpc-cutover or post-hardening"
+  phase === "rpc-cutover",
+  "POKENOTES_SHARE_REHEARSAL_PHASE must be rpc-cutover"
 );
 
 const url = requiredEnv("POKENOTES_SHARE_REHEARSAL_URL");
@@ -164,17 +164,10 @@ try {
     .delete()
     .eq("id", userAShareId)
     .select("id");
-  if (phase === "rpc-cutover") {
-    assert(
-      !crossTenantDirectDelete.error && crossTenantDirectDelete.data?.length === 0,
-      "Cross-tenant direct DELETE bypassed owner RLS"
-    );
-  } else {
-    assert(
-      crossTenantDirectDelete.error?.code === "42501",
-      "Cross-tenant direct DELETE retained table access after hardening"
-    );
-  }
+  assert(
+    !crossTenantDirectDelete.error && crossTenantDirectDelete.data?.length === 0,
+    "Cross-tenant direct DELETE bypassed owner RLS"
+  );
 
   const userBCreate = await createShare(clientB, userBLogId, "Tenant B control");
   collectShareTokens([userBCreate], observedUserBTokens, "tenant B create");
@@ -228,12 +221,8 @@ try {
   userAShareId = retry.id;
 
   const directDelete = await clientA.from("log_shares").delete().eq("id", userAShareId).select("id");
-  if (phase === "rpc-cutover") {
-    assert(!directDelete.error && directDelete.data?.length === 1, "Compatibility DELETE is unavailable before cutover");
-    userAShareId = undefined;
-  } else {
-    assert(directDelete.error?.code === "42501", "Direct DELETE still succeeds after hardening");
-  }
+  assert(!directDelete.error && directDelete.data?.length === 1, "Compatibility DELETE is unavailable");
+  userAShareId = undefined;
 
   const anonRevoke = await publicClient.rpc("revoke_log_share", { p_share_id: userBShareId });
   assert(anonRevoke.error?.code === "42501", "Anonymous revocation was not denied");

@@ -47,5 +47,6 @@ test("share revocation uses the owner-scoped atomic RPC", () => {
   );
 
   assert.match(revokeBlock, /supabase\.rpc\("revoke_log_share"/);
-  assert.doesNotMatch(revokeBlock, /\.from\("log_shares"\)\.delete/);
+  assert.match(revokeBlock, /isMissingLogShareRevokerError/);
+  assert.match(revokeBlock, /\.from\("log_shares"\)\s*\.delete/);
 });
