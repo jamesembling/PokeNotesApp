@@ -666,13 +666,12 @@ export async function createLogShareAction(logId: string): Promise<{
     const linkedDeck = log.linkedDeckId
       ? userDecks.find((deck) => deck.id === log.linkedDeckId) ?? null
       : null;
-    const standaloneDeckList =
-      !log.linkedDeckId && log.linkedDeckListId
-        ? await getDeckListById(user.id, log.linkedDeckListId)
+    const deckListById = log.linkedDeckListId
+      ? await getDeckListById(user.id, log.linkedDeckListId, log.linkedDeckId ?? null)
         : null;
     const linkedDeckList = linkedDeck?.deckLists.find(
       (deckList) => deckList.id === log.linkedDeckListId
-    ) ?? standaloneDeckList;
+    ) ?? deckListById;
     const hydratedLinkedDeckList =
       linkedDeck?.id && linkedDeckList?.id
         ? await getDeckWithList(user.id, linkedDeck.id, linkedDeckList.id)

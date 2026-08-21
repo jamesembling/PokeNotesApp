@@ -118,7 +118,7 @@ test("association synchronizes legacy JSON from the trigger-authoritative relati
 test("Deck List foundation does not add Tournament command or mutable-source evidence behavior", () => {
   const tournamentActions = source("app/(app)/tournaments/actions.ts");
   const tournamentPage = source("app/(app)/tournaments/[id]/page.tsx");
-  assert.doesNotMatch(tournamentActions, /validateDeckListReference/);
+  assert.match(tournamentActions, /validateDeckListReference/);
   assert.doesNotMatch(tournamentPage, /getDeckListById/);
   assert.match(tournamentPage, /tournament\.linkedDeckId && tournament\.linkedDeckListId \?/);
 });

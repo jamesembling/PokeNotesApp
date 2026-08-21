@@ -3966,21 +3966,47 @@ as $function$
 begin
   -- Lock order: Deck List then strategy. A direct delete already owns the
   -- list row before this trigger runs, so it follows the same order.
-  update public.logs
+  update public.logs as log
   set linked_deck_list_id = null
-  where user_id = old.user_id
-    and linked_deck_list_id = old.id
+  where log.user_id = old.user_id
+    and log.linked_deck_list_id = old.id
     and (
-      linked_deck_id is null
-      or (old.deck_id is not null and linked_deck_id = old.deck_id)
+      log.linked_deck_id is null
+      or log.linked_deck_id = old.deck_id
+      or not exists (
+        select 1
+        from public.decks as legacy_deck
+        cross join lateral jsonb_array_elements(
+          case
+            when jsonb_typeof(legacy_deck.deck_lists) = 'array' then legacy_deck.deck_lists
+            else '[]'::jsonb
+          end
+        ) as item(value)
+        where legacy_deck.user_id = old.user_id
+          and legacy_deck.id = log.linked_deck_id
+          and item.value ->> 'id' = old.id
+      )
     );
-  update public.tournaments
+  update public.tournaments as tournament
   set linked_deck_list_id = null
-  where user_id = old.user_id
-    and linked_deck_list_id = old.id
+  where tournament.user_id = old.user_id
+    and tournament.linked_deck_list_id = old.id
     and (
-      linked_deck_id is null
-      or (old.deck_id is not null and linked_deck_id = old.deck_id)
+      tournament.linked_deck_id is null
+      or tournament.linked_deck_id = old.deck_id
+      or not exists (
+        select 1
+        from public.decks as legacy_deck
+        cross join lateral jsonb_array_elements(
+          case
+            when jsonb_typeof(legacy_deck.deck_lists) = 'array' then legacy_deck.deck_lists
+            else '[]'::jsonb
+          end
+        ) as item(value)
+        where legacy_deck.user_id = old.user_id
+          and legacy_deck.id = tournament.linked_deck_id
+          and item.value ->> 'id' = old.id
+      )
     );
   if old.deck_id is not null then
     update public.decks as deck

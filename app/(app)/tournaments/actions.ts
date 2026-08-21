@@ -13,6 +13,7 @@ import {
 import { getFormRedirectPath, withRefreshToken } from "@/lib/server/action-redirect";
 import type { FailedActionResult } from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
+import { validateDeckListReference } from "@/lib/db/deck-lists";
 import { normalizeTournamentDateRange } from "@/lib/tournaments/date-range";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
@@ -255,8 +256,12 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
     const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
-    const resolvedDeckListId =
-      resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
+    const validatedReference = await validateDeckListReference({
+      linkedDeckId: linkedDeckId || null,
+      linkedDeckListId: linkedDeckListId || null,
+      supabase,
+      userId: user.id
+    });
 
     if (!name) {
       throw userFacingActionError("Enter a tournament name before saving.");
@@ -273,7 +278,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
       date_from: dateFrom,
       date_to: dateTo,
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-      linked_deck_list_id: resolvedDeckListId,
+      linked_deck_list_id: validatedReference.deckListId,
       deck_name: resolvedDeck?.deckName ?? "",
       deck_sprites:
         selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
@@ -335,8 +340,12 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
     const name = String(formData.get("name") || "").trim();
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
-    const resolvedDeckListId =
-      resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
+    const validatedReference = await validateDeckListReference({
+      linkedDeckId: linkedDeckId || null,
+      linkedDeckListId: linkedDeckListId || null,
+      supabase,
+      userId: user.id
+    });
     const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
 
     if (!tournamentId) {
@@ -356,7 +365,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       date_from: dateFrom,
       date_to: dateTo,
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-      linked_deck_list_id: resolvedDeckListId,
+      linked_deck_list_id: validatedReference.deckListId,
       deck_name: resolvedDeck?.deckName ?? "",
       deck_sprites:
         selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),

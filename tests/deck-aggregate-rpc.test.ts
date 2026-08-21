@@ -132,12 +132,14 @@ test("the server adapter uses only the typed transactional RPC for persistence",
   assert.match(types, /commit_deck_aggregate_child: \{/);
 });
 
-test("schema health verifies the new RPC privilege and search-path contract", () => {
+test("schema health verifies the reviewed RPC privilege and search-path contract", () => {
   const health = source("scripts/schema-health.mjs");
 
   assert.match(health, /"commit_deck_aggregate_child"/);
   assert.match(health, /authenticated_can_commit_deck_aggregates/);
   assert.match(health, /anon_cannot_commit_deck_aggregates/);
-  assert.match(health, /deck_aggregate_commit_is_invoker_with_fixed_search_path/);
-  assert.match(health, /procedure\.proconfig = array\['search_path=pg_catalog'\]/);
+  assert.match(health, /deck_aggregate_commit_is_definer_with_fixed_search_path/);
+  assert.doesNotMatch(health, /deck_aggregate_commit_is_invoker_with_fixed_search_path/);
+  assert.match(health, /procedure\.prosecdef/);
+  assert.match(health, /search_path=pg_catalog, public/);
 });

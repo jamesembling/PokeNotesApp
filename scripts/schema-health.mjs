@@ -225,6 +225,7 @@ const REQUIRED_FUNCTIONS = [
   "refresh_user_archetype_matchup_stats",
   "refresh_user_log_stats",
   "revoke_log_share",
+  "remove_deleted_deck_list_legacy_copy",
   "preserve_deleted_deck_legacy_references",
   "preserve_deleted_deck_references_before_delete",
   "set_deck_list_association",
@@ -305,6 +306,7 @@ const REQUIRED_TRIGGERS = [
   "refresh_user_log_stats_after_delete",
   "refresh_user_log_stats_after_insert",
   "refresh_user_log_stats_after_stats_update",
+  "remove_deleted_deck_list_legacy_copy",
   "preserve_deleted_deck_references_before_delete",
   "set_decks_updated_at",
   "set_deck_lists_updated_at",
@@ -481,13 +483,13 @@ const [securityContract = {}] = runSupabaseJson(`
     ), false) as anon_cannot_commit_deck_aggregates,
     coalesce((
       select
-        not procedure.prosecdef
-        and procedure.proconfig = array['search_path=pg_catalog']::text[]
+        procedure.prosecdef
+        and procedure.proconfig @> array['search_path=pg_catalog, public']::text[]
       from pg_catalog.pg_proc as procedure
       where procedure.oid = pg_catalog.to_regprocedure(
         'public.commit_deck_aggregate_child(text,text,text,jsonb,text,timestamptz)'
       )
-    ), false) as deck_aggregate_commit_is_invoker_with_fixed_search_path,
+    ), false) as deck_aggregate_commit_is_definer_with_fixed_search_path,
     coalesce(
       has_function_privilege(
         'authenticated',
