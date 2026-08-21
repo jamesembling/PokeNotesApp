@@ -4807,12 +4807,44 @@ begin
         and deck_list.id = tournament.linked_deck_list_id
         and deck_list.deck_id = p_deck_id
     );
-  update public.logs
+  update public.logs as log
+  set linked_deck_id = null
+  where log.user_id = p_user_id
+    and log.linked_deck_id = p_deck_id
+    and log.linked_deck_list_id is not null
+    and exists (
+      select 1 from public.deck_lists as deck_list
+      where deck_list.user_id = p_user_id
+        and deck_list.id = log.linked_deck_list_id
+    );
+  update public.tournaments as tournament
+  set linked_deck_id = null
+  where tournament.user_id = p_user_id
+    and tournament.linked_deck_id = p_deck_id
+    and tournament.linked_deck_list_id is not null
+    and exists (
+      select 1 from public.deck_lists as deck_list
+      where deck_list.user_id = p_user_id
+        and deck_list.id = tournament.linked_deck_list_id
+    );
+  update public.logs as log
   set linked_deck_id = null, linked_deck_list_id = null
-  where user_id = p_user_id and linked_deck_id = p_deck_id;
-  update public.tournaments
+  where log.user_id = p_user_id
+    and log.linked_deck_id = p_deck_id
+    and not exists (
+      select 1 from public.deck_lists as deck_list
+      where deck_list.user_id = p_user_id
+        and deck_list.id = log.linked_deck_list_id
+    );
+  update public.tournaments as tournament
   set linked_deck_id = null, linked_deck_list_id = null
-  where user_id = p_user_id and linked_deck_id = p_deck_id;
+  where tournament.user_id = p_user_id
+    and tournament.linked_deck_id = p_deck_id
+    and not exists (
+      select 1 from public.deck_lists as deck_list
+      where deck_list.user_id = p_user_id
+        and deck_list.id = tournament.linked_deck_list_id
+    );
 end;
 $function$;
 revoke all on function public.preserve_deleted_deck_legacy_references(uuid, text, jsonb)

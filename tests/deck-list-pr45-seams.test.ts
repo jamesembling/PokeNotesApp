@@ -44,6 +44,59 @@ test("first-class list deletion clears independent relational references without
   }
 });
 
+test("Strategy deletion preserves independent relational links and fails closed for unresolved legacy collisions", () => {
+  for (const source of [migration, schema]) {
+    const helper = functionBody(
+      source,
+      "preserve_deleted_deck_legacy_references(",
+      "revoke all on function public.preserve_deleted_deck_legacy_references"
+    );
+    const loopEnd = helper.indexOf("end loop;");
+    const finalCleanup = helper.slice(helper.indexOf("update public.logs as log", loopEnd));
+
+    // Exact legacy children are adopted/rekeyed, while duplicate legacy ids
+    // are cleared for both logs and tournaments instead of guessed.
+    assert.match(
+      helper,
+      /if v_legacy_count > 1[\s\S]*?update public\.logs[\s\S]*?linked_deck_id = null,\s*linked_deck_list_id = null/
+    );
+    assert.match(helper, /linked_deck_id = null,\s*linked_deck_list_id = v_target_id/);
+
+    // A standalone or other-strategy relational list is independently owned;
+    // preserve its id without inferring from the deleted strategy id.
+    const logPredicate = finalCleanup.indexOf("log.linked_deck_list_id is not null");
+    const preservedLog = finalCleanup.slice(
+      finalCleanup.lastIndexOf("update public.logs as log", logPredicate),
+      finalCleanup.indexOf("update public.tournaments as tournament", logPredicate)
+    );
+    assert.match(preservedLog, /set linked_deck_id = null/);
+    assert.match(preservedLog, /deck_list\.id = log\.linked_deck_list_id/);
+    assert.doesNotMatch(preservedLog, /deck_list\.deck_id\s*=\s*p_deck_id/);
+
+    const tournamentPredicate = finalCleanup.indexOf(
+      "tournament.linked_deck_list_id is not null"
+    );
+    const preservedTournament = finalCleanup.slice(
+      finalCleanup.lastIndexOf("update public.tournaments as tournament", tournamentPredicate),
+      finalCleanup.indexOf("update public.logs as log", tournamentPredicate)
+    );
+    assert.match(preservedTournament, /set linked_deck_id = null/);
+    assert.match(preservedTournament, /deck_list\.id = tournament\.linked_deck_list_id/);
+    assert.doesNotMatch(preservedTournament, /deck_list\.deck_id\s*=\s*p_deck_id/);
+
+    // A reference with no verified relational/legacy source must lose both
+    // ids; this is the fail-closed branch for ambiguous or stale collisions.
+    assert.match(
+      finalCleanup,
+      /update public\.logs as log\s+set linked_deck_id = null,\s+linked_deck_list_id = null[\s\S]*?and not exists \([\s\S]*?deck_list\.user_id = p_user_id[\s\S]*?deck_list\.id = log\.linked_deck_list_id/
+    );
+    assert.match(
+      finalCleanup,
+      /update public\.tournaments as tournament\s+set linked_deck_id = null,\s+linked_deck_list_id = null[\s\S]*?and not exists \([\s\S]*?deck_list\.user_id = p_user_id[\s\S]*?deck_list\.id = tournament\.linked_deck_list_id/
+    );
+  }
+});
+
 test("schema health requires the list-delete cleanup function and trigger", () => {
   assert.match(
     schemaHealth,

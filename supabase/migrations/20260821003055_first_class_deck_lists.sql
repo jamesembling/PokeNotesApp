@@ -1215,20 +1215,59 @@ begin
         and deck_list.deck_id = p_deck_id
     );
 
-  -- Any remaining strategy reference was not an exact child of the deleted
-  -- strategy (including an unrelated standalone row with the same id).
-  -- Clear both ids rather than inferring ownership by account plus child id.
-  update public.logs
-  set linked_deck_id = null,
-      linked_deck_list_id = null
-  where user_id = p_user_id
-    and linked_deck_id = p_deck_id;
+  -- An independently owned relational list remains a valid reference even
+  -- when its optional strategy pairing is being deleted. Preserve the list id
+  -- for standalone and other-strategy lists, without inferring from a legacy
+  -- id or crossing the account boundary.
+  update public.logs as log
+  set linked_deck_id = null
+  where log.user_id = p_user_id
+    and log.linked_deck_id = p_deck_id
+    and log.linked_deck_list_id is not null
+    and exists (
+      select 1
+      from public.deck_lists as deck_list
+      where deck_list.user_id = p_user_id
+        and deck_list.id = log.linked_deck_list_id
+    );
 
-  update public.tournaments
+  update public.tournaments as tournament
+  set linked_deck_id = null
+  where tournament.user_id = p_user_id
+    and tournament.linked_deck_id = p_deck_id
+    and tournament.linked_deck_list_id is not null
+    and exists (
+      select 1
+      from public.deck_lists as deck_list
+      where deck_list.user_id = p_user_id
+        and deck_list.id = tournament.linked_deck_list_id
+    );
+
+  -- Any remaining strategy reference has no verified relational list or
+  -- exact legacy child. Clear both ids rather than guessing ownership.
+  update public.logs as log
   set linked_deck_id = null,
       linked_deck_list_id = null
-  where user_id = p_user_id
-    and linked_deck_id = p_deck_id;
+  where log.user_id = p_user_id
+    and log.linked_deck_id = p_deck_id
+    and not exists (
+      select 1
+      from public.deck_lists as deck_list
+      where deck_list.user_id = p_user_id
+        and deck_list.id = log.linked_deck_list_id
+    );
+
+  update public.tournaments as tournament
+  set linked_deck_id = null,
+      linked_deck_list_id = null
+  where tournament.user_id = p_user_id
+    and tournament.linked_deck_id = p_deck_id
+    and not exists (
+      select 1
+      from public.deck_lists as deck_list
+      where deck_list.user_id = p_user_id
+        and deck_list.id = tournament.linked_deck_list_id
+    );
 end;
 $function$;
 
