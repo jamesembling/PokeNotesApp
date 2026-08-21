@@ -133,7 +133,7 @@ test("standalone list-only consumers hydrate details, ordering, sharing, and sav
   );
   assert.match(
     initialReadModel,
-    /relational_list\.id = ordered_logs\.linked_deck_list_id[\s\S]*relational_list\.deck_id = ordered_logs\.linked_deck_id/i
+    /relational_list\.id = ordered_logs\.linked_deck_list_id[\s\S]*select count\(\*\)[\s\S]*\) <> 1/i
   );
 });
 

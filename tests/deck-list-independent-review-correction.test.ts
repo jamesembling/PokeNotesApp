@@ -135,7 +135,10 @@ test("database reference and read-model boundaries match strategy-scoped legacy 
     assert.match(helper, /update public\.logs/);
     assert.match(helper, /update public\.tournaments/);
     assert.match(helper, /revoke all on function public\.preserve_deleted_deck_legacy_references/);
-    assert.match(sql, /relational_list\.deck_id = ordered_logs\.linked_deck_id/);
+    assert.match(sql, /relational_list\.id = ordered_logs\.linked_deck_list_id/);
+    assert.match(sql, /legacy_deck\.user_id = ordered_logs\.user_id/);
+    assert.match(sql, /select count\(\*\)[\s\S]*\) <> 1/);
+    assert.match(sql, /having count\(\*\) = 1/);
   }
 });
 

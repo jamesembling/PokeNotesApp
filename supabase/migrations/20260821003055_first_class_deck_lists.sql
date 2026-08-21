@@ -1469,32 +1469,32 @@ as $function$
       and relational_list.id = ordered_logs.linked_deck_list_id
       and (
         ordered_logs.linked_deck_id is null
-        or relational_list.deck_id = ordered_logs.linked_deck_id
-        or not exists (
-          select 1
+        or (
+          select count(*)
           from public.decks as legacy_deck
+          cross join lateral jsonb_array_elements(
+            case
+              when jsonb_typeof(legacy_deck.deck_lists) = 'array' then legacy_deck.deck_lists
+              else '[]'::jsonb
+            end
+          ) as legacy_item(value)
           where legacy_deck.user_id = ordered_logs.user_id
             and legacy_deck.id = ordered_logs.linked_deck_id
-            and jsonb_typeof(legacy_deck.deck_lists) = 'array'
-            and exists (
-              select 1
-              from jsonb_array_elements(legacy_deck.deck_lists) as legacy_item(value)
-              where legacy_item.value ->> 'id' = ordered_logs.linked_deck_list_id
-            )
-        )
+            and legacy_item.value ->> 'id' = ordered_logs.linked_deck_list_id
+        ) <> 1
       )
     left join public.decks
       on relational_list.id is null
       and decks.user_id = ordered_logs.user_id
       and decks.id = ordered_logs.linked_deck_id
     left join lateral (
-      select deck_list ->> 'name' as name
+      select max(deck_list ->> 'name') as name
       from jsonb_array_elements(
         case when jsonb_typeof(decks.deck_lists) = 'array' then decks.deck_lists else '[]'::jsonb end
       ) as deck_list
       where relational_list.id is null
         and deck_list ->> 'id' = ordered_logs.linked_deck_list_id
-      limit 1
+      having count(*) = 1
     ) as aggregate_list on true
   )
   select jsonb_build_object(
