@@ -29,6 +29,7 @@ export type SaveDeckListCommand = {
   notes: string;
   rawList: string;
   submittedCreatedAt: string;
+  submittedUpdatedAt: string;
   creationKey?: string;
 };
 
@@ -268,6 +269,10 @@ export function createDeckAggregateWriter(
       }
     }
 
+    if (deckListId && !String(command.submittedUpdatedAt || "").trim()) {
+      throw userFacingActionError("Deck List version is required; refresh before saving.");
+    }
+
     if (!name) {
       throw userFacingActionError("Enter a deck list name before saving.");
     }
@@ -317,15 +322,7 @@ export function createDeckAggregateWriter(
     };
 
     const expectedChildUpdatedAt = deckListId
-      ? existingDeckList
-        ? existingDeckList.updatedAt
-        : legacyExistingDeckList && typeof legacyExistingDeckList === "object"
-          ? getJsonTimestamp(
-              legacyExistingDeckList as Record<string, unknown>,
-              "updatedAt",
-              "updated_at"
-            )
-          : null
+      ? String(command.submittedUpdatedAt || "").trim() || null
       : null;
     const legacySourceDeckId =
       operation === "update" && !existingDeckList && legacyExistingDeckList && deckId

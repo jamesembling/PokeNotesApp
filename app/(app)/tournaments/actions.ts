@@ -28,7 +28,6 @@ import type {
   TournamentRoundResult
 } from "@/types/index";
 import { compactMap } from "@/lib/array";
-import { validateDeckListReference } from "@/lib/db/deck-lists";
 
 type SaveActionResult = {
   ok: true;
@@ -251,18 +250,13 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
   try {
     const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
     const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
-    const validatedReference = await validateDeckListReference({
-      linkedDeckId: linkedDeckId || null,
-      linkedDeckListId: linkedDeckListId || null,
-      supabase,
-      userId: user.id
-    });
-    const resolvedDeck = await resolveDeckSnapshot(user.id, validatedReference.deckId ?? "");
+    const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
     const name = String(formData.get("name") || "").trim();
     const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
-    const resolvedDeckListId = validatedReference.deckListId;
+    const resolvedDeckListId =
+      resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
 
     if (!name) {
       throw userFacingActionError("Enter a tournament name before saving.");
@@ -278,9 +272,9 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
       name,
       date_from: dateFrom,
       date_to: dateTo,
-      linked_deck_id: validatedReference.deckId,
+      linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
       linked_deck_list_id: resolvedDeckListId,
-      deck_name: resolvedDeck?.deckName ?? validatedReference.list?.name ?? "",
+      deck_name: resolvedDeck?.deckName ?? "",
       deck_sprites:
         selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
       category: parseCategory(formData.get("category")),
@@ -298,8 +292,8 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
         name,
         date_from: dateFrom,
         date_to: dateTo,
-        linked_deck_id: validatedReference.deckId,
-        deck_name: resolvedDeck?.deckName ?? validatedReference.list?.name ?? "",
+        linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
+        deck_name: resolvedDeck?.deckName ?? "",
         deck_sprites:
           selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
         category: parseCategory(formData.get("category")),
@@ -337,17 +331,12 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
   try {
     const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
     const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
-    const validatedReference = await validateDeckListReference({
-      linkedDeckId: linkedDeckId || null,
-      linkedDeckListId: linkedDeckListId || null,
-      supabase,
-      userId: user.id
-    });
-    const resolvedDeck = await resolveDeckSnapshot(user.id, validatedReference.deckId ?? "");
+    const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
     const name = String(formData.get("name") || "").trim();
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
-    const resolvedDeckListId = validatedReference.deckListId;
+    const resolvedDeckListId =
+      resolvedDeck?.deckListIds.includes(linkedDeckListId) ? linkedDeckListId : null;
     const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
 
     if (!tournamentId) {
@@ -366,9 +355,9 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       name,
       date_from: dateFrom,
       date_to: dateTo,
-      linked_deck_id: validatedReference.deckId,
+      linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
       linked_deck_list_id: resolvedDeckListId,
-      deck_name: resolvedDeck?.deckName ?? validatedReference.list?.name ?? "",
+      deck_name: resolvedDeck?.deckName ?? "",
       deck_sprites:
         selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
       category: parseCategory(formData.get("category")),
@@ -392,8 +381,8 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
           name,
           date_from: dateFrom,
           date_to: dateTo,
-          linked_deck_id: validatedReference.deckId,
-          deck_name: resolvedDeck?.deckName ?? validatedReference.list?.name ?? "",
+          linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
+          deck_name: resolvedDeck?.deckName ?? "",
           deck_sprites:
             selectedDeckSprites.length > 0
               ? selectedDeckSprites

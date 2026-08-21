@@ -374,6 +374,7 @@ export function DeckListEditorDialog({
                 <input name="deckListId" type="hidden" value={deckList?.id ?? ""} />
                 <input name="creationKey" type="hidden" value={creationKey} />
                 <input name="createdAt" type="hidden" value={deckList?.createdAt ?? ""} />
+                <input name="updatedAt" type="hidden" value={deckList?.updatedAt ?? ""} />
                 <input name="redirectTo" type="hidden" value={pathname} />
                 <input name="name" type="hidden" value={listName} />
                 <input name="format" type="hidden" value={format} />

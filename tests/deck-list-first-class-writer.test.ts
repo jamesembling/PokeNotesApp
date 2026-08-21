@@ -26,6 +26,7 @@ function command(overrides: Partial<SaveDeckListCommand> = {}): SaveDeckListComm
     notes: "Notes",
     rawList: "2 Dragapult ex TWM 130",
     submittedCreatedAt: "",
+    submittedUpdatedAt: EXISTING_UPDATED_AT,
     ...overrides
   };
 }

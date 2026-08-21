@@ -48,7 +48,11 @@ test("strategy deletion uses the reviewed serialized RPC boundary", () => {
   assert.match(deleteBlock, /pg_advisory_xact_lock/i);
   assert.match(deleteBlock, /from public\.decks[\s\S]*for update/i);
   assert.match(deleteBlock, /delete from public\.decks/i);
-  assert.match(migration, /revoke delete on table public\.decks from public, anon, authenticated/i);
+  assert.doesNotMatch(migration, /revoke delete on table public\.decks from public, anon, authenticated/i);
+  assert.match(
+    migration,
+    /create trigger preserve_deleted_deck_references_before_delete[\s\S]*?on public\.decks/i
+  );
   assert.match(migration, /grant execute on function public\.delete_owned_deck/i);
 
   const deleteService = source("lib/decks/delete-service.ts");

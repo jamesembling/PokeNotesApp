@@ -2,6 +2,7 @@ export type DeckListReferenceRecord = {
   deckId: string | null;
   id: string;
   name: string;
+  source?: "legacy" | "relational";
   userId: string;
 };
 
@@ -45,12 +46,16 @@ export function resolveDeckListReference(
     throw new Error("Deck List could not be found.");
   }
 
-  if (linkedDeckId && input.list.deckId !== linkedDeckId) {
+  if (
+    linkedDeckId &&
+    input.list.source !== "relational" &&
+    input.list.deckId !== linkedDeckId
+  ) {
     throw new Error("Deck List does not belong to the supplied Deck Strategy.");
   }
 
   return {
-    deckId: input.list.deckId,
+    deckId: linkedDeckId ?? input.list.deckId,
     deckListId: input.list.id,
     list: input.list
   };

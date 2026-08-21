@@ -128,8 +128,8 @@ create trigger remove_deleted_deck_list_legacy_copy
   for each row execute function public.remove_deleted_deck_list_legacy_copy();
 
 -- This helper is used by logs and tournaments as a database-level reference
--- boundary. A first-class row wins over the legacy fallback, so a stale pair
--- can never adopt a same-ID list from another strategy or account.
+-- boundary. First-class rows are account-owned and strategy-independent;
+-- legacy JSON remains an exact strategy-scoped fallback.
 create or replace function public.can_use_deck_list_reference(
   p_user_id uuid,
   p_deck_id text,
@@ -161,7 +161,6 @@ as $function$
       from public.deck_lists as deck_list
       where deck_list.user_id = p_user_id
         and deck_list.id = p_deck_list_id
-        and deck_list.deck_id = p_deck_id
     ) then true
     when p_deck_id is not null and exists (
       select 1
@@ -1004,7 +1003,8 @@ begin
   set deck_id = v_new_deck_id,
       position = v_new_position,
       updated_at = p_updated_at
-  where user_id = v_user_id and id = v_list.id;
+  where user_id = v_user_id and id = v_list.id
+  returning * into v_list;
 
   if v_new_deck_id is not null then
     v_list_json := jsonb_build_object(
@@ -1019,7 +1019,7 @@ begin
       'sortedCards', v_list.sorted_cards,
       'sortedCardsVersion', v_list.sorted_cards_version,
       'createdAt', v_list.created_at,
-      'updatedAt', p_updated_at
+      'updatedAt', v_list.updated_at
     );
     select deck_lists into v_deck_lists from public.decks
     where user_id = v_user_id and id = v_new_deck_id for update;
@@ -1209,10 +1209,47 @@ $function$;
 revoke all on function public.preserve_deleted_deck_legacy_references(uuid, text, jsonb)
   from public, anon, authenticated;
 
+-- Keep the previous application's direct Strategy DELETE usable during the
+-- migration-first rollout. The trigger preserves legacy-only children and
+-- repairs owner-scoped references before the parent row is removed. A direct
+-- delete cannot acquire the shared advisory lock before PostgreSQL locks its
+-- target row, so fail closed instead of waiting in the inverse order when a
+-- first-class mutation already owns that serialization boundary.
+create or replace function public.preserve_deleted_deck_references_before_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $function$
+begin
+  if not pg_try_advisory_xact_lock(
+    hashtextextended(old.user_id::text || ':deck-list-mutations', 0)
+  ) then
+    raise exception using
+      errcode = '55P03',
+      message = 'Deck is busy; refresh and retry the deletion.';
+  end if;
+
+  perform public.preserve_deleted_deck_legacy_references(
+    old.user_id,
+    old.id,
+    old.deck_lists
+  );
+  return old;
+end;
+$function$;
+
+revoke all on function public.preserve_deleted_deck_references_before_delete()
+  from public, anon, authenticated;
+drop trigger if exists preserve_deleted_deck_references_before_delete on public.decks;
+create trigger preserve_deleted_deck_references_before_delete
+  before delete on public.decks
+  for each row execute function public.preserve_deleted_deck_references_before_delete();
+
 -- Strategy deletion must enter the same mutation boundary before PostgreSQL
 -- takes ON DELETE SET NULL locks on child Deck Lists. The app calls this RPC;
--- authenticated direct DELETE is revoked below so no alternate lock order is
--- available to clients.
+-- the pre-delete trigger above keeps the previous direct-delete client safe
+-- until the application has cut over to this RPC.
 create or replace function public.delete_owned_deck(
   p_deck_id text
 )
@@ -1225,7 +1262,6 @@ declare
   v_user_id uuid := auth.uid();
   v_deck_id text := nullif(btrim(p_deck_id), '');
   v_deleted_id text;
-  v_legacy_children jsonb;
 begin
   if v_user_id is null then
     raise exception using errcode = '42501', message = 'Authentication is required.';
@@ -1239,9 +1275,7 @@ begin
   );
 
   select id
-    , deck_lists
   into v_deleted_id
-    , v_legacy_children
   from public.decks
   where user_id = v_user_id
     and id = v_deck_id
@@ -1250,12 +1284,6 @@ begin
   if not found then
     return null;
   end if;
-
-  perform public.preserve_deleted_deck_legacy_references(
-    v_user_id,
-    v_deck_id,
-    v_legacy_children
-  );
 
   delete from public.decks
   where user_id = v_user_id
@@ -1267,7 +1295,6 @@ $function$;
 
 revoke all on function public.delete_owned_deck(text) from public, anon;
 grant execute on function public.delete_owned_deck(text) to authenticated;
-revoke delete on table public.decks from public, anon, authenticated;
 
 -- Deletion is also a reviewed mutation boundary. The trigger clears same-account
 -- log/tournament references and the legacy JSON copy after this row is locked.
@@ -1378,6 +1405,18 @@ as $function$
       and (
         ordered_logs.linked_deck_id is null
         or relational_list.deck_id = ordered_logs.linked_deck_id
+        or not exists (
+          select 1
+          from public.decks as legacy_deck
+          where legacy_deck.user_id = ordered_logs.user_id
+            and legacy_deck.id = ordered_logs.linked_deck_id
+            and jsonb_typeof(legacy_deck.deck_lists) = 'array'
+            and exists (
+              select 1
+              from jsonb_array_elements(legacy_deck.deck_lists) as legacy_item(value)
+              where legacy_item.value ->> 'id' = ordered_logs.linked_deck_list_id
+            )
+        )
       )
     left join public.decks
       on relational_list.id is null

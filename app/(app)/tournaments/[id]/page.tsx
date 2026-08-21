@@ -18,7 +18,6 @@ import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
-import { getDeckListById } from "@/lib/db/deck-lists";
 import { getDeckWithList } from "@/lib/db/decks";
 import {
   getTournamentById,
@@ -158,10 +157,8 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
     "Trainer";
   const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
   const resolvedTournamentDeckList =
-    tournament.linkedDeckListId
-      ? tournament.linkedDeckId
-        ? (await getDeckWithList(user.id, tournament.linkedDeckId, tournament.linkedDeckListId))?.deckList ?? null
-        : await getDeckListById(user.id, tournament.linkedDeckListId)
+    tournament.linkedDeckId && tournament.linkedDeckListId
+      ? (await getDeckWithList(user.id, tournament.linkedDeckId, tournament.linkedDeckListId))?.deckList ?? null
       : null;
 
   return (
@@ -230,7 +227,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
                 </ItemTitle>
               </div>
               <div className="flex shrink-0">
-                {tournament.linkedDeckListId ? (
+                {tournament.linkedDeckId && tournament.linkedDeckListId ? (
                   <DeckListViewDialog
                     deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
                     rawList={resolvedTournamentDeckList?.rawList}

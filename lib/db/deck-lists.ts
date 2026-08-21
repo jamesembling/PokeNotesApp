@@ -180,6 +180,7 @@ function mapReference(row: DeckListReferenceRow): DeckListReferenceRecord {
     deckId: row.deck_id,
     id: row.id,
     name: row.name,
+    source: "relational",
     userId: row.user_id
   };
 }
@@ -200,7 +201,7 @@ function parseLegacyReference(
     return null;
   }
 
-  return { deckId, id, name, userId };
+  return { deckId, id, name, source: "legacy", userId };
 }
 
 function parseLegacyReferences(row: LegacyDeckRow, userId: string) {
@@ -302,11 +303,7 @@ export async function validateDeckListReference(input: {
   const linkedDeckId = String(input.linkedDeckId || "").trim() || null;
   const linkedDeckListId = String(input.linkedDeckListId || "").trim() || null;
 
-  if (!linkedDeckListId) {
-    if (!linkedDeckId) {
-      return { deckId: null, deckListId: null, list: null };
-    }
-
+  if (linkedDeckId) {
     const { data, error } = await input.supabase
       .from("decks")
       .select("id")
@@ -318,6 +315,12 @@ export async function validateDeckListReference(input: {
     }
     if (!data) {
       throw new Error("Deck Strategy could not be found.");
+    }
+  }
+
+  if (!linkedDeckListId) {
+    if (!linkedDeckId) {
+      return { deckId: null, deckListId: null, list: null };
     }
 
     return { deckId: linkedDeckId, deckListId: null, list: null };
@@ -358,42 +361,67 @@ export async function getDeckListById(
   deckId?: string | null
 ): Promise<DeckList | null> {
   const supabase = await createClient();
-  let listQuery = supabase
+  const listQuery = supabase
     .from("deck_lists")
     .select(DECK_LIST_SELECT)
     .eq("user_id", userId)
     .eq("id", deckListId);
-  if (deckId) {
-    listQuery = listQuery.eq("deck_id", deckId);
-  }
   const { data, error } = await listQuery.maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  if (data) {
-    return mapDeckList(data as unknown as DeckListRow);
+  const relationalList = data ? mapDeckList(data as unknown as DeckListRow) : null;
+
+  async function getLegacyCandidates(targetDeckId?: string | null) {
+    let deckQuery = supabase
+      .from("decks")
+      .select("id,deck_name,deck_lists")
+      .eq("user_id", userId);
+    if (targetDeckId) {
+      deckQuery = deckQuery.eq("id", targetDeckId);
+    }
+    const { data: decks, error: deckError } = await deckQuery;
+    if (deckError) {
+      throw deckError;
+    }
+
+    return ((decks ?? []) as unknown as LegacyDeckRow[]).flatMap((deck) =>
+      (Array.isArray(deck.deck_lists) ? deck.deck_lists : [])
+        .map((value) => parseLegacyDeckList(value, deck.id))
+        .filter((value): value is DeckList => value !== null)
+        .filter((value) => value.id === deckListId)
+    );
   }
 
-  let deckQuery = supabase
-    .from("decks")
-    .select("id,deck_name,deck_lists")
-    .eq("user_id", userId);
-  if (deckId) {
-    deckQuery = deckQuery.eq("id", deckId);
-  }
-  const { data: decks, error: deckError } = await deckQuery;
-  if (deckError) {
-    throw deckError;
+  if (relationalList) {
+    if (!deckId || relationalList.deckId === deckId) {
+      return relationalList;
+    }
+
+    const { data: targetDeck, error: targetDeckError } = await supabase
+      .from("decks")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("id", deckId)
+      .maybeSingle();
+    if (targetDeckError) {
+      throw targetDeckError;
+    }
+    if (!targetDeck) {
+      return null;
+    }
+
+    const legacyCandidates = await getLegacyCandidates(deckId);
+    return legacyCandidates.length === 1
+      ? legacyCandidates[0]
+      : legacyCandidates.length > 1
+        ? null
+        : relationalList;
   }
 
-  const candidates = ((decks ?? []) as unknown as LegacyDeckRow[]).flatMap((deck) =>
-    (Array.isArray(deck.deck_lists) ? deck.deck_lists : [])
-      .map((value) => parseLegacyDeckList(value, deck.id))
-      .filter((value): value is DeckList => value !== null)
-      .filter((value) => value.id === deckListId)
-  );
+  const candidates = await getLegacyCandidates(deckId);
   return candidates.length === 1 ? candidates[0] : null;
 }
 

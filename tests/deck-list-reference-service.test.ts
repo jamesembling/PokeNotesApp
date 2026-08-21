@@ -63,22 +63,23 @@ test("standalone first-class lists resolve to a null strategy", async () => {
   assert.equal(result.list?.name, "Travel list");
 });
 
-test("a supplied strategy must match the first-class list association", async () => {
+test("a supplied strategy can reference an account-owned first-class list independently", async () => {
   const supabase = createSupabase({
     deckLists: [
       { deck_id: "strategy-a", id: "list-1", name: "League list", user_id: "user-1" }
-    ]
+    ],
+    decks: [{ id: "strategy-b", deck_lists: [], user_id: "user-1" }]
   });
 
-  await assert.rejects(
-    validateDeckListReference({
-      linkedDeckId: "strategy-b",
-      linkedDeckListId: "list-1",
-      supabase: supabase as never,
-      userId: "user-1"
-    }),
-    /does not belong to the supplied Deck Strategy/
-  );
+  const result = await validateDeckListReference({
+    linkedDeckId: "strategy-b",
+    linkedDeckListId: "list-1",
+    supabase: supabase as never,
+    userId: "user-1"
+  });
+
+  assert.equal(result.deckId, "strategy-b");
+  assert.equal(result.deckListId, "list-1");
 });
 
 test("legacy JSON remains a read-compatible fallback for an owned strategy", async () => {

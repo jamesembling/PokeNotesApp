@@ -104,12 +104,11 @@ test("database reference and read-model boundaries match strategy-scoped legacy 
   );
   const readModel = migration.slice(migration.indexOf("create or replace function public.get_initial_logs_page_data("));
 
-  assert.match(referenceBlock, /deck_list\.deck_id = p_deck_id/);
-  assert.doesNotMatch(
-    referenceBlock,
-    /when p_deck_id is not null and not exists \(\s*select 1\s+from public\.deck_lists/
-  );
-  assert.match(readModel, /relational_list\.deck_id = ordered_logs\.linked_deck_id/);
+  assert.match(referenceBlock, /deck_list\.user_id = p_user_id/);
+  assert.match(referenceBlock, /deck_list\.id = p_deck_list_id/);
+  assert.doesNotMatch(referenceBlock, /deck_list\.deck_id = p_deck_id/);
+  assert.match(readModel, /legacy_deck\.id = ordered_logs\.linked_deck_id/);
+  assert.match(readModel, /legacy_item\.value ->> 'id' = ordered_logs\.linked_deck_list_id/);
 
   const deletionBlock = migration.slice(
     migration.indexOf("create or replace function public.preserve_deleted_deck_legacy_references("),

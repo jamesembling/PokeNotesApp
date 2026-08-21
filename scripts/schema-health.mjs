@@ -98,6 +98,7 @@ const REQUIRED_COLUMNS = {
     "id",
     "deck_id",
     "user_id",
+    "creation_key",
     "name",
     "format",
     "date",
@@ -207,8 +208,12 @@ const REQUIRED_COLUMNS = {
 
 const REQUIRED_FUNCTIONS = [
   "commit_deck_aggregate_child",
+  "commit_first_class_deck_list",
   "create_log_share",
+  "can_use_deck_list_reference",
   "clear_orphaned_deck_list_link",
+  "delete_first_class_deck_list",
+  "delete_owned_deck",
   "get_active_log_share",
   "get_admin_dashboard_overview",
   "get_admin_users_overview",
@@ -220,6 +225,9 @@ const REQUIRED_FUNCTIONS = [
   "refresh_user_archetype_matchup_stats",
   "refresh_user_log_stats",
   "revoke_log_share",
+  "preserve_deleted_deck_legacy_references",
+  "preserve_deleted_deck_references_before_delete",
+  "set_deck_list_association",
   "sync_deck_log_stats_from_log_row",
   "sync_current_profile",
   "sync_user_archetype_matchup_stats_from_log_row",
@@ -230,14 +238,13 @@ const REQUIRED_FUNCTIONS = [
 
 const REQUIRED_CONSTRAINT_DEFINITIONS = {
   deck_lists_owner_deck_fkey:
-    "FOREIGN KEY (user_id, deck_id) REFERENCES decks(user_id, id) ON DELETE CASCADE",
+    "FOREIGN KEY (user_id, deck_id) REFERENCES decks(user_id, id) ON DELETE SET NULL (deck_id)",
+  deck_lists_pkey: "PRIMARY KEY (user_id, id)",
   deck_log_stats_owner_deck_fkey:
     "FOREIGN KEY (user_id, deck_id) REFERENCES decks(user_id, id) ON DELETE CASCADE",
   deck_matchups_owner_deck_fkey:
     "FOREIGN KEY (user_id, deck_id) REFERENCES decks(user_id, id) ON DELETE CASCADE",
   decks_user_id_id_unique: "UNIQUE (user_id, id)",
-  logs_linked_deck_list_requires_deck:
-    "CHECK (linked_deck_id IS NOT NULL OR linked_deck_list_id IS NULL)",
   log_shares_payload_v1_envelope:
     "CHECK (NOT jsonb_typeof(payload) IS DISTINCT FROM 'object'::text AND NOT (payload ->> 'version'::text) IS DISTINCT FROM 'v1'::text AND NOT jsonb_typeof(payload -> 'log'::text) IS DISTINCT FROM 'object'::text AND NOT jsonb_typeof(payload #> '{log,sections}'::text[]) IS DISTINCT FROM 'array'::text AND NOT jsonb_typeof(payload -> 'linkedStrategyLabel'::text) IS DISTINCT FROM 'string'::text AND (NOT payload ? 'linkedDeckListSortedCards'::text OR (jsonb_typeof(payload -> 'linkedDeckListSortedCards'::text) = ANY (ARRAY['array'::text, 'null'::text]))))",
   log_shares_payload_max_256k:
@@ -246,8 +253,6 @@ const REQUIRED_CONSTRAINT_DEFINITIONS = {
     "FOREIGN KEY (user_id, linked_deck_id) REFERENCES decks(user_id, id) ON DELETE SET NULL (linked_deck_id)",
   tournament_rounds_owner_tournament_fkey:
     "FOREIGN KEY (user_id, tournament_id) REFERENCES tournaments(user_id, id) ON DELETE CASCADE",
-  tournaments_linked_deck_list_requires_deck:
-    "CHECK (linked_deck_id IS NOT NULL OR linked_deck_list_id IS NULL)",
   tournaments_owner_linked_deck_fkey:
     "FOREIGN KEY (user_id, linked_deck_id) REFERENCES decks(user_id, id) ON DELETE SET NULL (linked_deck_id)",
   tournaments_user_id_id_unique: "UNIQUE (user_id, id)"
@@ -256,6 +261,10 @@ const REQUIRED_CONSTRAINT_DEFINITIONS = {
 const REQUIRED_CONSTRAINTS = Object.keys(REQUIRED_CONSTRAINT_DEFINITIONS);
 
 const REQUIRED_INDEX_DEFINITIONS = {
+  deck_lists_user_creation_key_unique:
+    "CREATE UNIQUE INDEX deck_lists_user_creation_key_unique ON public.deck_lists USING btree (user_id, creation_key) WHERE (creation_key IS NOT NULL)",
+  deck_lists_user_updated:
+    "CREATE INDEX deck_lists_user_updated ON public.deck_lists USING btree (user_id, updated_at DESC, id)",
   tournament_rounds_user_tournament:
     "CREATE INDEX tournament_rounds_user_tournament ON public.tournament_rounds USING btree (user_id, tournament_id)",
   tournaments_user_linked_deck:
@@ -264,8 +273,10 @@ const REQUIRED_INDEX_DEFINITIONS = {
 
 const REQUIRED_INDEXES = [
   "decks_user_archetype",
+  "deck_lists_user_creation_key_unique",
   "deck_lists_user_deck_position",
   "deck_lists_user_deck_updated",
+  "deck_lists_user_updated",
   "deck_lists_deck_id",
   "deck_matchups_user_deck_position",
   "deck_matchups_user_deck_updated",
@@ -294,6 +305,7 @@ const REQUIRED_TRIGGERS = [
   "refresh_user_log_stats_after_delete",
   "refresh_user_log_stats_after_insert",
   "refresh_user_log_stats_after_stats_update",
+  "preserve_deleted_deck_references_before_delete",
   "set_decks_updated_at",
   "set_deck_lists_updated_at",
   "set_deck_matchups_updated_at",
@@ -476,6 +488,88 @@ const [securityContract = {}] = runSupabaseJson(`
         'public.commit_deck_aggregate_child(text,text,text,jsonb,text,timestamptz)'
       )
     ), false) as deck_aggregate_commit_is_invoker_with_fixed_search_path,
+    coalesce(
+      has_function_privilege(
+        'authenticated',
+        pg_catalog.to_regprocedure(
+          'public.commit_first_class_deck_list(text,text,jsonb,text,timestamptz,timestamptz)'
+        ),
+        'EXECUTE'
+      )
+      and has_function_privilege(
+        'authenticated',
+        pg_catalog.to_regprocedure(
+          'public.set_deck_list_association(text,text,timestamptz,timestamptz)'
+        ),
+        'EXECUTE'
+      )
+      and has_function_privilege(
+        'authenticated',
+        pg_catalog.to_regprocedure(
+          'public.delete_first_class_deck_list(text,timestamptz)'
+        ),
+        'EXECUTE'
+      )
+      and not has_function_privilege(
+        'anon',
+        pg_catalog.to_regprocedure(
+          'public.commit_first_class_deck_list(text,text,jsonb,text,timestamptz,timestamptz)'
+        ),
+        'EXECUTE'
+      )
+      and not has_function_privilege(
+        'anon',
+        pg_catalog.to_regprocedure(
+          'public.set_deck_list_association(text,text,timestamptz,timestamptz)'
+        ),
+        'EXECUTE'
+      )
+      and not has_function_privilege(
+        'anon',
+        pg_catalog.to_regprocedure(
+          'public.delete_first_class_deck_list(text,timestamptz)'
+        ),
+        'EXECUTE'
+      ),
+      false
+    ) as first_class_deck_list_rpcs_are_callable,
+    has_table_privilege('authenticated', 'public.decks', 'DELETE')
+      as authenticated_can_delete_decks,
+    coalesce((
+      select procedure.prosecdef
+        and procedure.proconfig @> array['search_path=pg_catalog, public']::text[]
+        and position('pg_try_advisory_xact_lock' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+        and position('preserve_deleted_deck_legacy_references' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+      from pg_catalog.pg_proc as procedure
+      where procedure.oid = pg_catalog.to_regprocedure(
+        'public.preserve_deleted_deck_references_before_delete()'
+      )
+    ), false) as direct_deck_delete_preservation_is_safe,
+    coalesce((
+      select not has_function_privilege('anon', procedure.oid, 'EXECUTE')
+        and not has_function_privilege('authenticated', procedure.oid, 'EXECUTE')
+      from pg_catalog.pg_proc as procedure
+      where procedure.oid = pg_catalog.to_regprocedure(
+        'public.preserve_deleted_deck_references_before_delete()'
+      )
+    ), false) as direct_deck_delete_trigger_is_not_callable,
+    coalesce((
+      select position('deck_list.user_id = p_user_id' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+        and position('deck_list.id = p_deck_list_id' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+        and position('item.value ->> ''id'' = p_deck_list_id' in pg_catalog.pg_get_functiondef(procedure.oid)) > 0
+      from pg_catalog.pg_proc as procedure
+      where procedure.oid = pg_catalog.to_regprocedure(
+        'public.can_use_deck_list_reference(uuid,text,text)'
+      )
+    ), false) as deck_list_reference_is_account_scoped,
+    coalesce((
+      select position('returning * into v_list' in lower(pg_catalog.pg_get_functiondef(procedure.oid))) > 0
+        and position('''updatedat'', v_list.updated_at' in lower(pg_catalog.pg_get_functiondef(procedure.oid))) > 0
+      from pg_catalog.pg_proc as procedure
+      where procedure.oid = pg_catalog.to_regprocedure(
+        'public.set_deck_list_association(text,text,timestamptz,timestamptz)'
+      )
+    ), false) as association_uses_authoritative_timestamp,
     not has_column_privilege('authenticated', 'public.profiles', 'role', 'INSERT')
       as authenticated_cannot_insert_profile_role,
     not has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE')
@@ -575,11 +669,7 @@ const [securityContract = {}] = runSupabaseJson(`
           ('tournaments', 'Users can update own tournaments')
         )
         and position('auth.uid' in lower(coalesce(policy.with_check, ''))) > 0
-        and position('parent.id' in lower(coalesce(policy.with_check, ''))) > 0
-        and position('parent.user_id' in lower(coalesce(policy.with_check, ''))) > 0
-        and position('linked_deck_id is null' in lower(coalesce(policy.with_check, ''))) > 0
-        and position('linked_deck_list_id is null' in lower(coalesce(policy.with_check, ''))) > 0
-        and position('jsonb_array_elements' in lower(coalesce(policy.with_check, ''))) > 0
+        and position('can_use_deck_list_reference' in lower(coalesce(policy.with_check, ''))) > 0
     ) as linked_deck_list_writes_require_owned_parent,
     not exists (
       select 1
@@ -595,11 +685,13 @@ const [securityContract = {}] = runSupabaseJson(`
         )
     ) as superseded_id_only_parent_keys_are_absent,
     not exists (
-      select 1 from public.logs
-      where linked_deck_id is null and linked_deck_list_id is not null
-    ) and not exists (
-      select 1 from public.tournaments
-      where linked_deck_id is null and linked_deck_list_id is not null
+      select 1
+      from pg_catalog.pg_constraint
+      where connamespace = 'public'::regnamespace
+        and conname in (
+          'logs_linked_deck_list_requires_deck',
+          'tournaments_linked_deck_list_requires_deck'
+        )
     ) as optional_deck_links_are_coherent,
     (
       select count(*) = 2

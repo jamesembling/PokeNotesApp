@@ -1086,7 +1086,6 @@ export async function getDeckWithList(
           "updated_at"
         ].join(","))
         .eq("user_id", userId)
-        .eq("deck_id", deckId)
         .eq("id", listId)
         .maybeSingle()
     )
@@ -1108,8 +1107,11 @@ export async function getDeckWithList(
   const relationalDeckList = listResult.data
     ? mapRelationalDeckList((listResult.data as unknown) as DeckListRelationalRow)
     : null;
+  const legacyDeckList = parseDeckLists(row.deck_lists).find((entry) => entry.id === listId);
   const deckList =
-    relationalDeckList ?? parseDeckLists(row.deck_lists).find((entry) => entry.id === listId);
+    relationalDeckList && (relationalDeckList.deckId === deckId || !legacyDeckList)
+      ? relationalDeckList
+      : legacyDeckList ?? relationalDeckList;
 
   if (!deckList) {
     return null;

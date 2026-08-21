@@ -43,7 +43,8 @@ export async function saveDeckList(args: {
     name: String(formData.get("name") || ""),
     notes: String(formData.get("notes") || ""),
     rawList: String(formData.get("rawList") || ""),
-    submittedCreatedAt: String(formData.get("createdAt") || "")
+    submittedCreatedAt: String(formData.get("createdAt") || ""),
+    submittedUpdatedAt: String(formData.get("updatedAt") || "")
   });
 }
 

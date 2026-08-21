@@ -114,6 +114,7 @@ function listCommand(overrides: Partial<SaveDeckListCommand> = {}): SaveDeckList
     notes: "  Keep this plan  ",
     rawList: "  2 Dragapult ex TWM 130  ",
     submittedCreatedAt: "",
+    submittedUpdatedAt: "2026-08-20T00:40:00.000Z",
     ...overrides
   };
 }
@@ -225,7 +226,8 @@ test("list edits retain creation time and carry the observed child version", asy
       date: "2026-07-01",
       deckListId: "target",
       format: "Custom",
-      name: "Updated"
+      name: "Updated",
+      submittedUpdatedAt: "2026-07-10T12:00:00.000Z"
     })
   );
 
@@ -366,7 +368,9 @@ test("a same-child concurrency conflict gives an actionable user-facing error", 
   });
 
   await assert.rejects(
-    harness.writer.saveList(listCommand({ deckListId: "target" })),
+    harness.writer.saveList(
+      listCommand({ deckListId: "target", submittedUpdatedAt: "2026-07-11T17:00:00.000Z" })
+    ),
     {
       message: "This deck list changed in another tab. Refresh the page and try again."
     }
