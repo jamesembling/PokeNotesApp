@@ -45,6 +45,26 @@ function isMissingTournamentDeckListColumns(error: PostgrestLikeError | null) {
   return error?.code === "42703";
 }
 
+function isMissingTournamentRoundRpc(error: PostgrestLikeError | null) {
+  if (!error || !["42883", "PGRST202"].includes(String(error.code || ""))) {
+    return false;
+  }
+
+  return [error.message, error.details, error.hint]
+    .filter(Boolean)
+    .some((value) => /create_tournament_round/i.test(String(value)));
+}
+
+function isOutdatedTournamentRoundResultConstraint(error: PostgrestLikeError) {
+  if (error.code !== "23514") {
+    return false;
+  }
+
+  return [error.message, error.details, error.hint]
+    .filter(Boolean)
+    .some((value) => String(value).includes("tournament_rounds_result_check"));
+}
+
 function revalidateTournamentWorkspace(tournamentId?: string) {
   revalidatePath("/tournaments", "layout");
   if (tournamentId) {
@@ -53,7 +73,11 @@ function revalidateTournamentWorkspace(tournamentId?: string) {
 }
 
 function toUserFacingDatabaseError(error: PostgrestLikeError) {
-  if (error.code === "23514") {
+  if (error.code === "P0002" && /tournament could not be found/i.test(String(error.message || ""))) {
+    return userFacingActionError("Tournament could not be found.");
+  }
+
+  if (isOutdatedTournamentRoundResultConstraint(error)) {
     return userFacingActionError(
       "Your Supabase tournament round constraint is out of date. Run the latest tournament rounds SQL update, then try again."
     );
@@ -637,13 +661,29 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
         throw userFacingActionError("Could not find that round.");
       }
     } else {
-      const { error } = await supabase.from("tournament_rounds").insert({
-        id: crypto.randomUUID(),
-        ...payload
+      const newRoundId = crypto.randomUUID();
+      const { error: rpcError } = await supabase.rpc("create_tournament_round", {
+        p_notes: payload.notes,
+        p_opponent_deck_name: payload.opponent_deck_name,
+        p_opponent_deck_sprites: payload.opponent_deck_sprites,
+        p_result: payload.result,
+        p_round_id: newRoundId,
+        p_tournament_id: tournamentId
       });
 
-      if (error) {
-        throw toUserFacingDatabaseError(error);
+      if (rpcError && !isMissingTournamentRoundRpc(rpcError)) {
+        throw toUserFacingDatabaseError(rpcError);
+      }
+
+      if (rpcError) {
+        const { error } = await supabase.from("tournament_rounds").insert({
+          id: newRoundId,
+          ...payload
+        });
+
+        if (error) {
+          throw toUserFacingDatabaseError(error);
+        }
       }
     }
 
