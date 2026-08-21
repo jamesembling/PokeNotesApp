@@ -220,7 +220,8 @@ function attachLinkedDeckListNames(
         id: deckList.id,
         name: deckList.name,
         deckId: deck.id,
-        deckName: deck.deckName
+        deckName: deck.deckName,
+        source: "legacy" as const
       }))
     )
   ];

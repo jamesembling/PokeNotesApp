@@ -505,5 +505,13 @@ export async function getDeckListSelectionOptions(
       source: "legacy" as const
     }));
 
-  return buildDeckListSelectionOptions([...relationalSources, ...legacySources]);
+  const options = buildDeckListSelectionOptions([...relationalSources, ...legacySources]);
+  return options.map((option) => ({
+    ...option,
+    source: relationalSources.some(
+      (source) => source.id === option.id && source.deckId === option.deckId
+    )
+      ? "relational"
+      : "legacy"
+  }));
 }

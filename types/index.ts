@@ -220,6 +220,8 @@ export type DeckListSelectionOption = {
   name: string
   deckId: string | null
   deckName: string | null
+  /** Storage provenance used to keep exact legacy identity ahead of relational fallback. */
+  source?: "legacy" | "relational"
   /** Stable selector identity; includes nullable strategy and list IDs. */
   selectionKey?: string
 }
