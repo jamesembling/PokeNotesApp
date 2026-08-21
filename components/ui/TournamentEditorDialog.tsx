@@ -16,6 +16,7 @@ import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/comp
 import { Dialog } from "@/components/shadcn/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
+import { Switch } from "@/components/shadcn/switch";
 import { Textarea } from "@/components/shadcn/textarea";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { FormatSelect } from "@/components/ui/FormatSelect";
@@ -470,30 +471,19 @@ export function TournamentEditorDialog({
                     />
                   </Field>
 
-                  <div className="flex min-h-[2.75rem] items-center justify-between gap-3 sm:min-h-[3rem]">
-                    <span className="text-sm font-semibold text-card-foreground">Multi-Day Event</span>
-                    <button
-                      aria-checked={isMultiDay}
+                  <div className="flex min-h-[2.75rem] self-end items-center justify-between gap-3 sm:min-h-[3rem]">
+                    <FieldLabel htmlFor="tournament-multi-day">Multi-Day Event</FieldLabel>
+                    <Switch
                       aria-label="Multi-day event"
-                      className="relative h-6 w-11 rounded-full border border-border bg-muted transition aria-checked:bg-primary"
-                      onClick={() => {
-                        setIsMultiDay((current) => {
-                          if (current) {
-                            setDateTo("");
-                          }
-                          return !current;
-                        });
+                      checked={isMultiDay}
+                      id="tournament-multi-day"
+                      onCheckedChange={(checked) => {
+                        if (!checked) {
+                          setDateTo("");
+                        }
+                        setIsMultiDay(checked);
                       }}
-                      role="switch"
-                      type="button"
-                    >
-                      <span
-                        className={[
-                          "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-card shadow-sm transition",
-                          isMultiDay ? "translate-x-5" : ""
-                        ].join(" ")}
-                      />
-                    </button>
+                    />
                   </div>
 
                   <Field className={isMultiDay ? "grid" : "hidden"}>

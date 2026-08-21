@@ -4,6 +4,10 @@ import { join } from "node:path";
 import test from "node:test";
 import { UserFacingActionError } from "@/lib/server/action-errors";
 import { isTournamentMultiDay, normalizeTournamentDateRange } from "@/lib/tournaments/date-range";
+import {
+  toggleRoundGameResult,
+  toggleRoundSpecialResult
+} from "@/lib/tournaments/round-result-selection";
 
 const migration = readFileSync(
   join(process.cwd(), "supabase/migrations/20260821001249_create_tournament_round_atomic.sql"),
@@ -34,6 +38,25 @@ test("blank tournament end dates normalize to the start date", () => {
 test("equal dates remain single-day when reopening the editor", () => {
   assert.equal(isTournamentMultiDay("2026-08-10", "2026-08-10"), false);
   assert.equal(isTournamentMultiDay("2026-08-10", "2026-08-11"), true);
+});
+
+test("round result controls select, replace, and clear one outcome model", () => {
+  assert.deepEqual(toggleRoundGameResult(["W", "", ""], 0, "W"), {
+    gameResults: ["", "", ""],
+    specialResult: ""
+  });
+  assert.deepEqual(toggleRoundGameResult(["W", "", ""], 0, "L"), {
+    gameResults: ["L", "", ""],
+    specialResult: ""
+  });
+  assert.deepEqual(toggleRoundSpecialResult(["W", "L", ""], "", "BYE"), {
+    gameResults: ["", "", ""],
+    specialResult: "BYE"
+  });
+  assert.deepEqual(toggleRoundSpecialResult(["", "", ""], "BYE", "BYE"), {
+    gameResults: ["", "", ""],
+    specialResult: ""
+  });
 });
 
 test("round allocation locks the owned tournament and is independently deployable", () => {

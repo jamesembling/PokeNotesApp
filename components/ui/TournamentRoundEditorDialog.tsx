@@ -24,6 +24,11 @@ import {
   TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS
 } from "@/lib/tournaments/options";
 import { getRoundResultGameTokens, getRoundSpecialResult } from "@/lib/tournaments/display";
+import {
+  toggleRoundGameResult,
+  toggleRoundSpecialResult
+} from "@/lib/tournaments/round-result-selection";
+import { cn } from "@/lib/utils";
 import type { PokemonOption, TournamentRound, TournamentRoundSpecialResult } from "@/types/index";
 
 type TournamentRoundEditorDialogProps = {
@@ -41,6 +46,19 @@ type SaveState = "idle" | "saving" | "success";
 type DeleteState = "idle" | "deleting";
 
 const SUCCESS_CLOSE_DELAY_MS = 650;
+
+function getGameResultButtonClassName(option: string, isSelected: boolean) {
+  return cn(
+    "min-h-11 rounded-none border-0 border-r border-border px-3 py-2 text-base font-bold last:border-r-0 sm:text-sm",
+    isSelected && option === "W" &&
+      "bg-win-bg text-win-strong shadow-[inset_0_0_0_1px_var(--color-win-border)] hover:bg-win-bg hover:text-win-strong",
+    isSelected && option === "L" &&
+      "bg-loss-bg text-loss-strong shadow-[inset_0_0_0_1px_var(--color-loss-border)] hover:bg-loss-bg hover:text-loss-strong",
+    isSelected && option === "T" &&
+      "bg-warning-bg text-warning-strong shadow-[inset_0_0_0_1px_var(--color-warning-border)] hover:bg-warning-bg hover:text-warning-strong",
+    !isSelected && "bg-transparent text-card-foreground hover:bg-card hover:text-card-foreground"
+  );
+}
 
 function normalizeRedirectPath(value: string) {
   return value.split("?")[0] || value;
@@ -208,40 +226,50 @@ export function TournamentRoundEditorDialog({
       {triggerLabel}
     </Button>
   );
-  const renderActions = () => (
-    <div
-      className={isEditing ? "grid w-full grid-cols-2 sm:w-auto" : "w-full sm:w-auto"}
-      role="group"
+  const saveLabel = saveState === "saving"
+    ? "Saving..."
+    : saveState === "success"
+      ? "Saved"
+      : isEditing
+        ? "Save Changes"
+        : "Add Round";
+
+  const deleteButton = isEditing ? (
+    <Button
+      disabled={isBusy}
+      onClick={() => {
+        setActionError("");
+        setShowDeleteConfirmation((current) => !current);
+      }}
+      type="button"
+      variant="destructive"
     >
-      {isEditing ? (
-        <Button
-          className="w-full rounded-r-none sm:min-w-32"
-          disabled={isBusy}
-          onClick={() => {
-            setActionError("");
-            setShowDeleteConfirmation((current) => !current);
-          }}
-          type="button"
-        >
-          Delete
-        </Button>
-      ) : null}
-      <Button
-        aria-disabled={saveState === "saving" || saveState === "success"}
-        className={isEditing ? "w-full rounded-l-none border-l-0 sm:min-w-32" : "w-full sm:min-w-32"}
-        disabled={saveState === "saving"}
-        onClick={() => formRef.current?.requestSubmit()}
-        type="button"
-      >
-        {saveState === "saving"
-          ? "Saving..."
-          : saveState === "success"
-            ? "Saved"
-            : isEditing
-              ? "Save Changes"
-              : "Add Round"}
-      </Button>
-    </div>
+      Delete
+    </Button>
+  ) : null;
+
+  const desktopCancelButton = (
+    <Button disabled={isBusy} onClick={closeDialog} type="button" variant="outline">
+      Cancel
+    </Button>
+  );
+
+  const mobileCancelButton = (
+    <Button disabled={isBusy} onClick={closeDialog} type="button" variant="ghost">
+      Cancel
+    </Button>
+  );
+
+  const saveButton = (
+    <Button
+      aria-disabled={saveState === "saving" || saveState === "success"}
+      className="sm:min-w-32"
+      disabled={saveState === "saving"}
+      onClick={() => formRef.current?.requestSubmit()}
+      type="button"
+    >
+      {saveLabel}
+    </Button>
   );
 
   return (
@@ -260,6 +288,7 @@ export function TournamentRoundEditorDialog({
       <AppDialogContent
         showMobileCloseButton
         showCloseButton={false}
+        size="lg"
       >
             <AppDialogHeader
               description={isEditing ? "Update this tournament round result, Pokemon, and notes." : "Add a tournament round result, Pokemon, and notes."}
@@ -309,7 +338,7 @@ export function TournamentRoundEditorDialog({
               </Alert>
             ) : null}
 
-            <form action={handleSubmit} className="grid min-w-0 gap-5" ref={formRef}>
+            <form action={handleSubmit} className="grid min-w-0 gap-6" ref={formRef}>
               <input name="tournamentId" type="hidden" value={tournamentId} />
               <input name="redirectTo" type="hidden" value={pathname} />
               {isEditing && round ? <input name="roundId" type="hidden" value={round.id} /> : null}
@@ -322,52 +351,77 @@ export function TournamentRoundEditorDialog({
                 />
               ))}
 
-              <div className="grid gap-5">
-                <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+              <section aria-labelledby="round-match-result-heading" className="grid gap-4">
+                <h3
+                  className="text-base font-semibold text-card-foreground"
+                  id="round-match-result-heading"
+                >
+                  Match result
+                </h3>
+
+                <div className="grid sm:grid-cols-3">
                   {[0, 1, 2].map((index) => (
                     <fieldset
-                      className="flex items-center gap-3 border-b border-border pb-3 last:border-b-0 last:pb-0 sm:grid sm:grid-cols-1 sm:items-start sm:border-b-0 sm:border-r sm:pb-0 sm:pr-4 sm:last:border-r-0 sm:last:pr-0"
+                      className={cn(
+                        "grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 border-b border-border py-3 sm:grid-cols-1 sm:items-stretch sm:border-b-0 sm:border-r sm:px-4 sm:py-0",
+                        index === 0 && "pt-0 sm:pl-0",
+                        index === 2 && "border-b-0 pb-0 sm:border-r-0 sm:pr-0"
+                      )}
                       key={index}
                     >
-                      <legend className="sr-only">
-                        Game {index + 1}
-                      </legend>
-                      <span className="w-[4.5rem] shrink-0 text-sm font-semibold text-card-foreground sm:w-auto">
+                      <legend className="sr-only">Game {index + 1}</legend>
+                      <span
+                        aria-hidden="true"
+                        className="text-sm font-semibold text-card-foreground"
+                      >
                         Game {index + 1}
                       </span>
-                      <div className="grid flex-1 grid-cols-3 gap-2 sm:w-full sm:flex-none">
-                        {TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.map((option) => (
-                          <label
-                            className="flex cursor-pointer items-center justify-center gap-2 text-sm font-semibold text-card-foreground has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
-                            htmlFor={`round-game-${index + 1}-${option}`}
-                            key={option}
-                          >
-                            <input
-                              checked={gameResults[index] === option}
-                              className="size-4 accent-primary"
-                              id={`round-game-${index + 1}-${option}`}
-                              name={`game${index + 1}`}
-                              onChange={() => {
-                                const next = [...gameResults];
-                                next[index] = option;
-                                setSpecialResult("");
-                                setGameResults(next);
+                      <div className="grid min-w-0 grid-cols-3 overflow-hidden rounded-lg border border-border bg-muted">
+                        {TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.map((option) => {
+                          const isSelected = gameResults[index] === option;
+
+                          return (
+                            <Button
+                              aria-pressed={isSelected}
+                              className={getGameResultButtonClassName(option, isSelected)}
+                              key={option}
+                              onClick={() => {
+                                const nextSelection = toggleRoundGameResult(
+                                  gameResults,
+                                  index,
+                                  option
+                                );
+                                setGameResults(nextSelection.gameResults);
+                                setSpecialResult(nextSelection.specialResult);
                               }}
-                              type="radio"
-                              value={option}
-                            />
-                            {option}
-                          </label>
-                        ))}
+                              type="button"
+                              variant="ghost"
+                            >
+                              {option}
+                            </Button>
+                          );
+                        })}
                       </div>
+                      {gameResults[index] ? (
+                        <input
+                          name={`game${index + 1}`}
+                          type="hidden"
+                          value={gameResults[index]}
+                        />
+                      ) : null}
                     </fieldset>
                   ))}
                 </div>
 
-                <fieldset className="grid gap-2">
-                  <legend className="text-sm font-semibold text-card-foreground">
-                    Other Outcome
-                  </legend>
+                <fieldset className="grid gap-3">
+                  <legend className="sr-only">Other outcome</legend>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+                    <span aria-hidden="true" className="h-px bg-border" />
+                    <span className="text-center text-sm font-semibold text-muted-foreground">
+                      Or choose a match outcome
+                    </span>
+                    <span aria-hidden="true" className="h-px bg-border" />
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     {TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.map((option) => {
                       const fieldName =
@@ -377,36 +431,40 @@ export function TournamentRoundEditorDialog({
                             ? "isId"
                             : "isNoShow";
 
+                      const isSelected = specialResult === option.value;
+
                       return (
-                        <label
-                          className="flex cursor-pointer items-center justify-center gap-2 text-sm font-semibold text-card-foreground has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 sm:min-h-11 sm:rounded-lg sm:border sm:border-border sm:bg-card sm:px-3 sm:has-[:checked]:border-primary sm:has-[:checked]:bg-primary sm:has-[:checked]:text-primary-foreground"
-                          htmlFor={`round-special-${fieldName}`}
-                          key={option.value}
-                        >
-                          <input
-                            checked={specialResult === option.value}
-                            className="size-4 accent-primary"
-                            id={`round-special-${fieldName}`}
-                            name={fieldName}
-                            onChange={() => {
-                              setSpecialResult(option.value);
-                              setGameResults(["", "", ""]);
-                            }}
+                        <div className="grid" key={option.value}>
+                          <Button
+                            aria-pressed={isSelected}
+                            className="min-h-11 w-full px-2"
                             onClick={() => {
-                              if (specialResult === option.value) {
-                                setSpecialResult("");
-                              }
+                              const nextSelection = toggleRoundSpecialResult(
+                                gameResults,
+                                specialResult,
+                                option.value
+                              );
+                              setGameResults(nextSelection.gameResults);
+                              setSpecialResult(nextSelection.specialResult);
                             }}
-                            type="radio"
-                            value={option.value}
-                          />
-                          {option.label}
-                        </label>
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                          >
+                            {option.label}
+                          </Button>
+                          {isSelected ? (
+                            <input
+                              name={fieldName}
+                              type="hidden"
+                              value={option.value}
+                            />
+                          ) : null}
+                        </div>
                       );
                     })}
                   </div>
                 </fieldset>
-              </div>
+              </section>
 
               <BattleLogSpritePicker
                 onChange={setSelectedSprites}
@@ -417,7 +475,7 @@ export function TournamentRoundEditorDialog({
 
               <div className="grid gap-2">
                 <label className="text-sm font-semibold text-card-foreground" htmlFor="round-notes">
-                  Notes
+                  Round notes
                 </label>
                 <Textarea
                   className="min-h-28 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition focus:border-ring"
@@ -429,11 +487,21 @@ export function TournamentRoundEditorDialog({
               </div>
             </form>
             </div>
-            <AppDialogFooter>
-              {renderActions()}
+            <AppDialogFooter className="w-full">
+              {deleteButton ? <div className="mr-auto">{deleteButton}</div> : null}
+              {desktopCancelButton}
+              {saveButton}
             </AppDialogFooter>
             <AppDialogMobileFooter>
-              {renderActions()}
+              <div className="grid gap-2">
+                {deleteButton ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {deleteButton}
+                    {mobileCancelButton}
+                  </div>
+                ) : mobileCancelButton}
+                {saveButton}
+              </div>
             </AppDialogMobileFooter>
       </AppDialogContent>
     </Dialog>
