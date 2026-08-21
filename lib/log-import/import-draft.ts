@@ -141,10 +141,9 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
 
 function cloneSections(sections: ReadonlyArray<DeepReadonly<LogSection>>): LogSection[] {
   return sections.map((section) => ({
-    title: section.title,
-    player: section.player,
+    ...section,
     actions: section.actions.map((action) => ({
-      title: action.title,
+      ...action,
       details: [...action.details]
     })),
     prizesAfterTurn: { ...section.prizesAfterTurn }
