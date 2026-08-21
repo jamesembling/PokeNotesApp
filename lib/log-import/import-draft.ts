@@ -4,7 +4,15 @@ const MAX_OPAQUE_REFERENCE_LENGTH = 128;
 const MAX_EDITABLE_TEXT_LENGTH = 256;
 const MAX_SPRITES = 2;
 
-export type BattleLogImportImmutableFacts = {
+type DeepReadonly<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends readonly (infer U)[]
+    ? ReadonlyArray<DeepReadonly<U>>
+    : T extends object
+      ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+      : T;
+
+type BattleLogImportImmutableFactValues = {
   selfPlayerName: string;
   opponentPlayerName: string;
   result: ParsedLogReview["result"];
@@ -22,6 +30,10 @@ export type BattleLogImportImmutableFacts = {
   opponentMulligans: number;
   reason: string;
 };
+
+export type BattleLogImportImmutableFacts = DeepReadonly<
+  BattleLogImportImmutableFactValues
+>;
 
 /**
  * These are the only values a review may change. Deck IDs stay opaque here on
@@ -87,7 +99,8 @@ export type BattleLogImportDraftSaveDecision =
         | "DRAFT_ACCOUNT_MISMATCH"
         | "DRAFT_EXPIRED"
         | "DRAFT_CONSUMED"
-        | "IDEMPOTENCY_CONFLICT";
+        | "IDEMPOTENCY_CONFLICT"
+        | "INVALID_SERVER_TIMESTAMP";
       message: string;
     };
 
@@ -112,11 +125,26 @@ export class BattleLogImportDraftValidationError extends Error {
   }
 }
 
-function cloneSections(sections: LogSection[]) {
+function deepFreeze<T>(value: T): DeepReadonly<T> {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Reflect.ownKeys(value).forEach((key) => {
+      const child = (value as Record<PropertyKey, unknown>)[key];
+      if (child && typeof child === "object") {
+        deepFreeze(child);
+      }
+    });
+    Object.freeze(value);
+  }
+
+  return value as DeepReadonly<T>;
+}
+
+function cloneSections(sections: ReadonlyArray<DeepReadonly<LogSection>>): LogSection[] {
   return sections.map((section) => ({
-    ...section,
+    title: section.title,
+    player: section.player,
     actions: section.actions.map((action) => ({
-      ...action,
+      title: action.title,
       details: [...action.details]
     })),
     prizesAfterTurn: { ...section.prizesAfterTurn }
@@ -131,11 +159,13 @@ function cloneEditable(editable: BattleLogImportEditableFields): BattleLogImport
   };
 }
 
-function cloneImmutable(immutable: BattleLogImportImmutableFacts): BattleLogImportImmutableFacts {
-  return {
+function cloneImmutable(
+  immutable: BattleLogImportImmutableFacts
+): BattleLogImportImmutableFacts {
+  return deepFreeze({
     ...immutable,
     sections: cloneSections(immutable.sections)
-  };
+  });
 }
 
 function requireOpaqueReference(value: unknown, field: string) {
@@ -299,7 +329,7 @@ export function createBattleLogImportDraft(args: {
   }
 
   const review = args.review;
-  const immutable: BattleLogImportImmutableFacts = {
+  const immutable = deepFreeze({
     selfPlayerName: review.selfPlayerName,
     opponentPlayerName: review.opponentPlayerName,
     result: review.result,
@@ -316,7 +346,7 @@ export function createBattleLogImportDraft(args: {
     selfMulligans: review.selfMulligans,
     opponentMulligans: review.opponentMulligans,
     reason: review.reason
-  };
+  });
 
   const editable = parseEditableFields({
     selfDeckSlug: review.selfDeckSlug,
@@ -400,6 +430,11 @@ export function buildBattleLogImportSaveFingerprint(request: BattleLogImportSave
   });
 }
 
+/**
+ * Internal transition helper. Callers must pass a draft resolved from
+ * server-owned state. A later server wrapper must resolve the opaque draftId
+ * before calling this helper; client review projections are never authority.
+ */
 export function evaluateBattleLogImportDraftSave(args: {
   draft: BattleLogImportDraft | null;
   userId: string;
@@ -430,6 +465,17 @@ export function evaluateBattleLogImportDraftSave(args: {
     };
   }
 
+  let now: string;
+  try {
+    now = requireTimestamp(args.now, "now");
+  } catch {
+    return {
+      status: "rejected",
+      code: "INVALID_SERVER_TIMESTAMP",
+      message: "The server clock timestamp is invalid."
+    };
+  }
+
   const fingerprint = buildBattleLogImportSaveFingerprint(args.request);
   if (args.draft.consumed) {
     if (args.draft.consumed.idempotencyKey === args.request.idempotencyKey) {
@@ -454,7 +500,7 @@ export function evaluateBattleLogImportDraftSave(args: {
     };
   }
 
-  if (Date.parse(args.now) >= Date.parse(args.draft.expiresAt)) {
+  if (Date.parse(now) >= Date.parse(args.draft.expiresAt)) {
     return {
       status: "rejected",
       code: "DRAFT_EXPIRED",
@@ -476,6 +522,9 @@ export function consumeBattleLogImportDraft(args: {
   battleLogId: string;
   consumedAt: string;
 }): BattleLogImportDraft {
+  // Internal transition helper: `draft` must already be resolved from
+  // server-owned state. A later server wrapper must resolve the opaque draftId
+  // before calling this helper; client review projections are never authority.
   const decision = evaluateBattleLogImportDraftSave({
     draft: args.draft,
     userId: args.userId,
@@ -484,13 +533,19 @@ export function consumeBattleLogImportDraft(args: {
   });
 
   if (decision.status === "replay") {
-    return args.draft;
+    return {
+      ...args.draft,
+      immutable: cloneImmutable(args.draft.immutable),
+      editable: cloneEditable(args.draft.editable)
+    };
   }
 
   if (decision.status !== "ready") {
     throw new BattleLogImportDraftValidationError(
       decision.code === "IDEMPOTENCY_CONFLICT"
         ? "INVALID_SAVE_IDENTITY"
+        : decision.code === "INVALID_SERVER_TIMESTAMP"
+          ? "INVALID_TIMESTAMP"
         : "INVALID_DRAFT_REFERENCE",
       decision.message
     );
@@ -498,6 +553,8 @@ export function consumeBattleLogImportDraft(args: {
 
   return {
     ...args.draft,
+    immutable: cloneImmutable(args.draft.immutable),
+    editable: cloneEditable(args.draft.editable),
     consumed: {
       idempotencyKey: args.request.idempotencyKey,
       fingerprint: decision.fingerprint,

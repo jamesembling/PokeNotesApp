@@ -9,6 +9,7 @@ import {
   evaluateBattleLogImportDraftSave,
   parseBattleLogImportSaveRequest,
   type BattleLogImportDraft,
+  type BattleLogImportImmutableFacts,
   type BattleLogImportSaveRequest
 } from "@/lib/log-import/import-draft";
 import type { ParsedLogReview } from "@/types/index";
@@ -16,6 +17,17 @@ import type { ParsedLogReview } from "@/types/index";
 const CREATED_AT = "2026-08-21T10:00:00.000Z";
 const EXPIRES_AT = "2026-08-21T11:00:00.000Z";
 const USER_ID = "user-1";
+
+function assertImmutableFactsAreReadonly(facts: BattleLogImportImmutableFacts) {
+  // @ts-expect-error Parser-derived facts must not be assignable.
+  facts.rawLog = "tampered";
+  // @ts-expect-error Nested parser-derived details must not be assignable.
+  facts.sections[0]!.actions[0]!.details[0] = "tampered";
+  // @ts-expect-error Nested parser-derived prize counts must not be assignable.
+  facts.sections[0]!.prizesAfterTurn.James = 0;
+}
+
+void assertImmutableFactsAreReadonly;
 
 function buildReview(): ParsedLogReview {
   return {
@@ -97,7 +109,35 @@ test("drafts retain parser-derived facts separately from editable review values"
   });
   assert.equal("userId" in projection, false);
 
-  projection.immutable.sections[0]!.actions[0]!.details[0] = "tampered";
+  assert.equal(Object.isFrozen(draft.immutable), true);
+  assert.equal(Object.isFrozen(draft.immutable.sections), true);
+  assert.equal(Object.isFrozen(draft.immutable.sections[0]), true);
+  assert.equal(Object.isFrozen(draft.immutable.sections[0]?.actions), true);
+  assert.equal(Object.isFrozen(draft.immutable.sections[0]?.actions[0]), true);
+  assert.equal(
+    Object.isFrozen(draft.immutable.sections[0]?.actions[0]?.details),
+    true
+  );
+  assert.equal(Object.isFrozen(draft.immutable.sections[0]?.prizesAfterTurn), true);
+
+  assert.throws(
+    () => Object.assign(projection.immutable, { rawLog: "tampered" }),
+    TypeError
+  );
+  assert.throws(
+    () =>
+      Object.assign(projection.immutable.sections[0]!.actions[0]!.details, {
+        0: "tampered"
+      }),
+    TypeError
+  );
+  assert.throws(
+    () =>
+      Object.assign(projection.immutable.sections[0]!.prizesAfterTurn, {
+        James: 0
+      }),
+    TypeError
+  );
   projection.editable.selfDeckSprites.push("extra");
   assert.deepEqual(draft.immutable.sections[0]?.actions[0]?.details, ["Basic Pokemon"]);
   assert.deepEqual(draft.editable.selfDeckSprites, ["dragapult", "dusknoir"]);
@@ -178,6 +218,48 @@ test("ownership and expiry failures are recoverable and never consume a draft", 
       message: "This battle-log review has expired. Import the complete log again."
     }
   );
+
+  assert.deepEqual(
+    evaluateBattleLogImportDraftSave({
+      draft,
+      userId: USER_ID,
+      request,
+      now: "not-a-timestamp"
+    }),
+    {
+      status: "rejected",
+      code: "INVALID_SERVER_TIMESTAMP",
+      message: "The server clock timestamp is invalid."
+    }
+  );
+
+  assert.throws(
+    () =>
+      consumeBattleLogImportDraft({
+        draft,
+        userId: USER_ID,
+        request,
+        battleLogId: "log-invalid-clock",
+        consumedAt: "not-a-timestamp"
+      }),
+    (error: unknown) =>
+      error instanceof BattleLogImportDraftValidationError &&
+      error.code === "INVALID_TIMESTAMP"
+  );
+
+  assert.throws(
+    () =>
+      consumeBattleLogImportDraft({
+        draft,
+        userId: USER_ID,
+        request,
+        battleLogId: "log-expired",
+        consumedAt: EXPIRES_AT
+      }),
+    (error: unknown) =>
+      error instanceof BattleLogImportDraftValidationError &&
+      error.code === "INVALID_DRAFT_REFERENCE"
+  );
   assert.equal(draft.consumed, null);
 });
 
@@ -203,6 +285,11 @@ test("a request cannot be evaluated against a different draft", () => {
 test("validation and temporary persistence failures leave the draft available for retry", () => {
   const draft = buildDraft();
   const request = buildRequest();
+  assert.throws(
+    () => Object.assign(draft.immutable, { rawLog: "tampered" }),
+    TypeError
+  );
+
   const initialDecision = evaluateBattleLogImportDraftSave({
     draft,
     userId: USER_ID,
@@ -229,6 +316,13 @@ test("validation and temporary persistence failures leave the draft available fo
     consumedAt: "2026-08-21T10:32:00.000Z"
   });
   assert.equal(consumed.consumed?.battleLogId, "log-1");
+  assert.notEqual(consumed, draft);
+  assert.equal(Object.isFrozen(consumed.immutable), true);
+  assert.throws(
+    () => Object.assign(consumed.immutable, { rawLog: "tampered after save" }),
+    TypeError
+  );
+  assert.deepEqual(consumed.immutable, draft.immutable);
 });
 
 test("a successful save replays identically and rejects identity reuse with different values", () => {
