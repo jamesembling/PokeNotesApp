@@ -17,6 +17,14 @@ const writerSource = readFileSync(
   join(process.cwd(), "lib/decks/deck-aggregate-writer.ts"),
   "utf8"
 );
+const detailPageSource = readFileSync(
+  join(process.cwd(), "app/(app)/deck-lists/[listId]/page.tsx"),
+  "utf8"
+);
+const indexPageSource = readFileSync(
+  join(process.cwd(), "app/(app)/deck-lists/page.tsx"),
+  "utf8"
+);
 
 function deckList(overrides: Partial<DeckList>): DeckList {
   return {
@@ -112,5 +120,40 @@ test("URL identity selection keeps a relational list when its requested strategy
       true
     ),
     null
+  );
+});
+
+test("associated index URLs keep the relational mirror and its controls", () => {
+  const relational = deckList({ deckId: "strategy-a", name: "Relational A" });
+  const compatibilityMirror = deckList({
+    deckId: "strategy-a",
+    name: "Relational A",
+    storage: "legacy"
+  });
+
+  assert.equal(
+    resolveDeckListByIdentity(
+      relational,
+      [compatibilityMirror],
+      "strategy-a",
+      true
+    ),
+    relational
+  );
+  assert.equal(
+    resolveDeckListByIdentity(
+      relational,
+      [compatibilityMirror, { ...compatibilityMirror, name: "Duplicate" }],
+      "strategy-a",
+      true
+    ),
+    null
+  );
+  assert.match(detailPageSource, /getDeckListById\(user\.id, listId, deckId\)/);
+  assert.match(detailPageSource, /!isLegacyOnly[\s\S]*DeleteDeckListButton/);
+  assert.match(detailPageSource, /!isLegacyOnly[\s\S]*setDeckListAssociationAction/);
+  assert.match(
+    indexPageSource,
+    /\/deck-lists\/\$\{deckList\.id\}\?deckId=\$\{encodeURIComponent\(deckList\.deckId\)\}/
   );
 });

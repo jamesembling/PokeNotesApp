@@ -308,11 +308,16 @@ export function resolveDeckListByIdentity(
     return relationalList;
   }
 
-  if (legacyCandidates.length === 1) {
-    return legacyCandidates[0];
+  if (legacyCandidates.length > 1) {
+    return null;
   }
 
-  return legacyCandidates.length > 1 ? null : relationalList;
+  const legacyCandidate = legacyCandidates[0];
+  if (!legacyCandidate || legacyCandidate.deckId === relationalList.deckId) {
+    return relationalList;
+  }
+
+  return legacyCandidate;
 }
 
 export async function validateDeckListReference(input: {
