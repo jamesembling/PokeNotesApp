@@ -1,13 +1,9 @@
-import { Suspense, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/shadcn/sidebar";
+import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker";
+import { DeferredSidebarAccount } from "@/components/ui/DeferredSidebarAccount";
 import { RoutePerformanceReporter } from "@/components/ui/RoutePerformanceReporter";
-import { RouteTimingMarker } from "@/components/ui/RouteTimingMarker";
-import {
-  Sidebar,
-  SidebarAccount,
-  SidebarAccountFallback,
-  SidebarMobileTopbar
-} from "@/components/ui/Sidebar";
+import { Sidebar, SidebarMobileTopbar } from "@/components/ui/Sidebar";
 import { SidebarThemeToggle } from "@/components/ui/SidebarThemeToggle";
 import { ImportDialogDataProvider } from "@/components/ui/ImportDialogDataProvider";
 import type { AvatarColor } from "@/types/index";
@@ -26,25 +22,10 @@ export type AppShellProfileResult = {
 
 type AppShellProps = {
   children: ReactNode;
-  profilePromise: Promise<AppShellProfileResult>;
+  initialProfileResult?: AppShellProfileResult;
 };
 
-async function SidebarAccountContent({
-  profilePromise
-}: {
-  profilePromise: Promise<AppShellProfileResult>;
-}) {
-  const { durationMs, profile } = await profilePromise;
-
-  return (
-    <>
-      <SidebarAccount profile={profile} />
-      <RouteTimingMarker durationMs={durationMs} phase="shell-profile" />
-    </>
-  );
-}
-
-export function AppShell({ children, profilePromise }: AppShellProps) {
+export function AppShell({ children, initialProfileResult }: AppShellProps) {
   return (
     <ImportDialogDataProvider>
       <SidebarProvider>
@@ -54,14 +35,9 @@ export function AppShell({ children, profilePromise }: AppShellProps) {
         >
           Skip to main content
         </a>
-        <Sidebar
-          account={
-            <Suspense fallback={<SidebarAccountFallback />}>
-              <SidebarAccountContent profilePromise={profilePromise} />
-            </Suspense>
-          }
-        />
+        <Sidebar account={<DeferredSidebarAccount initialResult={initialProfileResult} />} />
         <SidebarInset id="main-content" tabIndex={-1}>
+          <ClientRouteTimingMarker phase="shell-visible" />
           <SidebarMobileTopbar />
           <div className="hidden px-3 pt-3 min-[860px]:flex min-[860px]:items-center min-[860px]:gap-1 sm:px-5 lg:px-7">
             <SidebarTrigger size="icon-lg" />

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { shouldLoadSidebarProfile } from "@/lib/sidebar-profile-loading";
 
 function source(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -75,14 +76,22 @@ test("direct profile edits contain only the approved editable fields", () => {
   assert.doesNotMatch(avatarUpdate, /\b(id|email|role|last_active_at)\b/);
 });
 
-test("database profile role controls shared-shell and admin authorization", () => {
+test("mobile defers the sidebar profile until navigation opens", () => {
+  assert.equal(shouldLoadSidebarProfile({ isDesktop: false, openMobile: false }), false);
+  assert.equal(shouldLoadSidebarProfile({ isDesktop: false, openMobile: true }), true);
+  assert.equal(shouldLoadSidebarProfile({ isDesktop: true, openMobile: false }), true);
+});
+
+test("database profile role controls deferred shared-shell and admin authorization", () => {
   const layout = source("app/(app)/layout.tsx");
+  const sidebarRoute = source("app/api/sidebar-profile/route.ts");
   const adminDb = source("lib/db/admin.ts");
   const roleUpdateBlock = functionBlock(adminDb, "updateAdminUserRole");
 
-  assert.match(layout, /getCurrentSidebarProfile\(\)/);
-  assert.match(layout, /isAdmin: profile\.role === "admin"/);
-  assert.doesNotMatch(layout, /app_metadata|user_metadata.*role|getAuthClaimIsAdmin/);
+  assert.doesNotMatch(layout, /getCurrentSidebarProfile\(\)/);
+  assert.match(sidebarRoute, /getCurrentSidebarProfile\(\)/);
+  assert.match(sidebarRoute, /isAdmin: profile\.role === "admin"/);
+  assert.doesNotMatch(sidebarRoute, /app_metadata|user_metadata.*role|getAuthClaimIsAdmin/);
 
   assert.match(roleUpdateBlock, /createAdminClient\(\)/);
   assert.match(roleUpdateBlock, /rpc\("set_profile_role"/);

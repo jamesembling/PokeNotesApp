@@ -52,6 +52,7 @@ import {
   parseStringArray
 } from "@/lib/server/form-values";
 import { measureServerCall, measureServerStep } from "@/lib/server/perf";
+import { invalidateInitialLogsCache } from "@/lib/server/logs-initial-cache";
 import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
 import { getPublicSharedLogUrl } from "@/lib/server/share-url";
 import { createClient } from "@/lib/supabase/server";
@@ -380,6 +381,7 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       throw insertError;
     }
 
+    invalidateInitialLogsCache(user.id);
     after(() => {
       revalidateDeckAndLogWorkspace();
     });
@@ -415,6 +417,7 @@ export async function saveMatchNotesAction(
       value: formData.get("matchNotes")
     });
 
+    invalidateInitialLogsCache(user.id);
     revalidatePath(`/logs/${logId}`);
 
     return {
@@ -506,6 +509,7 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
 
     assertMutatedRows(updatedLogs, 1, "Battle log not found.");
 
+    invalidateInitialLogsCache(user.id);
     revalidateDeckAndLogWorkspace();
 
     return {
@@ -569,6 +573,7 @@ export async function bulkAssignDeckListAction(input: {
 
     assertMutatedRows(updatedLogs, logIds.length, "Some selected battle logs could not be found.");
 
+    invalidateInitialLogsCache(user.id);
     revalidateDeckAndLogWorkspace();
   } catch (error) {
     throw resolveActionFailure(error, {
@@ -616,6 +621,7 @@ export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
 
     assertMutatedRows(deletedLogs, logIds.length, "Some selected battle logs could not be found.");
 
+    invalidateInitialLogsCache(user.id);
     revalidateDeckAndLogWorkspace();
   } catch (error) {
     throw resolveActionFailure(error, {

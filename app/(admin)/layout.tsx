@@ -19,7 +19,7 @@ export default async function AdminLayout({
 
   return (
     <AppShell
-      profilePromise={Promise.resolve({
+      initialProfileResult={{
         durationMs: adminContextTiming.durationMs,
         profile: {
           displayName: profile.displayName,
@@ -27,7 +27,7 @@ export default async function AdminLayout({
           avatarColor: profile.avatarColor,
           isAdmin: true
         }
-      })}
+      }}
     >
       {children}
     </AppShell>

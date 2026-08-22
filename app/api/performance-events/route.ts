@@ -12,15 +12,18 @@ type PerformanceEventPayload = {
   durationMs?: number | null;
   effectiveType?: string | null;
   eventType?: string;
+  firstContentfulPaintMs?: number | null;
   fromPath?: string | null;
   hardwareConcurrency?: number | null;
   loadEventMs?: number | null;
+  largestContentfulPaintMs?: number | null;
   loadingMs?: number | null;
   maxLongTaskMs?: number | null;
   navigationType?: string | null;
   reporterVersion?: number | null;
   resourceCount?: number | null;
   responseEndMs?: number | null;
+  routeContentVisibleMs?: number | null;
   rtt?: number | null;
   routeStabilizationMs?: number | null;
   saveData?: boolean | null;
@@ -29,6 +32,8 @@ type PerformanceEventPayload = {
   serverAuthMs?: number | null;
   serverRouteDataMs?: number | null;
   serverShellProfileMs?: number | null;
+  shellProfileLoadedMs?: number | null;
+  shellVisibleMs?: number | null;
   sourceHost?: string | null;
   sourceOrigin?: string | null;
   slowestResourceMs?: number | null;
@@ -219,14 +224,17 @@ export async function POST(request: NextRequest) {
       duration_ms: durationMs,
       effective_type: clampText(payload.effectiveType, 32),
       event_type: eventType,
+      first_contentful_paint_ms: clampNumber(payload.firstContentfulPaintMs),
       from_path: normalizeTelemetryPath(payload.fromPath),
       hardware_concurrency: clampNumber(payload.hardwareConcurrency, 512),
       load_event_ms: clampNumber(payload.loadEventMs),
+      largest_contentful_paint_ms: clampNumber(payload.largestContentfulPaintMs),
       loading_ms: clampNumber(payload.loadingMs),
       max_long_task_ms: clampNumber(payload.maxLongTaskMs),
       navigation_type: normalizeNavigationType(eventType, payload.navigationType),
       reporter_version: clampNumber(payload.reporterVersion, 100) ?? 1,
       response_end_ms: clampNumber(payload.responseEndMs),
+      route_content_visible_ms: clampNumber(payload.routeContentVisibleMs),
       resource_count: clampNumber(payload.resourceCount, 10_000),
       rtt: clampNumber(payload.rtt, 60_000),
       route_stabilization_ms: clampNumber(payload.routeStabilizationMs, 60_000),
@@ -236,6 +244,8 @@ export async function POST(request: NextRequest) {
       server_auth_ms: clampNumber(payload.serverAuthMs),
       server_route_data_ms: clampNumber(payload.serverRouteDataMs),
       server_shell_profile_ms: clampNumber(payload.serverShellProfileMs),
+      shell_profile_loaded_ms: clampNumber(payload.shellProfileLoadedMs),
+      shell_visible_ms: clampNumber(payload.shellVisibleMs),
       slowest_resource_ms: clampNumber(payload.slowestResourceMs),
       slowest_resource_path: clampText(payload.slowestResourcePath, 220),
       source_host: sourceHost,

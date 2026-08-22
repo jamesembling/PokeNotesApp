@@ -65,16 +65,25 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   const migration = source(
     "supabase/migrations/20260714182253_add_route_performance_diagnostics.sql"
   );
+  const visibleTimingMigration = source(
+    "supabase/migrations/20260822210947_add_visible_route_performance_timings.sql"
+  );
 
-  assert.equal(ROUTE_REPORTER_VERSION, 2);
+  assert.equal(ROUTE_REPORTER_VERSION, 3);
   assert.match(reporter, /documentDownloadMs/);
   assert.match(reporter, /responseEndMs/);
   assert.match(reporter, /routeStabilizationMs/);
+  assert.match(reporter, /firstContentfulPaintMs/);
+  assert.match(reporter, /routeContentVisibleMs/);
+  assert.match(reporter, /shellVisibleMs/);
   assert.match(reporter, /AUTOMATION_HASH = "#pokenotes-perf"/);
   assert.doesNotMatch(reporter, /userAgent:/);
 
   assert.match(route, /normalizeTelemetryPath/);
-  assert.match(route, /traffic_class: payload\.automationHint === true \? "automation" : "unclassified"/);
+  assert.match(
+    route,
+    /traffic_class:\s*payload\.automationHint === true \? "automation" : "unclassified"/
+  );
   assert.match(route, /browser_family: inferBrowserFamily/);
   assert.doesNotMatch(route, /user_agent:/);
 
@@ -86,4 +95,7 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(migration, /server_shell_profile_ms/);
   assert.match(migration, /server_route_data_ms/);
   assert.match(migration, /route_performance_events_env_traffic_route_created_at/);
+  assert.match(visibleTimingMigration, /first_contentful_paint_ms/);
+  assert.match(visibleTimingMigration, /route_content_visible_ms/);
+  assert.match(visibleTimingMigration, /shell_profile_loaded_ms/);
 });

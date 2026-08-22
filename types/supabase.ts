@@ -593,16 +593,19 @@ export type Database = {
           duration_ms: number
           effective_type: string | null
           event_type: string
+          first_contentful_paint_ms: number | null
           from_path: string | null
           hardware_concurrency: number | null
           id: string
           load_event_ms: number | null
+          largest_contentful_paint_ms: number | null
           loading_ms: number | null
           max_long_task_ms: number | null
           navigation_type: string
           reporter_version: number
           resource_count: number | null
           response_end_ms: number | null
+          route_content_visible_ms: number | null
           route_stabilization_ms: number | null
           rtt: number | null
           save_data: boolean
@@ -611,6 +614,8 @@ export type Database = {
           server_auth_ms: number | null
           server_route_data_ms: number | null
           server_shell_profile_ms: number | null
+          shell_profile_loaded_ms: number | null
+          shell_visible_ms: number | null
           slowest_resource_ms: number | null
           slowest_resource_path: string | null
           source_host: string | null
@@ -639,16 +644,19 @@ export type Database = {
           duration_ms: number
           effective_type?: string | null
           event_type: string
+          first_contentful_paint_ms?: number | null
           from_path?: string | null
           hardware_concurrency?: number | null
           id?: string
           load_event_ms?: number | null
+          largest_contentful_paint_ms?: number | null
           loading_ms?: number | null
           max_long_task_ms?: number | null
           navigation_type?: string
           reporter_version?: number
           resource_count?: number | null
           response_end_ms?: number | null
+          route_content_visible_ms?: number | null
           route_stabilization_ms?: number | null
           rtt?: number | null
           save_data?: boolean
@@ -657,6 +665,8 @@ export type Database = {
           server_auth_ms?: number | null
           server_route_data_ms?: number | null
           server_shell_profile_ms?: number | null
+          shell_profile_loaded_ms?: number | null
+          shell_visible_ms?: number | null
           slowest_resource_ms?: number | null
           slowest_resource_path?: string | null
           source_host?: string | null
@@ -685,16 +695,19 @@ export type Database = {
           duration_ms?: number
           effective_type?: string | null
           event_type?: string
+          first_contentful_paint_ms?: number | null
           from_path?: string | null
           hardware_concurrency?: number | null
           id?: string
           load_event_ms?: number | null
+          largest_contentful_paint_ms?: number | null
           loading_ms?: number | null
           max_long_task_ms?: number | null
           navigation_type?: string
           reporter_version?: number
           resource_count?: number | null
           response_end_ms?: number | null
+          route_content_visible_ms?: number | null
           route_stabilization_ms?: number | null
           rtt?: number | null
           save_data?: boolean
@@ -703,6 +716,8 @@ export type Database = {
           server_auth_ms?: number | null
           server_route_data_ms?: number | null
           server_shell_profile_ms?: number | null
+          shell_profile_loaded_ms?: number | null
+          shell_visible_ms?: number | null
           slowest_resource_ms?: number | null
           slowest_resource_path?: string | null
           source_host?: string | null

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Card } from "@/components/shadcn/card";
 import { Skeleton } from "@/components/shadcn/skeleton";
+import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker";
 import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
@@ -9,11 +10,8 @@ import {
 } from "@/components/ui/RouteTimingMarker";
 import { requireUser } from "@/lib/auth";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
-import {
-  getInitialLogsPageData,
-  getLogSummaryStats,
-  getLogsWindow
-} from "@/lib/db/logs";
+import { getLogSummaryStats, getLogsWindow } from "@/lib/db/logs";
+import { getCachedInitialLogsPageData } from "@/lib/server/logs-initial-cache";
 import { measureServerCall, measureServerCallWithTiming } from "@/lib/server/perf";
 
 export default async function LogsPage() {
@@ -42,6 +40,7 @@ async function LogsContent({
 
   return (
     <div className="-mx-4 -my-6 flex min-h-dvh flex-col gap-6 bg-background px-4 py-6 text-foreground sm:-mx-6 sm:-my-8 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8">
+      <ClientRouteTimingMarker phase="route-content-visible" />
       <RouteTimingMarker durationMs={initialDataTiming.durationMs} phase="route-data" />
       <LogsWorkspaceClient stats={stats} window={window} />
     </div>
@@ -49,7 +48,7 @@ async function LogsContent({
 }
 
 async function loadInitialLogsPageData(userId: string) {
-  const readModel = await getInitialLogsPageData();
+  const readModel = await getCachedInitialLogsPageData(userId);
   if (readModel) {
     return readModel;
   }

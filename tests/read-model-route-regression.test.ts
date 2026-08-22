@@ -108,10 +108,12 @@ test("full related deck logs are fetched only from the opened dialog path", () =
   assert.match(actions, /getAllLogsForDeck/);
 });
 
-test("dead sidebar profile endpoint and sidebar client fetch stay removed", () => {
-  assert.equal(existsSync(join(process.cwd(), "app/api/sidebar-profile/route.ts")), false);
+test("sidebar profile loads outside the initial app response", () => {
+  assert.equal(existsSync(join(process.cwd(), "app/api/sidebar-profile/route.ts")), true);
   assert.doesNotMatch(source("app/(app)/layout.tsx"), /sidebar-profile/);
   assert.doesNotMatch(source("components/ui/Sidebar.tsx"), /sidebar-profile|fetch\(/);
+  assert.match(source("components/ui/DeferredSidebarAccount.tsx"), /fetch\("\/api\/sidebar-profile"/);
+  assert.match(source("components/ui/DeferredSidebarAccount.tsx"), /openMobile/);
 });
 
 test("app and admin layouts share the same authenticated shell chrome", () => {
@@ -127,11 +129,9 @@ test("app and admin layouts share the same authenticated shell chrome", () => {
   assert.match(appShell, /SidebarProvider/);
   assert.match(appShell, /SidebarMobileTopbar/);
   assert.match(appShell, /SidebarInset/);
-  assert.match(appShell, /<Suspense fallback=\{<SidebarAccountFallback \/>\}>/);
-  assert.match(appShell, /<SidebarAccountContent profilePromise=\{profilePromise\}/);
-  assert.match(appLayout, /const profilePromise = loadAppShellProfile\(\)/);
-  assert.match(appLayout, /profilePromise=\{profilePromise\}/);
-  assert.doesNotMatch(appLayout, /await loadAppShellProfile\(\)/);
+  assert.match(appShell, /<DeferredSidebarAccount initialResult=\{initialProfileResult\}/);
+  assert.doesNotMatch(appLayout, /loadAppShellProfile|getCurrentSidebarProfile|profilePromise/);
+  assert.match(adminLayout, /initialProfileResult=\{\{/);
 });
 
 test("authenticated app routes cache verified Supabase claims briefly across hot navigations", () => {
@@ -183,7 +183,7 @@ test("/logs streams its shell before the initial log window resolves", () => {
 
   assert.match(page, /<Suspense fallback=\{<LogsContentFallback \/>/);
   assert.match(page, /<LogsContent initialDataPromise=\{initialDataPromise\}/);
-  assert.match(page, /getInitialLogsPageData/);
+  assert.match(page, /getCachedInitialLogsPageData/);
   assert.match(page, /const initialDataPromise = loadInitialLogsPageData\(user\.id\)/);
   assert.match(page, /measureServerCallWithTiming\("page\.logs\.initialData"/);
   assert.match(page, /<LogsWorkspaceClient stats=\{stats\} window=\{window\}/);

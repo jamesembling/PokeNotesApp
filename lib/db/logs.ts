@@ -484,8 +484,9 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
   };
 }
 
-export async function getInitialLogsPageData() {
-  const supabase = await logsDbTestHooks.createClient();
+export async function getInitialLogsPageDataWithClient(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>
+) {
   const { data, error } = await measureServerCall("db.logs.initialPageRpc", async () =>
     await supabase.rpc("get_initial_logs_page_data", {
       p_limit: DEFAULT_LOG_WINDOW_LIMIT + 1
@@ -516,6 +517,11 @@ export async function getInitialLogsPageData() {
       windowDays: DEFAULT_LOG_WINDOW_DAYS
     })
   };
+}
+
+export async function getInitialLogsPageData() {
+  const supabase = await logsDbTestHooks.createClient();
+  return getInitialLogsPageDataWithClient(supabase);
 }
 
 export const getLogStatsOverview = cache(async function getLogStatsOverview(

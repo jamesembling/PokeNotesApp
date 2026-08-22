@@ -132,6 +132,23 @@ function getMarkerDuration(phase: "proxy-auth" | "route-data" | "shell-profile")
   return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null;
 }
 
+function getClientTiming(phase: "route-content-visible" | "shell-profile-loaded" | "shell-visible") {
+  const markers = document.querySelectorAll<HTMLElement>(
+    `[data-route-client-timing="${phase}"]`
+  );
+  const marker = markers.item(markers.length - 1);
+  const duration = Number(marker?.dataset.routeClientTimingMs);
+
+  return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null;
+}
+
+function getPaintEntryStartTime(name: string) {
+  const entries = performance.getEntriesByType("paint").filter((entry) => entry.name === name);
+  const entry = entries.at(-1);
+
+  return entry ? Math.max(0, Math.round(entry.startTime)) : null;
+}
+
 function getServerTimingSnapshot(
   startedAt: number,
   endedAt: number,
@@ -233,6 +250,7 @@ function sendPerformanceEvent(payload: Record<string, unknown>) {
 
 export function RoutePerformanceReporter() {
   const pathname = usePathname();
+  const largestContentfulPaintRef = useRef<number | null>(null);
   const longTaskEntriesRef = useRef<LongTaskEntry[]>([]);
   const longTaskStatsRef = useRef({ maxLongTaskMs: 0, totalBlockingTimeMs: 0 });
   const pendingNavigationRef = useRef<PendingNavigation | null>(null);
@@ -244,6 +262,7 @@ export function RoutePerformanceReporter() {
     }
 
     let longTaskObserver: PerformanceObserver | null = null;
+    let largestContentfulPaintObserver: PerformanceObserver | null = null;
 
     if (typeof PerformanceObserver !== "undefined") {
       try {
@@ -266,6 +285,19 @@ export function RoutePerformanceReporter() {
           }
         });
         longTaskObserver.observe({ type: "longtask", buffered: true });
+      } catch {}
+
+      try {
+        largestContentfulPaintObserver = new PerformanceObserver((entryList) => {
+          const entry = entryList.getEntries().at(-1);
+          if (entry) {
+            largestContentfulPaintRef.current = Math.max(0, Math.round(entry.startTime));
+          }
+        });
+        largestContentfulPaintObserver.observe({
+          type: "largest-contentful-paint",
+          buffered: true
+        });
       } catch {}
     }
 
@@ -304,13 +336,18 @@ export function RoutePerformanceReporter() {
             : null,
         durationMs: Math.round(hardLoadDuration),
         eventType: "hard-load",
+        firstContentfulPaintMs: getPaintEntryStartTime("first-contentful-paint"),
         fromPath: null,
+        largestContentfulPaintMs: largestContentfulPaintRef.current,
         loadEventMs: nav && nav.loadEventEnd > 0 ? Math.round(nav.loadEventEnd) : null,
         loadingMs: null,
         maxLongTaskMs: Math.round(longTaskStatsRef.current.maxLongTaskMs),
         navigationType: nav?.type ?? "unknown",
         responseEndMs,
+        routeContentVisibleMs: getClientTiming("route-content-visible"),
         routeStabilizationMs: null,
+        shellProfileLoadedMs: getClientTiming("shell-profile-loaded"),
+        shellVisibleMs: getClientTiming("shell-visible"),
         toPath: getCurrentPath(),
         totalBlockingTimeMs: Math.round(longTaskStatsRef.current.totalBlockingTimeMs),
         ttfbMs: responseStartMs
@@ -331,6 +368,7 @@ export function RoutePerformanceReporter() {
     return () => {
       window.clearTimeout(hardLoadTimeoutId);
       window.removeEventListener("load", reportHardLoadAfterLoad);
+      largestContentfulPaintObserver?.disconnect();
       longTaskObserver?.disconnect();
     };
   }, []);
