@@ -587,7 +587,10 @@ export type Database = {
           deployment_id: string | null
           device_class: string
           device_memory: number | null
+          document_decoded_body_size_bytes: number | null
           document_download_ms: number | null
+          document_encoded_body_size_bytes: number | null
+          document_transfer_size_bytes: number | null
           dom_content_loaded_ms: number | null
           downlink: number | null
           duration_ms: number
@@ -602,10 +605,14 @@ export type Database = {
           loading_ms: number | null
           max_long_task_ms: number | null
           navigation_type: string
+          next_hop_protocol: string | null
+          performance_variant: string | null
           reporter_version: number
           resource_count: number | null
           response_end_ms: number | null
           route_content_visible_ms: number | null
+          route_data_visible_ms: number | null
+          route_shell_visible_ms: number | null
           route_stabilization_ms: number | null
           rtt: number | null
           save_data: boolean
@@ -630,6 +637,7 @@ export type Database = {
           viewport_height: number | null
           viewport_width: number | null
           visibility_state: string
+          worker_start_ms: number | null
         }
         Insert: {
           browser_family?: string
@@ -638,7 +646,10 @@ export type Database = {
           deployment_id?: string | null
           device_class?: string
           device_memory?: number | null
+          document_decoded_body_size_bytes?: number | null
           document_download_ms?: number | null
+          document_encoded_body_size_bytes?: number | null
+          document_transfer_size_bytes?: number | null
           dom_content_loaded_ms?: number | null
           downlink?: number | null
           duration_ms: number
@@ -653,10 +664,14 @@ export type Database = {
           loading_ms?: number | null
           max_long_task_ms?: number | null
           navigation_type?: string
+          next_hop_protocol?: string | null
+          performance_variant?: string | null
           reporter_version?: number
           resource_count?: number | null
           response_end_ms?: number | null
           route_content_visible_ms?: number | null
+          route_data_visible_ms?: number | null
+          route_shell_visible_ms?: number | null
           route_stabilization_ms?: number | null
           rtt?: number | null
           save_data?: boolean
@@ -681,6 +696,7 @@ export type Database = {
           viewport_height?: number | null
           viewport_width?: number | null
           visibility_state?: string
+          worker_start_ms?: number | null
         }
         Update: {
           browser_family?: string
@@ -689,7 +705,10 @@ export type Database = {
           deployment_id?: string | null
           device_class?: string
           device_memory?: number | null
+          document_decoded_body_size_bytes?: number | null
           document_download_ms?: number | null
+          document_encoded_body_size_bytes?: number | null
+          document_transfer_size_bytes?: number | null
           dom_content_loaded_ms?: number | null
           downlink?: number | null
           duration_ms?: number
@@ -704,10 +723,14 @@ export type Database = {
           loading_ms?: number | null
           max_long_task_ms?: number | null
           navigation_type?: string
+          next_hop_protocol?: string | null
+          performance_variant?: string | null
           reporter_version?: number
           resource_count?: number | null
           response_end_ms?: number | null
           route_content_visible_ms?: number | null
+          route_data_visible_ms?: number | null
+          route_shell_visible_ms?: number | null
           route_stabilization_ms?: number | null
           rtt?: number | null
           save_data?: boolean
@@ -732,6 +755,7 @@ export type Database = {
           viewport_height?: number | null
           viewport_width?: number | null
           visibility_state?: string
+          worker_start_ms?: number | null
         }
         Relationships: []
       }

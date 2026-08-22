@@ -1236,7 +1236,10 @@ create table public.route_performance_events (
   device_class            text not null default 'unknown'
                           check (device_class in ('desktop', 'mobile', 'tablet', 'unknown')),
   device_memory           numeric,
+  document_decoded_body_size_bytes integer,
   document_download_ms    integer,
+  document_encoded_body_size_bytes integer,
+  document_transfer_size_bytes integer,
   dom_content_loaded_ms   integer,
   downlink                numeric,
   duration_ms             integer not null,
@@ -1252,10 +1255,15 @@ create table public.route_performance_events (
   max_long_task_ms        integer,
   navigation_type         text not null default 'unknown'
                           check (navigation_type in ('app-route', 'back_forward', 'navigate', 'prerender', 'reload', 'unknown')),
+  next_hop_protocol       text,
+  performance_variant     text
+                          check (performance_variant is null or performance_variant in ('logs-delay-1000', 'logs-narrow-suspense', 'logs-shell-only')),
   reporter_version        smallint not null default 1 check (reporter_version > 0),
   resource_count          integer,
   response_end_ms         integer,
   route_content_visible_ms integer,
+  route_data_visible_ms   integer,
+  route_shell_visible_ms  integer,
   route_stabilization_ms  integer,
   rtt                     integer,
   save_data               boolean not null default false,
@@ -1281,11 +1289,21 @@ create table public.route_performance_events (
   viewport_height         integer,
   viewport_width          integer,
   visibility_state        text not null default 'unknown'
-                          check (visibility_state in ('hidden', 'prerender', 'unknown', 'visible'))
+                          check (visibility_state in ('hidden', 'prerender', 'unknown', 'visible')),
+  worker_start_ms         integer
 );
 
 comment on table public.route_performance_events is
   'Real-user route timing events captured from authenticated app sessions.';
+
+comment on column public.route_performance_events.performance_variant is
+  'Allowlisted route implementation or canary variant used for causal performance comparison.';
+
+comment on column public.route_performance_events.route_shell_visible_ms is
+  'Time from navigation start until the real route shell has hydrated.';
+
+comment on column public.route_performance_events.route_data_visible_ms is
+  'Time from navigation start until the route data region has hydrated.';
 
 
 -- ============================================================
