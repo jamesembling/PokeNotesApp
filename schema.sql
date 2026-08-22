@@ -1230,6 +1230,7 @@ comment on table public.role_permissions is
 create table public.route_performance_events (
   browser_family          text not null default 'unknown'
                           check (browser_family in ('chromium', 'firefox', 'other', 'safari', 'unknown')),
+  connect_ms              integer,
   created_at              timestamptz not null default now(),
   deployment_env          text not null default 'unknown',
   deployment_id           text,
@@ -1241,13 +1242,15 @@ create table public.route_performance_events (
   document_encoded_body_size_bytes integer,
   document_transfer_size_bytes integer,
   dom_content_loaded_ms   integer,
+  dns_ms                  integer,
   downlink                numeric,
   duration_ms             integer not null,
   effective_type          text,
-  event_type              text not null check (event_type in ('hard-load', 'app-route')),
+  event_type              text not null check (event_type in ('hard-load', 'app-route', 'route-data')),
   first_contentful_paint_ms integer,
   from_path               text,
   hardware_concurrency    integer,
+  hydration_resources_end_ms integer,
   id                      uuid primary key default gen_random_uuid(),
   load_event_ms           integer,
   largest_contentful_paint_ms integer,
@@ -1256,13 +1259,21 @@ create table public.route_performance_events (
   navigation_type         text not null default 'unknown'
                           check (navigation_type in ('app-route', 'back_forward', 'navigate', 'prerender', 'reload', 'unknown')),
   next_hop_protocol       text,
+  parser_data_ms          integer,
+  parser_shell_ms         integer,
   performance_variant     text
-                          check (performance_variant is null or performance_variant in ('logs-delay-1000', 'logs-narrow-suspense', 'logs-shell-only')),
+                          check (performance_variant is null or performance_variant in ('logs-delay-400', 'logs-delay-1000', 'logs-narrow-suspense', 'logs-shell-only')),
   reporter_version        smallint not null default 1 check (reporter_version > 0),
   resource_count          integer,
+  request_correlation_id  text,
+  request_start_ms        integer,
   response_end_ms         integer,
+  response_start_ms       integer,
+  response_stream_ms      integer,
   route_content_visible_ms integer,
+  route_data_painted_ms   integer,
   route_data_visible_ms   integer,
+  route_shell_painted_ms  integer,
   route_shell_visible_ms  integer,
   route_stabilization_ms  integer,
   rtt                     integer,
@@ -1270,19 +1281,39 @@ create table public.route_performance_events (
   screen_height           integer,
   screen_width            integer,
   server_auth_ms          integer,
+  server_auth_ended_ms    integer,
+  server_auth_method      text,
+  server_auth_started_ms  integer,
+  server_cache_key_version text,
+  server_cache_lookup_ms  integer,
+  server_cache_outcome    text check (server_cache_outcome is null or server_cache_outcome in ('fallback', 'hit', 'miss')),
+  server_function_region  text,
+  server_mapping_ms       integer,
+  server_request_id       text,
+  server_result_bytes     integer,
+  server_result_rows      integer,
   server_route_data_ms    integer,
+  server_route_data_ended_ms integer,
+  server_route_data_started_ms integer,
+  server_runtime_boot_age_ms integer,
+  server_runtime_boot_id  text,
+  server_runtime_invocation_ordinal integer,
   server_shell_profile_ms integer,
+  server_supabase_ms      integer,
   shell_profile_loaded_ms integer,
   shell_visible_ms        integer,
   slowest_resource_ms     integer,
   slowest_resource_path   text,
   source_host             text,
   source_origin           text,
+  submission_reason       text
+                          check (submission_reason is null or submission_reason in ('app-route', 'data-parsed', 'data-seen', 'data-timeout', 'initial-load', 'page-hidden')),
   to_path                 text not null,
   total_blocking_time_ms  integer,
   traffic_class           text not null default 'unclassified'
                           check (traffic_class in ('automation', 'unclassified')),
   transfer_size_bytes     integer,
+  tls_ms                  integer,
   ttfb_ms                 integer,
   user_agent              text,
   user_id                 uuid not null references auth.users(id) on delete cascade,
@@ -1304,6 +1335,33 @@ comment on column public.route_performance_events.route_shell_visible_ms is
 
 comment on column public.route_performance_events.route_data_visible_ms is
   'Time from navigation start until the route data region has hydrated.';
+
+comment on column public.route_performance_events.response_stream_ms is
+  'Time from the first navigation response byte to the last; includes streamed server pauses and is not pure network download time.';
+
+comment on column public.route_performance_events.document_download_ms is
+  'Legacy reporter-v2-v4 name for response stream duration; retained for backward compatibility.';
+
+comment on column public.route_performance_events.parser_shell_ms is
+  'Parser-time arrival of the route shell marker from navigation start.';
+
+comment on column public.route_performance_events.parser_data_ms is
+  'Parser-time arrival of the streamed route-data marker from navigation start.';
+
+comment on column public.route_performance_events.route_shell_painted_ms is
+  'Double-animation-frame approximation after the route shell React commit.';
+
+comment on column public.route_performance_events.route_data_painted_ms is
+  'Double-animation-frame approximation after the route data React commit.';
+
+comment on column public.route_performance_events.submission_reason is
+  'Why this correlated telemetry event was submitted, including explicit timeout and page-hide outcomes.';
+
+comment on column public.route_performance_events.request_correlation_id is
+  'Opaque per-navigation identifier shared by document markers and correlated telemetry events.';
+
+comment on column public.route_performance_events.server_cache_outcome is
+  'Observed initial logs cache outcome for the request: hit, miss, or legacy fallback.';
 
 
 -- ============================================================
@@ -1497,6 +1555,10 @@ create index route_performance_events_env_route_created_at
 
 create index route_performance_events_env_traffic_route_created_at
   on public.route_performance_events (deployment_env, traffic_class, to_path, created_at desc);
+
+create index route_performance_events_request_correlation_id
+  on public.route_performance_events (request_correlation_id)
+  where request_correlation_id is not null;
 
 
 -- ============================================================
