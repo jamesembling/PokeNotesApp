@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -14,16 +14,12 @@ import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
 import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
-import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { DropdownMenuItem } from "@/components/shadcn/dropdown-menu";
 import { LogRow } from "@/components/ui/LogRow";
-import { PageActions } from "@/components/ui/PageActions";
+import { useLogsManagementMode } from "@/components/ui/LogsWorkspaceFrame";
 import { ItemTitle } from "@/components/ui/Typography";
 import { formatDayDate } from "@/lib/client/date-format";
-import {
-  composeDeckListNameOptions,
-  resolveDeckListName
-} from "@/lib/deck-lists/resolve-name";
+import { composeDeckListNameOptions, resolveDeckListName } from "@/lib/deck-lists/resolve-name";
 import {
   makeDeckListSelectionKey,
   parseDeckListSelectionKey,
@@ -63,7 +59,6 @@ export type LogsManagerProps = {
   initialWindowStartDate: string;
   initialUserDeckLists?: DeckListSelectionOption[];
   initialUserDecks?: DeckSelectionOption[];
-  renderHeaderAction?: (action: ReactNode) => ReactNode;
 };
 
 type DeckSelectionOptionsResponse = {
@@ -72,10 +67,7 @@ type DeckSelectionOptionsResponse = {
 };
 
 const DynamicDeleteConfirmDialog = dynamic(
-  () =>
-    import("@/components/ui/DeleteConfirmDialog").then(
-      (module) => module.DeleteConfirmDialog
-    ),
+  () => import("@/components/ui/DeleteConfirmDialog").then((module) => module.DeleteConfirmDialog),
   { ssr: false }
 );
 
@@ -239,17 +231,17 @@ export function LogsManager({
   initialWindowEndDate,
   initialWindowStartDate,
   initialUserDeckLists = [],
-  initialUserDecks = [],
-  renderHeaderAction
+  initialUserDecks = []
 }: LogsManagerProps) {
   const router = useRouter();
+  const { isManagementMode } = useLogsManagementMode();
   const pendingDetailRouteWarm = useRef<{
     href: string;
     timeoutId: ReturnType<typeof globalThis.setTimeout>;
   } | null>(null);
   const [isMutating, startMutationTransition] = useTransition();
   const [isLoadingMore, startLoadMoreTransition] = useTransition();
-  const [isManagementMode, setIsManagementMode] = useState(false);
+  const deckOptionsLoadAttempted = useRef(false);
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState("");
   const [selectedDeckListSelectionKey, setSelectedDeckListSelectionKey] = useState("");
@@ -316,8 +308,7 @@ export function LogsManager({
   const allSelected = visibleLogs.length > 0 && selectedLogIds.length === visibleLogs.length;
   const selectedCount = selectedLogIds.length;
   const managementModeActive = isManagementMode;
-  const canApplyDeckList =
-    selectedCount > 0 && Boolean(selectedDeckListId) && !isMutating;
+  const canApplyDeckList = selectedCount > 0 && Boolean(selectedDeckListId) && !isMutating;
   const canDeleteSelected = selectedCount > 0 && !isMutating;
   const deletePromptCount = deletePrompt?.ids.length ?? 0;
 
@@ -362,6 +353,7 @@ export function LogsManager({
       return;
     }
 
+    deckOptionsLoadAttempted.current = true;
     setIsLoadingDeckOptions(true);
     setDeckOptionsError("");
 
@@ -385,6 +377,22 @@ export function LogsManager({
       setIsLoadingDeckOptions(false);
     }
   }
+
+  useEffect(() => {
+    if (!managementModeActive) {
+      deckOptionsLoadAttempted.current = false;
+      return;
+    }
+
+    if (
+      !deckOptionsLoadAttempted.current &&
+      userDecks.length === 0 &&
+      userDeckLists.length === 0 &&
+      !isLoadingDeckOptions
+    ) {
+      void loadDeckOptions();
+    }
+  }, [isLoadingDeckOptions, managementModeActive, userDeckLists.length, userDecks.length]);
 
   useEffect(() => {
     return () => {
@@ -431,9 +439,7 @@ export function LogsManager({
       return;
     }
 
-    setVisibleLogs((current) =>
-      attachLinkedDeckListNames(current, userDecks, userDeckLists)
-    );
+    setVisibleLogs((current) => attachLinkedDeckListNames(current, userDecks, userDeckLists));
   }, [userDeckLists, userDecks]);
 
   useEffect(() => {
@@ -455,8 +461,10 @@ export function LogsManager({
     const deckList = availableDeckLists.find(
       (option) =>
         (option.selectionKey ??
-          makeDeckListSelectionKey({ deckId: option.deckId, deckListId: option.id })) ===
-        selectedDeckListSelectionKey
+          makeDeckListSelectionKey({
+            deckId: option.deckId,
+            deckListId: option.id
+          })) === selectedDeckListSelectionKey
     );
     if (!deckList) {
       setSelectedDeckListSelectionKey("");
@@ -492,27 +500,6 @@ export function LogsManager({
   function toggleSelectAll() {
     setSelectedLogIds(allSelected ? [] : visibleLogs.map((log) => log.id));
   }
-
-  function toggleManagementMode() {
-    setIsManagementMode((current) => {
-      const next = !current;
-
-      if (next) {
-        void loadDeckOptions();
-      }
-
-      return next;
-    });
-  }
-
-  const editLogsButton = (
-    <Button
-      className="w-full justify-center sm:w-auto sm:self-start sm:min-w-[5.5rem]"
-      onClick={toggleManagementMode}
-    >
-      {managementModeActive ? "Done" : "Edit logs"}
-    </Button>
-  );
 
   function toggleGroup(date: string, isOpen: boolean) {
     setOpenGroupDates((current) => {
@@ -641,21 +628,11 @@ export function LogsManager({
         </Alert>
       ) : null}
 
-      {renderHeaderAction?.(editLogsButton)}
-
       <div className="flex flex-col gap-6 p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:hidden">
           <div className="flex flex-wrap items-center gap-2">
             {!canLoadMore ? <Badge>Current window complete</Badge> : null}
           </div>
-
-          <PageActions mobile="stack">
-            <LazyImportLogButton
-              className="w-full justify-center"
-              initialUserDeckLists={userDeckLists}
-              initialUserDecks={userDecks}
-            />
-          </PageActions>
         </div>
 
         <ClientPerfPanel
@@ -671,7 +648,10 @@ export function LogsManager({
                 className="group border-b border-border open:border-b-0"
                 key={group.date}
                 onToggle={(event) => toggleGroup(group.date, event.currentTarget.open)}
-                open={openGroupDates.includes(group.date) || (index === 0 && openGroupDates.length === 0)}
+                open={
+                  openGroupDates.includes(group.date) ||
+                  (index === 0 && openGroupDates.length === 0)
+                }
                 style={{
                   contentVisibility: "auto",
                   containIntrinsicSize: "128px"
@@ -683,9 +663,7 @@ export function LogsManager({
                       <div>
                         <div className="flex items-start justify-between gap-3 sm:block">
                           <div>
-                            <ItemTitle>
-                              {formatDayDate(group.date)}
-                            </ItemTitle>
+                            <ItemTitle>{formatDayDate(group.date)}</ItemTitle>
                           </div>
 
                           <div className="flex items-center justify-end gap-2 text-right sm:hidden">

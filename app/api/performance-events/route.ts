@@ -7,7 +7,10 @@ type PerformanceEventPayload = {
   automationHint?: boolean | null;
   deploymentEnv?: string | null;
   deviceMemory?: number | null;
+  documentDecodedBodySizeBytes?: number | null;
   domContentLoadedMs?: number | null;
+  documentEncodedBodySizeBytes?: number | null;
+  documentTransferSizeBytes?: number | null;
   downlink?: number | null;
   durationMs?: number | null;
   effectiveType?: string | null;
@@ -20,10 +23,14 @@ type PerformanceEventPayload = {
   loadingMs?: number | null;
   maxLongTaskMs?: number | null;
   navigationType?: string | null;
+  nextHopProtocol?: string | null;
+  performanceVariant?: string | null;
   reporterVersion?: number | null;
   resourceCount?: number | null;
   responseEndMs?: number | null;
   routeContentVisibleMs?: number | null;
+  routeDataVisibleMs?: number | null;
+  routeShellVisibleMs?: number | null;
   rtt?: number | null;
   routeStabilizationMs?: number | null;
   saveData?: boolean | null;
@@ -46,12 +53,18 @@ type PerformanceEventPayload = {
   visibilityState?: string | null;
   viewportHeight?: number | null;
   viewportWidth?: number | null;
+  workerStartMs?: number | null;
 };
 
 const MAX_TEXT_LENGTH = 320;
 const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DYNAMIC_ROUTE_PARENTS = new Set(["decks", "lists", "logs", "matchups", "tournaments"]);
+const PERFORMANCE_VARIANTS = new Set([
+  "logs-delay-1000",
+  "logs-narrow-suspense",
+  "logs-shell-only"
+]);
 
 function inferDeploymentEnv(host: string | null, payloadEnv: unknown) {
   const normalizedHost = host?.toLowerCase() ?? "";
@@ -188,11 +201,14 @@ function normalizeVisibilityState(value: unknown) {
     : "unknown";
 }
 
+function normalizePerformanceVariant(value: unknown) {
+  const normalized = clampText(value, 64);
+  return normalized && PERFORMANCE_VARIANTS.has(normalized) ? normalized : null;
+}
+
 function getDeploymentId() {
   return clampText(
-    process.env.VERCEL_DEPLOYMENT_ID ??
-      process.env.VERCEL_GIT_COMMIT_SHA ??
-      process.env.VERCEL_URL,
+    process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.VERCEL_URL,
     180
   );
 }
@@ -218,7 +234,16 @@ export async function POST(request: NextRequest) {
       device_class: inferDeviceClass(viewportWidth),
       deployment_env: inferDeploymentEnv(sourceHost, payload.deploymentEnv),
       deployment_id: getDeploymentId(),
+      document_decoded_body_size_bytes: clampNumber(
+        payload.documentDecodedBodySizeBytes,
+        100_000_000
+      ),
       document_download_ms: clampNumber(payload.documentDownloadMs),
+      document_encoded_body_size_bytes: clampNumber(
+        payload.documentEncodedBodySizeBytes,
+        100_000_000
+      ),
+      document_transfer_size_bytes: clampNumber(payload.documentTransferSizeBytes, 100_000_000),
       dom_content_loaded_ms: clampNumber(payload.domContentLoadedMs),
       downlink: clampDecimal(payload.downlink),
       duration_ms: durationMs,
@@ -232,9 +257,13 @@ export async function POST(request: NextRequest) {
       loading_ms: clampNumber(payload.loadingMs),
       max_long_task_ms: clampNumber(payload.maxLongTaskMs),
       navigation_type: normalizeNavigationType(eventType, payload.navigationType),
+      next_hop_protocol: clampText(payload.nextHopProtocol, 32),
+      performance_variant: normalizePerformanceVariant(payload.performanceVariant),
       reporter_version: clampNumber(payload.reporterVersion, 100) ?? 1,
       response_end_ms: clampNumber(payload.responseEndMs),
       route_content_visible_ms: clampNumber(payload.routeContentVisibleMs),
+      route_data_visible_ms: clampNumber(payload.routeDataVisibleMs),
+      route_shell_visible_ms: clampNumber(payload.routeShellVisibleMs),
       resource_count: clampNumber(payload.resourceCount, 10_000),
       rtt: clampNumber(payload.rtt, 60_000),
       route_stabilization_ms: clampNumber(payload.routeStabilizationMs, 60_000),
@@ -258,7 +287,8 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       visibility_state: normalizeVisibilityState(payload.visibilityState),
       viewport_height: clampNumber(payload.viewportHeight, 100_000),
-      viewport_width: viewportWidth
+      viewport_width: viewportWidth,
+      worker_start_ms: clampNumber(payload.workerStartMs)
     });
 
     if (error) {

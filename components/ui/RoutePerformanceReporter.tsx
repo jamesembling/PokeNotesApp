@@ -101,16 +101,15 @@ function getSlowestResourceSince(startedAt: number, endedAt = performance.now())
   return {
     resourceCount: resources.length,
     slowestResourceMs: slowest ? Math.round(slowest.duration) : null,
-    slowestResourcePath: slowest
-      ? normalizePath(new URL(slowest.name).pathname)
-      : null,
+    slowestResourcePath: slowest ? normalizePath(new URL(slowest.name).pathname) : null,
     transferSizeBytes: slowest?.transferSize ?? null
   };
 }
 
 function getLatestResourceEndSince(startedAt: number, endedAt: number) {
   return getResourcesSince(startedAt, endedAt).reduce(
-    (latest, resource) => Math.max(latest, resource.responseEnd || resource.startTime + resource.duration),
+    (latest, resource) =>
+      Math.max(latest, resource.responseEnd || resource.startTime + resource.duration),
     0
   );
 }
@@ -123,23 +122,38 @@ function getServerTimingDuration(entries: ServerTimingSource[], name: string) {
 }
 
 function getMarkerDuration(phase: "proxy-auth" | "route-data" | "shell-profile") {
-  const markers = document.querySelectorAll<HTMLElement>(
-    `[data-route-server-timing="${phase}"]`
-  );
+  const markers = document.querySelectorAll<HTMLElement>(`[data-route-server-timing="${phase}"]`);
   const marker = markers.item(markers.length - 1);
   const duration = Number(marker?.dataset.routeServerTimingMs);
 
   return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null;
 }
 
-function getClientTiming(phase: "route-content-visible" | "shell-profile-loaded" | "shell-visible") {
-  const markers = document.querySelectorAll<HTMLElement>(
-    `[data-route-client-timing="${phase}"]`
-  );
+type ClientTimingPhase =
+  | "route-content-visible"
+  | "route-data-visible"
+  | "route-shell-visible"
+  | "shell-profile-loaded"
+  | "shell-visible";
+
+function getClientTiming(phase: ClientTimingPhase) {
+  const markers = document.querySelectorAll<HTMLElement>(`[data-route-client-timing="${phase}"]`);
   const marker = markers.item(markers.length - 1);
   const duration = Number(marker?.dataset.routeClientTimingMs);
 
   return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null;
+}
+
+function getClientTimingSince(phase: ClientTimingPhase, startedAt: number) {
+  const timing = getClientTiming(phase);
+  return timing === null ? null : Math.max(0, Math.round(timing - startedAt));
+}
+
+function getPerformanceVariant() {
+  const elements = document.querySelectorAll<HTMLElement>("[data-route-performance-variant]");
+  const variant = elements.item(elements.length - 1)?.dataset.routePerformanceVariant?.trim();
+
+  return variant ? variant.slice(0, 64) : null;
 }
 
 function getPaintEntryStartTime(name: string) {
@@ -162,8 +176,7 @@ function getServerTimingSnapshot(
 
   return {
     serverAuthMs:
-      proxyAuthMarkerDuration ??
-      (proxyAuthDuration > 0 ? Math.round(proxyAuthDuration) : null),
+      proxyAuthMarkerDuration ?? (proxyAuthDuration > 0 ? Math.round(proxyAuthDuration) : null),
     serverRouteDataMs: getMarkerDuration("route-data"),
     serverShellProfileMs: navigation ? getMarkerDuration("shell-profile") : null
   };
@@ -208,7 +221,8 @@ function getDeviceSnapshot() {
           : hostname.endsWith(".vercel.app")
             ? "preview"
             : "unknown",
-    deviceMemory: typeof typedNavigator.deviceMemory === "number" ? typedNavigator.deviceMemory : null,
+    deviceMemory:
+      typeof typedNavigator.deviceMemory === "number" ? typedNavigator.deviceMemory : null,
     downlink: typeof connection?.downlink === "number" ? connection.downlink : null,
     effectiveType: connection?.effectiveType ?? null,
     hardwareConcurrency: navigator.hardwareConcurrency ?? null,
@@ -326,14 +340,15 @@ export function RoutePerformanceReporter() {
         ...getDeviceSnapshot(),
         ...resourceSnapshot,
         ...getServerTimingSnapshot(0, hardLoadEndedAt, nav),
+        documentDecodedBodySizeBytes: nav?.decodedBodySize ?? null,
         documentDownloadMs:
           responseEndMs !== null && responseStartMs !== null
             ? Math.max(0, responseEndMs - responseStartMs)
             : null,
+        documentEncodedBodySizeBytes: nav?.encodedBodySize ?? null,
+        documentTransferSizeBytes: nav?.transferSize ?? null,
         domContentLoadedMs:
-          nav && nav.domContentLoadedEventEnd > 0
-            ? Math.round(nav.domContentLoadedEventEnd)
-            : null,
+          nav && nav.domContentLoadedEventEnd > 0 ? Math.round(nav.domContentLoadedEventEnd) : null,
         durationMs: Math.round(hardLoadDuration),
         eventType: "hard-load",
         firstContentfulPaintMs: getPaintEntryStartTime("first-contentful-paint"),
@@ -343,14 +358,19 @@ export function RoutePerformanceReporter() {
         loadingMs: null,
         maxLongTaskMs: Math.round(longTaskStatsRef.current.maxLongTaskMs),
         navigationType: nav?.type ?? "unknown",
+        nextHopProtocol: nav?.nextHopProtocol ?? null,
+        performanceVariant: getPerformanceVariant(),
         responseEndMs,
         routeContentVisibleMs: getClientTiming("route-content-visible"),
+        routeDataVisibleMs: getClientTiming("route-data-visible"),
+        routeShellVisibleMs: getClientTiming("route-shell-visible"),
         routeStabilizationMs: null,
         shellProfileLoadedMs: getClientTiming("shell-profile-loaded"),
         shellVisibleMs: getClientTiming("shell-visible"),
         toPath: getCurrentPath(),
         totalBlockingTimeMs: Math.round(longTaskStatsRef.current.totalBlockingTimeMs),
-        ttfbMs: responseStartMs
+        ttfbMs: responseStartMs,
+        workerStartMs: nav?.workerStart ?? null
       });
     }
 
@@ -445,11 +465,11 @@ export function RoutePerformanceReporter() {
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
         ...resourceSnapshot,
-        ...getServerTimingSnapshot(
-          pendingNavigation.resourceStartedAt,
-          candidateCompletedAt
-        ),
+        ...getServerTimingSnapshot(pendingNavigation.resourceStartedAt, candidateCompletedAt),
         documentDownloadMs: null,
+        documentDecodedBodySizeBytes: null,
+        documentEncodedBodySizeBytes: null,
+        documentTransferSizeBytes: null,
         domContentLoadedMs: null,
         durationMs: Math.round(candidateCompletedAt - pendingNavigation.startedAt),
         eventType: "app-route",
@@ -461,11 +481,23 @@ export function RoutePerformanceReporter() {
             : null,
         maxLongTaskMs: Math.round(longTaskSnapshot.maxLongTaskMs),
         navigationType: "app-route",
+        nextHopProtocol: null,
+        performanceVariant: getPerformanceVariant(),
         responseEndMs: null,
+        routeContentVisibleMs: getClientTimingSince(
+          "route-content-visible",
+          pendingNavigation.startedAt
+        ),
+        routeDataVisibleMs: getClientTimingSince("route-data-visible", pendingNavigation.startedAt),
+        routeShellVisibleMs: getClientTimingSince(
+          "route-shell-visible",
+          pendingNavigation.startedAt
+        ),
         routeStabilizationMs: decision.stabilizationMs,
         toPath: pendingNavigation.toPath,
         totalBlockingTimeMs: Math.round(longTaskSnapshot.totalBlockingTimeMs),
-        ttfbMs: null
+        ttfbMs: null,
+        workerStartMs: null
       });
       pendingNavigationRef.current = null;
     }
@@ -527,12 +559,14 @@ export function RoutePerformanceReporter() {
             return;
           }
 
-          const hasRelevantResource = entryList.getEntries().some(
-            (entry) =>
-              entry.startTime >= pendingNavigation.resourceStartedAt &&
-              entry.name.startsWith(window.location.origin) &&
-              normalizePath(new URL(entry.name).pathname) !== REPORT_ENDPOINT
-          );
+          const hasRelevantResource = entryList
+            .getEntries()
+            .some(
+              (entry) =>
+                entry.startTime >= pendingNavigation.resourceStartedAt &&
+                entry.name.startsWith(window.location.origin) &&
+                normalizePath(new URL(entry.name).pathname) !== REPORT_ENDPOINT
+            );
 
           if (hasRelevantResource) {
             scheduleNavigationCheck();

@@ -68,13 +68,21 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   const visibleTimingMigration = source(
     "supabase/migrations/20260822210947_add_visible_route_performance_timings.sql"
   );
+  const streamingCanaryMigration = source(
+    "supabase/migrations/20260822223633_add_route_streaming_canary_timings.sql"
+  );
 
-  assert.equal(ROUTE_REPORTER_VERSION, 3);
+  assert.equal(ROUTE_REPORTER_VERSION, 4);
   assert.match(reporter, /documentDownloadMs/);
   assert.match(reporter, /responseEndMs/);
   assert.match(reporter, /routeStabilizationMs/);
   assert.match(reporter, /firstContentfulPaintMs/);
   assert.match(reporter, /routeContentVisibleMs/);
+  assert.match(reporter, /routeDataVisibleMs/);
+  assert.match(reporter, /routeShellVisibleMs/);
+  assert.match(reporter, /documentTransferSizeBytes/);
+  assert.match(reporter, /nextHopProtocol/);
+  assert.match(reporter, /performanceVariant/);
   assert.match(reporter, /shellVisibleMs/);
   assert.match(reporter, /AUTOMATION_HASH = "#pokenotes-perf"/);
   assert.doesNotMatch(reporter, /userAgent:/);
@@ -98,4 +106,8 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(visibleTimingMigration, /first_contentful_paint_ms/);
   assert.match(visibleTimingMigration, /route_content_visible_ms/);
   assert.match(visibleTimingMigration, /shell_profile_loaded_ms/);
+  assert.match(streamingCanaryMigration, /route_shell_visible_ms/);
+  assert.match(streamingCanaryMigration, /route_data_visible_ms/);
+  assert.match(streamingCanaryMigration, /document_transfer_size_bytes/);
+  assert.match(streamingCanaryMigration, /performance_variant/);
 });

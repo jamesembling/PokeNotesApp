@@ -1,4 +1,4 @@
-export const ROUTE_REPORTER_VERSION = 3;
+export const ROUTE_REPORTER_VERSION = 4;
 export const APP_ROUTE_MIN_OBSERVATION_MS = 800;
 export const APP_ROUTE_QUIET_WINDOW_MS = 200;
 export const APP_ROUTE_MAX_OBSERVATION_MS = 1500;
@@ -21,8 +21,7 @@ export function getNavigationReportDecision({
   const totalDurationMs = Math.max(0, observedAt - startedAt);
   const reachedMaximum = observedForMs >= APP_ROUTE_MAX_OBSERVATION_MS;
   const reachedStableWindow =
-    observedForMs >= APP_ROUTE_MIN_OBSERVATION_MS &&
-    quietForMs >= APP_ROUTE_QUIET_WINDOW_MS;
+    observedForMs >= APP_ROUTE_MIN_OBSERVATION_MS && quietForMs >= APP_ROUTE_QUIET_WINDOW_MS;
   const shouldReport = reachedMaximum || reachedStableWindow;
   const remainingChecks = [
     APP_ROUTE_MAX_OBSERVATION_MS - observedForMs,
@@ -31,10 +30,10 @@ export function getNavigationReportDecision({
   ].filter((value) => value > 0);
 
   return {
-    nextCheckMs: shouldReport
-      ? 0
-      : Math.max(1, Math.min(...remainingChecks)),
+    nextCheckMs: shouldReport ? 0 : Math.max(1, Math.min(...remainingChecks)),
     shouldReport,
-    stabilizationMs: shouldReport ? Math.max(0, totalDurationMs - (candidateCompletedAt - startedAt)) : null
+    stabilizationMs: shouldReport
+      ? Math.max(0, totalDurationMs - (candidateCompletedAt - startedAt))
+      : null
   };
 }

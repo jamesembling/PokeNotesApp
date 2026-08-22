@@ -25,7 +25,10 @@ test("battle-log detail keeps raw body data out of the initial route and removes
   assert.match(shell, /\/api\/log-detail-body/);
   assert.equal(existsSync(join(process.cwd(), "app/api/log-detail-data/route.ts")), false);
   assert.equal(existsSync(join(process.cwd(), "lib/client/log-detail-cache.ts")), false);
-  assert.doesNotMatch(source("components/ui/LogsManager.tsx"), /warmLogDetailCache|sessionStorage|log-detail-data/);
+  assert.doesNotMatch(
+    source("components/ui/LogsManager.tsx"),
+    /warmLogDetailCache|sessionStorage|log-detail-data/
+  );
 });
 
 test("deferred battle-log body failures leave loading state and provide a retry", () => {
@@ -112,7 +115,10 @@ test("sidebar profile loads outside the initial app response", () => {
   assert.equal(existsSync(join(process.cwd(), "app/api/sidebar-profile/route.ts")), true);
   assert.doesNotMatch(source("app/(app)/layout.tsx"), /sidebar-profile/);
   assert.doesNotMatch(source("components/ui/Sidebar.tsx"), /sidebar-profile|fetch\(/);
-  assert.match(source("components/ui/DeferredSidebarAccount.tsx"), /fetch\("\/api\/sidebar-profile"/);
+  assert.match(
+    source("components/ui/DeferredSidebarAccount.tsx"),
+    /fetch\("\/api\/sidebar-profile"/
+  );
   assert.match(source("components/ui/DeferredSidebarAccount.tsx"), /openMobile/);
 });
 
@@ -157,20 +163,14 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
   assert.match(apiRoute, /getArchetypeMatchupStats/);
   assert.match(statsTabs, /\/api\/stats-matchups/);
   assert.match(statsTabs, /Opening coin toss W\/L/);
-  assert.match(
-    statsTabs,
-    /overview\.coinFlipsWon, overview\.coinFlipsLost/
-  );
+  assert.match(statsTabs, /overview\.coinFlipsWon, overview\.coinFlipsLost/);
   assert.doesNotMatch(
     source("components/ui/StatsTabsClient.tsx"),
     /Total prize cards collected|W: you chose|Games mulliganed|Latest \{formatMetric\(damageTimeline\.length\)\} games|Tracked \{formatMetric\(overview\.trackedDamage\)\}/
   );
   assert.match(statsTabs, /const MIN_MATCHUP_GAMES = 3/);
   assert.match(statsTabs, /useState\(false\)/);
-  assert.match(
-    statsTabs,
-    /showAllMatchups \|\| matchup\.gamesPlayed >= MIN_MATCHUP_GAMES/
-  );
+  assert.match(statsTabs, /showAllMatchups \|\| matchup\.gamesPlayed >= MIN_MATCHUP_GAMES/);
   assert.match(statsTabs, /checked=\{showAllMatchups\}/);
   assert.match(statsTabs, /onCheckedChange=\{setShowAllMatchups\}/);
   assert.match(statsTabs, />Show all matchups<\/span>/);
@@ -178,19 +178,27 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
   assert.doesNotMatch(logsDb, /from\("logs"\)[\s\S]{0,300}opponent_deck_slug[\s\S]{0,300}group/);
 });
 
-test("/logs returns its cached initial window in one completed document", () => {
+test("/logs streams a real shell around one shared data promise", () => {
   const page = source("app/(app)/logs/page.tsx");
+  const frame = source("components/ui/LogsWorkspaceFrame.tsx");
 
-  assert.doesNotMatch(page, /<Suspense|LogsContentFallback|initialDataPromise/);
   assert.equal(existsSync(join(process.cwd(), "app/(app)/loading.tsx")), false);
   assert.equal(existsSync(join(process.cwd(), "app/(app)/logs/loading.tsx")), false);
   for (const segment of ["calculator", "deck-lists", "decks", "profile", "stats", "tournaments"]) {
     assert.equal(existsSync(join(process.cwd(), `app/(app)/${segment}/loading.tsx`)), true);
   }
   assert.match(page, /getCachedInitialLogsPageData/);
-  assert.match(page, /loadInitialLogsPageData\(user\.id\)/);
-  assert.match(page, /measureServerCallWithTiming\("page\.logs\.initialData"/);
-  assert.match(page, /<LogsWorkspaceClient stats=\{stats\} window=\{window\}/);
+  assert.match(page, /const initialDataPromise = measureServerCallWithTiming/);
+  assert.match(page, /<Suspense fallback=\{<LogsStatsSkeleton \/>\}>/);
+  assert.match(page, /<Suspense fallback=\{<LogsWorkspaceSkeleton \/>\}>/);
+  assert.match(page, /initialDataPromise=\{initialDataPromise\}/);
+  assert.match(page, /measureServerCallWithTiming\(\s*"page\.logs\.initialData"/);
+  assert.match(page, /phase="route-data-visible"/);
+  assert.match(page, /candidate === "delay-1000"/);
+  assert.match(page, /candidate === "shell-only"/);
+  assert.match(frame, /phase="route-shell-visible"/);
+  assert.match(frame, /title="Battle Logs"/);
+  assert.match(frame, /<LazyImportLogButton/);
 });
 
 test("/logs limits detail prefetch to sustained row intent", () => {

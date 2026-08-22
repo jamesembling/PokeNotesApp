@@ -2,7 +2,12 @@
 
 import { useLayoutEffect, useRef } from "react";
 
-export type ClientTimingPhase = "route-content-visible" | "shell-profile-loaded" | "shell-visible";
+export type ClientTimingPhase =
+  | "route-content-visible"
+  | "route-data-visible"
+  | "route-shell-visible"
+  | "shell-profile-loaded"
+  | "shell-visible";
 
 export function ClientRouteTimingMarker({ phase }: { phase: ClientTimingPhase }) {
   const markerRef = useRef<HTMLSpanElement>(null);
