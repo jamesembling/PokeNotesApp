@@ -124,7 +124,11 @@ test("app and admin layouts share the same authenticated shell chrome", () => {
   assert.match(appShell, /SidebarProvider/);
   assert.match(appShell, /SidebarMobileTopbar/);
   assert.match(appShell, /SidebarInset/);
-  assert.match(appShell, /<Sidebar profile=\{profile\}/);
+  assert.match(appShell, /<Suspense fallback=\{<SidebarAccountFallback \/>\}>/);
+  assert.match(appShell, /<SidebarAccountContent profilePromise=\{profilePromise\}/);
+  assert.match(appLayout, /const profilePromise = loadAppShellProfile\(\)/);
+  assert.match(appLayout, /profilePromise=\{profilePromise\}/);
+  assert.doesNotMatch(appLayout, /await loadAppShellProfile\(\)/);
 });
 
 test("authenticated app routes cache verified Supabase claims briefly across hot navigations", () => {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import {
   CalculatorIcon,
   CardsIcon,
@@ -15,6 +15,7 @@ import {
 import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon, MenuIcon, ShieldIcon } from "lucide-react";
 import { signOutAction } from "@/app/actions";
 import { Button } from "@/components/shadcn/button";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,8 +51,8 @@ type SidebarProfile = {
 };
 
 type SidebarProps = {
+  account: ReactNode;
   userDecks?: DeckSelectionOption[];
-  profile: SidebarProfile;
 };
 
 const navItems: Array<{ label: string; href: string; icon: Icon }> = [
@@ -175,7 +176,7 @@ function SidebarNav({ userDecks }: { userDecks?: DeckSelectionOption[] }) {
   );
 }
 
-function AccountBlock({ profile }: { profile: SidebarProfile }) {
+export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
   const initials = getInitials(profile.displayName);
   const { isMobile, setOpenMobile } = useSidebar();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -271,7 +272,24 @@ function AccountBlock({ profile }: { profile: SidebarProfile }) {
   );
 }
 
-export function Sidebar({ profile, userDecks }: SidebarProps) {
+export function SidebarAccountFallback() {
+  return (
+    <SidebarFooter
+      aria-hidden="true"
+      className="border-t border-sidebar-border p-2 group-data-[collapsible=icon]:p-0"
+    >
+      <div className="flex h-12 items-center gap-2 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <Skeleton className="size-8 shrink-0 rounded-full" />
+        <div className="grid flex-1 gap-1.5 group-data-[collapsible=icon]:hidden">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-3 w-32 max-w-full" />
+        </div>
+      </div>
+    </SidebarFooter>
+  );
+}
+
+export function Sidebar({ account, userDecks }: SidebarProps) {
   const { setOpenMobile } = useSidebar();
 
   return (
@@ -294,7 +312,7 @@ export function Sidebar({ profile, userDecks }: SidebarProps) {
         </div>
       </SidebarHeader>
       <SidebarNav userDecks={userDecks} />
-      <AccountBlock profile={profile} />
+      {account}
       <SidebarRail />
     </ShadcnSidebar>
   );

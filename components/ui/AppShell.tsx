@@ -1,26 +1,50 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/shadcn/sidebar";
 import { RoutePerformanceReporter } from "@/components/ui/RoutePerformanceReporter";
 import { RouteTimingMarker } from "@/components/ui/RouteTimingMarker";
-import { Sidebar, SidebarMobileTopbar } from "@/components/ui/Sidebar";
+import {
+  Sidebar,
+  SidebarAccount,
+  SidebarAccountFallback,
+  SidebarMobileTopbar
+} from "@/components/ui/Sidebar";
 import { SidebarThemeToggle } from "@/components/ui/SidebarThemeToggle";
 import { ImportDialogDataProvider } from "@/components/ui/ImportDialogDataProvider";
 import type { AvatarColor } from "@/types/index";
 
-type AppShellProfile = {
+export type AppShellProfile = {
   avatarColor: AvatarColor;
   displayName: string;
   email: string;
   isAdmin?: boolean;
 };
 
-type AppShellProps = {
-  children: ReactNode;
+export type AppShellProfileResult = {
+  durationMs: number;
   profile: AppShellProfile;
-  shellProfileDurationMs: number;
 };
 
-export function AppShell({ children, profile, shellProfileDurationMs }: AppShellProps) {
+type AppShellProps = {
+  children: ReactNode;
+  profilePromise: Promise<AppShellProfileResult>;
+};
+
+async function SidebarAccountContent({
+  profilePromise
+}: {
+  profilePromise: Promise<AppShellProfileResult>;
+}) {
+  const { durationMs, profile } = await profilePromise;
+
+  return (
+    <>
+      <SidebarAccount profile={profile} />
+      <RouteTimingMarker durationMs={durationMs} phase="shell-profile" />
+    </>
+  );
+}
+
+export function AppShell({ children, profilePromise }: AppShellProps) {
   return (
     <ImportDialogDataProvider>
       <SidebarProvider>
@@ -30,7 +54,13 @@ export function AppShell({ children, profile, shellProfileDurationMs }: AppShell
         >
           Skip to main content
         </a>
-        <Sidebar profile={profile} />
+        <Sidebar
+          account={
+            <Suspense fallback={<SidebarAccountFallback />}>
+              <SidebarAccountContent profilePromise={profilePromise} />
+            </Suspense>
+          }
+        />
         <SidebarInset id="main-content" tabIndex={-1}>
           <SidebarMobileTopbar />
           <div className="hidden px-3 pt-3 min-[860px]:flex min-[860px]:items-center min-[860px]:gap-1 sm:px-5 lg:px-7">
@@ -41,7 +71,6 @@ export function AppShell({ children, profile, shellProfileDurationMs }: AppShell
             <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6">{children}</div>
           </div>
         </SidebarInset>
-        <RouteTimingMarker durationMs={shellProfileDurationMs} phase="shell-profile" />
         <RoutePerformanceReporter />
       </SidebarProvider>
     </ImportDialogDataProvider>
