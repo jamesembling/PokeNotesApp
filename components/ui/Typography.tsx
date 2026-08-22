@@ -37,14 +37,17 @@ export function DetailTitle<T extends ElementType = "h1">({
   as,
   children,
   className,
-  id
-}: TypographyProps<T>) {
+  id,
+  size = "default"
+}: SizedTypographyProps<T>) {
   const Comp = as ?? "h1";
 
   return (
     <Comp
       className={cn(
-        "text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl",
+        size === "sm"
+          ? "text-xl font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl"
+          : "text-[2rem] font-semibold leading-tight tracking-[-0.02em] text-card-foreground sm:text-4xl",
         className
       )}
       id={id}

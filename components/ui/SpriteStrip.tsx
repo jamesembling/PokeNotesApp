@@ -45,12 +45,12 @@ function SpriteStripItem({
       <div
         aria-label={prettifyPokemonSlug(slug)}
         className={[
-          "flex items-center justify-center rounded-full bg-muted px-1 text-center font-semibold leading-tight text-muted-foreground",
+          "flex shrink-0 items-center justify-center rounded-full bg-muted px-1 text-center font-semibold leading-tight text-muted-foreground",
           size === "lg" ? "text-[9px]" : size === "xs" ? "text-[7px]" : "text-[8px]",
           sizeClasses[size]
         ].join(" ")}
       >
-        {prettifyPokemonSlug(slug)}
+        <span aria-hidden="true">{prettifyPokemonSlug(slug).slice(0, 3)}</span>
       </div>
     );
   }
@@ -93,7 +93,7 @@ function SpriteStripContent({
       <div className={stripClassName}>
         <div
           className={[
-            "flex items-center justify-center rounded-full bg-muted text-xs text-muted-foreground",
+            "flex shrink-0 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground",
             sizeClasses[size]
           ].join(" ")}
         >

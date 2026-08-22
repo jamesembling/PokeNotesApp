@@ -1,30 +1,21 @@
-import { Suspense } from "react";
 import Link from "next/link";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
 import { DeckMatchupsDialog } from "@/components/ui/DeckMatchupsDialog";
-import {
-  DeckLogStatsGrid,
-  DeckLogStatsGridFallback,
-  DeckRelatedLogsSection,
-  DeckRelatedLogsSectionFallback
-} from "@/components/ui/DeckRelatedLogsSection";
-import { ChevronIcon } from "@/components/ui/icons";
-import { InlineDeckStrategyEditor } from "@/components/ui/InlineDeckStrategyEditor";
+import { DeckStrategyWorkspace } from "@/components/ui/DeckStrategyWorkspace";
+import { DeckStrategyMobileMenu } from "@/components/ui/DeckStrategyMobileMenu";
+import { DeckStrategyResourcesMenu } from "@/components/ui/DeckStrategyResourcesMenu";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
-import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
-import { LazyDeckListViewButton } from "@/components/ui/LazyDeckListViewButton";
 import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageActions } from "@/components/ui/PageActions";
 import { PageWidth } from "@/components/ui/PageWidth";
-import { SectionHeader } from "@/components/ui/SectionHeader";
 import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { DetailTitle, ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
-import { getLatestLogsForDeck } from "@/lib/db/logs";
 import { measureServerCall } from "@/lib/server/perf";
 import type { Deck, DeckList, DeckMatchup } from "@/types/index";
 
@@ -33,16 +24,6 @@ type DeckDetailPageProps = {
     id: string;
   }>;
 };
-
-const DECK_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric"
-});
-
-function formatDate(date: string) {
-  return DECK_DATE_FORMATTER.format(new Date(date));
-}
 
 function DeckMatchupTile({
   deckId,
@@ -53,18 +34,15 @@ function DeckMatchupTile({
 }) {
   return (
     <Link className="group block h-full" href={`/decks/${deckId}/matchups/${matchup.id}`} prefetch={false}>
-      <Card className={`flex h-full flex-col gap-4 ${deckCardRolloverClassName}`}>
-        <div className="flex items-start justify-between gap-3">
+      <Card className={`h-full gap-0 p-0 sm:gap-0 sm:p-0 ${deckCardRolloverClassName}`}>
+        <div className="flex min-h-16 items-center gap-3 px-4 py-3">
           <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={matchup.deckPokemon} />
-          <span className="inline-flex min-h-10 shrink-0 items-center rounded-2xl border border-[var(--link-chip-border)] bg-[var(--link-chip-bg)] px-3 py-2 text-[0.76rem] font-semibold tracking-[0.12em] text-[var(--link-chip-text)]">
-            OPEN
-            <ChevronIcon className="size-4 -rotate-90" />
-          </span>
+          <ItemTitle className="min-w-0 flex-1 truncate">{matchup.deckName}</ItemTitle>
+          <ChevronRight
+            aria-hidden="true"
+            className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+          />
         </div>
-
-        <ItemTitle className="truncate">
-          {matchup.deckName}
-        </ItemTitle>
       </Card>
     </Link>
   );
@@ -76,27 +54,19 @@ function getDeckEditorPayload(deck: Deck) {
 }
 
 function getDeckListRowPayload(deckList: DeckList) {
-  const {
-    parsedCards: _parsedCards,
-    rawList: _rawList,
-    sortedCards: _sortedCards,
-    ...deckListRow
-  } = deckList;
-
-  return deckListRow;
+  return {
+    date: deckList.date,
+    format: deckList.format,
+    id: deckList.id,
+    name: deckList.name
+  };
 }
 
 export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   const [user, { id }] = await Promise.all([requireUser(), params]);
   const deckPromise = getDeckById(user.id, id);
   const deckStatsPromise = getDeckLogStats(user.id, id);
-  const latestLogsPromise = getLatestLogsForDeck(user.id, id, 5);
-  const deck = await deckPromise;
-  const defaultCreatedBy =
-    user.user_metadata?.full_name ||
-    user.user_metadata?.name ||
-    user.email?.split("@")[0] ||
-    "Trainer";
+  const [deck, stats] = await Promise.all([deckPromise, deckStatsPromise]);
 
   if (!deck) {
     return (
@@ -129,9 +99,14 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
     );
   }
 
-  const previewMatchups = deck.matchups.slice(0, 4);
   const deckEditorPayload = getDeckEditorPayload(deck);
+  const previewMatchups = deck.matchups.slice(0, 4);
   const deckListRows = deck.deckLists.map(getDeckListRowPayload);
+  const defaultCreatedBy =
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split("@")[0] ||
+    "Trainer";
   const deckActions = (
     <PageActions>
       <LazyDeckEditorButton
@@ -139,8 +114,15 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         triggerLabel="Edit Deck"
         triggerVariant="outline"
       />
+      <DeckStrategyResourcesMenu
+        deckId={deck.id}
+        deckLists={deckListRows}
+        defaultCreatedBy={defaultCreatedBy}
+        defaultFormat={deck.format}
+      />
       <Button asChild variant="outline">
         <Link href="/decks" prefetch={false}>
+          <ArrowLeft className="size-4" />
           Back to Decks
         </Link>
       </Button>
@@ -148,37 +130,71 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
   );
 
   return await measureServerCall("page.decks.detail.initialData", async () => (
-    <PageWidth size="standard">
-      <PageHeader
-        breadcrumb={[
-          { label: "Poke Notes", href: "/" },
-          { label: "Deck Strategy", href: "/decks" },
-          { label: deck.deckName }
-        ]}
-      />
+    <PageWidth size="wide">
+      <div className="hidden sm:block">
+        <PageHeader
+          breadcrumb={[
+            { label: "Poke Notes", href: "/" },
+            { label: "Deck Strategy", href: "/decks" },
+            { label: deck.deckName }
+          ]}
+        />
+      </div>
 
-      <section className="flex flex-col gap-6 border-b border-border pb-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-            <SpriteStrip maxVisible={3} size="xl" sprites={deck.deckPokemon} />
-            <DetailTitle>{deck.deckName}</DetailTitle>
+      <section className="flex items-center gap-3 border-b border-border pb-5 sm:gap-5 sm:border-b-0 sm:pb-0">
+        <Button asChild className="sm:hidden" size="icon-lg" variant="ghost">
+          <Link aria-label="Back to deck strategies" href="/decks" prefetch={false}>
+            <ArrowLeft className="size-6" />
+          </Link>
+        </Button>
+        <SpriteStrip
+          className="min-h-10 shrink-0 sm:hidden"
+          maxVisible={3}
+          size="md"
+          sprites={deck.deckPokemon}
+        />
+        <SpriteStrip
+          className="hidden min-h-14 shrink-0 sm:flex"
+          maxVisible={3}
+          size="xl"
+          sprites={deck.deckPokemon}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
+            <DetailTitle className="truncate" size="sm">{deck.deckName}</DetailTitle>
+            {stats.total > 0 ? (
+              <span className="shrink-0 rounded-full border border-win-border bg-win-bg px-3 py-1 text-sm font-semibold tabular-nums text-win-strong">
+                {stats.wins}–{stats.losses}
+              </span>
+            ) : null}
           </div>
-
-          <div className="lg:shrink-0">{deckActions}</div>
         </div>
 
-        <Suspense fallback={<DeckLogStatsGridFallback />}>
-          <DeckLogStatsGrid statsPromise={deckStatsPromise} />
-        </Suspense>
+        <div className="hidden shrink-0 sm:block">{deckActions}</div>
+        <div className="sm:hidden">
+          <DeckStrategyMobileMenu
+            deck={deckEditorPayload}
+            deckLists={deckListRows}
+            defaultCreatedBy={defaultCreatedBy}
+            defaultFormat={deck.format}
+          />
+        </div>
       </section>
-      <InlineDeckStrategyEditor deck={deckEditorPayload} />
+
+      <DeckStrategyWorkspace deck={deck} />
 
       <section
         aria-labelledby="deck-matchups-heading"
-        className="space-y-4 border-b border-border pb-6"
+        className="space-y-4 border-y border-border py-6"
       >
-        <SectionHeader
-          actions={
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2
+            className="font-display text-2xl font-semibold tracking-[-0.03em] text-card-foreground"
+            id="deck-matchups-heading"
+          >
+            Matchup Notes
+          </h2>
+          <div className="shrink-0">
             <PageActions>
               <DeckMatchupsDialog deckId={deck.id} matchups={deck.matchups} />
               <LazyDeckMatchupEditorButton
@@ -187,90 +203,14 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                 triggerVariant="outline"
               />
             </PageActions>
-          }
-          eyebrow="Matchup Notes"
-          eyebrowAs="h2"
-          eyebrowId="deck-matchups-heading"
-        />
+          </div>
+        </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {previewMatchups.map((matchup) => (
             <DeckMatchupTile deckId={deck.id} key={matchup.id} matchup={matchup} />
           ))}
         </div>
       </section>
-
-      <section
-        aria-labelledby="deck-lists-heading"
-        className="space-y-4 border-b border-border pb-6"
-        id="deck-lists"
-      >
-        <SectionHeader
-          actions={
-            <LazyDeckListEditorButton
-              deckId={deck.id}
-              defaultCreatedBy={defaultCreatedBy}
-              defaultFormat={deck.format}
-              triggerLabel="Add Deck List"
-              triggerVariant="outline"
-            />
-          }
-          eyebrow="Deck Lists"
-          eyebrowAs="h2"
-          eyebrowId="deck-lists-heading"
-        />
-
-        {deckListRows.length === 0 ? (
-          <p className="text-sm text-foreground">No deck lists saved.</p>
-        ) : (
-          <div className="divide-y divide-[var(--border)]">
-            {deckListRows.map((deckList) => (
-              <div
-                className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
-                key={deckList.id}
-              >
-                <div className="flex min-w-0 items-center gap-4">
-                  <SpriteStrip
-                    className="min-h-10 shrink-0"
-                    maxVisible={3}
-                    size="md"
-                    sprites={deck.deckPokemon}
-                  />
-                  <div className="min-w-0 space-y-1">
-                    <ItemTitle as="p" className="truncate">
-                      {deckList.name}
-                    </ItemTitle>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {deckList.format}
-                      {deckList.date ? ` · ${formatDate(deckList.date)}` : ""}
-                    </p>
-                  </div>
-                </div>
-
-                <PageActions>
-                  <LazyDeckListEditorButton
-                    deckId={deck.id}
-                    deckListId={deckList.id}
-                    defaultCreatedBy={defaultCreatedBy}
-                    defaultFormat={deck.format}
-                    triggerLabel="Edit List"
-                    triggerVariant="ghost"
-                  />
-                  <LazyDeckListViewButton
-                    deckId={deck.id}
-                    deckListId={deckList.id}
-                    triggerLabel="View List"
-                    triggerVariant="ghost"
-                  />
-                </PageActions>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <Suspense fallback={<DeckRelatedLogsSectionFallback />}>
-        <DeckRelatedLogsSection deck={deck} latestLogsPromise={latestLogsPromise} />
-      </Suspense>
     </PageWidth>
   ));
 }

@@ -7,11 +7,13 @@ import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { DeckEditorDeck, DeckEditorDialogProps } from "@/components/ui/DeckEditorDialog";
 import type { PokemonOption } from "@/types/index";
 
-type LazyDeckEditorButtonProps = {
+export type LazyDeckEditorButtonProps = {
   deck?: DeckEditorDeck;
   triggerLabel: string;
   triggerVariant?: "default" | "outline" | "ghost";
 };
+
+export type { DeckEditorDeck };
 
 const DynamicDeckEditorDialog = dynamic<DeckEditorDialogProps>(
   () => import("@/components/ui/DeckEditorDialog").then((module) => module.DeckEditorDialog),

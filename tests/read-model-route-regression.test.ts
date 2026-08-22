@@ -64,31 +64,34 @@ test("/logs/[id] loading state is visible to users and route timing", () => {
   assert.doesNotMatch(loading, /return null/);
 });
 
-test("/decks/[id] uses read-model stats and only latest linked logs on first render", () => {
+test("/decks/[id] uses read-model stats without preloading linked logs", () => {
   const page = source("app/(app)/decks/[id]/page.tsx");
 
   assert.match(page, /getDeckLogStats/);
-  assert.match(page, /getLatestLogsForDeck\(user\.id, (deck\.id|id), 5\)/);
-  assert.doesNotMatch(page, /getAllLogsForDeck/);
+  assert.doesNotMatch(page, /getLatestLogsForDeck|getAllLogsForDeck/);
+  assert.match(page, /DeckStrategyResourcesMenu/);
 });
 
 test("/decks/[id] keeps full deck-list editor payload out of the initial client props", () => {
   const page = source("app/(app)/decks/[id]/page.tsx");
+  const resources = source("components/ui/DeckStrategyResourcesMenu.tsx");
   const lazyButton = source("components/ui/LazyDeckListEditorButton.tsx");
 
   assert.match(page, /getDeckListRowPayload/);
-  assert.match(page, /deckListId=\{deckList\.id\}/);
-  assert.doesNotMatch(page, /deckList=\{deckList\}/);
+  assert.match(resources, /deckListId=\{deckList\.id\}/);
+  assert.doesNotMatch(resources, /deckList=\{deckList\}/);
   assert.match(lazyButton, /\/api\/deck-list/);
 });
 
 test("visual deck-list entry points open dialogs instead of separate pages", () => {
   const deckPage = source("app/(app)/decks/[id]/page.tsx");
+  const resources = source("components/ui/DeckStrategyResourcesMenu.tsx");
   const lazyViewButton = source("components/ui/LazyDeckListViewButton.tsx");
   const tournamentPage = source("app/(app)/tournaments/[id]/page.tsx");
 
-  assert.match(deckPage, /LazyDeckListViewButton/);
-  assert.doesNotMatch(deckPage, /\/lists\/\$\{deckList\.id\}/);
+  assert.match(deckPage, /DeckStrategyResourcesMenu/);
+  assert.match(resources, /LazyDeckListViewButton/);
+  assert.doesNotMatch(resources, /\/lists\/\$\{deckList\.id\}/);
   assert.match(lazyViewButton, /\/api\/deck-list/);
   assert.match(lazyViewButton, /DeckListViewDialog/);
   assert.match(tournamentPage, /DeckListViewDialog/);

@@ -52,7 +52,7 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
 
   const { deckName, matchup } = result;
   return (
-    <PageWidth size="standard">
+    <PageWidth size="wide">
       <PageHeader
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
