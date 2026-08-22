@@ -8,7 +8,7 @@ function LoadingBlock({
   return <Skeleton className={className} />;
 }
 
-export default function AppLoading() {
+export default function AppRouteLoading() {
   return (
     <div className="flex flex-col gap-6" data-route-loading>
       <div className="flex flex-col gap-3">

@@ -182,6 +182,11 @@ test("/logs returns its cached initial window in one completed document", () => 
   const page = source("app/(app)/logs/page.tsx");
 
   assert.doesNotMatch(page, /<Suspense|LogsContentFallback|initialDataPromise/);
+  assert.equal(existsSync(join(process.cwd(), "app/(app)/loading.tsx")), false);
+  assert.equal(existsSync(join(process.cwd(), "app/(app)/logs/loading.tsx")), false);
+  for (const segment of ["calculator", "deck-lists", "decks", "profile", "stats", "tournaments"]) {
+    assert.equal(existsSync(join(process.cwd(), `app/(app)/${segment}/loading.tsx`)), true);
+  }
   assert.match(page, /getCachedInitialLogsPageData/);
   assert.match(page, /loadInitialLogsPageData\(user\.id\)/);
   assert.match(page, /measureServerCallWithTiming\("page\.logs\.initialData"/);
