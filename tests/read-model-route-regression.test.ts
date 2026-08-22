@@ -178,13 +178,12 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
   assert.doesNotMatch(logsDb, /from\("logs"\)[\s\S]{0,300}opponent_deck_slug[\s\S]{0,300}group/);
 });
 
-test("/logs streams its shell before the initial log window resolves", () => {
+test("/logs returns its cached initial window in one completed document", () => {
   const page = source("app/(app)/logs/page.tsx");
 
-  assert.match(page, /<Suspense fallback=\{<LogsContentFallback \/>/);
-  assert.match(page, /<LogsContent initialDataPromise=\{initialDataPromise\}/);
+  assert.doesNotMatch(page, /<Suspense|LogsContentFallback|initialDataPromise/);
   assert.match(page, /getCachedInitialLogsPageData/);
-  assert.match(page, /const initialDataPromise = loadInitialLogsPageData\(user\.id\)/);
+  assert.match(page, /loadInitialLogsPageData\(user\.id\)/);
   assert.match(page, /measureServerCallWithTiming\("page\.logs\.initialData"/);
   assert.match(page, /<LogsWorkspaceClient stats=\{stats\} window=\{window\}/);
 });
