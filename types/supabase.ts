@@ -582,6 +582,7 @@ export type Database = {
       route_performance_events: {
         Row: {
           browser_family: string
+          connect_ms: number | null
           created_at: string
           deployment_env: string
           deployment_id: string | null
@@ -592,6 +593,7 @@ export type Database = {
           document_encoded_body_size_bytes: number | null
           document_transfer_size_bytes: number | null
           dom_content_loaded_ms: number | null
+          dns_ms: number | null
           downlink: number | null
           duration_ms: number
           effective_type: string | null
@@ -599,6 +601,7 @@ export type Database = {
           first_contentful_paint_ms: number | null
           from_path: string | null
           hardware_concurrency: number | null
+          hydration_resources_end_ms: number | null
           id: string
           load_event_ms: number | null
           largest_contentful_paint_ms: number | null
@@ -606,31 +609,58 @@ export type Database = {
           max_long_task_ms: number | null
           navigation_type: string
           next_hop_protocol: string | null
+          parser_data_ms: number | null
+          parser_shell_ms: number | null
           performance_variant: string | null
           reporter_version: number
           resource_count: number | null
+          request_correlation_id: string | null
+          request_start_ms: number | null
           response_end_ms: number | null
+          response_start_ms: number | null
+          response_stream_ms: number | null
           route_content_visible_ms: number | null
+          route_data_painted_ms: number | null
           route_data_visible_ms: number | null
+          route_shell_painted_ms: number | null
           route_shell_visible_ms: number | null
           route_stabilization_ms: number | null
           rtt: number | null
           save_data: boolean
           screen_height: number | null
           screen_width: number | null
+          server_auth_ended_ms: number | null
+          server_auth_method: string | null
           server_auth_ms: number | null
+          server_auth_started_ms: number | null
+          server_cache_key_version: string | null
+          server_cache_lookup_ms: number | null
+          server_cache_outcome: string | null
+          server_function_region: string | null
+          server_mapping_ms: number | null
+          server_request_id: string | null
+          server_result_bytes: number | null
+          server_result_rows: number | null
+          server_route_data_ended_ms: number | null
           server_route_data_ms: number | null
+          server_route_data_started_ms: number | null
+          server_runtime_boot_age_ms: number | null
+          server_runtime_boot_id: string | null
+          server_runtime_invocation_ordinal: number | null
           server_shell_profile_ms: number | null
+          server_supabase_ms: number | null
           shell_profile_loaded_ms: number | null
           shell_visible_ms: number | null
           slowest_resource_ms: number | null
           slowest_resource_path: string | null
           source_host: string | null
           source_origin: string | null
+          submission_reason: string | null
           to_path: string
           total_blocking_time_ms: number | null
           traffic_class: string
           transfer_size_bytes: number | null
+          tls_ms: number | null
           ttfb_ms: number | null
           user_agent: string | null
           user_id: string
@@ -641,6 +671,7 @@ export type Database = {
         }
         Insert: {
           browser_family?: string
+          connect_ms?: number | null
           created_at?: string
           deployment_env?: string
           deployment_id?: string | null
@@ -651,6 +682,7 @@ export type Database = {
           document_encoded_body_size_bytes?: number | null
           document_transfer_size_bytes?: number | null
           dom_content_loaded_ms?: number | null
+          dns_ms?: number | null
           downlink?: number | null
           duration_ms: number
           effective_type?: string | null
@@ -658,6 +690,7 @@ export type Database = {
           first_contentful_paint_ms?: number | null
           from_path?: string | null
           hardware_concurrency?: number | null
+          hydration_resources_end_ms?: number | null
           id?: string
           load_event_ms?: number | null
           largest_contentful_paint_ms?: number | null
@@ -665,31 +698,58 @@ export type Database = {
           max_long_task_ms?: number | null
           navigation_type?: string
           next_hop_protocol?: string | null
+          parser_data_ms?: number | null
+          parser_shell_ms?: number | null
           performance_variant?: string | null
           reporter_version?: number
           resource_count?: number | null
+          request_correlation_id?: string | null
+          request_start_ms?: number | null
           response_end_ms?: number | null
+          response_start_ms?: number | null
+          response_stream_ms?: number | null
           route_content_visible_ms?: number | null
+          route_data_painted_ms?: number | null
           route_data_visible_ms?: number | null
+          route_shell_painted_ms?: number | null
           route_shell_visible_ms?: number | null
           route_stabilization_ms?: number | null
           rtt?: number | null
           save_data?: boolean
           screen_height?: number | null
           screen_width?: number | null
+          server_auth_ended_ms?: number | null
+          server_auth_method?: string | null
           server_auth_ms?: number | null
+          server_auth_started_ms?: number | null
+          server_cache_key_version?: string | null
+          server_cache_lookup_ms?: number | null
+          server_cache_outcome?: string | null
+          server_function_region?: string | null
+          server_mapping_ms?: number | null
+          server_request_id?: string | null
+          server_result_bytes?: number | null
+          server_result_rows?: number | null
+          server_route_data_ended_ms?: number | null
           server_route_data_ms?: number | null
+          server_route_data_started_ms?: number | null
+          server_runtime_boot_age_ms?: number | null
+          server_runtime_boot_id?: string | null
+          server_runtime_invocation_ordinal?: number | null
           server_shell_profile_ms?: number | null
+          server_supabase_ms?: number | null
           shell_profile_loaded_ms?: number | null
           shell_visible_ms?: number | null
           slowest_resource_ms?: number | null
           slowest_resource_path?: string | null
           source_host?: string | null
           source_origin?: string | null
+          submission_reason?: string | null
           to_path: string
           total_blocking_time_ms?: number | null
           traffic_class?: string
           transfer_size_bytes?: number | null
+          tls_ms?: number | null
           ttfb_ms?: number | null
           user_agent?: string | null
           user_id: string
@@ -700,6 +760,7 @@ export type Database = {
         }
         Update: {
           browser_family?: string
+          connect_ms?: number | null
           created_at?: string
           deployment_env?: string
           deployment_id?: string | null
@@ -710,6 +771,7 @@ export type Database = {
           document_encoded_body_size_bytes?: number | null
           document_transfer_size_bytes?: number | null
           dom_content_loaded_ms?: number | null
+          dns_ms?: number | null
           downlink?: number | null
           duration_ms?: number
           effective_type?: string | null
@@ -717,6 +779,7 @@ export type Database = {
           first_contentful_paint_ms?: number | null
           from_path?: string | null
           hardware_concurrency?: number | null
+          hydration_resources_end_ms?: number | null
           id?: string
           load_event_ms?: number | null
           largest_contentful_paint_ms?: number | null
@@ -724,31 +787,58 @@ export type Database = {
           max_long_task_ms?: number | null
           navigation_type?: string
           next_hop_protocol?: string | null
+          parser_data_ms?: number | null
+          parser_shell_ms?: number | null
           performance_variant?: string | null
           reporter_version?: number
           resource_count?: number | null
+          request_correlation_id?: string | null
+          request_start_ms?: number | null
           response_end_ms?: number | null
+          response_start_ms?: number | null
+          response_stream_ms?: number | null
           route_content_visible_ms?: number | null
+          route_data_painted_ms?: number | null
           route_data_visible_ms?: number | null
+          route_shell_painted_ms?: number | null
           route_shell_visible_ms?: number | null
           route_stabilization_ms?: number | null
           rtt?: number | null
           save_data?: boolean
           screen_height?: number | null
           screen_width?: number | null
+          server_auth_ended_ms?: number | null
+          server_auth_method?: string | null
           server_auth_ms?: number | null
+          server_auth_started_ms?: number | null
+          server_cache_key_version?: string | null
+          server_cache_lookup_ms?: number | null
+          server_cache_outcome?: string | null
+          server_function_region?: string | null
+          server_mapping_ms?: number | null
+          server_request_id?: string | null
+          server_result_bytes?: number | null
+          server_result_rows?: number | null
+          server_route_data_ended_ms?: number | null
           server_route_data_ms?: number | null
+          server_route_data_started_ms?: number | null
+          server_runtime_boot_age_ms?: number | null
+          server_runtime_boot_id?: string | null
+          server_runtime_invocation_ordinal?: number | null
           server_shell_profile_ms?: number | null
+          server_supabase_ms?: number | null
           shell_profile_loaded_ms?: number | null
           shell_visible_ms?: number | null
           slowest_resource_ms?: number | null
           slowest_resource_path?: string | null
           source_host?: string | null
           source_origin?: string | null
+          submission_reason?: string | null
           to_path?: string
           total_blocking_time_ms?: number | null
           traffic_class?: string
           transfer_size_bytes?: number | null
+          tls_ms?: number | null
           ttfb_ms?: number | null
           user_agent?: string | null
           user_id?: string

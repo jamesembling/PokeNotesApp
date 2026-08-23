@@ -8,7 +8,7 @@ import {
   getNavigationReportDecision,
   ROUTE_REPORTER_VERSION
 } from "@/lib/performance/route-performance";
-import { measureServerCallWithTiming } from "@/lib/server/perf";
+import { measureServerCallWithTimeline, measureServerCallWithTiming } from "@/lib/server/perf";
 
 function source(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -57,6 +57,14 @@ test("timed server calls return only a duration and the original value", async (
   assert.equal(result.durationMs >= 0, true);
 });
 
+test("server timeline calls expose ordered absolute boundaries", async () => {
+  const result = await measureServerCallWithTimeline("test.timeline", async () => ({ ok: true }));
+
+  assert.deepEqual(result.value, { ok: true });
+  assert.equal(result.startedAtEpochMs <= result.endedAtEpochMs, true);
+  assert.equal(result.durationMs >= 0, true);
+});
+
 test("route diagnostics use privacy-safe fixed fields", () => {
   const reporter = source("components/ui/RoutePerformanceReporter.tsx");
   const route = source("app/api/performance-events/route.ts");
@@ -71,9 +79,12 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   const streamingCanaryMigration = source(
     "supabase/migrations/20260822223633_add_route_streaming_canary_timings.sql"
   );
+  const phaseCorrelationMigration = source(
+    "supabase/migrations/20260822233544_add_route_performance_phase_correlation.sql"
+  );
 
-  assert.equal(ROUTE_REPORTER_VERSION, 4);
-  assert.match(reporter, /documentDownloadMs/);
+  assert.equal(ROUTE_REPORTER_VERSION, 5);
+  assert.match(reporter, /responseStreamMs/);
   assert.match(reporter, /responseEndMs/);
   assert.match(reporter, /routeStabilizationMs/);
   assert.match(reporter, /firstContentfulPaintMs/);
@@ -83,6 +94,9 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(reporter, /documentTransferSizeBytes/);
   assert.match(reporter, /nextHopProtocol/);
   assert.match(reporter, /performanceVariant/);
+  assert.match(reporter, /parserShellMs/);
+  assert.match(reporter, /routeDataPaintedMs/);
+  assert.match(reporter, /submissionReason/);
   assert.match(reporter, /shellVisibleMs/);
   assert.match(reporter, /AUTOMATION_HASH = "#pokenotes-perf"/);
   assert.doesNotMatch(reporter, /userAgent:/);
@@ -98,7 +112,7 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(proxy, /Server-Timing/);
   assert.match(proxy, /proxy-auth;dur=/);
   assert.match(proxy, /forwardedHeaders\.delete\(PROXY_AUTH_DURATION_HEADER\)/);
-  assert.match(proxy, /forwardedHeaders\.set\(PROXY_AUTH_DURATION_HEADER/);
+  assert.match(proxy, /forwardedHeaders\.set\(\s*PROXY_AUTH_DURATION_HEADER/);
   assert.match(marker, /phase="proxy-auth"/);
   assert.match(migration, /server_shell_profile_ms/);
   assert.match(migration, /server_route_data_ms/);
@@ -110,4 +124,8 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(streamingCanaryMigration, /route_data_visible_ms/);
   assert.match(streamingCanaryMigration, /document_transfer_size_bytes/);
   assert.match(streamingCanaryMigration, /performance_variant/);
+  assert.match(phaseCorrelationMigration, /request_correlation_id/);
+  assert.match(phaseCorrelationMigration, /response_stream_ms/);
+  assert.match(phaseCorrelationMigration, /submission_reason/);
+  assert.match(phaseCorrelationMigration, /route-data/);
 });

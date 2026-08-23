@@ -4,7 +4,12 @@ import { AUTH_CLAIMS_HEADER, createAuthClaimsHeader } from "@/lib/server/auth-cl
 import { logAuthDebug } from "@/lib/server/auth-debug";
 import {
   measureServerCallWithTiming,
-  PROXY_AUTH_DURATION_HEADER
+  PROXY_AUTH_DURATION_HEADER,
+  PROXY_AUTH_ENDED_HEADER,
+  PROXY_AUTH_METHOD_HEADER,
+  PROXY_AUTH_STARTED_HEADER,
+  REQUEST_CORRELATION_HEADER,
+  REQUEST_STARTED_HEADER
 } from "@/lib/server/perf";
 
 function getSupabaseEnv() {
@@ -19,13 +24,26 @@ function getSupabaseEnv() {
 }
 
 export async function proxy(request: NextRequest) {
+  const requestStartedAt = Date.now();
+  const requestCorrelationId = crypto.randomUUID();
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
 
   const requestPath = request.nextUrl.pathname;
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.delete(AUTH_CLAIMS_HEADER);
   forwardedHeaders.delete(PROXY_AUTH_DURATION_HEADER);
-  let responseCookiesToSet: Array<{ name: string; value: string; options: CookieOptions }> = [];
+  forwardedHeaders.delete(PROXY_AUTH_ENDED_HEADER);
+  forwardedHeaders.delete(PROXY_AUTH_METHOD_HEADER);
+  forwardedHeaders.delete(PROXY_AUTH_STARTED_HEADER);
+  forwardedHeaders.delete(REQUEST_CORRELATION_HEADER);
+  forwardedHeaders.delete(REQUEST_STARTED_HEADER);
+  forwardedHeaders.set(REQUEST_CORRELATION_HEADER, requestCorrelationId);
+  forwardedHeaders.set(REQUEST_STARTED_HEADER, String(requestStartedAt));
+  let responseCookiesToSet: Array<{
+    name: string;
+    value: string;
+    options: CookieOptions;
+  }> = [];
   let responseHeadersToSet: Record<string, string> = {};
   let response = NextResponse.next({
     request: {
@@ -74,11 +92,23 @@ export async function proxy(request: NextRequest) {
     }
   });
 
-  const claimsTiming = await measureServerCallWithTiming("proxy.auth.getClaims", async () =>
-    await supabase.auth.getClaims()
+  const authStartedAt = Date.now();
+  const claimsTiming = await measureServerCallWithTiming(
+    "proxy.auth.getClaims",
+    async () => await supabase.auth.getClaims()
   );
+  const authEndedAt = Date.now();
   const { data, error } = claimsTiming.value;
   forwardedHeaders.set(PROXY_AUTH_DURATION_HEADER, String(claimsTiming.durationMs));
+  forwardedHeaders.set(
+    PROXY_AUTH_STARTED_HEADER,
+    String(Math.max(0, authStartedAt - requestStartedAt))
+  );
+  forwardedHeaders.set(
+    PROXY_AUTH_ENDED_HEADER,
+    String(Math.max(0, authEndedAt - requestStartedAt))
+  );
+  forwardedHeaders.set(PROXY_AUTH_METHOD_HEADER, "getClaims");
 
   logAuthDebug("proxy.getClaims", {
     path: requestPath,
@@ -123,7 +153,10 @@ export async function proxy(request: NextRequest) {
   }
 
   if (requestPath.startsWith("/auth/") || requestPath === "/login") {
-    response.headers.set("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0");
+    response.headers.set(
+      "Cache-Control",
+      "private, no-cache, no-store, must-revalidate, max-age=0"
+    );
     response.headers.set("Expires", "0");
     response.headers.set("Pragma", "no-cache");
   }

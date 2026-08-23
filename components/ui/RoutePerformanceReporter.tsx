@@ -43,6 +43,7 @@ const AUTOMATION_SESSION_KEY = "poke-notes:performance-automation";
 const NAVIGATION_RESOURCE_LOOKBACK_MS = 50;
 const LONG_TASK_ENTRY_RETENTION_MS = 300000;
 const HARD_LOAD_FALLBACK_MS = 10000;
+const ROUTE_DATA_OUTCOME_TIMEOUT_MS = 5000;
 const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -147,6 +148,110 @@ function getClientTiming(phase: ClientTimingPhase) {
 function getClientTimingSince(phase: ClientTimingPhase, startedAt: number) {
   const timing = getClientTiming(phase);
   return timing === null ? null : Math.max(0, Math.round(timing - startedAt));
+}
+
+function getClientPaintTiming(phase: ClientTimingPhase) {
+  const markers = document.querySelectorAll<HTMLElement>(`[data-route-client-timing="${phase}"]`);
+  const marker = markers.item(markers.length - 1);
+  const duration = Number(marker?.dataset.routeClientPaintMs);
+
+  return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null;
+}
+
+function getParserTiming(phase: "route-data-parsed" | "route-shell-parsed") {
+  const markers = document.querySelectorAll<HTMLElement>(`[data-route-parser-timing="${phase}"]`);
+  const marker = markers.item(markers.length - 1);
+  const duration = Number(marker?.dataset.routeParserTimingMs);
+
+  if (Number.isFinite(duration)) {
+    return Math.max(0, Math.round(duration));
+  }
+
+  const entry = performance.getEntriesByName(`pokenotes:${phase}`).at(-1);
+  return entry ? Math.max(0, Math.round(entry.startTime)) : null;
+}
+
+function getHydrationResourcesEndMs() {
+  return (performance.getEntriesByType("resource") as PerformanceResourceTiming[])
+    .filter(
+      (entry) =>
+        entry.name.startsWith(window.location.origin) &&
+        (entry.initiatorType === "script" || entry.name.includes("/_next/static/chunks/"))
+    )
+    .reduce((latest, entry) => Math.max(latest, entry.responseEnd), 0);
+}
+
+function getNumericDatasetValue(element: HTMLElement | null, key: keyof DOMStringMap) {
+  const value = Number(element?.dataset[key]);
+  return Number.isFinite(value) ? Math.max(0, Math.round(value)) : null;
+}
+
+function getServerDiagnosticsSnapshot() {
+  const requestMarkers = document.querySelectorAll<HTMLElement>(
+    "[data-route-request-correlation-id]"
+  );
+  const requestMarker = requestMarkers.item(requestMarkers.length - 1);
+  const dataMarkers = document.querySelectorAll<HTMLElement>("[data-route-data-started-ms]");
+  const dataMarker = dataMarkers.item(dataMarkers.length - 1);
+
+  return {
+    requestCorrelationId: requestMarker?.dataset.routeRequestCorrelationId ?? null,
+    serverAuthEndedMs: getNumericDatasetValue(requestMarker, "routeAuthEndedMs"),
+    serverAuthMethod: requestMarker?.dataset.routeAuthMethod ?? null,
+    serverAuthStartedMs: getNumericDatasetValue(requestMarker, "routeAuthStartedMs"),
+    serverCacheKeyVersion: dataMarker?.dataset.routeCacheKeyVersion ?? null,
+    serverCacheLookupMs: getNumericDatasetValue(dataMarker, "routeCacheLookupMs"),
+    serverCacheOutcome: dataMarker?.dataset.routeCacheOutcome ?? null,
+    serverFunctionRegion: requestMarker?.dataset.routeRuntimeRegion ?? null,
+    serverMappingMs: getNumericDatasetValue(dataMarker, "routeMappingMs"),
+    serverRequestId: requestMarker?.dataset.routeRequestId ?? null,
+    serverResultBytes: getNumericDatasetValue(dataMarker, "routeResultBytes"),
+    serverResultRows: getNumericDatasetValue(dataMarker, "routeResultRows"),
+    serverRouteDataEndedMs: getNumericDatasetValue(dataMarker, "routeDataEndedMs"),
+    serverRouteDataStartedMs: getNumericDatasetValue(dataMarker, "routeDataStartedMs"),
+    serverRuntimeBootAgeMs: getNumericDatasetValue(requestMarker, "routeRuntimeBootAgeMs"),
+    serverRuntimeBootId: requestMarker?.dataset.routeRuntimeBootId ?? null,
+    serverRuntimeInvocationOrdinal: getNumericDatasetValue(
+      requestMarker,
+      "routeRuntimeInvocationOrdinal"
+    ),
+    serverSupabaseMs: getNumericDatasetValue(dataMarker, "routeSupabaseMs")
+  };
+}
+
+function getNavigationPhaseSnapshot(nav?: PerformanceNavigationTiming) {
+  if (!nav) {
+    return {
+      connectMs: null,
+      dnsMs: null,
+      requestStartMs: null,
+      responseStartMs: null,
+      tlsMs: null
+    };
+  }
+
+  return {
+    connectMs: Math.max(0, Math.round(nav.connectEnd - nav.connectStart)),
+    dnsMs: Math.max(0, Math.round(nav.domainLookupEnd - nav.domainLookupStart)),
+    requestStartMs: nav.requestStart > 0 ? Math.round(nav.requestStart) : null,
+    responseStartMs: nav.responseStart > 0 ? Math.round(nav.responseStart) : null,
+    tlsMs:
+      nav.secureConnectionStart > 0
+        ? Math.max(0, Math.round(nav.connectEnd - nav.secureConnectionStart))
+        : null
+  };
+}
+
+let fallbackRequestCorrelationId: string | null = null;
+
+function getRequestCorrelationId() {
+  const serverId = getServerDiagnosticsSnapshot().requestCorrelationId;
+  if (serverId) {
+    return serverId;
+  }
+
+  fallbackRequestCorrelationId ??= crypto.randomUUID();
+  return fallbackRequestCorrelationId;
 }
 
 function getPerformanceVariant() {
@@ -338,10 +443,12 @@ export function RoutePerformanceReporter() {
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
+        ...getNavigationPhaseSnapshot(nav),
         ...resourceSnapshot,
+        ...getServerDiagnosticsSnapshot(),
         ...getServerTimingSnapshot(0, hardLoadEndedAt, nav),
         documentDecodedBodySizeBytes: nav?.decodedBodySize ?? null,
-        documentDownloadMs:
+        responseStreamMs:
           responseEndMs !== null && responseStartMs !== null
             ? Math.max(0, responseEndMs - responseStartMs)
             : null,
@@ -354,19 +461,26 @@ export function RoutePerformanceReporter() {
         firstContentfulPaintMs: getPaintEntryStartTime("first-contentful-paint"),
         fromPath: null,
         largestContentfulPaintMs: largestContentfulPaintRef.current,
+        hydrationResourcesEndMs: getHydrationResourcesEndMs(),
         loadEventMs: nav && nav.loadEventEnd > 0 ? Math.round(nav.loadEventEnd) : null,
         loadingMs: null,
         maxLongTaskMs: Math.round(longTaskStatsRef.current.maxLongTaskMs),
         navigationType: nav?.type ?? "unknown",
         nextHopProtocol: nav?.nextHopProtocol ?? null,
         performanceVariant: getPerformanceVariant(),
+        parserDataMs: getParserTiming("route-data-parsed"),
+        parserShellMs: getParserTiming("route-shell-parsed"),
+        requestCorrelationId: getRequestCorrelationId(),
         responseEndMs,
         routeContentVisibleMs: getClientTiming("route-content-visible"),
         routeDataVisibleMs: getClientTiming("route-data-visible"),
+        routeDataPaintedMs: getClientPaintTiming("route-data-visible"),
         routeShellVisibleMs: getClientTiming("route-shell-visible"),
+        routeShellPaintedMs: getClientPaintTiming("route-shell-visible"),
         routeStabilizationMs: null,
         shellProfileLoadedMs: getClientTiming("shell-profile-loaded"),
         shellVisibleMs: getClientTiming("shell-visible"),
+        submissionReason: "initial-load",
         toPath: getCurrentPath(),
         totalBlockingTimeMs: Math.round(longTaskStatsRef.current.totalBlockingTimeMs),
         ttfbMs: responseStartMs,
@@ -390,6 +504,114 @@ export function RoutePerformanceReporter() {
       window.removeEventListener("load", reportHardLoadAfterLoad);
       largestContentfulPaintObserver?.disconnect();
       longTaskObserver?.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || getPerformanceVariant() === null) {
+      return;
+    }
+
+    let outcomeReported = false;
+    let timeoutId = 0;
+
+    function reportRouteDataOutcome(
+      reason: "data-parsed" | "data-seen" | "data-timeout" | "page-hidden"
+    ) {
+      if (outcomeReported) {
+        return;
+      }
+
+      const dataPaintedMs = getClientPaintTiming("route-data-visible");
+      const dataParsedMs = getParserTiming("route-data-parsed");
+      if (reason === "data-seen" && dataPaintedMs === null) {
+        return;
+      }
+      if (reason === "data-parsed" && dataParsedMs === null) {
+        return;
+      }
+
+      outcomeReported = true;
+      window.clearTimeout(timeoutId);
+      const nav = getNavigationTiming();
+      const measuredAt = performance.now();
+      const responseEndMs = nav && nav.responseEnd > 0 ? Math.round(nav.responseEnd) : null;
+      const responseStartMs = nav && nav.responseStart > 0 ? Math.round(nav.responseStart) : null;
+
+      sendPerformanceEvent({
+        ...getDeviceSnapshot(),
+        ...getNavigationPhaseSnapshot(nav),
+        ...getServerDiagnosticsSnapshot(),
+        documentDecodedBodySizeBytes: nav?.decodedBodySize ?? null,
+        documentEncodedBodySizeBytes: nav?.encodedBodySize ?? null,
+        documentTransferSizeBytes: nav?.transferSize ?? null,
+        durationMs: Math.round(dataPaintedMs ?? dataParsedMs ?? measuredAt),
+        eventType: "route-data",
+        firstContentfulPaintMs: getPaintEntryStartTime("first-contentful-paint"),
+        fromPath: null,
+        hydrationResourcesEndMs: getHydrationResourcesEndMs(),
+        navigationType: nav?.type ?? "unknown",
+        nextHopProtocol: nav?.nextHopProtocol ?? null,
+        parserDataMs: getParserTiming("route-data-parsed"),
+        parserShellMs: getParserTiming("route-shell-parsed"),
+        performanceVariant: getPerformanceVariant(),
+        requestCorrelationId: getRequestCorrelationId(),
+        responseEndMs,
+        responseStreamMs:
+          responseEndMs !== null && responseStartMs !== null
+            ? Math.max(0, responseEndMs - responseStartMs)
+            : null,
+        routeContentVisibleMs: getClientTiming("route-content-visible"),
+        routeDataPaintedMs: dataPaintedMs,
+        routeDataVisibleMs: getClientTiming("route-data-visible"),
+        routeShellPaintedMs: getClientPaintTiming("route-shell-visible"),
+        routeShellVisibleMs: getClientTiming("route-shell-visible"),
+        submissionReason: reason,
+        toPath: getCurrentPath(),
+        ttfbMs: responseStartMs,
+        workerStartMs: nav?.workerStart ?? null
+      });
+    }
+
+    function handleClientPaint(event: Event) {
+      const detail = (event as CustomEvent<{ phase?: string }>).detail;
+      if (detail?.phase === "route-data-visible") {
+        reportRouteDataOutcome("data-seen");
+      }
+    }
+
+    function handleParserTiming(event: Event) {
+      const detail = (event as CustomEvent<{ phase?: string }>).detail;
+      if (detail?.phase === "route-data-parsed") {
+        reportRouteDataOutcome("data-parsed");
+      }
+    }
+
+    function handlePageHide() {
+      reportRouteDataOutcome("page-hidden");
+    }
+
+    window.addEventListener("pokenotes:route-client-paint", handleClientPaint);
+    window.addEventListener("pokenotes:route-parser-timing", handleParserTiming);
+    window.addEventListener("pagehide", handlePageHide, { once: true });
+    timeoutId = window.setTimeout(
+      () => reportRouteDataOutcome("data-timeout"),
+      ROUTE_DATA_OUTCOME_TIMEOUT_MS
+    );
+
+    window.requestAnimationFrame(() => {
+      if (getClientPaintTiming("route-data-visible") !== null) {
+        reportRouteDataOutcome("data-seen");
+      } else {
+        reportRouteDataOutcome("data-parsed");
+      }
+    });
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("pokenotes:route-client-paint", handleClientPaint);
+      window.removeEventListener("pokenotes:route-parser-timing", handleParserTiming);
+      window.removeEventListener("pagehide", handlePageHide);
     };
   }, []);
 
@@ -466,7 +688,7 @@ export function RoutePerformanceReporter() {
         ...getDeviceSnapshot(),
         ...resourceSnapshot,
         ...getServerTimingSnapshot(pendingNavigation.resourceStartedAt, candidateCompletedAt),
-        documentDownloadMs: null,
+        responseStreamMs: null,
         documentDecodedBodySizeBytes: null,
         documentEncodedBodySizeBytes: null,
         documentTransferSizeBytes: null,
@@ -494,6 +716,7 @@ export function RoutePerformanceReporter() {
           pendingNavigation.startedAt
         ),
         routeStabilizationMs: decision.stabilizationMs,
+        submissionReason: "app-route",
         toPath: pendingNavigation.toPath,
         totalBlockingTimeMs: Math.round(longTaskSnapshot.totalBlockingTimeMs),
         ttfbMs: null,

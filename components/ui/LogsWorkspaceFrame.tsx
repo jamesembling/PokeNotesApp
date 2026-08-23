@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { Button } from "@/components/shadcn/button";
 import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker";
+import { ParserRouteTimingMarker } from "@/components/ui/ParserRouteTimingMarker";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { PageActions } from "@/components/ui/PageActions";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -47,6 +48,7 @@ export function LogsWorkspaceFrame({
       className="-mx-4 -my-6 flex min-h-dvh flex-col gap-6 bg-background px-4 py-6 text-foreground sm:-mx-6 sm:-my-8 sm:px-6 sm:py-8 lg:-mx-8 lg:px-8"
       data-route-performance-variant={performanceVariant}
     >
+      <ParserRouteTimingMarker phase="route-shell-parsed" />
       <ClientRouteTimingMarker phase="route-shell-visible" />
       <PageHeader
         action={

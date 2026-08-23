@@ -188,15 +188,18 @@ test("/logs streams a real shell around one shared data promise", () => {
     assert.equal(existsSync(join(process.cwd(), `app/(app)/${segment}/loading.tsx`)), true);
   }
   assert.match(page, /getCachedInitialLogsPageData/);
-  assert.match(page, /const initialDataPromise = measureServerCallWithTiming/);
+  assert.match(page, /const initialDataPromise = measureServerCallWithTimeline/);
   assert.match(page, /<Suspense fallback=\{<LogsStatsSkeleton \/>\}>/);
   assert.match(page, /<Suspense fallback=\{<LogsWorkspaceSkeleton \/>\}>/);
   assert.match(page, /initialDataPromise=\{initialDataPromise\}/);
-  assert.match(page, /measureServerCallWithTiming\(\s*"page\.logs\.initialData"/);
+  assert.match(page, /measureServerCallWithTimeline\(\s*"page\.logs\.initialData"/);
   assert.match(page, /phase="route-data-visible"/);
   assert.match(page, /candidate === "delay-1000"/);
+  assert.match(page, /candidate === "delay-400"/);
   assert.match(page, /candidate === "shell-only"/);
+  assert.match(page, /phase="route-data-parsed"/);
   assert.match(frame, /phase="route-shell-visible"/);
+  assert.match(frame, /phase="route-shell-parsed"/);
   assert.match(frame, /title="Battle Logs"/);
   assert.match(frame, /<LazyImportLogButton/);
 });

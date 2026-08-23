@@ -5,12 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 
 type PerformanceEventPayload = {
   automationHint?: boolean | null;
+  connectMs?: number | null;
   deploymentEnv?: string | null;
   deviceMemory?: number | null;
   documentDecodedBodySizeBytes?: number | null;
   domContentLoadedMs?: number | null;
   documentEncodedBodySizeBytes?: number | null;
   documentTransferSizeBytes?: number | null;
+  dnsMs?: number | null;
   downlink?: number | null;
   durationMs?: number | null;
   effectiveType?: string | null;
@@ -18,6 +20,7 @@ type PerformanceEventPayload = {
   firstContentfulPaintMs?: number | null;
   fromPath?: string | null;
   hardwareConcurrency?: number | null;
+  hydrationResourcesEndMs?: number | null;
   loadEventMs?: number | null;
   largestContentfulPaintMs?: number | null;
   loadingMs?: number | null;
@@ -25,30 +28,57 @@ type PerformanceEventPayload = {
   navigationType?: string | null;
   nextHopProtocol?: string | null;
   performanceVariant?: string | null;
+  parserDataMs?: number | null;
+  parserShellMs?: number | null;
   reporterVersion?: number | null;
   resourceCount?: number | null;
+  requestCorrelationId?: string | null;
+  requestStartMs?: number | null;
   responseEndMs?: number | null;
+  responseStartMs?: number | null;
+  responseStreamMs?: number | null;
   routeContentVisibleMs?: number | null;
   routeDataVisibleMs?: number | null;
+  routeDataPaintedMs?: number | null;
   routeShellVisibleMs?: number | null;
+  routeShellPaintedMs?: number | null;
   rtt?: number | null;
   routeStabilizationMs?: number | null;
   saveData?: boolean | null;
   screenHeight?: number | null;
   screenWidth?: number | null;
   serverAuthMs?: number | null;
+  serverAuthEndedMs?: number | null;
+  serverAuthMethod?: string | null;
+  serverAuthStartedMs?: number | null;
+  serverCacheKeyVersion?: string | null;
+  serverCacheLookupMs?: number | null;
+  serverCacheOutcome?: string | null;
+  serverFunctionRegion?: string | null;
+  serverMappingMs?: number | null;
+  serverRequestId?: string | null;
+  serverResultBytes?: number | null;
+  serverResultRows?: number | null;
   serverRouteDataMs?: number | null;
+  serverRouteDataEndedMs?: number | null;
+  serverRouteDataStartedMs?: number | null;
+  serverRuntimeBootAgeMs?: number | null;
+  serverRuntimeBootId?: string | null;
+  serverRuntimeInvocationOrdinal?: number | null;
   serverShellProfileMs?: number | null;
+  serverSupabaseMs?: number | null;
   shellProfileLoadedMs?: number | null;
   shellVisibleMs?: number | null;
   sourceHost?: string | null;
   sourceOrigin?: string | null;
+  submissionReason?: string | null;
   slowestResourceMs?: number | null;
   slowestResourcePath?: string | null;
   ttfbMs?: number | null;
   toPath?: string;
   totalBlockingTimeMs?: number | null;
   transferSizeBytes?: number | null;
+  tlsMs?: number | null;
   documentDownloadMs?: number | null;
   visibilityState?: string | null;
   viewportHeight?: number | null;
@@ -61,9 +91,18 @@ const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DYNAMIC_ROUTE_PARENTS = new Set(["decks", "lists", "logs", "matchups", "tournaments"]);
 const PERFORMANCE_VARIANTS = new Set([
+  "logs-delay-400",
   "logs-delay-1000",
   "logs-narrow-suspense",
   "logs-shell-only"
+]);
+const SUBMISSION_REASONS = new Set([
+  "app-route",
+  "data-parsed",
+  "data-seen",
+  "data-timeout",
+  "initial-load",
+  "page-hidden"
 ]);
 
 function inferDeploymentEnv(host: string | null, payloadEnv: unknown) {
@@ -183,7 +222,10 @@ function inferDeviceClass(viewportWidth: number | null) {
   return "desktop";
 }
 
-function normalizeNavigationType(eventType: "app-route" | "hard-load", value: unknown) {
+function normalizeNavigationType(
+  eventType: "app-route" | "hard-load" | "route-data",
+  value: unknown
+) {
   if (eventType === "app-route") {
     return "app-route";
   }
@@ -206,6 +248,11 @@ function normalizePerformanceVariant(value: unknown) {
   return normalized && PERFORMANCE_VARIANTS.has(normalized) ? normalized : null;
 }
 
+function normalizeSubmissionReason(value: unknown) {
+  const normalized = clampText(value, 32);
+  return normalized && SUBMISSION_REASONS.has(normalized) ? normalized : null;
+}
+
 function getDeploymentId() {
   return clampText(
     process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.VERCEL_URL,
@@ -217,7 +264,12 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireApiUser();
     const payload = (await request.json()) as PerformanceEventPayload;
-    const eventType = payload.eventType === "app-route" ? "app-route" : "hard-load";
+    const eventType =
+      payload.eventType === "app-route"
+        ? "app-route"
+        : payload.eventType === "route-data"
+          ? "route-data"
+          : "hard-load";
     const toPath = normalizeTelemetryPath(payload.toPath);
     const durationMs = clampNumber(payload.durationMs);
     const sourceHost = clampText(request.headers.get("host") || payload.sourceHost, 180);
@@ -230,6 +282,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.from("route_performance_events").insert({
       browser_family: inferBrowserFamily(request.headers.get("user-agent")),
+      connect_ms: clampNumber(payload.connectMs),
       device_memory: clampDecimal(payload.deviceMemory, 512),
       device_class: inferDeviceClass(viewportWidth),
       deployment_env: inferDeploymentEnv(sourceHost, payload.deploymentEnv),
@@ -245,6 +298,7 @@ export async function POST(request: NextRequest) {
       ),
       document_transfer_size_bytes: clampNumber(payload.documentTransferSizeBytes, 100_000_000),
       dom_content_loaded_ms: clampNumber(payload.domContentLoadedMs),
+      dns_ms: clampNumber(payload.dnsMs),
       downlink: clampDecimal(payload.downlink),
       duration_ms: durationMs,
       effective_type: clampText(payload.effectiveType, 32),
@@ -252,6 +306,7 @@ export async function POST(request: NextRequest) {
       first_contentful_paint_ms: clampNumber(payload.firstContentfulPaintMs),
       from_path: normalizeTelemetryPath(payload.fromPath),
       hardware_concurrency: clampNumber(payload.hardwareConcurrency, 512),
+      hydration_resources_end_ms: clampNumber(payload.hydrationResourcesEndMs),
       load_event_ms: clampNumber(payload.loadEventMs),
       largest_contentful_paint_ms: clampNumber(payload.largestContentfulPaintMs),
       loading_ms: clampNumber(payload.loadingMs),
@@ -259,10 +314,18 @@ export async function POST(request: NextRequest) {
       navigation_type: normalizeNavigationType(eventType, payload.navigationType),
       next_hop_protocol: clampText(payload.nextHopProtocol, 32),
       performance_variant: normalizePerformanceVariant(payload.performanceVariant),
+      parser_data_ms: clampNumber(payload.parserDataMs),
+      parser_shell_ms: clampNumber(payload.parserShellMs),
       reporter_version: clampNumber(payload.reporterVersion, 100) ?? 1,
+      request_correlation_id: clampText(payload.requestCorrelationId, 180),
+      request_start_ms: clampNumber(payload.requestStartMs),
       response_end_ms: clampNumber(payload.responseEndMs),
+      response_start_ms: clampNumber(payload.responseStartMs),
+      response_stream_ms: clampNumber(payload.responseStreamMs),
       route_content_visible_ms: clampNumber(payload.routeContentVisibleMs),
+      route_data_painted_ms: clampNumber(payload.routeDataPaintedMs),
       route_data_visible_ms: clampNumber(payload.routeDataVisibleMs),
+      route_shell_painted_ms: clampNumber(payload.routeShellPaintedMs),
       route_shell_visible_ms: clampNumber(payload.routeShellVisibleMs),
       resource_count: clampNumber(payload.resourceCount, 10_000),
       rtt: clampNumber(payload.rtt, 60_000),
@@ -271,18 +334,40 @@ export async function POST(request: NextRequest) {
       screen_height: clampNumber(payload.screenHeight, 100_000),
       screen_width: clampNumber(payload.screenWidth, 100_000),
       server_auth_ms: clampNumber(payload.serverAuthMs),
+      server_auth_ended_ms: clampNumber(payload.serverAuthEndedMs),
+      server_auth_method: clampText(payload.serverAuthMethod, 64),
+      server_auth_started_ms: clampNumber(payload.serverAuthStartedMs),
+      server_cache_key_version: clampText(payload.serverCacheKeyVersion, 64),
+      server_cache_lookup_ms: clampNumber(payload.serverCacheLookupMs),
+      server_cache_outcome: clampText(payload.serverCacheOutcome, 24),
+      server_function_region: clampText(payload.serverFunctionRegion, 64),
+      server_mapping_ms: clampNumber(payload.serverMappingMs),
+      server_request_id: clampText(payload.serverRequestId, 180),
+      server_result_bytes: clampNumber(payload.serverResultBytes, 100_000_000),
+      server_result_rows: clampNumber(payload.serverResultRows, 100_000),
       server_route_data_ms: clampNumber(payload.serverRouteDataMs),
+      server_route_data_ended_ms: clampNumber(payload.serverRouteDataEndedMs),
+      server_route_data_started_ms: clampNumber(payload.serverRouteDataStartedMs),
+      server_runtime_boot_age_ms: clampNumber(payload.serverRuntimeBootAgeMs, 86_400_000),
+      server_runtime_boot_id: clampText(payload.serverRuntimeBootId, 180),
+      server_runtime_invocation_ordinal: clampNumber(
+        payload.serverRuntimeInvocationOrdinal,
+        1_000_000
+      ),
       server_shell_profile_ms: clampNumber(payload.serverShellProfileMs),
+      server_supabase_ms: clampNumber(payload.serverSupabaseMs),
       shell_profile_loaded_ms: clampNumber(payload.shellProfileLoadedMs),
       shell_visible_ms: clampNumber(payload.shellVisibleMs),
       slowest_resource_ms: clampNumber(payload.slowestResourceMs),
       slowest_resource_path: clampText(payload.slowestResourcePath, 220),
       source_host: sourceHost,
       source_origin: clampText(payload.sourceOrigin, 220),
+      submission_reason: normalizeSubmissionReason(payload.submissionReason),
       to_path: toPath,
       total_blocking_time_ms: clampNumber(payload.totalBlockingTimeMs),
       traffic_class: payload.automationHint === true ? "automation" : "unclassified",
       transfer_size_bytes: clampNumber(payload.transferSizeBytes, 100_000_000),
+      tls_ms: clampNumber(payload.tlsMs),
       ttfb_ms: clampNumber(payload.ttfbMs),
       user_id: user.id,
       visibility_state: normalizeVisibilityState(payload.visibilityState),

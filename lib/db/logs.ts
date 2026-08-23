@@ -487,24 +487,42 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
 export async function getInitialLogsPageDataWithClient(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>
 ) {
-  const { data, error } = await measureServerCall("db.logs.initialPageRpc", async () =>
-    await supabase.rpc("get_initial_logs_page_data", {
-      p_limit: DEFAULT_LOG_WINDOW_LIMIT + 1
-    })
-  );
+  return (await getInitialLogsPageDataWithClientDiagnostics(supabase)).value;
+}
+
+export async function getInitialLogsPageDataWithClientDiagnostics(
+  supabase: Awaited<ReturnType<typeof createSupabaseClient>>
+) {
+  const supabaseStartedAt = performance.now();
+  const { data, error } = await supabase.rpc("get_initial_logs_page_data", {
+    p_limit: DEFAULT_LOG_WINDOW_LIMIT + 1
+  });
+  const supabaseMs = Math.max(0, Math.round(performance.now() - supabaseStartedAt));
 
   if (error || !data || Array.isArray(data) || typeof data !== "object") {
-    return null;
+    return {
+      mappingMs: null,
+      resultBytes: null,
+      resultRows: null,
+      supabaseMs,
+      value: null
+    };
   }
 
   const payload = data as InitialLogsPageDataRpcRow;
   if (!Array.isArray(payload.logs)) {
-    return null;
+    return {
+      mappingMs: null,
+      resultBytes: null,
+      resultRows: null,
+      supabaseMs,
+      value: null
+    };
   }
 
+  const mappingStartedAt = performance.now();
   const rows = payload.logs;
-
-  return {
+  const value = {
     stats: {
       total: Number(payload.stats?.games_played ?? 0),
       wins: Number(payload.stats?.games_won ?? 0),
@@ -516,6 +534,14 @@ export async function getInitialLogsPageDataWithClient(
       requestedWindowEndDate: undefined,
       windowDays: DEFAULT_LOG_WINDOW_DAYS
     })
+  };
+
+  return {
+    mappingMs: Math.max(0, Math.round(performance.now() - mappingStartedAt)),
+    resultBytes: new TextEncoder().encode(JSON.stringify(value)).byteLength,
+    resultRows: rows.length,
+    supabaseMs,
+    value
   };
 }
 

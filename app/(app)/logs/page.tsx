@@ -4,14 +4,16 @@ import { LogsStats } from "@/components/ui/LogsStats";
 import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { LogsWorkspaceFrame } from "@/components/ui/LogsWorkspaceFrame";
 import { LogsStatsSkeleton, LogsWorkspaceSkeleton } from "@/components/ui/LogsWorkspaceSkeleton";
-import { ProxyAuthTimingMarker, RouteTimingMarker } from "@/components/ui/RouteTimingMarker";
+import { ParserRouteTimingMarker } from "@/components/ui/ParserRouteTimingMarker";
+import { ProxyAuthTimingMarker, RouteDataTimingMarker } from "@/components/ui/RouteTimingMarker";
 import { requireUser } from "@/lib/auth";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
 import { getLogSummaryStats, getLogsWindow } from "@/lib/db/logs";
-import { getCachedInitialLogsPageData } from "@/lib/server/logs-initial-cache";
-import { measureServerCall, measureServerCallWithTiming } from "@/lib/server/perf";
+import { getCachedInitialLogsPageDataWithDiagnostics } from "@/lib/server/logs-initial-cache";
+import { measureServerCall, measureServerCallWithTimeline } from "@/lib/server/perf";
 
-type LogsPerformanceVariant = "logs-delay-1000" | "logs-narrow-suspense" | "logs-shell-only";
+type LogsPerformanceVariant =
+  "logs-delay-400" | "logs-delay-1000" | "logs-narrow-suspense" | "logs-shell-only";
 
 type LogsPageProps = {
   searchParams: Promise<{ logsPerf?: string | string[] }>;
@@ -19,7 +21,7 @@ type LogsPageProps = {
 
 type InitialLogsPageData = Awaited<ReturnType<typeof loadInitialLogsPageData>>;
 type TimedInitialLogsPageData = Awaited<
-  ReturnType<typeof measureServerCallWithTiming<InitialLogsPageData>>
+  ReturnType<typeof measureServerCallWithTimeline<InitialLogsPageData>>
 >;
 
 export default async function LogsPage({ searchParams }: LogsPageProps) {
@@ -37,8 +39,9 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
     );
   }
 
-  const initialDataPromise = measureServerCallWithTiming("page.logs.initialData", () =>
-    loadInitialLogsPageDataWithDelay(user.id, variant === "logs-delay-1000" ? 1000 : 0)
+  const delayMs = variant === "logs-delay-1000" ? 1000 : variant === "logs-delay-400" ? 400 : 0;
+  const initialDataPromise = measureServerCallWithTimeline("page.logs.initialData", () =>
+    loadInitialLogsPageDataWithDelay(user.id, delayMs)
   );
 
   return (
@@ -75,22 +78,45 @@ async function LogsDataRegion({
   initialDataPromise: Promise<TimedInitialLogsPageData>;
 }) {
   const initialDataTiming = await initialDataPromise;
+  const { diagnostics } = initialDataTiming.value;
 
   return (
     <>
+      <ParserRouteTimingMarker phase="route-data-parsed" />
+      <RouteDataTimingMarker
+        cacheKeyVersion={diagnostics.cacheKeyVersion}
+        cacheLookupMs={diagnostics.cacheLookupMs}
+        cacheOutcome={diagnostics.cacheOutcome}
+        durationMs={initialDataTiming.durationMs}
+        endedAtEpochMs={initialDataTiming.endedAtEpochMs}
+        mappingMs={diagnostics.mappingMs}
+        resultBytes={diagnostics.resultBytes}
+        resultRows={diagnostics.resultRows}
+        startedAtEpochMs={initialDataTiming.startedAtEpochMs}
+        supabaseMs={diagnostics.supabaseMs}
+      />
+      <LogsWorkspaceClient window={initialDataTiming.value.window} />
       <ClientRouteTimingMarker phase="route-content-visible" />
       <ClientRouteTimingMarker phase="route-data-visible" />
-      <RouteTimingMarker durationMs={initialDataTiming.durationMs} phase="route-data" />
-      <LogsWorkspaceClient window={initialDataTiming.value.window} />
     </>
   );
 }
 
 function resolvePerformanceVariant(value: string | string[] | undefined): LogsPerformanceVariant {
   const candidate = Array.isArray(value) ? value[0] : value;
+  const canUseDiagnosticVariant =
+    process.env.NODE_ENV !== "production" || process.env.POKE_NOTES_PERF_CANARY_ENABLED === "1";
+
+  if (!canUseDiagnosticVariant) {
+    return "logs-narrow-suspense";
+  }
 
   if (candidate === "delay-1000") {
     return "logs-delay-1000";
+  }
+
+  if (candidate === "delay-400") {
+    return "logs-delay-400";
   }
 
   if (candidate === "shell-only") {
@@ -116,17 +142,32 @@ async function loadInitialLogsPageDataWithDelay(userId: string, delayMs: number)
 }
 
 async function loadInitialLogsPageData(userId: string) {
-  const readModel = await getCachedInitialLogsPageData(userId);
-  if (readModel) {
-    return readModel;
+  const cachedReadModel = await getCachedInitialLogsPageDataWithDiagnostics(userId);
+  if (cachedReadModel.value) {
+    return {
+      ...cachedReadModel.value,
+      diagnostics: cachedReadModel.diagnostics
+    };
   }
 
+  const fallbackStartedAt = performance.now();
   const [stats, window] = await Promise.all([getLogSummaryStats(userId), getLogsWindow(userId)]);
   const hydratedWindow = await measureServerCall("page.logs.linkedDeckListNames", () =>
     hydrateLogWindowDeckListNames(userId, window)
   );
+  const fallbackMs = Math.max(0, Math.round(performance.now() - fallbackStartedAt));
 
   return {
+    diagnostics: {
+      cacheKeyVersion: cachedReadModel.diagnostics.cacheKeyVersion,
+      cacheLookupMs: cachedReadModel.diagnostics.cacheLookupMs,
+      cacheOutcome: "fallback" as const,
+      mappingMs: null,
+      resultBytes: new TextEncoder().encode(JSON.stringify({ stats, window: hydratedWindow }))
+        .byteLength,
+      resultRows: hydratedWindow.logs.length,
+      supabaseMs: fallbackMs
+    },
     stats,
     window: hydratedWindow
   };

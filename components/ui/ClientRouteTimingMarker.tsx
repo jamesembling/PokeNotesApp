@@ -20,6 +20,23 @@ export function ClientRouteTimingMarker({ phase }: { phase: ClientTimingPhase })
 
     marker.dataset.routeClientTimingMs = String(Math.max(0, Math.round(performance.now())));
     window.dispatchEvent(new CustomEvent("pokenotes:route-client-timing", { detail: { phase } }));
+
+    let recorded = false;
+    const recordPostPaint = () => {
+      if (recorded || !marker.isConnected) {
+        return;
+      }
+      recorded = true;
+      marker.dataset.routeClientPaintMs = String(Math.max(0, Math.round(performance.now())));
+      window.dispatchEvent(new CustomEvent("pokenotes:route-client-paint", { detail: { phase } }));
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        recordPostPaint();
+      });
+    });
+    window.setTimeout(recordPostPaint, 100);
   }, [phase]);
 
   return <span aria-hidden="true" data-route-client-timing={phase} hidden ref={markerRef} />;
