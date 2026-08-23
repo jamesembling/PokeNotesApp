@@ -178,19 +178,21 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
   assert.doesNotMatch(logsDb, /from\("logs"\)[\s\S]{0,300}opponent_deck_slug[\s\S]{0,300}group/);
 });
 
-test("/logs streams a real shell around one shared data promise", () => {
+test("/logs streams an immediate fallback and one shared data promise", () => {
   const page = source("app/(app)/logs/page.tsx");
   const frame = source("components/ui/LogsWorkspaceFrame.tsx");
+  const loading = source("app/(app)/logs/loading.tsx");
 
   assert.equal(existsSync(join(process.cwd(), "app/(app)/loading.tsx")), false);
-  assert.equal(existsSync(join(process.cwd(), "app/(app)/logs/loading.tsx")), false);
+  assert.equal(existsSync(join(process.cwd(), "app/(app)/logs/loading.tsx")), true);
+  assert.match(loading, /<LogsLastKnownState \/>/);
   for (const segment of ["calculator", "deck-lists", "decks", "profile", "stats", "tournaments"]) {
     assert.equal(existsSync(join(process.cwd(), `app/(app)/${segment}/loading.tsx`)), true);
   }
   assert.match(page, /getCachedInitialLogsPageData/);
   assert.match(page, /const initialDataPromise = measureServerCallWithTimeline/);
-  assert.match(page, /<Suspense fallback=\{<LogsStatsSkeleton \/>\}>/);
-  assert.match(page, /<Suspense fallback=\{<LogsWorkspaceSkeleton \/>\}>/);
+  assert.match(page, /<Suspense fallback=\{<LogsLastKnownStats \/>\}>/);
+  assert.match(page, /<Suspense fallback=\{<LogsLastKnownContent \/>\}>/);
   assert.match(page, /initialDataPromise=\{initialDataPromise\}/);
   assert.match(page, /measureServerCallWithTimeline\(\s*"page\.logs\.initialData"/);
   assert.match(page, /phase="route-data-visible"/);

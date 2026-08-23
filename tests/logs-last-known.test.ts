@@ -1,0 +1,112 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  clearLastKnownLogsSnapshot,
+  createLastKnownLogsSnapshot,
+  parseLastKnownLogsSnapshot,
+  readLastKnownLogsSnapshot,
+  writeLastKnownLogsSnapshot
+} from "@/lib/client/logs-last-known";
+import type { BattleLogSummary } from "@/types/index";
+
+const now = Date.UTC(2026, 7, 23, 22, 30);
+
+function battleLog(overrides: Partial<BattleLogSummary> = {}): BattleLogSummary {
+  return {
+    date: "2026-08-23",
+    format: "SVI-ASC",
+    goOrder: "First",
+    id: "private-log-id",
+    importedAt: "2026-08-23T22:00:00.000Z",
+    linkedDeckId: "private-deck-id",
+    linkedDeckListId: "private-list-id",
+    linkedDeckListName: "Private list name",
+    opponentDeckName: "Gardevoir",
+    opponentDeckSprites: ["gardevoir", "munkidori", "extra"],
+    opponentPlayerName: "Private opponent",
+    result: "Win",
+    selfDeckName: "Dragapult",
+    selfDeckSprites: ["dragapult", "pidgeot", "extra"],
+    selfPlayerName: "Private player",
+    totalTurns: 10,
+    ...overrides
+  };
+}
+
+function memoryStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem(key: string) {
+      return values.get(key) ?? null;
+    },
+    removeItem(key: string) {
+      values.delete(key);
+    },
+    setItem(key: string, value: string) {
+      values.set(key, value);
+    },
+    values
+  };
+}
+
+test("last-known logs retain only bounded read-only presentation data", () => {
+  const snapshot = createLastKnownLogsSnapshot(
+    {
+      logs: Array.from({ length: 10 }, (_, index) => battleLog({ id: `private-${index}` })),
+      stats: { losses: 4, total: 10, wins: 6 }
+    },
+    now
+  );
+  const serialized = JSON.stringify(snapshot);
+
+  assert.equal(snapshot.logs.length, 8);
+  assert.deepEqual(snapshot.logs[0].selfDeckSprites, ["dragapult", "pidgeot"]);
+  assert.deepEqual(snapshot.logs[0].opponentDeckSprites, ["gardevoir", "munkidori"]);
+  for (const privateValue of [
+    "private-log-id",
+    "private-deck-id",
+    "private-list-id",
+    "Private list name",
+    "Private opponent",
+    "Private player"
+  ]) {
+    assert.equal(serialized.includes(privateValue), false);
+  }
+});
+
+test("last-known logs reject expired, malformed, or internally inconsistent snapshots", () => {
+  const valid = createLastKnownLogsSnapshot(
+    { logs: [battleLog()], stats: { losses: 1, total: 3, wins: 2 } },
+    now
+  );
+
+  assert.deepEqual(parseLastKnownLogsSnapshot(JSON.stringify(valid), now), valid);
+  assert.equal(
+    parseLastKnownLogsSnapshot(JSON.stringify(valid), now + 8 * 24 * 60 * 60 * 1000),
+    null
+  );
+  assert.equal(parseLastKnownLogsSnapshot("not json", now), null);
+  assert.equal(
+    parseLastKnownLogsSnapshot(
+      JSON.stringify({ ...valid, stats: { losses: 2, total: 1, wins: 1 } }),
+      now
+    ),
+    null
+  );
+});
+
+test("last-known logs can be persisted, read, and cleared without browser globals", () => {
+  const storage = memoryStorage();
+  const input = {
+    logs: [battleLog()],
+    stats: { losses: 1, total: 3, wins: 2 }
+  };
+
+  writeLastKnownLogsSnapshot(input, storage);
+  const snapshot = readLastKnownLogsSnapshot(storage);
+  assert.equal(snapshot?.logs.length, 1);
+  assert.deepEqual(snapshot?.stats, input.stats);
+
+  clearLastKnownLogsSnapshot(storage);
+  assert.equal(readLastKnownLogsSnapshot(storage), null);
+});

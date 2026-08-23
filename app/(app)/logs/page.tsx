@@ -1,6 +1,10 @@
 import { Suspense } from "react";
 import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker";
 import { LogsStats } from "@/components/ui/LogsStats";
+import {
+  LogsLastKnownContent,
+  LogsLastKnownStats
+} from "@/components/ui/LogsLastKnownState";
 import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { LogsWorkspaceFrame } from "@/components/ui/LogsWorkspaceFrame";
 import { LogsStatsSkeleton, LogsWorkspaceSkeleton } from "@/components/ui/LogsWorkspaceSkeleton";
@@ -55,12 +59,12 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
       <LogsWorkspaceFrame
         performanceVariant={variant}
         stats={
-          <Suspense fallback={<LogsStatsSkeleton />}>
+          <Suspense fallback={<LogsLastKnownStats />}>
             <LogsStatsRegion initialDataPromise={initialDataPromise} />
           </Suspense>
         }
       >
-        <Suspense fallback={<LogsWorkspaceSkeleton />}>
+        <Suspense fallback={<LogsLastKnownContent />}>
           <LogsDataRegion initialDataPromise={initialDataPromise} />
         </Suspense>
       </LogsWorkspaceFrame>
@@ -99,7 +103,10 @@ async function LogsDataRegion({
         startedAtEpochMs={initialDataTiming.startedAtEpochMs}
         supabaseMs={diagnostics.supabaseMs}
       />
-      <LogsWorkspaceClient window={initialDataTiming.value.window} />
+      <LogsWorkspaceClient
+        stats={initialDataTiming.value.stats}
+        window={initialDataTiming.value.window}
+      />
       <ParserRouteTimingMarker phase="route-data-parsed" />
       <ClientRouteTimingMarker phase="route-content-visible" />
       <ClientRouteTimingMarker phase="route-data-visible" />

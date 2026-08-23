@@ -27,12 +27,14 @@ function setLogsManagementMode(next: boolean) {
 
 type LogsWorkspaceFrameProps = {
   children: ReactNode;
+  isLoading?: boolean;
   performanceVariant: string;
   stats: ReactNode;
 };
 
 export function LogsWorkspaceFrame({
   children,
+  isLoading = false,
   performanceVariant,
   stats
 }: LogsWorkspaceFrameProps) {
@@ -52,23 +54,25 @@ export function LogsWorkspaceFrame({
       <ClientRouteTimingMarker phase="route-shell-visible" />
       <PageHeader
         action={
-          <PageActions className="hidden sm:flex">
+          !isLoading ? <PageActions className="hidden sm:flex">
             <Button
               className="w-full justify-center sm:w-auto sm:self-start sm:min-w-[5.5rem]"
               onClick={toggleManagementMode}
             >
               {isManagementMode ? "Done" : "Edit logs"}
             </Button>
-          </PageActions>
+          </PageActions> : null
         }
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Battle Logs" }]}
         meta={stats}
         title="Battle Logs"
       />
 
-      <PageActions className="sm:hidden" mobile="stack">
-        <LazyImportLogButton className="w-full justify-center" />
-      </PageActions>
+      {!isLoading ? (
+        <PageActions className="sm:hidden" mobile="stack">
+          <LazyImportLogButton className="w-full justify-center" />
+        </PageActions>
+      ) : null}
 
       {children}
     </div>

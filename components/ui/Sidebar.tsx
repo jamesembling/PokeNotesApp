@@ -14,6 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon, MenuIcon, ShieldIcon } from "lucide-react";
 import { signOutAction } from "@/app/actions";
+import { clearLastKnownLogsSnapshot } from "@/lib/client/logs-last-known";
 import { Button } from "@/components/shadcn/button";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import {
@@ -189,6 +190,7 @@ export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
 
   function handleSignOut() {
     startSignOutTransition(async () => {
+      clearLastKnownLogsSnapshot();
       await signOutAction();
     });
   }

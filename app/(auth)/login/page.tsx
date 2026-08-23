@@ -5,6 +5,7 @@ import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
 import { Input } from "@/components/shadcn/input";
 import { Label } from "@/components/shadcn/label";
+import { ClearPrivateBrowserCache } from "@/components/ui/ClearPrivateBrowserCache";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getCurrentUser } from "@/lib/auth";
 import { getLoginAuthError } from "@/lib/server/login-error";
@@ -37,6 +38,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <ClearPrivateBrowserCache />
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <PageHeader
           breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Login" }]}

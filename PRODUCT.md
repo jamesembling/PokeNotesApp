@@ -1,33 +1,63 @@
 # Product
 
-## Register
+<!-- impeccable:product-schema 1 -->
 
-product
+## Platform
+
+web
 
 ## Users
 
-Poke Notes is used by competitive Pokemon TCG players who need a fast, reliable workspace for reviewing battle logs, deck lists, tournament results, matchups, and probability decisions. They use it across desktop and mobile contexts to make better play, testing, and deck-building decisions without losing the thread of a match or tournament.
+Poke Notes is used by competitive Pokemon TCG players across desktop and mobile contexts. They need a fast, reliable workspace for reviewing battle logs, deck lists, tournament results, matchups, strategy notes, and probability decisions without losing the thread of a match, testing session, or tournament.
 
 ## Product Purpose
 
-Poke Notes tracks Pokemon TCG battle logs, deck lists, tournaments, and related stats in one authenticated workspace. Success means a player can record games quickly, revisit evidence later, understand performance patterns, and make concrete strategic decisions from clean, trustworthy data.
+Poke Notes turns a player's competitive records into usable evidence. It brings battle logs, deck lists, tournaments, strategy, and related statistics into one authenticated workspace so players can record games quickly, revisit what happened, understand performance patterns, and make concrete play, testing, and deck-building decisions.
 
-## Brand Personality
+Success means that capture is quick enough to use during real competitive routines, saved records remain trustworthy, and the player can move from historical evidence to a clear strategic decision.
 
-Serious, focused, and professional. The interface should feel closer to a sports analytics dashboard than a fan site: calm, clear, and trustworthy without becoming sterile. Copy should be direct and specific to competitive play, not playful filler or generic SaaS language.
+## Positioning
 
-## Anti-references
+Poke Notes is an evidence-led competitive workspace rather than a generic note-taking tool or isolated stat tracker. Its distinguishing mechanism is the connection between a player's battle evidence, deck lists, tournaments, matchup knowledge, and evolving deck strategy, so analysis and planning remain grounded in the same competitive record.
 
-Avoid fan-site energy, decorative hero treatments, novelty Pokemon theming, glass effects, general-purpose gradients, page-specific visual experiments, and visual flourishes that compete with records, numbers, and outcomes. Avoid generic SaaS marketing language and AI-looking dashboard decoration.
+## Operating Context
 
-## Design Principles
+Players use Poke Notes while importing games from Pokemon TCG Live, reviewing testing sessions, preparing deck choices and matchup plans, recording tournament rounds, and evaluating results afterward. The product supports both focused desktop analysis and quick mobile capture or review.
 
-- Data first: numbers, records, matchups, and outcomes are the primary content.
-- Consistent over clever: pages should reuse shared layouts, controls, and component vocabulary.
-- Legible in both modes: every surface and text treatment must work in light and dark themes.
-- Mobile is real: responsive behavior should be designed for real use, not patched on after desktop.
-- Function before flourish: visual polish must preserve workflow reliability and speed.
+The product's durable domain language and record relationships are defined in `CONTEXT.md`. Battle Logs, Deck Lists, Deck Strategies, Deck Matchups, Tournaments, and Tournament Deck List Snapshots are distinct product records with explicit ownership and preservation rules.
+
+## Capabilities and Constraints
+
+- Poke Notes is an authenticated, account-scoped product for capturing and reviewing Battle Logs, Deck Lists, Deck Strategies, Deck Matchups, Tournaments, and related statistics.
+- Imported game history is parsed into a reviewable Battle Log Import Draft before it becomes a saved Battle Log.
+- Deck Lists are first-class account-owned records. Their association with a Deck Strategy is optional, and their visual order is a shared product contract across saved lists, Battle Logs, Tournaments, and shared views.
+- Tournaments preserve the Deck List used at the event as an immutable snapshot, independently of later changes to the source Deck List.
+- Strategy work connects working notes and matchup plans to a Deck Strategy and its battle evidence.
+- Responsive behavior is a product requirement: mobile workflows must be intentionally usable, not reduced desktop layouts.
+- Record integrity, account isolation, and preservation through storage transitions take priority over implementation convenience.
+
+## Brand Commitments
+
+The product name is Poke Notes. Its voice is serious, focused, professional, and specific to competitive play. It should feel closer to a sports analytics product than a fan site: calm, clear, and trustworthy without becoming sterile.
+
+Avoid novelty Pokemon theming, fan-site energy, generic SaaS language, playful filler, decorative spectacle, and visual treatments that compete with records, numbers, outcomes, or the task at hand. Light and dark modes are both supported product contexts.
+
+## Evidence on Hand
+
+- The repository contains working authenticated product flows for battle logs, deck lists, deck strategies, tournaments, statistics, probability calculations, sharing, and profile management.
+- `CONTEXT.md` records the accepted domain language and invariants that future product and implementation work must preserve.
+- `docs/adr/0001-preserve-deck-aggregate-during-relational-cutover.md` and `docs/adr/0002-first-class-deck-lists-and-tournament-snapshots.md` record accepted compatibility and ownership decisions.
+- `docs/performance-targets.md` contains dated production measurements and performance targets; performance claims must be tied to a current measurement source.
+- The product has no approved testimonials, customer claims, or marketing benchmarks in this record. Future work must not fabricate them.
+
+## Product Principles
+
+- Evidence before intuition: competitive decisions should remain traceable to trustworthy records.
+- Capture with low friction: recording a game, note, list, or round should not interrupt the player's competitive routine.
+- Preserve the competitive record: historical evidence and account-owned records must remain reliable as the product evolves.
+- Connect analysis to action: statistics and history should help a player reach a concrete testing, play, or deck-building decision.
+- Consistency over novelty: shared language and familiar workflows should make the product easier to use across features and devices.
 
 ## Accessibility & Inclusion
 
-Target WCAG AA for contrast, keyboard access, focus visibility, labels, and responsive readability. Preserve reduced-motion alternatives for transitions, avoid color-only communication for win/loss/warning states, and keep touch targets and form controls usable on mobile.
+Target WCAG AA for contrast, keyboard access, focus visibility, labels, and responsive readability. Preserve reduced-motion alternatives for transitions, avoid color-only communication for win, loss, or warning states, and keep touch targets and form controls usable on mobile.
