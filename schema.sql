@@ -1283,6 +1283,7 @@ create table public.route_performance_events (
   server_auth_ms          integer,
   server_auth_ended_ms    integer,
   server_auth_method      text,
+  server_auth_refreshed   boolean,
   server_auth_started_ms  integer,
   server_cache_key_version text,
   server_cache_lookup_ms  integer,
@@ -1302,6 +1303,7 @@ create table public.route_performance_events (
   server_request_id       text,
   server_result_bytes     integer,
   server_result_rows      integer,
+  server_route_entered_ms integer,
   server_route_data_ms    integer,
   server_route_data_ended_ms integer,
   server_route_data_started_ms integer,
@@ -1369,6 +1371,12 @@ comment on column public.route_performance_events.submission_reason is
 
 comment on column public.route_performance_events.request_correlation_id is
   'Opaque per-navigation identifier shared by document markers and correlated telemetry events.';
+
+comment on column public.route_performance_events.server_route_entered_ms is
+  'Route component entry offset from Proxy request start; brackets the opaque post-Proxy platform/framework interval.';
+
+comment on column public.route_performance_events.server_auth_refreshed is
+  'Whether Proxy wrote updated Supabase session cookies during authentication.';
 
 comment on column public.route_performance_events.server_cache_outcome is
   'Observed initial logs cache outcome: hit, miss, legacy fallback, or a specific fallback failure reason.';

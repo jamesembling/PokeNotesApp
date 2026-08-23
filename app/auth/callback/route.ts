@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { logAuthDebug } from "@/lib/server/auth-debug";
 import { buildAppOriginFromHeaders } from "@/lib/server/app-url";
+import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
 import { syncCurrentProfileFromAuthUser } from "@/lib/db/profile";
 
 function getSupabaseEnv() {
@@ -25,20 +26,28 @@ export async function GET(request: NextRequest) {
   }
 
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
-  const response = NextResponse.redirect(new URL("/logs", appOrigin));
+  const response = NextResponse.redirect(new URL("/logs", appOrigin), {
+    headers: PRIVATE_NO_STORE_HEADERS
+  });
+  let authResponseHeaders: Record<string, string> = {};
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, headers) {
+        authResponseHeaders = headers;
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
 
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options as CookieOptions);
+        });
+
+        Object.entries(headers).forEach(([name, value]) => {
+          response.headers.set(name, value);
         });
       }
     }
@@ -52,16 +61,21 @@ export async function GET(request: NextRequest) {
   });
 
   if (error) {
-    return NextResponse.redirect(new URL("/login", appOrigin));
+    const errorResponse = NextResponse.redirect(new URL("/login", appOrigin), {
+      headers: PRIVATE_NO_STORE_HEADERS
+    });
+    response.cookies.getAll().forEach((cookie) => {
+      errorResponse.cookies.set(cookie);
+    });
+    Object.entries(authResponseHeaders).forEach(([name, value]) => {
+      errorResponse.headers.set(name, value);
+    });
+    return errorResponse;
   }
 
   if (data.user) {
     await syncCurrentProfileFromAuthUser(data.user);
   }
-
-  response.headers.set("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0");
-  response.headers.set("Expires", "0");
-  response.headers.set("Pragma", "no-cache");
 
   return response;
 }

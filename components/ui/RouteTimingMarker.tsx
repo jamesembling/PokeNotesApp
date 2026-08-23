@@ -3,6 +3,7 @@ import {
   PROXY_AUTH_DURATION_HEADER,
   PROXY_AUTH_ENDED_HEADER,
   PROXY_AUTH_METHOD_HEADER,
+  PROXY_AUTH_REFRESHED_HEADER,
   PROXY_AUTH_STARTED_HEADER,
   REQUEST_CORRELATION_HEADER,
   REQUEST_STARTED_HEADER,
@@ -27,7 +28,11 @@ export function RouteTimingMarker({ durationMs, phase }: RouteTimingMarkerProps)
   );
 }
 
-export async function ProxyAuthTimingMarker() {
+export async function ProxyAuthTimingMarker({
+  routeEnteredAtEpochMs
+}: {
+  routeEnteredAtEpochMs?: number;
+}) {
   const requestHeaders = await headers();
   const durationMs = parseOptionalNumber(requestHeaders.get(PROXY_AUTH_DURATION_HEADER));
   const authStartedMs = parseOptionalNumber(requestHeaders.get(PROXY_AUTH_STARTED_HEADER));
@@ -36,6 +41,7 @@ export async function ProxyAuthTimingMarker() {
   const requestStartedAt = parseOptionalNumber(requestHeaders.get(REQUEST_STARTED_HEADER));
   const requestId = requestHeaders.get("x-vercel-id");
   const authMethod = requestHeaders.get(PROXY_AUTH_METHOD_HEADER);
+  const authRefreshed = requestHeaders.get(PROXY_AUTH_REFRESHED_HEADER);
   const runtime = takeServerRuntimeSnapshot();
 
   if (durationMs === null || durationMs < 0) {
@@ -49,10 +55,18 @@ export async function ProxyAuthTimingMarker() {
         aria-hidden="true"
         data-route-auth-ended-ms={safeOffset(authEndedMs)}
         data-route-auth-method={authMethod || undefined}
+        data-route-auth-refreshed={
+          authRefreshed === "1" ? "true" : authRefreshed === "0" ? "false" : undefined
+        }
         data-route-auth-started-ms={safeOffset(authStartedMs)}
         data-route-request-correlation-id={requestCorrelationId || undefined}
         data-route-request-id={requestId || undefined}
         data-route-request-started-at={safeEpoch(requestStartedAt)}
+        data-route-route-entered-ms={
+          requestStartedAt === null || routeEnteredAtEpochMs === undefined
+            ? undefined
+            : safeOffset(routeEnteredAtEpochMs - requestStartedAt)
+        }
         data-route-runtime-boot-age-ms={runtime.bootAgeMs}
         data-route-runtime-boot-id={runtime.bootId}
         data-route-runtime-invocation-ordinal={runtime.invocationOrdinal}

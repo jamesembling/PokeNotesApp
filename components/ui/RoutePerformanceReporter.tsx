@@ -199,6 +199,12 @@ function getServerDiagnosticsSnapshot() {
     requestCorrelationId: requestMarker?.dataset.routeRequestCorrelationId ?? null,
     serverAuthEndedMs: getNumericDatasetValue(requestMarker, "routeAuthEndedMs"),
     serverAuthMethod: requestMarker?.dataset.routeAuthMethod ?? null,
+    serverAuthRefreshed:
+      requestMarker?.dataset.routeAuthRefreshed === "true"
+        ? true
+        : requestMarker?.dataset.routeAuthRefreshed === "false"
+          ? false
+          : null,
     serverAuthStartedMs: getNumericDatasetValue(requestMarker, "routeAuthStartedMs"),
     serverCacheKeyVersion: dataMarker?.dataset.routeCacheKeyVersion ?? null,
     serverCacheLookupMs: getNumericDatasetValue(dataMarker, "routeCacheLookupMs"),
@@ -208,6 +214,7 @@ function getServerDiagnosticsSnapshot() {
     serverRequestId: requestMarker?.dataset.routeRequestId ?? null,
     serverResultBytes: getNumericDatasetValue(dataMarker, "routeResultBytes"),
     serverResultRows: getNumericDatasetValue(dataMarker, "routeResultRows"),
+    serverRouteEnteredMs: getNumericDatasetValue(requestMarker, "routeRouteEnteredMs"),
     serverRouteDataEndedMs: getNumericDatasetValue(dataMarker, "routeDataEndedMs"),
     serverRouteDataStartedMs: getNumericDatasetValue(dataMarker, "routeDataStartedMs"),
     serverRuntimeBootAgeMs: getNumericDatasetValue(requestMarker, "routeRuntimeBootAgeMs"),

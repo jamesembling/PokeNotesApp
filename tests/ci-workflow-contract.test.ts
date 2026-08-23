@@ -13,6 +13,16 @@ test("CI runs the repository design-system audit", () => {
   assert.match(workflow, /- name: Design system audit\s+run: npm run design:audit/);
 });
 
+test("CI uses the minimum Node runtime supported by Supabase", () => {
+  const ciWorkflow = source(".github/workflows/ci.yml");
+  const packageJson = JSON.parse(source("package.json")) as {
+    engines?: { node?: string };
+  };
+
+  assert.match(ciWorkflow, /node-version: 22/);
+  assert.equal(packageJson.engines?.node, ">=22.0.0");
+});
+
 test("GitHub workflows pin their Node action releases", () => {
   const ciWorkflow = source(".github/workflows/ci.yml");
   const databaseWorkflow = source(".github/workflows/deploy-production-database.yml");

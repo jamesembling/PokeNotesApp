@@ -34,7 +34,16 @@ test("failed initial read models cannot poison the shared logs cache", () => {
           details: "",
           hint: "",
           message: "RPC unavailable",
-          name: "PostgrestError"
+          name: "PostgrestError",
+          toJSON() {
+            return {
+              code: "TEST_RPC_ERROR",
+              details: "",
+              hint: "",
+              message: "RPC unavailable",
+              name: "PostgrestError"
+            };
+          }
         },
         failureReason: "rpc-error",
         mappingMs: null,

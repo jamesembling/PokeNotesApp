@@ -10,7 +10,11 @@ import { requireUser } from "@/lib/auth";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
 import { getLogSummaryStats, getLogsWindow } from "@/lib/db/logs";
 import { getCachedInitialLogsPageDataWithDiagnostics } from "@/lib/server/logs-initial-cache";
-import { measureServerCall, measureServerCallWithTimeline } from "@/lib/server/perf";
+import {
+  measureServerCall,
+  measureServerCallWithTimeline,
+  takeRouteEntryEpochMs
+} from "@/lib/server/perf";
 
 type LogsPerformanceVariant =
   "logs-delay-400" | "logs-delay-1000" | "logs-narrow-suspense" | "logs-shell-only";
@@ -25,13 +29,14 @@ type TimedInitialLogsPageData = Awaited<
 >;
 
 export default async function LogsPage({ searchParams }: LogsPageProps) {
+  const routeEnteredAtEpochMs = takeRouteEntryEpochMs();
   const [user, resolvedSearchParams] = await Promise.all([requireUser(), searchParams]);
   const variant = resolvePerformanceVariant(resolvedSearchParams.logsPerf);
 
   if (variant === "logs-shell-only") {
     return (
       <>
-        <ProxyAuthTimingMarker />
+        <ProxyAuthTimingMarker routeEnteredAtEpochMs={routeEnteredAtEpochMs} />
         <LogsWorkspaceFrame performanceVariant={variant} stats={<LogsStatsSkeleton />}>
           <LogsWorkspaceSkeleton />
         </LogsWorkspaceFrame>
@@ -46,7 +51,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
 
   return (
     <>
-      <ProxyAuthTimingMarker />
+      <ProxyAuthTimingMarker routeEnteredAtEpochMs={routeEnteredAtEpochMs} />
       <LogsWorkspaceFrame
         performanceVariant={variant}
         stats={

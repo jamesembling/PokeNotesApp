@@ -72,3 +72,27 @@ test("all private JSON routes use the API auth guard while pages keep redirectin
   assert.match(pageAuth, /export const requireUser = cache/);
   assert.match(pageAuth, /redirect\("\/login"\)/);
 });
+
+test("Supabase session refresh has one server owner and propagates private cache headers", () => {
+  const proxy = source("proxy.ts");
+  const publicClient = source("lib/supabase/public.ts");
+  const authRoutes = [
+    "app/auth/callback/route.ts",
+    "app/auth/dev-login/route.ts",
+    "app/auth/sign-in/google/route.ts"
+  ].map(source);
+
+  assert.match(proxy, /setAll\(cookiesToSet, headers\)/);
+  assert.match(proxy, /Object\.entries\(headers\)/);
+  assert.match(proxy, /getVerifiedClaims\(supabase, supabaseUrl\)/);
+  assert.doesNotMatch(proxy, /refreshSession\(/);
+  assert.doesNotMatch(publicClient, /createBrowserClient/);
+  assert.match(publicClient, /autoRefreshToken: false/);
+
+  for (const authRoute of authRoutes) {
+    assert.match(authRoute, /setAll\(cookiesToSet, headers\)/);
+    assert.match(authRoute, /Object\.entries\(headers\)/);
+    assert.match(authRoute, /PRIVATE_NO_STORE_HEADERS/);
+    assert.doesNotMatch(authRoute, /refreshSession\(/);
+  }
+});

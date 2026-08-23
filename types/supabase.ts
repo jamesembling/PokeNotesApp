@@ -632,6 +632,7 @@ export type Database = {
           server_auth_ended_ms: number | null
           server_auth_method: string | null
           server_auth_ms: number | null
+          server_auth_refreshed: boolean | null
           server_auth_started_ms: number | null
           server_cache_key_version: string | null
           server_cache_lookup_ms: number | null
@@ -641,6 +642,7 @@ export type Database = {
           server_request_id: string | null
           server_result_bytes: number | null
           server_result_rows: number | null
+          server_route_entered_ms: number | null
           server_route_data_ended_ms: number | null
           server_route_data_ms: number | null
           server_route_data_started_ms: number | null
@@ -721,6 +723,7 @@ export type Database = {
           server_auth_ended_ms?: number | null
           server_auth_method?: string | null
           server_auth_ms?: number | null
+          server_auth_refreshed?: boolean | null
           server_auth_started_ms?: number | null
           server_cache_key_version?: string | null
           server_cache_lookup_ms?: number | null
@@ -730,6 +733,7 @@ export type Database = {
           server_request_id?: string | null
           server_result_bytes?: number | null
           server_result_rows?: number | null
+          server_route_entered_ms?: number | null
           server_route_data_ended_ms?: number | null
           server_route_data_ms?: number | null
           server_route_data_started_ms?: number | null
@@ -810,6 +814,7 @@ export type Database = {
           server_auth_ended_ms?: number | null
           server_auth_method?: string | null
           server_auth_ms?: number | null
+          server_auth_refreshed?: boolean | null
           server_auth_started_ms?: number | null
           server_cache_key_version?: string | null
           server_cache_lookup_ms?: number | null
@@ -819,6 +824,7 @@ export type Database = {
           server_request_id?: string | null
           server_result_bytes?: number | null
           server_result_rows?: number | null
+          server_route_entered_ms?: number | null
           server_route_data_ended_ms?: number | null
           server_route_data_ms?: number | null
           server_route_data_started_ms?: number | null

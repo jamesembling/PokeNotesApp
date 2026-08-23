@@ -86,8 +86,11 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   const cacheOutcomeMigration = source(
     "supabase/migrations/20260823053632_expand_route_performance_cache_outcomes.sql"
   );
+  const routeEntryMigration = source(
+    "supabase/migrations/20260823083743_add_route_entry_timing.sql"
+  );
 
-  assert.equal(ROUTE_REPORTER_VERSION, 5);
+  assert.equal(ROUTE_REPORTER_VERSION, 6);
   assert.match(reporter, /responseStreamMs/);
   assert.match(reporter, /responseEndMs/);
   assert.match(reporter, /routeStabilizationMs/);
@@ -100,6 +103,8 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(reporter, /performanceVariant/);
   assert.match(reporter, /parserShellMs/);
   assert.match(reporter, /routeDataPaintedMs/);
+  assert.match(reporter, /serverRouteEnteredMs/);
+  assert.match(reporter, /serverAuthRefreshed/);
   assert.match(reporter, /submissionReason/);
   assert.match(reporter, /shellVisibleMs/);
   assert.match(reporter, /AUTOMATION_HASH = "#pokenotes-perf"/);
@@ -113,6 +118,8 @@ test("route diagnostics use privacy-safe fixed fields", () => {
     /traffic_class:\s*payload\.automationHint === true \? "automation" : "unclassified"/
   );
   assert.match(route, /browser_family: inferBrowserFamily/);
+  assert.match(route, /error\?\.code === "PGRST204"/);
+  assert.match(route, /legacyPerformanceEvent/);
   assert.doesNotMatch(route, /user_agent:/);
 
   assert.match(proxy, /Server-Timing/);
@@ -120,6 +127,8 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(proxy, /forwardedHeaders\.delete\(PROXY_AUTH_DURATION_HEADER\)/);
   assert.match(proxy, /forwardedHeaders\.set\(\s*PROXY_AUTH_DURATION_HEADER/);
   assert.match(marker, /phase="proxy-auth"/);
+  assert.match(marker, /data-route-route-entered-ms/);
+  assert.match(marker, /data-route-auth-refreshed/);
   assert.match(migration, /server_shell_profile_ms/);
   assert.match(migration, /server_route_data_ms/);
   assert.match(migration, /route_performance_events_env_traffic_route_created_at/);
@@ -134,6 +143,10 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(phaseCorrelationMigration, /response_stream_ms/);
   assert.match(phaseCorrelationMigration, /submission_reason/);
   assert.match(phaseCorrelationMigration, /route-data/);
+  assert.match(routeEntryMigration, /server_route_entered_ms/);
+  assert.match(routeEntryMigration, /server_auth_refreshed/);
+  assert.match(schema, /server_route_entered_ms/);
+  assert.match(schema, /server_auth_refreshed/);
   for (const cacheOutcome of [
     "fallback-cache-error",
     "fallback-invalid-payload",

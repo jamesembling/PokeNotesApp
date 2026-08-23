@@ -6,9 +6,14 @@ let runtimeInvocationOrdinal = 0;
 export const PROXY_AUTH_DURATION_HEADER = "x-pokenotes-proxy-auth-ms";
 export const PROXY_AUTH_ENDED_HEADER = "x-pokenotes-proxy-auth-ended-ms";
 export const PROXY_AUTH_METHOD_HEADER = "x-pokenotes-proxy-auth-method";
+export const PROXY_AUTH_REFRESHED_HEADER = "x-pokenotes-proxy-auth-refreshed";
 export const PROXY_AUTH_STARTED_HEADER = "x-pokenotes-proxy-auth-started-ms";
 export const REQUEST_CORRELATION_HEADER = "x-pokenotes-request-correlation-id";
 export const REQUEST_STARTED_HEADER = "x-pokenotes-request-started-at";
+
+export function takeRouteEntryEpochMs() {
+  return Date.now();
+}
 
 export function takeServerRuntimeSnapshot() {
   runtimeInvocationOrdinal += 1;

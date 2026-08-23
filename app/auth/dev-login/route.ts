@@ -73,19 +73,25 @@ export async function POST(request: NextRequest) {
 
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
   const response = privateRedirect(new URL("/logs", origin));
+  let authResponseHeaders: Record<string, string> = {};
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, headers) {
+        authResponseHeaders = headers;
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
 
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options as CookieOptions);
+        });
+
+        Object.entries(headers).forEach(([name, value]) => {
+          response.headers.set(name, value);
         });
       }
     }
@@ -97,7 +103,14 @@ export async function POST(request: NextRequest) {
   });
 
   if (error || !data.user) {
-    return privateRedirect(new URL("/login?localError=sign-in", origin));
+    const errorResponse = privateRedirect(new URL("/login?localError=sign-in", origin));
+    response.cookies.getAll().forEach((cookie) => {
+      errorResponse.cookies.set(cookie);
+    });
+    Object.entries(authResponseHeaders).forEach(([name, value]) => {
+      errorResponse.headers.set(name, value);
+    });
+    return errorResponse;
   }
 
   await syncCurrentProfileFromAuthUser(data.user);

@@ -50,6 +50,7 @@ type PerformanceEventPayload = {
   serverAuthMs?: number | null;
   serverAuthEndedMs?: number | null;
   serverAuthMethod?: string | null;
+  serverAuthRefreshed?: boolean | null;
   serverAuthStartedMs?: number | null;
   serverCacheKeyVersion?: string | null;
   serverCacheLookupMs?: number | null;
@@ -59,6 +60,7 @@ type PerformanceEventPayload = {
   serverRequestId?: string | null;
   serverResultBytes?: number | null;
   serverResultRows?: number | null;
+  serverRouteEnteredMs?: number | null;
   serverRouteDataMs?: number | null;
   serverRouteDataEndedMs?: number | null;
   serverRouteDataStartedMs?: number | null;
@@ -280,7 +282,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { error } = await supabase.from("route_performance_events").insert({
+    const performanceEvent = {
       browser_family: inferBrowserFamily(request.headers.get("user-agent")),
       connect_ms: clampNumber(payload.connectMs),
       device_memory: clampDecimal(payload.deviceMemory, 512),
@@ -336,6 +338,8 @@ export async function POST(request: NextRequest) {
       server_auth_ms: clampNumber(payload.serverAuthMs),
       server_auth_ended_ms: clampNumber(payload.serverAuthEndedMs),
       server_auth_method: clampText(payload.serverAuthMethod, 64),
+      server_auth_refreshed:
+        typeof payload.serverAuthRefreshed === "boolean" ? payload.serverAuthRefreshed : null,
       server_auth_started_ms: clampNumber(payload.serverAuthStartedMs),
       server_cache_key_version: clampText(payload.serverCacheKeyVersion, 64),
       server_cache_lookup_ms: clampNumber(payload.serverCacheLookupMs),
@@ -345,6 +349,7 @@ export async function POST(request: NextRequest) {
       server_request_id: clampText(payload.serverRequestId, 180),
       server_result_bytes: clampNumber(payload.serverResultBytes, 100_000_000),
       server_result_rows: clampNumber(payload.serverResultRows, 100_000),
+      server_route_entered_ms: clampNumber(payload.serverRouteEnteredMs),
       server_route_data_ms: clampNumber(payload.serverRouteDataMs),
       server_route_data_ended_ms: clampNumber(payload.serverRouteDataEndedMs),
       server_route_data_started_ms: clampNumber(payload.serverRouteDataStartedMs),
@@ -374,7 +379,27 @@ export async function POST(request: NextRequest) {
       viewport_height: clampNumber(payload.viewportHeight, 100_000),
       viewport_width: viewportWidth,
       worker_start_ms: clampNumber(payload.workerStartMs)
-    });
+    };
+    let { error } = await supabase.from("route_performance_events").insert(performanceEvent);
+
+    // Keep the telemetry endpoint available while the additive migration is
+    // rolling out behind an already-deployed application revision.
+    if (
+      error?.code === "PGRST204" &&
+      (error.message.includes("server_auth_refreshed") ||
+        error.message.includes("server_route_entered_ms"))
+    ) {
+      const {
+        server_auth_refreshed: removedAuthRefreshed,
+        server_route_entered_ms: removedRouteEntered,
+        ...legacyPerformanceEvent
+      } = performanceEvent;
+      void removedAuthRefreshed;
+      void removedRouteEntered;
+      ({ error } = await supabase
+        .from("route_performance_events")
+        .insert(legacyPerformanceEvent));
+    }
 
     if (error) {
       throw error;

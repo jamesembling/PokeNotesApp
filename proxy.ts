@@ -9,6 +9,7 @@ import {
   PROXY_AUTH_DURATION_HEADER,
   PROXY_AUTH_ENDED_HEADER,
   PROXY_AUTH_METHOD_HEADER,
+  PROXY_AUTH_REFRESHED_HEADER,
   PROXY_AUTH_STARTED_HEADER,
   REQUEST_CORRELATION_HEADER,
   REQUEST_STARTED_HEADER
@@ -36,6 +37,7 @@ export async function proxy(request: NextRequest) {
   forwardedHeaders.delete(PROXY_AUTH_DURATION_HEADER);
   forwardedHeaders.delete(PROXY_AUTH_ENDED_HEADER);
   forwardedHeaders.delete(PROXY_AUTH_METHOD_HEADER);
+  forwardedHeaders.delete(PROXY_AUTH_REFRESHED_HEADER);
   forwardedHeaders.delete(PROXY_AUTH_STARTED_HEADER);
   forwardedHeaders.delete(REQUEST_CORRELATION_HEADER);
   forwardedHeaders.delete(REQUEST_STARTED_HEADER);
@@ -112,6 +114,10 @@ export async function proxy(request: NextRequest) {
     String(Math.max(0, authEndedAt - requestStartedAt))
   );
   forwardedHeaders.set(PROXY_AUTH_METHOD_HEADER, authMethod);
+  forwardedHeaders.set(
+    PROXY_AUTH_REFRESHED_HEADER,
+    responseCookiesToSet.length > 0 ? "1" : "0"
+  );
 
   logAuthDebug("proxy.getClaims", {
     path: requestPath,
