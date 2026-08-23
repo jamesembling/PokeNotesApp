@@ -43,6 +43,7 @@ const AUTOMATION_SESSION_KEY = "poke-notes:performance-automation";
 const NAVIGATION_RESOURCE_LOOKBACK_MS = 50;
 const LONG_TASK_ENTRY_RETENTION_MS = 300000;
 const HARD_LOAD_FALLBACK_MS = 10000;
+const ROUTE_DATA_PARSED_GRACE_MS = 1000;
 const ROUTE_DATA_OUTCOME_TIMEOUT_MS = 5000;
 const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -513,6 +514,7 @@ export function RoutePerformanceReporter() {
     }
 
     let outcomeReported = false;
+    let parsedFallbackId = 0;
     let timeoutId = 0;
 
     function reportRouteDataOutcome(
@@ -532,6 +534,7 @@ export function RoutePerformanceReporter() {
       }
 
       outcomeReported = true;
+      window.clearTimeout(parsedFallbackId);
       window.clearTimeout(timeoutId);
       const nav = getNavigationTiming();
       const measuredAt = performance.now();
@@ -583,8 +586,23 @@ export function RoutePerformanceReporter() {
     function handleParserTiming(event: Event) {
       const detail = (event as CustomEvent<{ phase?: string }>).detail;
       if (detail?.phase === "route-data-parsed") {
-        reportRouteDataOutcome("data-parsed");
+        scheduleParsedFallback();
       }
+    }
+
+    function scheduleParsedFallback() {
+      if (
+        outcomeReported ||
+        parsedFallbackId !== 0 ||
+        getParserTiming("route-data-parsed") === null
+      ) {
+        return;
+      }
+
+      parsedFallbackId = window.setTimeout(
+        () => reportRouteDataOutcome("data-parsed"),
+        ROUTE_DATA_PARSED_GRACE_MS
+      );
     }
 
     function handlePageHide() {
@@ -603,11 +621,12 @@ export function RoutePerformanceReporter() {
       if (getClientPaintTiming("route-data-visible") !== null) {
         reportRouteDataOutcome("data-seen");
       } else {
-        reportRouteDataOutcome("data-parsed");
+        scheduleParsedFallback();
       }
     });
 
     return () => {
+      window.clearTimeout(parsedFallbackId);
       window.clearTimeout(timeoutId);
       window.removeEventListener("pokenotes:route-client-paint", handleClientPaint);
       window.removeEventListener("pokenotes:route-parser-timing", handleParserTiming);

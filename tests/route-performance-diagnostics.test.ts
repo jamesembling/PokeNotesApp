@@ -99,6 +99,8 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(reporter, /submissionReason/);
   assert.match(reporter, /shellVisibleMs/);
   assert.match(reporter, /AUTOMATION_HASH = "#pokenotes-perf"/);
+  assert.match(reporter, /ROUTE_DATA_PARSED_GRACE_MS = 1000/);
+  assert.match(reporter, /scheduleParsedFallback/);
   assert.doesNotMatch(reporter, /userAgent:/);
 
   assert.match(route, /normalizeTelemetryPath/);

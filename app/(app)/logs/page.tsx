@@ -82,7 +82,6 @@ async function LogsDataRegion({
 
   return (
     <>
-      <ParserRouteTimingMarker phase="route-data-parsed" />
       <RouteDataTimingMarker
         cacheKeyVersion={diagnostics.cacheKeyVersion}
         cacheLookupMs={diagnostics.cacheLookupMs}
@@ -96,6 +95,7 @@ async function LogsDataRegion({
         supabaseMs={diagnostics.supabaseMs}
       />
       <LogsWorkspaceClient window={initialDataTiming.value.window} />
+      <ParserRouteTimingMarker phase="route-data-parsed" />
       <ClientRouteTimingMarker phase="route-content-visible" />
       <ClientRouteTimingMarker phase="route-data-visible" />
     </>
