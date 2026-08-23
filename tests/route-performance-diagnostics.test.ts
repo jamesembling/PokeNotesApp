@@ -70,6 +70,7 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   const route = source("app/api/performance-events/route.ts");
   const proxy = source("proxy.ts");
   const marker = source("components/ui/RouteTimingMarker.tsx");
+  const schema = source("schema.sql");
   const migration = source(
     "supabase/migrations/20260714182253_add_route_performance_diagnostics.sql"
   );
@@ -81,6 +82,9 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   );
   const phaseCorrelationMigration = source(
     "supabase/migrations/20260822233544_add_route_performance_phase_correlation.sql"
+  );
+  const cacheOutcomeMigration = source(
+    "supabase/migrations/20260823053632_expand_route_performance_cache_outcomes.sql"
   );
 
   assert.equal(ROUTE_REPORTER_VERSION, 5);
@@ -130,4 +134,13 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(phaseCorrelationMigration, /response_stream_ms/);
   assert.match(phaseCorrelationMigration, /submission_reason/);
   assert.match(phaseCorrelationMigration, /route-data/);
+  for (const cacheOutcome of [
+    "fallback-cache-error",
+    "fallback-invalid-payload",
+    "fallback-rpc-error"
+  ]) {
+    assert.match(marker, new RegExp(cacheOutcome));
+    assert.match(cacheOutcomeMigration, new RegExp(cacheOutcome));
+    assert.match(schema, new RegExp(cacheOutcome));
+  }
 });

@@ -1286,7 +1286,17 @@ create table public.route_performance_events (
   server_auth_started_ms  integer,
   server_cache_key_version text,
   server_cache_lookup_ms  integer,
-  server_cache_outcome    text check (server_cache_outcome is null or server_cache_outcome in ('fallback', 'hit', 'miss')),
+  server_cache_outcome    text check (
+    server_cache_outcome is null
+    or server_cache_outcome in (
+      'fallback',
+      'fallback-cache-error',
+      'fallback-invalid-payload',
+      'fallback-rpc-error',
+      'hit',
+      'miss'
+    )
+  ),
   server_function_region  text,
   server_mapping_ms       integer,
   server_request_id       text,
@@ -1361,7 +1371,7 @@ comment on column public.route_performance_events.request_correlation_id is
   'Opaque per-navigation identifier shared by document markers and correlated telemetry events.';
 
 comment on column public.route_performance_events.server_cache_outcome is
-  'Observed initial logs cache outcome for the request: hit, miss, or legacy fallback.';
+  'Observed initial logs cache outcome: hit, miss, legacy fallback, or a specific fallback failure reason.';
 
 
 -- ============================================================
