@@ -545,6 +545,7 @@ export function RoutePerformanceReporter() {
         ...getDeviceSnapshot(),
         ...getNavigationPhaseSnapshot(nav),
         ...getServerDiagnosticsSnapshot(),
+        ...getServerTimingSnapshot(0, measuredAt, nav),
         documentDecodedBodySizeBytes: nav?.decodedBodySize ?? null,
         documentEncodedBodySizeBytes: nav?.encodedBodySize ?? null,
         documentTransferSizeBytes: nav?.transferSize ?? null,
