@@ -499,8 +499,22 @@ export async function getInitialLogsPageDataWithClientDiagnostics(
   });
   const supabaseMs = Math.max(0, Math.round(performance.now() - supabaseStartedAt));
 
-  if (error || !data || Array.isArray(data) || typeof data !== "object") {
+  if (error) {
     return {
+      error,
+      failureReason: "rpc-error" as const,
+      mappingMs: null,
+      resultBytes: null,
+      resultRows: null,
+      supabaseMs,
+      value: null
+    };
+  }
+
+  if (!data || Array.isArray(data) || typeof data !== "object") {
+    return {
+      error: new Error("Initial logs RPC returned a non-object payload."),
+      failureReason: "invalid-payload" as const,
       mappingMs: null,
       resultBytes: null,
       resultRows: null,
@@ -512,6 +526,8 @@ export async function getInitialLogsPageDataWithClientDiagnostics(
   const payload = data as InitialLogsPageDataRpcRow;
   if (!Array.isArray(payload.logs)) {
     return {
+      error: new Error("Initial logs RPC payload did not contain a logs array."),
+      failureReason: "invalid-payload" as const,
       mappingMs: null,
       resultBytes: null,
       resultRows: null,
@@ -537,6 +553,8 @@ export async function getInitialLogsPageDataWithClientDiagnostics(
   };
 
   return {
+    error: null,
+    failureReason: null,
     mappingMs: Math.max(0, Math.round(performance.now() - mappingStartedAt)),
     resultBytes: new TextEncoder().encode(JSON.stringify(value)).byteLength,
     resultRows: rows.length,

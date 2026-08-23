@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { AUTH_CLAIMS_HEADER, readAuthClaimsHeader } from "@/lib/server/auth-claim-header";
 import { measureServerCall } from "@/lib/server/perf";
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedClaims } from "@/lib/supabase/verified-claims";
 
 type AuthenticatedUser = Pick<
   User,
@@ -102,9 +103,10 @@ export const getCurrentUser = cache(async (): Promise<AuthenticatedUser | null> 
   }
 
   const supabase = await createClient();
-  const { data, error } = await measureServerCall("auth.getClaims", () =>
-    supabase.auth.getClaims()
+  const { result } = await measureServerCall("auth.getClaims", () =>
+    getVerifiedClaims(supabase)
   );
+  const { data, error } = result;
 
   if (error) {
     throw error;

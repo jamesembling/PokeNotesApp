@@ -161,7 +161,7 @@ async function loadInitialLogsPageData(userId: string) {
     diagnostics: {
       cacheKeyVersion: cachedReadModel.diagnostics.cacheKeyVersion,
       cacheLookupMs: cachedReadModel.diagnostics.cacheLookupMs,
-      cacheOutcome: "fallback" as const,
+      cacheOutcome: cachedReadModel.diagnostics.cacheOutcome,
       mappingMs: null,
       resultBytes: new TextEncoder().encode(JSON.stringify({ stats, window: hydratedWindow }))
         .byteLength,

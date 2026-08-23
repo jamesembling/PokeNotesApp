@@ -2,6 +2,8 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_CLAIMS_HEADER, createAuthClaimsHeader } from "@/lib/server/auth-claim-header";
 import { logAuthDebug } from "@/lib/server/auth-debug";
+import { getVerifiedClaims } from "@/lib/supabase/verified-claims";
+import type { Database } from "@/types/supabase";
 import {
   measureServerCallWithTiming,
   PROXY_AUTH_DURATION_HEADER,
@@ -51,7 +53,7 @@ export async function proxy(request: NextRequest) {
     }
   });
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -95,10 +97,11 @@ export async function proxy(request: NextRequest) {
   const authStartedAt = Date.now();
   const claimsTiming = await measureServerCallWithTiming(
     "proxy.auth.getClaims",
-    async () => await supabase.auth.getClaims()
+    async () => await getVerifiedClaims(supabase, supabaseUrl)
   );
   const authEndedAt = Date.now();
-  const { data, error } = claimsTiming.value;
+  const { method: authMethod, result: claimsResult } = claimsTiming.value;
+  const { data, error } = claimsResult;
   forwardedHeaders.set(PROXY_AUTH_DURATION_HEADER, String(claimsTiming.durationMs));
   forwardedHeaders.set(
     PROXY_AUTH_STARTED_HEADER,
@@ -108,7 +111,7 @@ export async function proxy(request: NextRequest) {
     PROXY_AUTH_ENDED_HEADER,
     String(Math.max(0, authEndedAt - requestStartedAt))
   );
-  forwardedHeaders.set(PROXY_AUTH_METHOD_HEADER, "getClaims");
+  forwardedHeaders.set(PROXY_AUTH_METHOD_HEADER, authMethod);
 
   logAuthDebug("proxy.getClaims", {
     path: requestPath,

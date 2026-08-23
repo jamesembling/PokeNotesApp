@@ -77,7 +77,12 @@ export async function RouteDataTimingMarker({
 }: {
   cacheKeyVersion: string;
   cacheLookupMs: number;
-  cacheOutcome: "fallback" | "hit" | "miss";
+  cacheOutcome:
+    | "fallback-cache-error"
+    | "fallback-invalid-payload"
+    | "fallback-rpc-error"
+    | "hit"
+    | "miss";
   durationMs: number;
   endedAtEpochMs: number;
   mappingMs: number | null;
