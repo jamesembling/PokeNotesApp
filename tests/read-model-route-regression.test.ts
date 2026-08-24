@@ -178,30 +178,25 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
   assert.doesNotMatch(logsDb, /from\("logs"\)[\s\S]{0,300}opponent_deck_slug[\s\S]{0,300}group/);
 });
 
-test("/logs streams an immediate fallback and one shared data promise", () => {
-  const page = source("app/(app)/logs/page.tsx");
+test("/logs serves a request-independent shell and loads one private bootstrap model", () => {
+  const page = source("app/(public-app)/logs/page.tsx");
+  const bootstrapClient = source("components/ui/LogsBootstrapClient.tsx");
+  const bootstrapRoute = source("app/api/logs/bootstrap/route.ts");
   const loader = source("lib/server/logs-page-data.ts");
   const frame = source("components/ui/LogsWorkspaceFrame.tsx");
-  const loading = source("app/(app)/logs/loading.tsx");
 
   assert.equal(existsSync(join(process.cwd(), "app/(app)/loading.tsx")), false);
-  assert.equal(existsSync(join(process.cwd(), "app/(app)/logs/loading.tsx")), true);
-  assert.match(loading, /<LogsLastKnownState \/>/);
   for (const segment of ["calculator", "deck-lists", "decks", "profile", "stats", "tournaments"]) {
     assert.equal(existsSync(join(process.cwd(), `app/(app)/${segment}/loading.tsx`)), true);
   }
-  assert.match(page, /loadInitialLogsPageData/);
+  assert.match(page, /LogsBootstrapClient/);
+  assert.doesNotMatch(page, /requireUser|cookies\(\)|headers\(\)|loadInitialLogsPageData/);
+  assert.match(bootstrapClient, /fetch\("\/api\/logs\/bootstrap"/);
+  assert.match(bootstrapRoute, /getVerifiedClaims/);
+  assert.match(bootstrapRoute, /loadInitialLogsPageData/);
   assert.match(loader, /getCachedInitialLogsPageDataWithDiagnostics/);
-  assert.match(page, /const initialDataPromise = measureServerCallWithTimeline/);
-  assert.match(page, /<Suspense fallback=\{<LogsLastKnownStats \/>\}>/);
-  assert.match(page, /<Suspense fallback=\{<LogsLastKnownContent \/>\}>/);
-  assert.match(page, /initialDataPromise=\{initialDataPromise\}/);
-  assert.match(page, /measureServerCallWithTimeline\(\s*"page\.logs\.initialData"/);
-  assert.match(page, /phase="route-data-visible"/);
-  assert.match(page, /candidate === "delay-1000"/);
-  assert.match(page, /candidate === "delay-400"/);
-  assert.match(page, /candidate === "shell-only"/);
-  assert.match(page, /phase="route-data-parsed"/);
+  assert.match(bootstrapClient, /phase="route-data-visible"/);
+  assert.match(bootstrapClient, /data-route-parser-timing="route-data-parsed"/);
   assert.match(frame, /phase="route-shell-visible"/);
   assert.match(frame, /phase="route-shell-parsed"/);
   assert.match(frame, /title="Battle Logs"/);

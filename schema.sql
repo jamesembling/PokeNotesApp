@@ -1264,7 +1264,7 @@ create table public.route_performance_events (
   parser_data_ms          integer,
   parser_shell_ms         integer,
   performance_variant     text
-                          check (performance_variant is null or performance_variant in ('logs-delay-400', 'logs-delay-1000', 'logs-narrow-suspense', 'logs-public-shell-canary', 'logs-shell-only')),
+                          check (performance_variant is null or performance_variant in ('logs-delay-400', 'logs-delay-1000', 'logs-narrow-suspense', 'logs-public-shell', 'logs-public-shell-canary', 'logs-shell-only')),
   reporter_version        smallint not null default 1 check (reporter_version > 0),
   resource_count          integer,
   request_correlation_id  text,

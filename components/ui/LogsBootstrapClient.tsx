@@ -59,7 +59,11 @@ type BootstrapState =
   | { message: string; status: "error"; unauthorized: boolean }
   | { parsedAtMs: number; payload: BootstrapPayload; status: "ready" };
 
-export function PublicLogsCanaryClient() {
+type LogsBootstrapClientProps = {
+  performanceVariant: "logs-public-shell" | "logs-public-shell-canary";
+};
+
+export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientProps) {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<BootstrapState>({ status: "loading" });
   const startedAttemptRef = useRef(-1);
@@ -108,11 +112,16 @@ export function PublicLogsCanaryClient() {
         setState({ parsedAtMs, payload, status: "ready" });
       })
       .catch((error: Error & { unauthorized?: boolean }) => {
+        const unauthorized = error.unauthorized === true;
         setState({
           message: error.message || "Your battle logs could not be loaded.",
           status: "error",
-          unauthorized: error.unauthorized === true
+          unauthorized
         });
+
+        if (unauthorized) {
+          window.location.replace("/login");
+        }
       });
   }, [attempt]);
 
@@ -130,7 +139,7 @@ export function PublicLogsCanaryClient() {
   return (
     <LogsWorkspaceFrame
       isLoading={state.status !== "ready"}
-      performanceVariant="logs-public-shell-canary"
+      performanceVariant={performanceVariant}
       stats={stats}
     >
       {state.status === "loading" ? <LogsWorkspaceSkeleton /> : null}

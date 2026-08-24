@@ -28,9 +28,12 @@ test("GitHub workflows pin their Node action releases", () => {
   const databaseWorkflow = source(".github/workflows/deploy-production-database.yml");
   const checkoutV7 = /actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\.0\.1/;
   const setupNodeV7 = /actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7\.0\.0/;
+  const setupSupabaseV3 = /supabase\/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3\.0\.0/;
 
   assert.match(ciWorkflow, checkoutV7);
   assert.match(ciWorkflow, setupNodeV7);
   assert.match(databaseWorkflow, checkoutV7);
+  assert.match(databaseWorkflow, setupSupabaseV3);
   assert.doesNotMatch(`${ciWorkflow}\n${databaseWorkflow}`, /actions\/(?:checkout|setup-node)@v4|# v4/);
+  assert.doesNotMatch(databaseWorkflow, /supabase\/setup-cli@.*# v1/);
 });

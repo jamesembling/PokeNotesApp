@@ -92,6 +92,9 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   const responseBoundariesMigration = source(
     "supabase/migrations/20260824091943_add_final_navigation_response_timings.sql"
   );
+  const promotedShellMigration = source(
+    "supabase/migrations/20260824120021_promote_logs_public_shell.sql"
+  );
 
   assert.equal(ROUTE_REPORTER_VERSION, 7);
   assert.match(reporter, /finalResponseHeadersStartMs/);
@@ -153,6 +156,7 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(responseBoundariesMigration, /final_response_headers_start_ms/);
   assert.match(responseBoundariesMigration, /first_interim_response_start_ms/);
   assert.match(responseBoundariesMigration, /logs-public-shell-canary/);
+  assert.match(promotedShellMigration, /logs-public-shell/);
   assert.match(schema, /final_response_headers_start_ms/);
   assert.match(schema, /first_interim_response_start_ms/);
   assert.match(schema, /server_route_entered_ms/);

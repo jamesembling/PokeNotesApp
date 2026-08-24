@@ -98,6 +98,7 @@ const PERFORMANCE_VARIANTS = new Set([
   "logs-delay-400",
   "logs-delay-1000",
   "logs-narrow-suspense",
+  "logs-public-shell",
   "logs-public-shell-canary",
   "logs-shell-only"
 ]);

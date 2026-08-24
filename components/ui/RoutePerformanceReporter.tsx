@@ -52,6 +52,10 @@ const ROUTE_DATA_OUTCOME_TIMEOUT_MS = 5000;
 const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function isLogsBootstrapVariant(variant: string | null) {
+  return variant === "logs-public-shell" || variant === "logs-public-shell-canary";
+}
+
 function normalizePath(path: string) {
   const [pathname] = path.split(/[?#]/);
 
@@ -465,7 +469,7 @@ export function RoutePerformanceReporter() {
       }
 
       if (
-        getPerformanceVariant() === "logs-public-shell-canary" &&
+        isLogsBootstrapVariant(getPerformanceVariant()) &&
         document.documentElement.dataset.logsBootstrapSettled !== "true"
       ) {
         if (!waitingForLogsBootstrap) {

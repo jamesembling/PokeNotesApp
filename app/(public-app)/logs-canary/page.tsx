@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PublicLogsCanaryClient } from "@/components/ui/PublicLogsCanaryClient";
+import { LogsBootstrapClient } from "@/components/ui/LogsBootstrapClient";
 
 export const metadata: Metadata = {
   robots: {
@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function PublicLogsCanaryPage() {
-  return <PublicLogsCanaryClient />;
+  return <LogsBootstrapClient performanceVariant="logs-public-shell-canary" />;
 }
