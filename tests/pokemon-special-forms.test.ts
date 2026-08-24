@@ -20,13 +20,42 @@ async function loadModule(): Promise<SpecialFormsModule> {
   return import("../lib/pokemon-catalog/special-forms.mjs") as Promise<SpecialFormsModule>;
 }
 
-test("buildSpecialPokemonCatalogRows includes the supported special-form catalog entries", async () => {
+test("buildSpecialPokemonCatalogRows applies the category and metadata decision table", async () => {
   const { buildSpecialPokemonCatalogRows } = await loadModule();
-  const rows = buildSpecialPokemonCatalogRows({ category: "special-form", lastSyncedAt: "2026-04-19T00:00:00.000Z" });
-  const slugs = rows.map((row) => row.slug);
+  const cases = [
+    {
+      name: "special-form catalog rows",
+      category: "special-form",
+      expectedCount: 8
+    },
+    {
+      name: "mega catalog rows",
+      category: "mega"
+    }
+  ];
 
-  assert.equal(slugs.length, 8);
-  assert.deepEqual(new Set(slugs), new Set([
+  const rowsByCategory = new Map(
+    cases.map((scenario) => {
+      const rows = buildSpecialPokemonCatalogRows({
+        category: scenario.category,
+        lastSyncedAt: "2026-04-19T00:00:00.000Z"
+      });
+      assert(rows.length > 0, `${scenario.name}: rows exist`);
+      if (scenario.expectedCount !== undefined) {
+        assert.equal(rows.length, scenario.expectedCount, `${scenario.name}: row count`);
+      }
+      assert.equal(new Set(rows.map((row) => row.slug)).size, rows.length, `${scenario.name}: unique slugs`);
+      assert(rows.every((row) => row.last_synced_at === "2026-04-19T00:00:00.000Z"), `${scenario.name}: sync timestamp`);
+      return [scenario.category, rows] as const;
+    })
+  );
+
+  const specialRows = rowsByCategory.get("special-form");
+  assert(specialRows);
+  const specialSlugs = specialRows.map((row) => row.slug);
+
+  assert.equal(specialSlugs.length, 8);
+  assert.deepEqual(new Set(specialSlugs), new Set([
     "ursaluna-bloodmoon",
     "ogerpon-cornerstone",
     "ogerpon-hearthflame",
@@ -36,13 +65,11 @@ test("buildSpecialPokemonCatalogRows includes the supported special-form catalog
     "ogerpon-wellspring",
     "zoroark-hisui"
   ]));
-  assert.equal(rows.find((row) => row.slug === "dialga-origin")?.label, "Origin Forme Dialga");
-  assert.equal(rows.find((row) => row.slug === "zoroark-hisui")?.sprite_url, "https://r2.limitlesstcg.net/pokemon/gen9/zoroark-hisui.png");
-});
+  assert.equal(specialRows.find((row) => row.slug === "dialga-origin")?.label, "Origin Forme Dialga");
+  assert.equal(specialRows.find((row) => row.slug === "zoroark-hisui")?.sprite_url, "https://r2.limitlesstcg.net/pokemon/gen9/zoroark-hisui.png");
 
-test("buildSpecialPokemonCatalogRows includes current Mega forms", async () => {
-  const { buildSpecialPokemonCatalogRows } = await loadModule();
-  const rows = buildSpecialPokemonCatalogRows({ category: "mega", lastSyncedAt: "2026-04-19T00:00:00.000Z" });
+  const rows = rowsByCategory.get("mega");
+  assert(rows);
   const greninja = rows.find((row) => row.slug === "greninja-mega");
 
   assert(greninja);

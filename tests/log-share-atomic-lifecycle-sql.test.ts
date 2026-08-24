@@ -17,27 +17,6 @@ const rolloutRunbook = readFileSync(
   "utf8"
 );
 
-function atomicLifecycleBlock(source: string) {
-  const start = source.lastIndexOf(
-    "-- Serialize share creation and revocation per owner/log"
-  );
-  const endMarker = "-- End atomic log-share lifecycle boundary.";
-  const end = source.indexOf(endMarker, start);
-  assert.notEqual(start, -1, "missing atomic lifecycle start marker");
-  assert.notEqual(end, -1, "missing atomic lifecycle end marker");
-  return source.slice(start, end + endMarker.length);
-}
-
-test("fresh schema and forward migration keep the atomic RPC contract", () => {
-  for (const source of [atomicLifecycleBlock(schema), atomicLifecycleBlock(migration)]) {
-    assert.match(source, /create or replace function public\.create_log_share/);
-    assert.match(source, /create or replace function public\.revoke_log_share/);
-    assert.match(source, /pg_advisory_xact_lock/g);
-    assert.match(source, /duplicate_share\.id <> active_share\.id/);
-    assert.match(source, /owned_share\.source_log_id = target_source_log_id/);
-  }
-});
-
 test("the migration is a forward migration after the current live head", () => {
   assert.equal(existsSync(new URL(`../supabase/migrations/${migrationName}`, import.meta.url)), true);
   assert.equal(

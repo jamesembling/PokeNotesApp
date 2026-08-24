@@ -17,6 +17,17 @@ function createEvidence(slugs: string[]): PlayerPokemonEvidence {
   };
 }
 
+function createEvidenceWithCounts(
+  counts: Array<[string, number]>,
+  normalizedText = ""
+): PlayerPokemonEvidence {
+  return {
+    lines: [],
+    normalizedText,
+    mentionCounts: new Map(counts)
+  };
+}
+
 function createCatalog(): IdentificationCatalog {
   return {
     pokemon: {
@@ -255,249 +266,188 @@ function addPokemon(
   catalog.pokemon.slugToFamilyRoot.set(slug, ancestors[ancestors.length - 1] ?? slug);
 }
 
-test("identifyLikelyArchetype prefers multi-piece archetypes when more required groups are satisfied", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: {
-      lines: [],
-      normalizedText: "dragapult ex",
-      mentionCounts: new Map([
-        ["dreepy", 1],
-        ["drakloak", 8],
-        ["dragapult", 1],
-        ["torchic", 2],
-        ["combusken", 1]
-      ])
+test("identifyLikelyArchetype applies the candidate scoring decision table", () => {
+  const cases = [
+    {
+      name: "prefers the multi-piece archetype with more matched groups",
+      evidence: () =>
+        createEvidenceWithCounts(
+          [["dreepy", 1], ["drakloak", 8], ["dragapult", 1], ["torchic", 2], ["combusken", 1]],
+          "dragapult ex"
+        ),
+      expected: {
+        archetypeId: "blaziken+dragapult",
+        label: "Dragapult / Blaziken",
+        sprites: ["dragapult", "blaziken"],
+        confidence: 108
+      }
     },
-    catalog
-  });
-
-  assert.deepEqual(result, {
-    archetypeId: "blaziken+dragapult",
-    label: "Dragapult / Blaziken",
-    sprites: ["dragapult", "blaziken"],
-    confidence: 108
-  });
-});
-
-test("identifyLikelyArchetype requires every configured match group to be satisfied", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: createEvidence(["charizard"]),
-    catalog
-  });
-
-  assert.equal(result, null);
-});
-
-test("identifyLikelyArchetype counts pre-evolutions toward required match groups", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: createEvidence(["charmeleon", "pidgey"]),
-    catalog
-  });
-
-  assert.deepEqual(result, {
-    archetypeId: "charizard-pidgeot",
-    label: "Charizard / Pidgeot",
-    sprites: ["charizard", "pidgeot"],
-    confidence: 66
-  });
-});
-
-test("identifyLikelyArchetype does not satisfy Dusknoir evidence with Dragapult pre-evolutions", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: {
-      lines: [],
-      normalizedText: "dragapult ex",
-      mentionCounts: new Map([
-        ["dreepy", 3],
-        ["drakloak", 5],
-        ["dragapult", 1]
-      ])
+    {
+      name: "requires every configured match group",
+      evidence: () => createEvidence(["charizard"]),
+      expected: null
     },
-    catalog
-  });
-
-  assert.deepEqual(result, {
-    archetypeId: "dragapult",
-    label: "Dragapult",
-    sprites: ["dragapult"],
-    confidence: 166
-  });
-});
-
-test("identifyLikelyArchetype preserves legacy matching for archetypes without required groups", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: createEvidence(["snorlax"]),
-    catalog
-  });
-
-  assert.deepEqual(result, {
-    archetypeId: "snorlax",
-    label: "Snorlax",
-    sprites: ["snorlax"],
-    confidence: 21
-  });
-});
-
-test("identifyLikelyArchetype does not match two-piece archetypes from one populated identify group", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: createEvidence(["zorua", "zoroark", "deino", "zweilous", "hydreigon"]),
-    catalog
-  });
-
-  assert.equal(result, null);
-});
-
-test("identifyLikelyArchetype matches two-piece archetypes when both pieces are present", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: createEvidence(["zorua", "darmanitan"]),
-    catalog
-  });
-
-  assert.deepEqual(result, {
-    archetypeId: "darmanitan+zoroark",
-    label: "Zoroark / Darmanitan",
-    sprites: ["zoroark", "darmanitan"],
-    confidence: 81
-  });
-});
-
-test("identifyLikelyArchetype identifies Mega Starmie / Mega Froslass from Staryu and Froslass evidence", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: {
-      lines: [],
-      normalizedText: "",
-      mentionCounts: new Map([
-        ["froslass", 3],
-        ["froslass-mega", 2],
-        ["munkidori", 7],
-        ["snorunt", 5],
-        ["staryu", 2]
-      ])
+    {
+      name: "counts pre-evolutions toward required groups",
+      evidence: () => createEvidence(["charmeleon", "pidgey"]),
+      expected: {
+        archetypeId: "charizard-pidgeot",
+        label: "Charizard / Pidgeot",
+        sprites: ["charizard", "pidgeot"],
+        confidence: 66
+      }
     },
-    catalog
-  });
-
-  assert.deepEqual(result, {
-    archetypeId: "froslass-mega+starmie-mega",
-    label: "Mega Starmie / Mega Froslass",
-    sprites: ["starmie-mega", "froslass-mega"],
-    confidence: 104
-  });
-});
-
-test("identifyLikelyArchetype identifies Hydrapple / Teal Mask Ogerpon from Applin-line and Ogerpon evidence", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: createEvidence(["applin", "ogerpon"]),
-    catalog
-  });
-
-  assert.deepEqual(result, {
-    archetypeId: "hydrapple+ogerpon",
-    label: "Hydrapple / Teal Mask Ogerpon",
-    sprites: ["hydrapple", "ogerpon"],
-    confidence: 82
-  });
-});
-
-test("identifyLikelyArchetype does not identify Hydrapple / Teal Mask Ogerpon from Ogerpon alone", () => {
-  const catalog = createCatalog();
-
-  const result = identifyLikelyArchetype({
-    evidence: createEvidence(["ogerpon"]),
-    catalog
-  });
-
-  assert.equal(result, null);
-});
-
-test("selectDeckSprites does not let a one-off single-sprite archetype override stronger family evidence", () => {
-  const catalog = createCatalog();
-  addPokemon(catalog, "riolu");
-  addPokemon(catalog, "lucario-mega", ["riolu"]);
-  addPokemon(catalog, "okidogi");
-  addPokemon(catalog, "fezandipiti");
-  addPokemon(catalog, "lunatone");
-  addPokemon(catalog, "solrock");
-
-  const archetype: NonNullable<ArchetypeIdentification> = {
-    archetypeId: "okidogi",
-    label: "Okidogi",
-    sprites: ["okidogi"],
-    confidence: 147
-  };
-
-  const result = selectDeckSprites({
-    archetype,
-    evidence: {
-      lines: [],
-      normalizedText: "okidogi",
-      mentionCounts: new Map([
-        ["riolu", 9],
-        ["lucario-mega", 5],
-        ["fezandipiti", 2],
-        ["lunatone", 2],
-        ["solrock", 2],
-        ["okidogi", 1]
-      ])
+    {
+      name: "does not satisfy Dusknoir with Dragapult evidence",
+      evidence: () =>
+        createEvidenceWithCounts(
+          [["dreepy", 3], ["drakloak", 5], ["dragapult", 1]],
+          "dragapult ex"
+        ),
+      expected: {
+        archetypeId: "dragapult",
+        label: "Dragapult",
+        sprites: ["dragapult"],
+        confidence: 166
+      }
     },
-    catalog
-  });
+    {
+      name: "preserves legacy matching without required groups",
+      evidence: () => createEvidence(["snorlax"]),
+      expected: {
+        archetypeId: "snorlax",
+        label: "Snorlax",
+        sprites: ["snorlax"],
+        confidence: 21
+      }
+    },
+    {
+      name: "rejects a two-piece archetype with one populated group",
+      evidence: () => createEvidence(["zorua", "zoroark", "deino", "zweilous", "hydreigon"]),
+      expected: null
+    },
+    {
+      name: "matches a two-piece archetype when both groups are present",
+      evidence: () => createEvidence(["zorua", "darmanitan"]),
+      expected: {
+        archetypeId: "darmanitan+zoroark",
+        label: "Zoroark / Darmanitan",
+        sprites: ["zoroark", "darmanitan"],
+        confidence: 81
+      }
+    },
+    {
+      name: "identifies Mega Starmie and Mega Froslass from family evidence",
+      evidence: () =>
+        createEvidenceWithCounts([
+          ["froslass", 3],
+          ["froslass-mega", 2],
+          ["munkidori", 7],
+          ["snorunt", 5],
+          ["staryu", 2]
+        ]),
+      expected: {
+        archetypeId: "froslass-mega+starmie-mega",
+        label: "Mega Starmie / Mega Froslass",
+        sprites: ["starmie-mega", "froslass-mega"],
+        confidence: 104
+      }
+    },
+    {
+      name: "identifies Hydrapple and Ogerpon from both groups",
+      evidence: () => createEvidence(["applin", "ogerpon"]),
+      expected: {
+        archetypeId: "hydrapple+ogerpon",
+        label: "Hydrapple / Teal Mask Ogerpon",
+        sprites: ["hydrapple", "ogerpon"],
+        confidence: 82
+      }
+    },
+    {
+      name: "does not identify Hydrapple and Ogerpon from Ogerpon alone",
+      evidence: () => createEvidence(["ogerpon"]),
+      expected: null
+    }
+  ];
 
-  assert.deepEqual(result, {
-    slugs: ["lucario-mega", "fezandipiti"],
-    confidence: 10,
-    selectionSource: "fallback"
-  });
+  for (const scenario of cases) {
+    assert.deepEqual(
+      identifyLikelyArchetype({ evidence: scenario.evidence(), catalog: createCatalog() }),
+      scenario.expected,
+      scenario.name
+    );
+  }
 });
 
-test("selectDeckSprites keeps a single-sprite archetype when it matches the strongest family", () => {
-  const catalog = createCatalog();
-  addPokemon(catalog, "dreepy");
-  addPokemon(catalog, "dragapult", ["drakloak", "dreepy"]);
-  addPokemon(catalog, "fezandipiti");
+test("selectDeckSprites applies the archetype and fallback family decision table", () => {
+  const cases = [
+    {
+      name: "falls back when a one-off archetype has a different family",
+      run: () => {
+        const catalog = createCatalog();
+        addPokemon(catalog, "riolu");
+        addPokemon(catalog, "lucario-mega", ["riolu"]);
+        addPokemon(catalog, "okidogi");
+        addPokemon(catalog, "fezandipiti");
+        addPokemon(catalog, "lunatone");
+        addPokemon(catalog, "solrock");
 
-  const archetype: NonNullable<ArchetypeIdentification> = {
-    archetypeId: "dragapult",
-    label: "Dragapult",
-    sprites: ["dragapult"],
-    confidence: 166
-  };
-
-  const result = selectDeckSprites({
-    archetype,
-    evidence: {
-      lines: [],
-      normalizedText: "dragapult",
-      mentionCounts: new Map([
-        ["dreepy", 9],
-        ["dragapult", 1],
-        ["fezandipiti", 2]
-      ])
+        return selectDeckSprites({
+          archetype: {
+            archetypeId: "okidogi",
+            label: "Okidogi",
+            sprites: ["okidogi"],
+            confidence: 147
+          },
+          evidence: createEvidenceWithCounts([
+            ["riolu", 9],
+            ["lucario-mega", 5],
+            ["fezandipiti", 2],
+            ["lunatone", 2],
+            ["solrock", 2],
+            ["okidogi", 1]
+          ], "okidogi"),
+          catalog
+        });
+      },
+      expected: {
+        slugs: ["lucario-mega", "fezandipiti"],
+        confidence: 10,
+        selectionSource: "fallback"
+      }
     },
-    catalog
-  });
+    {
+      name: "keeps a one-off archetype from the strongest family",
+      run: () => {
+        const catalog = createCatalog();
+        addPokemon(catalog, "dreepy");
+        addPokemon(catalog, "dragapult", ["drakloak", "dreepy"]);
+        addPokemon(catalog, "fezandipiti");
 
-  assert.deepEqual(result, {
-    slugs: ["dragapult"],
-    confidence: 166,
-    selectionSource: "archetype"
-  });
+        return selectDeckSprites({
+          archetype: {
+            archetypeId: "dragapult",
+            label: "Dragapult",
+            sprites: ["dragapult"],
+            confidence: 166
+          },
+          evidence: createEvidenceWithCounts([
+            ["dreepy", 9],
+            ["dragapult", 1],
+            ["fezandipiti", 2]
+          ], "dragapult"),
+          catalog
+        });
+      },
+      expected: {
+        slugs: ["dragapult"],
+        confidence: 166,
+        selectionSource: "archetype"
+      }
+    }
+  ];
+
+  for (const scenario of cases) {
+    assert.deepEqual(scenario.run(), scenario.expected, scenario.name);
+  }
 });

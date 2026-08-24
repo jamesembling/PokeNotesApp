@@ -2,7 +2,6 @@ import { type ReactNode } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/shadcn/sidebar";
 import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker";
 import { DeferredSidebarAccount } from "@/components/ui/DeferredSidebarAccount";
-import { RoutePerformanceReporter } from "@/components/ui/RoutePerformanceReporter";
 import { Sidebar, SidebarMobileTopbar } from "@/components/ui/Sidebar";
 import { SidebarThemeToggle } from "@/components/ui/SidebarThemeToggle";
 import { ImportDialogDataProvider } from "@/components/ui/ImportDialogDataProvider";
@@ -21,12 +20,14 @@ export type AppShellProfileResult = {
 };
 
 type AppShellProps = {
+  account?: ReactNode;
   children: ReactNode;
   initialProfileResult?: AppShellProfileResult;
   waitForBootstrapBeforeProfile?: boolean;
 };
 
 export function AppShell({
+  account,
   children,
   initialProfileResult,
   waitForBootstrapBeforeProfile = false
@@ -42,10 +43,12 @@ export function AppShell({
         </a>
         <Sidebar
           account={
-            <DeferredSidebarAccount
-              initialResult={initialProfileResult}
-              waitForBootstrap={waitForBootstrapBeforeProfile}
-            />
+            account ?? (
+              <DeferredSidebarAccount
+                initialResult={initialProfileResult}
+                waitForBootstrap={waitForBootstrapBeforeProfile}
+              />
+            )
           }
         />
         <SidebarInset id="main-content" tabIndex={-1}>
@@ -59,7 +62,6 @@ export function AppShell({
             <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6">{children}</div>
           </div>
         </SidebarInset>
-        <RoutePerformanceReporter />
       </SidebarProvider>
     </ImportDialogDataProvider>
   );

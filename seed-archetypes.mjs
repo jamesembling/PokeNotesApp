@@ -602,7 +602,10 @@ function buildUpsertRows(entries, existingExcludedIds) {
 }
 
 async function deleteMissingRows(activeIds) {
-  const { data, error } = await supabase.from(ARCHETYPE_TABLE).select("id");
+  const { data, error } = await supabase
+    .from(ARCHETYPE_TABLE)
+    .select("id")
+    .eq("source", "curated");
 
   if (error) {
     throw new Error(`Failed to load existing archetype ids: ${error.message}`);

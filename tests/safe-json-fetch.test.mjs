@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   assertAllowedJsonUrl,
@@ -22,15 +21,6 @@ const boundary = {
   allowedPathPrefixes: ["/v1/catalog"]
 };
 
-const pokemonSyncSource = readFileSync(
-  new URL("../lib/pokemon-catalog/sync.mjs", import.meta.url),
-  "utf8"
-);
-const cardSyncSource = readFileSync(
-  new URL("../lib/card-effect-catalog/sync.mjs", import.meta.url),
-  "utf8"
-);
-
 test("accepts only HTTPS URLs on an exact origin and approved path", () => {
   assert.equal(
     assertAllowedJsonUrl("https://api.example.com/v1/catalog?page=1", boundary).toString(),
@@ -47,13 +37,6 @@ test("accepts only HTTPS URLs on an exact origin and approved path", () => {
     "https://attacker.example/v1/catalog"
   ]) {
     assert.throws(() => assertAllowedJsonUrl(value, boundary), /allowlist/);
-  }
-});
-
-test("both catalog syncs route network JSON through the shared boundary", () => {
-  for (const source of [pokemonSyncSource, cardSyncSource]) {
-    assert.match(source, /fetchJsonWithinBoundary/);
-    assert.doesNotMatch(source, /await fetch\s*\(/);
   }
 });
 

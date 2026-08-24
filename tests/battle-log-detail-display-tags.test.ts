@@ -9,182 +9,190 @@ import {
   isCardListDetail
 } from "@/lib/battle-log/detail-display";
 
-test("catalog-resolved ability tags are not reclassified as attacks", () => {
-  assert.equal(
-    getDisplayActionTag("iBerzrk_Network's Drakloak used Recon Directive.", [], {
-      label: "Ability",
-      tag: "ability"
-    }),
-    "ability"
-  );
-});
-
-test("unresolved possessive used actions still fall back to attack display", () => {
-  assert.equal(
-    getDisplayActionTag("iBerzrk_Network's Budew used Itchy Pollen.", [], undefined),
-    "attack"
-  );
-});
-
-test("passive single-card discard details keep the discarded card name", () => {
-  assert.deepEqual(
-    getBattleLogDetailEvent("Ignition Energy was discarded from Greninja ex."),
+test("battle-log display tags preserve resolved values and promote ambiguous attacks", () => {
+  const directCases = [
     {
-      cards: ["Ignition Energy"],
-      icon: "discard",
-      label: "Discarded",
-      outcome: "1 card from Greninja ex"
+      name: "catalog-resolved ability wins over title heuristics",
+      title: "iBerzrk_Network's Drakloak used Recon Directive.",
+      details: [],
+      resolvedActionTag: { label: "Ability", tag: "ability" },
+      expected: "ability"
+    },
+    {
+      name: "unresolved possessive used action falls back to attack",
+      title: "iBerzrk_Network's Budew used Itchy Pollen.",
+      details: [],
+      resolvedActionTag: undefined,
+      expected: "attack"
     }
-  );
+  ] as const;
+
+  for (const scenario of directCases) {
+    assert.equal(
+      getDisplayActionTag(scenario.title, [...scenario.details], scenario.resolvedActionTag),
+      scenario.expected,
+      scenario.name
+    );
+  }
+
+  const overrideCases = [
+    {
+      name: "resolved ability override remains unchanged",
+      title: "iBerzrk_Network's Drakloak used Recon Directive.",
+      resolvedActionTag: { label: "Ability", tag: "ability" },
+      expected: { label: "Ability", tag: "ability" }
+    },
+    {
+      name: "unresolved attack gets an explicit override",
+      title: "iBerzrk_Network's Budew used Itchy Pollen.",
+      resolvedActionTag: undefined,
+      expected: { label: "Attack", tag: "attack" }
+    },
+    {
+      name: "resolved item override remains unchanged",
+      title: "JammerUK1993 played Buddy-Buddy Poffin.",
+      resolvedActionTag: { label: "Item", tag: "item" },
+      expected: { label: "Item", tag: "item" }
+    }
+  ] as const;
+
+  for (const scenario of overrideCases) {
+    assert.deepEqual(
+      getDisplayActionTagOverride(scenario.title, [], scenario.resolvedActionTag),
+      scenario.expected,
+      scenario.name
+    );
+  }
 });
 
-test("passive discard detail events keep owned Pokemon names after display cleanup", () => {
-  assert.deepEqual(
-    getBattleLogDetailEvent("Basic Fighting Energy was discarded from _ndz's Cynthia's Roserade."),
+test("battle-log detail events preserve cards, counts, and destinations", () => {
+  const cases = [
     {
-      cards: ["Basic Fighting Energy"],
-      icon: "discard",
-      label: "Discarded",
-      outcome: "1 card from Cynthia's Roserade"
-    }
-  );
-  assert.deepEqual(
-    getBattleLogDetailEvent("2 cards were discarded from _ndz's Cynthia's Roserade."),
+      name: "single-card discard",
+      actual: () => getBattleLogDetailEvent("Ignition Energy was discarded from Greninja ex."),
+      expected: {
+        cards: ["Ignition Energy"],
+        icon: "discard",
+        label: "Discarded",
+        outcome: "1 card from Greninja ex"
+      }
+    },
     {
-      icon: "discard",
-      label: "Discarded",
-      outcome: "2 cards from Cynthia's Roserade"
+      name: "count discard strips the owner prefix",
+      actual: () =>
+        getBattleLogDetailEvent("2 cards were discarded from _ndz's Cynthia's Roserade."),
+      expected: {
+        icon: "discard",
+        label: "Discarded",
+        outcome: "2 cards from Cynthia's Roserade"
+      }
+    },
+    {
+      name: "named draw cards",
+      actual: () =>
+        getBattleLogDetailEvent("JammerUK1993 drew Rare Candy, Surfing Beach, Greninja ex"),
+      expected: {
+        cards: ["Rare Candy", "Surfing Beach", "Greninja ex"],
+        icon: "draw",
+        label: "Drew",
+        outcome: "3 cards"
+      }
+    },
+    {
+      name: "anonymous draw count",
+      actual: () => getBattleLogDetailEvent("JammerUK1993 drew 3 cards"),
+      expected: {
+        cards: [],
+        icon: "draw",
+        label: "Drew",
+        outcome: "3 cards"
+      }
+    },
+    {
+      name: "multi-word added-to-hand card",
+      actual: () => getAddedToHandDetailCard("Basic Water Energy was added to B3xCharz24's hand"),
+      expected: {
+        card: "Basic Water Energy",
+        destination: "B3xCharz24's hand"
+      }
+    },
+    {
+      name: "shuffle card text",
+      actual: () =>
+        getBattleLogDetailEvent("JammerUK1993 shuffled Dudunsparce, Dunsparce into their deck"),
+      expected: {
+        icon: "shuffle",
+        label: "Shuffled",
+        outcome: "Dudunsparce, Dunsparce"
+      }
     }
-  );
+  ];
+
+  for (const scenario of cases) {
+    assert.deepEqual(scenario.actual(), scenario.expected, scenario.name);
+  }
 });
 
-test("damage breakdown detail groups are parsed as structured rows", () => {
-  assert.deepEqual(
-    getBattleLogDamageBreakdown([
-      "Damage breakdown:",
-      "Base damage: 40 damage",
-      "(Ability) Cheer On to Glory: 30 damage",
-      "(Item) Premium Power Pro: 30 damage",
-      "Total damage: 100 damage"
-    ]),
+test("damage breakdown parsing accepts structured rows and rejects invalid groups", () => {
+  const cases = [
     {
-      items: [
-        {
-          damage: "40 damage",
-          label: "Base damage",
-          tone: "base"
-        },
-        {
-          damage: "30 damage",
-          label: "(Ability) Cheer On to Glory",
-          tone: "modifier"
-        },
-        {
-          damage: "30 damage",
-          label: "(Item) Premium Power Pro",
-          tone: "modifier"
-        },
-        {
-          damage: "100 damage",
-          label: "Total damage",
-          tone: "total"
-        }
+      name: "structured breakdown",
+      input: [
+        "Damage breakdown:",
+        "Base damage: 40 damage",
+        "(Ability) Cheer On to Glory: 30 damage",
+        "(Item) Premium Power Pro: 30 damage",
+        "Total damage: 100 damage"
       ],
-      label: "Damage breakdown"
+      expected: {
+        items: [
+          {
+            damage: "40 damage",
+            label: "Base damage",
+            tone: "base"
+          },
+          {
+            damage: "30 damage",
+            label: "(Ability) Cheer On to Glory",
+            tone: "modifier"
+          },
+          {
+            damage: "30 damage",
+            label: "(Item) Premium Power Pro",
+            tone: "modifier"
+          },
+          {
+            damage: "100 damage",
+            label: "Total damage",
+            tone: "total"
+          }
+        ],
+        label: "Damage breakdown"
+      }
+    },
+    {
+      name: "wrong heading",
+      input: ["Not breakdown:", "Base damage: 40 damage"],
+      expected: null
+    },
+    {
+      name: "malformed group",
+      input: ["Damage breakdown:", "Something without damage"],
+      expected: null
     }
-  );
+  ] as const;
+
+  for (const scenario of cases) {
+    assert.deepEqual(
+      getBattleLogDamageBreakdown([...scenario.input]),
+      scenario.expected,
+      scenario.name
+    );
+  }
 });
 
-test("draw detail events expose named cards and anonymous card counts", () => {
-  assert.deepEqual(
-    getBattleLogDetailEvent("JammerUK1993 drew Rare Candy, Surfing Beach, Greninja ex"),
-    {
-      cards: ["Rare Candy", "Surfing Beach", "Greninja ex"],
-      icon: "draw",
-      label: "Drew",
-      outcome: "3 cards"
-    }
-  );
-
-  assert.deepEqual(
-    getBattleLogDetailEvent("JammerUK1993 drew 3 cards"),
-    {
-      cards: [],
-      icon: "draw",
-      label: "Drew",
-      outcome: "3 cards"
-    }
-  );
-});
-
-test("added-to-hand prize details expose the revealed card name", () => {
-  assert.deepEqual(
-    getAddedToHandDetailCard("Dawn was added to B3xCharz24's hand"),
-    {
-      card: "Dawn",
-      destination: "B3xCharz24's hand"
-    }
-  );
-
-  assert.deepEqual(
-    getAddedToHandDetailCard("Basic Water Energy was added to B3xCharz24's hand"),
-    {
-      card: "Basic Water Energy",
-      destination: "B3xCharz24's hand"
-    }
-  );
-});
-
-test("shuffle detail events keep the shuffled card text", () => {
-  assert.deepEqual(
-    getBattleLogDetailEvent("JammerUK1993 shuffled Dudunsparce, Dunsparce into their deck"),
-    {
-      icon: "shuffle",
-      label: "Shuffled",
-      outcome: "Dudunsparce, Dunsparce"
-    }
-  );
-});
-
-test("card-list detection accepts plain card lists and rejects action sentences", () => {
+test("card-list detail detection accepts plain lists and rejects action sentences", () => {
   assert.equal(isCardListDetail("Rare Candy, Surfing Beach, Greninja ex"), true);
   assert.equal(isCardListDetail("JammerUK1993 drew Rare Candy, Surfing Beach"), false);
   assert.equal(isCardListDetail("Basic Fighting Energy was discarded from Greninja ex."), false);
-});
-
-test("damage breakdown parser rejects non-breakdown or malformed groups", () => {
-  assert.equal(getBattleLogDamageBreakdown(["Damage breakdown:", "Something without damage"]), null);
-  assert.equal(getBattleLogDamageBreakdown(["Not breakdown:", "Base damage: 40 damage"]), null);
-});
-
-test("display tag override only promotes ambiguous attack-like actions", () => {
-  assert.deepEqual(
-    getDisplayActionTagOverride("iBerzrk_Network's Drakloak used Recon Directive.", [], {
-      label: "Ability",
-      tag: "ability"
-    }),
-    {
-      label: "Ability",
-      tag: "ability"
-    }
-  );
-
-  assert.deepEqual(
-    getDisplayActionTagOverride("iBerzrk_Network's Budew used Itchy Pollen.", [], undefined),
-    {
-      label: "Attack",
-      tag: "attack"
-    }
-  );
-
-  assert.deepEqual(
-    getDisplayActionTagOverride("JammerUK1993 played Buddy-Buddy Poffin.", [], {
-      label: "Item",
-      tag: "item"
-    }),
-    {
-      label: "Item",
-      tag: "item"
-    }
-  );
 });

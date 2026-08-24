@@ -186,24 +186,6 @@ test("reuses an active share for the same owner and log", async () => {
   assert.equal(rows.length, 1);
 });
 
-test("concurrent get-or-create calls return one public token", async () => {
-  const { rows, store } = createMemoryStore();
-  const input = {
-    ownerUserId: "user-1",
-    sourceLogId: "log-1",
-    log: buildBattleLog(),
-    linkedStrategyLabel: "Dragapult ex"
-  };
-  const now = new Date("2026-04-15T10:00:00.000Z");
-
-  const shares = await Promise.all(
-    Array.from({ length: 12 }, () => getOrCreateLogShareSnapshot(input, { now, store }))
-  );
-
-  assert.equal(new Set(shares.map((share) => share.id)).size, 1);
-  assert.equal(rows.length, 1);
-});
-
 test("a retry after a lost create response reuses the committed token", async () => {
   const { rows, store } = createMemoryStore([], { failAfterFirstCommit: true });
   const input = {

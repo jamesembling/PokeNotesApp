@@ -5,7 +5,7 @@ import test from "node:test";
 import { decodeLogSections } from "@/lib/battle-log/runtime-validation";
 import { buildLocalE2EBattleLogFixture } from "@/scripts/local-e2e-battle-log-fixture";
 
-test("local E2E Battle Logs use renderable parsed sections and matching summaries", () => {
+test("local battle-log fixtures build renderable parsed sections and matching summaries", () => {
   const cases = [
     {
       file: "battle-log-valid.txt",

@@ -20,7 +20,7 @@ import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import {
   LEARNED_SELF_ARCHETYPE_THRESHOLD,
-  promoteLearnedSelfArchetype
+  resolveSelfArchetypeForSave
 } from "@/lib/log-import/learned-self-archetypes";
 import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
@@ -297,11 +297,8 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
     const selectedOpponentSprites = parseStringArray(formData.getAll("opponentSprites"));
     const submittedSelfDeckSlug = String(formData.get("selfDeckSlug") || "").trim();
     const submittedSelfDeckName = String(formData.get("selfDeckName") || "").trim();
-    const selectedSelfDeckSlug = buildDeckArchetypeId(selectedSelfSprites);
-    const shouldCheckLearnedSelfArchetype =
-      selectedSelfSprites.length > 0 && submittedSelfDeckSlug !== selectedSelfDeckSlug;
     const [catalog, deckLinkCandidates] = await Promise.all([
-      shouldCheckLearnedSelfArchetype
+      selectedSelfSprites.length > 0
         ? measureServerCall("logs.import.loadIdentificationCatalogForSave", () =>
             loadIdentificationCatalog({
               supabase,
@@ -315,11 +312,11 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
             getDeckLinkCandidates(user.id, supabase)
           )
     ]);
-    const learnedSelfArchetype =
+    const resolvedSelfArchetype =
       !catalog
       ? null
-      : await measureServerCall("logs.import.promoteLearnedSelfArchetypeForSave.self", () =>
-          promoteLearnedSelfArchetype({
+      : await measureServerCall("logs.import.resolveSelfArchetypeForSave.self", () =>
+          resolveSelfArchetypeForSave({
             supabase,
             userId: user.id,
             sprites: selectedSelfSprites,
@@ -327,12 +324,13 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
             minimumExistingMatches: LEARNED_SELF_ARCHETYPE_THRESHOLD - 1
           })
         );
+    const savedSelfSprites = resolvedSelfArchetype?.sprites ?? selectedSelfSprites;
     const suggestedLinkedDeckId = selectedDeckId
       ? ""
       : resolveConservativeDeckLink(deckLinkCandidates, {
-          deckName: learnedSelfArchetype?.label ?? submittedSelfDeckName,
-          deckSlug: learnedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
-          sprites: selectedSelfSprites
+          deckName: resolvedSelfArchetype?.label ?? submittedSelfDeckName,
+          deckSlug: resolvedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
+          sprites: savedSelfSprites
         }) ?? "";
     const validatedReference = await validateDeckListReference({
       linkedDeckId:
@@ -349,9 +347,9 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       format: String(formData.get("format") || "").trim(),
       go_order: parseGoPreference(formData.get("goOrder")),
       self_player_name: String(formData.get("selfPlayerName") || "").trim(),
-      self_deck_name: learnedSelfArchetype?.label ?? submittedSelfDeckName,
-      self_deck_slug: learnedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
-      self_deck_sprites: joinSprites(selectedSelfSprites),
+      self_deck_name: resolvedSelfArchetype?.label ?? submittedSelfDeckName,
+      self_deck_slug: resolvedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
+      self_deck_sprites: joinSprites(savedSelfSprites),
       opponent_player_name: String(formData.get("opponentPlayerName") || "").trim(),
       opponent_deck_name: String(formData.get("opponentDeckName") || "").trim(),
       opponent_deck_slug: String(formData.get("opponentDeckSlug") || "").trim(),

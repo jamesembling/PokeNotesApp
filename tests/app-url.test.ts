@@ -6,23 +6,32 @@ import {
   getConfiguredPublicAppOrigin
 } from "@/lib/server/app-url";
 
-test("configured public app origin prefers and normalizes NEXT_PUBLIC_APP_URL", () => {
-  assert.equal(
-    getConfiguredPublicAppOrigin({
-      NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app/some/path/",
-      VERCEL_PROJECT_PRODUCTION_URL: "protected-preview.vercel.app"
-    }),
-    "https://poke-notes-app.vercel.app"
-  );
-});
+test("configured public app origins normalize and select the configured fallback", () => {
+  const cases = [
+    {
+      name: "explicit app URL wins and drops its path",
+      environment: {
+        NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app/some/path/",
+        VERCEL_PROJECT_PRODUCTION_URL: "protected-preview.vercel.app"
+      },
+      expected: "https://poke-notes-app.vercel.app"
+    },
+    {
+      name: "Vercel production URL is used when the explicit URL is absent",
+      environment: {
+        VERCEL_PROJECT_PRODUCTION_URL: "poke-notes-app.vercel.app"
+      },
+      expected: "https://poke-notes-app.vercel.app"
+    }
+  ];
 
-test("configured public app origin falls back to Vercel production URL", () => {
-  assert.equal(
-    getConfiguredPublicAppOrigin({
-      VERCEL_PROJECT_PRODUCTION_URL: "poke-notes-app.vercel.app"
-    }),
-    "https://poke-notes-app.vercel.app"
-  );
+  for (const scenario of cases) {
+    assert.equal(
+      getConfiguredPublicAppOrigin(scenario.environment),
+      scenario.expected,
+      scenario.name
+    );
+  }
 });
 
 test("approved auth origins include explicit and Vercel-managed destinations", () => {
@@ -44,105 +53,97 @@ test("approved auth origins include explicit and Vercel-managed destinations", (
   );
 });
 
-test("a request-controlled Origin cannot override the configured destination", () => {
-  const headers = new Headers({
-    host: "poke-notes-app.vercel.app",
-    origin: "https://attacker.example",
-    "x-forwarded-proto": "https"
-  });
+test("request headers select only approved deployment or development origins", () => {
+  const cases = [
+    {
+      name: "request Origin cannot override the configured destination",
+      headers: new Headers({
+        host: "poke-notes-app.vercel.app",
+        origin: "https://attacker.example",
+        "x-forwarded-proto": "https"
+      }),
+      environment: {
+        NODE_ENV: "production",
+        NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app"
+      },
+      expected: "https://poke-notes-app.vercel.app"
+    },
+    {
+      name: "unapproved forwarded host falls back to the configured origin",
+      headers: new Headers({
+        host: "poke-notes-app.vercel.app",
+        "x-forwarded-host": "attacker.example",
+        "x-forwarded-proto": "https"
+      }),
+      environment: {
+        NODE_ENV: "production",
+        NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app"
+      },
+      expected: "https://poke-notes-app.vercel.app"
+    },
+    {
+      name: "explicitly approved preview keeps its own origin",
+      headers: new Headers({
+        host: "poke-notes-review.example.test",
+        "x-forwarded-proto": "https"
+      }),
+      environment: {
+        NODE_ENV: "production",
+        NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app",
+        POKE_NOTES_AUTH_REDIRECT_ORIGINS: "https://poke-notes-review.example.test"
+      },
+      expected: "https://poke-notes-review.example.test"
+    },
+    {
+      name: "current Vercel deployment URL is an approved preview",
+      headers: new Headers({
+        host: "poke-notes-git-review.vercel.app",
+        "x-forwarded-proto": "https"
+      }),
+      environment: {
+        NODE_ENV: "production",
+        NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app",
+        VERCEL_URL: "poke-notes-git-review.vercel.app"
+      },
+      expected: "https://poke-notes-git-review.vercel.app"
+    },
+    {
+      name: "Vercel branch URL is an approved preview",
+      headers: new Headers({
+        host: "poke-notes-git-main.vercel.app",
+        "x-forwarded-proto": "https"
+      }),
+      environment: {
+        NODE_ENV: "production",
+        NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app",
+        VERCEL_BRANCH_URL: "poke-notes-git-main.vercel.app"
+      },
+      expected: "https://poke-notes-git-main.vercel.app"
+    },
+    {
+      name: "development loopback remains available without deployment configuration",
+      headers: new Headers({ host: "localhost:3000" }),
+      environment: { NODE_ENV: "development" },
+      expected: "http://localhost:3000"
+    },
+    {
+      name: "explicitly allowed development phone host remains available",
+      headers: new Headers({ host: "phone-mac.local:3000" }),
+      environment: {
+        NODE_ENV: "development",
+        POKE_NOTES_LOCAL_LOGIN_HOSTS: "phone-mac.local:3000"
+      },
+      expected: "http://phone-mac.local:3000"
+    }
+  ];
 
-  assert.equal(
-    buildAppOriginFromHeaders(headers, {
-      NODE_ENV: "production",
-      NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app"
-    }),
-    "https://poke-notes-app.vercel.app"
-  );
-});
-
-test("an unapproved forwarded host falls back to the configured public origin", () => {
-  const headers = new Headers({
-    host: "poke-notes-app.vercel.app",
-    "x-forwarded-host": "attacker.example",
-    "x-forwarded-proto": "https"
-  });
-
-  assert.equal(
-    buildAppOriginFromHeaders(headers, {
-      NODE_ENV: "production",
-      NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app"
-    }),
-    "https://poke-notes-app.vercel.app"
-  );
-});
-
-test("an explicitly approved preview request keeps its own origin", () => {
-  const headers = new Headers({
-    host: "poke-notes-review.example.test",
-    "x-forwarded-proto": "https"
-  });
-
-  assert.equal(
-    buildAppOriginFromHeaders(headers, {
-      NODE_ENV: "production",
-      NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app",
-      POKE_NOTES_AUTH_REDIRECT_ORIGINS: "https://poke-notes-review.example.test"
-    }),
-    "https://poke-notes-review.example.test"
-  );
-});
-
-test("the current Vercel deployment URL is an approved preview destination", () => {
-  const headers = new Headers({
-    host: "poke-notes-git-review.vercel.app",
-    "x-forwarded-proto": "https"
-  });
-
-  assert.equal(
-    buildAppOriginFromHeaders(headers, {
-      NODE_ENV: "production",
-      NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app",
-      VERCEL_URL: "poke-notes-git-review.vercel.app"
-    }),
-    "https://poke-notes-git-review.vercel.app"
-  );
-});
-
-test("the Vercel branch URL is an approved preview destination", () => {
-  const headers = new Headers({
-    host: "poke-notes-git-main.vercel.app",
-    "x-forwarded-proto": "https"
-  });
-
-  assert.equal(
-    buildAppOriginFromHeaders(headers, {
-      NODE_ENV: "production",
-      NEXT_PUBLIC_APP_URL: "https://poke-notes-app.vercel.app",
-      VERCEL_BRANCH_URL: "poke-notes-git-main.vercel.app"
-    }),
-    "https://poke-notes-git-main.vercel.app"
-  );
-});
-
-test("development loopback remains available without deployment configuration", () => {
-  const headers = new Headers({ host: "localhost:3000" });
-
-  assert.equal(
-    buildAppOriginFromHeaders(headers, { NODE_ENV: "development" }),
-    "http://localhost:3000"
-  );
-});
-
-test("an explicitly allowed development phone host remains available", () => {
-  const headers = new Headers({ host: "phone-mac.local:3000" });
-
-  assert.equal(
-    buildAppOriginFromHeaders(headers, {
-      NODE_ENV: "development",
-      POKE_NOTES_LOCAL_LOGIN_HOSTS: "phone-mac.local:3000"
-    }),
-    "http://phone-mac.local:3000"
-  );
+  for (const scenario of cases) {
+    assert.equal(
+      buildAppOriginFromHeaders(scenario.headers, scenario.environment),
+      scenario.expected,
+      scenario.name
+    );
+  }
 });
 
 test("an unconfigured, unapproved request fails closed", () => {

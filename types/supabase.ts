@@ -631,6 +631,9 @@ export type Database = {
           save_data: boolean
           screen_height: number | null
           screen_width: number | null
+          server_admin_access_ms: number | null
+          server_admin_overview_ms: number | null
+          server_admin_users_ms: number | null
           server_auth_ended_ms: number | null
           server_auth_method: string | null
           server_auth_ms: number | null
@@ -724,6 +727,9 @@ export type Database = {
           save_data?: boolean
           screen_height?: number | null
           screen_width?: number | null
+          server_admin_access_ms?: number | null
+          server_admin_overview_ms?: number | null
+          server_admin_users_ms?: number | null
           server_auth_ended_ms?: number | null
           server_auth_method?: string | null
           server_auth_ms?: number | null
@@ -817,6 +823,9 @@ export type Database = {
           save_data?: boolean
           screen_height?: number | null
           screen_width?: number | null
+          server_admin_access_ms?: number | null
+          server_admin_overview_ms?: number | null
+          server_admin_users_ms?: number | null
           server_auth_ended_ms?: number | null
           server_auth_method?: string | null
           server_auth_ms?: number | null

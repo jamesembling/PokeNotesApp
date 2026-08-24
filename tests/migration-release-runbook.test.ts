@@ -199,6 +199,10 @@ test("production workflow is manual, serialized, main-only, and verifies the liv
   assert.match(productionWorkflow, /refs\/heads\/main/);
   assert.match(productionWorkflow, /CONFIRMATION" != "DEPLOY"/);
   assert.match(productionWorkflow, /version: 2\.115\.0/);
+  const releaseContract = productionWorkflow.indexOf("npm run verify:deck-list-release");
+  const dryRun = productionWorkflow.indexOf("supabase db push", releaseContract);
+  assert.ok(releaseContract >= 0);
+  assert.ok(dryRun > releaseContract);
   assert.match(productionWorkflow, /supabase db push[^\n]+--dry-run/);
   assert.match(productionWorkflow, /supabase migration list/);
   assert.match(productionWorkflow, /schema:health/);
@@ -225,49 +229,49 @@ test("disposable rehearsal binds the live branch ref to the direct database URL 
   assert.ok(calls[1].includes(databaseUrl));
 });
 
-test("disposable rehearsal fails before db push when a stale URL targets another project", () => {
-  const databaseUrl =
-    "postgresql://postgres:secret@db.bcdefghijklmnopqrstu.supabase.co:5432/postgres";
-  const { result, calls } = runRehearsal({ databaseUrl });
+test("disposable rehearsal rejects stale, unsafe, and invalid targets before Supabase", () => {
+  const cases = [
+    {
+      databaseUrl:
+        "postgresql://postgres:secret@db.bcdefghijklmnopqrstu.supabase.co:5432/postgres",
+      expected: /not bound to the frozen approved branch ref/
+    },
+    {
+      databaseUrl:
+        "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres?host=db.zyxwvutsrqponmlkjihg.supabase.co",
+      expected: /query parameter that could alter the approved target/
+    },
+    {
+      databaseUrl:
+        "postgresql://postgres.abcdefghijklmnopqrst:secret@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?service=production",
+      expected: /query parameter that could alter the approved target/
+    },
+    {
+      databaseUrl:
+        "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres",
+      parentProjectRef: "abcdefghijklmnopqrst",
+      expected: /must differ from POKENOTES_PARENT_PROJECT_REF/
+    },
+    { databaseUrl: undefined, expected: /POKENOTES_DISPOSABLE_DATABASE_URL is not set/ },
+    { databaseUrl: "not a URL", expected: /not a valid URL/ },
+    {
+      databaseUrl: "https://db.abcdefghijklmnopqrst.supabase.co/postgres",
+      expected: /must use PostgreSQL/
+    },
+    {
+      databaseUrl: "postgresql://postgres:synthetic-secret@example.invalid/postgres",
+      expected: /does not expose a supported Supabase project reference/
+    }
+  ];
 
-  assert.equal(result.status, 1);
-  assert.deepEqual(calls, []);
-  assert.match(result.stderr, /not bound to the frozen approved branch ref/);
-});
+  for (const { databaseUrl, parentProjectRef, expected } of cases) {
+    const { result, calls } = runRehearsal({ databaseUrl, parentProjectRef });
 
-test("disposable rehearsal rejects a direct URL host override before db push", () => {
-  const databaseUrl =
-    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres" +
-    "?host=db.zyxwvutsrqponmlkjihg.supabase.co";
-  const { result, calls } = runRehearsal({ databaseUrl });
-
-  assert.equal(result.status, 1);
-  assert.deepEqual(calls, []);
-  assert.match(result.stderr, /query parameter that could alter the approved target/);
-  assert.doesNotMatch(result.stderr, /secret/);
-});
-
-test("disposable rehearsal rejects a pooler service override before db push", () => {
-  const databaseUrl =
-    "postgresql://postgres.abcdefghijklmnopqrst:secret@aws-0-eu-west-1.pooler.supabase.com:5432/postgres" +
-    "?service=production";
-  const { result, calls } = runRehearsal({ databaseUrl });
-
-  assert.equal(result.status, 1);
-  assert.deepEqual(calls, []);
-  assert.match(result.stderr, /query parameter that could alter the approved target/);
-  assert.doesNotMatch(result.stderr, /secret/);
-});
-
-test("disposable rehearsal allows strict TLS mode without weakening target binding", () => {
-  const databaseUrl =
-    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres" +
-    "?sslmode=verify-full";
-  const { result, calls } = runRehearsal({ databaseUrl });
-
-  assert.equal(result.status, 0);
-  assert.equal(calls.length, 2);
-  assert.ok(calls[1].includes("--dry-run"));
+    assert.equal(result.status, 1);
+    assert.deepEqual(calls, []);
+    assert.match(result.stderr, expected);
+    assert.doesNotMatch(result.stderr, /(?:secret|synthetic-secret)/);
+  }
 });
 
 test("disposable apply repeats verified dry run before the mutating push", () => {
@@ -284,82 +288,36 @@ test("disposable apply repeats verified dry run before the mutating push", () =>
   assert.ok(calls[3].includes(databaseUrl));
 });
 
-test("disposable rehearsal rejects changed live branch identity before db push", () => {
+test("disposable rehearsal rejects changed live branch IDs and refs before db push", () => {
   const databaseUrl =
     "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
-  const { result, calls } = runRehearsal({
-    databaseUrl,
-    liveBranchRef: "bcdefghijklmnopqrstu"
-  });
 
-  assert.equal(result.status, 1);
-  assert.equal(calls.length, 1);
-  assert.match(result.stderr, /does not match the frozen approved record/);
-});
-
-test("disposable rehearsal rejects changed live branch ID before db push", () => {
-  const databaseUrl =
-    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
-  const { result, calls } = runRehearsal({
-    databaseUrl,
-    liveBranchId: "branch-87654321"
-  });
-
-  assert.equal(result.status, 1);
-  assert.equal(calls.length, 1);
-  assert.match(result.stderr, /does not match the frozen approved record/);
-});
-
-test("disposable rehearsal rejects a parent project ref as the disposable branch before Supabase", () => {
-  const databaseUrl =
-    "postgresql://postgres:secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
-  const { result, calls } = runRehearsal({
-    databaseUrl,
-    parentProjectRef: "abcdefghijklmnopqrst"
-  });
-
-  assert.equal(result.status, 1);
-  assert.deepEqual(calls, []);
-  assert.match(result.stderr, /must differ from POKENOTES_PARENT_PROJECT_REF/);
-});
-
-test("disposable rehearsal rejects missing and invalid database URLs before Supabase", () => {
-  for (const databaseUrl of [
-    undefined,
-    "not a URL",
-    "https://db.abcdefghijklmnopqrst.supabase.co/postgres",
-    "postgresql://postgres:synthetic-secret@example.invalid/postgres"
+  for (const options of [
+    { liveBranchRef: "bcdefghijklmnopqrstu" },
+    { liveBranchId: "branch-87654321" }
   ]) {
-    const { result, calls } = runRehearsal({ databaseUrl });
+    const { result, calls } = runRehearsal({ databaseUrl, ...options });
 
     assert.equal(result.status, 1);
-    assert.deepEqual(calls, []);
-    assert.doesNotMatch(result.stderr, /synthetic-secret/);
+    assert.equal(calls.length, 1);
+    assert.match(result.stderr, /does not match the frozen approved record/);
   }
 });
 
-test("disposable rehearsal redacts database credentials from successful child output", () => {
+test("disposable rehearsal redacts credentials from successful and failed child output", () => {
   const databaseUrl =
     "postgresql://postgres:synthetic-secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
-  const { result } = runRehearsal({ databaseUrl, childOutput: true });
 
-  assert.equal(result.status, 0);
-  assert.match(result.stdout, /child stdout/);
-  assert.match(result.stderr, /child stderr/);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /synthetic-secret/);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /postgresql:\/\//);
-  assert.match(`${result.stdout}\n${result.stderr}`, /\[REDACTED\]/);
-});
+  for (const childFailure of [false, true]) {
+    const { result } = runRehearsal({ databaseUrl, childOutput: true, childFailure });
+    const output = `${result.stdout}\n${result.stderr}`;
 
-test("disposable rehearsal redacts database credentials from failed child output", () => {
-  const databaseUrl =
-    "postgresql://postgres:synthetic-secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
-  const { result } = runRehearsal({ databaseUrl, childOutput: true, childFailure: true });
-
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /Disposable migration dry run failed/);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /synthetic-secret/);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /postgresql:\/\//);
+    assert.equal(result.status, childFailure ? 1 : 0);
+    if (childFailure) assert.match(result.stderr, /Disposable migration dry run failed/);
+    assert.match(output, /child stdout|child stderr/);
+    assert.doesNotMatch(output, /synthetic-secret/);
+    assert.doesNotMatch(output, /postgresql:\/\//);
+  }
 });
 
 test("disposable rehearsal does not expose database credentials on branch parse errors", () => {
@@ -373,27 +331,23 @@ test("disposable rehearsal does not expose database credentials on branch parse 
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /postgresql:\/\//);
 });
 
-test("schema health keeps linked queries as its no-argument default", () => {
-  const { result, calls } = runWithFakeSupabase([]);
-
-  assert.equal(result.status, 1);
-  assert.ok(calls.length > 0);
-  for (const call of calls) {
+test("schema health selects linked or explicitly named database targets", () => {
+  const defaultTarget = runWithFakeSupabase([]);
+  assert.equal(defaultTarget.result.status, 1);
+  assert.ok(defaultTarget.calls.length > 0);
+  for (const call of defaultTarget.calls) {
     assert.ok(call.includes("--linked"));
     assert.ok(!call.includes("--db-url"));
   }
-});
 
-test("schema health selects only the database URL stored in the named environment variable", () => {
   const databaseUrl = "postgresql://synthetic.invalid/test";
-  const { result, calls } = runWithFakeSupabase(
+  const explicitTarget = runWithFakeSupabase(
     ["--db-url-env", "POKENOTES_TEST_DATABASE_URL"],
     { POKENOTES_TEST_DATABASE_URL: databaseUrl }
   );
-
-  assert.equal(result.status, 1);
-  assert.ok(calls.length > 0);
-  for (const call of calls) {
+  assert.equal(explicitTarget.result.status, 1);
+  assert.ok(explicitTarget.calls.length > 0);
+  for (const call of explicitTarget.calls) {
     const flagIndex = call.indexOf("--db-url");
     assert.ok(flagIndex >= 0);
     assert.equal(call[flagIndex + 1], databaseUrl);
@@ -417,82 +371,63 @@ test("schema health fails closed before invoking Supabase for invalid target con
   }
 });
 
-test("schema health redacts database credentials from successful child stderr", () => {
-  const databaseUrl =
+test("schema health redacts credentials from child, parse, and query output", () => {
+  const url =
     "postgresql://postgres:synthetic-secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
-  const { result } = runWithFakeSupabase(
-    ["--db-url-env", "POKENOTES_TEST_DATABASE_URL"],
+  const cases = [
     {
-      POKENOTES_TEST_DATABASE_URL: databaseUrl,
-      POKENOTES_TEST_CHILD_STDERR: `child stderr ${databaseUrl} synthetic-secret`
-    }
-  );
-
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /child stderr/);
-  assert.doesNotMatch(result.stderr, /synthetic-secret/);
-  assert.doesNotMatch(result.stderr, /postgresql:\/\//);
-});
-
-test("schema health redacts database credentials from failed child output", () => {
-  const databaseUrl =
-    "postgresql://postgres:synthetic-secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
-  const { result } = runWithFakeSupabase(
-    ["--db-url-env", "POKENOTES_TEST_DATABASE_URL"],
+      databaseUrl: url,
+      env: {
+        POKENOTES_TEST_DATABASE_URL: url,
+        POKENOTES_TEST_CHILD_STDERR: `child stderr ${url} synthetic-secret`
+      },
+      expected: /child stderr/
+    },
     {
-      POKENOTES_TEST_DATABASE_URL: databaseUrl,
-      POKENOTES_TEST_CHILD_STDOUT: `child stdout ${databaseUrl}`,
-      POKENOTES_TEST_CHILD_STDERR: "child stderr synthetic-secret",
-      POKENOTES_TEST_CHILD_EXIT: "9"
-    }
-  );
-
-  assert.equal(result.status, 1);
-  assert.match(result.stdout, /child stdout/);
-  assert.match(result.stderr, /child stderr/);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /synthetic-secret/);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /postgresql:\/\//);
-});
-
-test("schema health redacts database credentials from parse errors", () => {
-  const databaseUrl =
-    "postgresql://postgres:synthetic-secret@db.abcdefghijklmnopqrst.supabase.co:5432/postgres";
-  const { result } = runWithFakeSupabase(
-    ["--db-url-env", "POKENOTES_TEST_DATABASE_URL"],
+      databaseUrl: url,
+      env: {
+        POKENOTES_TEST_DATABASE_URL: url,
+        POKENOTES_TEST_CHILD_STDOUT: `child stdout ${url}`,
+        POKENOTES_TEST_CHILD_STDERR: "child stderr synthetic-secret",
+        POKENOTES_TEST_CHILD_EXIT: "9"
+      },
+      expected: /child stdout|child stderr/
+    },
     {
-      POKENOTES_TEST_DATABASE_URL: databaseUrl,
-      POKENOTES_TEST_CHILD_STDOUT_REPLACE:
-        `[invalid ${databaseUrl} synthetic-secret]`
-    }
-  );
-
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /Could not parse Supabase JSON output/);
-  assert.doesNotMatch(result.stderr, /synthetic-secret/);
-  assert.doesNotMatch(result.stderr, /postgresql:\/\//);
-  assert.match(result.stderr, /\[REDACTED\]/);
-});
-
-test("schema health redacts normalized query credentials without the original URL", () => {
-  const databaseUrl =
-    "postgresql://db.example.invalid/postgres?user=synthetic-user&" +
-    "password=synthetic%2Dquery%2Dsecret&sslpassword=synthetic-tls-secret";
-  const { result } = runWithFakeSupabase(
-    ["--db-url-env", "POKENOTES_TEST_DATABASE_URL"],
+      databaseUrl: url,
+      env: {
+        POKENOTES_TEST_DATABASE_URL: url,
+        POKENOTES_TEST_CHILD_STDOUT_REPLACE: `[invalid ${url} synthetic-secret]`
+      },
+      expected: /Could not parse Supabase JSON output/
+    },
     {
-      POKENOTES_TEST_DATABASE_URL: databaseUrl,
-      POKENOTES_TEST_CHILD_STDOUT: "password=synthetic-query-secret",
-      POKENOTES_TEST_CHILD_STDERR:
-        "user=synthetic-user sslpassword=synthetic-tls-secret",
-      POKENOTES_TEST_CHILD_EXIT: "9"
+      databaseUrl:
+        "postgresql://db.example.invalid/postgres?user=synthetic-user&password=synthetic%2Dquery%2Dsecret&sslpassword=synthetic-tls-secret",
+      env: {
+        POKENOTES_TEST_DATABASE_URL:
+          "postgresql://db.example.invalid/postgres?user=synthetic-user&password=synthetic%2Dquery%2Dsecret&sslpassword=synthetic-tls-secret",
+        POKENOTES_TEST_CHILD_STDOUT: "password=synthetic-query-secret",
+        POKENOTES_TEST_CHILD_STDERR:
+          "user=synthetic-user sslpassword=synthetic-tls-secret",
+        POKENOTES_TEST_CHILD_EXIT: "9"
+      },
+      expected: /password=\[REDACTED\]/
     }
-  );
+  ];
 
-  assert.equal(result.status, 1);
-  assert.match(`${result.stdout}\n${result.stderr}`, /password=\[REDACTED\]/);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /synthetic-query-secret/);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /synthetic-user/);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /synthetic-tls-secret/);
+  for (const { env, expected } of cases) {
+    const { result } = runWithFakeSupabase(
+      ["--db-url-env", "POKENOTES_TEST_DATABASE_URL"],
+      env
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    assert.equal(result.status, 1);
+    assert.match(output, expected);
+    assert.doesNotMatch(output, /synthetic-secret|synthetic-query-secret|synthetic-user|synthetic-tls-secret/);
+    assert.doesNotMatch(output, /postgresql:\/\//);
+  }
 });
 
 test("contributor guidance points migration authors to the release gate", () => {

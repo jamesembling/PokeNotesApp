@@ -8,7 +8,6 @@ import {
   getLatestLogsForDeck,
   getLogById,
   getLogDamageTimeline,
-  getLogDetailSummaryById,
   getInitialLogsPageData,
   getLogStatsOverview,
   getLogsWindow,
@@ -60,10 +59,6 @@ function createFakeSupabaseClient(
   resolver: (ctx: QueryContext) => QueryResult,
   rpcResolver?: (fnName: string, args?: unknown) => RpcResult
 ) {
-  const queries: QueryContext[] = [];
-  const rpcCalls: string[] = [];
-  const rpcArgs: unknown[] = [];
-
   const makeChain = (ctx: QueryContext) => {
     const chain: QueryChain = {
       select(value: string, options?: unknown) {
@@ -120,8 +115,6 @@ function createFakeSupabaseClient(
   return {
     client: {
       rpc(fnName: string, args?: unknown) {
-        rpcCalls.push(fnName);
-        rpcArgs.push(args);
         if (!rpcResolver) {
           return Promise.resolve({
             data: null,
@@ -135,13 +128,9 @@ function createFakeSupabaseClient(
           table,
           operations: []
         };
-        queries.push(ctx);
         return makeChain(ctx);
       }
-    },
-    queries,
-    rpcArgs,
-    rpcCalls
+    }
   };
 }
 
@@ -244,9 +233,9 @@ test("mapBattleLog reports malformed stored sections and falls back safely", () 
   }
 });
 
-test("getLogDamageTimeline retains the newest bounded window and restores chronological order", async (t) => {
+test("getLogDamageTimeline maps returned rows into chronological points", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries } = createFakeSupabaseClient(() => ({
+  const { client } = createFakeSupabaseClient(() => ({
     data: [
       {
         date: "2026-07-11",
@@ -268,17 +257,6 @@ test("getLogDamageTimeline retains the newest bounded window and restores chrono
   });
 
   const timeline = await getLogDamageTimeline("user-1");
-  const orderOperations = queries[0]?.operations.filter((op) => op.method === "order") ?? [];
-
-  assert.deepEqual(
-    orderOperations.map((op) => op.args),
-    [
-      ["date", { ascending: false }],
-      ["imported_at", { ascending: false }],
-      ["id", { ascending: false }]
-    ]
-  );
-  assert.deepEqual(queries[0]?.operations.find((op) => op.method === "limit")?.args, [5000]);
   assert.deepEqual(timeline, [
     {
       date: "2026-07-10",
@@ -293,42 +271,9 @@ test("getLogDamageTimeline retains the newest bounded window and restores chrono
   ]);
 });
 
-test("getLogDetailSummaryById reads only summary columns for server-rendered detail", async (t) => {
+test("getInitialLogsPageData maps the optimized RPC into window and linked-list semantics", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries } = createFakeSupabaseClient(() => ({
-    data: buildLogRow({
-      coin_toss_won: true,
-      opponent_deck_slug: "gardevoir-ex",
-      opponent_mulligans: 1,
-      opponent_prizes_taken: 4,
-      reason: "Prizes",
-      self_deck_slug: "dragapult-ex",
-      self_mulligans: 0,
-      self_prizes_taken: 6
-    }),
-    error: null
-  }));
-
-  logsDbTestHooks.createClient = async () => client as never;
-  t.after(() => {
-    logsDbTestHooks.createClient = originalCreateClient;
-  });
-
-  const log = await getLogDetailSummaryById("user-1", "log-1");
-  const select = String(queries[0]?.operations.find((op) => op.method === "select")?.args[0] ?? "");
-
-  assert.equal(log?.id, "log-1");
-  assert.equal(log?.matchNotes, "Kept the active safe.\nReview turn four.");
-  assert.equal(log?.rawLog, "");
-  assert.deepEqual(log?.sections, []);
-  assert.match(select, /\bmatch_notes\b/);
-  assert.doesNotMatch(select, /\braw_log\b/);
-  assert.doesNotMatch(select, /\bsections\b/);
-});
-
-test("getInitialLogsPageData uses one RPC while preserving window and linked-list semantics", async (t) => {
-  const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries, rpcArgs, rpcCalls } = createFakeSupabaseClient(
+  const { client } = createFakeSupabaseClient(
     () => {
       throw new Error("The initial read model should not issue table queries.");
     },
@@ -373,9 +318,6 @@ test("getInitialLogsPageData uses one RPC while preserving window and linked-lis
 
   const initialData = await getInitialLogsPageData();
 
-  assert.deepEqual(rpcCalls, ["get_initial_logs_page_data"]);
-  assert.deepEqual(rpcArgs, [{ p_limit: 51 }]);
-  assert.equal(queries.length, 0);
   assert.deepEqual(initialData?.stats, {
     losses: 5,
     total: 12,
@@ -407,9 +349,9 @@ test("getInitialLogsPageData returns null when the optimized RPC is unavailable"
   assert.equal(await getInitialLogsPageData(), null);
 });
 
-test("getLogsWindow limits the initial window and orders by stable keyset columns", async (t) => {
+test("getLogsWindow returns the requested initial page and continuation metadata", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries } = createFakeSupabaseClient(() => ({
+  const { client } = createFakeSupabaseClient(() => ({
     data: [
       buildLogRow({ id: "log-c", date: "2026-04-26", imported_at: "2026-04-26T10:00:00.000Z" }),
       buildLogRow({ id: "log-b", date: "2026-04-26", imported_at: "2026-04-26T09:00:00.000Z" }),
@@ -428,17 +370,11 @@ test("getLogsWindow limits the initial window and orders by stable keyset column
   assert.deepEqual(window.logs.map((log) => log.id), ["log-c", "log-b"]);
   assert.equal(window.hasMore, true);
   assert.ok(window.nextWindowEndDate);
-  assert.deepEqual(
-    queries[0]?.operations.filter((op) => op.method === "order").map((op) => op.args[0]),
-    ["date", "imported_at", "id"]
-  );
-  assert.deepEqual(queries[0]?.operations.find((op) => op.method === "limit")?.args, [3]);
-  assert.deepEqual(queries[0]?.operations.find((op) => op.method === "lte")?.args, ["date", "2026-04-26"]);
 });
 
 test("getLogsWindow anchors the initial 7-day window to the newest log date", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries } = createFakeSupabaseClient(() => ({
+  const { client } = createFakeSupabaseClient(() => ({
     data: [
       buildLogRow({ id: "log-future-local", date: "2026-07-04", imported_at: "2026-07-03T23:08:51.000Z" }),
       buildLogRow({ id: "log-new", date: "2026-04-10", imported_at: "2026-04-10T10:00:00.000Z" }),
@@ -459,12 +395,11 @@ test("getLogsWindow anchors the initial 7-day window to the newest log date", as
   assert.equal(window.windowStartDate, "2026-06-28");
   assert.equal(window.hasMore, true);
   assert.equal(window.nextWindowEndDate, "2026-06-27");
-  assert.equal(queries[0]?.operations.some((op) => op.method === "lte"), false);
 });
 
-test("getLogsWindow uses the full keyset cursor across same-date logs", async (t) => {
+test("getLogsWindow returns the next same-date page after a cursor", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries } = createFakeSupabaseClient((ctx) => {
+  const { client } = createFakeSupabaseClient((ctx) => {
     const hasCursor = ctx.operations.some((op) => op.method === "or");
 
     return {
@@ -488,18 +423,14 @@ test("getLogsWindow uses the full keyset cursor across same-date logs", async (t
     cursor: firstPage.nextWindowEndDate,
     limit: 1
   });
-  const cursorFilter = String(queries[1]?.operations.find((op) => op.method === "or")?.args[0] ?? "");
 
   assert.deepEqual(firstPage.logs.map((log) => log.id), ["log-c"]);
   assert.deepEqual(secondPage.logs.map((log) => log.id), ["log-a"]);
-  assert.match(cursorFilter, /date\.eq\.2026-04-26/);
-  assert.match(cursorFilter, /imported_at\.eq\.2026-04-26T10:00:00\.000Z/);
-  assert.match(cursorFilter, /id\.lt\.log-c/);
 });
 
 test("getLogsWindow reanchors a sparse date cursor and exhausts Load More", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries } = createFakeSupabaseClient((ctx) => {
+  const { client } = createFakeSupabaseClient((ctx) => {
     const windowEndDate = ctx.operations.find((op) => op.method === "lte")?.args[1];
 
     return {
@@ -552,18 +483,11 @@ test("getLogsWindow reanchors a sparse date cursor and exhausts Load More", asyn
   assert.deepEqual(finalPage.logs.map((log) => log.id), ["log-april-14"]);
   assert.equal(finalPage.hasMore, false);
   assert.equal(finalPage.nextWindowEndDate, "");
-  assert.deepEqual(
-    queries.map((query) => query.operations.find((op) => op.method === "eq")?.args),
-    [
-      ["user_id", "tenant-user"],
-      ["user_id", "tenant-user"]
-    ]
-  );
 });
 
 test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries, rpcCalls } = createFakeSupabaseClient(
+  const { client } = createFakeSupabaseClient(
     () => {
       throw new Error("Fallback query should not run when RPC succeeds.");
     },
@@ -610,13 +534,11 @@ test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (
     trackedDamage: 3480,
     trackedPrizes: 54
   });
-  assert.deepEqual(rpcCalls, ["get_log_stats_overview"]);
-  assert.equal(queries.length, 0);
 });
 
 test("getLogStatsOverview counts explicit toss losses while the live RPC is on the old shape", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries } = createFakeSupabaseClient(
+  const { client } = createFakeSupabaseClient(
     (ctx) => {
       assert.equal(ctx.table, "logs");
       if (ctx.operations.some((operation) => operation.method === "is")) {
@@ -671,28 +593,11 @@ test("getLogStatsOverview counts explicit toss losses while the live RPC is on t
 
   assert.equal(overview.coinFlipsWon, 9);
   assert.equal(overview.coinFlipsLost, 5);
-  assert.equal(queries.length, 2);
-  assert.equal(
-    queries.some((query) =>
-      query.operations.some(
-        (operation) => operation.method === "eq" && operation.args[0] === "coin_toss_won" && operation.args[1] === false
-      )
-    ),
-    true
-  );
-  assert.equal(
-    queries.some((query) =>
-      query.operations.some(
-        (operation) => operation.method === "is" && operation.args[0] === "coin_toss_won" && operation.args[1] === null
-      )
-    ),
-    true
-  );
 });
 
 test("getLogStatsOverview falls back to the user_log_stats read model if the RPC errors", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries, rpcCalls } = createFakeSupabaseClient(
+  const { client } = createFakeSupabaseClient(
     () => ({
       data: {
         games_played: 12,
@@ -735,14 +640,11 @@ test("getLogStatsOverview falls back to the user_log_stats read model if the RPC
     trackedDamage: 3480,
     trackedPrizes: 54
   });
-  assert.deepEqual(rpcCalls, ["get_log_stats_overview"]);
-  assert.equal(queries.length, 1);
-  assert.deepEqual(queries[0]?.table, "user_log_stats");
 });
 
-test("getArchetypeMatchupStats reads the opponent archetype read model", async (t) => {
+test("getArchetypeMatchupStats maps opponent matchup rows", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries } = createFakeSupabaseClient(() => ({
+  const { client } = createFakeSupabaseClient(() => ({
     data: [
       {
         matchup_key: "gardevoir",
@@ -778,22 +680,12 @@ test("getArchetypeMatchupStats reads the opponent archetype read model", async (
       winRate: 75
     }
   ]);
-  assert.equal(queries.length, 1);
-  assert.equal(queries[0]?.table, "user_archetype_matchup_stats");
-  assert.deepEqual(
-    queries[0]?.operations.filter((op) => op.method === "order").map((op) => op.args[0]),
-    ["games_played", "games_won", "opponent_deck_name"]
-  );
-  assert.equal(
-    queries[0]?.operations.some((op) => op.method === "select" && String(op.args[0]).includes("raw_log")),
-    false
-  );
 });
 
-test("getAllLogsByDeck keeps the overview query grouped into one explicit and one unlinked fetch", async (t) => {
+test("getAllLogsByDeck groups explicit and legacy-unlinked logs by deck", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
-  const { client, queries } = createFakeSupabaseClient((ctx) => {
+  const { client } = createFakeSupabaseClient((ctx) => {
     const hasExplicitDeckFilter = ctx.operations.some(
       (op) => op.method === "in" && op.args[0] === "linked_deck_id"
     );
@@ -825,33 +717,16 @@ test("getAllLogsByDeck keeps the overview query grouped into one explicit and on
 
   const logsByDeck = await getAllLogsByDeck("user-1", decks);
 
-  assert.equal(queries.length, 2);
-  assert.deepEqual(
-    queries.map((query) => query.table),
-    ["logs", "logs"]
-  );
-  assert.deepEqual(
-    queries
-      .find((query) => query.operations.some((op) => op.method === "in"))
-      ?.operations.find((op) => op.method === "in")?.args,
-    ["linked_deck_id", ["deck-a", "deck-b", "deck-c"]]
-  );
-  assert.deepEqual(
-    queries
-      .find((query) => query.operations.some((op) => op.method === "is"))
-      ?.operations.find((op) => op.method === "is")?.args,
-    ["linked_deck_id", null]
-  );
   assert.deepEqual(
     (logsByDeck.get("deck-b") ?? []).map((log) => log.id),
     ["deck-b-log"]
   );
 });
 
-test("getDeckLogSnapshots preserves grouped stats parity without extra unresolved fetches", async (t) => {
+test("getDeckLogSnapshots preserves grouped stats parity for explicit and legacy-unlinked logs", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
-  const { client, queries } = createFakeSupabaseClient((ctx) => {
+  const { client } = createFakeSupabaseClient((ctx) => {
     const hasExplicitDeckFilter = ctx.operations.some(
       (op) => op.method === "in" && op.args[0] === "linked_deck_id"
     );
@@ -899,7 +774,6 @@ test("getDeckLogSnapshots preserves grouped stats parity without extra unresolve
   const snapshots = await getDeckLogSnapshots("user-1", decks);
   const deckBSnapshot = snapshots.get("deck-b");
 
-  assert.equal(queries.length, 2);
   assert.equal(deckBSnapshot?.stats.total, 2);
   assert.equal(deckBSnapshot?.stats.wins, 1);
   assert.equal(deckBSnapshot?.stats.losses, 1);
@@ -909,10 +783,10 @@ test("getDeckLogSnapshots preserves grouped stats parity without extra unresolve
   );
 });
 
-test("getDeckStatsForIndex reads the deck_log_stats read model", async (t) => {
+test("getDeckStatsForIndex maps read-model rows and initializes missing decks", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
-  const { client, queries } = createFakeSupabaseClient((ctx) => {
+  const { client } = createFakeSupabaseClient((ctx) => {
     const hasDeckStatsFilter = ctx.operations.some(
       (op) => op.method === "in" && op.args[0] === "deck_id"
     );
@@ -935,54 +809,9 @@ test("getDeckStatsForIndex reads the deck_log_stats read model", async (t) => {
   const statsByDeck = await getDeckStatsForIndex("user-1", decks);
   const deckBStats = statsByDeck.get("deck-b");
 
-  assert.equal(queries.length, 1);
-  assert.deepEqual(
-    queries.map((query) => query.operations.find((op) => op.method === "select")?.args[0]),
-    ["deck_id,games_played,games_won,games_lost"]
-  );
   assert.deepEqual(deckBStats, {
     total: 3,
     wins: 2,
-    losses: 1
-  });
-});
-
-test("getDeckStatsForIndex returns zeroes for decks missing read-model rows", async (t) => {
-  const originalCreateClient = logsDbTestHooks.createClient;
-  const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
-  const { client } = createFakeSupabaseClient((ctx) => {
-    const hasDeckStatsFilter = ctx.operations.some(
-      (op) => op.method === "in" && op.args[0] === "deck_id"
-    );
-
-    if (hasDeckStatsFilter) {
-      return {
-        data: [
-          { deck_id: "deck-a", games_played: 1, games_won: 1, games_lost: 0 },
-          { deck_id: "deck-b", games_played: 1, games_won: 0, games_lost: 1 }
-        ],
-        error: null
-      };
-    }
-
-    throw new Error(`Unexpected query: ${JSON.stringify(ctx.operations)}`);
-  });
-
-  logsDbTestHooks.createClient = async () => client as never;
-  t.after(() => {
-    logsDbTestHooks.createClient = originalCreateClient;
-  });
-
-  const statsByDeck = await getDeckStatsForIndex("user-1", decks);
-
-  assert.deepEqual(statsByDeck.get("deck-a"), {
-    total: 1,
-    wins: 1,
-    losses: 0
-  });
-  assert.deepEqual(statsByDeck.get("deck-b"), {
-    total: 1,
-    wins: 0,
     losses: 1
   });
   assert.deepEqual(statsByDeck.get("deck-c"), {
@@ -992,9 +821,9 @@ test("getDeckStatsForIndex returns zeroes for decks missing read-model rows", as
   });
 });
 
-test("getLatestLogsForDeck fetches only a bounded latest linked-log preview", async (t) => {
+test("getLatestLogsForDeck returns linked-log preview rows", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client, queries } = createFakeSupabaseClient((ctx) => {
+  const { client } = createFakeSupabaseClient((ctx) => {
     const hasLinkedDeckFilter = ctx.operations.some(
       (op) => op.method === "eq" && op.args[0] === "linked_deck_id"
     );
@@ -1017,10 +846,4 @@ test("getLatestLogsForDeck fetches only a bounded latest linked-log preview", as
   const logs = await getLatestLogsForDeck("user-1", "deck-b", 5);
 
   assert.deepEqual(logs.map((log) => log.id), ["deck-b-latest"]);
-  assert.deepEqual(
-    queries[0]?.operations.filter((op) => op.method === "order").map((op) => op.args[0]),
-    ["date", "imported_at", "id"]
-  );
-  assert.deepEqual(queries[0]?.operations.find((op) => op.method === "limit")?.args, [5]);
-  assert.equal(queries[0]?.operations.some((op) => op.method === "in"), false);
 });

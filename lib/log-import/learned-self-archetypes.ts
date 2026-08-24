@@ -232,6 +232,39 @@ export async function promoteLearnedSelfArchetype(args: {
   };
 }
 
+export async function resolveSelfArchetypeForSave(args: {
+  supabase: LogsClient & LearnedArchetypeCatalogClient;
+  userId: string;
+  sprites: string[];
+  catalog: IdentificationCatalog;
+  minimumExistingMatches?: number;
+}): Promise<LearnedSelfArchetype | null> {
+  const candidateArchetype = buildLearnedSelfArchetype(args.sprites, 0);
+  if (!candidateArchetype) {
+    return null;
+  }
+
+  const knownArchetype = args.catalog.archetypes.byId.get(candidateArchetype.archetypeId);
+  if (knownArchetype) {
+    const knownSprites = normalizeLearnedSelfDeckSprites(knownArchetype.sprites);
+    const knownLabel = String(knownArchetype.label || "").trim();
+
+    if (
+      knownLabel &&
+      buildDeckArchetypeId(knownSprites) === candidateArchetype.archetypeId
+    ) {
+      return {
+        archetypeId: candidateArchetype.archetypeId,
+        label: knownLabel,
+        sprites: knownSprites,
+        matchCount: 0
+      };
+    }
+  }
+
+  return promoteLearnedSelfArchetype(args);
+}
+
 export async function resolveLearnedSelfArchetypeFromCandidates(args: {
   supabase: LogsClient;
   userId: string;

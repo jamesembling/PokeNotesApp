@@ -1,14 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SITE_FORMAT_OPTIONS, getDefaultSiteFormat, isKnownSiteFormat } from "../lib/formats/options";
+import { getDefaultSiteFormat, isKnownSiteFormat } from "../lib/formats/options";
 
-test("site format fallback defaults to the newest Standard set range", () => {
+test("site format fallback defaults to the newest Standard range and recognizes current special cases", () => {
   assert.equal(getDefaultSiteFormat(), "TEF-PBL");
-  assert.equal(SITE_FORMAT_OPTIONS[0], "TEF-PBL");
   assert(isKnownSiteFormat("TEF-PBL"));
-});
-
-test("site format fallback keeps current special-case set ranges", () => {
   assert(isKnownSiteFormat("SVI-WHT/BLK"));
 });

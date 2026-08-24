@@ -48,7 +48,7 @@ function publicClient(results = new Map()) {
   };
 }
 
-test("partial concurrent failure retains every successful and duplicate token for cleanup", async () => {
+test("partial settled create results retain every successful and duplicate token for cleanup", async () => {
   const observedTokens = new Set();
   const outcome = collectSettledShareResults(
     [

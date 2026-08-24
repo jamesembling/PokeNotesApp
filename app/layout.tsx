@@ -4,6 +4,7 @@ import { getInitialSiteFormats } from "@/lib/formats/catalog";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/shadcn/sonner";
 import { TooltipProvider } from "@/components/shadcn/tooltip";
+import { RoutePerformanceReporter } from "@/components/ui/RoutePerformanceReporter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -39,6 +40,7 @@ export default function RootLayout({
           <ThemeProvider>
             <TooltipProvider>{children}</TooltipProvider>
             <Toaster />
+            <RoutePerformanceReporter />
           </ThemeProvider>
         </SiteFormatsProvider>
       </body>

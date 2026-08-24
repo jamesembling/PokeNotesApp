@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
   getNavigationReportDecision,
+  isTrackedPerformancePath,
   ROUTE_REPORTER_VERSION
 } from "@/lib/performance/route-performance";
 
@@ -132,7 +133,14 @@ function getServerTimingDuration(entries: ServerTimingSource[], name: string) {
 }
 
 function getMarkerDuration(
-  phase: "bootstrap-auth" | "proxy-auth" | "route-data" | "shell-profile"
+  phase:
+    | "admin-access"
+    | "admin-overview"
+    | "admin-users"
+    | "bootstrap-auth"
+    | "proxy-auth"
+    | "route-data"
+    | "shell-profile"
 ) {
   const markers = document.querySelectorAll<HTMLElement>(`[data-route-server-timing="${phase}"]`);
   const marker = markers.item(markers.length - 1);
@@ -314,6 +322,9 @@ function getServerTimingSnapshot(
   const bootstrapAuthMarkerDuration = getMarkerDuration("bootstrap-auth");
 
   return {
+    serverAdminAccessMs: getMarkerDuration("admin-access"),
+    serverAdminOverviewMs: getMarkerDuration("admin-overview"),
+    serverAdminUsersMs: getMarkerDuration("admin-users"),
     serverAuthMs:
       bootstrapAuthMarkerDuration ??
       proxyAuthMarkerDuration ??
@@ -468,6 +479,11 @@ export function RoutePerformanceReporter() {
         return;
       }
 
+      if (!isTrackedPerformancePath(getCurrentPath())) {
+        hardLoadReported = true;
+        return;
+      }
+
       if (
         isLogsBootstrapVariant(getPerformanceVariant()) &&
         document.documentElement.dataset.logsBootstrapSettled !== "true"
@@ -566,7 +582,11 @@ export function RoutePerformanceReporter() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || getPerformanceVariant() === null) {
+    if (
+      typeof window === "undefined" ||
+      !isTrackedPerformancePath(getCurrentPath()) ||
+      getPerformanceVariant() === null
+    ) {
       return;
     }
 
@@ -693,7 +713,7 @@ export function RoutePerformanceReporter() {
       window.removeEventListener("pokenotes:route-parser-timing", handleParserTiming);
       window.removeEventListener("pagehide", handlePageHide);
     };
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -832,7 +852,7 @@ export function RoutePerformanceReporter() {
       const toPath = normalizePath(`${destination.pathname}${destination.search}`);
       const fromPath = getCurrentPath();
 
-      if (toPath === fromPath) {
+      if (toPath === fromPath || !isTrackedPerformancePath(toPath)) {
         return;
       }
 

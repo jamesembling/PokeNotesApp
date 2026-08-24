@@ -12,7 +12,13 @@ import {
 
 type RouteTimingMarkerProps = {
   durationMs: number;
-  phase: "proxy-auth" | "route-data" | "shell-profile";
+  phase:
+    | "admin-access"
+    | "admin-overview"
+    | "admin-users"
+    | "proxy-auth"
+    | "route-data"
+    | "shell-profile";
 };
 
 export function RouteTimingMarker({ durationMs, phase }: RouteTimingMarkerProps) {

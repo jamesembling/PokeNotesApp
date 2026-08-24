@@ -49,6 +49,9 @@ type PerformanceEventPayload = {
   saveData?: boolean | null;
   screenHeight?: number | null;
   screenWidth?: number | null;
+  serverAdminAccessMs?: number | null;
+  serverAdminOverviewMs?: number | null;
+  serverAdminUsersMs?: number | null;
   serverAuthMs?: number | null;
   serverAuthEndedMs?: number | null;
   serverAuthMethod?: string | null;
@@ -341,6 +344,9 @@ export async function POST(request: NextRequest) {
       save_data: Boolean(payload.saveData),
       screen_height: clampNumber(payload.screenHeight, 100_000),
       screen_width: clampNumber(payload.screenWidth, 100_000),
+      server_admin_access_ms: clampNumber(payload.serverAdminAccessMs),
+      server_admin_overview_ms: clampNumber(payload.serverAdminOverviewMs),
+      server_admin_users_ms: clampNumber(payload.serverAdminUsersMs),
       server_auth_ms: clampNumber(payload.serverAuthMs),
       server_auth_ended_ms: clampNumber(payload.serverAuthEndedMs),
       server_auth_method: clampText(payload.serverAuthMethod, 64),
@@ -395,17 +401,26 @@ export async function POST(request: NextRequest) {
       (error.message.includes("final_response_headers_start_ms") ||
         error.message.includes("first_interim_response_start_ms") ||
         error.message.includes("server_auth_refreshed") ||
-        error.message.includes("server_route_entered_ms"))
+        error.message.includes("server_route_entered_ms") ||
+        error.message.includes("server_admin_access_ms") ||
+        error.message.includes("server_admin_overview_ms") ||
+        error.message.includes("server_admin_users_ms"))
     ) {
       const {
         final_response_headers_start_ms: removedFinalResponseHeadersStart,
         first_interim_response_start_ms: removedFirstInterimResponseStart,
+        server_admin_access_ms: removedAdminAccess,
+        server_admin_overview_ms: removedAdminOverview,
+        server_admin_users_ms: removedAdminUsers,
         server_auth_refreshed: removedAuthRefreshed,
         server_route_entered_ms: removedRouteEntered,
         ...legacyPerformanceEvent
       } = performanceEvent;
       void removedFinalResponseHeadersStart;
       void removedFirstInterimResponseStart;
+      void removedAdminAccess;
+      void removedAdminOverview;
+      void removedAdminUsers;
       void removedAuthRefreshed;
       void removedRouteEntered;
       ({ error } = await supabase

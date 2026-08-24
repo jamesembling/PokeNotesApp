@@ -6,13 +6,17 @@ import {
   resolvePokemonSpriteSlug
 } from "@/lib/pokemon/sprites";
 
-test("resolvePokemonSpriteSlug strips trainer prefixes from trainer Pokemon cards", () => {
-  assert.equal(resolvePokemonSpriteSlug("Lillie's Clefairy ex"), "clefairy");
-  assert.equal(resolvePokemonSpriteSlug("N's Zorua"), "zorua");
-});
+test("resolvePokemonSpriteSlug applies the trainer, standard, and variant decision table", () => {
+  const cases = [
+    ["trainer prefix with ex suffix", "Lillie's Clefairy ex", "clefairy"],
+    ["trainer prefix", "N's Zorua", "zorua"],
+    ["additional trainer prefix", "Cynthia's Gabite", "gabite"],
+    ["standard name with ex suffix", "Clefairy ex", "clefairy"]
+  ] as const;
 
-test("resolvePokemonSpriteSlug keeps standard Pokemon names intact", () => {
-  assert.equal(resolvePokemonSpriteSlug("Clefairy ex"), "clefairy");
+  for (const [name, input, expected] of cases) {
+    assert.equal(resolvePokemonSpriteSlug(input), expected, `${name}: ${input}`);
+  }
 });
 
 test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => {
@@ -60,31 +64,18 @@ test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => 
   });
 });
 
-test("resolvePokemonSpriteSlug strips trainer prefixes from additional trainer Pokemon cards", () => {
-  assert.equal(resolvePokemonSpriteSlug("Cynthia's Gabite"), "gabite");
-  assert.equal(resolvePokemonSpriteSlug("N's Darmanitan"), "darmanitan");
-});
+test("curated sprite assets resolve directly and appear in selectable options", () => {
+  const urlCases = [
+    ["lowercase curated asset slug", "crushing-hammer", "/pixelated-hammer-sprite-transparent.png"],
+    ["case-insensitive curated asset slug", "Crushing-Hammer", "/pixelated-hammer-sprite-transparent.png"],
+    ["Mega Darkrai sprite asset", "darkrai-mega", "https://r2.limitlesstcg.net/pokemon/gen9/darkrai.png"],
+    ["Mega Zeraora sprite asset", "zeraora-mega", "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"]
+  ] as const;
 
-test("buildPokemonSpriteUrlFromSlug resolves curated non-Pokemon sprite assets", () => {
-  assert.equal(
-    buildPokemonSpriteUrlFromSlug("crushing-hammer"),
-    "/pixelated-hammer-sprite-transparent.png"
-  );
-  assert.equal(
-    buildPokemonSpriteUrlFromSlug("Crushing-Hammer"),
-    "/pixelated-hammer-sprite-transparent.png"
-  );
-  assert.equal(
-    buildPokemonSpriteUrlFromSlug("darkrai-mega"),
-    "https://r2.limitlesstcg.net/pokemon/gen9/darkrai.png"
-  );
-  assert.equal(
-    buildPokemonSpriteUrlFromSlug("zeraora-mega"),
-    "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"
-  );
-});
+  for (const [name, slug, expectedUrl] of urlCases) {
+    assert.equal(buildPokemonSpriteUrlFromSlug(slug), expectedUrl, name);
+  }
 
-test("buildSelectableSpriteOptions adds curated non-Pokemon sprite assets to picker options", () => {
   const options = buildSelectableSpriteOptions([
     {
       slug: "dragapult",

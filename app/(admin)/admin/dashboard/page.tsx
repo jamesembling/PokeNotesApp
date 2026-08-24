@@ -1,8 +1,13 @@
 import { Suspense } from "react";
-import { Skeleton } from "@/components/shadcn/skeleton";
+import {
+  AdminSummaryCardsFallback,
+  AdminUsersSectionFallback
+} from "@/components/ui/AdminDashboardLoadingState";
 import { AdminUsersTable } from "@/components/ui/AdminUsersTable";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { RouteTimingMarker } from "@/components/ui/RouteTimingMarker";
 import { getAdminDashboardOverview, getAdminUsers } from "@/lib/db/admin";
+import { measureServerCallWithTiming } from "@/lib/server/perf";
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
@@ -22,7 +27,10 @@ function formatDateTime(value: string | undefined) {
 }
 
 export default async function AdminDashboardPage() {
-  const dashboardOverviewPromise = getAdminDashboardOverview();
+  const dashboardOverviewPromise = measureServerCallWithTiming(
+    "page.admin.dashboard.overview",
+    () => getAdminDashboardOverview()
+  );
 
   return (
     <>
@@ -50,12 +58,17 @@ export default async function AdminDashboardPage() {
 async function AdminSummaryCards({
   dashboardOverviewPromise
 }: {
-  dashboardOverviewPromise: ReturnType<typeof getAdminDashboardOverview>;
+  dashboardOverviewPromise: Promise<{
+    durationMs: number;
+    value: Awaited<ReturnType<typeof getAdminDashboardOverview>>;
+  }>;
 }) {
-  const overview = await dashboardOverviewPromise;
+  const overviewTiming = await dashboardOverviewPromise;
+  const overview = overviewTiming.value;
 
   return (
     <div className="grid gap-6 md:grid-cols-3">
+      <RouteTimingMarker durationMs={overviewTiming.durationMs} phase="admin-overview" />
       <div className="py-2">
         <div className="flex flex-col gap-2">
           <p className="ui-eyebrow">Users</p>
@@ -92,10 +105,14 @@ async function AdminSummaryCards({
 }
 
 async function AdminUsersSection() {
-  const { users, roleUpdatesEnabled, warning } = await getAdminUsers();
+  const usersTiming = await measureServerCallWithTiming("page.admin.dashboard.users", () =>
+    getAdminUsers()
+  );
+  const { users, roleUpdatesEnabled, warning } = usersTiming.value;
 
   return (
     <section className="flex flex-col gap-4 border-t border-border pt-6">
+      <RouteTimingMarker durationMs={usersTiming.durationMs} phase="admin-users" />
       <div className="flex flex-col gap-1">
         <p className="ui-eyebrow">User Management</p>
         <h2 className="text-base font-semibold text-card-foreground">Accounts and Roles</h2>
@@ -112,42 +129,6 @@ async function AdminUsersSection() {
         users={users}
         warning={warning}
       />
-    </section>
-  );
-}
-
-function AdminSummaryCardsFallback() {
-  return (
-    <div className="grid gap-6 md:grid-cols-3">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div className="py-2" key={index}>
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-9 w-16" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function AdminUsersSectionFallback() {
-  return (
-    <section className="flex flex-col gap-4 border-t border-border pt-6">
-      <div className="flex flex-col gap-1">
-        <p className="ui-eyebrow">User Management</p>
-        <h2 className="text-base font-semibold text-card-foreground">Accounts and Roles</h2>
-        <p className="text-sm text-muted-foreground">
-          Loading trainer accounts and role controls…
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton className="h-20 rounded-none border-b border-border" key={index} />
-        ))}
-      </div>
     </section>
   );
 }

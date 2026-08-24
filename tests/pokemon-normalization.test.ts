@@ -17,29 +17,38 @@ function createRow(slug: string, label: string): PokemonCatalogRow {
   };
 }
 
-test("buildPokemonNameVariants includes origin forme variants", () => {
-  const variants = buildPokemonNameVariants(createRow("dialga-origin", "Origin Forme Dialga"));
+test("Pokemon name normalization applies the variant and trainer-prefix decision table", () => {
+  const variantCases = [
+    {
+      name: "origin forme variants",
+      row: createRow("dialga-origin", "Origin Forme Dialga"),
+      expected: ["origin forme dialga", "dialga origin", "dialga origin forme"]
+    },
+    {
+      name: "regional suffix variants",
+      row: createRow("zoroark-hisui", "Hisuian Zoroark"),
+      expected: ["hisuian zoroark", "zoroark hisui"]
+    },
+    {
+      name: "Mega prefix and suffix variants",
+      row: createRow("charizard-mega-x", "Mega Charizard X"),
+      expected: ["mega charizard x", "charizard mega x"]
+    }
+  ];
 
-  assert(variants.includes("origin forme dialga"));
-  assert(variants.includes("dialga origin"));
-  assert(variants.includes("dialga origin forme"));
-});
+  for (const scenario of variantCases) {
+    const variants = buildPokemonNameVariants(scenario.row);
+    for (const expected of scenario.expected) {
+      assert(variants.includes(expected), `${scenario.name}: ${expected}`);
+    }
+  }
 
-test("buildPokemonNameVariants includes regional suffix variants", () => {
-  const variants = buildPokemonNameVariants(createRow("zoroark-hisui", "Hisuian Zoroark"));
+  const trainerPrefixCases = [
+    ["N's Zorua", "Zorua"],
+    ["Cynthia's Gabite", "Gabite"]
+  ] as const;
 
-  assert(variants.includes("hisuian zoroark"));
-  assert(variants.includes("zoroark hisui"));
-});
-
-test("buildPokemonNameVariants includes Mega prefix and suffix variants", () => {
-  const variants = buildPokemonNameVariants(createRow("charizard-mega-x", "Mega Charizard X"));
-
-  assert(variants.includes("mega charizard x"));
-  assert(variants.includes("charizard mega x"));
-});
-
-test("stripTrainerPrefix removes trainer ownership prefixes", () => {
-  assert.equal(stripTrainerPrefix("N's Zorua"), "Zorua");
-  assert.equal(stripTrainerPrefix("Cynthia's Gabite"), "Gabite");
+  for (const [input, expected] of trainerPrefixCases) {
+    assert.equal(stripTrainerPrefix(input), expected, `trainer prefix: ${input}`);
+  }
 });

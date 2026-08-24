@@ -1,7 +1,27 @@
-export const ROUTE_REPORTER_VERSION = 7;
+export const ROUTE_REPORTER_VERSION = 8;
 export const APP_ROUTE_MIN_OBSERVATION_MS = 800;
 export const APP_ROUTE_QUIET_WINDOW_MS = 200;
 export const APP_ROUTE_MAX_OBSERVATION_MS = 1500;
+
+const TRACKED_ROUTE_ROOTS = [
+  "/admin",
+  "/calculator",
+  "/deck-lists",
+  "/decks",
+  "/logs",
+  "/logs-canary",
+  "/profile",
+  "/stats",
+  "/tournaments"
+] as const;
+
+export function isTrackedPerformancePath(path: string) {
+  const [pathname] = path.split(/[?#]/);
+
+  return TRACKED_ROUTE_ROOTS.some(
+    (routeRoot) => pathname === routeRoot || pathname.startsWith(`${routeRoot}/`)
+  );
+}
 
 type NavigationReportDecisionInput = {
   candidateCompletedAt: number;

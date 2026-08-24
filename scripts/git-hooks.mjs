@@ -70,7 +70,7 @@ const readModelRoutePatterns = [
   /^app\/api\/deck-list\//,
   /^app\/api\/log-detail-context\//,
   /^lib\/db\/(decks|logs|log-linked-deck-list-names)\.ts$/,
-  /^tests\/read-model-route-regression\.test\.ts$/
+  /^tests\/logs-regression\.test\.ts$/
 ];
 
 const sqlPatterns = [
@@ -116,15 +116,16 @@ if (mode === "pre-commit") {
   if (matchesAny(files, readModelRoutePatterns)) {
     console.log("");
     console.log("Read-model route paths changed. Checking first-render route contracts.");
-    runNpmScript("test", ["tests/read-model-route-regression.test.ts"]);
+    runNpmScript("test", ["tests/logs-regression.test.ts"]);
   }
 
   if (matchesAny(files, sqlPatterns)) {
     console.log("");
     console.log("SQL/data paths changed. Checking SQL regression tests.");
     runNpmScript("test", [
-      "tests/deck-log-stats-sql.test.ts",
-      "tests/archetype-matchup-stats-sql.test.ts",
+      "tests/default-privileges.test.ts",
+      "tests/first-class-deck-lists-sql.test.ts",
+      "tests/log-share-atomic-lifecycle-sql.test.ts",
       "tests/migration-release-runbook.test.ts"
     ]);
   }

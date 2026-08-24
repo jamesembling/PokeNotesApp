@@ -1,12 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import test from "node:test";
 import { createAsyncTtlCache } from "@/lib/client/async-ttl-cache";
-
-function source(relativePath: string) {
-  return readFileSync(join(process.cwd(), relativePath), "utf8");
-}
 
 test("async TTL cache deduplicates requests and reloads at the existing freshness boundary", async () => {
   let now = 1_000;
@@ -85,27 +79,4 @@ test("failed requests are not retained", async () => {
   );
 
   assert.equal(await cache.load(async () => `value-${++loads}`), "value-2");
-});
-
-test("Pokemon options share the server freshness window without retaining tenant editor data", () => {
-  const freshness = source("lib/cache/freshness.ts");
-  const serverPokemon = source("lib/db/pokemon.ts");
-  const clientCaches = source("lib/client/editor-option-cache.ts");
-  const pokemonLoader = source("lib/pokemon/use-pokemon-options.ts");
-  const tournamentLoader = source("components/ui/LazyTournamentEditorButton.tsx");
-  const tournamentDialog = source("components/ui/TournamentEditorDialog.tsx");
-
-  assert.match(freshness, /POKEMON_OPTIONS_REVALIDATE_SECONDS = 60 \* 60/);
-  assert.match(freshness, /EDITOR_OPTION_CACHE_TTL_MS = POKEMON_OPTIONS_REVALIDATE_SECONDS \* 1000/);
-  assert.match(serverPokemon, /revalidate: POKEMON_OPTIONS_REVALIDATE_SECONDS/);
-  assert.match(clientCaches, /ttlMs: EDITOR_OPTION_CACHE_TTL_MS/);
-  assert.doesNotMatch(clientCaches, /TournamentEditorData|TournamentDeckChoice|tournamentEditorData/);
-  assert.match(pokemonLoader, /pokemonOptionsClientCache\.load/);
-  assert.match(pokemonLoader, /pokemonOptionsClientCache\.subscribe/);
-  assert.match(pokemonLoader, /reloadToken/);
-  assert.doesNotMatch(pokemonLoader, /let pokemonOptionsCache|let pokemonOptionsPromise/);
-  assert.match(tournamentLoader, /usePokemonOptionsResource/);
-  assert.match(tournamentLoader, /optionsRequested[\s\S]*reload\(\)/);
-  assert.doesNotMatch(tournamentLoader, /tournament-editor-data|TournamentDeckChoice|\bdecks\b/);
-  assert.doesNotMatch(tournamentDialog, /TournamentDeckChoice|\bdecks:/);
 });

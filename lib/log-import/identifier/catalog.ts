@@ -16,7 +16,7 @@ type CachedIdentificationCatalogRows = {
   pokemonRows: PokemonCatalogRow[];
 };
 
-const IDENTIFICATION_CATALOG_CACHE_VERSION = "v12";
+const IDENTIFICATION_CATALOG_CACHE_VERSION = "v13";
 
 type ArchetypeRowsClient = {
   from(table: "archetype_catalog"): unknown;
@@ -332,9 +332,15 @@ export async function loadIdentificationCatalog(args?: {
     })
   ]);
   const pokemon = buildPokemonIndex(pokemonRows);
+  const curatedCanonicalIds = new Set(
+    archetypeRows.map((row) => String(row.canonical_id || row.id || "").trim()).filter(Boolean)
+  );
+  const nonCollidingLearnedRows = learnedArchetypeRows.filter(
+    (row) => !curatedCanonicalIds.has(String(row.canonical_id || row.id || "").trim())
+  );
 
   return {
     pokemon,
-    archetypes: buildArchetypeIndex([...archetypeRows, ...learnedArchetypeRows], pokemon)
+    archetypes: buildArchetypeIndex([...archetypeRows, ...nonCollidingLearnedRows], pokemon)
   };
 }

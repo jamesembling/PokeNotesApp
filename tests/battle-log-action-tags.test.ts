@@ -9,358 +9,346 @@ import {
   getBattleLogActionTagLabel
 } from "@/lib/battle-log/display";
 
-test("classifyBattleLogActionTitle tags common English battle-log actions", () => {
-  assert.equal(classifyBattleLogActionTitle("James drew 7 cards for the opening hand"), "draw");
-  assert.equal(
-    classifyBattleLogActionTitle("James drew Radiant Greninja and played it to the Bench"),
-    "bench"
-  );
-  assert.equal(classifyBattleLogActionTitle("James evolved Drakloak to Dragapult ex"), "evolve");
-  assert.equal(classifyBattleLogActionTitle("James used Concealed Cards."), "ability");
-  assert.equal(classifyBattleLogActionTitle("James played a Supporter card."), "supporter");
-  assert.equal(classifyBattleLogActionTitle("James played an Item card."), "item");
-  assert.equal(
-    classifyBattleLogActionTitle("James attached a Pokemon Tool to Dragapult ex."),
-    "tool"
-  );
-  assert.equal(classifyBattleLogActionTitle("James played a Stadium card."), "stadium");
-  assert.equal(classifyBattleLogActionTitle("Dragapult ex used Phantom Dive for 200 damage."), "attack");
-  assert.equal(
-    classifyBattleLogActionTitle("Dragapult ex used Shadow Bullet -> 180 damage to Gabite."),
-    "attack"
-  );
-  assert.equal(
-    classifyBattleLogActionTitle("Dragapult ex used Phantom Gate -> choose 1 attack from your opponent's Active Pokemon."),
-    "attack"
-  );
-  assert.equal(classifyBattleLogActionTitle("James won the game."), "win");
-  assert.equal(classifyBattleLogActionTitle("Cynthia lost the match."), "loss");
-  assert.equal(classifyBattleLogActionTitle("Charmander was Knocked Out."), "ko");
+test("battle-log action classification and labels follow their decision table", () => {
+  const classificationCases = [
+    ["opening draw", "James drew 7 cards for the opening hand", "draw"],
+    ["draw and bench", "James drew Radiant Greninja and played it to the Bench", "bench"],
+    ["evolution", "James evolved Drakloak to Dragapult ex", "evolve"],
+    ["ability", "James used Concealed Cards.", "ability"],
+    ["supporter", "James played a Supporter card.", "supporter"],
+    ["item", "James played an Item card.", "item"],
+    ["tool", "James attached a Pokemon Tool to Dragapult ex.", "tool"],
+    ["stadium", "James played a Stadium card.", "stadium"],
+    ["damage attack", "Dragapult ex used Phantom Dive for 200 damage.", "attack"],
+    ["arrow attack", "Dragapult ex used Shadow Bullet -> 180 damage to Gabite.", "attack"],
+    ["choose attack", "Dragapult ex used Phantom Gate -> choose 1 attack from your opponent's Active Pokemon.", "attack"],
+    ["win", "James won the game.", "win"],
+    ["loss", "Cynthia lost the match.", "loss"],
+    ["knockout", "Charmander was Knocked Out.", "ko"],
+    ["weak played signal", "James played Buddy-Buddy Poffin.", "other"],
+    ["turn marker", "Turn # 3 - James's Turn", "other"],
+    ["empty title", "", "other"],
+    ["accent normalization", "James attached a Pokémon Tool to Dragapult ex.", "tool"]
+  ] as const;
+
+  for (const [name, title, expected] of classificationCases) {
+    assert.equal(classifyBattleLogActionTitle(title), expected, name);
+  }
+
+  const labelCases = [
+    ["recognized draw", "James drew a card.", "Draw"],
+    ["played fallback", "James played Buddy-Buddy Poffin.", "Play"],
+    ["attached fallback", "James attached Darkness Energy to Munkidori.", "Attach"],
+    ["retreat fallback", "James retreated to the Bench.", "Retreat"],
+    ["generic fallback", "A quiet line without a clear action", "Action"]
+  ] as const;
+
+  for (const [name, title, expected] of labelCases) {
+    assert.equal(getBattleLogActionTagLabel(title), expected, name);
+  }
 });
 
-test("classifyBattleLogActionTitle falls back to other when the signal is weak or absent", () => {
-  assert.equal(classifyBattleLogActionTitle("James played Buddy-Buddy Poffin."), "other");
-  assert.equal(classifyBattleLogActionTitle("Turn # 3 - James's Turn"), "other");
-  assert.equal(classifyBattleLogActionTitle(""), "other");
-});
+test("battle-log action titles use the subject and board-position decision table", () => {
+  type TitleCase = {
+    name: string;
+    input: string;
+    options?: Parameters<typeof formatBattleLogActionTitle>[1];
+    expected: string;
+  };
 
-test("classifyBattleLogActionTitle normalizes accents before matching conservative keywords", () => {
-  assert.equal(
-    classifyBattleLogActionTitle("James attached a Pokémon Tool to Dragapult ex."),
-    "tool"
-  );
-});
-
-test("getBattleLogActionTagLabel keeps recognized labels short and gives useful fallbacks", () => {
-  assert.equal(getBattleLogActionTagLabel("James drew a card."), "Draw");
-  assert.equal(getBattleLogActionTagLabel("James played Buddy-Buddy Poffin."), "Play");
-  assert.equal(getBattleLogActionTagLabel("James attached Darkness Energy to Munkidori."), "Attach");
-  assert.equal(getBattleLogActionTagLabel("James retreated to the Bench."), "Retreat");
-  assert.equal(getBattleLogActionTagLabel("A quiet line without a clear action"), "Action");
-});
-
-test("formatBattleLogActionTitle uses subject-first wording for common board actions", () => {
-  assert.equal(
-    formatBattleLogActionTitle("JammerUK1993 played Froakie to the Active Spot."),
-    "Froakie played to Active spot"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("James drew Radiant Greninja and played it to the Bench."),
-    "Radiant Greninja played to Bench"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("James attached Darkness Energy to Munkidori."),
-    "Darkness Energy attached to Munkidori"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("James attached Darkness Energy to Munkidori in the Active Spot."),
-    "Darkness Energy attached to Munkidori in the Active"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("James attached Darkness Energy to Munkidori on the Bench."),
-    "Darkness Energy attached to Munkidori on the Bench"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("James evolved Drakloak to Dragapult ex."),
-    "Drakloak evolved into Dragapult ex"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("James evolved Froakie to Frogadier on the Bench."),
-    "Froakie evolved into Frogadier on the Bench"
-  );
-  assert.equal(formatBattleLogActionTitle("JammerUK1993 drew Froakie."), "Drew Froakie");
-  assert.equal(formatBattleLogActionTitle("iBerzrk_Network drew a card."), "Drew a card");
-  assert.equal(formatBattleLogActionTitle("JammerUK1993 played Buddy-Buddy Poffin."), "Played Buddy-Buddy Poffin");
-  assert.equal(
-    formatBattleLogActionTitle("Radiant Greninja used Concealed Cards.", {
-      actionTag: "ability"
-    }),
-    "Radiant Greninja used Concealed Cards"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("iBerzrk_Network's Drakloak used Recon Directive.", {
-      actionTag: "ability"
-    }),
-    "Drakloak used Recon Directive"
-  );
-  assert.equal(
-    classifyBattleLogActionTitle("Dudunsparce's Run Away Draw was activated."),
-    "ability"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("Dudunsparce's Run Away Draw was activated."),
-    "Dudunsparce used Run Away Draw"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("JammerUK1993's Greninja ex used Mirage Barrage.", {
-      actionTag: "attack"
-    }),
-    "Greninja ex used Mirage Barrage"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("JammerUK1993's Greninja ex used Mirage Barrage on iBerzrk_Network's Active for 120 damage.", {
-      actionTag: "attack"
-    }),
-    "Greninja ex used Mirage Barrage on Active for 120 damage"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("iBerzrk_Network’s Budew used Itchy Pollen on JammerUK1993’s Budew for 10 damage.", {
-      actionTag: "attack"
-    }),
-    "Budew used Itchy Pollen on Budew for 10 damage"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("Dragapult ex used Phantom Dive for 200 damage.", {
-      actionTag: "attack"
-    }),
-    "Dragapult ex used Phantom Dive for 200 damage"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("JammerUK1993 played Buddy-Buddy Poffin.", {
-      actionTag: "item"
-    }),
-    "Played Buddy-Buddy Poffin"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("JammerUK1993 retreated Budew to Bench."),
-    "Budew retreated to Bench"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("JammerUK1993 retreated to Bench."),
-    "Retreated to Bench"
-  );
-  assert.equal(formatBattleLogActionTitle("JammerUK1993 ended their turn."), "Ended turn");
-});
-
-test("display action helpers fold retreat promotion details into the title", () => {
-  const details = [
-    "Basic Fighting Energy was discarded from _ndz's Cynthia's Roserade.",
-    "_ndz's Cynthia's Gabite is now in the Active spot."
-  ];
-  const displayTitle = getBattleLogDisplayActionTitle(
-    "_ndz retreated Cynthia's Roserade to Bench.",
-    details
-  );
-
-  assert.equal(
-    displayTitle,
-    "_ndz retreated Cynthia's Roserade to Bench -> Cynthia's Gabite is now in the Active spot"
-  );
-  assert.equal(
-    formatBattleLogActionTitle(displayTitle),
-    "Cynthia's Roserade retreated to Bench -> Cynthia's Gabite is now in the Active spot"
-  );
-  assert.deepEqual(
-    getBattleLogDisplayActionDetails("_ndz retreated Cynthia's Roserade to Bench.", details),
-    ["Basic Fighting Energy was discarded from _ndz's Cynthia's Roserade."]
-  );
-});
-
-test("display action helpers fold multi-target attack damage into the title", () => {
-  const title = "JammerUK1993's Greninja ex used Mirage Barrage on iBerzrk_Network's Active for 120 damage.";
-  const details = [
-    "- iBerzrk_Network's Benched Pokemon took 120 damage.",
-    "Ignition Energy was discarded from JammerUK1993's Greninja ex."
-  ];
-  const displayTitle = getBattleLogDisplayActionTitle(title, details);
-
-  assert.equal(
-    displayTitle,
-    "JammerUK1993's Greninja ex used Mirage Barrage on iBerzrk_Network's Active for 120 damage & Benched Pokemon for 120 damage"
-  );
-  assert.equal(
-    formatBattleLogActionTitle(displayTitle, { actionTag: "attack" }),
-    "Greninja ex used Mirage Barrage on Active for 120 damage & Benched Pokemon for 120 damage"
-  );
-  assert.deepEqual(
-    getBattleLogDisplayActionDetails(title, details),
-    ["Ignition Energy was discarded from JammerUK1993's Greninja ex."]
-  );
-});
-
-test("display action helpers fold detail-only spread attack damage into the title", () => {
-  const title = "JammerUK1993's Greninja ex used Mirage Barrage.";
-  const details = [
-    "- iBerzrk_Network's Cynthia's Gabite took 120 damage.",
-    "- iBerzrk_Network's Cynthia's Roserade took 120 damage."
-  ];
-  const displayTitle = getBattleLogDisplayActionTitle(title, details);
-
-  assert.equal(
-    displayTitle,
-    "JammerUK1993's Greninja ex used Mirage Barrage on Cynthia's Gabite for 120 damage & Cynthia's Roserade for 120 damage"
-  );
-  assert.equal(
-    formatBattleLogActionTitle(displayTitle, { actionTag: "attack" }),
-    "Greninja ex used Mirage Barrage on Cynthia's Gabite for 120 damage & Cynthia's Roserade for 120 damage"
-  );
-  assert.deepEqual(getBattleLogDisplayActionDetails(title, details), []);
-});
-
-test("display action helpers fold Boss's Orders switch details into the title", () => {
-  const title = "JammerUK1993 played Boss's Orders.";
-  const details = [
-    "- Cynthia's Roselia was switched with _ndz's Cynthia's Gible to become the Active Pokémon",
-    "Cynthia's Roselia is now in the Active spot"
-  ];
-  const displayTitle = getBattleLogDisplayActionTitle(title, details);
-
-  assert.equal(
-    displayTitle,
-    "JammerUK1993 played Boss's Orders - Active Cynthia's Gible was switched with Benched Cynthia's Roselia"
-  );
-  assert.equal(
-    formatBattleLogActionTitle(displayTitle, { actionTag: "supporter" }),
-    "Played Boss's Orders - Active Cynthia's Gible was switched with Benched Cynthia's Roselia"
-  );
-  assert.deepEqual(getBattleLogDisplayActionDetails(title, details), []);
-});
-
-test("display action helpers hide knockout discard movement details", () => {
-  assert.deepEqual(
-    getBattleLogDisplayActionDetails("_ndz's Cynthia's Gabite was Knocked Out!", [
-      "2 cards were discarded from _ndz's Cynthia's Gabite.",
-      "Basic Fighting Energy, Cynthia's Gible",
-      "Gible was discarded from _ndz's Cynthia's Gabite."
-    ]),
-    []
-  );
-});
-
-test("display action helpers fold discard recovery movement into played card titles", () => {
-  const title = "_ndz played Night Stretcher.";
-  const details = ["_ndz moved _ndz's Cynthia's Gible to their hand"];
-  const displayTitle = getBattleLogDisplayActionTitle(title, details);
-
-  assert.equal(
-    displayTitle,
-    "_ndz played Night Stretcher & moved Cynthia's Gible from discard to hand"
-  );
-  assert.equal(
-    formatBattleLogActionTitle(displayTitle, { actionTag: "item" }),
-    "Played Night Stretcher & moved Cynthia's Gible from discard to hand"
-  );
-  assert.deepEqual(getBattleLogDisplayActionDetails(title, details), []);
-});
-
-test("formatBattleLogActionTitle can retain actors for setup actions", () => {
-  assert.equal(
-    formatBattleLogActionTitle("JammerUK1993 played Froakie to the Active Spot.", {
-      retainActor: true
-    }),
-    "JammerUK1993: Froakie played to Active spot"
-  );
-  assert.equal(
-    formatBattleLogActionTitle("JammerUK1993 played Buddy-Buddy Poffin.", {
-      actionTag: "item",
-      retainActor: true
-    }),
-    "JammerUK1993: Played Buddy-Buddy Poffin"
-  );
-});
-
-test("formatBattleLogActionDetail strips player names from attack details", () => {
-  assert.equal(
-    formatBattleLogActionDetail("iBerzrk_Network's Active Pokemon took 120 damage.", {
-      actionTag: "attack"
-    }),
-    "Active Pokemon took 120 damage"
-  );
-  assert.equal(
-    formatBattleLogActionDetail("- Opponent's Benched Pokemon took 120 damage.", {
-      actionTag: "attack"
-    }),
-    "- Benched Pokemon took 120 damage"
-  );
-  assert.equal(
-    formatBattleLogActionDetail("_ndz's Cynthia's Gabite took 120 damage.", {
-      actionTag: "attack"
-    }),
-    "Cynthia's Gabite took 120 damage"
-  );
-});
-
-test("formatBattleLogActionDetail clarifies damage-counter placement details", () => {
-  assert.equal(
-    formatBattleLogActionDetail("Hyierro put 6 damage counters on Hyierro's Fan Rotom."),
-    "6 damage counters on Fan Rotom"
-  );
-
-  assert.equal(
-    formatBattleLogActionDetail("- _ndz put a damage counter on _ndz's Cynthia's Roserade."),
-    "- 1 damage counter on Cynthia's Roserade"
-  );
-});
-
-test("formatBattleLogActionDetail strips leading player names without removing owned Pokemon names", () => {
-  assert.equal(
-    formatBattleLogActionDetail("_ndz's Cynthia's Gabite is now in the Active spot.", {
-      actionTag: "other"
-    }),
-    "Cynthia's Gabite is now in the Active spot"
-  );
-  assert.equal(
-    formatBattleLogActionDetail("- _ndz's Cynthia's Roserade moved to the Bench.", {
-      actionTag: "other"
-    }),
-    "- Cynthia's Roserade moved to Bench"
-  );
-});
-
-test("display action helpers promote Dudunsparce Run Away Draw effect groups", () => {
-  const details = [
-    "- JammerUK1993 drew 3 cards",
-    "- Rare Candy, Surfing Beach, Greninja ex",
-    "- JammerUK1993 shuffled 2 cards into their deck",
-    "- Dudunsparce, Dunsparce"
+  const cases: TitleCase[] = [
+    {
+      name: "play to active",
+      input: "JammerUK1993 played Froakie to the Active Spot.",
+      expected: "Froakie played to Active spot"
+    },
+    {
+      name: "draw and play to bench",
+      input: "James drew Radiant Greninja and played it to the Bench.",
+      expected: "Radiant Greninja played to Bench"
+    },
+    {
+      name: "generic attachment",
+      input: "James attached Darkness Energy to Munkidori.",
+      expected: "Darkness Energy attached to Munkidori"
+    },
+    {
+      name: "attachment to active",
+      input: "James attached Darkness Energy to Munkidori in the Active Spot.",
+      expected: "Darkness Energy attached to Munkidori in the Active"
+    },
+    {
+      name: "attachment to bench",
+      input: "James attached Darkness Energy to Munkidori on the Bench.",
+      expected: "Darkness Energy attached to Munkidori on the Bench"
+    },
+    {
+      name: "generic evolution",
+      input: "James evolved Drakloak to Dragapult ex.",
+      expected: "Drakloak evolved into Dragapult ex"
+    },
+    {
+      name: "evolution on bench",
+      input: "James evolved Froakie to Frogadier on the Bench.",
+      expected: "Froakie evolved into Frogadier on the Bench"
+    },
+    {
+      name: "named draw",
+      input: "JammerUK1993 drew Froakie.",
+      expected: "Drew Froakie"
+    },
+    {
+      name: "anonymous draw",
+      input: "iBerzrk_Network drew a card.",
+      expected: "Drew a card"
+    },
+    {
+      name: "generic play",
+      input: "JammerUK1993 played Buddy-Buddy Poffin.",
+      expected: "Played Buddy-Buddy Poffin"
+    },
+    {
+      name: "possessive ability",
+      input: "iBerzrk_Network's Drakloak used Recon Directive.",
+      options: { actionTag: "ability" },
+      expected: "Drakloak used Recon Directive"
+    },
+    {
+      name: "attack without target",
+      input: "JammerUK1993's Greninja ex used Mirage Barrage.",
+      options: { actionTag: "attack" },
+      expected: "Greninja ex used Mirage Barrage"
+    },
+    {
+      name: "attack with target and damage",
+      input: "JammerUK1993's Greninja ex used Mirage Barrage on iBerzrk_Network's Active for 120 damage.",
+      options: { actionTag: "attack" },
+      expected: "Greninja ex used Mirage Barrage on Active for 120 damage"
+    },
+    {
+      name: "curly possessives in attack",
+      input: "iBerzrk_Network’s Budew used Itchy Pollen on JammerUK1993’s Budew for 10 damage.",
+      options: { actionTag: "attack" },
+      expected: "Budew used Itchy Pollen on Budew for 10 damage"
+    },
+    {
+      name: "retreating a named Pokemon",
+      input: "JammerUK1993 retreated Budew to Bench.",
+      expected: "Budew retreated to Bench"
+    },
+    {
+      name: "retreating without a Pokemon",
+      input: "JammerUK1993 retreated to Bench.",
+      expected: "Retreated to Bench"
+    },
+    {
+      name: "ended turn",
+      input: "JammerUK1993 ended their turn.",
+      expected: "Ended turn"
+    },
+    {
+      name: "retain actor for board setup",
+      input: "JammerUK1993 played Froakie to the Active Spot.",
+      options: { retainActor: true },
+      expected: "JammerUK1993: Froakie played to Active spot"
+    },
+    {
+      name: "retain actor for item setup",
+      input: "JammerUK1993 played Buddy-Buddy Poffin.",
+      options: { actionTag: "item", retainActor: true },
+      expected: "JammerUK1993: Played Buddy-Buddy Poffin"
+    }
   ];
 
-  assert.equal(
-    getBattleLogDisplayActionTitle("JammerUK1993 played Dudunsparce.", details),
-    "Dudunsparce's Run Away Draw was activated."
-  );
-  assert.deepEqual(
-    getBattleLogDisplayActionDetails("JammerUK1993 played Dudunsparce.", details),
-    details
-  );
-  assert.equal(
-    formatBattleLogActionTitle(getBattleLogDisplayActionTitle("JammerUK1993 played Dudunsparce.", details)),
-    "Dudunsparce used Run Away Draw"
-  );
+  for (const scenario of cases) {
+    assert.equal(
+      formatBattleLogActionTitle(scenario.input, scenario.options),
+      scenario.expected,
+      scenario.name
+    );
+  }
 });
 
-test("display action helpers promote explicit activation details without duplicating them", () => {
-  const details = [
-    "- Dudunsparce's Run Away Draw was activated.",
-    "- JammerUK1993 drew 3 cards"
+test("battle-log action details apply the player, bullet, and counter decision table", () => {
+  const cases = [
+    [
+      "attack player reference",
+      "iBerzrk_Network's Active Pokemon took 120 damage.",
+      { actionTag: "attack" },
+      "Active Pokemon took 120 damage"
+    ],
+    [
+      "attack opponent reference with bullet",
+      "- Opponent's Benched Pokemon took 120 damage.",
+      { actionTag: "attack" },
+      "- Benched Pokemon took 120 damage"
+    ],
+    [
+      "attack owned Pokemon name",
+      "_ndz's Cynthia's Gabite took 120 damage.",
+      { actionTag: "attack" },
+      "Cynthia's Gabite took 120 damage"
+    ],
+    [
+      "numeric damage counters",
+      "Hyierro put 6 damage counters on Hyierro's Fan Rotom.",
+      undefined,
+      "6 damage counters on Fan Rotom"
+    ],
+    [
+      "singular damage counter with bullet",
+      "- _ndz put a damage counter on _ndz's Cynthia's Roserade.",
+      undefined,
+      "- 1 damage counter on Cynthia's Roserade"
+    ],
+    [
+      "owned Pokemon movement",
+      "_ndz's Cynthia's Gabite is now in the Active spot.",
+      { actionTag: "other" },
+      "Cynthia's Gabite is now in the Active spot"
+    ],
+    [
+      "owned Pokemon movement with bullet",
+      "- _ndz's Cynthia's Roserade moved to the Bench.",
+      { actionTag: "other" },
+      "- Cynthia's Roserade moved to Bench"
+    ]
+  ] as const;
+
+  for (const [name, detail, options, expected] of cases) {
+    assert.equal(formatBattleLogActionDetail(detail, options), expected, name);
+  }
+});
+
+test("battle-log display titles and details follow the promotion decision table", () => {
+  type DisplayCase = {
+    name: string;
+    title: string;
+    details: string[];
+    expectedTitle: string;
+    expectedDetails: string[];
+    expectedFormattedTitle?: string;
+  };
+
+  const cases: DisplayCase[] = [
+    {
+      name: "retreat promotion",
+      title: "_ndz retreated Cynthia's Roserade to Bench.",
+      details: [
+        "Basic Fighting Energy was discarded from _ndz's Cynthia's Roserade.",
+        "_ndz's Cynthia's Gabite is now in the Active spot."
+      ],
+      expectedTitle: "_ndz retreated Cynthia's Roserade to Bench -> Cynthia's Gabite is now in the Active spot",
+      expectedDetails: ["Basic Fighting Energy was discarded from _ndz's Cynthia's Roserade."],
+      expectedFormattedTitle:
+        "Cynthia's Roserade retreated to Bench -> Cynthia's Gabite is now in the Active spot"
+    },
+    {
+      name: "multi-target attack damage",
+      title: "JammerUK1993's Greninja ex used Mirage Barrage on iBerzrk_Network's Active for 120 damage.",
+      details: [
+        "- iBerzrk_Network's Benched Pokemon took 120 damage.",
+        "Ignition Energy was discarded from JammerUK1993's Greninja ex."
+      ],
+      expectedTitle:
+        "JammerUK1993's Greninja ex used Mirage Barrage on iBerzrk_Network's Active for 120 damage & Benched Pokemon for 120 damage",
+      expectedDetails: ["Ignition Energy was discarded from JammerUK1993's Greninja ex."],
+      expectedFormattedTitle:
+        "Greninja ex used Mirage Barrage on Active for 120 damage & Benched Pokemon for 120 damage"
+    },
+    {
+      name: "detail-only spread attack damage",
+      title: "JammerUK1993's Greninja ex used Mirage Barrage.",
+      details: [
+        "- iBerzrk_Network's Cynthia's Gabite took 120 damage.",
+        "- iBerzrk_Network's Cynthia's Roserade took 120 damage."
+      ],
+      expectedTitle:
+        "JammerUK1993's Greninja ex used Mirage Barrage on Cynthia's Gabite for 120 damage & Cynthia's Roserade for 120 damage",
+      expectedDetails: [],
+      expectedFormattedTitle:
+        "Greninja ex used Mirage Barrage on Cynthia's Gabite for 120 damage & Cynthia's Roserade for 120 damage"
+    },
+    {
+      name: "Boss's Orders switch",
+      title: "JammerUK1993 played Boss's Orders.",
+      details: [
+        "- Cynthia's Roselia was switched with _ndz's Cynthia's Gible to become the Active Pokémon",
+        "Cynthia's Roselia is now in the Active spot"
+      ],
+      expectedTitle:
+        "JammerUK1993 played Boss's Orders - Active Cynthia's Gible was switched with Benched Cynthia's Roselia",
+      expectedDetails: [],
+      expectedFormattedTitle:
+        "Played Boss's Orders - Active Cynthia's Gible was switched with Benched Cynthia's Roselia"
+    },
+    {
+      name: "knockout discard movement",
+      title: "_ndz's Cynthia's Gabite was Knocked Out!",
+      details: [
+        "2 cards were discarded from _ndz's Cynthia's Gabite.",
+        "Basic Fighting Energy, Cynthia's Gible",
+        "Gible was discarded from _ndz's Cynthia's Gabite."
+      ],
+      expectedTitle: "_ndz's Cynthia's Gabite was Knocked Out!",
+      expectedDetails: []
+    },
+    {
+      name: "discard recovery",
+      title: "_ndz played Night Stretcher.",
+      details: ["_ndz moved _ndz's Cynthia's Gible to their hand"],
+      expectedTitle: "_ndz played Night Stretcher & moved Cynthia's Gible from discard to hand",
+      expectedDetails: [],
+      expectedFormattedTitle: "Played Night Stretcher & moved Cynthia's Gible from discard to hand"
+    },
+    {
+      name: "generated Dudunsparce activation",
+      title: "JammerUK1993 played Dudunsparce.",
+      details: [
+        "- JammerUK1993 drew 3 cards",
+        "- Rare Candy, Surfing Beach, Greninja ex",
+        "- JammerUK1993 shuffled 2 cards into their deck",
+        "- Dudunsparce, Dunsparce"
+      ],
+      expectedTitle: "Dudunsparce's Run Away Draw was activated.",
+      expectedDetails: [
+        "- JammerUK1993 drew 3 cards",
+        "- Rare Candy, Surfing Beach, Greninja ex",
+        "- JammerUK1993 shuffled 2 cards into their deck",
+        "- Dudunsparce, Dunsparce"
+      ],
+      expectedFormattedTitle: "Dudunsparce used Run Away Draw"
+    },
+    {
+      name: "explicit activation without duplicate detail",
+      title: "JammerUK1993 played Dudunsparce.",
+      details: [
+        "- Dudunsparce's Run Away Draw was activated.",
+        "- JammerUK1993 drew 3 cards"
+      ],
+      expectedTitle: "Dudunsparce's Run Away Draw was activated.",
+      expectedDetails: ["- JammerUK1993 drew 3 cards"]
+    }
   ];
 
-  assert.equal(
-    getBattleLogDisplayActionTitle("JammerUK1993 played Dudunsparce.", details),
-    "Dudunsparce's Run Away Draw was activated."
-  );
-  assert.deepEqual(
-    getBattleLogDisplayActionDetails("JammerUK1993 played Dudunsparce.", details),
-    ["- JammerUK1993 drew 3 cards"]
-  );
+  for (const scenario of cases) {
+    const displayTitle = getBattleLogDisplayActionTitle(scenario.title, scenario.details);
+
+    assert.equal(displayTitle, scenario.expectedTitle, `${scenario.name}: title`);
+    assert.deepEqual(
+      getBattleLogDisplayActionDetails(scenario.title, scenario.details),
+      scenario.expectedDetails,
+      `${scenario.name}: details`
+    );
+
+    if (scenario.expectedFormattedTitle) {
+      assert.equal(
+        formatBattleLogActionTitle(displayTitle, {
+          actionTag: scenario.name.includes("attack") ? "attack" : undefined
+        }),
+        scenario.expectedFormattedTitle,
+        `${scenario.name}: formatted title`
+      );
+    }
+  }
 });

@@ -34,7 +34,9 @@ Tests protect durable behavior through the narrowest observable production seam.
 - Extend the existing behavior-owned file when that seam already has coverage. Create a new file only for a genuinely new subsystem or test level.
 - Name files and cases after product behavior or production seams. PR numbers, issue numbers, review rounds, fixes, corrections, and implementation phases belong in Git history rather than test names.
 - Use source-text assertions only when text is the real contract, such as configuration, generated artifacts, migration ledgers, or workflow policy. UI behavior requires rendered interaction or browser evidence; database behavior requires an executable database boundary.
+- Refactors, telemetry, performance work, loading states, and visual polish must finish with zero or negative net executed-case growth unless the growth was explicitly approved. Do not regex application `.ts` or `.tsx` source to stand in for runtime evidence.
 - Before opening a pull request, inspect the test delta for duplication, temporary review artifacts, superseded cases, and tests that can pass without the claimed behavior.
+- Include the before/after executed-case count from the same command and ref, including nested/generated cases. Score every net-new case from 1–10 and state its distinct failure class, observable seam, and why existing coverage could not absorb it; new cases below 7 must not be retained.
 
 The complete admission, placement, evidence, and consolidation rules are in [the testing guide](./docs/agents/testing.md).
 

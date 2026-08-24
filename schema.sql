@@ -1282,6 +1282,9 @@ create table public.route_performance_events (
   save_data               boolean not null default false,
   screen_height           integer,
   screen_width            integer,
+  server_admin_access_ms  integer,
+  server_admin_overview_ms integer,
+  server_admin_users_ms   integer,
   server_auth_ms          integer,
   server_auth_ended_ms    integer,
   server_auth_method      text,
@@ -1385,6 +1388,15 @@ comment on column public.route_performance_events.server_route_entered_ms is
 
 comment on column public.route_performance_events.server_auth_refreshed is
   'Whether Proxy wrote updated Supabase session cookies during authentication.';
+
+comment on column public.route_performance_events.server_admin_access_ms is
+  'Server duration for the admin authorization and profile lookup.';
+
+comment on column public.route_performance_events.server_admin_overview_ms is
+  'Server duration for the admin summary overview query.';
+
+comment on column public.route_performance_events.server_admin_users_ms is
+  'Server duration for the admin user-management query.';
 
 comment on column public.route_performance_events.server_cache_outcome is
   'Observed initial logs cache outcome: hit, miss, legacy fallback, or a specific fallback failure reason.';

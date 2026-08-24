@@ -119,6 +119,15 @@ test("verification reference keeps repository-native shell-safe command contract
 
   assert.doesNotMatch(reference, /^\s*npx\s+vercel(?:\s|$)/m);
   assert.doesNotMatch(reference, /^\s*curl[^\n]*\|[^\n]*(?:head|sed\s+-n)(?:\s|$)/m);
+
+  for (const pullRequest of [24, 25, 26]) {
+    assert.match(reference, new RegExp(`PokeNotesApp/pull/${pullRequest}\\)`));
+  }
+
+  assert.match(reference, /#25 must merge before #26/);
+  assert.match(reference, /illustrative external write/i);
+  assert.match(reference, /currently has no local Vercel CLI/i);
+  assert.match(reference, /Do not delete or restore unrelated files/i);
 });
 
 test("PR integration contract verifies remote truth before separately authorized cleanup", () => {
@@ -793,15 +802,4 @@ test("zsh availability guard distinguishes a missing shell from failed proof", (
     () => zshIsAvailable({ error: undefined, status: null }),
     /zsh availability probe exited with status null/,
   );
-});
-
-test("verification reference retains runbook dependency and authority boundaries", () => {
-  for (const pullRequest of [24, 25, 26]) {
-    assert.match(reference, new RegExp(`PokeNotesApp/pull/${pullRequest}\\)`));
-  }
-
-  assert.match(reference, /#25 must merge before #26/);
-  assert.match(reference, /illustrative external write/i);
-  assert.match(reference, /currently has no local Vercel CLI/i);
-  assert.match(reference, /Do not delete or restore unrelated files/i);
 });

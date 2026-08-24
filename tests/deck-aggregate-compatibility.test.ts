@@ -46,7 +46,9 @@ test("fully migrated deck lists keep relational values and ordering", () => {
   ];
 
   assert.deepEqual(
-    resolveDeckListsDuringCompatibility(legacy, relational).map(({ id, name }) => ({ id, name })),
+    resolveDeckListsDuringCompatibility(legacy, relational).map(
+      ({ id, name }) => ({ id, name })
+    ),
     [
       { id: "two", name: "Relational two" },
       { id: "one", name: "Relational one" }
@@ -54,7 +56,7 @@ test("fully migrated deck lists keep relational values and ordering", () => {
   );
 });
 
-test("partial deck-list migration never hides a legacy-only record", () => {
+test("partial migrations preserve legacy-only and relational-only list and matchup records", () => {
   const legacy = [deckList("one", "Legacy one"), deckList("two", "Legacy two")];
   const relational = [deckList("two", "Relational two")];
 
@@ -65,20 +67,32 @@ test("partial deck-list migration never hides a legacy-only record", () => {
       { id: "two", name: "Relational two" }
     ]
   );
-});
 
-test("relational-only deck lists are appended without duplicating shared ids", () => {
-  const legacy = [deckList("one", "Legacy one")];
-  const relational = [
+  const relationalOnly = [
     deckList("one", "Relational one"),
     deckList("two", "Relational two")
   ];
 
   assert.deepEqual(
-    resolveDeckListsDuringCompatibility(legacy, relational).map(({ id, name }) => ({ id, name })),
+    resolveDeckListsDuringCompatibility([deckList("one", "Legacy one")], relationalOnly).map(
+      ({ id, name }) => ({ id, name })
+    ),
     [
       { id: "one", name: "Relational one" },
       { id: "two", name: "Relational two" }
+    ]
+  );
+
+  const matchupLegacy = [matchup("one", "Legacy one"), matchup("two", "Legacy two")];
+  const matchupRelational = [matchup("one", "Relational one")];
+
+  assert.deepEqual(
+    resolveDeckMatchupsDuringCompatibility(matchupLegacy, matchupRelational).map(
+      ({ id, deckName }) => ({ id, deckName })
+    ),
+    [
+      { id: "one", deckName: "Relational one" },
+      { id: "two", deckName: "Legacy two" }
     ]
   );
 });
@@ -104,20 +118,4 @@ test("missing relational deck lists retain the complete legacy collection", () =
 
   assert.deepEqual(resolveDeckListsDuringCompatibility(legacy), legacy);
   assert.notEqual(resolveDeckListsDuringCompatibility(legacy), legacy);
-});
-
-test("partial matchup migration uses the same no-record-loss invariant", () => {
-  const legacy = [matchup("one", "Legacy one"), matchup("two", "Legacy two")];
-  const relational = [matchup("one", "Relational one")];
-
-  assert.deepEqual(
-    resolveDeckMatchupsDuringCompatibility(legacy, relational).map(({ id, deckName }) => ({
-      id,
-      deckName
-    })),
-    [
-      { id: "one", deckName: "Relational one" },
-      { id: "two", deckName: "Legacy two" }
-    ]
-  );
 });

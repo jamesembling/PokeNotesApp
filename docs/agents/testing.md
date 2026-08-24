@@ -14,6 +14,10 @@ Add or retain a test when it protects at least one durable behavior:
 
 A review finding earns a regression test only when the test can go red for the underlying defect. Review provenance stays in the issue, pull request, commit, or blame history.
 
+The default for refactors, performance instrumentation, telemetry expansion, loading-state changes, and visual polish is **zero new test cases**. These changes must finish with a zero or negative executed-case delta unless James explicitly approves net growth. A production diff does not create a test entitlement. First reuse or update the behavior-owned case; add a case only when the change introduces a distinct failure class that the existing suite cannot express.
+
+Before writing a new case, record the exact failure it would catch and the observable production seam that makes it fail. If either cannot be stated in one sentence, do not add the test. Report the evidence gap instead of filling it with a source assertion.
+
 ## Placement and naming
 
 Place a new case in the existing file that owns the production seam. Create a new file only when the change introduces a genuinely new subsystem, public boundary, or test level.
@@ -32,6 +36,8 @@ Use the cheapest seam that observes the same contract:
 - Source-text assertions are reserved for contracts that are inherently textual: configuration, generated artifacts, migration ordering, workflow policy, or deliberate architectural bans that lack an executable boundary.
 
 Source text containing a helper name, JSX shape, Tailwind class, call count, SQL phrase, or implementation branch is not evidence that the associated behavior works. Do not label source-shape checks as performance, accessibility, workflow, or database-behavior tests.
+
+In particular, never read application `.ts` or `.tsx` files and regex-match them to claim that rendering, streaming, prefetching, caching, loading states, focus management, accessibility, privacy, or route performance works. Those claims require a direct module boundary, rendered interaction, browser journey, executable database, or measured RUM evidence. When that seam is unavailable, leave the claim untested and say so.
 
 ## Feature planning
 
@@ -55,5 +61,9 @@ Before merge:
 4. Remove scratch tests and review-, PR-, issue-, or phase-labelled files.
 5. Confirm each remaining case can fail for the defect it claims to detect.
 6. Record which critical seams remain unverified, especially UI and database boundaries.
+7. Report the before/after executed-case count from the same command and ref. Count generated and nested cases individually.
+8. Give every net-new case a usefulness score from 1–10 and justify it by its distinct failure class, observable seam, and why existing coverage could not absorb it. Do not retain a new case scoring below 7.
 
 The suite is consolidated when every new case has one clear owner and failure class, no review history remains encoded in its structure, and broader evidence is not being substituted with a larger count of cheaper tests.
+
+A non-feature pull request with net test growth is unconsolidated unless James explicitly approved the growth. Agents must perform this check before handoff, not defer it to a later cleanup.

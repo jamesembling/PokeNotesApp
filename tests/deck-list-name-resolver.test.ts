@@ -32,30 +32,18 @@ test("an independent relational list resolves even when the log strategy differs
     resolveDeckListName(accountOptions, "strategy-b", "shared"),
     "Relational A"
   );
-});
 
-test("initial and paginated log windows agree on an independently referenced list", () => {
-  const relational: DeckListSelectionSource = {
-    deckId: "strategy-a",
-    deckName: "A",
-    id: "shared",
-    name: "Relational A",
-    source: "relational"
-  };
+  const paginatedWindowOptions: DeckListSelectionSource[] = [
+    ...accountOptions,
+    {
+      deckId: "strategy-c",
+      deckName: "C",
+      id: "other",
+      name: "Legacy C",
+      source: "legacy" as const
+    }
+  ];
 
-  const initialWindowOptions = [relational];
-  const paginatedWindowOptions = [relational, {
-    deckId: "strategy-c",
-    deckName: "C",
-    id: "other",
-    name: "Legacy C",
-    source: "legacy" as const
-  }];
-
-  assert.equal(
-    resolveDeckListName(initialWindowOptions, "strategy-b", "shared"),
-    "Relational A"
-  );
   assert.equal(
     resolveDeckListName(paginatedWindowOptions, "strategy-b", "shared"),
     "Relational A"

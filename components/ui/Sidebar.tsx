@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import {
   CalculatorIcon,
@@ -179,6 +179,7 @@ function SidebarNav({ userDecks }: { userDecks?: DeckSelectionOption[] }) {
 
 export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
   const initials = getInitials(profile.displayName);
+  const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [signOutPending, startSignOutTransition] = useTransition();
@@ -186,6 +187,14 @@ export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
   function closeAccountNavigationMenus() {
     setAccountMenuOpen(false);
     setOpenMobile(false);
+  }
+
+  function handleAccountMenuOpenChange(open: boolean) {
+    setAccountMenuOpen(open);
+
+    if (open && profile.isAdmin) {
+      router.prefetch("/admin/dashboard");
+    }
   }
 
   function handleSignOut() {
@@ -199,7 +208,11 @@ export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
     <SidebarFooter className="border-t border-sidebar-border p-2 group-data-[collapsible=icon]:p-0">
       <SidebarMenu>
         <SidebarMenuItem>
-          <DropdownMenu modal={false} open={accountMenuOpen} onOpenChange={setAccountMenuOpen}>
+          <DropdownMenu
+            modal={false}
+            open={accountMenuOpen}
+            onOpenChange={handleAccountMenuOpenChange}
+          >
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:rounded-none group-data-[collapsible=icon]:p-0"
@@ -245,7 +258,6 @@ export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
                     <Link
                       href="/admin/dashboard"
                       onClick={closeAccountNavigationMenus}
-                      prefetch={false}
                     >
                       <ShieldIcon />
                       Admin Dashboard

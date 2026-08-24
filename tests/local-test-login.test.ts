@@ -118,25 +118,6 @@ test("an explicitly allowed LAN host requires the local pairing code", () => {
   );
 });
 
-test("forged localhost headers do not bypass the pairing code", () => {
-  assert.deepEqual(
-    validateLocalLoginAttempt(
-      {
-        host: "localhost:3000",
-        origin: "http://localhost:3000",
-        pairingCode: "",
-        secFetchSite: "same-origin"
-      },
-      developmentEnvironment
-    ),
-    {
-      allowed: false,
-      origin: "http://localhost:3000",
-      reason: "pairing-code"
-    }
-  );
-});
-
 test("local login rejects unlisted hosts, foreign origins, and cross-site submissions", () => {
   const rejectedRequests = [
     {

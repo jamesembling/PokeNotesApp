@@ -146,7 +146,7 @@ function updateMatchupCommand(
   };
 }
 
-test("list creation sends one normalized child to the transactional commit seam", async () => {
+test("list creation sends one normalized child to the commit adapter", async () => {
   const legacyOnlyList = {
     id: "shared-legacy-id",
     name: "Legacy-only list",
@@ -316,7 +316,7 @@ test("deck-list sort failures retain the current user-facing error and make no w
   });
 });
 
-test("global-id storage collisions remain explicit through the atomic commit", async () => {
+test("global-id storage collisions remain explicit through the commit adapter", async () => {
   const collision = Object.assign(new Error("duplicate key value violates unique constraint"), {
     code: "23505"
   });
@@ -332,7 +332,7 @@ test("global-id storage collisions remain explicit through the atomic commit", a
   assert.deepEqual(harness.calls, ["load:deck-list:deck-2", "commit:deck-list:create"]);
 });
 
-test("a parent disappearing before the locked commit retains the deck-not-found error", async () => {
+test("a missing parent result retains the deck-not-found error from the commit adapter", async () => {
   const harness = createHarness({ commitResult: "deck-not-found" });
 
   await assert.rejects(harness.writer.saveList(listCommand()), {
@@ -341,7 +341,7 @@ test("a parent disappearing before the locked commit retains the deck-not-found 
   assert.deepEqual(harness.calls, ["load:deck-list:deck-2", "commit:deck-list:create"]);
 });
 
-test("an atomic commit failure remains explicit without a second write stage", async () => {
+test("a commit adapter failure remains explicit without a second write stage", async () => {
   const commitError = new Error("atomic deck aggregate commit failed");
   const harness = createHarness({ commitError });
 
@@ -451,7 +451,7 @@ test("a list removed after the initial read retains the list-not-found error", a
   assert.deepEqual(harness.calls, ["load:deck-list:deck-2", "commit:deck-list:update"]);
 });
 
-test("matchup creation preserves normalization at the transactional commit seam", async () => {
+test("matchup creation preserves normalization in its commit plan", async () => {
   const existing = {
     id: "matchup-existing",
     deckName: "Existing",
@@ -526,7 +526,7 @@ test("matchup updates retain creation time and untrimmed strategy fields", async
   });
 });
 
-test("matchup plan autosaves preserve concurrently managed header fields", async () => {
+test("matchup plan autosaves preserve header fields outside the plan patch", async () => {
   const existing = {
     id: "matchup-existing",
     deckName: "Charizard",
@@ -598,7 +598,7 @@ test("matchup header autosaves preserve the newest planning fields", async () =>
   });
 });
 
-test("a concurrent header commit is reloaded before retrying a planning-field patch", async () => {
+test("a stale planning-field patch reloads before retrying", async () => {
   const initial = {
     id: "matchup-existing",
     deckName: "Charizard",
@@ -700,7 +700,7 @@ test("a full matchup edit fails closed instead of reapplying stale fields after 
   );
 });
 
-test("matchup field validation retains its existing order and messages", async (t) => {
+test("matchup field validation retains its existing order and messages", async () => {
   const cases: Array<{
     command: CreateDeckMatchupCommand;
     message: string;
@@ -720,13 +720,11 @@ test("matchup field validation retains its existing order and messages", async (
   ];
 
   for (const current of cases) {
-    await t.test(current.message, async () => {
-      const harness = createHarness();
-      await assert.rejects(harness.writer.createMatchup(current.command), {
-        message: current.message
-      });
-      assert.deepEqual(harness.calls, ["load:matchup:deck-2"]);
+    const harness = createHarness();
+    await assert.rejects(harness.writer.createMatchup(current.command), {
+      message: current.message
     });
+    assert.deepEqual(harness.calls, ["load:matchup:deck-2"], current.message);
   }
 });
 

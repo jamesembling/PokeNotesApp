@@ -13,11 +13,8 @@ const nextConfig = require("../next.config.js") as {
   poweredByHeader?: boolean;
 };
 
-test("Next.js does not disclose its powered-by header", () => {
+test("Next.js exposes the conservative baseline security header contract", async () => {
   assert.equal(nextConfig.poweredByHeader, false);
-});
-
-test("all routes receive the conservative baseline security headers", async () => {
   const rules = await nextConfig.headers();
   const globalRule = rules.find((rule) => rule.source === "/(.*)");
   assert(globalRule, "expected a global response-header rule");
@@ -27,10 +24,6 @@ test("all routes receive the conservative baseline security headers", async () =
   assert.equal(headers.get("Referrer-Policy"), "strict-origin-when-cross-origin");
   assert.equal(headers.get("X-Content-Type-Options"), "nosniff");
   assert.equal(headers.get("X-Frame-Options"), "DENY");
-});
-
-test("an unvalidated enforcing CSP is not introduced silently", async () => {
-  const rules = await nextConfig.headers();
   const headerNames = rules.flatMap((rule) => rule.headers.map(({ key }) => key));
 
   assert(!headerNames.includes("Content-Security-Policy"));
