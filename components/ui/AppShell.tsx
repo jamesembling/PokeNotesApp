@@ -23,9 +23,14 @@ export type AppShellProfileResult = {
 type AppShellProps = {
   children: ReactNode;
   initialProfileResult?: AppShellProfileResult;
+  waitForBootstrapBeforeProfile?: boolean;
 };
 
-export function AppShell({ children, initialProfileResult }: AppShellProps) {
+export function AppShell({
+  children,
+  initialProfileResult,
+  waitForBootstrapBeforeProfile = false
+}: AppShellProps) {
   return (
     <ImportDialogDataProvider>
       <SidebarProvider>
@@ -35,7 +40,14 @@ export function AppShell({ children, initialProfileResult }: AppShellProps) {
         >
           Skip to main content
         </a>
-        <Sidebar account={<DeferredSidebarAccount initialResult={initialProfileResult} />} />
+        <Sidebar
+          account={
+            <DeferredSidebarAccount
+              initialResult={initialProfileResult}
+              waitForBootstrap={waitForBootstrapBeforeProfile}
+            />
+          }
+        />
         <SidebarInset id="main-content" tabIndex={-1}>
           <ClientRouteTimingMarker phase="shell-visible" />
           <SidebarMobileTopbar />

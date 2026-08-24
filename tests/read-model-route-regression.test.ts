@@ -135,7 +135,7 @@ test("app and admin layouts share the same authenticated shell chrome", () => {
   assert.match(appShell, /SidebarProvider/);
   assert.match(appShell, /SidebarMobileTopbar/);
   assert.match(appShell, /SidebarInset/);
-  assert.match(appShell, /<DeferredSidebarAccount initialResult=\{initialProfileResult\}/);
+  assert.match(appShell, /<DeferredSidebarAccount[\s\S]*initialResult=\{initialProfileResult\}/);
   assert.doesNotMatch(appLayout, /loadAppShellProfile|getCurrentSidebarProfile|profilePromise/);
   assert.match(adminLayout, /initialProfileResult=\{\{/);
 });
@@ -180,6 +180,7 @@ test("/stats renders overview first and defers archetype matchups to the read-mo
 
 test("/logs streams an immediate fallback and one shared data promise", () => {
   const page = source("app/(app)/logs/page.tsx");
+  const loader = source("lib/server/logs-page-data.ts");
   const frame = source("components/ui/LogsWorkspaceFrame.tsx");
   const loading = source("app/(app)/logs/loading.tsx");
 
@@ -189,7 +190,8 @@ test("/logs streams an immediate fallback and one shared data promise", () => {
   for (const segment of ["calculator", "deck-lists", "decks", "profile", "stats", "tournaments"]) {
     assert.equal(existsSync(join(process.cwd(), `app/(app)/${segment}/loading.tsx`)), true);
   }
-  assert.match(page, /getCachedInitialLogsPageData/);
+  assert.match(page, /loadInitialLogsPageData/);
+  assert.match(loader, /getCachedInitialLogsPageDataWithDiagnostics/);
   assert.match(page, /const initialDataPromise = measureServerCallWithTimeline/);
   assert.match(page, /<Suspense fallback=\{<LogsLastKnownStats \/>\}>/);
   assert.match(page, /<Suspense fallback=\{<LogsLastKnownContent \/>\}>/);

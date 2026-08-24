@@ -17,7 +17,9 @@ type PerformanceEventPayload = {
   durationMs?: number | null;
   effectiveType?: string | null;
   eventType?: string;
+  finalResponseHeadersStartMs?: number | null;
   firstContentfulPaintMs?: number | null;
+  firstInterimResponseStartMs?: number | null;
   fromPath?: string | null;
   hardwareConcurrency?: number | null;
   hydrationResourcesEndMs?: number | null;
@@ -96,6 +98,7 @@ const PERFORMANCE_VARIANTS = new Set([
   "logs-delay-400",
   "logs-delay-1000",
   "logs-narrow-suspense",
+  "logs-public-shell-canary",
   "logs-shell-only"
 ]);
 const SUBMISSION_REASONS = new Set([
@@ -305,7 +308,9 @@ export async function POST(request: NextRequest) {
       duration_ms: durationMs,
       effective_type: clampText(payload.effectiveType, 32),
       event_type: eventType,
+      final_response_headers_start_ms: clampNumber(payload.finalResponseHeadersStartMs),
       first_contentful_paint_ms: clampNumber(payload.firstContentfulPaintMs),
+      first_interim_response_start_ms: clampNumber(payload.firstInterimResponseStartMs),
       from_path: normalizeTelemetryPath(payload.fromPath),
       hardware_concurrency: clampNumber(payload.hardwareConcurrency, 512),
       hydration_resources_end_ms: clampNumber(payload.hydrationResourcesEndMs),
@@ -386,19 +391,42 @@ export async function POST(request: NextRequest) {
     // rolling out behind an already-deployed application revision.
     if (
       error?.code === "PGRST204" &&
-      (error.message.includes("server_auth_refreshed") ||
+      (error.message.includes("final_response_headers_start_ms") ||
+        error.message.includes("first_interim_response_start_ms") ||
+        error.message.includes("server_auth_refreshed") ||
         error.message.includes("server_route_entered_ms"))
     ) {
       const {
+        final_response_headers_start_ms: removedFinalResponseHeadersStart,
+        first_interim_response_start_ms: removedFirstInterimResponseStart,
         server_auth_refreshed: removedAuthRefreshed,
         server_route_entered_ms: removedRouteEntered,
         ...legacyPerformanceEvent
       } = performanceEvent;
+      void removedFinalResponseHeadersStart;
+      void removedFirstInterimResponseStart;
       void removedAuthRefreshed;
       void removedRouteEntered;
       ({ error } = await supabase
         .from("route_performance_events")
         .insert(legacyPerformanceEvent));
+    }
+
+    if (
+      error?.code === "23514" &&
+      error.message.includes("route_performance_events_performance_variant_check")
+    ) {
+      const {
+        final_response_headers_start_ms: removedFinalResponseHeadersStart,
+        first_interim_response_start_ms: removedFirstInterimResponseStart,
+        ...preResponseBoundaryEvent
+      } = performanceEvent;
+      void removedFinalResponseHeadersStart;
+      void removedFirstInterimResponseStart;
+      ({ error } = await supabase.from("route_performance_events").insert({
+        ...preResponseBoundaryEvent,
+        performance_variant: null
+      }));
     }
 
     if (error) {

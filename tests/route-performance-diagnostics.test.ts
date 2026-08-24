@@ -89,8 +89,13 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   const routeEntryMigration = source(
     "supabase/migrations/20260823083743_add_route_entry_timing.sql"
   );
+  const responseBoundariesMigration = source(
+    "supabase/migrations/20260824091943_add_final_navigation_response_timings.sql"
+  );
 
-  assert.equal(ROUTE_REPORTER_VERSION, 6);
+  assert.equal(ROUTE_REPORTER_VERSION, 7);
+  assert.match(reporter, /finalResponseHeadersStartMs/);
+  assert.match(reporter, /firstInterimResponseStartMs/);
   assert.match(reporter, /responseStreamMs/);
   assert.match(reporter, /responseEndMs/);
   assert.match(reporter, /routeStabilizationMs/);
@@ -145,6 +150,11 @@ test("route diagnostics use privacy-safe fixed fields", () => {
   assert.match(phaseCorrelationMigration, /route-data/);
   assert.match(routeEntryMigration, /server_route_entered_ms/);
   assert.match(routeEntryMigration, /server_auth_refreshed/);
+  assert.match(responseBoundariesMigration, /final_response_headers_start_ms/);
+  assert.match(responseBoundariesMigration, /first_interim_response_start_ms/);
+  assert.match(responseBoundariesMigration, /logs-public-shell-canary/);
+  assert.match(schema, /final_response_headers_start_ms/);
+  assert.match(schema, /first_interim_response_start_ms/);
   assert.match(schema, /server_route_entered_ms/);
   assert.match(schema, /server_auth_refreshed/);
   for (const cacheOutcome of [

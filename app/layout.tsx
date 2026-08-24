@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { SiteFormatsProvider } from "@/components/ui/SiteFormatsProvider";
 import { getInitialSiteFormats } from "@/lib/formats/catalog";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/shadcn/sonner";
 import { TooltipProvider } from "@/components/shadcn/tooltip";
 import "./globals.css";
-
-type Theme = "light" | "dark";
 
 export const metadata: Metadata = {
   title: "Poke Notes",
@@ -20,28 +17,26 @@ export const metadata: Metadata = {
   }
 };
 
-function parseTheme(value: string | undefined): Theme {
-  return value === "dark" ? "dark" : "light";
-}
+const THEME_BOOTSTRAP_SCRIPT = `(()=>{try{const stored=localStorage.getItem("theme");const theme=stored==="dark"||stored!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.classList.toggle("dark",theme==="dark");document.documentElement.style.colorScheme=theme}catch{}})()`;
 
-export default async function RootLayout({
+export default function RootLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
-  const initialTheme = parseTheme(cookieStore.get("theme")?.value);
   const initialSiteFormats = getInitialSiteFormats();
 
   return (
-    <html
-      className={initialTheme === "dark" ? "dark" : ""}
-      lang="en"
-      suppressHydrationWarning
-    >
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }}
+          id="theme-bootstrap"
+        />
+      </head>
       <body>
         <SiteFormatsProvider initialSiteFormats={initialSiteFormats}>
-          <ThemeProvider initialTheme={initialTheme}>
+          <ThemeProvider>
             <TooltipProvider>{children}</TooltipProvider>
             <Toaster />
           </ThemeProvider>

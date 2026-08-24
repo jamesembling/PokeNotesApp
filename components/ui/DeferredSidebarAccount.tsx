@@ -8,42 +8,57 @@ import { shouldLoadSidebarProfile } from "@/lib/sidebar-profile-loading";
 import type { AppShellProfileResult } from "@/components/ui/AppShell";
 
 export function DeferredSidebarAccount({
-  initialResult
+  initialResult,
+  waitForBootstrap = false
 }: {
   initialResult?: AppShellProfileResult;
+  waitForBootstrap?: boolean;
 }) {
   const { openMobile } = useSidebar();
   const [result, setResult] = useState<AppShellProfileResult | null>(initialResult ?? null);
   const startedRef = useRef(Boolean(initialResult));
 
   useEffect(() => {
-    const shouldLoad = shouldLoadSidebarProfile({
-      isDesktop: window.matchMedia("(min-width: 860px)").matches,
-      openMobile
-    });
+    function loadProfile() {
+      const shouldLoad = shouldLoadSidebarProfile({
+        isDesktop: window.matchMedia("(min-width: 860px)").matches,
+        openMobile
+      });
 
-    if (!shouldLoad || startedRef.current) {
+      if (!shouldLoad || startedRef.current) {
+        return;
+      }
+
+      startedRef.current = true;
+
+      void fetch("/api/sidebar-profile", {
+        cache: "no-store",
+        credentials: "same-origin"
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error("Unable to load sidebar profile.");
+          }
+
+          return (await response.json()) as AppShellProfileResult;
+        })
+        .then(setResult)
+        .catch(() => {
+          startedRef.current = false;
+        });
+    }
+
+    if (
+      !waitForBootstrap ||
+      document.documentElement.dataset.logsBootstrapSettled === "true"
+    ) {
+      loadProfile();
       return;
     }
 
-    startedRef.current = true;
-
-    void fetch("/api/sidebar-profile", {
-      cache: "no-store",
-      credentials: "same-origin"
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Unable to load sidebar profile.");
-        }
-
-        return (await response.json()) as AppShellProfileResult;
-      })
-      .then(setResult)
-      .catch(() => {
-        startedRef.current = false;
-      });
-  }, [openMobile]);
+    window.addEventListener("pokenotes:logs-bootstrap-settled", loadProfile, { once: true });
+    return () => window.removeEventListener("pokenotes:logs-bootstrap-settled", loadProfile);
+  }, [openMobile, waitForBootstrap]);
 
   if (!result) {
     return <SidebarAccountFallback />;

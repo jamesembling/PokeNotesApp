@@ -11,11 +11,8 @@ import { LogsStatsSkeleton, LogsWorkspaceSkeleton } from "@/components/ui/LogsWo
 import { ParserRouteTimingMarker } from "@/components/ui/ParserRouteTimingMarker";
 import { ProxyAuthTimingMarker, RouteDataTimingMarker } from "@/components/ui/RouteTimingMarker";
 import { requireUser } from "@/lib/auth";
-import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
-import { getLogSummaryStats, getLogsWindow } from "@/lib/db/logs";
-import { getCachedInitialLogsPageDataWithDiagnostics } from "@/lib/server/logs-initial-cache";
+import { loadInitialLogsPageData } from "@/lib/server/logs-page-data";
 import {
-  measureServerCall,
   measureServerCallWithTimeline,
   takeRouteEntryEpochMs
 } from "@/lib/server/perf";
@@ -151,36 +148,4 @@ async function loadInitialLogsPageDataWithDelay(userId: string, delayMs: number)
   ]);
 
   return data;
-}
-
-async function loadInitialLogsPageData(userId: string) {
-  const cachedReadModel = await getCachedInitialLogsPageDataWithDiagnostics(userId);
-  if (cachedReadModel.value) {
-    return {
-      ...cachedReadModel.value,
-      diagnostics: cachedReadModel.diagnostics
-    };
-  }
-
-  const fallbackStartedAt = performance.now();
-  const [stats, window] = await Promise.all([getLogSummaryStats(userId), getLogsWindow(userId)]);
-  const hydratedWindow = await measureServerCall("page.logs.linkedDeckListNames", () =>
-    hydrateLogWindowDeckListNames(userId, window)
-  );
-  const fallbackMs = Math.max(0, Math.round(performance.now() - fallbackStartedAt));
-
-  return {
-    diagnostics: {
-      cacheKeyVersion: cachedReadModel.diagnostics.cacheKeyVersion,
-      cacheLookupMs: cachedReadModel.diagnostics.cacheLookupMs,
-      cacheOutcome: cachedReadModel.diagnostics.cacheOutcome,
-      mappingMs: null,
-      resultBytes: new TextEncoder().encode(JSON.stringify({ stats, window: hydratedWindow }))
-        .byteLength,
-      resultRows: hydratedWindow.logs.length,
-      supabaseMs: fallbackMs
-    },
-    stats,
-    window: hydratedWindow
-  };
 }

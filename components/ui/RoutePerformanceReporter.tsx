@@ -36,6 +36,10 @@ type LongTaskEntry = {
 };
 
 type ServerTimingSource = PerformanceNavigationTiming | PerformanceResourceTiming;
+type NavigationTimingWithResponseBoundaries = PerformanceNavigationTiming & {
+  finalResponseHeadersStart?: number;
+  firstInterimResponseStart?: number;
+};
 
 const REPORT_ENDPOINT = "/api/performance-events";
 const AUTOMATION_HASH = "#pokenotes-perf";
@@ -123,7 +127,9 @@ function getServerTimingDuration(entries: ServerTimingSource[], name: string) {
   }, 0);
 }
 
-function getMarkerDuration(phase: "proxy-auth" | "route-data" | "shell-profile") {
+function getMarkerDuration(
+  phase: "bootstrap-auth" | "proxy-auth" | "route-data" | "shell-profile"
+) {
   const markers = document.querySelectorAll<HTMLElement>(`[data-route-server-timing="${phase}"]`);
   const marker = markers.item(markers.length - 1);
   const duration = Number(marker?.dataset.routeServerTimingMs);
@@ -232,15 +238,29 @@ function getNavigationPhaseSnapshot(nav?: PerformanceNavigationTiming) {
     return {
       connectMs: null,
       dnsMs: null,
+      finalResponseHeadersStartMs: null,
+      firstInterimResponseStartMs: null,
       requestStartMs: null,
       responseStartMs: null,
       tlsMs: null
     };
   }
 
+  const responseBoundaries = nav as NavigationTimingWithResponseBoundaries;
+
   return {
     connectMs: Math.max(0, Math.round(nav.connectEnd - nav.connectStart)),
     dnsMs: Math.max(0, Math.round(nav.domainLookupEnd - nav.domainLookupStart)),
+    finalResponseHeadersStartMs:
+      typeof responseBoundaries.finalResponseHeadersStart === "number" &&
+      responseBoundaries.finalResponseHeadersStart > 0
+        ? Math.round(responseBoundaries.finalResponseHeadersStart)
+        : null,
+    firstInterimResponseStartMs:
+      typeof responseBoundaries.firstInterimResponseStart === "number" &&
+      responseBoundaries.firstInterimResponseStart > 0
+        ? Math.round(responseBoundaries.firstInterimResponseStart)
+        : null,
     requestStartMs: nav.requestStart > 0 ? Math.round(nav.requestStart) : null,
     responseStartMs: nav.responseStart > 0 ? Math.round(nav.responseStart) : null,
     tlsMs:
@@ -285,11 +305,19 @@ function getServerTimingSnapshot(
     ? [navigation]
     : getResourcesSince(startedAt, endedAt);
   const proxyAuthDuration = getServerTimingDuration(sources, "proxy-auth");
+  const bootstrapAuthDuration = getServerTimingDuration(sources, "bootstrap-auth");
   const proxyAuthMarkerDuration = getMarkerDuration("proxy-auth");
+  const bootstrapAuthMarkerDuration = getMarkerDuration("bootstrap-auth");
 
   return {
     serverAuthMs:
-      proxyAuthMarkerDuration ?? (proxyAuthDuration > 0 ? Math.round(proxyAuthDuration) : null),
+      bootstrapAuthMarkerDuration ??
+      proxyAuthMarkerDuration ??
+      (bootstrapAuthDuration > 0
+        ? Math.round(bootstrapAuthDuration)
+        : proxyAuthDuration > 0
+          ? Math.round(proxyAuthDuration)
+          : null),
     serverRouteDataMs: getMarkerDuration("route-data"),
     serverShellProfileMs: navigation ? getMarkerDuration("shell-profile") : null
   };
@@ -429,9 +457,23 @@ export function RoutePerformanceReporter() {
     }
 
     let hardLoadReported = false;
+    let waitingForLogsBootstrap = false;
 
     function reportHardLoad() {
       if (hardLoadReported) {
+        return;
+      }
+
+      if (
+        getPerformanceVariant() === "logs-public-shell-canary" &&
+        document.documentElement.dataset.logsBootstrapSettled !== "true"
+      ) {
+        if (!waitingForLogsBootstrap) {
+          waitingForLogsBootstrap = true;
+          window.addEventListener("pokenotes:logs-bootstrap-settled", reportHardLoad, {
+            once: true
+          });
+        }
         return;
       }
 
@@ -448,17 +490,20 @@ export function RoutePerformanceReporter() {
       const resourceSnapshot = getSlowestResourceSince(0, hardLoadEndedAt);
       const responseEndMs = nav && nav.responseEnd > 0 ? Math.round(nav.responseEnd) : null;
       const responseStartMs = nav && nav.responseStart > 0 ? Math.round(nav.responseStart) : null;
+      const navigationPhases = getNavigationPhaseSnapshot(nav);
+      const responseBodyStartMs =
+        navigationPhases.finalResponseHeadersStartMs ?? responseStartMs;
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
-        ...getNavigationPhaseSnapshot(nav),
+        ...navigationPhases,
         ...resourceSnapshot,
         ...getServerDiagnosticsSnapshot(),
         ...getServerTimingSnapshot(0, hardLoadEndedAt, nav),
         documentDecodedBodySizeBytes: nav?.decodedBodySize ?? null,
         responseStreamMs:
-          responseEndMs !== null && responseStartMs !== null
-            ? Math.max(0, responseEndMs - responseStartMs)
+          responseEndMs !== null && responseBodyStartMs !== null
+            ? Math.max(0, responseEndMs - responseBodyStartMs)
             : null,
         documentEncodedBodySizeBytes: nav?.encodedBodySize ?? null,
         documentTransferSizeBytes: nav?.transferSize ?? null,
@@ -491,7 +536,7 @@ export function RoutePerformanceReporter() {
         submissionReason: "initial-load",
         toPath: getCurrentPath(),
         totalBlockingTimeMs: Math.round(longTaskStatsRef.current.totalBlockingTimeMs),
-        ttfbMs: responseStartMs,
+        ttfbMs: navigationPhases.finalResponseHeadersStartMs ?? responseStartMs,
         workerStartMs: nav?.workerStart ?? null
       });
     }
@@ -510,6 +555,7 @@ export function RoutePerformanceReporter() {
     return () => {
       window.clearTimeout(hardLoadTimeoutId);
       window.removeEventListener("load", reportHardLoadAfterLoad);
+      window.removeEventListener("pokenotes:logs-bootstrap-settled", reportHardLoad);
       largestContentfulPaintObserver?.disconnect();
       longTaskObserver?.disconnect();
     };
@@ -547,10 +593,13 @@ export function RoutePerformanceReporter() {
       const measuredAt = performance.now();
       const responseEndMs = nav && nav.responseEnd > 0 ? Math.round(nav.responseEnd) : null;
       const responseStartMs = nav && nav.responseStart > 0 ? Math.round(nav.responseStart) : null;
+      const navigationPhases = getNavigationPhaseSnapshot(nav);
+      const responseBodyStartMs =
+        navigationPhases.finalResponseHeadersStartMs ?? responseStartMs;
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
-        ...getNavigationPhaseSnapshot(nav),
+        ...navigationPhases,
         ...getServerDiagnosticsSnapshot(),
         ...getServerTimingSnapshot(0, measuredAt, nav),
         documentDecodedBodySizeBytes: nav?.decodedBodySize ?? null,
@@ -569,8 +618,8 @@ export function RoutePerformanceReporter() {
         requestCorrelationId: getRequestCorrelationId(),
         responseEndMs,
         responseStreamMs:
-          responseEndMs !== null && responseStartMs !== null
-            ? Math.max(0, responseEndMs - responseStartMs)
+          responseEndMs !== null && responseBodyStartMs !== null
+            ? Math.max(0, responseEndMs - responseBodyStartMs)
             : null,
         routeContentVisibleMs: getClientTiming("route-content-visible"),
         routeDataPaintedMs: dataPaintedMs,
@@ -579,7 +628,7 @@ export function RoutePerformanceReporter() {
         routeShellVisibleMs: getClientTiming("route-shell-visible"),
         submissionReason: reason,
         toPath: getCurrentPath(),
-        ttfbMs: responseStartMs,
+        ttfbMs: navigationPhases.finalResponseHeadersStartMs ?? responseStartMs,
         workerStartMs: nav?.workerStart ?? null
       });
     }

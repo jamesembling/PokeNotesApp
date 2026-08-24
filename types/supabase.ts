@@ -598,7 +598,9 @@ export type Database = {
           duration_ms: number
           effective_type: string | null
           event_type: string
+          final_response_headers_start_ms: number | null
           first_contentful_paint_ms: number | null
+          first_interim_response_start_ms: number | null
           from_path: string | null
           hardware_concurrency: number | null
           hydration_resources_end_ms: number | null
@@ -689,7 +691,9 @@ export type Database = {
           duration_ms: number
           effective_type?: string | null
           event_type: string
+          final_response_headers_start_ms?: number | null
           first_contentful_paint_ms?: number | null
+          first_interim_response_start_ms?: number | null
           from_path?: string | null
           hardware_concurrency?: number | null
           hydration_resources_end_ms?: number | null
@@ -780,7 +784,9 @@ export type Database = {
           duration_ms?: number
           effective_type?: string | null
           event_type?: string
+          final_response_headers_start_ms?: number | null
           first_contentful_paint_ms?: number | null
+          first_interim_response_start_ms?: number | null
           from_path?: string | null
           hardware_concurrency?: number | null
           hydration_resources_end_ms?: number | null

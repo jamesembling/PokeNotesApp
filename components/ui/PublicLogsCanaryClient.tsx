@@ -1,0 +1,220 @@
+"use client";
+
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
+import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker";
+import { LogsStats } from "@/components/ui/LogsStats";
+import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
+import { LogsWorkspaceFrame } from "@/components/ui/LogsWorkspaceFrame";
+import {
+  LogsStatsSkeleton,
+  LogsWorkspaceSkeleton
+} from "@/components/ui/LogsWorkspaceSkeleton";
+import type { BattleLogSummary } from "@/types/index";
+
+type BootstrapDiagnostics = {
+  authEndedMs: number;
+  authMethod: string;
+  authMs: number;
+  authRefreshed: boolean;
+  authStartedMs: number;
+  cacheKeyVersion: string;
+  cacheLookupMs: number;
+  cacheOutcome: string;
+  dataEndedMs: number;
+  dataMs: number;
+  dataStartedMs: number;
+  mappingMs: number | null;
+  requestCorrelationId: string;
+  requestId: string | null;
+  resultBytes: number | null;
+  resultRows: number | null;
+  runtimeBootAgeMs: number;
+  runtimeBootId: string;
+  runtimeInvocationOrdinal: number;
+  runtimeRegion: string | null;
+  supabaseMs: number | null;
+};
+
+type BootstrapPayload = {
+  diagnostics: BootstrapDiagnostics;
+  stats: {
+    losses: number;
+    total: number;
+    wins: number;
+  };
+  window: {
+    hasMore: boolean;
+    logs: BattleLogSummary[];
+    nextWindowEndDate: string;
+    windowEndDate: string;
+    windowStartDate: string;
+  };
+};
+
+type BootstrapState =
+  | { status: "loading" }
+  | { message: string; status: "error"; unauthorized: boolean }
+  | { parsedAtMs: number; payload: BootstrapPayload; status: "ready" };
+
+export function PublicLogsCanaryClient() {
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<BootstrapState>({ status: "loading" });
+  const startedAttemptRef = useRef(-1);
+
+  useLayoutEffect(() => {
+    delete document.documentElement.dataset.logsBootstrapSettled;
+  }, []);
+
+  useEffect(() => {
+    if (startedAttemptRef.current === attempt) {
+      return;
+    }
+
+    startedAttemptRef.current = attempt;
+    setState({ status: "loading" });
+
+    void fetch("/api/logs/bootstrap", {
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json"
+      }
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const unauthorized = response.status === 401;
+          throw Object.assign(
+            new Error(
+              unauthorized
+                ? "Your session has expired. Sign in again to continue."
+                : "Your battle logs could not be loaded."
+            ),
+            { unauthorized }
+          );
+        }
+
+        const payload = (await response.json()) as BootstrapPayload;
+        return {
+          parsedAtMs: Math.max(0, Math.round(performance.now())),
+          payload
+        };
+      })
+      .then(({ parsedAtMs, payload }) => {
+        document.documentElement.dataset.logsBootstrapSettled = "true";
+        window.dispatchEvent(new CustomEvent("pokenotes:logs-bootstrap-settled"));
+        setState({ parsedAtMs, payload, status: "ready" });
+      })
+      .catch((error: Error & { unauthorized?: boolean }) => {
+        setState({
+          message: error.message || "Your battle logs could not be loaded.",
+          status: "error",
+          unauthorized: error.unauthorized === true
+        });
+      });
+  }, [attempt]);
+
+  const stats =
+    state.status === "ready" ? (
+      <LogsStats
+        losses={state.payload.stats.losses}
+        total={state.payload.stats.total}
+        wins={state.payload.stats.wins}
+      />
+    ) : (
+      <LogsStatsSkeleton />
+    );
+
+  return (
+    <LogsWorkspaceFrame
+      isLoading={state.status !== "ready"}
+      performanceVariant="logs-public-shell-canary"
+      stats={stats}
+    >
+      {state.status === "loading" ? <LogsWorkspaceSkeleton /> : null}
+      {state.status === "error" ? (
+        <Card className="gap-4">
+          <Alert variant="destructive">
+            <AlertDescription>{state.message}</AlertDescription>
+          </Alert>
+          <div className="flex flex-wrap gap-3">
+            {state.unauthorized ? (
+              <Button asChild>
+                <a href="/login">Sign in</a>
+              </Button>
+            ) : (
+              <Button onClick={() => setAttempt((current) => current + 1)}>Try again</Button>
+            )}
+          </div>
+        </Card>
+      ) : null}
+      {state.status === "ready" ? (
+        <>
+          <BootstrapTimingMarkers
+            diagnostics={state.payload.diagnostics}
+            parsedAtMs={state.parsedAtMs}
+          />
+          <LogsWorkspaceClient stats={state.payload.stats} window={state.payload.window} />
+          <ClientRouteTimingMarker phase="route-content-visible" />
+          <ClientRouteTimingMarker phase="route-data-visible" />
+        </>
+      ) : null}
+    </LogsWorkspaceFrame>
+  );
+}
+
+function BootstrapTimingMarkers({
+  diagnostics,
+  parsedAtMs
+}: {
+  diagnostics: BootstrapDiagnostics;
+  parsedAtMs: number;
+}) {
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        data-route-auth-ended-ms={diagnostics.authEndedMs}
+        data-route-auth-method={diagnostics.authMethod}
+        data-route-auth-refreshed={String(diagnostics.authRefreshed)}
+        data-route-auth-started-ms={diagnostics.authStartedMs}
+        data-route-request-correlation-id={diagnostics.requestCorrelationId}
+        data-route-request-id={diagnostics.requestId ?? undefined}
+        data-route-runtime-boot-age-ms={diagnostics.runtimeBootAgeMs}
+        data-route-runtime-boot-id={diagnostics.runtimeBootId}
+        data-route-runtime-invocation-ordinal={diagnostics.runtimeInvocationOrdinal}
+        data-route-runtime-region={diagnostics.runtimeRegion ?? undefined}
+        hidden
+      />
+      <span
+        aria-hidden="true"
+        data-route-server-timing="bootstrap-auth"
+        data-route-server-timing-ms={diagnostics.authMs}
+        hidden
+      />
+      <span
+        aria-hidden="true"
+        data-route-cache-key-version={diagnostics.cacheKeyVersion}
+        data-route-cache-lookup-ms={diagnostics.cacheLookupMs}
+        data-route-cache-outcome={diagnostics.cacheOutcome}
+        data-route-data-ended-ms={diagnostics.dataEndedMs}
+        data-route-data-started-ms={diagnostics.dataStartedMs}
+        data-route-mapping-ms={diagnostics.mappingMs ?? undefined}
+        data-route-result-bytes={diagnostics.resultBytes ?? undefined}
+        data-route-result-rows={diagnostics.resultRows ?? undefined}
+        data-route-server-timing="route-data"
+        data-route-server-timing-ms={diagnostics.dataMs}
+        data-route-supabase-ms={diagnostics.supabaseMs ?? undefined}
+        hidden
+      />
+      <span
+        aria-hidden="true"
+        data-route-parser-timing="route-data-parsed"
+        data-route-parser-timing-ms={parsedAtMs}
+        hidden
+      />
+    </>
+  );
+}

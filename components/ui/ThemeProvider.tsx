@@ -53,7 +53,12 @@ export function ThemeProvider({
 
   useEffect(() => {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-    const nextTheme: Theme = storedTheme === "dark" ? "dark" : initialTheme;
+    const nextTheme: Theme =
+      storedTheme === "dark" || storedTheme === "light"
+        ? storedTheme
+        : window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : initialTheme;
 
     setTheme(nextTheme);
     applyTheme(nextTheme);

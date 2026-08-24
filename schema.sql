@@ -1247,7 +1247,9 @@ create table public.route_performance_events (
   duration_ms             integer not null,
   effective_type          text,
   event_type              text not null check (event_type in ('hard-load', 'app-route', 'route-data')),
+  final_response_headers_start_ms integer,
   first_contentful_paint_ms integer,
+  first_interim_response_start_ms integer,
   from_path               text,
   hardware_concurrency    integer,
   hydration_resources_end_ms integer,
@@ -1262,7 +1264,7 @@ create table public.route_performance_events (
   parser_data_ms          integer,
   parser_shell_ms         integer,
   performance_variant     text
-                          check (performance_variant is null or performance_variant in ('logs-delay-400', 'logs-delay-1000', 'logs-narrow-suspense', 'logs-shell-only')),
+                          check (performance_variant is null or performance_variant in ('logs-delay-400', 'logs-delay-1000', 'logs-narrow-suspense', 'logs-public-shell-canary', 'logs-shell-only')),
   reporter_version        smallint not null default 1 check (reporter_version > 0),
   resource_count          integer,
   request_correlation_id  text,
@@ -1349,7 +1351,13 @@ comment on column public.route_performance_events.route_data_visible_ms is
   'Time from navigation start until the route data region has hydrated.';
 
 comment on column public.route_performance_events.response_stream_ms is
-  'Time from the first navigation response byte to the last; includes streamed server pauses and is not pure network download time.';
+  'Time from final response headers when exposed, otherwise legacy responseStart, to response end; includes streamed server pauses and is not pure network download time.';
+
+comment on column public.route_performance_events.final_response_headers_start_ms is
+  'Browser navigation timing for final response headers when the browser exposes that boundary.';
+
+comment on column public.route_performance_events.first_interim_response_start_ms is
+  'Browser navigation timing for the first interim response, such as 103 Early Hints, when exposed.';
 
 comment on column public.route_performance_events.document_download_ms is
   'Legacy reporter-v2-v4 name for response stream duration; retained for backward compatibility.';
