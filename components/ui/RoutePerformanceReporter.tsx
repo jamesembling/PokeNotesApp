@@ -497,6 +497,13 @@ export function RoutePerformanceReporter() {
         return;
       }
 
+      if (
+        getPerformanceVariant() === "admin-public-shell" &&
+        getClientPaintTiming("route-shell-visible") === null
+      ) {
+        return;
+      }
+
       hardLoadReported = true;
       const nav = getNavigationTiming();
       const measuredAt = performance.now();
@@ -565,16 +572,27 @@ export function RoutePerformanceReporter() {
     const reportHardLoadAfterLoad = () => {
       window.requestAnimationFrame(reportHardLoad);
     };
+    const reportHardLoadAfterAdminShellPaint = (event: Event) => {
+      const detail = (event as CustomEvent<{ phase?: string }>).detail;
+      if (detail?.phase === "route-shell-visible") {
+        reportHardLoad();
+      }
+    };
 
     if (document.readyState === "complete") {
       reportHardLoadAfterLoad();
     } else {
       window.addEventListener("load", reportHardLoadAfterLoad, { once: true });
     }
+    window.addEventListener("pokenotes:route-client-paint", reportHardLoadAfterAdminShellPaint);
 
     return () => {
       window.clearTimeout(hardLoadTimeoutId);
       window.removeEventListener("load", reportHardLoadAfterLoad);
+      window.removeEventListener(
+        "pokenotes:route-client-paint",
+        reportHardLoadAfterAdminShellPaint
+      );
       window.removeEventListener("pokenotes:logs-bootstrap-settled", reportHardLoad);
       largestContentfulPaintObserver?.disconnect();
       longTaskObserver?.disconnect();

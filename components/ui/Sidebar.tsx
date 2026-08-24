@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import {
   CalculatorIcon,
@@ -179,7 +179,6 @@ function SidebarNav({ userDecks }: { userDecks?: DeckSelectionOption[] }) {
 
 export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
   const initials = getInitials(profile.displayName);
-  const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [signOutPending, startSignOutTransition] = useTransition();
@@ -191,10 +190,6 @@ export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
 
   function handleAccountMenuOpenChange(open: boolean) {
     setAccountMenuOpen(open);
-
-    if (open && profile.isAdmin) {
-      router.prefetch("/admin/dashboard");
-    }
   }
 
   function handleSignOut() {

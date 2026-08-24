@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { updateAdminUserRoleAction } from "@/app/(admin)/admin/dashboard/actions";
 import { Switch } from "@/components/shadcn/switch";
@@ -17,7 +16,6 @@ export function AdminRoleControls({
   userLabel: string;
   userId: string;
 }) {
-  const router = useRouter();
   const adminSwitchId = useId();
   const feedbackId = `${adminSwitchId}-feedback`;
   const [isPending, startTransition] = useTransition();
@@ -40,7 +38,7 @@ export function AdminRoleControls({
         return;
       }
 
-      router.refresh();
+      window.dispatchEvent(new CustomEvent("pokenotes:admin-dashboard-refresh"));
     });
   }
 

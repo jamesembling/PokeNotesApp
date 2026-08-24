@@ -98,6 +98,7 @@ const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DYNAMIC_ROUTE_PARENTS = new Set(["decks", "lists", "logs", "matchups", "tournaments"]);
 const PERFORMANCE_VARIANTS = new Set([
+  "admin-public-shell",
   "logs-delay-400",
   "logs-delay-1000",
   "logs-narrow-suspense",
