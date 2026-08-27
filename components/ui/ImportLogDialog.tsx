@@ -51,14 +51,6 @@ type SaveState = "idle" | "saving" | "success";
 
 const SUCCESS_CLOSE_DELAY_MS = 250;
 
-function ResultChip({ children }: { children: string }) {
-  return (
-    <span className="inline-flex max-w-full items-center truncate rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-foreground">
-      {children}
-    </span>
-  );
-}
-
 function SaveButton({
   onClick,
   saveState
@@ -791,22 +783,10 @@ export function ImportLogDialog({
                     </Field>
                   </FieldGroup>
 
-                  <section className="grid gap-3 rounded-2xl border border-border bg-muted p-4">
+                  <section className="grid gap-3 rounded-2xl border border-border bg-muted p-4 md:hidden">
                     <p className="text-base font-semibold text-card-foreground">
                       {review.selfPlayerName}&apos;s Result: {resultLabel}
                     </p>
-                    <div className="hidden flex-wrap gap-2 md:flex">
-                      <ResultChip>{selectedFormat}</ResultChip>
-                      <ResultChip>{review.goOrder || "Unknown go order"}</ResultChip>
-                      <ResultChip>
-                        {review.coinTossWon === null
-                          ? "Coin toss unknown"
-                          : review.coinTossWon
-                            ? "Won coin toss"
-                            : "Lost coin toss"}
-                      </ResultChip>
-                      <ResultChip>{review.language}</ResultChip>
-                    </div>
                   </section>
 
                   <Field>
