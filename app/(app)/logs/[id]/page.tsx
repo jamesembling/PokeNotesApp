@@ -106,12 +106,12 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
           ]}
           afterBreadcrumb={
             <Link
-              className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm font-semibold text-foreground hover:text-primary"
+            className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary sm:hidden"
               href="/logs"
               prefetch={false}
             >
               <ArrowLeftIcon className="size-4" />
-              Battle Logs
+            Back to Logs
             </Link>
           }
         />

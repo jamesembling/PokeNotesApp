@@ -26,7 +26,7 @@ type ImportDraftRow = {
   user_id: string;
 };
 
-export type PersistedBattleLogImportReview = ParsedLogReview & {
+export type PersistedBattleLogImportReview = Omit<ParsedLogReview, "rawLog"> & {
   draftId: string;
   expiresAt: string;
 };
@@ -92,8 +92,10 @@ export async function createPersistedBattleLogImportDraft(args: {
     throw error;
   }
 
+  const { rawLog: _serverOwnedRawLog, ...clientReview } = args.review;
+
   return {
-    ...args.review,
+    ...clientReview,
     draftId: draft.id,
     expiresAt: draft.expiresAt
   };
