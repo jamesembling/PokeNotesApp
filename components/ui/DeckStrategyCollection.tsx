@@ -41,7 +41,7 @@ function SortHeaderButton({
   onClick
 }: {
   active: boolean;
-  align?: "left" | "right";
+  align?: "center" | "left" | "right";
   direction?: SortDirection;
   label: string;
   onClick: () => void;
@@ -50,7 +50,11 @@ function SortHeaderButton({
     <Button
       className={[
         "h-auto gap-1 p-0 text-[0.72rem] font-semibold uppercase tracking-[0.12em] transition hover:bg-transparent",
-        align === "right" ? "justify-self-end text-right" : "text-left",
+        align === "center"
+          ? "justify-self-center text-center"
+          : align === "right"
+            ? "justify-self-end text-right"
+            : "text-left",
         active
           ? "text-card-foreground"
           : "text-muted-foreground hover:text-card-foreground"
@@ -159,7 +163,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
             />
             <SortHeaderButton
               active={sort?.key === "winRate"}
-              align="right"
+              align="center"
               direction={sort?.key === "winRate" ? sort.direction : undefined}
               label="Win rate"
               onClick={() =>
@@ -168,7 +172,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
             />
             <SortHeaderButton
               active={sort?.key === "record"}
-              align="right"
+              align="center"
               direction={sort?.key === "record" ? sort.direction : undefined}
               label="Record"
               onClick={() =>
@@ -177,7 +181,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
             />
             <SortHeaderButton
               active={sort?.key === "lists"}
-              align="right"
+              align="center"
               direction={sort?.key === "lists" ? sort.direction : undefined}
               label="Decklists"
               onClick={() => setSort({ key: "lists", direction: getNextSortDirection("lists", sort) })}
@@ -191,7 +195,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
                 setSort({ key: "updated", direction: getNextSortDirection("updated", sort) })
               }
             />
-            <div className="justify-self-end text-right">Open</div>
+            <span aria-hidden="true" />
           </div>
           <div className="divide-y divide-border">
             {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (

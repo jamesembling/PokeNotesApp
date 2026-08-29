@@ -49,14 +49,17 @@ const SUCCESS_CLOSE_DELAY_MS = 650;
 
 function getGameResultButtonClassName(option: string, isSelected: boolean) {
   return cn(
-    "min-h-11 rounded-none border-0 border-r border-border px-3 py-2 text-base font-bold last:border-r-0 sm:text-sm",
+    "min-h-11 gap-1 border-0 border-r border-border px-3 py-2 text-base font-bold last:border-r-0 sm:text-sm",
+    option === "W" && "[border-radius:calc(var(--radius)-1px)_0_0_calc(var(--radius)-1px)]",
+    option === "L" && "rounded-none",
+    option === "T" && "[border-radius:0_calc(var(--radius)-1px)_calc(var(--radius)-1px)_0]",
     isSelected && option === "W" &&
-      "bg-win-bg text-win-strong shadow-[inset_0_0_0_1px_var(--color-win-border)] hover:bg-win-bg hover:text-win-strong",
+      "bg-win-bg text-win-strong shadow-[inset_0_0_0_2px_var(--color-win-strong)] hover:bg-win-bg hover:text-win-strong",
     isSelected && option === "L" &&
-      "bg-loss-bg text-loss-strong shadow-[inset_0_0_0_1px_var(--color-loss-border)] hover:bg-loss-bg hover:text-loss-strong",
+      "bg-loss-bg text-loss-strong shadow-[inset_0_0_0_2px_var(--color-loss-strong)] hover:bg-loss-bg hover:text-loss-strong",
     isSelected && option === "T" &&
-      "bg-warning-bg text-warning-strong shadow-[inset_0_0_0_1px_var(--color-warning-border)] hover:bg-warning-bg hover:text-warning-strong",
-    !isSelected && "bg-transparent text-card-foreground hover:bg-card hover:text-card-foreground"
+      "bg-warning-bg text-warning-strong shadow-[inset_0_0_0_2px_var(--color-warning-strong)] hover:bg-warning-bg hover:text-warning-strong",
+    !isSelected && "bg-transparent text-card-foreground hover:bg-muted hover:text-card-foreground"
   );
 }
 
@@ -422,7 +425,7 @@ export function TournamentRoundEditorDialog({
                     </span>
                     <span aria-hidden="true" className="h-px bg-border" />
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-border bg-muted">
                     {TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS.map((option) => {
                       const fieldName =
                         option.value === "BYE"
@@ -437,7 +440,16 @@ export function TournamentRoundEditorDialog({
                         <div className="grid" key={option.value}>
                           <Button
                             aria-pressed={isSelected}
-                            className="min-h-11 w-full px-2"
+                            className={cn(
+                              "min-h-11 w-full rounded-none border-0 px-2",
+                              option.value !== "NO SHOW" && "border-r border-border",
+                              option.value === "BYE" &&
+                                "[border-radius:calc(var(--radius)-1px)_0_0_calc(var(--radius)-1px)]",
+                              option.value === "NO SHOW" &&
+                                "[border-radius:0_calc(var(--radius)-1px)_calc(var(--radius)-1px)_0]",
+                              isSelected &&
+                                "bg-win-bg text-win-strong shadow-[inset_0_0_0_2px_var(--color-win-strong)] hover:bg-win-bg hover:text-win-strong"
+                            )}
                             onClick={() => {
                               const nextSelection = toggleRoundSpecialResult(
                                 gameResults,
@@ -448,7 +460,7 @@ export function TournamentRoundEditorDialog({
                               setSpecialResult(nextSelection.specialResult);
                             }}
                             type="button"
-                            variant={isSelected ? "default" : "outline"}
+                            variant="ghost"
                           >
                             {option.label}
                           </Button>
@@ -482,7 +494,7 @@ export function TournamentRoundEditorDialog({
                   defaultValue={round?.notes ?? ""}
                   id="round-notes"
                   name="notes"
-                  placeholder="Important lines, techs, mistakes, takeaways..."
+                  placeholder="Information about your match"
                 />
               </div>
             </form>

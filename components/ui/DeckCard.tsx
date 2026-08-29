@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/shadcn/card";
-import { CalendarIcon, ClockIcon } from "@/components/ui/icons";
+import { CalendarIcon, ChevronIcon, ClockIcon } from "@/components/ui/icons";
 import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { ItemTitle } from "@/components/ui/Typography";
@@ -61,16 +61,19 @@ export function DeckCard({
         prefetch={false}
       >
         <div className="md:hidden">
-          <div className="flex min-w-0 items-center gap-4">
-            <SpriteStrip
-              className={listSpriteLaneClassName}
-              pokemonOptions={null}
-              size="lg"
-              sprites={deck.deckPokemon}
-            />
-            <ItemTitle as="h2" className="truncate" size="sm">
-              {deck.deckName}
-            </ItemTitle>
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_1rem] items-center gap-3">
+            <div className="flex min-w-0 items-center gap-4">
+              <SpriteStrip
+                className={listSpriteLaneClassName}
+                pokemonOptions={null}
+                size="lg"
+                sprites={deck.deckPokemon}
+              />
+              <ItemTitle as="h2" className="truncate" size="sm">
+                {deck.deckName}
+              </ItemTitle>
+            </div>
+            <ChevronIcon className="size-4 -rotate-90 justify-self-end text-muted-foreground" />
           </div>
         </div>
 
@@ -94,24 +97,24 @@ export function DeckCard({
 
           <div
             className={[
-              "text-right font-display text-[1.05rem] font-semibold tracking-[-0.04em]",
+              "text-center font-display text-[1.05rem] font-semibold tracking-[-0.04em]",
               getListWinRateTextClass(winRate)
             ].join(" ")}
           >
             {winRate == null ? "--" : `${winRate}%`}
           </div>
 
-          <div className="text-right text-sm font-medium text-card-foreground">
+          <div className="text-center text-sm font-medium text-card-foreground">
             {gamesPlayed > 0 ? recordLabel : "No logs yet"}
           </div>
 
-          <div className="text-right text-sm font-medium text-card-foreground">{deckListCount}</div>
+          <div className="text-center text-sm font-medium text-card-foreground">{deckListCount}</div>
 
           <div className="text-right text-sm text-muted-foreground">
             {formatAppCalendarDate(deck.updatedAt)}
           </div>
 
-          <span className="ui-control-text justify-self-end text-primary">Open</span>
+          <ChevronIcon className="size-4 -rotate-90 justify-self-end text-muted-foreground" />
         </div>
       </Link>
     );

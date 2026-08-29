@@ -41,7 +41,7 @@ export function PageHeader({
 
   return (
     <header className="flex flex-col gap-4">
-      <Breadcrumb>
+      <Breadcrumb className={afterBreadcrumb ? "hidden sm:block" : undefined}>
         <BreadcrumbList className="gap-2">
           {breadcrumb.map((item, index) => {
             const isLast = index === breadcrumb.length - 1;
@@ -76,7 +76,7 @@ export function PageHeader({
         </BreadcrumbList>
       </Breadcrumb>
 
-      {afterBreadcrumb ? <div>{afterBreadcrumb}</div> : null}
+      {afterBreadcrumb ? <div className="sm:hidden">{afterBreadcrumb}</div> : null}
 
       {hasMetaRow ? (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

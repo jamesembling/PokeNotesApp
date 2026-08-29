@@ -8,6 +8,7 @@ export function ParserRouteTimingMarker({ phase }: { phase: ParserTimingPhase })
       data-route-parser-timing={phase}
       dangerouslySetInnerHTML={{ __html: script }}
       suppressHydrationWarning
+      type={typeof window === "undefined" ? "text/javascript" : "text/plain"}
     />
   );
 }

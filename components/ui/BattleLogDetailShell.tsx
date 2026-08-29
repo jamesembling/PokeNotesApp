@@ -241,6 +241,7 @@ export function BattleLogDetailShell({
                   aria-label="Edit Log"
                   className="size-11 min-h-11 min-w-11 p-0"
                   size="icon-lg"
+                  variant="outline"
                 >
                   <PencilIcon className="size-5" />
                   <span className="sr-only">Edit Log</span>
@@ -256,7 +257,7 @@ export function BattleLogDetailShell({
             />
             <CopyShareLinkButton
               ariaLabel="Share Log"
-              className="size-11 min-h-11 min-w-11 p-0 text-primary hover:border-primary hover:bg-background hover:text-primary"
+              className="size-11 min-h-11 min-w-11 p-0"
               initialShare={currentShare}
               logId={log.id}
               onShareReady={setCurrentShare}

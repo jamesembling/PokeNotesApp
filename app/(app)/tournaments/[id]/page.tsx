@@ -191,12 +191,12 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         mobileTitle={splitTitleForMobile(tournament.name)}
         afterBreadcrumb={
           <Link
-            className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary sm:hidden"
+            className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm font-semibold text-foreground hover:text-primary"
             href="/tournaments"
             prefetch={false}
           >
             <ArrowLeftIcon className="size-4" />
-            Back to Tournaments
+            Tournaments
           </Link>
         }
         mobileAction={

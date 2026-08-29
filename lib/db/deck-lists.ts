@@ -16,6 +16,13 @@ export type DeckListSelectionSource = DeckListSelectionOption & {
 
 export type ValidatedDeckListReference = ResolvedDeckListReference;
 
+export type DeckListUsageCount = {
+  battleLogs: number;
+  losses: number;
+  tournaments: number;
+  wins: number;
+};
+
 type DeckListRow = {
   created_at: string;
   created_by: string | null;
@@ -471,6 +478,64 @@ export async function getDeckLists(userId: string): Promise<DeckList[]> {
   );
 
   return mergeDeckListReadModels(relationalLists, legacyLists);
+}
+
+export async function getDeckListUsageCounts(
+  userId: string,
+  deckListIds: string[]
+): Promise<Map<string, DeckListUsageCount>> {
+  const uniqueDeckListIds = Array.from(new Set(deckListIds));
+  if (uniqueDeckListIds.length === 0) {
+    return new Map();
+  }
+
+  const supabase = await createClient();
+  const [logResult, tournamentResult] = await Promise.all([
+    supabase
+      .from("logs")
+      .select("linked_deck_list_id,result")
+      .eq("user_id", userId)
+      .in("linked_deck_list_id", uniqueDeckListIds),
+    supabase
+      .from("tournaments")
+      .select("linked_deck_list_id")
+      .eq("user_id", userId)
+      .in("linked_deck_list_id", uniqueDeckListIds)
+  ]);
+
+  if (logResult.error) {
+    throw logResult.error;
+  }
+  if (tournamentResult.error) {
+    throw tournamentResult.error;
+  }
+
+  const counts = new Map<string, DeckListUsageCount>(
+    uniqueDeckListIds.map((id) => [
+      id,
+      { battleLogs: 0, losses: 0, tournaments: 0, wins: 0 }
+    ])
+  );
+  for (const row of logResult.data ?? []) {
+    const deckListId = row.linked_deck_list_id;
+    if (deckListId && counts.has(deckListId)) {
+      const usage = counts.get(deckListId)!;
+      usage.battleLogs += 1;
+      if (row.result === "Win") {
+        usage.wins += 1;
+      } else if (row.result === "Loss") {
+        usage.losses += 1;
+      }
+    }
+  }
+  for (const row of tournamentResult.data ?? []) {
+    const deckListId = row.linked_deck_list_id;
+    if (deckListId && counts.has(deckListId)) {
+      counts.get(deckListId)!.tournaments += 1;
+    }
+  }
+
+  return counts;
 }
 
 export async function getOwnedDeckStrategyOptions(userId: string) {
