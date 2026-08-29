@@ -1,7 +1,7 @@
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { getReadSortedDeckCards } from "@/lib/deck-lists/read-sort";
 import { CANONICAL_DECK_LIST_SORT_VERSION } from "@/lib/deck-lists/version";
-import { parseDeckList } from "@/lib/decks/deck-list-parse";
+import { interpretDeckList } from "@/lib/decks/deck-list-parse";
 import { getDefaultSyncedSiteFormat } from "@/lib/formats/catalog";
 import { userFacingActionError } from "@/lib/server/action-errors";
 import {
@@ -233,7 +233,7 @@ export function createDeckAggregateWriter(
     createId = () => crypto.randomUUID(),
     getDefaultFormat = getDefaultSyncedSiteFormat,
     now = () => new Date().toISOString(),
-    parseCards = parseDeckList,
+    parseCards = (rawList) => interpretDeckList(rawList).cards,
     sortCards = sortDeckListCards
   } = dependencies;
 

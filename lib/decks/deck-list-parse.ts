@@ -12,6 +12,25 @@ const SUMMARY_LINE_PATTERN = /^total\s+cards?\s*:\s*\d+\s*$/i;
 
 type DeckListCategory = "Pokemon" | "Trainer" | "Energy" | "";
 
+export type DeckListInterpretationLine = {
+  card: DeckCard | null;
+  category: DeckListCategory;
+  count: number | null;
+  description: string;
+  kind: "card" | "header" | "malformed" | "summary";
+  source: string;
+};
+
+export type DeckListInterpretation = {
+  cards: DeckCard[];
+  lines: DeckListInterpretationLine[];
+  malformedCategorizedLineCount: number;
+  summary: {
+    matchedLines: number;
+    total: number | null;
+  };
+};
+
 export function parseLines(value: string) {
   return compactMap(String(value || "")
     .split(/\r?\n/), (line) => line.trim());
@@ -87,55 +106,101 @@ export function splitDeckListDescription(description: string) {
   };
 }
 
-export function summarizeDeckList(rawList: string) {
+export function interpretDeckList(rawList: string): DeckListInterpretation {
+  const cards: DeckCard[] = [];
+  const lines: DeckListInterpretationLine[] = [];
+  let currentCategory: DeckListCategory = "";
   let total = 0;
   let matchedLines = 0;
-
-  parseLines(rawList).forEach((line) => {
-    const parsed = parseDeckListCountLine(line);
-    if (!parsed) {
-      return;
-    }
-
-    total += parsed.count;
-    matchedLines += 1;
-  });
-
-  return {
-    total: matchedLines > 0 ? total : null,
-    matchedLines
-  };
-}
-
-export function parseDeckList(rawList: string): DeckCard[] {
-  const cards: DeckCard[] = [];
-  let currentCategory: DeckListCategory = "";
+  let malformedCategorizedLineCount = 0;
 
   parseLines(rawList).forEach((line) => {
     const category = getDeckListCategoryFromLine(line);
     if (category) {
       currentCategory = category;
+      lines.push({
+        card: null,
+        category,
+        count: null,
+        description: "",
+        kind: "header",
+        source: line
+      });
       return;
     }
 
-    const parsedLine = parseDeckListCountLine(line);
-    if (!parsedLine) {
+    if (isDeckListSummaryLine(line)) {
+      lines.push({
+        card: null,
+        category: currentCategory,
+        count: null,
+        description: "",
+        kind: "summary",
+        source: line
+      });
       return;
     }
 
-    const { name, set, number } = splitDeckListDescription(parsedLine.description);
-    if (!name) {
+    const parsed = parseDeckListCountLine(line);
+    if (!parsed) {
+      if (currentCategory) {
+        malformedCategorizedLineCount += 1;
+      }
+      lines.push({
+        card: null,
+        category: currentCategory,
+        count: null,
+        description: "",
+        kind: "malformed",
+        source: line
+      });
       return;
     }
 
-    cards.push({
-      count: parsedLine.count,
-      name,
-      set,
-      number,
-      category: currentCategory || undefined
+    total += parsed.count;
+    matchedLines += 1;
+    const { name, set, number } = splitDeckListDescription(parsed.description);
+    const card = name
+      ? {
+          count: parsed.count,
+          name,
+          set,
+          number,
+          category: currentCategory || undefined
+        }
+      : null;
+
+    if (card) {
+      cards.push(card);
+    }
+    if (currentCategory && (!card || !set || !number)) {
+      malformedCategorizedLineCount += 1;
+    }
+    lines.push({
+      card,
+      category: currentCategory,
+      count: parsed.count,
+      description: parsed.description,
+      kind: card ? "card" : "malformed",
+      source: line
     });
   });
 
-  return cards;
+  return {
+    cards,
+    lines,
+    malformedCategorizedLineCount,
+    summary: {
+      total: matchedLines > 0 ? total : null,
+      matchedLines
+    }
+  };
+}
+
+export function summarizeDeckList(rawList: string) {
+  return interpretDeckList(rawList).summary;
+}
+
+export function parseDeckList(rawList: string): DeckCard[] {
+  return interpretDeckList(rawList).cards;
 }

@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
-import { parseDeckList } from "@/lib/decks/deck-list-parse";
+import { interpretDeckList } from "@/lib/decks/deck-list-parse";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { CANONICAL_DECK_LIST_SORT_VERSION } from "@/lib/deck-lists/version";
 import type { DeckCard } from "@/types/index";
@@ -128,7 +128,7 @@ async function main() {
       const parsedCards =
         asDeckCardArray(deckList.parsedCards).length > 0
           ? asDeckCardArray(deckList.parsedCards)
-          : parseDeckList(getRawList(deckList));
+          : interpretDeckList(getRawList(deckList)).cards;
 
       const sortedCards = await sortDeckListCards(parsedCards);
       deckChanged = true;

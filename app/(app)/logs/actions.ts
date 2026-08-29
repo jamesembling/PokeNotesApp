@@ -9,7 +9,6 @@ import {
 } from "@/lib/battle-log/display";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
-import { normalizeMatchNotes } from "@/lib/battle-log/match-notes";
 import {
   getDeckLinkCandidates,
   resolveConservativeDeckLink
@@ -19,14 +18,21 @@ import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes"
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
 import { selectDeckSprites } from "@/lib/log-import/identifier/sprites";
 import {
+  buildLearnedSelfArchetype,
   LEARNED_SELF_ARCHETYPE_THRESHOLD,
-  resolveSelfArchetypeForSave
+  promoteLearnedSelfArchetype
 } from "@/lib/log-import/learned-self-archetypes";
 import { parseBattleLog } from "@/lib/log-import/parser";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { getDeckListById } from "@/lib/db/deck-lists";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
 import { validateDeckListReference } from "@/lib/db/deck-lists";
+import {
+  commitPersistedBattleLogImportDraft,
+  createPersistedBattleLogImportDraft,
+  getPersistedBattleLogImportDraft,
+  type PersistedBattleLogImportReview
+} from "@/lib/db/battle-log-import-drafts";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
 import {
   MatchNotesWriteConflictError,
@@ -45,21 +51,18 @@ import {
   userFacingActionError
 } from "@/lib/server/action-errors";
 import { getFormRedirectPath } from "@/lib/server/action-redirect";
-import {
-  parseBoolean,
-  parseGoPreference,
-  parseResult,
-  parseStringArray
-} from "@/lib/server/form-values";
+import { parseStringArray } from "@/lib/server/form-values";
 import { measureServerCall, measureServerStep } from "@/lib/server/perf";
 import { invalidateInitialLogsCache } from "@/lib/server/logs-initial-cache";
 import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
 import { getPublicSharedLogUrl } from "@/lib/server/share-url";
 import { createClient } from "@/lib/supabase/server";
-import type { ImportLogRecord } from "@/lib/log-import/types";
-import type { LogSection, ParsedLogReview } from "@/types/index";
+import type { ParsedLogReview } from "@/types/index";
 import { compactMap } from "@/lib/array";
-import { decodeSerializedLogSections } from "@/lib/battle-log/runtime-validation";
+import {
+  evaluateBattleLogImportDraftSave,
+  parseBattleLogImportSaveRequest
+} from "@/lib/log-import/import-draft";
 
 type ProfileRow = {
   ptcgl_username: string;
@@ -72,7 +75,7 @@ type ImportContext = {
   ptcglUsername: string;
 };
 
-type ParseLogActionResult = ParsedLogReview | { error: string };
+type ParseLogActionResult = PersistedBattleLogImportReview | { error: string };
 type SaveActionResult = {
   ok: true;
   redirectTo: string;
@@ -200,7 +203,7 @@ async function buildParsedLogReview(
   );
   const selfDeckSlug = resolvedSelfArchetype?.archetypeId ?? "";
 
-  return {
+  const review: ParsedLogReview = {
     selfPlayerName: parsed.players.selfPlayerName,
     opponentPlayerName: parsed.players.opponentPlayerName,
     selfDeckName,
@@ -228,17 +231,18 @@ async function buildParsedLogReview(
     opponentMulligans: parsed.stats.opponentMulligans,
     reason: parsed.stats.reason
   };
-}
 
-function parseSections(value: FormDataEntryValue | null): LogSection[] {
-  const sections = decodeSerializedLogSections(value);
-  if (!sections) {
-    throw userFacingActionError(
-      "The parsed battle-log details were missing or invalid. Parse the log again before importing."
-    );
-  }
+  const deckLinkCandidates = await measureServerCall(
+    "logs.import.getDeckLinkCandidatesForReview",
+    () => getDeckLinkCandidates(importContext.user.id, importContext.supabase)
+  );
+  review.suggestedLinkedDeckId = resolveConservativeDeckLink(deckLinkCandidates, {
+    deckName: selfDeckName,
+    deckSlug: selfDeckSlug,
+    sprites: resolvedSelfSprites
+  }) ?? undefined;
 
-  return sections;
+  return review;
 }
 
 function assertMutatedRows(
@@ -259,7 +263,13 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
 
   try {
     const rawLog = String(formData.get("rawLog") || "");
-    return await buildParsedLogReview(rawLog, getImportContext(user, supabase));
+    const format = String(formData.get("format") || "").trim();
+    const review = await buildParsedLogReview(rawLog, getImportContext(user, supabase));
+    return await createPersistedBattleLogImportDraft({
+      format,
+      review,
+      userId: user.id
+    });
   } catch (error) {
     if (error instanceof ImportLogValidationError) {
       return {
@@ -284,100 +294,73 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    const rawLog = String(formData.get("rawLog") || "").trim();
-
-    if (!rawLog) {
-      throw userFacingActionError("Paste a PTCGL battle log before importing.");
-    }
-
-    const selectedDeckId = String(formData.get("linkedDeckId") || "").trim();
-    const selectedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
-    const sections = parseSections(formData.get("sections"));
     const selectedSelfSprites = parseStringArray(formData.getAll("selfSprites"));
     const selectedOpponentSprites = parseStringArray(formData.getAll("opponentSprites"));
-    const submittedSelfDeckSlug = String(formData.get("selfDeckSlug") || "").trim();
-    const submittedSelfDeckName = String(formData.get("selfDeckName") || "").trim();
-    const [catalog, deckLinkCandidates] = await Promise.all([
-      selectedSelfSprites.length > 0
-        ? measureServerCall("logs.import.loadIdentificationCatalogForSave", () =>
-            loadIdentificationCatalog({
-              supabase,
-              userId: user.id
-            })
-          )
-        : Promise.resolve(null),
-      selectedDeckId
-        ? Promise.resolve([])
-        : measureServerCall("logs.import.getDeckLinkCandidates", () =>
-            getDeckLinkCandidates(user.id, supabase)
-          )
-    ]);
-    const resolvedSelfArchetype =
-      !catalog
-      ? null
-      : await measureServerCall("logs.import.resolveSelfArchetypeForSave.self", () =>
-          resolveSelfArchetypeForSave({
-            supabase,
-            userId: user.id,
-            sprites: selectedSelfSprites,
-            catalog,
-            minimumExistingMatches: LEARNED_SELF_ARCHETYPE_THRESHOLD - 1
-          })
-        );
-    const savedSelfSprites = resolvedSelfArchetype?.sprites ?? selectedSelfSprites;
-    const suggestedLinkedDeckId = selectedDeckId
-      ? ""
-      : resolveConservativeDeckLink(deckLinkCandidates, {
-          deckName: resolvedSelfArchetype?.label ?? submittedSelfDeckName,
-          deckSlug: resolvedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
-          sprites: savedSelfSprites
-        }) ?? "";
-    const validatedReference = await validateDeckListReference({
-      linkedDeckId:
-        selectedDeckId || (selectedDeckListId ? null : suggestedLinkedDeckId) || null,
-      linkedDeckListId: selectedDeckListId || null,
-      supabase,
+    const request = parseBattleLogImportSaveRequest({
+      draftId: formData.get("draftId"),
+      idempotencyKey: formData.get("idempotencyKey"),
+      editable: {
+        selfDeckSlug: buildDeckArchetypeId(selectedSelfSprites),
+        selfDeckSprites: selectedSelfSprites,
+        opponentDeckSlug: buildDeckArchetypeId(selectedOpponentSprites),
+        opponentDeckSprites: selectedOpponentSprites,
+        date: formData.get("date"),
+        format: formData.get("format"),
+        linkedDeckId: formData.get("linkedDeckId"),
+        linkedDeckListId: formData.get("linkedDeckListId"),
+        matchNotes: formData.get("matchNotes")
+      }
+    });
+    const draft = await getPersistedBattleLogImportDraft(request.draftId);
+    const decision = evaluateBattleLogImportDraftSave({
+      draft,
+      userId: user.id,
+      request,
+      now: new Date().toISOString()
+    });
+    if (decision.status === "rejected") {
+      throw userFacingActionError(decision.message);
+    }
+
+    const catalog = await measureServerCall(
+      "logs.import.loadIdentificationCatalogForSave",
+      () => loadIdentificationCatalog({ supabase, userId: user.id })
+    );
+    const learnedCandidate = buildLearnedSelfArchetype(selectedSelfSprites, 0);
+    const knownSelfArchetype = learnedCandidate
+      ? catalog.archetypes.byId.get(learnedCandidate.archetypeId)
+      : null;
+    const resolvedSelfSprites = knownSelfArchetype?.sprites ?? selectedSelfSprites;
+    const resolvedSelfSlug = buildDeckArchetypeId(resolvedSelfSprites);
+    const resolvedSelfName = getBattleLogDeckDisplayName(
+      knownSelfArchetype?.label ?? "",
+      resolvedSelfSprites
+    );
+    const result = await commitPersistedBattleLogImportDraft({
+      draftId: request.draftId,
+      editable: request.editable,
+      idempotencyKey: request.idempotencyKey,
+      resolved: {
+        selfDeckName: resolvedSelfName,
+        selfDeckSlug: resolvedSelfSlug,
+        selfDeckSprites: resolvedSelfSprites,
+        opponentDeckName: getBattleLogOpponentDisplayName("", selectedOpponentSprites),
+        opponentDeckSlug: buildDeckArchetypeId(selectedOpponentSprites),
+        opponentDeckSprites: selectedOpponentSprites
+      },
       userId: user.id
     });
 
-    const record: ImportLogRecord = {
-      id: crypto.randomUUID(),
-      date: String(formData.get("date") || "").trim() || buildImportDate(),
-      result: parseResult(formData.get("result")),
-      format: String(formData.get("format") || "").trim(),
-      go_order: parseGoPreference(formData.get("goOrder")),
-      self_player_name: String(formData.get("selfPlayerName") || "").trim(),
-      self_deck_name: resolvedSelfArchetype?.label ?? submittedSelfDeckName,
-      self_deck_slug: resolvedSelfArchetype?.archetypeId ?? submittedSelfDeckSlug,
-      self_deck_sprites: joinSprites(savedSelfSprites),
-      opponent_player_name: String(formData.get("opponentPlayerName") || "").trim(),
-      opponent_deck_name: String(formData.get("opponentDeckName") || "").trim(),
-      opponent_deck_slug: String(formData.get("opponentDeckSlug") || "").trim(),
-      opponent_deck_sprites: joinSprites(selectedOpponentSprites),
-      total_turns: Number(formData.get("totalTurns")) || 0,
-      coin_toss_won: parseBoolean(formData.get("coinTossWon")),
-      self_prizes_taken: Number(formData.get("selfPrizesTaken")) || 0,
-      opponent_prizes_taken: Number(formData.get("opponentPrizesTaken")) || 0,
-      self_attack_damage: Number(formData.get("selfAttackDamage")) || 0,
-      opponent_attack_damage: Number(formData.get("opponentAttackDamage")) || 0,
-      self_mulligans: Number(formData.get("selfMulligans")) || 0,
-      opponent_mulligans: Number(formData.get("opponentMulligans")) || 0,
-      linked_deck_id: validatedReference.deckId,
-      linked_deck_list_id: validatedReference.deckListId,
-      match_notes: normalizeMatchNotes(formData.get("matchNotes")),
-      reason: String(formData.get("reason") || "").trim(),
-      raw_log: rawLog,
-      sections
-    };
-
-    const { error: insertError } = await supabase.from("logs").insert({
-      ...record,
-      user_id: user.id
+    const selfSelectionChanged = Boolean(
+      draft && joinSprites(draft.editable.selfDeckSprites) !== joinSprites(selectedSelfSprites)
+    );
+    await promoteLearnedSelfArchetype({
+      supabase,
+      userId: user.id,
+      sprites: resolvedSelfSprites,
+      catalog,
+      minimumExistingMatches: selfSelectionChanged ? 1 : LEARNED_SELF_ARCHETYPE_THRESHOLD
     });
-
-    if (insertError) {
-      throw insertError;
-    }
 
     invalidateInitialLogsCache(user.id);
     after(() => {
@@ -386,7 +369,7 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
 
     return {
       ok: true,
-      redirectTo: `/logs/${record.id}`
+      redirectTo: `/logs/${result.battleLogId}`
     };
   } catch (error) {
     throw resolveActionFailure(error, {

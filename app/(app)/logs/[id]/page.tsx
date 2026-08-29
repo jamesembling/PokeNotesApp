@@ -11,6 +11,7 @@ import {
 import { PageTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/display";
+import { projectOwnerBattleLogDetail } from "@/lib/battle-log/detail-projection";
 import { getLogDetailSummaryById } from "@/lib/db/logs";
 import { measureServerCallWithTiming } from "@/lib/server/perf";
 
@@ -87,6 +88,10 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
     log.opponentDeckName,
     log.opponentDeckSprites
   );
+  const projection = projectOwnerBattleLogDetail({
+    linkedStrategyLabel: log.linkedDeckId ? "Linked strategy" : "No strategy linked",
+    log
+  });
 
   return (
     <PageWidth size="standard">
@@ -101,12 +106,12 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
           ]}
           afterBreadcrumb={
             <Link
-              className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary sm:hidden"
+              className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm font-semibold text-foreground hover:text-primary"
               href="/logs"
               prefetch={false}
             >
               <ArrowLeftIcon className="size-4" />
-              Back to Logs
+              Battle Logs
             </Link>
           }
         />
@@ -115,12 +120,10 @@ export default async function LogDetailPage({ params }: LogDetailPageProps) {
 
         <BattleLogDetailShell
           activeShare={null}
-          linkedDeckId={log.linkedDeckId}
-          linkedStrategyLabel={
-            log.linkedDeckId ? "Linked strategy" : "No strategy linked"
-          }
-          log={log}
-          timestampLabel={formatImportedAt(log.importedAt)}
+          linkedDeckId={projection.log.linkedDeckId}
+          linkedStrategyLabel={projection.linkedStrategyLabel}
+          log={projection.log}
+          timestampLabel={formatImportedAt(projection.log.importedAt)}
           userDecks={[]}
         />
       </div>

@@ -12,6 +12,7 @@ import {
   type LogShareStore
 } from "@/lib/db/log-shares";
 import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
+import { projectPublicBattleLogDetail } from "@/lib/battle-log/detail-projection";
 import type { BattleLog } from "@/types/index";
 
 test("revocation fallback is limited to a missing revoke RPC", () => {
@@ -213,7 +214,9 @@ test("creates compact URL-safe share tokens", async () => {
       ownerUserId: "user-1",
       sourceLogId: "log-1",
       log: buildBattleLog(),
-      linkedStrategyLabel: "Dragapult ex"
+      linkedStrategyLabel: "Dragapult ex",
+      linkedDeckListName: "League list",
+      linkedDeckListRawList: "Pokemon: 1\n1 Dragapult ex TWM 130"
     },
     { now: new Date("2026-04-15T10:00:00.000Z"), store }
   );
@@ -226,6 +229,13 @@ test("creates compact URL-safe share tokens", async () => {
     false,
     "owner match notes must never enter a public share snapshot"
   );
+  const projection = projectPublicBattleLogDetail(
+    rows[0]?.payload as Parameters<typeof projectPublicBattleLogDetail>[0]
+  );
+  assert.equal(projection.privacy, "public");
+  assert.equal(projection.log.matchNotes, null);
+  assert.equal(projection.linkedDeckList.name, "League list");
+  assert.equal(projection.linkedDeckList.sortedCards.length, 1);
 });
 
 test("recognizes only the typed database share errors", () => {

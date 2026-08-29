@@ -1,9 +1,6 @@
 import {
-  getDeckListCategoryFromLine,
-  isDeckListSummaryLine,
-  parseDeckListCountLine,
-  parseLines,
-  splitDeckListDescription
+  interpretDeckList,
+  type DeckListInterpretation
 } from "@/lib/decks/deck-list-parse";
 import { normalizeLimitlessSetCode } from "@/lib/deck-lists/limitless";
 import type { DeckCard, PokemonStage } from "@/types/index";
@@ -81,9 +78,10 @@ export type CalculatorAnalysis = {
 type CardImageSize = "XS" | "SM";
 
 export function analyzeDecklist(input: string): CalculatorAnalysis {
-  const cards = parseCalculatorDecklist(input);
+  const interpretation = interpretDeckList(input);
+  const cards = parseCalculatorDecklist(interpretation);
   const totals = computeTotals(cards);
-  const warnings = buildWarnings(cards, totals, input);
+  const warnings = buildWarnings(cards, totals, interpretation);
   const basicPokemonCount = computeBasicPokemonCount(cards);
   const mulliganProbability = hypergeom(DECK_SIZE, basicPokemonCount, OPENING_HAND, 0);
   const exactlyOneBasicRaw = hypergeom(DECK_SIZE, basicPokemonCount, OPENING_HAND, 1);
@@ -191,47 +189,32 @@ export function getPokemonSpriteUrl(name: string, pokemonOptions?: PokemonOption
   return getSharedPokemonSpriteUrl(name, pokemonOptions);
 }
 
-function parseCalculatorDecklist(input: string) {
-  const cards: CalculatorCard[] = [];
-  let currentCategory: CalculatorCardCategory | null = null;
-
-  parseLines(input).forEach((line) => {
-    const category = getDeckListCategoryFromLine(line);
-    if (category) {
-      currentCategory = category as CalculatorCardCategory;
-      return;
-    }
-
-    if (!currentCategory) {
-      return;
-    }
-
-    const parsedLine = parseDeckListCountLine(line);
-    if (!parsedLine) {
-      return;
-    }
-
-    const { name, set, number } = splitDeckListDescription(parsedLine.description);
-    if (!name || !set || !number) {
-      return;
+function parseCalculatorDecklist(interpretation: DeckListInterpretation) {
+  return interpretation.lines.flatMap((line) => {
+    if (
+      line.kind !== "card" ||
+      !line.card ||
+      !line.category ||
+      !line.card.set ||
+      !line.card.number
+    ) {
+      return [];
     }
 
     const card: CalculatorCard = {
-      count: parsedLine.count,
-      name,
-      set,
-      number,
-      category: currentCategory
+      count: line.card.count,
+      name: line.card.name,
+      set: line.card.set,
+      number: line.card.number,
+      category: line.category as CalculatorCardCategory
     };
 
-    if (currentCategory === "Pokemon") {
-      card.stage = resolvePokemonStage(name);
+    if (line.category === "Pokemon") {
+      card.stage = resolvePokemonStage(line.card.name);
     }
 
-    cards.push(card);
+    return [card];
   });
-
-  return cards;
 }
 
 function computeTotals(cards: CalculatorCard[]): CalculatorTotals {
@@ -250,37 +233,13 @@ function computeTotals(cards: CalculatorCard[]): CalculatorTotals {
   );
 }
 
-function buildWarnings(cards: CalculatorCard[], totals: CalculatorTotals, input: string) {
+function buildWarnings(
+  cards: CalculatorCard[],
+  totals: CalculatorTotals,
+  interpretation: DeckListInterpretation
+) {
   const warnings: string[] = [];
-  let malformedLines = 0;
-  let currentCategory: CalculatorCardCategory | null = null;
-
-  parseLines(input).forEach((line) => {
-    const category = getDeckListCategoryFromLine(line);
-    if (category) {
-      currentCategory = category as CalculatorCardCategory;
-      return;
-    }
-
-    if (!currentCategory) {
-      return;
-    }
-
-    if (isDeckListSummaryLine(line)) {
-      return;
-    }
-
-    const parsedLine = parseDeckListCountLine(line);
-    if (!parsedLine) {
-      malformedLines += 1;
-      return;
-    }
-
-    const { name, set, number } = splitDeckListDescription(parsedLine.description);
-    if (!name || !set || !number) {
-      malformedLines += 1;
-    }
-  });
+  const malformedLines = interpretation.malformedCategorizedLineCount;
 
   if (malformedLines > 0) {
     warnings.push(

@@ -341,6 +341,53 @@ export type Database = {
         }
         Relationships: []
       }
+      battle_log_import_drafts: {
+        Row: {
+          battle_log_id: string | null
+          consumed_at: string | null
+          consumed_fingerprint: string | null
+          consumed_idempotency_key: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          immutable_facts: Json
+          initial_editable: Json
+          user_id: string
+        }
+        Insert: {
+          battle_log_id?: string | null
+          consumed_at?: string | null
+          consumed_fingerprint?: string | null
+          consumed_idempotency_key?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          immutable_facts: Json
+          initial_editable: Json
+          user_id: string
+        }
+        Update: {
+          battle_log_id?: string | null
+          consumed_at?: string | null
+          consumed_fingerprint?: string | null
+          consumed_idempotency_key?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          immutable_facts?: Json
+          initial_editable?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_log_import_drafts_battle_log_id_fkey"
+            columns: ["battle_log_id"]
+            isOneToOne: false
+            referencedRelation: "logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       logs: {
         Row: {
           coin_toss_won: boolean | null
@@ -1077,6 +1124,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      commit_battle_log_import_draft: {
+        Args: {
+          p_draft_id: string
+          p_editable: Json
+          p_idempotency_key: string
+          p_resolved: Json
+          p_user_id: string
+        }
+        Returns: Json
+      }
       can_use_deck_list_reference: {
         Args: {
           p_deck_id: string | null

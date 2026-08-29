@@ -3,8 +3,7 @@ import { getReadSortedDeckCards } from "@/lib/deck-lists/read-sort";
 import { createClient } from "@/lib/supabase/server";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import {
-  resolveDeckListsDuringCompatibility,
-  resolveDeckMatchupsDuringCompatibility
+  resolveDeckAggregateCompatibilityRead
 } from "@/lib/decks/aggregate-compatibility";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
@@ -577,10 +576,10 @@ async function mapDeckSummary(
   context: DeckMappingContext,
   deckListsOverride?: DeckList[]
 ): Promise<DeckSummary> {
-  const parsedDeckLists = resolveDeckListsDuringCompatibility(
-    parseDeckLists(row.deck_lists),
-    deckListsOverride
-  );
+  const parsedDeckLists = resolveDeckAggregateCompatibilityRead({
+    legacyDeckLists: parseDeckLists(row.deck_lists),
+    relationalDeckLists: deckListsOverride
+  }).deckLists;
   const storedDeckPokemon = parseStringArray(row.deck_pokemon);
   const normalizedStoredDeckPokemon = await normalizeDeckPokemon(storedDeckPokemon, context.slugIndex);
   const deckPokemon =
@@ -607,10 +606,10 @@ function mapDeckSelectionWithLists(
   row: DeckSelectionRow,
   relationalDeckLists: Map<string, DeckList[]>
 ): DeckSelectionOption {
-  const deckLists = resolveDeckListsDuringCompatibility(
-    parseDeckLists(row.deck_lists),
-    relationalDeckLists.get(row.id)
-  );
+  const deckLists = resolveDeckAggregateCompatibilityRead({
+    legacyDeckLists: parseDeckLists(row.deck_lists),
+    relationalDeckLists: relationalDeckLists.get(row.id)
+  }).deckLists;
 
   return {
     id: row.id,
@@ -806,15 +805,14 @@ async function mapDeckWithRelations(
   deckListsOverride?: DeckList[],
   matchupsOverride?: DeckMatchup[]
 ): Promise<Deck> {
-  const sourceDeckLists = resolveDeckListsDuringCompatibility(
-    parseDeckLists(row.deck_lists),
-    deckListsOverride
-  );
+  const aggregate = resolveDeckAggregateCompatibilityRead({
+    legacyDeckLists: parseDeckLists(row.deck_lists),
+    legacyMatchups: parseDeckMatchups(row.matchups),
+    relationalDeckLists: deckListsOverride,
+    relationalMatchups: matchupsOverride
+  });
+  const sourceDeckLists = aggregate.deckLists;
   const deckSummary = await mapDeckSummary(row, context, sourceDeckLists);
-  const hydratedDeckLists = sourceDeckLists.map((deckList) => ({
-    ...deckList,
-    sortedCards: getReadSortedDeckCards(deckList)
-  }));
 
   return {
     ...deckSummary,
@@ -822,11 +820,8 @@ async function mapDeckWithRelations(
     generalNotes: row.general_notes ?? "",
     setupGoals: parseStringArray(row.setup_goals),
     resourcePlan: row.resource_plan ?? "",
-    matchups: resolveDeckMatchupsDuringCompatibility(
-      parseDeckMatchups(row.matchups),
-      matchupsOverride
-    ),
-    deckLists: hydratedDeckLists
+    matchups: aggregate.matchups,
+    deckLists: aggregate.deckLists
   };
 }
 

@@ -9,8 +9,7 @@ import {
   getBattleLogOpponentDisplayName,
   getBattleLogSpriteDisplayName
 } from "@/lib/battle-log/display";
-import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
-import { parseDeckList } from "@/lib/decks/deck-list-parse";
+import { projectPublicBattleLogDetail } from "@/lib/battle-log/detail-projection";
 import { getSharedLogSnapshot } from "@/lib/db/log-shares";
 import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
 import type { PublicBattleLog } from "@/lib/db/log-shares";
@@ -100,20 +99,10 @@ export async function SharedLogPage({ token }: { token: string }) {
     sharedLog.payload.log.importedAt || sharedLog.createdAt
   );
   const expiryLabel = formatExpiry(sharedLog.expiresAt);
-  const linkedDeckListSortedCards =
-    sharedLog.payload.linkedDeckListSortedCards &&
-    sharedLog.payload.linkedDeckListSortedCards.length > 0
-      ? sharedLog.payload.linkedDeckListSortedCards
-      : sharedLog.payload.linkedDeckListRawList?.trim()
-        ? sortDeckListCardsLocally(parseDeckList(sharedLog.payload.linkedDeckListRawList))
-        : [];
+  const projection = projectPublicBattleLogDetail(sharedLog.payload);
   const actionTagOverrides = await resolveBattleLogActionTagOverrides(
     sharedLog.payload.log.sections
   );
-  const publicLog = {
-    ...sharedLog.payload.log,
-    matchNotes: null
-  };
 
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -126,16 +115,16 @@ export async function SharedLogPage({ token }: { token: string }) {
         <BattleLogDetailView
           actionTagOverrides={actionTagOverrides}
           actions={
-            sharedLog.payload.linkedDeckListName ? (
+            projection.linkedDeckList.name ? (
               <LinkedDeckListDialog
-                deckListName={sharedLog.payload.linkedDeckListName}
-                rawList={sharedLog.payload.linkedDeckListRawList}
-                sortedCards={linkedDeckListSortedCards}
+                deckListName={projection.linkedDeckList.name}
+                rawList={projection.linkedDeckList.rawList}
+                sortedCards={projection.linkedDeckList.sortedCards}
               />
             ) : null
           }
-          linkedStrategyLabel={sharedLog.payload.linkedStrategyLabel}
-          log={publicLog}
+          linkedStrategyLabel={projection.linkedStrategyLabel}
+          log={projection.log}
           notice={
             <div className="rounded-[20px] border border-[var(--share-notice-border)] bg-[image:var(--share-notice-bg)] px-4 py-3 text-sm leading-6 text-card-foreground shadow-[var(--shadow-sm)]">
               This battle log was opened from a time-limited share link. Linked deck-list details
