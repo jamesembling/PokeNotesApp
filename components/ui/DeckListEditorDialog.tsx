@@ -16,7 +16,10 @@ import { Input } from "@/components/shadcn/input";
 import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
-import { parseDeckList, summarizeDeckList } from "@/lib/decks/deck-list-parse";
+import {
+  interpretDeckList,
+  type DeckListInterpretation
+} from "@/lib/decks/deck-list-parse";
 import type { DeckList } from "@/types/index";
 
 type DeckListSaveActionResult = {
@@ -88,8 +91,7 @@ function SaveButton({
   );
 }
 
-function formatSummaryLabel(rawList: string) {
-  const summary = summarizeDeckList(rawList);
+function formatSummaryLabel(summary: DeckListInterpretation["summary"]) {
   if (summary.total === null) {
     return "Count unknown";
   }
@@ -97,8 +99,7 @@ function formatSummaryLabel(rawList: string) {
   return `${summary.total} cards`;
 }
 
-function formatSummaryMessage(rawList: string) {
-  const summary = summarizeDeckList(rawList);
+function formatSummaryMessage(summary: DeckListInterpretation["summary"]) {
   if (summary.total === null) {
     return "Paste a Limitless-style list with counts to preview the total.";
   }
@@ -110,8 +111,7 @@ function formatSummaryMessage(rawList: string) {
   return `This list currently totals ${summary.total} cards.`;
 }
 
-function getSummaryTone(rawList: string) {
-  const summary = summarizeDeckList(rawList);
+function getSummaryTone(summary: DeckListInterpretation["summary"]) {
   if (summary.total === null) {
     return "muted";
   }
@@ -160,9 +160,10 @@ export function DeckListEditorDialog({
   const navigationTimerRef = useRef<number | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  const summary = useMemo(() => summarizeDeckList(rawList), [rawList]);
-  const parsedCards = useMemo(() => parseDeckList(rawList), [rawList]);
-  const summaryTone = useMemo(() => getSummaryTone(rawList), [rawList]);
+  const interpretation = useMemo(() => interpretDeckList(rawList), [rawList]);
+  const summary = interpretation.summary;
+  const parsedCards = interpretation.cards;
+  const summaryTone = getSummaryTone(summary);
   const hasDeckListText = rawList.trim().length > 0;
   const canContinueFromList = simplePasteMode || isEditing ? hasDeckListText : summary.total === 60;
   const canSave = hasDeckListText && listName.trim().length > 0;
@@ -421,10 +422,10 @@ export function DeckListEditorDialog({
                               : "bg-muted text-muted-foreground"
                         ].join(" ")}
                       >
-                        {formatSummaryLabel(rawList)}
+                        {formatSummaryLabel(summary)}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {formatSummaryMessage(rawList)}
+                        {formatSummaryMessage(summary)}
                       </span>
                     </div>
 

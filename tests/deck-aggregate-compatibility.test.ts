@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  resolveDeckAggregateCompatibilityRead,
   resolveDeckListsDuringCompatibility,
   resolveDeckMatchupsDuringCompatibility
 } from "@/lib/decks/aggregate-compatibility";
@@ -44,15 +45,41 @@ test("fully migrated deck lists keep relational values and ordering", () => {
     deckList("two", "Relational two"),
     deckList("one", "Relational one")
   ];
+  relational[0]!.parsedCards = [
+    {
+      count: 4,
+      name: "Psychic Energy",
+      set: "SVE",
+      number: "5",
+      category: "energy"
+    },
+    {
+      count: 4,
+      name: "Dreepy",
+      set: "TWM",
+      number: "128",
+      category: "pokemon"
+    }
+  ];
 
   assert.deepEqual(
-    resolveDeckListsDuringCompatibility(legacy, relational).map(
+    resolveDeckAggregateCompatibilityRead({
+      legacyDeckLists: legacy,
+      relationalDeckLists: relational
+    }).deckLists.map(
       ({ id, name }) => ({ id, name })
     ),
     [
       { id: "two", name: "Relational two" },
       { id: "one", name: "Relational one" }
     ]
+  );
+  assert.deepEqual(
+    resolveDeckAggregateCompatibilityRead({
+      legacyDeckLists: legacy,
+      relationalDeckLists: relational
+    }).deckLists[0]?.sortedCards.map(({ category, name }) => `${category}:${name}`),
+    ["pokemon:Dreepy", "energy:Psychic Energy"]
   );
 });
 

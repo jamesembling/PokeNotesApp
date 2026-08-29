@@ -7,6 +7,7 @@ import { getPublicAppOrigin } from "@/lib/server/app-url";
 import { requireApiUser } from "@/lib/server/api-auth";
 import { privateError, privateJson, reportApiError } from "@/lib/server/api-response";
 import { buildSharedLogUrl } from "@/lib/server/share-url";
+import { projectOwnerBattleLogDetail } from "@/lib/battle-log/detail-projection";
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,6 +39,20 @@ export async function GET(request: NextRequest) {
       standaloneDeckList
     ]);
     const linkedList = linkedDeck?.deckList ?? standaloneList;
+    const projection = projectOwnerBattleLogDetail({
+      linkedDeckList: {
+        format: linkedList?.format,
+        name: linkedList?.name,
+        notes: linkedList?.notes,
+        rawList: linkedList?.rawList,
+        sortedCards: linkedList?.sortedCards ?? []
+      },
+      linkedStrategyLabel:
+        linkedList?.name ??
+        linkedDeck?.deckName ??
+        (log.linkedDeckId ? "Linked strategy" : "No strategy linked"),
+      log
+    });
 
     return privateJson(
       {
@@ -48,17 +63,14 @@ export async function GET(request: NextRequest) {
               shareUrl: buildSharedLogUrl(appOrigin, activeShare.id)
             }
           : null,
-        linkedDeckId: log.linkedDeckId,
-        linkedDeckListFormat: linkedList?.format,
+        linkedDeckId: projection.log.linkedDeckId,
+        linkedDeckListFormat: projection.linkedDeckList.format,
         linkedDeckListId: linkedList?.id ?? log.linkedDeckListId,
-        linkedDeckListName: linkedList?.name,
-        linkedDeckListNotes: linkedList?.notes,
-        linkedDeckListRawList: linkedList?.rawList,
-        linkedDeckListSortedCards: linkedList?.sortedCards ?? [],
-        linkedStrategyLabel:
-          linkedList?.name ??
-          linkedDeck?.deckName ??
-          (log.linkedDeckId ? "Linked strategy" : "No strategy linked"),
+        linkedDeckListName: projection.linkedDeckList.name,
+        linkedDeckListNotes: projection.linkedDeckList.notes,
+        linkedDeckListRawList: projection.linkedDeckList.rawList,
+        linkedDeckListSortedCards: projection.linkedDeckList.sortedCards,
+        linkedStrategyLabel: projection.linkedStrategyLabel,
         userDecks: []
       }
     );

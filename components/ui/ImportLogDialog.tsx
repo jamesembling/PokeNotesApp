@@ -31,9 +31,9 @@ import {
 } from "@/lib/battle-log/display";
 import type {
   DeckListSelectionOption,
-  ParsedLogReview,
   PokemonOption
 } from "@/types/index";
+import type { PersistedBattleLogImportReview } from "@/lib/db/battle-log-import-drafts";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import { pokemonOptionsClientCache } from "@/lib/client/editor-option-cache";
 
@@ -107,7 +107,8 @@ export function ImportLogDialog({
   const [stage, setStage] = useState<Stage>("raw");
   const [rawLog, setRawLog] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
-  const [review, setReview] = useState<ParsedLogReview | null>(null);
+  const [review, setReview] = useState<PersistedBattleLogImportReview | null>(null);
+  const [saveIdentity, setSaveIdentity] = useState("");
   const [selectedSelfSprites, setSelectedSelfSprites] = useState<string[]>([]);
   const [selectedOpponentSprites, setSelectedOpponentSprites] = useState<string[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState("");
@@ -201,6 +202,7 @@ export function ImportLogDialog({
     setSaveError("");
     setSaveState("idle");
     setReview(null);
+    setSaveIdentity("");
     setSelectedSelfSprites([]);
     setSelectedOpponentSprites([]);
     setSelectedDeckId("");
@@ -288,8 +290,9 @@ export function ImportLogDialog({
   }
 
   const moveToReviewStage = useCallback(
-    (nextReview: ParsedLogReview) => {
+    (nextReview: PersistedBattleLogImportReview) => {
       setReview(nextReview);
+      setSaveIdentity(crypto.randomUUID());
       setStage("review");
       setParseError(null);
       setSelectedSelfSprites(nextReview.selfSprites.slice(0, 2));
@@ -327,6 +330,7 @@ export function ImportLogDialog({
     async (rawLogValue: string, requestId: number) => {
       const formData = new FormData();
       formData.set("rawLog", rawLogValue.trim());
+      formData.set("format", defaultFormat);
       const result = await parseLogAction(formData);
 
       if (autoParseRequestIdRef.current !== requestId) {
@@ -340,7 +344,7 @@ export function ImportLogDialog({
 
       moveToReviewStage(result);
     },
-    [moveToReviewStage]
+    [defaultFormat, moveToReviewStage]
   );
 
   const loadSpritePickerOptions = useCallback(async () => {
@@ -513,64 +517,12 @@ export function ImportLogDialog({
                   }}
                   ref={formRef}
                 >
-                  <input name="rawLog" type="hidden" value={review.rawLog} />
-                  <input name="selfPlayerName" type="hidden" value={review.selfPlayerName} />
-                  <input name="opponentPlayerName" type="hidden" value={review.opponentPlayerName} />
-                  <input
-                    name="selfDeckName"
-                    type="hidden"
-                    value={detectedSelfLabel ?? review.selfDeckName}
-                  />
-                  <input
-                    name="opponentDeckName"
-                    type="hidden"
-                    value={detectedOpponentLabel ?? review.opponentDeckName}
-                  />
-                  <input name="selfDeckSlug" type="hidden" value={review.selfDeckSlug} />
-                  <input name="opponentDeckSlug" type="hidden" value={review.opponentDeckSlug} />
+                  <input name="draftId" type="hidden" value={review.draftId} />
+                  <input name="idempotencyKey" type="hidden" value={saveIdentity} />
                   <input name="date" type="hidden" value={selectedDate} />
                   <input name="format" type="hidden" value={selectedFormat} />
-                  <input name="result" type="hidden" value={review.result} />
-                  <input name="goOrder" type="hidden" value={review.goOrder} />
-                  <input
-                    name="coinTossWon"
-                    type="hidden"
-                    value={
-                      review.coinTossWon === null ? "" : review.coinTossWon ? "true" : "false"
-                    }
-                  />
-                  <input name="language" type="hidden" value={review.language} />
                   <input name="linkedDeckId" type="hidden" value={selectedDeckId} />
                   <input name="linkedDeckListId" type="hidden" value={selectedDeckListId} />
-                  <input name="totalTurns" type="hidden" value={String(review.totalTurns)} />
-                  <input name="selfPrizesTaken" type="hidden" value={String(review.selfPrizesTaken)} />
-                  <input
-                    name="opponentPrizesTaken"
-                    type="hidden"
-                    value={String(review.opponentPrizesTaken)}
-                  />
-                  <input
-                    name="selfAttackDamage"
-                    type="hidden"
-                    value={String(review.selfAttackDamage)}
-                  />
-                  <input
-                    name="opponentAttackDamage"
-                    type="hidden"
-                    value={String(review.opponentAttackDamage)}
-                  />
-                  <input name="selfMulligans" type="hidden" value={String(review.selfMulligans)} />
-                  <input
-                    name="opponentMulligans"
-                    type="hidden"
-                    value={String(review.opponentMulligans)}
-                  />
-                  <input name="reason" type="hidden" value={review.reason} />
-                  <input
-                    name="sections"
-                    type="hidden"
-                    value={JSON.stringify(review.sections)}
-                  />
 
                   {selectedSelfSprites.map((slug, index) => (
                     <input

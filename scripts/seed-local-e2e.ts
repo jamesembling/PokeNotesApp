@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
-import { parseDeckList } from "@/lib/decks/deck-list-parse";
+import { interpretDeckList } from "@/lib/decks/deck-list-parse";
 import { sortDeckListCardsLocally } from "@/lib/deck-lists/local-sort";
 import { CANONICAL_DECK_LIST_SORT_VERSION } from "@/lib/deck-lists/version";
 import { buildLocalE2EBattleLogFixture } from "@/scripts/local-e2e-battle-log-fixture";
@@ -24,7 +24,7 @@ const verificationClient = createClient(apiUrl, serviceRoleKey, {
 const now = "2026-08-21T09:00:00.000Z";
 let userId = "";
 let rawDeckList = "";
-let parsedCards: ReturnType<typeof parseDeckList> = [];
+let parsedCards: ReturnType<typeof interpretDeckList>["cards"] = [];
 let sortedCards: ReturnType<typeof sortDeckListCardsLocally> = [];
 let battleLogFixtures: Record<
   "Loss" | "Win",
@@ -46,7 +46,7 @@ async function main() {
       "utf8",
     ),
   ]);
-  parsedCards = parseDeckList(rawDeckList);
+  parsedCards = interpretDeckList(rawDeckList).cards;
   sortedCards = sortDeckListCardsLocally(parsedCards);
   battleLogFixtures = {
     Win: buildLocalE2EBattleLogFixture({

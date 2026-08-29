@@ -1,4 +1,5 @@
 import type { DeckList, DeckMatchup } from "@/types/index";
+import { getReadSortedDeckCards } from "@/lib/deck-lists/read-sort";
 
 type DeckAggregateRecord = {
   id: string;
@@ -55,4 +56,37 @@ export function resolveDeckMatchupsDuringCompatibility(
   relationalMatchups?: DeckMatchup[]
 ) {
   return resolveRecordsDuringCompatibility(legacyMatchups, relationalMatchups);
+}
+
+export type DeckAggregateCompatibilityRead = {
+  deckLists: DeckList[];
+  matchups: DeckMatchup[];
+};
+
+/**
+ * The single compatibility read boundary for a Deck Aggregate. It owns
+ * relational precedence, legacy preservation, established ordering, and the
+ * canonical visual-card hydration required by every aggregate caller.
+ */
+export function resolveDeckAggregateCompatibilityRead(args: {
+  legacyDeckLists: DeckList[];
+  legacyMatchups?: DeckMatchup[];
+  relationalDeckLists?: DeckList[];
+  relationalMatchups?: DeckMatchup[];
+}): DeckAggregateCompatibilityRead {
+  const deckLists = resolveRecordsDuringCompatibility(
+    args.legacyDeckLists,
+    args.relationalDeckLists
+  ).map((deckList) => ({
+    ...deckList,
+    sortedCards: getReadSortedDeckCards(deckList)
+  }));
+
+  return {
+    deckLists,
+    matchups: resolveRecordsDuringCompatibility(
+      args.legacyMatchups ?? [],
+      args.relationalMatchups
+    )
+  };
 }
