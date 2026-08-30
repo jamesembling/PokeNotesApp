@@ -4,6 +4,7 @@ import { useId, useState, useTransition } from "react";
 import { updateAdminUserRoleAction } from "@/app/(admin)/admin/dashboard/actions";
 import { Switch } from "@/components/shadcn/switch";
 import type { Role } from "@/types/index";
+import styles from "./admin/admin.module.css";
 
 export function AdminRoleControls({
   currentRole,
@@ -43,8 +44,8 @@ export function AdminRoleControls({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-3">
+    <div className={styles.roleControl}>
+      <label className={styles.roleLabel} htmlFor={adminSwitchId}>
         <Switch
           aria-describedby={feedback ? feedbackId : undefined}
           aria-label={`Admin role for ${userLabel}`}
@@ -53,7 +54,8 @@ export function AdminRoleControls({
           id={adminSwitchId}
           onCheckedChange={(checked) => handleRoleChange(checked ? "admin" : "user")}
         />
-      </div>
+        <span>{isAdmin ? "Admin" : "User"}</span>
+      </label>
       <p aria-atomic="true" aria-live="polite" className="sr-only" role="status">
         {isPending ? "Updating admin role..." : ""}
       </p>
@@ -61,7 +63,7 @@ export function AdminRoleControls({
         <p
           aria-atomic="true"
           aria-live="assertive"
-          className="text-xs text-loss-strong"
+          className={styles.roleFeedback}
           id={feedbackId}
           role="alert"
         >

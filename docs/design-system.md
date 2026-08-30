@@ -145,3 +145,25 @@ The calculation meaning, responsive thresholds, and loading/state contracts are 
 - **Preserve record meaning.** Composition reports stored card quantities, including Uncategorised when needed; it is not a legality claim. Copy uses the original list text. Preserve current association identity, save-version checks, authentication, queries, shared ordering, and image behavior. Delete copy promises that Battle Log and Tournament records are kept, not that Tournament Deck List Snapshots are implemented by this surface.
 
 The responsive layout, route-specific actions, empty states, and record boundaries are recorded in [the Deck List profile surface brief](../.impeccable/surfaces/route-deck-list-profile.md).
+
+## Profile Surface
+
+`/profile` extends the Stats and Deck Strategy language into an open account workspace. Shared typography, page headers, forms, buttons, and avatar artwork retain their existing contracts.
+
+- **Details before reference.** Lead with Account details and its explicit Save Profile action, followed by Profile picture. Keep Account and Activity metadata secondary, with visible labels, wrapping values, neutral semantic colours, IBM Plex typography, and thin rules. Use open sections rather than enclosing cards, pills, or decorative colour bars.
+- **Room before the rail.** Account and Activity occupy a 19rem right rail only from 58rem of available page width; otherwise they follow the form. Form fields use two columns until the form reaches 27rem or less. Avatar choices use eight columns, reducing to four at 34rem or less of form width. The loading layout follows the same structure.
+- **Separate save meanings.** Save Profile persists Display Name, PTCGL Username, First Name, and Last Name through the existing action. Avatar colours are labelled radio choices and save automatically, with explicit selection, pending, and error feedback. Disable avatar choices and Save Profile while the avatar save is pending; retain the previous selection on failure.
+- **Preserve account boundaries.** Keep the current-user read and save paths, validation, avatar cookie, and workspace refresh behavior. Account and Activity lists remain read-only; avatar colour is changed through Profile picture. Errors use semantic loss text; successful save and selection feedback remain neutral.
+
+The responsive layout, form states, and account boundaries are recorded in [the Profile surface brief](../.impeccable/surfaces/route-profile.md).
+
+## Admin Dashboard Surface
+
+`/admin/dashboard` extends the same neutral language into account and catalog administration within the shared app shell. It has no separate admin palette or dashboard card system.
+
+- **Summary, then accounts.** Show labelled Users, Pokémon Catalog, and Archetypes totals in an open ruled summary, followed by the Accounts and Roles ledger. Use complete tabular counts, explicit sync/activity labels, IBM Plex typography, and semantic foregrounds. Keep summaries and rows free of enclosing cards, pills, and decorative colour bars.
+- **Reflow the ledger.** Above 59rem of available page width, retain eight flat columns, with Deck Strategies, Deck Lists, Tournaments, and Battle Logs as separate right-aligned count columns. At 59rem or less, each account becomes a ruled block: identity spans the width, PTCGL and Access share a row, activity dates share the next row, and the four counts each occupy one column with the value above its label. Preserve table semantics. At 30rem or less, overview metrics become stacked label/value rows. Loading states mirror these arrangements.
+- **Make access explicit.** Keep the shared role switch beside plain Admin or User text, with an account-specific accessible name. Role changes apply through the existing action, disable while pending or unavailable, announce pending state, show errors beside the control, and refresh the dashboard after success.
+- **Keep the private boundary.** Preserve the static shell and its single existing private bootstrap request, the real unauthenticated and non-admin responses, and server-side checks on role updates. Synthetic previews are visual evidence only; they establish no production counts, catalog health, authorization, or performance claims.
+
+The ledger, interaction states, and access boundaries are recorded in [the Admin Dashboard surface brief](../.impeccable/surfaces/route-admin-dashboard.md).

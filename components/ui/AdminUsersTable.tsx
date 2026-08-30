@@ -1,11 +1,13 @@
-import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AdminRoleControls } from "@/components/ui/AdminRoleControls";
+import { ItemTitle } from "@/components/ui/Typography";
 import type { AdminUser } from "@/types/index";
+import styles from "./admin/admin.module.css";
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
   timeStyle: "short"
 });
+const COUNT_FORMATTER = new Intl.NumberFormat("en-GB");
 
 type AdminUsersTableProps = {
   roleUpdatesEnabled: boolean;
@@ -31,110 +33,62 @@ export function AdminUsersTable({
   warning
 }: AdminUsersTableProps) {
   return (
-    <div className="space-y-4">
-      {warning ? (
-        <Alert
-          className="border-loss-border bg-loss-bg text-loss-strong"
-          variant="destructive"
-        >
-          <AlertDescription>{warning}</AlertDescription>
-        </Alert>
-      ) : null}
+    <div className={styles.userLedger}>
+      {warning ? <p className={styles.notice} role="alert">{warning}</p> : null}
 
-      <div className="grid gap-0 lg:hidden">
-        {users.map((user) => (
-          <section className="border-b border-border py-4 first:pt-0 last:border-b-0 last:pb-0" key={user.id}>
-            <div className="min-w-0 space-y-1">
-              <h3 className="break-words text-sm font-semibold text-card-foreground">
-                {user.displayName || "Unnamed user"}
-              </h3>
-              <p className="break-words text-sm text-muted-foreground">{user.email}</p>
-            </div>
-
-            <dl className="mt-4 grid gap-3 text-sm">
-              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3">
-                <dt className="ui-eyebrow pt-0.5 text-[0.65rem]">PTCGL</dt>
-                <dd className="min-w-0 break-words text-right text-card-foreground">
-                  {user.ptcglUsername || "Not set"}
-                </dd>
-              </div>
-
-              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3">
-                <dt className="ui-eyebrow pt-0.5 text-[0.65rem]">Activity</dt>
-                <dd className="min-w-0 space-y-1 text-right text-card-foreground">
-                  <p>Last activity: {formatDateTime(user.lastActivityAt)}</p>
-                  <p>Last login: {formatDateTime(user.lastLoginAt)}</p>
-                </dd>
-              </div>
-
-              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3">
-                <dt className="ui-eyebrow pt-0.5 text-[0.65rem]">Content</dt>
-                <dd className="min-w-0 text-right text-card-foreground">
-                  <p>
-                    {user.deckCount} decks, {user.deckListCount} lists
-                  </p>
-                  <p>
-                    {user.tournamentCount} tournaments, {user.logCount} logs
-                  </p>
-                </dd>
-              </div>
-
-              <div className="grid gap-2">
-                <dt className="ui-eyebrow text-[0.65rem]">Admin</dt>
-                <dd className="min-w-0">
-                  <AdminRoleControls
-                    currentRole={user.role}
-                    roleUpdatesEnabled={roleUpdatesEnabled}
-                    userLabel={user.displayName || user.email}
-                    userId={user.id}
-                  />
-                </dd>
-              </div>
-            </dl>
-          </section>
-        ))}
-      </div>
-
-      <div className="hidden lg:block">
-        <table className="min-w-full border-separate border-spacing-0">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
-              <th className="border-b border-border p-3 font-semibold">User</th>
-              <th className="border-b border-border p-3 font-semibold">PTCGL</th>
-              <th className="border-b border-border p-3 font-semibold">Activity</th>
-              <th className="border-b border-border p-3 font-semibold">Content</th>
-              <th className="border-b border-border p-3 font-semibold">Admin</th>
+      {users.length === 0 ? (
+        <p className={styles.empty}>No accounts to display.</p>
+      ) : (
+        <table aria-label="Accounts and roles" className={styles.table} role="table">
+          <colgroup>
+            <col className={styles.userColumn} />
+            <col className={styles.ptcglColumn} />
+            <col className={styles.activityColumn} />
+            <col className={styles.countColumn} span={4} />
+            <col className={styles.roleColumn} />
+          </colgroup>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader" scope="col">User</th>
+              <th role="columnheader" scope="col">PTCGL</th>
+              <th role="columnheader" scope="col">Activity</th>
+              <th className={styles.countHeading} role="columnheader" scope="col">Deck Strategies</th>
+              <th className={styles.countHeading} role="columnheader" scope="col">Deck Lists</th>
+              <th className={styles.countHeading} role="columnheader" scope="col">Tournaments</th>
+              <th className={styles.countHeading} role="columnheader" scope="col">Battle Logs</th>
+              <th role="columnheader" scope="col">Access</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {users.map((user) => (
-              <tr className="align-top" key={user.id}>
-                <td className="border-b border-border px-3 py-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-card-foreground">
-                      {user.displayName || "Unnamed user"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                  </div>
+              <tr key={user.id} role="row">
+                <td className={styles.identityCell} role="cell">
+                  <ItemTitle as="p" size="sm">{user.displayName || "Unnamed user"}</ItemTitle>
+                  <p className={styles.email}>{user.email}</p>
                 </td>
-                <td className="border-b border-border px-3 py-4 text-sm text-foreground">
-                  {user.ptcglUsername || "Not set"}
+                <td className={styles.ptcglCell} role="cell">
+                  <span aria-hidden="true" className={styles.mobileLabel}>PTCGL</span>
+                  <p>{user.ptcglUsername || "Not set"}</p>
                 </td>
-                <td className="border-b border-border px-3 py-4">
-                  <div className="space-y-1 text-sm text-foreground">
-                    <p>Last activity: {formatDateTime(user.lastActivityAt)}</p>
-                    <p>Last login: {formatDateTime(user.lastLoginAt)}</p>
-                  </div>
+                <td className={styles.activityCell} role="cell">
+                  <span aria-hidden="true" className={styles.mobileLabel}>Activity</span>
+                  <dl className={styles.activity}>
+                    <div>
+                      <dt>Last activity</dt>
+                      <dd>{formatDateTime(user.lastActivityAt)}</dd>
+                    </div>
+                    <div>
+                      <dt>Last login</dt>
+                      <dd>{formatDateTime(user.lastLoginAt)}</dd>
+                    </div>
+                  </dl>
                 </td>
-                <td className="border-b border-border px-3 py-4">
-                  <div className="space-y-1 text-sm text-foreground">
-                    <p>Decks: {user.deckCount}</p>
-                    <p>Deck Lists: {user.deckListCount}</p>
-                    <p>Tournaments: {user.tournamentCount}</p>
-                    <p>Logs: {user.logCount}</p>
-                  </div>
-                </td>
-                <td className="border-b border-border px-3 py-4">
+                <CountCell count={user.deckCount} label="Deck Strategies" />
+                <CountCell count={user.deckListCount} label="Deck Lists" />
+                <CountCell count={user.tournamentCount} label="Tournaments" />
+                <CountCell count={user.logCount} label="Battle Logs" />
+                <td className={styles.roleCell} role="cell">
+                  <span aria-hidden="true" className={styles.mobileLabel}>Access</span>
                   <AdminRoleControls
                     currentRole={user.role}
                     roleUpdatesEnabled={roleUpdatesEnabled}
@@ -146,7 +100,16 @@ export function AdminUsersTable({
             ))}
           </tbody>
         </table>
-      </div>
+      )}
     </div>
+  );
+}
+
+function CountCell({ count, label }: { count: number; label: string }) {
+  return (
+    <td className={styles.countCell} role="cell">
+      <span className={styles.countValue}>{COUNT_FORMATTER.format(count)}</span>
+      <span aria-hidden="true" className={styles.countLabel}>{label}</span>
+    </td>
   );
 }
