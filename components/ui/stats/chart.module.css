@@ -1,0 +1,276 @@
+.section {
+  min-width: 0;
+  color: var(--foreground);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-block-end: 1rem;
+}
+
+.heading {
+  min-width: 0;
+  padding-block-start: 0.375rem;
+}
+
+.scope {
+  margin-block-start: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.summary {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.rate {
+  color: var(--card-foreground);
+  font-size: clamp(2rem, 3vw, 2.5rem);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.rate span {
+  margin-inline-start: 0.125rem;
+  font-size: 0.48em;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.comparison {
+  margin-block-start: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+.comparison abbr {
+  text-decoration: none;
+}
+
+.plot {
+  position: relative;
+  width: 100%;
+  min-height: 12.5rem;
+  max-height: 16rem;
+  aspect-ratio: 620 / 225;
+  cursor: crosshair;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.plot:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 5px;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.gridLine {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.baseline {
+  stroke: var(--muted-foreground);
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+  opacity: 0.6;
+}
+
+.formLine {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.isolatedPoint,
+.selectedPoint {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--foreground);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.isolatedPoint {
+  width: 0.4375rem;
+  height: 0.4375rem;
+}
+
+.crosshair {
+  stroke: var(--muted-foreground);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.65;
+}
+
+.selectedPoint {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--background);
+}
+
+.axisLabel,
+.axisUnit,
+.startLabel,
+.endLabel {
+  position: absolute;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.axisLabel {
+  right: calc(100% - 6.774% + 0.5rem);
+  transform: translateY(-50%);
+}
+
+.axisUnit {
+  top: 0;
+  left: 6.774%;
+}
+
+.startLabel {
+  bottom: 0;
+  left: 6.774%;
+}
+
+.endLabel {
+  right: 4.194%;
+  bottom: 0;
+}
+
+.noKnownResults {
+  position: absolute;
+  inset: 32% 4.194% auto 6.774%;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.selection {
+  display: flex;
+  min-height: 3.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-start: 1rem;
+  border-block-start: 1px solid var(--border);
+  padding-block: .6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.selectedGame {
+  min-width: 0;
+}
+
+.selectedDate {
+  color: var(--card-foreground);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.selectedRecord {
+  margin-block-start: 0.25rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.selectedRate {
+  flex-shrink: 0;
+  color: var(--card-foreground);
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  text-align: right;
+}
+
+.selectedRate span {
+  display: block;
+  margin-block-start: 0.375rem;
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+.method,
+.footnote {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.footnote {
+  margin-block-start: 0.375rem;
+}
+
+.empty {
+  display: flex;
+  min-height: 18rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.625rem;
+  border-block: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.emptyTitle {
+  color: var(--card-foreground);
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+@media (max-width: 639px) {
+  .header {
+    gap: 1rem;
+    padding-block-end: 1rem;
+  }
+
+  .rate {
+    font-size: 2rem;
+  }
+
+  .comparison {
+    max-width: 9.5rem;
+  }
+
+  .selection {
+    gap: 0.75rem;
+    margin-block-start: .75rem;
+  }
+
+  .selectedRate {
+    font-size: 1.375rem;
+  }
+
+  .selectedDate {
+    max-width: 13rem;
+  }
+}

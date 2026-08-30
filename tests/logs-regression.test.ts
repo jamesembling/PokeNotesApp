@@ -239,13 +239,21 @@ test("getLogDamageTimeline maps returned rows into chronological points", async 
     data: [
       {
         date: "2026-07-11",
+        result: "Win",
         self_attack_damage: 220,
         opponent_attack_damage: 120
       },
       {
         date: "2026-07-10",
+        result: "Loss",
         self_attack_damage: 180,
         opponent_attack_damage: 200
+      },
+      {
+        date: "2026-07-09",
+        result: "Unknown",
+        self_attack_damage: null,
+        opponent_attack_damage: null
       }
     ],
     error: null
@@ -259,12 +267,20 @@ test("getLogDamageTimeline maps returned rows into chronological points", async 
   const timeline = await getLogDamageTimeline("user-1");
   assert.deepEqual(timeline, [
     {
+      date: "2026-07-09",
+      result: null,
+      selfAttackDamage: 0,
+      opponentAttackDamage: 0
+    },
+    {
       date: "2026-07-10",
+      result: "Loss",
       selfAttackDamage: 180,
       opponentAttackDamage: 200
     },
     {
       date: "2026-07-11",
+      result: "Win",
       selfAttackDamage: 220,
       opponentAttackDamage: 120
     }

@@ -99,3 +99,14 @@ When touching an existing UI surface:
 2. If a repeated pattern is missing, add a small app-level component in `components/ui`.
 3. Back repeated visual values with tokens in `app/globals.css`.
 4. Keep feature code responsible for data and intent, not visual recipes.
+
+## Stats Surface
+
+Stats uses a neutral broadcast analysis desk within the existing IBM Plex Sans and semantic surface system. These rules are specific to `/stats`; they do not replace the app-wide component contract.
+
+- **Performance first.** A large all-time win rate and compact won/lost/played record occupy roughly one third of the desktop overview beside a dominant recent-form chart. Latest results follow, then the supporting damage, prize-taking, and opening-hand ledgers. Below 1024px, these sections stack in the same reading order; large record counts reflow onto their own full-width row without abbreviation. The loading layout preserves the section hierarchy.
+- **Flat comparison.** Use open space, thin rules, tabular numerals, and a neutral chart line. Results use explicit W/L/unknown text. Keep the analytical content free of cards, pills, colored outcome bars, and decorative imagery. Matchups remains a flat table with right-aligned numbers and wrapping archetype names on mobile.
+- **Separate windows.** All-time record and supporting totals remain distinct from bounded recent history. Label the recent summary and rolling chart clearly, preserve unknown-result disclosures, and keep the calculation explanation available.
+- Stats opts into `SegmentedControl appearance="line"` for underlined Overview/Matchups tabs. The shared component's default segmented appearance is unchanged. Matchup search uses a visible label and underline; its sample-size option uses a square checkbox. Keep keyboard focus visible for tabs, chart, search, checkbox, and sort controls.
+
+The route-specific data windows, interaction states, and sources are recorded in [the Stats surface brief](../.impeccable/surfaces/route-stats.md).
