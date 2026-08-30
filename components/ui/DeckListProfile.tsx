@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
-import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SectionTitle } from "@/components/ui/Typography";
 import { formatAppCalendarDate } from "@/lib/date-time";
 import type { DeckList } from "@/types/index";
@@ -76,13 +75,6 @@ export function DeckListProfile({ deckList, strategyName, associationControl }: 
               <p className={styles.standalone}>Standalone list</p>
             )}
             {associationControl}
-          </section>
-
-          <section className={styles.notes}>
-            <SectionHeader title="Notes" titleSize="sm" />
-            <p className={deckList.notes.trim() ? styles.noteText : styles.emptyNotes}>
-              {deckList.notes.trim() ? deckList.notes : "No notes yet. Add them through Edit List."}
-            </p>
           </section>
         </aside>
       </div>

@@ -9,19 +9,19 @@ related_targets: ["route:/decks/[id]/lists/[listId]","app/(app)/deck-lists/[list
 
 ## Purpose and mode
 
-Operate. Help a competitive player inspect a saved Deck List, copy its original text, review its details and notes, and deliberately edit or change its optional Deck Strategy association. Product language remains in `CONTEXT.md`; visual authority remains in `docs/design-system.md`. The accepted Tournament snapshot direction in ADR 0002 is not an implementation claim for this surface.
+Operate. Help a competitive player inspect a saved Deck List, copy its original text, review its details, and deliberately edit or change its optional Deck Strategy association. Product language remains in `CONTEXT.md`; visual authority remains in `docs/design-system.md`. The accepted Tournament snapshot direction in ADR 0002 is not an implementation claim for this surface.
 
 ## Built direction
 
 Extend the approved Stats, Deck Strategy, and Calculator world: shared IBM Plex typography, neutral semantic foregrounds and surfaces, open sections, tabular quantities, and thin rules. The existing page header leads into a compact composition row with Copy List Text, followed by dominant real card artwork and supporting record details. Keep that reading order. The profile adds no enclosing cards, pills, decorative colour bars, or new fonts; shared controls and the card artwork retain their established shapes and treatment.
 
-List details contains Format, Date, and Created by. Deck Strategy shows the current association as a plain link or Standalone list. Notes preserves line breaks, wraps long text, and has a bounded reading measure. Use the shared heading primitives, not a separate title scale. Long list titles, metadata, strategy names, and notes must wrap within their available space.
+List details contains Format, Date, and Created by. Deck Strategy shows the current association as a plain link or Standalone list. There is no Notes panel on the profile. Use the shared heading primitives, not a separate title scale. Long list titles, metadata, and strategy names must wrap within their available space.
 
 ## Responsive layout
 
-Use the profile's available content width, including the space left by the app sidebar. At 64rem or wider, the artwork occupies the flexible main column beside a 16rem details rail, with a 2.5rem gap. The rail stacks List details, Deck Strategy, and Notes with rules separating its sections.
+Use the profile's available content width, including the space left by the app sidebar. At 64rem or wider, the artwork occupies the flexible main column beside a 16rem details rail, with a 2.5rem gap. The rail stacks List details and Deck Strategy with a rule between them.
 
-Below 64rem, details follow the artwork behind a top rule. List details and Deck Strategy share two columns, with Notes spanning both. At 30rem or less, those sections become a single column in the same order and the vertical spacing tightens. The composition row wraps without hiding labels or quantities; Copy List Text can move onto its own line.
+Below 64rem, details follow the artwork behind a top rule. List details and Deck Strategy share two columns. At 30rem or less, those sections become a single column in the same order and the vertical spacing tightens. The composition row wraps without hiding labels or quantities; Copy List Text can move onto its own line.
 
 The artwork has its own named container. Its grid uses four columns by default, six from 36rem, and eight from 60rem, measured within the artwork column rather than the viewport or whole profile. Keep the shared card rendering and quantities intact when changing the surrounding layout.
 
@@ -30,7 +30,6 @@ The artwork has its own named container. Its grid uses four columns by default, 
 - Composition sums quantities from the supplied `sortedCards`, with Cards, Pokémon, Trainers, and Energy explicitly labelled. Include Uncategorised only when a card quantity falls outside those categories. These are stored quantities, not a complete-deck or legality verdict.
 - An empty `sortedCards` array shows Card count unavailable and No card preview yet, with guidance to edit the list. Do not replace the saved raw text or invent cards for the preview.
 - Unavailable format or creator values, and missing or invalid dates, show Not set. Valid dates use the shared calendar-date formatter and semantic time markup.
-- Empty or whitespace-only notes show the Edit List guidance. Populated notes preserve their original text and line breaks.
 - Missing or inaccessible records keep the existing not-found header and route-appropriate return link in an open layout.
 
 ## Interaction contracts
@@ -49,7 +48,7 @@ Delete List opens the shared confirmation dialog rather than expanding the page 
 
 ## Preserved boundaries
 
-Both routes continue to require the current user and use their existing account-scoped read queries. Keep editor defaults, save-version handling, association and deletion actions, navigation, and legacy compatibility behavior unchanged by presentation work.
+Both routes continue to require the current user and use their existing account-scoped read queries. Keep saved notes, editor defaults, save-version handling, association and deletion actions, navigation, and legacy compatibility behavior unchanged by presentation work. Removing the profile's Notes panel does not remove notes from the saved record or existing editor.
 
 `DeckListProfile` consumes the supplied sorted cards without reordering them. The shared `DeckListVisualGrid` still owns visual-card preparation, basic Energy treatment, card links, image sources, image quality, and responsive image sizes. The profile's grid class only changes layout; it does not replace the shared sorting or image-loading contracts. Retain semantic light/dark colours and shared keyboard behavior.
 

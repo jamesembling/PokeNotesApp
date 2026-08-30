@@ -32,9 +32,6 @@
 .associationSelect:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .associationHint, .legacyNotice { font-size: .8125rem; line-height: 1.7; color: var(--muted-foreground); }
 .legacyNotice { margin-top: 1rem; }
-.notes { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 1.5rem; }
-.noteText { margin-top: 1rem; font-size: .9375rem; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 70ch; }
-.emptyNotes { margin-top: 1rem; font-size: .875rem; line-height: 1.7; color: var(--muted-foreground); }
 .muted { font-size: .8125rem; color: var(--muted-foreground); }
 .emptyCards { padding: 2rem 0; }
 .emptyCards > p { max-width: 50ch; margin-top: .75rem; color: var(--muted-foreground); font-size: .9375rem; line-height: 1.8; }
