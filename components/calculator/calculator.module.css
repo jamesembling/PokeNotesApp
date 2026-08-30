@@ -1,0 +1,93 @@
+.root { min-width: 0; color: var(--card-foreground); container-type: inline-size; }
+.root ::selection { background: var(--card-foreground); color: var(--card); }
+.importLayout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 4rem; padding-top: 2.5rem; }
+.importForm { min-width: 0; }
+.description { margin-top: .6rem; color: var(--muted-foreground); font-size: .9375rem; line-height: 1.65; }
+.inputLabel { display: block; margin: 1.5rem 0 .65rem; font-size: .8125rem; font-weight: 500; }
+.deckInput { height: 20rem; min-height: 12rem; resize: vertical; border-radius: 4px; background: var(--card); padding: 1rem; font-size: 1rem; line-height: 1.7; caret-color: var(--card-foreground); }
+.inputHelp { margin-top: .65rem; color: var(--muted-foreground); font-size: .75rem; line-height: 1.6; }
+.importForm > [data-slot="button-group"] { margin-top: 1.5rem; }
+.importGuide { min-width: 0; padding-top: .15rem; }
+.guideList { margin-top: 1.25rem; }
+.guideList > div { padding: 1.15rem 0; border-top: 1px solid var(--border); }
+.guideList dt { font-weight: 500; font-size: .9375rem; }
+.guideList dd { margin-top: .4rem; color: var(--muted-foreground); font-size: .875rem; line-height: 1.7; max-width: 42ch; }
+.methodNote { color: var(--muted-foreground); font-size: .8125rem; line-height: 1.7; max-width: 65ch; }
+.importGuide > .methodNote { margin-top: 1.5rem; }
+.error { margin-top: 1rem; color: var(--color-loss-strong); font-size: .875rem; line-height: 1.65; }
+.results { outline: none; }
+.deckContext { display: flex; flex-wrap: wrap; gap: .75rem 2rem; padding: 1.2rem 0; border-bottom: 1px solid var(--border); }
+.deckContext > div { display: flex; align-items: baseline; gap: .65rem; }
+.deckContext dt { color: var(--muted-foreground); font-size: .8125rem; }
+.deckContext dd { font-size: 1rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.warning { padding: 1.25rem 0; border-bottom: 1px solid var(--border); color: var(--color-loss-strong); font-size: .875rem; line-height: 1.7; }
+.warning > p { font-weight: 600; }
+.warning ul { list-style: disc; padding-left: 1.25rem; margin-top: .4rem; }
+.overview { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); column-gap: 3.5rem; padding: 2.25rem 0; border-bottom: 1px solid var(--border); }
+.openingSection, .streakSection { min-width: 0; }
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; margin: 2rem 0 1.5rem; }
+.summaryMetric { min-width: 0; }
+.summaryMetric dt { font-size: .8125rem; font-weight: 500; }
+.summaryMetric dd { margin-top: .65rem; font-size: clamp(2rem, 3.6cqi, 3rem); font-weight: 500; line-height: 1.1; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+.summaryMetric dd > span { display: block; margin-top: .65rem; font-size: .75rem; font-weight: 400; line-height: 1.5; letter-spacing: normal; color: var(--muted-foreground); }
+.streakTable { width: 100%; margin-top: 1rem; border-collapse: collapse; font-size: .8125rem; }
+.streakTable th, .streakTable td { padding: .6rem 0; border-bottom: 1px solid var(--border); text-align: right; font-weight: 400; font-variant-numeric: tabular-nums; }
+.streakTable th:first-child { text-align: left; }
+.streakTable thead th { color: var(--muted-foreground); font-size: .75rem; }
+.streakTable tbody tr:last-child > * { border-bottom: 0; }
+.cardSection { padding-top: 2rem; }
+.tabPanel { min-width: 0; }
+.tabPanel:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.tableDescription { margin: .6rem 0 1.5rem; color: var(--muted-foreground); font-size: .8125rem; line-height: 1.7; max-width: 75ch; }
+.probabilityTable { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.probabilityTable th, .probabilityTable td { text-align: center; }
+.probabilityTable thead th { padding: .8rem .5rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: .75rem; font-weight: 500; color: var(--muted-foreground); }
+.probabilityTable th:first-child { width: 50%; padding-left: 0; text-align: left; }
+.prizingTable th:first-child { width: 40%; }
+.probabilityTable tbody th, .probabilityTable tbody td { border-bottom: 1px solid var(--border); padding: .75rem .5rem; }
+.probabilityTable tbody tr:hover { background: var(--muted); }
+.probabilityTable td { font-size: .9375rem; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cardIdentity { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.cardSprite { width: 2.5rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.cardCategory { font-size: .875rem; font-weight: 500; color: var(--muted-foreground); }
+.cardCount { width: 1.75rem; flex-shrink: 0; font-weight: 400; font-size: .8125rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.cardName { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.mobileMetricLabel { display: none; }
+.emptyState { padding: 2rem 0; border-top: 1px solid var(--border); font-size: .9375rem; color: var(--muted-foreground); line-height: 1.7; }
+.deckSection { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+.deckSection > div + div:not([hidden]) { padding-top: 1.5rem; }
+.loading { padding-top: 2.5rem; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 4rem; }
+
+@container (max-width: 60rem) {
+  .overview { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+  .streakSection { border-top: 1px solid var(--border); padding-top: 1.5rem; }
+  .summaryMetric dd { font-size: clamp(2rem, 6cqi, 3rem); }
+  .importLayout { gap: 2rem; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+}
+
+@container (max-width: 40rem) {
+  .importLayout, .loading { grid-template-columns: minmax(0, 1fr); padding-top: 1.5rem; gap: 2.5rem; }
+  .importGuide { border-top: 1px solid var(--border); padding-top: 1.5rem; }
+  .deckContext { gap: .7rem 1.25rem; }
+  .overview { padding: 1.5rem 0; }
+  .summary { gap: .6rem; margin: 1.5rem 0; }
+  .summaryMetric dt { font-size: .75rem; }
+  .summaryMetric dd { font-size: clamp(1.5rem, 7.8cqi, 2.5rem); }
+  .summaryMetric dd > span { font-size: .6875rem; }
+  .probabilityTable, .probabilityTable tbody { display: block; }
+  .probabilityTable thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .probabilityTable tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: .75rem 0 1rem; border-bottom: 1px solid var(--border); }
+  .probabilityTable tbody tr:first-child { border-top: 1px solid var(--border); }
+  .prizingTable tbody tr { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .probabilityTable tbody th:first-child { grid-column: 1 / -1; width: auto; padding: 0 0 .7rem; border: 0; }
+  .probabilityTable tbody td { padding: 0 .3rem 0 0; border: 0; font-size: .875rem; text-align: left; }
+  .cardIdentity { gap: .6rem; }
+  .cardSprite { width: 2rem; }
+  .mobileMetricLabel { display: block; margin-bottom: .35rem; color: var(--muted-foreground); font-size: .6875rem; font-weight: 400; }
+  .tableDescription { margin-top: .25rem; }
+}
+
+@container (max-width: 20rem) {
+  .summaryMetric dt { min-height: 2.5rem; }
+  .summaryMetric dd { font-size: 1.25rem; }
+}

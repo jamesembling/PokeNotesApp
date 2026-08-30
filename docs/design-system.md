@@ -34,7 +34,6 @@ Do not add raw page-level colors for common states. If a new repeated state is n
 - Desktop sidebar navigation collapses to an icon rail through the shared sidebar primitive; collapsed menu labels use tooltips.
 - Admin routes use the same authenticated app shell and token contract as the app routes. There is no separate admin palette unless a future requirement adds one explicitly.
 - Shared-log notices may use `--share-notice-*` tokens. The gradient is an allowed tokenized notice treatment, not a general-purpose decorative background.
-- Canvas export artwork uses an isolated export palette in `lib/probability-calculator/index.ts` because CSS variables are not available inside generated image drawing.
 - Page headers always show the shared bottom divider. Do not disable or recreate page-header dividers in page code.
 - Primary red buttons are for page-level create/import/save actions. Detail-page edit/back actions and section-level add/view actions use outline or ghost intent unless they are the only primary action on that page.
 - Normal muted/kicker text must meet WCAG AA on page, card, and muted surfaces in both themes. Normal status/destructive text uses the `*-strong` semantic tokens; base status colors are reserved for non-text chart and marker graphics.
@@ -122,3 +121,15 @@ The route-specific data windows, interaction states, and sources are recorded in
 - **Keep editing meaning visible.** Turn preference stays inline. Matchup Notes retains its optional First/Second/Not set choice, six distinct categories, separate header and note save states, and explicit add, edit, reorder, and phase-move actions. Opening Add or using a phase-move menu action exposes its destination category.
 
 Responsive details and the preserved editing contracts are recorded in [the Deck Strategy surface brief](../.impeccable/surfaces/route-decks.md).
+
+## Calculator Surface
+
+`/calculator` extends the neutral analytical language into an open probability workspace. This treatment is scoped to the Calculator; shared forms, buttons, typography, and page-header dividers retain their app-wide contracts.
+
+- **Inline input, then evidence.** Start with a visibly labelled Deck List field beside a short method guide. Results replace the editor with deck composition, opening-hand probabilities, mulligan streaks, and card comparisons. Keep import and analysis free of enclosing cards, pills, decorative artwork, and outcome-coloured probability bars.
+- **Explain each percentage.** Use prominent tabular numerals with explicit labels and denominators. Distinguish all opening hands from playable hands, and state that prize odds use six cards from a 60-card deck without adjusting for the opening hand. Keep parsing and deck-count warnings beside the results in semantic error text.
+- **Flat responsive comparison.** Use thin rules, wrapping card names, and centred numerical columns on desktop. At 40rem or less of available content width, each card becomes a full-width identity row above its labelled values, while table semantics remain available. Opening-hand summaries must fit complete percentages, including `100.00%`, without colliding with adjacent values.
+- **Quiet navigation and artwork.** Setup/Prizing opts into underlined `SegmentedControl` navigation. Small sprites identify Pokémon; the full Deck List graphic is hidden until Show cards is selected. Copy and edit actions refer to the last calculated input.
+- **Preserve the workflow.** The list is used only for the current calculation and is not saved. Keep edit/cancel/clear, input errors, warning results, keyboard focus, and the flat responsive loading layout intact. This presentation does not redefine the calculation model or shared Deck List ordering.
+
+The calculation meaning, responsive thresholds, and loading/state contracts are recorded in [the Calculator surface brief](../.impeccable/surfaces/route-calculator.md).

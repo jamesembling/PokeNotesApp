@@ -1,16 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { Textarea } from "@/components/shadcn/textarea";
 import { Button } from "@/components/shadcn/button";
-import { ButtonGroup } from "@/components/shadcn/button-group";
-import { AppDialogContent, AppDialogHeader } from "@/components/ui/AppDialog";
-import { Dialog } from "@/components/shadcn/dialog";
-import { Tabs } from "@/components/shadcn/tabs";
+import { Tabs, TabsContent } from "@/components/shadcn/tabs";
 import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
+import { PageActions } from "@/components/ui/PageActions";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -23,9 +20,10 @@ import {
   type CalculatorAnalysis,
   type CalculatorCardGroup
 } from "@/lib/probability-calculator";
-import { findPokemonOptionBySlug, prettifyPokemonSlug, resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
+import { findPokemonOptionBySlug, resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
 import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import type { PokemonOption } from "@/types/index";
+import styles from "./calculator.module.css";
 
 type TabId = "setup" | "prizing";
 type ComparisonMetric = {
@@ -71,18 +69,13 @@ export function ProbabilityCalculator() {
   const [deckVisualCards, setDeckVisualCards] = useState<CalculatorAnalysis["cards"]>([]);
   const pokemonOptions = usePokemonOptions(Boolean(analysis));
   const [activeTab, setActiveTab] = useState<TabId>("setup");
-  const [importDialogOpen, setImportDialogOpen] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(true);
+  const [focusEditorOnMount, setFocusEditorOnMount] = useState(false);
+  const [analyzedInput, setAnalyzedInput] = useState("");
+  const [cardsVisible, setCardsVisible] = useState(false);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const [statusTone, setStatusTone] = useState<"info" | "warn">("info");
-
-  const showStatus = Boolean(statusMessage) || Boolean(analysis?.warnings.length);
-  const statusClassName = [
-    "rounded-[16px] border px-4 py-3",
-    analysis?.warnings.length || statusTone === "warn"
-      ? "border-loss-border bg-loss-bg text-loss-strong"
-      : "border-border bg-muted text-muted-foreground"
-  ].join(" ");
-
   const cardOrder = useMemo(() => {
     return new Map(deckVisualCards.map((card, index) => [`${card.name}-${card.category}`, index]));
   }, [deckVisualCards]);
@@ -165,33 +158,33 @@ export function ProbabilityCalculator() {
     };
   }, [analysis]);
 
+  useEffect(() => {
+    if (!editorOpen && analysis) {
+      resultsRef.current?.focus();
+    }
+  }, [analysis, editorOpen]);
+
   function runCalculation(input: string) {
     if (!input.trim()) {
-      setAnalysis(null);
-      setDeckVisualCards([]);
-      setActiveTab("setup");
-      setStatusMessage("Paste a deck list before calculating.");
-      setStatusTone("warn");
+      setStatusMessage("Paste a Deck List before calculating.");
+      inputRef.current?.focus();
       return;
     }
 
     const result = analyzeDecklist(input);
-
     if (!result.cards.length) {
-      setAnalysis(null);
-      setDeckVisualCards([]);
-      setActiveTab("setup");
-      setStatusMessage(result.warnings[0] ?? "No parseable cards found.");
-      setStatusTone("warn");
+      setStatusMessage(result.warnings[0] ?? "No cards recognised. Include each card’s quantity, name, set and number.");
+      inputRef.current?.focus();
       return;
     }
 
     setAnalysis(result);
+    setAnalyzedInput(input);
     setDeckVisualCards(result.cards);
     setActiveTab("setup");
     setStatusMessage("");
-    setStatusTone("info");
-    setImportDialogOpen(false);
+    setEditorOpen(false);
+    setCardsVisible(false);
   }
 
   function handleSampleDeck() {
@@ -200,396 +193,220 @@ export function ProbabilityCalculator() {
   }
 
   function handleClear() {
+    setFocusEditorOnMount(true);
     setDeckInput("");
+    setAnalyzedInput("");
     setAnalysis(null);
     setDeckVisualCards([]);
     setActiveTab("setup");
     setStatusMessage("");
-    setStatusTone("info");
-    setImportDialogOpen(true);
+    setEditorOpen(true);
+    setCardsVisible(false);
   }
 
   return (
-    <>
-      {!analysis ? <h1 className="sr-only">Probability Calculator</h1> : null}
-      <DeckImportDialog
-        deckInput={deckInput}
-        initialImport={!analysis}
-        onDeckInputChange={setDeckInput}
-        onLoadSampleDeck={handleSampleDeck}
-        onOpenChange={setImportDialogOpen}
-        onSubmit={() => runCalculation(deckInput)}
-        open={importDialogOpen}
-        showStatus={!analysis && showStatus}
-        statusClassName={statusClassName}
-        statusMessage={statusMessage}
+    <div className={styles.root}>
+      <PageHeader
+        action={analysis && !editorOpen ? (
+          <PageActions>
+            <Button onClick={() => {
+              setDeckInput(analyzedInput);
+              setStatusMessage("");
+              setEditorOpen(true);
+            }} variant="outline">Edit Deck List</Button>
+            <Button onClick={handleClear} variant="outline">Clear</Button>
+          </PageActions>
+        ) : undefined}
+        breadcrumb={[
+          { label: "Poke Notes", href: "/" },
+          { label: "Probability Calculator" }
+        ]}
+        title="Probability Calculator"
       />
 
-      {analysis ? (
-        <section className="grid gap-6">
-          <PageHeader
-            action={
-              <ButtonGroup className="w-full [&>[data-slot=button]]:flex-1 sm:w-auto sm:[&>[data-slot=button]]:flex-none">
-                <Button onClick={() => setImportDialogOpen(true)}>
-                  Import Deck
-                </Button>
-                <Button onClick={handleClear}>
-                  Clear Deck
-                </Button>
-              </ButtonGroup>
-            }
-            breadcrumb={[
-              { label: "Poke Notes", href: "/" },
-              { label: "Probability Calculator" }
-            ]}
-            title="Probability Calculator"
-          />
-
-          <section className="grid gap-5 border-b border-border pb-6">
-            <section className="grid gap-3">
-              <SectionTitle>Mulligan Stats</SectionTitle>
-              <div className="grid grid-cols-3 gap-3">
-                <ProbabilitySummaryMetric
-                  label="Mulligan Rate"
-                  value={summary.mulligan}
-                />
-                <ProbabilitySummaryMetric
-                  label="Starting With 1 Basic"
-                  value={summary.oneBasic}
-                />
-                <ProbabilitySummaryMetric
-                  label="Starting With 2+ Basics"
-                  value={summary.twoBasics}
-                />
-              </div>
-            </section>
-
-            {showStatus ? (
-              <section className={statusClassName} role="alert">
-                {statusMessage ? (
-                  <p className="text-sm font-medium leading-6 text-card-foreground">
-                    {statusMessage}
-                  </p>
-                ) : null}
-
-                {analysis.warnings.length ? (
-                  <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-loss-strong">
-                    {analysis.warnings.map((warning) => (
-                      <li key={warning}>{warning}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </section>
-            ) : null}
-
-            <section className="grid gap-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <SectionTitle as="h3" size="sm">60-Card Graphic</SectionTitle>
-                <CopyDeckListButton text={deckInput} />
-              </div>
-
-              <DeckListVisualGrid cards={deckVisualCards} variant="featured" />
-            </section>
-          </section>
-
-          <section className="grid gap-4 border-b border-border pb-6">
-            <div className="space-y-1">
-              <SectionTitle>Mulligan Streak Calculator</SectionTitle>
-            </div>
-
-            <div className="overflow-hidden rounded-xl border border-border bg-muted">
-              <div className="ui-eyebrow grid grid-cols-3 gap-4 border-b border-border px-4 py-3">
-                <span>Streak</span>
-                <span>Exact</span>
-                <span>At Least</span>
-              </div>
-              <div className="divide-y divide-[var(--border)]">
-                {analysis.mulliganRows.map((row) => (
-                  <div
-                    className="grid grid-cols-3 gap-4 px-4 py-3 text-sm text-foreground"
-                    key={row.streak}
-                  >
-                    <span className="font-semibold text-card-foreground">{row.streak}x</span>
-                    <span>{pct(row.exactThenPlayable)}</span>
-                    <span>{pct(row.atLeast)}</span>
-                  </div>
-                ))}
-                </div>
-            </div>
-          </section>
-
-          <section className="grid gap-5">
-            <SectionHeader
-              actions={
-              <Tabs
-                className="w-auto"
-                onValueChange={(value) => setActiveTab(value as TabId)}
-                value={activeTab}
-              >
-                <SegmentedControl
-                  ariaLabel="Calculator views"
-                  options={[
-                    { value: "setup", label: "Setup" },
-                    { value: "prizing", label: "Prizing" }
-                  ]}
-                />
-              </Tabs>
-              }
-              title="Card Probabilities"
+      {editorOpen ? (
+        <div className={styles.importLayout}>
+          <form className={styles.importForm} onSubmit={(event) => {
+            event.preventDefault();
+            runCalculation(deckInput);
+          }}>
+            <SectionTitle as="h2">{analysis ? "Edit your Deck List" : "Start with your Deck List"}</SectionTitle>
+            <p className={styles.description}>Paste an exported list to calculate your opening hands and prize odds.</p>
+            <label className={styles.inputLabel} htmlFor="calculator-deck-input">Deck List</label>
+            <Textarea
+              aria-describedby={statusMessage ? "calculator-input-help calculator-input-error" : "calculator-input-help"}
+              aria-invalid={Boolean(statusMessage)}
+              autoFocus={focusEditorOnMount || Boolean(analysis)}
+              className={styles.deckInput}
+              id="calculator-deck-input"
+              onChange={(event) => {
+                setDeckInput(event.target.value);
+                if (statusMessage) setStatusMessage("");
+              }}
+              placeholder={"Pokémon: 12\n4 Dreepy TWM 128\n…\n\nTrainer: 40\n…\n\nEnergy: 8\n…"}
+              ref={inputRef}
+              spellCheck={false}
+              value={deckInput}
             />
+            <p className={styles.inputHelp} id="calculator-input-help">Include quantities, card names, set codes and card numbers.</p>
+            {statusMessage ? <p className={styles.error} id="calculator-input-error" role="alert">{statusMessage}</p> : null}
+            <PageActions>
+              <Button type="submit">Calculate probabilities</Button>
+              <Button onClick={handleSampleDeck} type="button" variant="outline">Use sample list</Button>
+              {analysis ? <Button onClick={() => {
+                setDeckInput(analyzedInput);
+                setStatusMessage("");
+                setEditorOpen(false);
+              }} type="button" variant="outline">Cancel</Button> : null}
+            </PageActions>
+          </form>
+          <aside className={styles.importGuide} aria-label="About the calculator">
+            <SectionTitle size="sm">Know your odds</SectionTitle>
+            <dl className={styles.guideList}>
+              <div><dt>Opening hands</dt><dd>How often you mulligan, and how many Basic Pokémon you start with.</dd></div>
+              <div><dt>Setup</dt><dd>Which Pokémon appear in a playable opening hand, or are your only available starter.</dd></div>
+              <div><dt>Prizing</dt><dd>The chance of each card landing in your six Prize cards.</dd></div>
+            </dl>
+            <p className={styles.methodNote}>Based on a 60-card deck, a seven-card opening hand and six Prize cards. Your list is used for this calculation only; it isn’t saved.</p>
+          </aside>
+        </div>
+      ) : analysis ? (
+        <div aria-label="Calculated probabilities" className={styles.results} ref={resultsRef} role="region" tabIndex={-1}>
+          <dl className={styles.deckContext} aria-label="Deck composition">
+            <div><dt>Cards</dt><dd>{analysis.totals.deck}</dd></div>
+            <div><dt>Basic Pokémon</dt><dd>{analysis.basicPokemonCount}</dd></div>
+            <div><dt>Pokémon</dt><dd>{analysis.totals.Pokemon}</dd></div>
+            <div><dt>Trainers</dt><dd>{analysis.totals.Trainer}</dd></div>
+            <div><dt>Energy</dt><dd>{analysis.totals.Energy}</dd></div>
+          </dl>
+          {analysis.warnings.length ? (
+            <div className={styles.warning} role="alert">
+              <p>Check your Deck List</p>
+              <ul>{analysis.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+            </div>
+          ) : null}
 
-            {activeTab === "setup" ? (
-              setupComparisonRows.length ? (
+          <div className={styles.overview}>
+            <section className={styles.openingSection} aria-labelledby="opening-heading">
+              <SectionTitle id="opening-heading">Opening hands</SectionTitle>
+              <p className={styles.description}>Your first seven cards, before the game begins.</p>
+              <dl className={styles.summary}>
+                <ProbabilitySummaryMetric label="Mulligan" value={summary.mulligan} note="No Basic Pokémon" />
+                <ProbabilitySummaryMetric label="Exactly 1 Basic" value={summary.oneBasic} note="Of playable hands" />
+                <ProbabilitySummaryMetric label="2+ Basics" value={summary.twoBasics} note="Of playable hands" />
+              </dl>
+              <p className={styles.methodNote}>A playable hand contains at least one Basic Pokémon. Setup odds exclude mulligans.</p>
+            </section>
+            <section className={styles.streakSection} aria-labelledby="streak-heading">
+              <SectionTitle id="streak-heading" size="sm">Mulligan streaks</SectionTitle>
+              <table className={styles.streakTable}>
+                <caption className="sr-only">Consecutive mulligan probabilities</caption>
+                <thead><tr><th scope="col">In a row</th><th scope="col">Exactly</th><th scope="col">At least</th></tr></thead>
+                <tbody>{analysis.mulliganRows.map((row) => (
+                  <tr key={row.streak}><th scope="row">{row.streak}</th><td>{pct(row.exactThenPlayable)}</td><td>{pct(row.atLeast)}</td></tr>
+                ))}</tbody>
+              </table>
+              <p className={styles.inputHelp}>“Exactly” ends with a playable hand.</p>
+            </section>
+          </div>
+
+          <section className={styles.cardSection} aria-labelledby="card-probabilities-heading">
+            <Tabs onValueChange={(value) => setActiveTab(value as TabId)} value={activeTab}>
+              <SectionHeader
+                actions={<SegmentedControl appearance="line" ariaLabel="Calculator views" options={[
+                  { value: "setup", label: "Setup" },
+                  { value: "prizing", label: "Prizing" }
+                ]} />}
+                title="Card probabilities"
+                titleId="card-probabilities-heading"
+              />
+              <TabsContent className={styles.tabPanel} value="setup">
+                <p className={styles.tableDescription}>In a playable opening hand. “Only starter” means this is the only Basic Pokémon name available, including multiple copies.</p>
+                {setupComparisonRows.length ? (
+                  <ProbabilityDetailTable
+                    ariaLabel="Setup probabilities by card"
+                    columns={[{ key: "only-starter", label: "Only starter" }, { key: "starting-seven", label: "In opening 7" }]}
+                    pokemonOptions={pokemonOptions}
+                    rows={setupComparisonRows.map((row) => ({
+                      card: row.card,
+                      key: `${row.card.name}-${row.card.category}`,
+                      metrics: [{ label: "Only starter", value: pct(row.onlyStarter) }, { label: "In opening 7", value: pct(row.inStartingSeven) }]
+                    }))}
+                  />
+                ) : <p className={styles.emptyState}>No Pokémon found in this list. Edit your Deck List to calculate setup odds.</p>}
+              </TabsContent>
+              <TabsContent className={styles.tabPanel} value="prizing">
+                <p className={styles.tableDescription}>Copies in your six Prize cards, drawn from a 60-card deck. These odds are not adjusted for your opening hand.</p>
                 <ProbabilityDetailTable
-                  ariaLabel="Setup probabilities by card"
+                  ariaLabel="Prize probabilities by card"
                   columns={[
-                    { key: "only-starter", label: "Only Starter", mobileLabel: "Only Starter" },
-                    { key: "starting-seven", label: "In Starting 7", mobileLabel: "Opening 7" }
+                    { key: "none-prized", label: "None prized" }, { key: "one-prized", label: "1 prized" },
+                    { key: "two-prized", label: "2 prized" }, { key: "three-plus-prized", label: "3+ prized" }
                   ]}
                   pokemonOptions={pokemonOptions}
-                  rows={setupComparisonRows.map((row) => ({
+                  rows={prizingComparisonRows.map((row) => ({
                     card: row.card,
                     key: `${row.card.name}-${row.card.category}`,
                     metrics: [
-                      { label: "Only Starter", value: pct(row.onlyStarter) },
-                      { label: "In Starting 7", value: pct(row.inStartingSeven) }
+                      { label: "None prized", value: pct(row.nonePrized) }, { label: "1 prized", value: pct(row.onePrized) },
+                      { label: "2 prized", value: pct(row.twoPrized) }, { label: "3+ prized", value: pct(row.threePlusPrized) }
                     ]
                   }))}
                 />
-              ) : (
-                null
-              )
-            ) : prizingComparisonRows.length ? (
-              <ProbabilityDetailTable
-                ariaLabel="Prize probabilities by card"
-                columns={[
-                  { key: "none-prized", label: "None Prized", mobileLabel: "None" },
-                  { key: "one-prized", label: "1 Prized", mobileLabel: "1" },
-                  { key: "two-prized", label: "2 Prized", mobileLabel: "2" },
-                  { key: "three-plus-prized", label: "3+ Prized", mobileLabel: "3+" }
-                ]}
-                pokemonOptions={pokemonOptions}
-                rows={prizingComparisonRows.map((row) => ({
-                  card: row.card,
-                  key: `${row.card.name}-${row.card.category}`,
-                  metrics: [
-                    { label: "None Prized", value: pct(row.nonePrized) },
-                    { label: "1 Prized", value: pct(row.onePrized) },
-                    { label: "2 Prized", value: pct(row.twoPrized) },
-                    { label: "3+ Prized", value: pct(row.threePlusPrized) }
-                  ]
-                }))}
-              />
-            ) : (
-              null
-            )}
+              </TabsContent>
+            </Tabs>
           </section>
-        </section>
+
+          <section className={styles.deckSection}>
+            <SectionHeader title="Deck List" actions={
+              <PageActions>
+                <CopyDeckListButton text={analyzedInput} />
+                <Button aria-controls="calculator-card-graphic" aria-expanded={cardsVisible} onClick={() => setCardsVisible((visible) => !visible)} variant="outline">
+                  {cardsVisible ? "Hide cards" : "Show cards"}
+                </Button>
+              </PageActions>
+            } />
+            <div hidden={!cardsVisible} id="calculator-card-graphic">
+              {cardsVisible ? <DeckListVisualGrid cards={deckVisualCards} variant="featured" /> : null}
+            </div>
+          </section>
+        </div>
       ) : null}
-    </>
-  );
-}
-
-function DeckImportDialog({
-  deckInput,
-  initialImport,
-  onDeckInputChange,
-  onLoadSampleDeck,
-  onOpenChange,
-  onSubmit,
-  open,
-  showStatus,
-  statusClassName,
-  statusMessage
-}: {
-  deckInput: string;
-  initialImport: boolean;
-  onDeckInputChange: (value: string) => void;
-  onLoadSampleDeck: () => void;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: () => void;
-  open: boolean;
-  showStatus: boolean;
-  statusClassName: string;
-  statusMessage: string;
-}) {
-  return (
-    <Dialog
-      onOpenChange={(nextOpen) => {
-        if (initialImport && !nextOpen) {
-          return;
-        }
-
-        onOpenChange(nextOpen);
-      }}
-      open={open}
-    >
-      <AppDialogContent
-        showCloseButton={!initialImport}
-      >
-        <AppDialogHeader
-          description="Paste a Pokemon TCG deck list to open the probability calculator."
-          title="Import Deck"
-        />
-
-        <form
-          className="grid min-h-0 gap-4 overflow-y-auto p-4 pr-5 sm:px-6 sm:py-5 sm:pr-7 lg:px-8 lg:py-6 lg:pr-9"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSubmit();
-          }}
-        >
-          <label className="sr-only" htmlFor="calculator-deck-input">
-            Deck List
-          </label>
-          <Textarea
-            autoFocus
-            className="h-[360px] w-full resize-none rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
-            id="calculator-deck-input"
-            onChange={(event) => onDeckInputChange(event.target.value)}
-            placeholder="Paste your deck list here"
-            spellCheck={false}
-            value={deckInput}
-          />
-
-          {showStatus ? (
-            <section className={statusClassName} role="alert">
-              <p className="text-sm font-medium leading-6 text-card-foreground">
-                {statusMessage}
-              </p>
-            </section>
-          ) : null}
-
-          <ButtonGroup className="w-full" orientation="vertical">
-            <Button type="submit">Import Deck</Button>
-            <Button onClick={onLoadSampleDeck} variant="outline">
-              Load Sample Deck
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/logs" prefetch={false}>
-                Back to Site
-              </Link>
-            </Button>
-          </ButtonGroup>
-        </form>
-      </AppDialogContent>
-    </Dialog>
-  );
-}
-
-function ProbabilitySummaryMetric({
-  label,
-  value
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex h-full min-w-0 flex-col gap-2 py-2">
-      <p className="text-[0.65rem] font-medium uppercase leading-tight tracking-wide text-muted-foreground sm:text-xs">
-        {label}
-      </p>
-      <p className="text-xl font-semibold leading-none tracking-[-0.02em] text-card-foreground [font-variant-numeric:tabular-nums] sm:text-3xl">
-        {value}
-      </p>
     </div>
   );
 }
 
-function ProbabilityDetailTable({
-  ariaLabel,
-  columns,
-  pokemonOptions,
-  rows
-}: {
+function ProbabilitySummaryMetric({ label, value, note }: { label: string; value: string; note: string }) {
+  return <div className={styles.summaryMetric}><dt>{label}</dt><dd>{value}<span>{note}</span></dd></div>;
+}
+
+function ProbabilityDetailTable({ ariaLabel, columns, pokemonOptions, rows }: {
   ariaLabel: string;
-  columns: Array<{ key: string; label: string; mobileLabel: string }>;
+  columns: Array<{ key: string; label: string }>;
   pokemonOptions: PokemonOption[] | null;
   rows: Array<{ key: string; card: CalculatorCardGroup; metrics: ComparisonMetric[] }>;
 }) {
-  const dense = columns.length > 2;
-  const firstColumnWidth = dense ? "w-[38%] sm:w-[48%]" : "w-[50%] sm:w-[58%]";
-
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-muted">
-      <table aria-label={ariaLabel} className="w-full table-fixed">
-        <colgroup>
-          <col className={firstColumnWidth} />
-          {columns.map((column) => (
-            <col key={column.key} />
-          ))}
-        </colgroup>
-        <thead className="border-b border-border bg-card">
-          <tr>
-            <th className="ui-eyebrow px-3 py-2.5 text-left sm:px-4" scope="col">
-              Card
-            </th>
-            {columns.map((column) => (
-              <th className="ui-eyebrow px-1 py-2.5 text-right sm:px-3" key={column.key} scope="col">
-                <span className="sm:hidden">{column.mobileLabel}</span>
-                <span className="hidden sm:inline">{column.label}</span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--border)]">
-          {rows.map((row) => (
-            <ProbabilityDetailRow
-              card={row.card}
-              dense={dense}
-              key={row.key}
-              metrics={row.metrics}
-              pokemonOptions={pokemonOptions}
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function ProbabilityDetailRow({
-  card,
-  dense,
-  metrics,
-  pokemonOptions
-}: {
-  card: CalculatorCardGroup;
-  dense: boolean;
-  metrics: ComparisonMetric[];
-  pokemonOptions: PokemonOption[] | null;
-}) {
-  return (
-    <tr>
-      <th className="px-3 py-2 text-left font-normal sm:px-4 sm:py-2.5" scope="row">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <span className={cn("shrink-0", dense && "hidden sm:inline-flex")}>
-            {card.category === "Pokemon" ? (
-              <CalculatorPokemonSprite compact name={card.name} pokemonOptions={pokemonOptions} />
-            ) : (
-              <span className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-[0.68rem] font-semibold text-muted-foreground sm:size-10">
-                {card.category.slice(0, 1)}
+    <table aria-label={ariaLabel} className={cn(styles.probabilityTable, columns.length > 2 && styles.prizingTable)} role="table">
+      <thead role="rowgroup"><tr role="row">
+        <th role="columnheader" scope="col">Card</th>
+        {columns.map((column) => <th key={column.key} role="columnheader" scope="col">{column.label}</th>)}
+      </tr></thead>
+      <tbody role="rowgroup">{rows.map((row) => (
+        <tr key={row.key} role="row">
+          <th role="rowheader" scope="row">
+            <div className={styles.cardIdentity}>
+              <span aria-hidden="true" className={styles.cardSprite}>
+                {row.card.category === "Pokemon" ? <CalculatorPokemonSprite compact name={row.card.name} pokemonOptions={pokemonOptions} /> : <span className={styles.cardCategory}>{row.card.category.slice(0, 1)}</span>}
               </span>
-            )}
-          </span>
-          <ItemTitle as="span" className="line-clamp-2" size="xs">
-            {card.count}x {card.name}
-          </ItemTitle>
-        </div>
-      </th>
-      {metrics.map((metric, index) => (
-        <td className="px-1 py-2 text-right sm:px-3 sm:py-2.5" key={`${card.name}-${metric.label}-${index}`}>
-          <span
-            className={cn(
-              "whitespace-nowrap font-semibold text-card-foreground tabular-nums sm:text-base",
-              dense ? "text-[0.7rem]" : "text-xs"
-            )}
-          >
-            {metric.value}
-          </span>
-        </td>
-      ))}
-    </tr>
+              <span className={styles.cardCount}>{row.card.count}<span aria-hidden="true">×</span><span className="sr-only"> {row.card.count === 1 ? "copy" : "copies"}</span></span>
+              <ItemTitle as="span" className={styles.cardName} size="xs">{row.card.name}</ItemTitle>
+            </div>
+          </th>
+          {row.metrics.map((metric) => <td key={metric.label} role="cell"><span aria-hidden="true" className={styles.mobileMetricLabel}>{metric.label}</span><span>{metric.value}</span></td>)}
+        </tr>
+      ))}</tbody>
+    </table>
   );
 }
 
@@ -606,19 +423,13 @@ function CalculatorPokemonSprite({
   const slug = resolvePokemonSpriteSlug(name, pokemonOptions ?? undefined);
   const matchedOption = findPokemonOptionBySlug(slug, pokemonOptions ?? undefined);
   const src = matchedOption?.spriteUrl || getPokemonSpriteUrl(name, pokemonOptions ?? undefined);
-  const fallbackLabel = prettifyPokemonSlug(slug || name);
 
   if (hasError || !src) {
     return (
-      <div
-        aria-label={fallbackLabel}
-        className={cn(
-          "flex shrink-0 items-center justify-center rounded-full border border-border bg-card px-1 text-center text-[8px] font-semibold leading-tight text-muted-foreground",
-          compact ? "size-8 sm:size-10" : "size-10"
-        )}
-      >
-        {fallbackLabel}
-      </div>
+      <span
+        aria-hidden="true"
+        className={cn("block shrink-0", compact ? "size-8 sm:size-10" : "size-10")}
+      />
     );
   }
 
