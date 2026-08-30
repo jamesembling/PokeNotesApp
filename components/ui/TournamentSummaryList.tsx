@@ -32,7 +32,7 @@ function TournamentSummaryRow({
     <div className="group/row">
       <div
         className={[
-          "group/card relative grid w-full grid-cols-1 gap-x-3 gap-y-3 overflow-hidden rounded-[10px] border border-border bg-card p-4 text-left sm:grid-cols-[82px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:grid-cols-[98px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] lg:px-5",
+          "group/card relative grid w-full grid-cols-1 gap-3 overflow-hidden p-4 text-left sm:grid-cols-[82px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] sm:items-center sm:gap-4 lg:grid-cols-[98px_minmax(0,1fr)_7.5rem_minmax(5.5rem,auto)] lg:px-5",
           tournamentEntryRolloverClassName,
           focusWithinRolloverClassName
         ].join(" ")}
@@ -43,7 +43,7 @@ function TournamentSummaryRow({
       >
         <Link
           aria-label={`Open ${tournament.name}`}
-          className="absolute inset-0 z-0 rounded-[10px] focus-visible:outline-none"
+          className="absolute inset-0 z-0 focus-visible:outline-none"
           href={`/tournaments/${tournament.id}`}
           prefetch={false}
         />

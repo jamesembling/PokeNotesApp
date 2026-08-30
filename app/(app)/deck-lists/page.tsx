@@ -88,8 +88,8 @@ export default async function DeckListsPage() {
                       {deckList.name}
                     </ItemTitle>
                     <p className="mt-1 text-sm text-muted-foreground md:hidden">
-                      {formatUsageCount(usage.battleLogs, "Battle Log")} · {usage.wins}-
-                      {usage.losses} W/L ·{" "}
+                      {usage.wins}-{usage.losses} W/L ·{" "}
+                      {formatUsageCount(usage.battleLogs, "Battle Log")} ·{" "}
                       {formatUsageCount(usage.tournaments, "Tournament")}
                     </p>
                   </div>

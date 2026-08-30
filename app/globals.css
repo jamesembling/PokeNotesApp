@@ -113,9 +113,6 @@
   --log-entry-hover-brightness: 0.94;
   --log-entry-hover-lift: 0.125rem;
   --log-entry-hover-shadow: var(--shadow-sm);
-  --tournament-entry-hover-brightness: 0.98;
-  --tournament-entry-hover-lift: 0.125rem;
-  --tournament-entry-hover-shadow: var(--shadow-sm);
   --deck-card-hover-lift: 0.125rem;
   --deck-card-hover-bg: color-mix(in oklab, var(--muted) 45%, transparent);
   --deck-card-hover-shadow: var(--shadow-sm);
@@ -257,9 +254,6 @@
   --log-entry-hover-brightness: 0.94;
   --log-entry-hover-lift: 0.125rem;
   --log-entry-hover-shadow: var(--shadow-sm);
-  --tournament-entry-hover-brightness: 0.98;
-  --tournament-entry-hover-lift: 0.125rem;
-  --tournament-entry-hover-shadow: var(--shadow-sm);
   --deck-card-hover-lift: 0.125rem;
   --deck-card-hover-bg: color-mix(in oklab, var(--muted) 58%, transparent);
   --deck-card-hover-shadow: var(--shadow-sm);
@@ -297,7 +291,7 @@ html {
   min-height: 100%;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
   scrollbar-gutter: stable;
   background-color: var(--bg-page);
   color-scheme: light;
@@ -312,7 +306,7 @@ body {
   min-height: 100vh;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
   background-color: var(--bg-page);
   color: var(--text-secondary);
   font-family: var(--font-body), system-ui, -apple-system, sans-serif;
@@ -395,7 +389,6 @@ h3,
 }
 
 .ui-log-entry-rollover,
-.ui-tournament-entry-rollover,
 .ui-deck-card-rollover {
   transition:
     border-color 200ms ease-out,
@@ -406,10 +399,6 @@ h3,
 
 .ui-log-entry-rollover:hover {
   filter: brightness(var(--log-entry-hover-brightness));
-}
-
-.ui-tournament-entry-rollover:hover {
-  filter: brightness(var(--tournament-entry-hover-brightness));
 }
 
 .ui-deck-card-rollover:hover {
@@ -430,11 +419,6 @@ h3,
   .ui-log-entry-rollover:hover {
     box-shadow: var(--log-entry-hover-shadow);
     transform: translateY(calc(var(--log-entry-hover-lift) * -1));
-  }
-
-  .ui-tournament-entry-rollover:hover {
-    box-shadow: var(--tournament-entry-hover-shadow);
-    transform: translateY(calc(var(--tournament-entry-hover-lift) * -1));
   }
 }
 

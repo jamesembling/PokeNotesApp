@@ -7,8 +7,8 @@ export const focusWithinRolloverClassName =
 export const logEntryRolloverClassName =
   "ui-log-entry-rollover";
 
-export const tournamentEntryRolloverClassName =
-  "ui-tournament-entry-rollover";
-
 export const deckCardRolloverClassName =
-  "ui-deck-card-rollover";
+  "bg-card ui-deck-card-rollover";
+
+export const tournamentEntryRolloverClassName =
+  deckCardRolloverClassName;

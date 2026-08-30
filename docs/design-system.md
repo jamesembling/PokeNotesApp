@@ -19,7 +19,7 @@ Use semantic tokens:
 - `--button-*` for shared button interaction states
 - `--choice-*` for choice-card/radio-card controls
 - `--dialog-*` for app modal shells
-- `--log-entry-*`, `--tournament-entry-*`, and `--deck-card-*` for rollover behavior
+- `--log-entry-*` and `--deck-card-*` for rollover behavior
 - `--action-*` for battle-log action dots
 
 Do not add raw page-level colors for common states. If a new repeated state is needed, add a semantic token first.
@@ -84,10 +84,10 @@ Rollover behavior is intentionally separated by pattern:
 
 - Buttons own button hover and active states through `Button` variants.
 - Log entries use `logEntryRolloverClassName` from `components/ui/rolloverStyles.ts`.
-- Tournament entries use `tournamentEntryRolloverClassName` from `components/ui/rolloverStyles.ts`.
+- Tournament entries use `tournamentEntryRolloverClassName` from `components/ui/rolloverStyles.ts`, which intentionally shares the deck rollover treatment.
 - Deck cards, deck list rows, and deck matchup rows use `deckCardRolloverClassName` from `components/ui/rolloverStyles.ts`.
 
-Log, tournament, and deck rollover styles may differ from each other, but every deployment of each pattern should use the matching shared utility. Shared rollover utilities should control container background, brightness, lift, shadow, and focus ring only; text color changes must be explicit component decisions.
+Log rollover may differ from the shared tournament-and-deck treatment, but every deployment of each pattern should use the matching shared utility. Shared rollover utilities should control container background, brightness, lift, shadow, and focus ring only; text color changes must be explicit component decisions.
 
 Run `npm run design:audit` after UI changes. It checks for copied dialog shells, copied rollover utilities, direct tab/dialog primitives where app wrappers exist, weak status/destructive text classes, and undefined CSS tokens.
 
