@@ -1,13 +1,10 @@
 import Link from "next/link";
 import { Button } from "@/components/shadcn/button";
-import { Card } from "@/components/shadcn/card";
-import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
-import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
+import { DeckListProfile } from "@/components/ui/DeckListProfile";
+import styles from "@/components/ui/deck-list/profile.module.css";
 import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageActions } from "@/components/ui/PageActions";
-import { PageWidth } from "@/components/ui/PageWidth";
-import { SectionHeader } from "@/components/ui/SectionHeader";
 import { requireUser } from "@/lib/auth";
 import { getDeckWithList } from "@/lib/db/decks";
 
@@ -29,7 +26,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
 
   if (!result) {
     return (
-      <PageWidth size="standard">
+      <div className={styles.root}>
         <PageHeader
           breadcrumb={[
             { label: "Poke Notes", href: "/" },
@@ -40,7 +37,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
           subtitle="This deck list could not be found or you do not have access to it."
         />
 
-        <Card>
+        <div className={styles.notFound}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-foreground">
               The requested deck list is unavailable.
@@ -53,16 +50,15 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
               Back to Deck
             </Link>
           </div>
-        </Card>
-      </PageWidth>
+        </div>
+      </div>
     );
   }
 
   const { deckName, deckList } = result;
-  const sortedCards = deckList.sortedCards;
 
   return (
-    <PageWidth size="standard">
+    <div className={styles.root}>
       <PageHeader
         breadcrumb={[
           { label: "Poke Notes", href: "/" },
@@ -74,6 +70,7 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         action={
           <PageActions>
             <LazyDeckListEditorButton
+              key={`${deckList.id}:${deckList.updatedAt}`}
               deckId={id}
               deckList={deckList}
               defaultCreatedBy={defaultCreatedBy}
@@ -90,20 +87,10 @@ export default async function DeckListPage({ params }: DeckListPageProps) {
         }
       />
 
-      <Card className="space-y-4">
-        <SectionHeader
-          actions={<CopyDeckListButton text={deckList.rawList} />}
-          eyebrow="Deck List"
-        />
-
-        {deckList.parsedCards.length === 0 ? (
-          <p className="text-sm text-foreground">
-            No parsed cards are available for this deck list yet.
-          </p>
-        ) : (
-          <DeckListVisualGrid cards={sortedCards} />
-        )}
-      </Card>
-    </PageWidth>
+      <DeckListProfile
+        deckList={deckList}
+        strategyName={deckList.deckId === id ? deckName : undefined}
+      />
+    </div>
   );
 }

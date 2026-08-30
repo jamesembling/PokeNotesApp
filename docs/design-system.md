@@ -133,3 +133,15 @@ Responsive details and the preserved editing contracts are recorded in [the Deck
 - **Preserve the workflow.** The list is used only for the current calculation and is not saved. Keep edit/cancel/clear, input errors, warning results, keyboard focus, and the flat responsive loading layout intact. This presentation does not redefine the calculation model or shared Deck List ordering.
 
 The calculation meaning, responsive thresholds, and loading/state contracts are recorded in [the Calculator surface brief](../.impeccable/surfaces/route-calculator.md).
+
+## Deck List Profile Surface
+
+`/deck-lists/[listId]` and `/decks/[id]/lists/[listId]` extend the approved Stats, Deck Strategy, and Calculator language into a shared Deck List profile. This is an incumbent-world extension; shared typography, page headers, buttons, dialogs, and card rendering retain their existing contracts.
+
+- **Cards lead.** Place a compact, labelled composition row and Copy List Text above the real card artwork. Keep the surrounding profile open, with neutral semantic colours, IBM Plex typography, tabular quantities, and thin rules. Do not add enclosing cards, pills, decorative colour bars, or substitute artwork.
+- **Room before the rail.** Show List details, Deck Strategy, and Notes in a 16rem right rail only when the profile has at least 64rem of available width. Otherwise, put those details below the artwork. The artwork grid responds to its own width: four columns by default, six at 36rem, and eight at 60rem. These are content-container thresholds, including the space left by the app sidebar.
+- **Readable record details.** Keep Format, Date, and Created by explicitly labelled, with Not set for unavailable values. Preserve note line breaks and wrapping. Association status is a plain strategy link or Standalone list; editing the association lives in a labelled native disclosure on the first-class route.
+- **Shared, deliberate actions.** Keep Edit List and the pale-red Delete List in the shared page-action group. Delete opens the shared confirmation dialog and returns focus to its trigger when dismissed. The nested strategy route retains Edit List and Back to Deck. Legacy-only records retain their explanation and editing path without exposing delete or association controls.
+- **Preserve record meaning.** Composition reports stored card quantities, including Uncategorised when needed; it is not a legality claim. Copy uses the original list text. Preserve current association identity, save-version checks, authentication, queries, shared ordering, and image behavior. Delete copy promises that Battle Log and Tournament records are kept, not that Tournament Deck List Snapshots are implemented by this surface.
+
+The responsive layout, route-specific actions, empty states, and record boundaries are recorded in [the Deck List profile surface brief](../.impeccable/surfaces/route-deck-list-profile.md).

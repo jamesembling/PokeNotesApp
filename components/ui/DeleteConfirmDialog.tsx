@@ -1,5 +1,6 @@
 "use client";
 
+import type { RefObject } from "react";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import { AppDialogContent } from "@/components/ui/AppDialog";
@@ -20,6 +21,7 @@ type DeleteConfirmDialogProps = {
   onCancel: () => void;
   onConfirm: () => void;
   open: boolean;
+  returnFocusRef?: RefObject<HTMLElement | null>;
   title?: string;
 };
 
@@ -32,6 +34,7 @@ export function DeleteConfirmDialog({
   onCancel,
   onConfirm,
   open,
+  returnFocusRef,
   title = "Confirm Delete"
 }: DeleteConfirmDialogProps) {
   return (
@@ -43,7 +46,14 @@ export function DeleteConfirmDialog({
         }
       }}
     >
-      <AppDialogContent className="border-loss-border p-4" showCloseButton={!disabled}>
+      <AppDialogContent
+        className="border-loss-border p-4"
+        onCloseAutoFocus={returnFocusRef ? (event) => {
+          event.preventDefault();
+          returnFocusRef.current?.focus();
+        } : undefined}
+        showCloseButton={!disabled}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{message}</DialogDescription>
