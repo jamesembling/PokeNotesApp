@@ -134,6 +134,17 @@ Responsive details and the preserved editing contracts are recorded in [the Deck
 
 The calculation meaning, responsive thresholds, and loading/state contracts are recorded in [the Calculator surface brief](../.impeccable/surfaces/route-calculator.md).
 
+## Deck List Collection Surface
+
+`/deck-lists` extends the approved Stats and Deck Strategy language into an open collection of saved Deck Lists. Shared typography, page headers, actions, and the existing New Deck List editor retain their contracts.
+
+- **Open linked rows.** Use IBM Plex typography, neutral semantic colours, tabular numbers, and thin rules. Each complete row is a keyboard-accessible link with a trailing chevron, neutral hover, and visible focus. Long names wrap. Keep the collection free of enclosing cards, pills, and outcome colours. This refresh retains the single list view and adds no filters.
+- **Room before columns.** At 54rem of available content width, show Deck List, Format, Battle Logs, W/L, Tournaments, Updated, and chevron columns. Keep identity left-aligned, Format and usage values centred, and Updated right-aligned. Below that threshold, identity and Format/Updated metadata span the row above three visibly labelled usage values. Loading follows the same structure.
+- **Preserve record meaning.** Battle Logs counts linked logs of every result; W/L counts linked wins and losses; Tournaments counts linked event records. These are usage measures, not a win rate or Tournament-round record. Preserve authentication, account-scoped reads, existing ordering, legacy identities and navigation hints, and disabled link prefetching.
+- **Keep states direct.** Retain the page count and lazy New Deck List action. An empty collection states No Deck Lists saved yet; loading announces Loading Deck Lists within the same open layout.
+
+The responsive layout, usage meanings, and navigation boundaries are recorded in [the Deck List collection surface brief](../.impeccable/surfaces/route-deck-lists.md).
+
 ## Deck List Profile Surface
 
 `/deck-lists/[listId]` and `/decks/[id]/lists/[listId]` extend the approved Stats, Deck Strategy, and Calculator language into a shared Deck List profile. This is an incumbent-world extension; shared typography, page headers, buttons, dialogs, and card rendering retain their existing contracts.

@@ -1,1 +1,1 @@
-export { default } from "@/components/ui/AppRouteLoading";
+export { DeckListsLoadingState as default } from "@/components/ui/DeckListsLoadingState";
