@@ -1,0 +1,38 @@
+.parentDeck {
+  margin-top: .5rem;
+  color: var(--muted-foreground);
+  font-size: .8125rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.parentDeck a { color: var(--card-foreground); text-underline-offset: .2em; }
+.parentDeck a:hover { text-decoration: underline; }
+.parentDeck a:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+
+.controlsShell { container-type: inline-size; }
+.controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 1rem 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+.turnField { display: flex; align-items: center; justify-content: space-between; grid-column: 1 / -1; gap: 1rem; min-width: 0; }
+.field { display: grid; gap: .5rem; min-width: 0; }
+.label { color: var(--muted-foreground); font-size: .8125rem; }
+.select { width: 100%; min-width: 0; min-height: 2.75rem; border-radius: 4px; background: var(--card); padding: .5rem .75rem; font-size: .8125rem; }
+.select [data-slot="select-value"] { min-width: 0; }
+.status { grid-column: 1 / -1; justify-self: end; min-height: 1rem; }
+.error { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem 1rem; padding-top: 1rem; color: var(--color-loss-strong); font-size: .8125rem; }
+.error p { min-width: 0; overflow-wrap: anywhere; }
+
+@container (min-width: 48rem) {
+  .controls { grid-template-columns: minmax(0, 15.5rem) minmax(0, 12rem) minmax(0, 10rem) minmax(0, 1fr); }
+  .turnField { display: grid; grid-column: auto; gap: .5rem; }
+  .turnField [role="tablist"] { height: 2.75rem; }
+  .status { grid-column: auto; padding-bottom: .875rem; }
+}
+
+@media (max-width: 639px) {
+  .parentDeck { margin-top: .25rem; font-size: .75rem; }
+  .controls { gap: 1rem; }
+  .turnField { gap: .5rem; }
+  .turnField > span { max-width: 3rem; font-size: .75rem; line-height: 1.4; }
+  .turnField [role="tab"] { min-width: 4rem; padding-inline: .65rem; }
+  .label { font-size: .75rem; }
+}

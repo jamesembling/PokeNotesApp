@@ -110,3 +110,15 @@ Stats uses a neutral broadcast analysis desk within the existing IBM Plex Sans a
 - Stats opts into `SegmentedControl appearance="line"` for underlined Overview/Matchups tabs. The shared component's default segmented appearance is unchanged. Matchup search uses a visible label and underline; its sample-size option uses a square checkbox. Keep keyboard focus visible for tabs, chart, search, checkbox, and sort controls.
 
 The route-specific data windows, interaction states, and sources are recorded in [the Stats surface brief](../.impeccable/surfaces/route-stats.md).
+
+## Deck Strategy and Matchup Notes Surfaces
+
+`/decks`, `/decks/[id]`, and `/decks/[id]/matchups/[matchupId]` extend Stats' neutral language into a working notebook. This is a scoped treatment, not a replacement for the app-wide component contract.
+
+- **Open sections.** Use thin rules, shared IBM Plex typography, semantic foregrounds, and flat rows. Keep record values and save states explicitly labelled and neutral; errors retain the semantic loss text. Do not wrap strategy content in nested cards, pills, or coloured outcome bars. Existing archetype sprites remain functional identifiers.
+- **Readable notes.** Preserve line breaks and wrap long text inside each row. Keep category titles and counts visible, with note actions beside the text. Use the existing bounded Quick Capture field and shared modal controls; do not turn the workspace into a wall of empty textareas.
+- **Room before columns.** Collection columns respond to available content width, with numerical columns centred, Deck left-aligned, and Updated right-aligned. Matchup Notes uses three columns only when its own content container reaches 60rem; otherwise it remains one column. Preserve the intentional mobile category accordions and the Deck Strategy four-note reveal.
+- **Flat navigation and states.** List/Tiles opts into underlined `SegmentedControl` navigation. Entire collection entries and matchup links are keyboard-accessible links ending in chevrons. Tiles remain open ruled blocks. Collection loading and empty states use the same flat structure.
+- **Keep editing meaning visible.** Turn preference stays inline. Matchup Notes retains its optional First/Second/Not set choice, six distinct categories, separate header and note save states, and explicit add, edit, reorder, and phase-move actions. Opening Add or using a phase-move menu action exposes its destination category.
+
+Responsive details and the preserved editing contracts are recorded in [the Deck Strategy surface brief](../.impeccable/surfaces/route-decks.md).

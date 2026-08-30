@@ -11,9 +11,10 @@ import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEdit
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageActions } from "@/components/ui/PageActions";
 import { PageWidth } from "@/components/ui/PageWidth";
-import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { DetailTitle, ItemTitle } from "@/components/ui/Typography";
+import styles from "@/components/ui/deck-strategy/strategy.module.css";
 import { requireUser } from "@/lib/auth";
 import { getDeckById, getDeckLogStats } from "@/lib/db/decks";
 import { measureServerCall } from "@/lib/server/perf";
@@ -33,17 +34,10 @@ function DeckMatchupTile({
   matchup: DeckMatchup;
 }) {
   return (
-    <Link className="group block h-full" href={`/decks/${deckId}/matchups/${matchup.id}`} prefetch={false}>
-      <Card className={`h-full gap-0 p-0 sm:gap-0 sm:p-0 ${deckCardRolloverClassName}`}>
-        <div className="flex min-h-16 items-center gap-3 px-4 py-3">
-          <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={matchup.deckPokemon} />
-          <ItemTitle className="min-w-0 flex-1 truncate">{matchup.deckName}</ItemTitle>
-          <ChevronRight
-            aria-hidden="true"
-            className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-          />
-        </div>
-      </Card>
+    <Link className={styles.matchupLink} href={`/decks/${deckId}/matchups/${matchup.id}`} prefetch={false}>
+      <SpriteStrip className="min-h-10 shrink-0" size="md" sprites={matchup.deckPokemon} />
+      <ItemTitle className={styles.matchupName}>{matchup.deckName}</ItemTitle>
+      <ChevronRight aria-hidden="true" className={styles.matchupChevron} size={18} />
     </Link>
   );
 }
@@ -141,7 +135,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         />
       </div>
 
-      <section className="flex items-center gap-3 border-b border-border pb-5 sm:gap-5 sm:border-b-0 sm:pb-0">
+      <section className={styles.deckHeader}>
         <Button asChild className="sm:hidden" size="icon-lg" variant="ghost">
           <Link aria-label="Back to deck strategies" href="/decks" prefetch={false}>
             <ArrowLeft className="size-6" />
@@ -159,18 +153,19 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           size="xl"
           sprites={deck.deckPokemon}
         />
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
-            <DetailTitle className="truncate" size="sm">{deck.deckName}</DetailTitle>
-            {stats.total > 0 ? (
-              <span className="shrink-0 rounded-full border border-win-border bg-win-bg px-3 py-1 text-sm font-semibold tabular-nums text-win-strong">
-                {stats.wins}–{stats.losses}
-              </span>
-            ) : null}
-          </div>
+        <div className={styles.deckIdentity}>
+          <DetailTitle className={styles.deckTitle} size="sm">{deck.deckName}</DetailTitle>
+          {stats.total > 0 ? (
+            <dl className={styles.deckRecord}>
+              <dt>Record</dt>
+              <dd aria-label={`${stats.wins} wins, ${stats.losses} losses`}>{stats.wins}–{stats.losses}</dd>
+              <dt className="sr-only">Battle Log sample</dt>
+              <dd className={styles.recordSample}>/ {stats.total} {stats.total === 1 ? "Battle Log" : "Battle Logs"}</dd>
+            </dl>
+          ) : null}
         </div>
 
-        <div className="hidden shrink-0 sm:block">{deckActions}</div>
+        <div className={`${styles.deckActions} hidden shrink-0 sm:block`}>{deckActions}</div>
         <div className="sm:hidden">
           <DeckStrategyMobileMenu
             deck={deckEditorPayload}
@@ -185,16 +180,14 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
 
       <section
         aria-labelledby="deck-matchups-heading"
-        className="space-y-4 border-y border-border py-6"
+        className={styles.matchups}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2
-            className="font-display text-2xl font-semibold tracking-[-0.03em] text-card-foreground"
-            id="deck-matchups-heading"
-          >
-            Matchup Notes
-          </h2>
-          <div className="shrink-0">
+        <SectionHeader
+          className={styles.matchupsHeader}
+          title="Matchup Notes"
+          titleId="deck-matchups-heading"
+          titleSize="lg"
+          actions={
             <PageActions>
               <DeckMatchupsDialog deckId={deck.id} matchups={deck.matchups} />
               <LazyDeckMatchupEditorButton
@@ -203,13 +196,13 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
                 triggerVariant="outline"
               />
             </PageActions>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          }
+        />
+        {previewMatchups.length > 0 ? <div className={styles.matchupList}>
           {previewMatchups.map((matchup) => (
             <DeckMatchupTile deckId={deck.id} key={matchup.id} matchup={matchup} />
           ))}
-        </div>
+        </div> : <p className={styles.emptyLane}>No matchup notes yet.</p>}
       </section>
     </PageWidth>
   ));

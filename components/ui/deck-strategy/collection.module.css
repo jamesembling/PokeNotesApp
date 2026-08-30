@@ -1,0 +1,267 @@
+.collection {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  color: var(--card-foreground);
+  container-type: inline-size;
+}
+
+.collection ::selection {
+  background: var(--card-foreground);
+  color: var(--card);
+}
+
+.toolbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.list {
+  min-width: 0;
+  border-top: 1px solid var(--foreground);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1rem;
+  align-items: center;
+  gap: 1rem;
+}
+
+.listHeader {
+  display: none;
+}
+
+.sortButton {
+  min-height: 3rem;
+  height: auto;
+  gap: 0.25rem;
+  border-radius: 0;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.sortButton:hover {
+  background: transparent;
+}
+
+.row {
+  min-height: 5.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-block: 1rem;
+  transition: background-color 140ms ease-out;
+}
+
+.row:hover,
+.tile:hover {
+  background: var(--card);
+}
+
+.row:focus-visible,
+.tile:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+
+.identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 1rem;
+}
+
+.identityText {
+  min-width: 0;
+}
+
+.listSprites {
+  min-height: 3rem;
+  width: 82px;
+  flex-shrink: 0;
+}
+
+.deckName,
+.tileName {
+  color: var(--card-foreground);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.matchCount {
+  margin-top: 0.375rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.listWinRate,
+.listNumber,
+.updated {
+  display: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.chevron {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  justify-self: end;
+  color: var(--muted-foreground);
+  transform: rotate(-90deg);
+}
+
+.tiles {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem 2rem;
+}
+
+.tile {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex-direction: column;
+  gap: 1rem;
+  border-top: 1px solid var(--foreground);
+  padding-block: 1.25rem;
+  transition: background-color 140ms ease-out;
+}
+
+.tileTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tileSprites {
+  min-height: 3rem;
+}
+
+.tileName {
+  font-size: 1.1875rem;
+}
+
+.tileNumbers {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  align-items: end;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.tileNumbers dt {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.tileNumbers dd {
+  margin-top: 0.25rem;
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tileNumbers .tileWinRate {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.tileUpdated {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.empty {
+  border-top: 1px solid var(--border);
+  padding-block: 2.5rem 4rem;
+  color: var(--card-foreground);
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+
+.emptyDescription {
+  max-width: 45ch;
+  margin-top: 0.625rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+@container (min-width: 43rem) {
+  .columns {
+    grid-template-columns: minmax(0, 1.7fr) minmax(6rem, 0.55fr) minmax(6rem, 0.65fr) minmax(4.5rem, 0.4fr) minmax(7rem, 0.6fr) 1rem;
+  }
+
+  .listHeader {
+    display: grid;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .listWinRate,
+  .listNumber,
+  .updated {
+    display: block;
+  }
+
+  .listWinRate {
+    text-align: center;
+    font-size: 1.75rem;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: -0.03em;
+  }
+
+  .listNumber {
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .updated {
+    color: var(--muted-foreground);
+    text-align: right;
+    font-size: 0.8125rem;
+  }
+
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 64rem) {
+  .columns {
+    grid-template-columns: minmax(0, 1.95fr) minmax(7rem, 0.55fr) minmax(7.5rem, 0.7fr) minmax(5rem, 0.4fr) minmax(8rem, 0.65fr) 1rem;
+  }
+
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 80rem) {
+  .tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .tile {
+    transition-duration: 0s;
+  }
+}

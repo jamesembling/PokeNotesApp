@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { Card } from "@/components/shadcn/card";
 import { DecksLoadingState } from "@/components/ui/DecksLoadingState";
 import { DeckStrategyCollection } from "@/components/ui/DeckStrategyCollection";
 import { LazyDeckEditorButton } from "@/components/ui/LazyDeckEditorButton";
@@ -12,6 +11,7 @@ import {
 import { requireUser } from "@/lib/auth";
 import { getDeckIndexSummaries } from "@/lib/db/decks";
 import { measureServerCallWithTiming, takeRouteEntryEpochMs } from "@/lib/server/perf";
+import styles from "@/components/ui/deck-strategy/collection.module.css";
 
 export default async function DecksPage() {
   const routeEnteredAtEpochMs = takeRouteEntryEpochMs();
@@ -78,9 +78,12 @@ async function DecksContent({
         <PageActions className="sm:hidden" mobile="stack">
           <LazyDeckEditorButton triggerLabel="+ New deck" />
         </PageActions>
-        <Card>
-          <p className="text-sm text-foreground">No decks saved yet.</p>
-        </Card>
+        <div className={styles.empty}>
+          <p>No decks saved yet.</p>
+          <p className={styles.emptyDescription}>
+            Add a deck to keep your plans, matchups, and battle notes together.
+          </p>
+        </div>
       </>
     );
   }

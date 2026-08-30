@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { updateDeckMatchupHeaderAction } from "@/app/(app)/decks/actions";
 import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { AppSelect } from "@/components/shadcn/app-select";
+import { Button } from "@/components/shadcn/button";
+import { Tabs } from "@/components/shadcn/tabs";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
+import headerStyles from "@/components/ui/deck-strategy/matchup-header.module.css";
+import styles from "@/components/ui/deck-strategy/strategy.module.css";
 import type { DeckMatchup, GoPreference, MatchupFavorability } from "@/types/index";
 
 type InlineDeckMatchupHeaderControlsProps = {
@@ -83,7 +88,7 @@ export function InlineDeckMatchupHeaderControls({
     if (saveStatus === "error") {
       return "Save failed";
     }
-      return "";
+    return "Saved";
   }, [saveStatus]);
 
   const formatOptions = useMemo(() => {
@@ -98,100 +103,97 @@ export function InlineDeckMatchupHeaderControls({
   }, [headerState.format, siteFormatOptions]);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <label className="grid gap-1.5" htmlFor="inline-matchup-favor">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Matchup Favour
-        </span>
-        <AppSelect
-          aria-label="Matchup favour"
-          className="min-h-[48px] rounded-xl px-4 py-3"
-          id="inline-matchup-favor"
-          onChange={(value) => {
-            const nextState = {
-              ...headerState,
-              matchupFavor: value as MatchupFavorability
-            };
-            setHeaderState(nextState);
-            saveHeader(nextState);
-          }}
-          options={[
-            { label: "Select favour", value: "" },
-            ...MATCHUP_FAVOR_OPTIONS.map((option) => ({
+    <div className={headerStyles.controlsShell}>
+      <div className={headerStyles.controls}>
+        <div className={headerStyles.turnField}>
+          <span className={headerStyles.label}>Prefer to Go</span>
+          <Tabs
+            onValueChange={(value) => {
+              const nextState = {
+                ...headerState,
+                goPreference: value as GoPreference
+              };
+              setHeaderState(nextState);
+              saveHeader(nextState);
+            }}
+            value={headerState.goPreference}
+          >
+            <SegmentedControl
+              ariaLabel="Turn preference"
+              size="sm"
+              options={[
+                { label: "First", value: "First" },
+                { label: "Second", value: "Second" },
+                { label: "Not set", value: "" }
+              ]}
+            />
+          </Tabs>
+        </div>
+
+        <label className={headerStyles.field} htmlFor="inline-matchup-favor">
+          <span className={headerStyles.label}>Matchup favour</span>
+          <AppSelect
+            aria-label="Matchup favour"
+            className={headerStyles.select}
+            id="inline-matchup-favor"
+            onChange={(value) => {
+              const nextState = {
+                ...headerState,
+                matchupFavor: value as MatchupFavorability
+              };
+              setHeaderState(nextState);
+              saveHeader(nextState);
+            }}
+            options={[
+              { label: "Select favour", value: "" },
+              ...MATCHUP_FAVOR_OPTIONS.map((option) => ({
+                label: option,
+                value: option
+              }))
+            ]}
+            placeholder="Select favour"
+            value={headerState.matchupFavor}
+          />
+        </label>
+
+        <label className={headerStyles.field} htmlFor="inline-matchup-format">
+          <span className={headerStyles.label}>Format</span>
+          <AppSelect
+            aria-label="Format"
+            className={headerStyles.select}
+            id="inline-matchup-format"
+            onChange={(value) => {
+              const nextState = {
+                ...headerState,
+                format: value
+              };
+              setHeaderState(nextState);
+              saveHeader(nextState);
+            }}
+            options={formatOptions.map((option) => ({
               label: option,
               value: option
-            }))
-          ]}
-          placeholder="Select favour"
-          value={headerState.matchupFavor}
-        />
-      </label>
+            }))}
+            value={headerState.format || defaultFormat}
+          />
+        </label>
 
-      <label className="grid gap-1.5" htmlFor="inline-matchup-go-preference">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Turn Preference
-        </span>
-        <AppSelect
-          aria-label="Turn preference"
-          className="min-h-[48px] rounded-xl px-4 py-3"
-          id="inline-matchup-go-preference"
-          onChange={(value) => {
-            const nextState = {
-              ...headerState,
-              goPreference: value as GoPreference
-            };
-            setHeaderState(nextState);
-            saveHeader(nextState);
-          }}
-          options={[
-            { label: "Select order", value: "" },
-            { label: "Go First", value: "First" },
-            { label: "Go Second", value: "Second" }
-          ]}
-          placeholder="Select order"
-          value={headerState.goPreference}
-        />
-      </label>
-
-      <label className="grid gap-1.5" htmlFor="inline-matchup-format">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Format
-        </span>
-        <AppSelect
-          aria-label="Format"
-          className="min-h-[48px] rounded-xl px-4 py-3"
-          id="inline-matchup-format"
-          onChange={(value) => {
-            const nextState = {
-              ...headerState,
-              format: value
-            };
-            setHeaderState(nextState);
-            saveHeader(nextState);
-          }}
-          options={formatOptions.map((option) => ({
-            label: option,
-            value: option
-          }))}
-          value={headerState.format || defaultFormat}
-        />
-      </label>
-
-      {statusLabel ? (
-        <p
-          className={`text-xs font-medium sm:col-span-3 ${
-            saveStatus === "error"
-              ? "text-loss-strong"
-              : saveStatus === "saved"
-                ? "text-win-strong"
-                : "text-muted-foreground"
-          }`}
+        <span
+          aria-live="polite"
+          className={`${styles.saveStatus} ${headerStyles.status}`}
+          data-state={saveStatus}
+          role="status"
         >
           {statusLabel}
-        </p>
-      ) : null}
+        </span>
+      </div>
       {errorMessage ? (
-        <p className="text-xs text-loss-strong sm:col-span-3">{errorMessage}</p>
+        <div className={headerStyles.error}>
+          <p>{errorMessage}</p>
+          <Button onClick={() => saveHeader(headerState)} size="sm" type="button" variant="outline">
+            Try again
+          </Button>
+        </div>
       ) : null}
     </div>
   );

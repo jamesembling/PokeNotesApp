@@ -7,7 +7,6 @@ import {
   ArrowUp,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   Filter,
   GripVertical,
   MoreHorizontal,
@@ -27,7 +26,6 @@ import { updateDeckStrategyAction } from "@/app/(app)/decks/actions";
 import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
-import { Card } from "@/components/shadcn/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +46,8 @@ import {
   AppDialogMobileFooter
 } from "@/components/ui/AppDialog";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { SectionTitle } from "@/components/ui/Typography";
+import styles from "@/components/ui/deck-strategy/strategy.module.css";
 import {
   buildStrategyWorkspaceState,
   moveStrategyNote,
@@ -81,25 +81,21 @@ const CATEGORY_ORDER: StrategyCategory[] = [
 
 const CATEGORY_META: Record<
   StrategyCategory,
-  { dotClassName: string; label: string; shortLabel: string }
+  { label: string; shortLabel: string }
 > = {
   gamePlan: {
-    dotClassName: "bg-[var(--strategy-game-plan)]",
     label: "Game Plan",
     shortLabel: "Game Plan"
   },
   benchPlan: {
-    dotClassName: "bg-[var(--strategy-bench-plan)]",
     label: "Bench Plan",
     shortLabel: "Bench"
   },
   tech: {
-    dotClassName: "bg-[var(--strategy-tech)]",
     label: "Tech & Changes",
     shortLabel: "Tech"
   },
   unsorted: {
-    dotClassName: "bg-[var(--strategy-unsorted)]",
     label: "Unsorted",
     shortLabel: "Unsorted"
   }
@@ -262,43 +258,15 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
 
   const quickCapture = (
     <form
-      className="grid gap-3"
+      className={styles.quickCapture}
       onSubmit={submitQuickNote}
     >
-      <p className="text-sm font-semibold text-card-foreground">Quick Capture</p>
-      <div className="flex min-w-0 gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              className="h-12 min-w-[8.5rem] justify-between border-[var(--strategy-focus)] text-[var(--strategy-focus)] sm:hidden"
-              type="button"
-              variant="outline"
-            >
-              <span className="flex items-center gap-2">
-                <span className={`size-2.5 rounded-full ${CATEGORY_META[quickCategory].dotClassName}`} />
-                {CATEGORY_META[quickCategory].shortLabel}
-              </span>
-              <ChevronDown className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-52" side="top">
-            <DropdownMenuRadioGroup
-              onValueChange={(value) => setQuickCategory(value as StrategyCategory)}
-              value={quickCategory}
-            >
-              {CATEGORY_ORDER.map((category) => (
-                <DropdownMenuRadioItem key={category} value={category}>
-                  <span className={`size-2 rounded-full ${CATEGORY_META[category].dotClassName}`} />
-                  {CATEGORY_META[category].label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
+      <label className={styles.captureLabel} htmlFor="quick-strategy-note">Quick Capture</label>
+      <div className={styles.captureInputRow}>
         <Input
           aria-label="Quick strategy note"
-          className="h-12 flex-1 px-4 text-base"
+          className={styles.captureInput}
+          id="quick-strategy-note"
           onChange={(event) => setQuickNote(event.target.value)}
           placeholder="Type a thought…"
           ref={quickCaptureRef}
@@ -307,7 +275,7 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
 
         <Button
           aria-label="Add note"
-          className="size-12 p-0"
+          className={styles.captureSubmit}
           disabled={!quickNote.trim()}
           type="submit"
         >
@@ -315,34 +283,32 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
         </Button>
       </div>
 
-      <div className="hidden flex-wrap items-center gap-2 sm:flex">
-        {CATEGORY_ORDER.map((category) => (
-          <Button
-            className={
-              quickCategory === category
-                ? "border-[var(--strategy-focus)] bg-[var(--strategy-focus-soft)] text-[var(--strategy-focus)]"
-                : ""
-            }
-            key={category}
-            onClick={() => setQuickCategory(category)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <span className={`size-2 rounded-full ${CATEGORY_META[category].dotClassName}`} />
-            {CATEGORY_META[category].shortLabel}
-          </Button>
-        ))}
-        <span className="ml-auto text-xs text-muted-foreground">Press Enter to save</span>
+      <div className={styles.captureFooter}>
+        <fieldset className={styles.captureCategories}>
+          <legend className="sr-only">Save note to</legend>
+          <span aria-hidden="true" className={styles.captureDestination}>Add to</span>
+          {CATEGORY_ORDER.map((category) => (
+            <button
+              aria-pressed={quickCategory === category}
+              className={styles.categoryChoice}
+              key={category}
+              onClick={() => setQuickCategory(category)}
+              type="button"
+            >
+              {CATEGORY_META[category].shortLabel}
+            </button>
+          ))}
+        </fieldset>
+        <span className={styles.captureHint}>Enter to save</span>
       </div>
     </form>
   );
 
   return (
-    <div className="flex flex-col gap-6 pb-4 sm:pb-0">
-      <Card className="order-1 p-3 sm:order-2 sm:p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <span className="text-sm font-semibold text-muted-foreground">Prefer to Go</span>
+    <div className={styles.workspace}>
+      <div className={styles.contextRow}>
+        <div className={styles.turnPreference}>
+          <span>Prefer to Go</span>
           <Tabs
             onValueChange={(value) => {
               const nextState = {
@@ -355,7 +321,7 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
           >
             <SegmentedControl
               ariaLabel="Turn preference"
-              className="w-full sm:w-fit"
+              size="sm"
               options={[
                 { value: "First", label: "First" },
                 { value: "Second", label: "Second" }
@@ -363,44 +329,35 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
             />
           </Tabs>
         </div>
-      </Card>
+        <span
+          aria-live="polite"
+          className={styles.saveStatus}
+          data-state={saveStatus}
+          role="status"
+        >
+          {saveStatus === "error" ? (
+            <AlertCircle aria-hidden="true" className="size-3.5" />
+          ) : saveStatus === "saving" ? null : (
+            <CheckCircle2 aria-hidden="true" className="size-3.5" />
+          )}
+          {saveLabel}
+        </span>
+      </div>
 
-      <Card className="order-2 hidden p-4 sm:order-1 sm:block">{quickCapture}</Card>
+      <div className={styles.captureDesktop}>{quickCapture}</div>
 
-      <section aria-labelledby="strategy-workspace-heading" className="order-3 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <h2
-              className="font-display text-2xl font-semibold tracking-[-0.03em] text-card-foreground"
-              id="strategy-workspace-heading"
-            >
-              <span className="hidden sm:inline">Strategy Workspace</span>
-              <span className="sm:hidden">Strategy</span>
-            </h2>
-            <span
-              aria-live="polite"
-              className={
-                saveStatus === "error"
-                  ? "flex items-center gap-1.5 text-sm font-medium text-loss-strong"
-                  : "flex items-center gap-1.5 text-sm font-medium text-win-strong"
-              }
-              role="status"
-            >
-              {saveStatus === "error" ? (
-                <AlertCircle className="size-4" />
-              ) : (
-                <CheckCircle2 className="size-4" />
-              )}
-              {saveLabel}
-            </span>
-          </div>
+      <section aria-labelledby="strategy-workspace-heading" className={styles.notesSection}>
+        <div className={styles.notesHeader}>
+          <SectionTitle id="strategy-workspace-heading" size="lg">
+            Strategy
+          </SectionTitle>
 
-          <div className="flex items-center gap-2">
-            <div className="relative hidden sm:block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <div className={styles.noteTools}>
+            <div className={styles.desktopSearch}>
+              <Search aria-hidden="true" className="size-4" />
               <Input
                 aria-label="Search strategy notes"
-                className="h-10 w-64 pl-9"
+                className={styles.searchInput}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search notes"
                 value={query}
@@ -412,13 +369,13 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
               aria-expanded={mobileSearchOpen}
               onClick={() => setMobileSearchOpen((current) => !current)}
               size="icon-lg"
-              variant="outline"
+              variant="ghost"
             >
               <Search className="size-5" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="gap-2" size="icon-lg" variant="outline">
+                <Button aria-label="Filter strategy notes" aria-pressed={filter !== "all"} className={styles.filterButton} size="icon-lg" variant="ghost">
                   <Filter className="size-5" />
                   <span className="sr-only">Filter strategy notes</span>
                 </Button>
@@ -431,7 +388,6 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
                   <DropdownMenuRadioItem value="all">All notes</DropdownMenuRadioItem>
                   {CATEGORY_ORDER.map((category) => (
                     <DropdownMenuRadioItem key={category} value={category}>
-                      <span className={`size-2 rounded-full ${CATEGORY_META[category].dotClassName}`} />
                       {CATEGORY_META[category].label}
                     </DropdownMenuRadioItem>
                   ))}
@@ -456,7 +412,7 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
         ) : null}
 
         {query ? (
-          <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm">
+          <div className={styles.searchSummary}>
             <span className="truncate text-muted-foreground">Showing notes matching “{query}”</span>
             <Button onClick={() => setQuery("")} size="xs" variant="ghost">
               Clear
@@ -479,7 +435,7 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
           </Alert>
         ) : null}
 
-        <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className={styles.lanes}>
           {visibleCategories.map((category) => {
             const allNotes = workspace.lanes[category];
             const visibleNotes = workspace.lanes[category]
@@ -490,27 +446,26 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
             const isEditingCategory = editingNote?.category === category;
 
             return (
-              <Card className="gap-0 overflow-hidden p-0 sm:gap-0 sm:p-0" key={category}>
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <button
-                    aria-expanded={expanded}
-                    className="flex min-w-0 flex-1 items-start gap-3 text-left md:pointer-events-none"
-                    onClick={() => toggleCategory(category)}
-                    type="button"
-                  >
-                    <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${CATEGORY_META[category].dotClassName}`} />
-                    <span className="min-w-0">
-                      <span className="block truncate text-base font-semibold text-card-foreground">
+              <section aria-labelledby={`strategy-${category}-heading`} className={styles.lane} key={category}>
+                <div className={styles.laneHeader}>
+                  <div className={styles.categorySummary}>
+                    <SectionTitle as="h3" className={styles.laneTitle} id={`strategy-${category}-heading`} size="sm">
+                      <span className={styles.desktopCategoryLabel}>{CATEGORY_META[category].label}</span>
+                      <button
+                        aria-controls={`strategy-${category}-notes`}
+                        aria-expanded={expanded}
+                        className={styles.categoryToggle}
+                        onClick={() => toggleCategory(category)}
+                        type="button"
+                      >
                         {CATEGORY_META[category].label}
-                      </span>
-                      <span className="block text-sm text-muted-foreground">
-                        {allNotes.length} {allNotes.length === 1 ? "note" : "notes"}
-                      </span>
+                        <ChevronDown aria-hidden="true" className="size-4" />
+                      </button>
+                    </SectionTitle>
+                    <span className={styles.noteCount}>
+                      {allNotes.length} {allNotes.length === 1 ? "note" : "notes"}
                     </span>
-                    <ChevronRight
-                      className={`ml-auto size-5 shrink-0 self-center text-muted-foreground transition-transform md:hidden ${expanded ? "rotate-90" : ""}`}
-                    />
-                  </button>
+                  </div>
 
                   <Dialog
                     onOpenChange={(open) => {
@@ -531,7 +486,7 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
                         aria-label={`Add ${CATEGORY_META[category].label} note`}
                         className="sm:hidden"
                         size="icon-lg"
-                        variant="outline"
+                        variant="ghost"
                       >
                         <Plus className="size-4" />
                       </Button>
@@ -567,7 +522,7 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
                             <Textarea
                               autoFocus
                               className="min-h-44 resize-y text-base"
-                            id={`strategy-note-${category}`}
+                              id={`strategy-note-${category}`}
                               onChange={(event) => setNoteDraft(event.target.value)}
                               placeholder="Type your strategy note…"
                               value={noteDraft}
@@ -596,35 +551,37 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
                     className="hidden sm:inline-flex"
                     onClick={() => focusQuickCapture(category)}
                     size="icon-lg"
-                    variant="outline"
+                    variant="ghost"
                   >
                     <Plus className="size-4" />
                   </Button>
                 </div>
 
-                <div className={expanded ? "block" : "hidden md:block"}>
-                  <div className="space-y-1.5 px-3 pb-2">
+                <div className={expanded ? styles.laneBody : `${styles.laneBody} ${styles.laneCollapsed}`} id={`strategy-${category}-notes`}>
+                  <div className={styles.noteList} role="list">
                     {visibleNotes.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-border px-3 py-5 text-center text-sm text-muted-foreground">
+                      <p className={styles.emptyLane}>
                         {normalizedQuery ? "No matching notes." : `No ${CATEGORY_META[category].label.toLowerCase()} notes yet.`}
-                      </div>
+                      </p>
                     ) : (
                       visibleNotes.map(({ note, index }, visibleIndex) => (
                           <div
-                            className={`${visibleIndex >= 4 && !revealed ? "hidden md:flex" : "flex"} min-h-11 items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-sm transition hover:bg-muted`}
+                            className={styles.noteRow}
+                            data-concealed={visibleIndex >= 4 && !revealed}
+                            data-dragging={draggedNote?.category === category && draggedNote.index === index}
                             draggable
                             key={`${category}-${index}-${note}`}
                             onDragEnd={() => setDraggedNote(null)}
                             onDragOver={(event) => event.preventDefault()}
                             onDragStart={() => setDraggedNote({ category, index })}
                             onDrop={(event) => handleDrop(event, category, index)}
+                            role="listitem"
                           >
-                            <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground" />
-                            <span className="min-w-0 flex-1 text-card-foreground">{note}</span>
-                            <span className={`size-2 shrink-0 rounded-full ${CATEGORY_META[category].dotClassName}`} />
+                            <GripVertical aria-hidden="true" className={styles.dragHandle} />
+                            <span className={styles.noteText}>{note}</span>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button aria-label={`Actions for ${note}`} size="icon-xs" variant="ghost">
+                                <Button aria-label={`Actions for ${note}`} className={styles.noteActions} size="icon-xs" variant="ghost">
                                   <MoreHorizontal className="size-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -680,10 +637,9 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-0.5 text-sm">
                     {visibleNotes.length > 4 && !revealed ? (
                       <Button
-                        className="px-0 text-[var(--strategy-focus)]"
+                        className={styles.revealNotes}
                         onClick={() =>
                           setRevealedCategories((current) => new Set(current).add(category))
                         }
@@ -691,20 +647,9 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
                       >
                         View {visibleNotes.length - 4} more
                       </Button>
-                    ) : (
-                      <span />
-                    )}
-                    <Button
-                      className="hidden px-0 text-[var(--strategy-focus)] sm:inline-flex"
-                      onClick={() => focusQuickCapture(category)}
-                      variant="ghost"
-                    >
-                      <Plus className="size-4" />
-                      Add another
-                    </Button>
-                  </div>
+                    ) : null}
                 </div>
-              </Card>
+              </section>
             );
           })}
         </div>

@@ -9,6 +9,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { DeckSummary } from "@/types/index";
 import { Button } from "@/components/shadcn/button";
 import { Tabs } from "@/components/shadcn/tabs";
+import styles from "@/components/ui/deck-strategy/collection.module.css";
 
 type SortKey = "deck" | "winRate" | "record" | "lists" | "updated";
 type SortDirection = "asc" | "desc";
@@ -49,12 +50,12 @@ function SortHeaderButton({
   return (
     <Button
       className={[
-        "h-auto gap-1 p-0 text-[0.72rem] font-semibold uppercase tracking-[0.12em] transition hover:bg-transparent",
+        styles.sortButton,
         align === "center"
           ? "justify-self-center text-center"
           : align === "right"
             ? "justify-self-end text-right"
-            : "text-left",
+            : "justify-self-start text-left",
         active
           ? "text-card-foreground"
           : "text-muted-foreground hover:text-card-foreground"
@@ -131,13 +132,14 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
   }, [decks, sort]);
   return (
     <Tabs
-      className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3"
+      className={styles.collection}
       onValueChange={(value) => setViewMode(value as ViewMode)}
       value={viewMode}
     >
-      <div className="deck-strategy-ledger-toolbar flex w-full min-w-0 flex-col items-stretch justify-between gap-3 rounded-lg border border-border px-3 py-2 min-[360px]:flex-row min-[360px]:items-center">
+      <div className={styles.toolbar}>
         <SegmentedControl
           ariaLabel="Deck strategy view"
+          appearance="line"
           options={[
             { value: "list", label: "List" },
             { value: "tile", label: "Tiles" }
@@ -145,7 +147,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
           size="sm"
         />
         <PageActions
-          className="w-auto self-stretch sm:hidden min-[360px]:w-fit min-[360px]:self-auto [&>button]:w-full min-[360px]:[&>button]:w-auto"
+          className="w-fit shrink-0 sm:hidden"
           mobile="stack"
         >
           <LazyDeckEditorButton triggerLabel="+ New deck" />
@@ -153,8 +155,8 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
       </div>
 
       {viewMode === "list" ? (
-        <div className="overflow-hidden rounded-lg border border-border bg-background">
-          <div className="hidden border-b border-border bg-muted px-4 py-2.5 text-[0.72rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(6.5rem,0.55fr)_minmax(7rem,0.65fr)_minmax(4.5rem,0.4fr)_minmax(7.5rem,0.6fr)_auto] md:items-center md:gap-4 lg:grid-cols-[minmax(0,1.95fr)_minmax(7rem,0.55fr)_minmax(7.5rem,0.7fr)_minmax(5rem,0.4fr)_minmax(8rem,0.65fr)_auto] lg:px-5">
+        <div className={styles.list}>
+          <div className={`${styles.listHeader} ${styles.columns}`}>
             <SortHeaderButton
               active={sort?.key === "deck"}
               direction={sort?.key === "deck" ? sort.direction : undefined}
@@ -183,7 +185,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
               active={sort?.key === "lists"}
               align="center"
               direction={sort?.key === "lists" ? sort.direction : undefined}
-              label="Decklists"
+              label="Deck lists"
               onClick={() => setSort({ key: "lists", direction: getNextSortDirection("lists", sort) })}
             />
             <SortHeaderButton
@@ -197,7 +199,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
             />
             <span aria-hidden="true" />
           </div>
-          <div className="divide-y divide-border">
+          <div>
             {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
               <DeckCard
                 deck={deck}
@@ -212,7 +214,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
           </div>
         </div>
       ) : (
-        <div className="deck-strategy-ledger-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+        <div className={styles.tiles}>
           {orderedDecks.map(({ deck, deckListCount, gamesPlayed, losses, winRate }) => (
             <DeckCard
               deck={deck}
