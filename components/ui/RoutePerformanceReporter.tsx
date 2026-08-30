@@ -805,6 +805,7 @@ export function RoutePerformanceReporter() {
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
         ...resourceSnapshot,
+        ...getServerDiagnosticsSnapshot(),
         ...getServerTimingSnapshot(pendingNavigation.resourceStartedAt, candidateCompletedAt),
         responseStreamMs: null,
         documentDecodedBodySizeBytes: null,

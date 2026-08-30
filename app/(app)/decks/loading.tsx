@@ -1,1 +1,5 @@
-export { default } from "@/components/ui/AppRouteLoading";
+import { DecksLoadingState } from "@/components/ui/DecksLoadingState";
+
+export default function DecksLoading() {
+  return <DecksLoadingState />;
+}
