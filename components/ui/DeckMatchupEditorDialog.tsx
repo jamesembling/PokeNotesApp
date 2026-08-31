@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createDeckMatchupAction, updateDeckMatchupAction } from "@/app/(app)/decks/actions";
 import { AppSelect } from "@/components/shadcn/app-select";
@@ -10,9 +10,9 @@ import { ButtonGroup } from "@/components/shadcn/button-group";
 import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
 import { ChoiceCard } from "@/components/ui/ChoiceCard";
 import { Dialog } from "@/components/shadcn/dialog";
-import { Input } from "@/components/shadcn/input";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
+import { prettifyPokemonSlug } from "@/lib/pokemon/sprites";
 import type { DeckMatchup, GoPreference, MatchupFavorability, PokemonOption } from "@/types/index";
 
 type DeckMatchupEditorDialogProps = {
@@ -42,6 +42,14 @@ function normalizeRedirectPath(value: string) {
   return value.split("?")[0] || value;
 }
 
+function getArchetypeName(sprites: string[], pokemonOptions: PokemonOption[]) {
+  const labelsBySlug = new Map(pokemonOptions.map((option) => [option.slug, option.label]));
+
+  return Array.from(new Set(sprites.filter(Boolean)))
+    .map((slug) => labelsBySlug.get(slug) ?? prettifyPokemonSlug(slug))
+    .join(" / ");
+}
+
 export function DeckMatchupEditorDialog({
   children,
   className,
@@ -59,7 +67,6 @@ export function DeckMatchupEditorDialog({
   const isEditing = Boolean(matchup?.id);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(matchup?.deckPokemon ?? []);
-  const [deckName, setDeckName] = useState(matchup?.deckName ?? "");
   const [selectedFormat, setSelectedFormat] = useState(matchup?.format || defaultFormat);
   const [goPreference, setGoPreference] = useState<GoPreference>(matchup?.goPreference ?? "");
   const [matchupFavor, setMatchupFavor] = useState<MatchupFavorability>(matchup?.matchupFavor ?? "");
@@ -68,6 +75,10 @@ export function DeckMatchupEditorDialog({
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const archetypeName = useMemo(
+    () => getArchetypeName(selectedSprites, pokemonOptions),
+    [pokemonOptions, selectedSprites]
+  );
 
   useEffect(() => {
     setSelectedFormat((current) => current || matchup?.format || defaultFormat);
@@ -101,7 +112,6 @@ export function DeckMatchupEditorDialog({
 
   function resetFormState() {
     setSelectedSprites(matchup?.deckPokemon ?? []);
-    setDeckName(matchup?.deckName ?? "");
     setSelectedFormat(matchup?.format || defaultFormat);
     setGoPreference(matchup?.goPreference ?? "");
     setMatchupFavor(matchup?.matchupFavor ?? "");
@@ -208,7 +218,7 @@ export function DeckMatchupEditorDialog({
                   </Button>
                 </ButtonGroup>
                 )}
-                description={isEditing ? "Update this matchup's Pokemon, favorability, and notes." : "Create matchup notes for this deck."}
+                description={isEditing ? "Update this matchup's archetype, favourability, and notes." : "Create matchup notes for this deck."}
                 title={isEditing ? "Edit Matchup" : "New Matchup"}
               />
             <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain p-3 pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:p-4 sm:pr-2 lg:p-5">
@@ -223,6 +233,7 @@ export function DeckMatchupEditorDialog({
                 <input name="format" type="hidden" value={selectedFormat} />
                 <input name="goPreference" type="hidden" value={goPreference} />
                 <input name="matchupFavor" type="hidden" value={matchupFavor} />
+                <input name="deckName" type="hidden" value={archetypeName} />
                 {isEditing ? (
                   <>
                     <input name="idealBench" type="hidden" value={matchup?.idealBench ?? ""} />
@@ -234,19 +245,14 @@ export function DeckMatchupEditorDialog({
                   <input key={`${slug}-${index}`} name="matchupSprites" type="hidden" value={slug} />
                 ))}
 
-                <section className="grid gap-4 md:grid-cols-2">
-                  <label className="grid gap-2" htmlFor="matchup-deck-name">
-                    <span className="text-sm font-semibold text-muted-foreground">Deck Name</span>
-                    <Input
-                      id="matchup-deck-name"
-                      className="w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-card-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/50"
-                      name="deckName"
-                      onChange={(event) => setDeckName(event.target.value)}
-                      placeholder="Dragapult / Dusknoir, Gardevoir ex, Miraidon..."
-                      value={deckName}
-                    />
-                  </label>
+                <BattleLogSpritePicker
+                  onChange={setSelectedSprites}
+                  pokemonOptions={pokemonOptions}
+                  sprites={selectedSprites}
+                  title="Archetype"
+                />
 
+                <section className="grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2" htmlFor="matchup-format">
                     <span className="text-sm font-semibold text-muted-foreground">Format</span>
                     <FormatSelect
@@ -260,6 +266,25 @@ export function DeckMatchupEditorDialog({
                           : siteFormatOptions
                       }
                       value={selectedFormat}
+                    />
+                  </label>
+
+                  <label className="grid gap-2" htmlFor="matchup-favor">
+                    <span className="text-sm font-semibold text-muted-foreground">Matchup Favour</span>
+                    <AppSelect
+                      aria-label="Matchup favour"
+                      className="min-h-[3rem] rounded-xl px-4 py-3"
+                      id="matchup-favor"
+                      onChange={(value) => setMatchupFavor(value as MatchupFavorability)}
+                      options={[
+                        { label: "Select favour", value: "" },
+                        ...MATCHUP_FAVOR_OPTIONS.map((option) => ({
+                          label: option,
+                          value: option
+                        }))
+                      ]}
+                      placeholder="Select favour"
+                      value={matchupFavor}
                     />
                   </label>
 
@@ -285,33 +310,7 @@ export function DeckMatchupEditorDialog({
                       />
                     </div>
                   </section>
-
-                  <label className="grid gap-2 md:col-span-2" htmlFor="matchup-favor">
-                    <span className="text-sm font-semibold text-muted-foreground">Matchup Favour</span>
-                    <AppSelect
-                      aria-label="Matchup favour"
-                      className="min-h-[3rem] rounded-xl px-4 py-3"
-                      id="matchup-favor"
-                      onChange={(value) => setMatchupFavor(value as MatchupFavorability)}
-                      options={[
-                        { label: "Select favour", value: "" },
-                        ...MATCHUP_FAVOR_OPTIONS.map((option) => ({
-                          label: option,
-                          value: option
-                        }))
-                      ]}
-                      placeholder="Select favour"
-                      value={matchupFavor}
-                    />
-                  </label>
                 </section>
-
-                <BattleLogSpritePicker
-                  onChange={setSelectedSprites}
-                  pokemonOptions={pokemonOptions}
-                  sprites={selectedSprites}
-                  title="Featured Pokemon"
-                />
 
                 {actionError ? (
                   <p className="text-sm text-loss-strong" role="status">

@@ -1,6 +1,7 @@
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { getReadSortedDeckCards } from "@/lib/deck-lists/read-sort";
 import { CANONICAL_DECK_LIST_SORT_VERSION } from "@/lib/deck-lists/version";
+import { getBattleLogDeckDisplayName } from "@/lib/battle-log/display";
 import { interpretDeckList } from "@/lib/decks/deck-list-parse";
 import { getDefaultSyncedSiteFormat } from "@/lib/formats/catalog";
 import { userFacingActionError } from "@/lib/server/action-errors";
@@ -202,9 +203,9 @@ function normalizeMatchupSprites(values: string[]) {
 }
 
 function getRequiredMatchupFields(command: CreateDeckMatchupCommand) {
-  const deckName = String(command.deckName || "").trim();
-  if (!deckName) {
-    throw userFacingActionError("Enter a matchup deck name before saving.");
+  const matchupSprites = normalizeMatchupSprites(command.matchupSprites);
+  if (matchupSprites.length === 0) {
+    throw userFacingActionError("Choose at least one Pokemon for the archetype.");
   }
 
   const format = String(command.format || "").trim();
@@ -212,13 +213,8 @@ function getRequiredMatchupFields(command: CreateDeckMatchupCommand) {
     throw userFacingActionError("Choose a format before saving this matchup.");
   }
 
-  const matchupSprites = normalizeMatchupSprites(command.matchupSprites);
-  if (matchupSprites.length === 0) {
-    throw userFacingActionError("Pick at least one Pokemon sprite for the matchup.");
-  }
-
   return {
-    deckName,
+    deckName: getBattleLogDeckDisplayName(command.deckName, matchupSprites),
     format,
     matchupSprites
   };

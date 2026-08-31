@@ -451,7 +451,7 @@ test("a list removed after the initial read retains the list-not-found error", a
   assert.deepEqual(harness.calls, ["load:deck-list:deck-2", "commit:deck-list:update"]);
 });
 
-test("matchup creation preserves normalization in its commit plan", async () => {
+test("matchup creation derives its display name from the normalized archetype", async () => {
   const existing = {
     id: "matchup-existing",
     deckName: "Existing",
@@ -461,7 +461,7 @@ test("matchup creation preserves normalization in its commit plan", async () => 
   };
   const harness = createHarness({ matchups: [existing] });
 
-  const result = await harness.writer.createMatchup(createMatchupCommand());
+  const result = await harness.writer.createMatchup(createMatchupCommand({ deckName: "" }));
 
   assert.deepEqual(result, {
     deckId: "deck-2",
@@ -476,7 +476,7 @@ test("matchup creation preserves normalization in its commit plan", async () => 
     updatedAt: NOW,
     child: {
       id: "matchup-new",
-      deckName: "Charizard",
+      deckName: "Charizard / Pidgeot",
       deckPokemon: ["charizard", "pidgeot"],
       format: "SVI-ASC",
       goPreference: "Second",
@@ -700,22 +700,18 @@ test("a full matchup edit fails closed instead of reapplying stale fields after 
   );
 });
 
-test("matchup field validation retains its existing order and messages", async () => {
+test("matchup field validation follows the visible archetype-first form order", async () => {
   const cases: Array<{
     command: CreateDeckMatchupCommand;
     message: string;
   }> = [
     {
-      command: createMatchupCommand({ deckName: "", format: "", matchupSprites: [] }),
-      message: "Enter a matchup deck name before saving."
-    },
-    {
-      command: createMatchupCommand({ format: "", matchupSprites: [] }),
-      message: "Choose a format before saving this matchup."
-    },
-    {
       command: createMatchupCommand({ matchupSprites: [] }),
-      message: "Pick at least one Pokemon sprite for the matchup."
+      message: "Choose at least one Pokemon for the archetype."
+    },
+    {
+      command: createMatchupCommand({ format: "" }),
+      message: "Choose a format before saving this matchup."
     }
   ];
 
