@@ -131,6 +131,13 @@ export function DeckMatchupEditorDialog({
       const result = await (isEditing
         ? updateDeckMatchupAction(formData)
         : createDeckMatchupAction(formData));
+
+      if (!result.ok) {
+        setActionError(result.message);
+        setSaveState("idle");
+        return;
+      }
+
       setSaveState("success");
 
       clearCloseTimer();

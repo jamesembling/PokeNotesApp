@@ -320,25 +320,26 @@ export function TournamentEditorDialog({
             <AppDialogHeader
               actions={(
                 <ButtonGroup className="hidden max-w-full flex-wrap sm:flex sm:justify-end">
+                  <SaveButton
+                    isEditing={isEditing}
+                    onClick={() => formRef.current?.requestSubmit()}
+                    saveState={saveState}
+                    variant={isEditing ? "outline" : "default"}
+                  />
                   {isEditing ? (
                     <Button
-                      className="whitespace-nowrap text-loss-strong hover:bg-destructive/10 hover:text-loss-strong"
+                      className="whitespace-nowrap"
                       disabled={isBusy}
                       onClick={() => {
                         setActionError("");
                         setShowDeleteConfirmation((current) => !current);
                       }}
                       type="button"
-                      variant="outline"
+                      variant="destructive"
                     >
                       Delete
                     </Button>
                   ) : null}
-                  <SaveButton
-                    isEditing={isEditing}
-                    onClick={() => formRef.current?.requestSubmit()}
-                    saveState={saveState}
-                  />
                 </ButtonGroup>
               )}
               description={isEditing ? "Update tournament details, deck choices, and notes." : "Create a tournament with deck choices and notes."}

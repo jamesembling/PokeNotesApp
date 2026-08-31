@@ -44,11 +44,13 @@ const SUCCESS_CLOSE_DELAY_MS = 650;
 function SaveButton({
   isEditing,
   onClick,
-  saveState
+  saveState,
+  variant = "default"
 }: {
   isEditing: boolean;
   onClick: () => void;
   saveState: SaveState;
+  variant?: "default" | "outline";
 }) {
   const isSaving = saveState === "saving";
   const isSuccess = saveState === "success";
@@ -66,6 +68,7 @@ function SaveButton({
       disabled={isSaving}
       onClick={onClick}
       type="button"
+      variant={variant}
     >
       {isSaving ? "Saving..." : isSuccess ? "Saved" : isEditing ? "Save Deck" : "Create Deck"}
     </Button>
@@ -423,25 +426,26 @@ export function DeckEditorDialog({
             </div>
             <AppDialogFooter>
               <ButtonGroup className="w-auto flex-row justify-end gap-0">
+                <SaveButton
+                  isEditing={isEditing}
+                  onClick={() => formRef.current?.requestSubmit()}
+                  saveState={saveState}
+                  variant={isEditing ? "outline" : "default"}
+                />
                 {isEditing ? (
                   <Button
-                    className="whitespace-nowrap text-loss-strong hover:bg-destructive/10 hover:text-loss-strong"
+                    className="whitespace-nowrap"
                     disabled={isBusy}
                     onClick={() => {
                       setActionError("");
                       setShowDeleteConfirmation((currentValue) => !currentValue);
                     }}
                     type="button"
-                    variant="outline"
+                    variant="destructive"
                   >
                     Delete Deck
                   </Button>
                 ) : null}
-                <SaveButton
-                  isEditing={isEditing}
-                  onClick={() => formRef.current?.requestSubmit()}
-                  saveState={saveState}
-                />
               </ButtonGroup>
             </AppDialogFooter>
             <AppDialogMobileFooter>

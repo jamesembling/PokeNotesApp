@@ -17,8 +17,10 @@ import { getAllLogsForDeck } from "@/lib/db/logs";
 import { getDeckLinkCandidates } from "@/lib/log-import/deck-linking";
 import {
   resolveActionFailure,
+  toActionFailureResult,
   userFacingActionError
 } from "@/lib/server/action-errors";
+import type { FailedActionResult } from "@/lib/server/action-errors";
 import { getFormRedirectPath, withRefreshToken } from "@/lib/server/action-redirect";
 import {
   parseGoPreference,
@@ -39,6 +41,8 @@ type SaveActionResult = {
   ok: true;
   redirectTo: string;
 };
+
+type MatchupSaveActionResult = SaveActionResult | FailedActionResult;
 
 export async function loadDeckLinkedLogsAction(deckId: string) {
   const user = await requireAuth();
@@ -307,7 +311,9 @@ export async function deleteDeckAction(formData: FormData): Promise<SaveActionRe
   }
 }
 
-export async function createDeckMatchupAction(formData: FormData): Promise<SaveActionResult> {
+export async function createDeckMatchupAction(
+  formData: FormData
+): Promise<MatchupSaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
   const matchupId = crypto.randomUUID();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
@@ -331,7 +337,7 @@ export async function createDeckMatchupAction(formData: FormData): Promise<SaveA
       redirectTo: withRefreshToken(`/decks/${result.deckId}/matchups/${result.matchupId}`)
     };
   } catch (error) {
-    throw resolveActionFailure(error, {
+    return toActionFailureResult(error, {
       action: "createDeckMatchup",
       area: "decks",
       deckId,
@@ -341,7 +347,9 @@ export async function createDeckMatchupAction(formData: FormData): Promise<SaveA
   }
 }
 
-export async function updateDeckMatchupAction(formData: FormData): Promise<SaveActionResult> {
+export async function updateDeckMatchupAction(
+  formData: FormData
+): Promise<MatchupSaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
   const matchupId = String(formData.get("matchupId") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
@@ -362,7 +370,7 @@ export async function updateDeckMatchupAction(formData: FormData): Promise<SaveA
       redirectTo: withRefreshToken(`/decks/${result.deckId}/matchups/${result.matchupId}`)
     };
   } catch (error) {
-    throw resolveActionFailure(error, {
+    return toActionFailureResult(error, {
       action: "updateDeckMatchup",
       area: "decks",
       deckId,

@@ -37,6 +37,7 @@ Do not add raw page-level colors for common states. If a new repeated state is n
 - Canvas export artwork uses an isolated export palette in `lib/probability-calculator/index.ts` because CSS variables are not available inside generated image drawing.
 - Page headers always show the shared bottom divider. Do not disable or recreate page-header dividers in page code.
 - Primary red buttons are for page-level create/import/save actions. Detail-page edit/back actions and section-level add/view actions use outline or ghost intent unless they are the only primary action on that page.
+- Desktop edit-dialog save and delete actions use one joined `ButtonGroup`: the neutral save action comes first and the destructive delete action comes second. Mobile sticky-footer composition and confirmation-dialog cancel/confirm ordering remain separate.
 - Normal muted/kicker text must meet WCAG AA on page, card, and muted surfaces in both themes. Normal status/destructive text uses the `*-strong` semantic tokens; base status colors are reserved for non-text chart and marker graphics.
 
 ## Mode Callouts

@@ -16,10 +16,7 @@ import { Input } from "@/components/shadcn/input";
 import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
-import {
-  interpretDeckList,
-  type DeckListInterpretation
-} from "@/lib/decks/deck-list-parse";
+import { interpretDeckList } from "@/lib/decks/deck-list-parse";
 import type { DeckList } from "@/types/index";
 
 type DeckListSaveActionResult = {
@@ -91,34 +88,6 @@ function SaveButton({
   );
 }
 
-function formatSummaryLabel(summary: DeckListInterpretation["summary"]) {
-  if (summary.total === null) {
-    return "Count unknown";
-  }
-
-  return `${summary.total} cards`;
-}
-
-function formatSummaryMessage(summary: DeckListInterpretation["summary"]) {
-  if (summary.total === null) {
-    return "Paste a Limitless-style list with counts to preview the total.";
-  }
-
-  if (summary.total === 60) {
-    return "Detected a complete 60-card list.";
-  }
-
-  return `This list currently totals ${summary.total} cards.`;
-}
-
-function getSummaryTone(summary: DeckListInterpretation["summary"]) {
-  if (summary.total === null) {
-    return "muted";
-  }
-
-  return summary.total === 60 ? "success" : "warning";
-}
-
 function normalizeRedirectPath(value: string) {
   return value.split("?")[0] || value;
 }
@@ -163,7 +132,6 @@ export function DeckListEditorDialog({
   const interpretation = useMemo(() => interpretDeckList(rawList), [rawList]);
   const summary = interpretation.summary;
   const parsedCards = interpretation.cards;
-  const summaryTone = getSummaryTone(summary);
   const hasDeckListText = rawList.trim().length > 0;
   const canContinueFromList = simplePasteMode || isEditing ? hasDeckListText : summary.total === 60;
   const canSave = hasDeckListText && listName.trim().length > 0;
@@ -360,7 +328,11 @@ export function DeckListEditorDialog({
             <div
               className={[
                 "min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:pr-2",
-                simplePasteMode ? "px-3 pb-3 pt-1 sm:px-4 sm:pb-4 sm:pt-1 lg:px-5 lg:pb-5" : "p-3 sm:p-4 lg:p-5"
+                simplePasteMode
+                  ? "px-3 pb-3 pt-1 sm:px-4 sm:pb-4 sm:pt-1 lg:px-5 lg:pb-5"
+                  : step === "list"
+                    ? "px-3 pb-3 pt-2 sm:px-4 sm:pb-4 sm:pt-3 lg:px-5 lg:pb-5"
+                    : "p-3 sm:p-4 lg:p-5"
               ].join(" ")}
             >
               <form
@@ -411,32 +383,8 @@ export function DeckListEditorDialog({
                   </section>
                 ) : step === "list" ? (
                   <section className="grid gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={[
-                          "inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold",
-                          summaryTone === "success"
-                            ? "bg-win-bg text-win-strong"
-                            : summaryTone === "warning"
-                              ? "bg-loss-bg text-loss-strong"
-                              : "bg-muted text-muted-foreground"
-                        ].join(" ")}
-                      >
-                        {formatSummaryLabel(summary)}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {formatSummaryMessage(summary)}
-                      </span>
-                    </div>
-
-                    {!isEditing && summary.total !== 60 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Add Deck List continues once a complete 60-card list is detected.
-                      </p>
-                    ) : null}
-
-                    <label className="grid gap-2" htmlFor="deck-list-raw-list">
-                      <span className="text-sm font-semibold text-muted-foreground">Deck list</span>
+                    <label className="block" htmlFor="deck-list-raw-list">
+                      <span className="sr-only">Deck list</span>
                       <Textarea
                         id="deck-list-raw-list"
                         className="min-h-[320px] w-full rounded-xl border border-border bg-muted px-4 py-3 font-mono text-[0.95rem] leading-6 text-card-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/50"

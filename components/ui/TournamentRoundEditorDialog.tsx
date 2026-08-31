@@ -47,6 +47,39 @@ type DeleteState = "idle" | "deleting";
 
 const SUCCESS_CLOSE_DELAY_MS = 650;
 
+function SaveButton({
+  isEditing,
+  onClick,
+  saveState,
+  variant = "default"
+}: {
+  isEditing: boolean;
+  onClick: () => void;
+  saveState: SaveState;
+  variant?: "default" | "outline";
+}) {
+  const label = saveState === "saving"
+    ? "Saving..."
+    : saveState === "success"
+      ? "Saved"
+      : isEditing
+        ? "Save Changes"
+        : "Add Round";
+
+  return (
+    <Button
+      aria-disabled={saveState === "saving" || saveState === "success"}
+      className="sm:min-w-32"
+      disabled={saveState === "saving"}
+      onClick={onClick}
+      type="button"
+      variant={variant}
+    >
+      {label}
+    </Button>
+  );
+}
+
 function getGameResultButtonClassName(option: string, isSelected: boolean) {
   return cn(
     "min-h-11 gap-1 border-0 border-r border-border px-3 py-2 text-base font-bold last:border-r-0 sm:text-sm",
@@ -229,14 +262,6 @@ export function TournamentRoundEditorDialog({
       {triggerLabel}
     </Button>
   );
-  const saveLabel = saveState === "saving"
-    ? "Saving..."
-    : saveState === "success"
-      ? "Saved"
-      : isEditing
-        ? "Save Changes"
-        : "Add Round";
-
   const deleteButton = isEditing ? (
     <Button
       disabled={isBusy}
@@ -260,18 +285,6 @@ export function TournamentRoundEditorDialog({
   const mobileCancelButton = (
     <Button disabled={isBusy} onClick={closeDialog} type="button" variant="ghost">
       Cancel
-    </Button>
-  );
-
-  const saveButton = (
-    <Button
-      aria-disabled={saveState === "saving" || saveState === "success"}
-      className="sm:min-w-32"
-      disabled={saveState === "saving"}
-      onClick={() => formRef.current?.requestSubmit()}
-      type="button"
-    >
-      {saveLabel}
     </Button>
   );
 
@@ -500,9 +513,26 @@ export function TournamentRoundEditorDialog({
             </form>
             </div>
             <AppDialogFooter className="w-full">
-              {deleteButton ? <div className="mr-auto">{deleteButton}</div> : null}
-              {desktopCancelButton}
-              {saveButton}
+              {isEditing ? (
+                <ButtonGroup className="ml-auto">
+                  <SaveButton
+                    isEditing
+                    onClick={() => formRef.current?.requestSubmit()}
+                    saveState={saveState}
+                    variant="outline"
+                  />
+                  {deleteButton}
+                </ButtonGroup>
+              ) : (
+                <>
+                  {desktopCancelButton}
+                  <SaveButton
+                    isEditing={false}
+                    onClick={() => formRef.current?.requestSubmit()}
+                    saveState={saveState}
+                  />
+                </>
+              )}
             </AppDialogFooter>
             <AppDialogMobileFooter>
               <div className="grid gap-2">
@@ -512,7 +542,11 @@ export function TournamentRoundEditorDialog({
                     {mobileCancelButton}
                   </div>
                 ) : mobileCancelButton}
-                {saveButton}
+                <SaveButton
+                  isEditing={isEditing}
+                  onClick={() => formRef.current?.requestSubmit()}
+                  saveState={saveState}
+                />
               </div>
             </AppDialogMobileFooter>
       </AppDialogContent>

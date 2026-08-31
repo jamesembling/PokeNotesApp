@@ -1,14 +1,17 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import { AppDialogContent } from "@/components/ui/AppDialog";
 import {
   Dialog,
+  DialogClose,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  DialogTrigger
 } from "@/components/shadcn/dialog";
 
 type DeleteConfirmDialogProps = {
@@ -17,10 +20,11 @@ type DeleteConfirmDialogProps = {
   description?: string;
   disabled?: boolean;
   message: string;
-  onCancel: () => void;
+  onCancel?: () => void;
   onConfirm: () => void;
-  open: boolean;
+  open?: boolean;
   title?: string;
+  trigger?: ReactNode;
 };
 
 export function DeleteConfirmDialog({
@@ -32,17 +36,30 @@ export function DeleteConfirmDialog({
   onCancel,
   onConfirm,
   open,
-  title = "Confirm Delete"
+  title = "Confirm Delete",
+  trigger
 }: DeleteConfirmDialogProps) {
+  const cancelButton = (
+    <Button
+      className="min-w-0 flex-1 sm:flex-none"
+      disabled={disabled}
+      onClick={trigger ? undefined : onCancel}
+      variant="outline"
+    >
+      {cancelLabel}
+    </Button>
+  );
+
   return (
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen && !disabled) {
-          onCancel();
+          onCancel?.();
         }
       }}
     >
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <AppDialogContent className="border-loss-border p-4" showCloseButton={!disabled}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -56,9 +73,7 @@ export function DeleteConfirmDialog({
             <Button className="min-w-0 flex-1 sm:flex-none" disabled={disabled} onClick={onConfirm} variant="destructive">
               {confirmLabel}
             </Button>
-            <Button className="min-w-0 flex-1 sm:flex-none" disabled={disabled} onClick={onCancel} variant="outline">
-              {cancelLabel}
-            </Button>
+            {trigger ? <DialogClose asChild>{cancelButton}</DialogClose> : cancelButton}
           </ButtonGroup>
         </DialogFooter>
       </AppDialogContent>

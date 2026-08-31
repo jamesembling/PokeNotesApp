@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useTransition } from "react";
 import { Button } from "@/components/shadcn/button";
+import { DeleteConfirmDialog } from "@/components/ui/DeleteConfirmDialog";
 
 type DeleteDeckListButtonProps = {
   action: (formData: FormData) => Promise<never>;
@@ -14,44 +15,23 @@ export function DeleteDeckListButton({
   deckListId,
   updatedAt
 }: DeleteDeckListButtonProps) {
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, startSubmitting] = useTransition();
 
-  if (!isConfirming) {
-    return (
-      <Button
-        onClick={() => setIsConfirming(true)}
-        type="button"
-        variant="destructive"
-      >
-        Delete List
-      </Button>
-    );
+  function handleConfirm() {
+    const formData = new FormData();
+    formData.set("deckListId", deckListId);
+    formData.set("updatedAt", updatedAt);
+    startSubmitting(() => action(formData));
   }
 
   return (
-    <div className="grid gap-2 rounded-md border border-loss/40 p-3">
-      <p className="max-w-sm text-sm text-muted-foreground" role="alert">
-        Deleting this Deck List permanently removes it and clears linked logs,
-        tournaments, and other references.
-      </p>
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          disabled={isSubmitting}
-          onClick={() => setIsConfirming(false)}
-          type="button"
-          variant="outline"
-        >
-          Cancel
-        </Button>
-        <form action={action} onSubmit={() => setIsSubmitting(true)}>
-          <input name="deckListId" type="hidden" value={deckListId} />
-          <input name="updatedAt" type="hidden" value={updatedAt} />
-          <Button disabled={isSubmitting} type="submit" variant="destructive">
-            {isSubmitting ? "Deleting..." : "Confirm delete"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    <DeleteConfirmDialog
+      confirmLabel={isSubmitting ? "Deleting..." : "Delete List"}
+      disabled={isSubmitting}
+      message="Deleting this Deck List permanently removes it and clears linked logs, tournaments, and other references."
+      onConfirm={handleConfirm}
+      title="Delete Deck List?"
+      trigger={<Button variant="destructive">Delete List</Button>}
+    />
   );
 }
