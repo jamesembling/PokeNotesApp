@@ -13,7 +13,7 @@ Operate. Help a competitive player find a saved Deck List, inspect its linked us
 
 ## Built direction
 
-Extend the approved Stats and Deck Strategy language: shared IBM Plex typography, neutral semantic foregrounds and surfaces, tabular numbers, open rows, and thin rules. The shared page header contains the collection count and existing New Deck List action. Keep the collection free of enclosing cards, pills, outcome colours, and decorative artwork. This refresh retains the single list view and adds no filters.
+Extend the approved Stats and Deck Strategy language: shared IBM Plex typography, neutral semantic foregrounds and surfaces, tabular numbers, open rows, and thin rules. The shared page header contains the collection count and existing New Deck List action. Loaded and loading headers omit their divider because the collection owns the strong top rule. Keep the collection free of enclosing cards, pills, outcome colours, and decorative artwork. This refresh retains the single list view and adds no filters.
 
 Each entry is one complete link in the Saved Deck Lists list, ending in a chevron. Names wrap within the identity column. Keep the neutral hover, visible keyboard focus, semantic light/dark colours, and reduced-motion handling. Shared headings, actions, and editor controls retain their established treatment.
 

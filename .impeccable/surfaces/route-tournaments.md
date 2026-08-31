@@ -13,15 +13,15 @@ Operate. Help a competitive player find a Tournament, inspect its placement and 
 
 ## Built direction
 
-Extend the approved Stats, Deck Strategy, and Deck List collection language: shared IBM Plex typography, neutral semantic foregrounds and surfaces, tabular records, open rows, and thin rules. The shared page header retains the lazy + New Tournament outline action. Tournament history carries the event count and Most recent first text. Keep this landing-page collection free of enclosing or nested cards, tables, pills, and decorative colour bars; placement and record use normal neutral text. These constraints do not restyle shared editors, actions, or the schema notice.
+Extend the approved Stats, Deck Strategy, and Deck List collection language: shared IBM Plex typography, neutral semantic foregrounds and surfaces, tabular records, open rows, and thin rules. The shared page header retains the lazy + New Tournament outline action. Loaded and loading headers omit their divider because the collection owns the strong top rule. The collection retains the event count and Most recent first text without a repeated section title. Keep this landing-page collection free of enclosing or nested cards, tables, pills, and decorative colour bars; placement and record use normal neutral text. These constraints do not restyle shared editors, actions, or the schema notice.
 
 Each entry is one complete link in the Saved Tournaments list, ending in a chevron. Names and date/category metadata wrap within the identity column. Keep neutral hover, visible keyboard focus, semantic light/dark colours, and reduced-motion handling. The collection adds no filters or view switch.
 
 ## Responsive layout
 
-Measure available page-container width, including the space left by the app sidebar. At 40rem or wider, show five columns: stored deck sprites, Event, Placement, Record, and chevron. Event and placement are left-aligned; Record is right-aligned. The visual heading row is separate from the accessible metric labels retained within each link.
+Measure available page-container width, including the space left by the app sidebar. At 40rem or wider, show five columns: stored deck sprites, Event, Placement, Record, and chevron. Event is left-aligned, Placement centred, and Record right-aligned; headings, values, and loading placeholders share those alignments. The visual heading row is separate from the accessible metric labels retained within each link.
 
-Below 40rem, hide the sprite column and visual heading row. Event identity spans the row, with the chevron beside it; Placement and Record follow in two equal columns with visible labels. Preserve complete values and wrapping names and metadata without horizontal overflow. Loading uses the same breakpoint and column structure.
+Below 40rem, hide the sprite column and visual heading row. Event identity spans the row, with the chevron beside it; Placement and Record follow in two equal columns with visible, left-aligned labels and values. Preserve complete values and wrapping names and metadata without horizontal overflow. Loading uses the same breakpoint and column structure.
 
 ## Event and navigation contracts
 
@@ -35,7 +35,7 @@ Below 40rem, hide the sprite column and visual heading row. Event identity spans
 
 Keep the existing lazy editor and option-loading behavior. An empty collection displays No tournaments saved yet and its existing guidance while the page action remains available.
 
-The route loading state preserves the shared page header and action placeholder. Both route and streamed-content loading use Tournament history, the collection rule, responsive column headings, and three row skeletons. Announce Loading Tournaments through the busy status region and hide decorative skeleton content from assistive technology.
+The route loading state preserves the shared page header and action placeholder. Both route and streamed-content loading use a count/order placeholder, the collection rule, responsive column headings, and three row skeletons without a repeated section title. Announce Loading Tournaments through the busy status region and hide decorative skeleton content from assistive technology.
 
 Preserve `requireUser`, the existing measured data read, proxy-auth and route-data timing markers, and the Suspense streaming boundary. Retain the non-production `TournamentSchemaNotice` unchanged, the production Tournament tracking is temporarily unavailable response, and rethrowing of other errors.
 

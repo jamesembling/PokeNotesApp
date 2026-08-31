@@ -31,6 +31,7 @@ export default async function TournamentsPage() {
       <ProxyAuthTimingMarker />
       <PageHeader
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Tournaments" }]}
+        variant="collection"
         title="Tournaments"
         action={
           <PageActions className="w-full sm:w-fit" mobile="stack">

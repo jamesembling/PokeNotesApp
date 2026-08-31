@@ -37,6 +37,7 @@ export default async function DeckListsPage() {
             {deckLists.length} {deckLists.length === 1 ? "list" : "lists"}
           </span>
         }
+        variant="collection"
         title="Deck Lists"
       />
 

@@ -11,6 +11,7 @@ export function DeckListsLoadingState() {
         action={<Skeleton aria-hidden="true" className="h-10 w-36" />}
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Deck Lists" }]}
         meta={<Skeleton aria-hidden="true" className="h-5 w-12" />}
+        variant="collection"
         title="Deck Lists"
       />
       <div aria-hidden="true" className={styles.collection}>

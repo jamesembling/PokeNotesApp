@@ -18,6 +18,7 @@ type PageBreadcrumbItem = {
 type PageHeaderProps = {
   breadcrumb: PageBreadcrumbItem[];
   title?: string;
+  variant?: "default" | "collection";
   subtitle?: string;
   meta?: ReactNode;
   action?: ReactNode;
@@ -29,6 +30,7 @@ type PageHeaderProps = {
 export function PageHeader({
   breadcrumb,
   title = "",
+  variant = "default",
   subtitle,
   meta,
   action,
@@ -106,7 +108,7 @@ export function PageHeader({
         </div>
       ) : null}
 
-      <div className="border-b border-border" />
+      {variant === "default" ? <div className="border-b border-border" /> : null}
     </header>
   );
 }
