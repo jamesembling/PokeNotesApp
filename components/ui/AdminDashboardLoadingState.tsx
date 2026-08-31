@@ -1,36 +1,34 @@
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import styles from "./admin/admin.module.css";
 
 export function AdminDashboardLoadingState() {
   return (
-    <div aria-busy="true" aria-label="Loading Admin Dashboard" data-route-loading>
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          breadcrumb={[
-            { label: "Poke Notes", href: "/" },
-            { label: "Admin" },
-            { label: "Dashboard" }
-          ]}
-          title="Admin Dashboard"
-          subtitle="Manage account access and monitor the imported catalog data that powers battle log identification."
-        />
-        <AdminSummaryCardsFallback />
-        <AdminUsersSectionFallback />
-      </div>
+    <div aria-busy="true" aria-label="Loading Admin Dashboard" className={styles.page} data-route-loading>
+      <PageHeader
+        breadcrumb={[
+          { label: "Poke Notes", href: "/" },
+          { label: "Admin" },
+          { label: "Dashboard" }
+        ]}
+        title="Admin Dashboard"
+        subtitle="Manage account access and monitor the imported catalog data that powers battle log identification."
+      />
+      <AdminSummaryCardsFallback />
+      <AdminUsersSectionFallback />
     </div>
   );
 }
 
 export function AdminSummaryCardsFallback() {
   return (
-    <div className="grid gap-6 md:grid-cols-3" data-route-loading>
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div className="py-2" key={index}>
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-9 w-16" />
-            <Skeleton className="h-4 w-40" />
-          </div>
+    <div aria-hidden="true" className={styles.summary} data-route-loading>
+      {["Users", "Pokémon Catalog", "Archetypes"].map((label) => (
+        <div className={styles.summaryItem} key={label}>
+          <p>{label}</p>
+          <Skeleton className={styles.summaryValueSkeleton} />
+          <Skeleton className={styles.summaryDetailSkeleton} />
         </div>
       ))}
     </div>
@@ -39,16 +37,22 @@ export function AdminSummaryCardsFallback() {
 
 export function AdminUsersSectionFallback() {
   return (
-    <section className="flex flex-col gap-4 border-t border-border pt-6" data-route-loading>
-      <div className="flex flex-col gap-1">
-        <p className="ui-eyebrow">User Management</p>
-        <h2 className="text-base font-semibold text-card-foreground">Accounts and Roles</h2>
-        <p className="text-sm text-muted-foreground">Loading trainer accounts and role controls…</p>
+    <section className={styles.accounts} data-route-loading>
+      <div className={styles.sectionIntro}>
+        <SectionHeader title="Accounts and Roles" />
+        <p className={styles.description}>Loading trainer accounts and role controls…</p>
       </div>
-
-      <div className="flex flex-col gap-3">
+      <div aria-hidden="true" className={styles.loadingLedger}>
         {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton className="h-20 rounded-none border-b border-border" key={index} />
+          <div className={styles.loadingRow} key={index}>
+            <div><Skeleton className="h-5 w-36" /><Skeleton className="mt-2 h-4 w-48 max-w-full" /></div>
+            <Skeleton className="h-4 w-28" />
+            <div><Skeleton className="h-4 w-28" /><Skeleton className="mt-3 h-4 w-36 max-w-full" /></div>
+            {Array.from({ length: 4 }).map((_, countIndex) => (
+              <Skeleton className="h-4 w-8 justify-self-end" key={countIndex} />
+            ))}
+            <Skeleton className="h-6 w-20" />
+          </div>
         ))}
       </div>
     </section>

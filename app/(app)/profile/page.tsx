@@ -1,13 +1,7 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/shadcn/card";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PageWidth } from "@/components/ui/PageWidth";
 import { ProfileForm } from "@/components/ui/ProfileForm";
+import { SectionTitle } from "@/components/ui/Typography";
+import styles from "@/components/ui/account/profile.module.css";
 import { getCurrentProfile } from "@/lib/db/profile";
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
@@ -31,86 +25,34 @@ export default async function ProfilePage() {
   const profile = await getCurrentProfile();
 
   return (
-    <PageWidth size="narrow">
+    <div className={styles.page}>
       <PageHeader
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Profile" }]}
         title="Profile"
       />
 
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <p className="ui-eyebrow">Trainer Profile</p>
-            <CardTitle as="h2">Account Details</CardTitle>
-            <CardDescription>
-              Your PTCGL username is used to identify your side when importing battle
-              logs.
-            </CardDescription>
-          </CardHeader>
+      <div className={styles.layout}>
+        <ProfileForm profile={profile} />
 
-          <CardContent>
-            <ProfileForm profile={profile} />
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <p className="ui-eyebrow">Signed In</p>
-              <CardTitle as="h2">Account Snapshot</CardTitle>
-            </CardHeader>
-
-            <CardContent>
-              <dl className="grid gap-3 text-sm">
-                <div className="flex items-start justify-between gap-4">
-                  <dt className="text-muted-foreground">Email</dt>
-                  <dd className="text-right text-card-foreground">{profile.email || "Unknown"}</dd>
-                </div>
-                <div className="flex items-start justify-between gap-4">
-                  <dt className="text-muted-foreground">Role</dt>
-                  <dd className="text-right text-card-foreground">{profile.role}</dd>
-                </div>
-                <div className="flex items-start justify-between gap-4">
-                  <dt className="text-muted-foreground">Avatar Color</dt>
-                  <dd className="text-right capitalize text-card-foreground">
-                    {profile.avatarColor}
-                  </dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <p className="ui-eyebrow">Activity</p>
-              <CardTitle as="h2">Profile Metadata</CardTitle>
-            </CardHeader>
-
-            <CardContent>
-              <dl className="grid gap-3 text-sm">
-                <div className="flex items-start justify-between gap-4">
-                  <dt className="text-muted-foreground">Account Created</dt>
-                  <dd className="text-right text-card-foreground">
-                    {formatDateTime(profile.authAccountCreatedAt || profile.createdAt)}
-                  </dd>
-                </div>
-                <div className="flex items-start justify-between gap-4">
-                  <dt className="text-muted-foreground">Last Login</dt>
-                  <dd className="text-right text-card-foreground">
-                    {formatDateTime(profile.lastLoginAt)}
-                  </dd>
-                </div>
-                <div className="flex items-start justify-between gap-4">
-                  <dt className="text-muted-foreground">Last Active</dt>
-                  <dd className="text-right text-card-foreground">
-                    {formatDateTime(profile.lastActiveAt)}
-                  </dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
-        </div>
+        <aside aria-label="Account information" className={styles.account}>
+          <section>
+            <SectionTitle size="sm">Account</SectionTitle>
+            <dl className={styles.metadata}>
+              <div><dt>Email</dt><dd>{profile.email || "Unknown"}</dd></div>
+              <div><dt>Role</dt><dd className={styles.capitalize}>{profile.role}</dd></div>
+              <div><dt>Avatar colour</dt><dd className={styles.capitalize}>{profile.avatarColor}</dd></div>
+            </dl>
+          </section>
+          <section className={styles.activity}>
+            <SectionTitle size="sm">Activity</SectionTitle>
+            <dl className={styles.metadata}>
+              <div><dt>Account created</dt><dd>{formatDateTime(profile.authAccountCreatedAt || profile.createdAt)}</dd></div>
+              <div><dt>Last login</dt><dd>{formatDateTime(profile.lastLoginAt)}</dd></div>
+              <div><dt>Last active</dt><dd>{formatDateTime(profile.lastActiveAt)}</dd></div>
+            </dl>
+          </section>
+        </aside>
       </div>
-    </PageWidth>
+    </div>
   );
 }

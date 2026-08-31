@@ -4,10 +4,10 @@ import {
   setDeckListAssociationAction
 } from "@/app/(app)/deck-lists/actions";
 import { Button } from "@/components/shadcn/button";
-import { Card } from "@/components/shadcn/card";
-import { CopyDeckListButton } from "@/components/ui/CopyDeckListButton";
 import { DeleteDeckListButton } from "@/components/ui/DeleteDeckListButton";
-import { DeckListVisualGrid } from "@/components/ui/DeckListVisualGrid";
+import { DeckListProfile } from "@/components/ui/DeckListProfile";
+import { ChevronDown } from "lucide-react";
+import styles from "@/components/ui/deck-list/profile.module.css";
 import { LazyDeckListEditorButton } from "@/components/ui/LazyDeckListEditorButton";
 import { PageActions } from "@/components/ui/PageActions";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -47,23 +47,25 @@ export default async function FirstClassDeckListPage({ params, searchParams }: D
           title="Deck List not found"
           subtitle="This Deck List could not be found or you do not have access to it."
         />
-        <Card>
+        <div className={styles.notFound}>
           <Button asChild variant="outline">
             <Link href="/deck-lists" prefetch={false}>Back to Deck Lists</Link>
           </Button>
-        </Card>
+        </div>
       </>
     );
   }
 
   const isLegacyOnly = deckList.storage === "legacy";
+  const strategyName = strategyOptions.find((strategy) => strategy.id === deckList.deckId)?.name;
 
   return (
-    <>
+    <div className={styles.root}>
       <PageHeader
         action={
           <PageActions>
             <LazyDeckListEditorButton
+              key={`${deckList.id}:${deckList.updatedAt}`}
               deckId={deckList.deckId ?? undefined}
               deckList={deckList}
               defaultCreatedBy={defaultCreatedBy}
@@ -82,62 +84,45 @@ export default async function FirstClassDeckListPage({ params, searchParams }: D
         }
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Deck Lists", href: "/deck-lists" }, { label: deckList.name }]}
         title={deckList.name}
-        subtitle={deckList.deckId ? "Associated with a Deck Strategy" : "Standalone Deck List"}
       />
 
-      <Card className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-sm text-muted-foreground">
-            {deckList.format}{deckList.date ? ` · ${deckList.date}` : ""}
-          </div>
-          <CopyDeckListButton text={deckList.rawList} />
-        </div>
-        {deckList.sortedCards.length > 0 ? (
-          <DeckListVisualGrid cards={deckList.sortedCards} />
-        ) : (
-          <p className="text-sm text-foreground">No parsed cards are available for this Deck List yet.</p>
-        )}
-      </Card>
-
-      {isLegacyOnly ? (
-        <Card className="space-y-2">
-          <h2 className="font-semibold">Legacy compatibility list</h2>
-          <p className="text-sm text-muted-foreground">
-            Edit this strategy-scoped list to exact-adopt it as a first-class Deck List.
-            Delete and association controls are unavailable until that adoption completes.
+      <DeckListProfile
+        deckList={deckList}
+        strategyName={strategyName}
+        associationControl={isLegacyOnly ? (
+          <p className={styles.legacyNotice}>
+            This list is stored with its Deck Strategy. Save it through Edit List
+            to enable moving or deleting it without affecting other strategy content.
           </p>
-        </Card>
-      ) : (
-        <Card className="space-y-3">
-          <div>
-            <h2 className="font-semibold">Deck Strategy association</h2>
-            <p className="text-sm text-muted-foreground">
-              Attach this account-owned list to a strategy, or choose Standalone to detach it.
-            </p>
-          </div>
-          <form action={setDeckListAssociationAction} className="flex flex-wrap items-end gap-3">
-            <input name="deckListId" type="hidden" value={deckList.id} />
-            <input name="updatedAt" type="hidden" value={deckList.updatedAt} />
-            <label className="grid min-w-64 gap-1 text-sm" htmlFor="deck-list-strategy">
-              Strategy
-              <select
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                defaultValue={deckList.deckId ?? ""}
-                id="deck-list-strategy"
-                name="deckId"
-              >
-                <option value="">Standalone</option>
-                {strategyOptions.map((strategy) => (
-                  <option key={strategy.id} value={strategy.id}>
-                    {strategy.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button type="submit">Save association</Button>
-          </form>
-        </Card>
-      )}
-    </>
+        ) : (
+          <details className={styles.association}>
+            <summary className={styles.associationSummary}>
+              {deckList.deckId ? "Change association" : "Link a Deck Strategy"}
+              <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
+            </summary>
+            <form action={setDeckListAssociationAction} className={styles.associationForm}>
+              <input name="deckListId" type="hidden" value={deckList.id} />
+              <input name="updatedAt" type="hidden" value={deckList.updatedAt} />
+              <label className={styles.associationLabel} htmlFor="deck-list-strategy">
+                Deck Strategy
+                <select
+                  className={styles.associationSelect}
+                  defaultValue={deckList.deckId ?? ""}
+                  id="deck-list-strategy"
+                  name="deckId"
+                >
+                  <option value="">Standalone</option>
+                  {strategyOptions.map((strategy) => (
+                    <option key={strategy.id} value={strategy.id}>{strategy.name}</option>
+                  ))}
+                </select>
+              </label>
+              <p className={styles.associationHint}>Choose Standalone to keep this list without a linked strategy.</p>
+              <Button type="submit" variant="outline">Save association</Button>
+            </form>
+          </details>
+        )}
+      />
+    </div>
   );
 }

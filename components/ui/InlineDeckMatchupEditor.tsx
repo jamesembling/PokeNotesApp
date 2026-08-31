@@ -7,6 +7,7 @@ import {
   ArrowRight,
   ArrowUp,
   CheckCircle2,
+  ChevronDown,
   GripVertical,
   MoreHorizontal,
   Pencil,
@@ -18,7 +19,6 @@ import { updateDeckMatchupPlanAction } from "@/app/(app)/decks/actions";
 import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
-import { Card } from "@/components/shadcn/card";
 import { Dialog } from "@/components/shadcn/dialog";
 import {
   DropdownMenu,
@@ -34,6 +34,8 @@ import {
   AppDialogHeader,
   AppDialogMobileFooter
 } from "@/components/ui/AppDialog";
+import { SectionTitle } from "@/components/ui/Typography";
+import styles from "@/components/ui/deck-strategy/strategy.module.css";
 import {
   moveStrategyNoteBetweenLanes,
   moveStrategyNote,
@@ -60,20 +62,17 @@ type MatchupWorkspaceState = {
 const LANE_ORDER: MatchupLane[] = ["idealBench", "techsNeeded", "strategyNotes"];
 const PHASE_ORDER: MatchupPhase[] = ["earlyGame", "midGame", "lateGame"];
 
-const LANE_META: Record<MatchupLane, { dotClassName: string; label: string; description: string }> =
+const LANE_META: Record<MatchupLane, { label: string; description: string }> =
   {
     idealBench: {
-      dotClassName: "bg-[var(--strategy-bench-plan)]",
       label: "Ideal Bench",
       description: "Capture your preferred bench state for this matchup."
     },
     techsNeeded: {
-      dotClassName: "bg-[var(--strategy-tech)]",
       label: "Techs Needed",
       description: "List the cards or tech pieces you need for this matchup."
     },
     strategyNotes: {
-      dotClassName: "bg-[var(--strategy-game-plan)]",
       label: "Strategy Notes",
       description: "Capture your matchup plan, sequencing notes, and testing takeaways."
     }
@@ -81,20 +80,17 @@ const LANE_META: Record<MatchupLane, { dotClassName: string; label: string; desc
 
 const PHASE_META: Record<
   MatchupPhase,
-  { dotClassName: string; label: string; description: string }
+  { label: string; description: string }
 > = {
   earlyGame: {
-    dotClassName: "bg-[var(--strategy-game-plan)]",
     label: "Early Game",
     description: "Capture your opening setup, first turns, and early priorities."
   },
   midGame: {
-    dotClassName: "bg-[var(--strategy-bench-plan)]",
     label: "Mid Game",
     description: "Capture the exchanges, sequencing, and resources that shape the middle game."
   },
   lateGame: {
-    dotClassName: "bg-[var(--strategy-tech)]",
     label: "Late Game",
     description: "Capture your closing routes, prize plan, and comeback considerations."
   }
@@ -132,6 +128,9 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
     category: NoteCollection;
     index: number;
   } | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<NoteCollection>>(
+    () => new Set(["earlyGame", "strategyNotes"])
+  );
   const { errorMessage, queueSave, resetSavedValue, saveStatus } = useCoalescedAutosave({
     fallbackError: "Could not save matchup changes.",
     initialValue: initialState,
@@ -164,6 +163,7 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
     workspaceRef.current = nextState;
     setWorkspace(nextState);
     resetSavedValue(nextState);
+    setExpandedCategories(new Set(["earlyGame", "strategyNotes"]));
   }, [deckId, matchup, resetSavedValue]);
 
   function commitWorkspace(nextState: MatchupWorkspaceState) {
@@ -199,6 +199,7 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
     setEditingNote(null);
     setNoteDraft("");
     setDialogCategory(category);
+    setExpandedCategories((current) => new Set(current).add(category));
   }
 
   function openEditDialog(category: NoteCollection, index: number, note: string) {
@@ -211,6 +212,18 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
     setDialogCategory(null);
     setEditingNote(null);
     setNoteDraft("");
+  }
+
+  function toggleCategory(category: NoteCollection) {
+    setExpandedCategories((current) => {
+      const next = new Set(current);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
   }
 
   function submitNote(event: FormEvent<HTMLFormElement>) {
@@ -272,6 +285,8 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
       return;
     }
 
+    setExpandedCategories((current) => new Set(current).add(nextCategory));
+
     commitWorkspace({
       ...workspaceRef.current,
       phases: moveStrategyNoteBetweenLanes(
@@ -296,32 +311,33 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
   function renderNotes(
     category: NoteCollection,
     notes: string[],
-    meta: { dotClassName: string; label: string }
+    meta: { label: string }
   ) {
     if (notes.length === 0) {
       return (
-        <div className="flex min-h-16 items-center justify-center rounded-lg border border-dashed border-border px-3 text-center text-sm text-muted-foreground">
+        <p className={styles.emptyLane}>
           No {meta.label.toLowerCase()} notes yet.
-        </div>
+        </p>
       );
     }
 
     return notes.map((note, index) => (
       <div
-        className="flex min-h-11 items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-sm transition hover:bg-muted"
+        className={styles.noteRow}
+        data-dragging={draggedNote?.category === category && draggedNote.index === index}
         draggable
         key={`${category}-${index}-${note}`}
         onDragEnd={() => setDraggedNote(null)}
         onDragOver={(event) => event.preventDefault()}
         onDragStart={() => setDraggedNote({ category, index })}
         onDrop={(event) => handleDrop(event, category, index)}
+        role="listitem"
       >
-        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground" />
-        <span className="min-w-0 flex-1 text-card-foreground">{note}</span>
-        <span className={`size-2 shrink-0 rounded-full ${meta.dotClassName}`} />
+        <GripVertical aria-hidden="true" className={styles.dragHandle} />
+        <span className={styles.noteText}>{note}</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button aria-label={`Actions for ${note}`} size="icon-xs" variant="ghost">
+            <Button aria-label={`Actions for ${note}`} className={styles.noteActions} size="icon-xs" variant="ghost">
               <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -390,28 +406,23 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
   }
 
   return (
-    <section aria-labelledby="matchup-strategy-workspace-heading" className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2
-          className="font-display text-2xl font-semibold tracking-[-0.03em] text-card-foreground"
-          id="matchup-strategy-workspace-heading"
-        >
-          Strategy Workspace
-        </h2>
+    <section aria-labelledby="matchup-strategy-workspace-heading" className={`${styles.workspace} ${styles.matchupWorkspace}`}>
+      <div className={styles.notesHeader}>
+        <SectionTitle id="matchup-strategy-workspace-heading" size="lg">
+          Matchup Notes
+        </SectionTitle>
         <span
           aria-live="polite"
-          className={
-            saveStatus === "error"
-              ? "flex items-center gap-1.5 text-sm font-medium text-loss-strong"
-              : "flex items-center gap-1.5 text-sm font-medium text-win-strong"
-          }
+          className={styles.saveStatus}
+          data-state={saveStatus}
           role="status"
         >
           {saveStatus === "error" ? (
-            <AlertCircle className="size-4" />
-          ) : (
-            <CheckCircle2 className="size-4" />
+            <AlertCircle aria-hidden="true" className="size-3.5" />
+          ) : saveStatus === "saving" ? null : (
+            <CheckCircle2 aria-hidden="true" className="size-3.5" />
           )}
+          <span className="sr-only">Notes: </span>
           {saveLabel}
         </span>
       </div>
@@ -427,120 +438,59 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
         </Alert>
       ) : null}
 
-      <Card className="gap-0 overflow-hidden p-0 sm:gap-0 sm:p-0">
-        <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5">
-          <div>
-            <h3 className="font-display text-lg font-semibold tracking-[-0.025em] text-card-foreground">
-              Matchup Notes
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {PHASE_ORDER.reduce(
-                (total, category) => total + workspace.phases[category].length,
-                0
-              )}{" "}
-              notes across the game
-            </p>
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-3">
-          {PHASE_ORDER.map((category) => {
-            const notes = workspace.phases[category];
-            const meta = PHASE_META[category];
-
-            return (
-              <section
-                aria-labelledby={`matchup-phase-${category}`}
-                className="flex min-h-64 flex-col border-t border-border first:border-t-0 md:border-l md:border-t-0 md:first:border-l-0"
-                key={category}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => handleDrop(event, category, notes.length)}
-              >
-                <div className="flex items-start gap-3 px-4 py-3">
-                  <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${meta.dotClassName}`} />
-                  <div className="min-w-0 flex-1">
-                    <h4
-                      className="font-display text-base font-semibold text-card-foreground"
-                      id={`matchup-phase-${category}`}
-                    >
-                      {meta.label}
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {notes.length} {notes.length === 1 ? "note" : "notes"}
-                    </p>
-                  </div>
-                  <Button
-                    aria-label={`Add ${meta.label} note`}
-                    onClick={() => openAddDialog(category)}
-                    size="icon-lg"
-                    variant="outline"
-                  >
-                    <Plus className="size-4" />
-                  </Button>
-                </div>
-
-                <div className="flex-1 space-y-1.5 px-3 pb-2">
-                  {renderNotes(category, notes, meta)}
-                </div>
-
-                <div className="flex justify-end px-3 pb-3 pt-0.5">
-                  <Button
-                    className="px-0 text-[var(--strategy-focus)]"
-                    onClick={() => openAddDialog(category)}
-                    variant="ghost"
-                  >
-                    <Plus className="size-4" />
-                    Add Note
-                  </Button>
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      </Card>
-
-      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {LANE_ORDER.map((category) => {
-          const notes = workspace.lanes[category];
-          const meta = LANE_META[category];
+      <div className={`${styles.lanes} ${styles.matchupLanes}`}>
+        {[...PHASE_ORDER, ...LANE_ORDER].map((category) => {
+          const notes = isMatchupPhase(category)
+            ? workspace.phases[category]
+            : workspace.lanes[category];
+          const meta = isMatchupPhase(category) ? PHASE_META[category] : LANE_META[category];
+          const expanded = expandedCategories.has(category);
 
           return (
-            <Card className="gap-0 overflow-hidden p-0 sm:gap-0 sm:p-0" key={category}>
-              <div className="flex items-start gap-3 px-4 py-3">
-                <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${meta.dotClassName}`} />
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-display text-base font-semibold text-card-foreground">
-                    {meta.label}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
+            <section
+              aria-labelledby={`matchup-${category}-heading`}
+              className={styles.lane}
+              key={category}
+              onDragOver={isMatchupPhase(category) ? (event) => event.preventDefault() : undefined}
+              onDrop={isMatchupPhase(category) ? (event) => handleDrop(event, category, notes.length) : undefined}
+            >
+              <div className={styles.laneHeader}>
+                <div className={styles.categorySummary}>
+                  <SectionTitle as="h3" className={styles.laneTitle} id={`matchup-${category}-heading`} size="sm">
+                    <span className={styles.desktopCategoryLabel}>{meta.label}</span>
+                    <button
+                      aria-controls={`matchup-${category}-notes`}
+                      aria-expanded={expanded}
+                      className={styles.categoryToggle}
+                      onClick={() => toggleCategory(category)}
+                      type="button"
+                    >
+                      <span>{meta.label}</span>
+                      <ChevronDown aria-hidden="true" className="size-4" />
+                    </button>
+                  </SectionTitle>
+                  <span className={styles.noteCount}>
                     {notes.length} {notes.length === 1 ? "note" : "notes"}
-                  </p>
+                  </span>
                 </div>
                 <Button
                   aria-label={`Add ${meta.label} note`}
                   onClick={() => openAddDialog(category)}
                   size="icon-lg"
-                  variant="outline"
-                >
-                  <Plus className="size-4" />
-                </Button>
-              </div>
-
-              <div className="min-h-20 space-y-1.5 px-3 pb-2">
-                {renderNotes(category, notes, meta)}
-              </div>
-
-              <div className="flex justify-end px-3 pb-3 pt-0.5">
-                <Button
-                  className="px-0 text-[var(--strategy-focus)]"
-                  onClick={() => openAddDialog(category)}
                   variant="ghost"
                 >
                   <Plus className="size-4" />
-                  Add Note
                 </Button>
               </div>
-            </Card>
+              <div
+                className={`${styles.laneBody} ${styles.matchupLaneBody} ${expanded ? "" : styles.laneCollapsed}`}
+                id={`matchup-${category}-notes`}
+              >
+                <div className={styles.noteList} role={notes.length > 0 ? "list" : undefined}>
+                  {renderNotes(category, notes, meta)}
+                </div>
+              </div>
+            </section>
           );
         })}
       </div>

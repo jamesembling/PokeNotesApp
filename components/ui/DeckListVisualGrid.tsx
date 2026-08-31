@@ -9,6 +9,7 @@ import type { DeckCard } from "@/types/index";
 
 type DeckListVisualGridProps = {
   cards: DeckCard[];
+  className?: string;
   variant?: "standard" | "featured";
 };
 
@@ -37,12 +38,13 @@ const variantSourceSizes: Record<
 
 export function DeckListVisualGrid({
   cards,
+  className,
   variant = "standard"
 }: DeckListVisualGridProps) {
   const visualCards = prepareDeckListVisualCards(cards);
 
   return (
-    <div className={["grid gap-2", variantClasses[variant]].join(" ")}>
+    <div className={["grid gap-2", variantClasses[variant], className].filter(Boolean).join(" ")}>
       {visualCards.map((card, index) => (
         <DeckListCard
           cardUrl={buildDeckListCardUrl(card.set, card.number)}

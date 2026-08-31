@@ -28,10 +28,17 @@ export function DeleteDeckListButton({
     <DeleteConfirmDialog
       confirmLabel={isSubmitting ? "Deleting..." : "Delete List"}
       disabled={isSubmitting}
-      message="Deleting this Deck List permanently removes it and clears linked logs, tournaments, and other references."
+      message="Delete this Deck List and remove its links from Battle Logs and Tournaments? The Battle Logs and Tournaments themselves are kept."
       onConfirm={handleConfirm}
       title="Delete Deck List?"
-      trigger={<Button variant="destructive">Delete List</Button>}
+      trigger={
+        <Button
+          className="border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-loss-strong hover:bg-[var(--color-loss-bg)]"
+          variant="destructive"
+        >
+          Delete List
+        </Button>
+      }
     />
   );
 }

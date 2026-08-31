@@ -1,0 +1,402 @@
+.section {
+  min-width: 0;
+  color: var(--foreground);
+}
+
+.header {
+  display: grid;
+  gap: 0.75rem;
+  padding-block: 0.25rem 2.25rem;
+}
+
+.intro {
+  max-width: 65ch;
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem 2rem;
+  padding-block-end: 1.75rem;
+}
+
+.search {
+  display: grid;
+  flex: 0 1 24rem;
+  gap: 0.5rem;
+}
+
+.searchLabel {
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.searchInput {
+  height: 2.75rem;
+  border-radius: 0;
+  border-width: 0 0 1px;
+  border-color: var(--border);
+  background: transparent;
+  padding-inline: 0;
+  color: var(--card-foreground);
+  font-size: 1rem;
+  caret-color: var(--foreground);
+}
+
+.searchInput:focus-visible {
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+  box-shadow: none;
+}
+
+.sampleControl {
+  flex-shrink: 0;
+  padding-block-end: 0.1875rem;
+}
+
+.checkboxLabel {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  accent-color: var(--foreground);
+  cursor: pointer;
+}
+
+.checkbox:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+
+.sampleNote {
+  padding-inline-start: 1.625rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.tableMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.375rem 1.5rem;
+  padding-block-end: 0.875rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.tableMeta strong {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border-block-start: 1px solid var(--foreground);
+  text-align: left;
+}
+
+.archetypeColumn {
+  width: 52%;
+}
+
+.gamesColumn {
+  width: 14%;
+}
+
+.recordColumn {
+  width: 17%;
+}
+
+.rateColumn {
+  width: 17%;
+}
+
+.table tr {
+  border-block-end: 1px solid var(--border);
+}
+
+.identityHeader,
+.numberHeader {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.identityHeader {
+  padding-block: 0.5rem;
+}
+
+.numberHeader {
+  text-align: right;
+}
+
+.sortButton {
+  min-width: 0;
+  min-height: 3rem;
+  justify-content: flex-end;
+  gap: 0.3125rem;
+  border-radius: 0;
+  padding: 0;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.sortButton[data-active] {
+  color: var(--foreground);
+}
+
+.sortButton:hover {
+  background: transparent;
+  color: var(--card-foreground);
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+
+.sortButton:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+.sortIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+  opacity: 0.5;
+}
+
+.sortButton[data-active] .sortIcon {
+  opacity: 1;
+}
+
+.sortAscending {
+  transform: rotate(180deg);
+}
+
+.identityCell,
+.numberCell {
+  padding-block: 1.125rem;
+  vertical-align: middle;
+}
+
+.identityCell {
+  padding-inline-end: 1rem;
+  font-weight: 500;
+}
+
+.identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sprites {
+  width: 4.125rem;
+  flex-shrink: 0;
+}
+
+.nameBlock {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.name {
+  color: var(--card-foreground);
+  font-size: 1rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.smallSample {
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.numberCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.games {
+  color: var(--muted-foreground);
+  font-size: 1rem;
+}
+
+.record {
+  color: var(--foreground);
+  font-size: 1.0625rem;
+}
+
+.winRate {
+  color: var(--card-foreground);
+  font-size: 1.625rem;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.percent {
+  margin-inline-start: 0.0625rem;
+  font-size: 0.625em;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.footnote {
+  max-width: 80ch;
+  padding-block-start: 1rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.empty {
+  border-block: 1px solid var(--border);
+  padding-block: 3rem;
+}
+
+.emptyCell {
+  padding-block: 3rem;
+}
+
+.emptyTitle {
+  color: var(--card-foreground);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.emptyDescription {
+  max-width: 65ch;
+  margin-block-start: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.emptyAction {
+  margin-block-start: 1.25rem;
+}
+
+@media (max-width: 639px) {
+  .header {
+    padding-block-end: 1.75rem;
+  }
+
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-block-end: 1.5rem;
+  }
+
+  .search {
+    flex-basis: auto;
+  }
+
+  .sampleControl {
+    align-self: flex-start;
+  }
+
+  .tableMeta {
+    font-size: 0.6875rem;
+  }
+
+  .archetypeColumn {
+    width: 39%;
+  }
+
+  .gamesColumn {
+    width: 17%;
+  }
+
+  .recordColumn {
+    width: 20%;
+  }
+
+  .rateColumn {
+    width: 24%;
+  }
+
+  .identityHeader,
+  .sortButton {
+    font-size: 0.6875rem;
+  }
+
+  .sortButton {
+    gap: 0.125rem;
+  }
+
+  .sortIcon {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+
+  .identityCell,
+  .numberCell {
+    padding-block: 0.875rem;
+  }
+
+  .identityCell {
+    padding-inline-end: 0.5rem;
+  }
+
+  .identity {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .sprites {
+    width: auto;
+  }
+
+  .sprites > * {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .name {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+
+  .games,
+  .record {
+    font-size: 0.875rem;
+  }
+
+  .winRate {
+    font-size: 1.25rem;
+  }
+
+  .footnote {
+    font-size: 0.6875rem;
+  }
+}

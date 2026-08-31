@@ -1,1 +1,1 @@
-export { default } from "@/components/ui/AppRouteLoading";
+export { ProfileLoadingState as default } from "@/components/ui/ProfileLoadingState";

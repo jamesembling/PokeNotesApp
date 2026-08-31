@@ -1,16 +1,20 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Card } from "@/components/shadcn/card";
 import { Skeleton } from "@/components/shadcn/skeleton";
+import { PageHeader } from "@/components/ui/PageHeader";
+import styles from "./calculator.module.css";
 
 function CalculatorLoadingState() {
   return (
-    <Card aria-label="Loading probability calculator" className="grid gap-4" role="status">
-      <Skeleton aria-hidden="true" className="h-8 w-56 max-w-full" />
-      <Skeleton aria-hidden="true" className="h-64 w-full" />
-      <span className="sr-only">Loading probability calculator</span>
-    </Card>
+    <div className={styles.root}>
+      <PageHeader breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Probability Calculator" }]} title="Probability Calculator" />
+      <div aria-label="Loading probability calculator" className={styles.loading} role="status">
+        <div className="space-y-6"><Skeleton aria-hidden="true" className="h-7 w-64 max-w-full rounded-none" /><Skeleton aria-hidden="true" className="h-80 w-full rounded-none" /></div>
+        <Skeleton aria-hidden="true" className="h-64 w-full rounded-none" />
+        <span className="sr-only">Loading probability calculator</span>
+      </div>
+    </div>
   );
 }
 

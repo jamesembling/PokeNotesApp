@@ -167,7 +167,7 @@ svg{width:100%;height:100%;display:block;touch-action:none}.boundary{fill:#0b132
       "path": "app/(app)/stats/page.tsx",
       "role": "Loads overview, damage timeline, and archetype matchup aggregates backed by database read-model functions.",
       "entrypoints": ["StatsPage", "getLogStatsOverview", "getLogDamageTimeline", "getArchetypeMatchupStats"],
-      "tests": ["tests/stats-damage-timeline.test.ts", "tests/archetype-matchup-stats-sql.test.ts", "tests/logs-initial-read-model-sql.test.ts"],
+      "tests": ["tests/stats-performance.test.ts", "tests/archetype-matchup-stats-sql.test.ts", "tests/logs-initial-read-model-sql.test.ts"],
       "constraints": ["Reads are scoped by authenticated user context.", "Expensive summaries use SQL read models rather than client aggregation."],
       "evidence": [{"path": "app/(app)/stats/page.tsx", "symbol": "StatsPage"}, {"path": "lib/db/logs.ts", "symbol": "getLogStatsOverview"}]
     },

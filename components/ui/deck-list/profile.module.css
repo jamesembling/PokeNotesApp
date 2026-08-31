@@ -1,0 +1,60 @@
+.root { min-width: 0; }
+.root h1 { overflow-wrap: anywhere; }
+.profile { container-type: inline-size; min-width: 0; color: var(--card-foreground); }
+.profile ::selection { background: var(--card-foreground); color: var(--card); }
+.compositionRow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1.1rem 0; border-bottom: 1px solid var(--border); }
+.composition { display: flex; align-items: baseline; flex-wrap: wrap; gap: .6rem 1.75rem; }
+.composition > div { display: flex; align-items: baseline; gap: .6rem; }
+.composition dt { font-size: .8125rem; color: var(--muted-foreground); }
+.composition dd { font-size: 1.125rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.5rem; padding-top: 1.75rem; }
+.artwork { min-width: 0; container: deck-list-artwork / inline-size; }
+.artwork .galleryGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; }
+.details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; align-content: start; min-width: 0; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+.details > section { min-width: 0; }
+.metadata { margin-top: 1.15rem; }
+.metadata > div { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: .75rem; padding: .6rem 0; font-size: .8125rem; line-height: 1.65; }
+.metadata dt { color: var(--muted-foreground); }
+.metadata dd { overflow-wrap: anywhere; }
+.strategyLink { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-top: 1rem; padding: .6rem 0; font-size: .9375rem; line-height: 1.65; font-weight: 500; text-underline-offset: .2em; }
+.strategyLink span { overflow-wrap: anywhere; }
+.strategyLink:hover { text-decoration: underline; }
+.strategyLink:focus-visible, .associationSummary:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.standalone { margin-top: 1.2rem; font-size: .9375rem; }
+.association { margin-top: .65rem; }
+.associationSummary { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 2.75rem; font-size: .8125rem; color: var(--muted-foreground); cursor: pointer; list-style: none; }
+.associationSummary::-webkit-details-marker { display: none; }
+.association[open] .associationSummary > svg { transform: rotate(180deg); }
+.associationSummary:hover { color: var(--card-foreground); }
+.associationForm { display: grid; gap: .75rem; padding: .65rem 0 .25rem; }
+.associationLabel { display: grid; min-width: 0; gap: .5rem; font-size: .8125rem; }
+.associationSelect { width: 100%; min-width: 0; height: 2.75rem; border: 1px solid var(--input); border-radius: 4px; background: var(--card); padding: 0 .65rem; color: var(--card-foreground); font: inherit; }
+.associationSelect:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.associationHint, .legacyNotice { font-size: .8125rem; line-height: 1.7; color: var(--muted-foreground); }
+.legacyNotice { margin-top: 1rem; }
+.muted { font-size: .8125rem; color: var(--muted-foreground); }
+.emptyCards { padding: 2rem 0; }
+.emptyCards > p { max-width: 50ch; margin-top: .75rem; color: var(--muted-foreground); font-size: .9375rem; line-height: 1.8; }
+.notFound { padding-top: 1.5rem; }
+
+@container deck-list-artwork (min-width: 36rem) {
+  .artwork .galleryGrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+@container deck-list-artwork (min-width: 60rem) {
+  .artwork .galleryGrid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+
+@container (min-width: 64rem) {
+  .layout { grid-template-columns: minmax(0, 1fr) 16rem; gap: 2.5rem; }
+  .details { grid-template-columns: minmax(0, 1fr); gap: 1.75rem; border-top: 0; padding-top: 0; }
+  .strategy { border-top: 1px solid var(--border); padding-top: 1.5rem; }
+}
+
+@container (max-width: 30rem) {
+  .composition { column-gap: 1.15rem; }
+  .composition dd { font-size: 1rem; }
+  .layout { padding-top: 1.25rem; gap: 1.75rem; }
+  .details { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  .strategy { border-top: 1px solid var(--border); padding-top: 1.5rem; }
+}

@@ -59,6 +59,7 @@ export type LogStatsOverview = {
 
 export type LogDamageTimelinePoint = {
   date: string;
+  result?: Result | null;
   selfAttackDamage: number;
   opponentAttackDamage: number;
 };
@@ -108,6 +109,7 @@ type ArchetypeMatchupStatsRow = {
 
 type LogDamageTimelineRow = {
   date: string | null;
+  result: string | null;
   self_attack_damage: number | null;
   opponent_attack_damage: number | null;
 };
@@ -669,18 +671,20 @@ export const getLogStatsOverview = cache(async function getLogStatsOverview(
 });
 
 export const getLogDamageTimeline = cache(async function getLogDamageTimeline(
-  userId: string
+  userId: string,
+  limit = 5000
 ): Promise<LogDamageTimelinePoint[]> {
+  const boundedLimit = Number.isFinite(limit) ? Math.max(1, Math.min(5000, Math.round(limit))) : 5000;
   const supabase = await logsDbTestHooks.createClient();
   const { data, error } = await measureServerCall("db.logs.damageTimeline", async () =>
     await supabase
       .from("logs")
-      .select("date,self_attack_damage,opponent_attack_damage")
+      .select("date,result,self_attack_damage,opponent_attack_damage")
       .eq("user_id", userId)
       .order("date", { ascending: false })
       .order("imported_at", { ascending: false })
       .order("id", { ascending: false })
-      .limit(5000)
+      .limit(boundedLimit)
   );
 
   if (error) {
@@ -691,6 +695,7 @@ export const getLogDamageTimeline = cache(async function getLogDamageTimeline(
     .toReversed()
     .map((row) => ({
       date: String(row.date ?? ""),
+      result: row.result === "Win" || row.result === "Loss" ? row.result : null,
       selfAttackDamage: Number(row.self_attack_damage ?? 0),
       opponentAttackDamage: Number(row.opponent_attack_damage ?? 0)
     }));

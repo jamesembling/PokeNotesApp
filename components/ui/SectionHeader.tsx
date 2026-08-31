@@ -10,6 +10,7 @@ type SectionHeaderProps = {
   eyebrowId?: string;
   title?: string;
   titleId?: string;
+  titleSize?: "default" | "sm" | "lg";
 };
 
 export function SectionHeader({
@@ -19,7 +20,8 @@ export function SectionHeader({
   eyebrowAs: Eyebrow = "p",
   eyebrowId,
   title,
-  titleId
+  titleId,
+  titleSize = "default"
 }: SectionHeaderProps) {
   return (
     <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between", className)}>
@@ -29,7 +31,7 @@ export function SectionHeader({
             {eyebrow}
           </Eyebrow>
         ) : null}
-        {title ? <SectionTitle id={titleId}>{title}</SectionTitle> : null}
+        {title ? <SectionTitle id={titleId} size={titleSize}>{title}</SectionTitle> : null}
       </div>
       {actions ? <div className="shrink-0">{actions}</div> : null}
     </div>

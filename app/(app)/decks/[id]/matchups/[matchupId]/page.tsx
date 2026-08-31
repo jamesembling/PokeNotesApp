@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
 import { InlineDeckMatchupHeaderControls } from "@/components/ui/InlineDeckMatchupHeaderControls";
@@ -9,6 +10,8 @@ import { PageActions } from "@/components/ui/PageActions";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { DetailTitle } from "@/components/ui/Typography";
+import headerStyles from "@/components/ui/deck-strategy/matchup-header.module.css";
+import styles from "@/components/ui/deck-strategy/strategy.module.css";
 import { requireUser } from "@/lib/auth";
 import { getDeckWithMatchup } from "@/lib/db/decks";
 
@@ -53,43 +56,72 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
   const { deckName, matchup } = result;
   return (
     <PageWidth size="wide">
-      <PageHeader
-        breadcrumb={[
-          { label: "Poke Notes", href: "/" },
-          { label: "Deck Strategy", href: "/decks" },
-          { label: deckName, href: `/decks/${id}` },
-          { label: matchup.deckName }
-        ]}
-      />
+      <div className="hidden sm:block">
+        <PageHeader
+          breadcrumb={[
+            { label: "Poke Notes", href: "/" },
+            { label: "Deck Strategy", href: "/decks" },
+            { label: deckName, href: `/decks/${id}` },
+            { label: matchup.deckName }
+          ]}
+        />
+      </div>
 
-      <Card>
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-              <SpriteStrip maxVisible={2} size="xl" sprites={matchup.deckPokemon} />
-              <DetailTitle>{matchup.deckName}</DetailTitle>
-            </div>
-
-            <div className="lg:shrink-0">
-              <PageActions>
-                <LazyDeckMatchupEditorButton
-                  deckId={id}
-                  matchup={matchup}
-                  triggerLabel="Edit Matchup"
-                  triggerVariant="outline"
-                />
-                <Button asChild variant="outline">
-                  <Link href={`/decks/${id}`} prefetch={false}>
-                    Back to Deck
-                  </Link>
-                </Button>
-              </PageActions>
-            </div>
-          </div>
-
-          <InlineDeckMatchupHeaderControls deckId={id} matchup={matchup} />
+      <section className={styles.deckHeader}>
+        <Button asChild className="sm:hidden" size="icon-lg" variant="ghost">
+          <Link aria-label={`Back to ${deckName} strategy`} href={`/decks/${id}`} prefetch={false}>
+            <ArrowLeft className="size-6" />
+          </Link>
+        </Button>
+        <SpriteStrip
+          className="min-h-10 shrink-0 sm:hidden"
+          maxVisible={2}
+          size="md"
+          sprites={matchup.deckPokemon}
+        />
+        <SpriteStrip
+          className="hidden min-h-14 shrink-0 sm:flex"
+          maxVisible={2}
+          size="xl"
+          sprites={matchup.deckPokemon}
+        />
+        <div className={styles.deckIdentity}>
+          <DetailTitle className={styles.deckTitle} size="sm">{matchup.deckName}</DetailTitle>
+          <p className={headerStyles.parentDeck}>
+            Matchup for <Link href={`/decks/${id}`} prefetch={false}>{deckName}</Link>
+          </p>
         </div>
-      </Card>
+
+        <div className={`${styles.deckActions} hidden shrink-0 sm:block`}>
+          <PageActions>
+            <LazyDeckMatchupEditorButton
+              deckId={id}
+              matchup={matchup}
+              triggerLabel="Edit Matchup"
+              triggerVariant="outline"
+            />
+            <Button asChild variant="outline">
+              <Link href={`/decks/${id}`} prefetch={false}>
+                <ArrowLeft className="size-4" />
+                Back to Deck
+              </Link>
+            </Button>
+          </PageActions>
+        </div>
+        <LazyDeckMatchupEditorButton
+          className="size-11 shrink-0 p-0 sm:hidden"
+          deckId={id}
+          loadingLabel="Edit"
+          matchup={matchup}
+          triggerLabel="Edit Matchup"
+          triggerVariant="ghost"
+        >
+          <Pencil aria-hidden="true" className="size-4" />
+          <span className="sr-only">Edit Matchup</span>
+        </LazyDeckMatchupEditorButton>
+      </section>
+
+      <InlineDeckMatchupHeaderControls deckId={id} matchup={matchup} />
       <InlineDeckMatchupEditor deckId={id} matchup={matchup} />
     </PageWidth>
   );

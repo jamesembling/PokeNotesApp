@@ -1,20 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
 import { AdminDashboardLoadingState } from "@/components/ui/AdminDashboardLoadingState";
 import { AdminUsersTable } from "@/components/ui/AdminUsersTable";
 import { AppShell } from "@/components/ui/AppShell";
 import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SidebarAccount, SidebarAccountFallback } from "@/components/ui/Sidebar";
+import { SectionTitle } from "@/components/ui/Typography";
 import type { AdminUser, AvatarColor, CatalogHealth } from "@/types/index";
+import styles from "./admin/admin.module.css";
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
   timeStyle: "short"
 });
+const COUNT_FORMATTER = new Intl.NumberFormat("en-GB");
 
 type AdminDashboardBootstrap = {
   diagnostics: {
@@ -143,14 +146,13 @@ export function AdminPortalClient() {
 
 function AdminDashboardError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className={styles.page}>
       <AdminDashboardHeader />
-      <Alert variant="destructive">
-        <AlertDescription>{message}</AlertDescription>
-      </Alert>
-      <div>
-        <Button onClick={onRetry}>Try Again</Button>
-      </div>
+      <section aria-labelledby="admin-error-title" className={styles.error}>
+        <SectionTitle id="admin-error-title" size="sm">Dashboard unavailable</SectionTitle>
+        <p className={styles.errorMessage} role="alert">{message}</p>
+        <div><Button onClick={onRetry} variant="outline">Try Again</Button></div>
+      </section>
     </div>
   );
 }
@@ -159,7 +161,7 @@ function AdminDashboardContent({ payload }: { payload: AdminDashboardBootstrap }
   const { diagnostics, overview, users } = payload;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={styles.page}>
       <AdminDashboardHeader />
       <ServerTimingMarker durationMs={diagnostics.accessMs} phase="admin-access" />
       <ServerTimingMarker durationMs={diagnostics.overviewMs} phase="admin-overview" />
@@ -178,47 +180,36 @@ function AdminDashboardContent({ payload }: { payload: AdminDashboardBootstrap }
         hidden
       />
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="py-2">
-          <div className="flex flex-col gap-2">
-            <p className="ui-eyebrow">Users</p>
-            <p className="text-3xl font-semibold tracking-[-0.02em] text-card-foreground">
-              {overview.userCount}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {overview.adminCount} admin accounts
-            </p>
+      <section aria-label="Admin overview">
+        <dl className={styles.summary}>
+          <div className={styles.summaryItem}>
+            <dt>Users</dt>
+            <dd className={styles.summaryValue}>{COUNT_FORMATTER.format(overview.userCount)}</dd>
+            <dd className={styles.summaryDetail}>
+              {COUNT_FORMATTER.format(overview.adminCount)} admin {overview.adminCount === 1 ? "account" : "accounts"}
+            </dd>
           </div>
-        </div>
-        <div className="py-2">
-          <div className="flex flex-col gap-2">
-            <p className="ui-eyebrow">Pokemon Catalog</p>
-            <p className="text-3xl font-semibold tracking-[-0.02em] text-card-foreground">
-              {overview.pokemonCatalogCount}
-            </p>
-            <p className="text-sm text-muted-foreground">
+          <div className={styles.summaryItem}>
+            <dt>Pokémon Catalog</dt>
+            <dd className={styles.summaryValue}>{COUNT_FORMATTER.format(overview.pokemonCatalogCount)}</dd>
+            <dd className={styles.summaryDetail}>
               Synced {formatDateTime(overview.pokemonLastSyncedAt)}
-            </p>
+            </dd>
           </div>
-        </div>
-        <div className="py-2">
-          <div className="flex flex-col gap-2">
-            <p className="ui-eyebrow">Archetypes</p>
-            <p className="text-3xl font-semibold tracking-[-0.02em] text-card-foreground">
-              {overview.archetypeCatalogCount}
-            </p>
-            <p className="text-sm text-muted-foreground">
+          <div className={styles.summaryItem}>
+            <dt>Archetypes</dt>
+            <dd className={styles.summaryValue}>{COUNT_FORMATTER.format(overview.archetypeCatalogCount)}</dd>
+            <dd className={styles.summaryDetail}>
               Synced {formatDateTime(overview.archetypeLastSyncedAt)}
-            </p>
+            </dd>
           </div>
-        </div>
-      </div>
+        </dl>
+      </section>
 
-      <section className="flex flex-col gap-4 border-t border-border pt-6">
-        <div className="flex flex-col gap-1">
-          <p className="ui-eyebrow">User Management</p>
-          <h2 className="text-base font-semibold text-card-foreground">Accounts and Roles</h2>
-          <p className="text-sm text-muted-foreground">
+      <section aria-labelledby="admin-users-title" className={styles.accounts}>
+        <div className={styles.sectionIntro}>
+          <SectionHeader title="Accounts and Roles" titleId="admin-users-title" />
+          <p className={styles.description}>
             Review trainer accounts, see recent activity, and change access levels.
             {users.roleUpdatesEnabled
               ? " Changes apply immediately."

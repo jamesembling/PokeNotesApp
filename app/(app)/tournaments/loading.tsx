@@ -1,1 +1,1 @@
-export { default } from "@/components/ui/AppRouteLoading";
+export { TournamentsLoadingState as default } from "@/components/ui/TournamentsLoadingState";

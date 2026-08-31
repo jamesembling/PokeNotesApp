@@ -1,0 +1,46 @@
+.page {
+  container: deck-list-collection / inline-size;
+  display: grid;
+  min-width: 0;
+  gap: 1.5rem;
+  color: var(--card-foreground);
+}
+
+.page ::selection { background: var(--card-foreground); color: var(--card); }
+.collection { min-width: 0; border-top: 1px solid var(--foreground); }
+.columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: center; }
+.listHeader { display: none; }
+.row { position: relative; min-height: 5.5rem; border-bottom: 1px solid var(--border); padding-block: 1.25rem; transition: background-color 140ms ease-out; }
+.row:hover { background: var(--card); }
+.row:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.identity { grid-column: 1 / -1; min-width: 0; padding-right: 2rem; }
+.name { overflow-wrap: anywhere; }
+.compactMeta { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-top: 0.5rem; color: var(--muted-foreground); font-size: 0.8125rem; line-height: 1.6; font-variant-numeric: tabular-nums; }
+.format, .updated { display: none; }
+.metric { display: flex; min-width: 0; align-self: start; flex-direction: column; gap: 0.25rem; font-variant-numeric: tabular-nums; }
+.metricLabel { color: var(--muted-foreground); font-size: 0.75rem; line-height: 1.5; }
+.metricValue { font-size: 1rem; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.chevron { position: absolute; top: 1.5rem; right: 0; width: 1rem; height: 1rem; color: var(--muted-foreground); transform: rotate(-90deg); }
+.center { text-align: center; }
+.alignEnd { text-align: right; }
+.empty { padding-block: 2.5rem 4rem; border-bottom: 1px solid var(--border); font-size: 1rem; line-height: 1.6; }
+.loadingMetric { min-width: 0; }
+
+@container deck-list-collection (min-width: 54rem) {
+  .columns { grid-template-columns: minmax(0, 1.6fr) 5rem 6rem 5rem 6.5rem 7rem 1rem; }
+  .listHeader { display: grid; min-height: 3rem; border-bottom: 1px solid var(--border); color: var(--muted-foreground); font-size: 0.8125rem; font-weight: 500; }
+  .row { padding-block: 1rem; }
+  .identity { grid-column: auto; padding-right: 0; }
+  .compactMeta { display: none; }
+  .format { display: block; font-size: 0.875rem; text-align: center; overflow-wrap: anywhere; }
+  .updated { display: block; color: var(--muted-foreground); font-size: 0.8125rem; text-align: right; font-variant-numeric: tabular-nums; }
+  .metric { align-self: center; text-align: center; }
+  .metricLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .metricValue { font-size: 0.875rem; }
+  .chevron { position: static; justify-self: end; }
+  .loadingMetric > * { margin-inline: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row { transition-duration: 0s; }
+}
