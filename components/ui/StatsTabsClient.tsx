@@ -159,7 +159,6 @@ export function StatsTabsClient({ damageTimeline, matchups: initialMatchups, ove
     <Tabs className={styles.root} onValueChange={(value) => { setError(""); setActiveTab(value); }} value={activeTab}>
       <div className={styles.navigation}>
         <SegmentedControl appearance="line" ariaLabel="Stats sections" options={[{ value: "overview", label: "Overview" }, { value: "matchups", label: "Matchups" }]} />
-        <span className={styles.scope}>All time <span aria-hidden="true">/</span> All Deck Strategies</span>
       </div>
       <TabsContent className={styles.tabContent} value="overview"><PerformanceOverview damageTimeline={damageTimeline} overview={overview} /></TabsContent>
       <TabsContent className={styles.tabContent} value="matchups">

@@ -1,8 +1,6 @@
 .root { gap: 0; color: var(--card-foreground); }
 .root ::selection { background: var(--card-foreground); color: var(--card); }
 .navigation { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border); }
-.scope { color: var(--muted-foreground); font-size: .75rem; }
-.scope > span { margin: 0 .5rem; color: var(--border); }
 .tabContent { min-width: 0; }
 .performance { display: grid; grid-template-columns: minmax(230px, .85fr) minmax(0, 1.65fr); column-gap: clamp(2rem, 4vw, 5rem); }
 .sectionHeading { font-size: 1.05rem; letter-spacing: -.02em; }
@@ -46,7 +44,6 @@
 @media (max-width: 1100px) { .details { gap: 1.5rem; } .performance { column-gap: 2rem; } }
 @media (max-width: 1023px) {
   .navigation { margin-bottom: 1.5rem; flex-wrap: wrap; gap: .35rem 1rem; }
-  .scope { font-size: .65rem; padding-bottom: .8rem; }
   .performance { grid-template-columns: minmax(0, 1fr); row-gap: 1.75rem; }
   .record { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: end; padding-bottom: 1.75rem; border-bottom: 1px solid var(--border); }
   .record > h2 { grid-column: 1 / -1; }
