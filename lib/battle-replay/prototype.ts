@@ -94,6 +94,8 @@ const images = {
   carmine: image("PRE", "103"),
   rareCandy: image("MEG", "125"),
   judge: image("POR", "76"),
+  areaZero: image("PRE", "94"),
+  fezandipiti: image("ASC", "142"),
 };
 
 export const replayEnergyImages: Record<string, string> = {
@@ -212,9 +214,9 @@ export const initialReplayState: ReplayState = {
       hand("open-crispin", "Crispin", images.crispin),
       hand("open-poffin", "Buddy-Buddy Poffin", images.poffin),
       hand("open-munkidori", "Munkidori", images.munkidori),
-      hand("open-area-zero", "Area Zero Underdepths"),
+      hand("open-area-zero", "Area Zero Underdepths", images.areaZero),
       hand("open-blaziken", "Blaziken ex", images.blaziken),
-      hand("open-fezandipiti", "Fezandipiti ex"),
+      hand("open-fezandipiti", "Fezandipiti ex", images.fezandipiti),
       hand("open-drakloak", "Drakloak", images.drakloak),
     ],
     discard: [],
