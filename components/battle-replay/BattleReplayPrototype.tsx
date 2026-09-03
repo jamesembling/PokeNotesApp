@@ -15,6 +15,7 @@ import {
   replayFrames,
   type ReplayActor,
   type ReplayCard,
+  type ReplayState,
   type ReplaySide
 } from "@/lib/battle-replay/prototype";
 import styles from "./battle-replay.module.css";
@@ -70,7 +71,48 @@ function PrizeTrack({ remaining }: { remaining: number }) {
   );
 }
 
-function PlayerBoard({ actor, side }: { actor: ReplayActor; side: ReplaySide }) {
+function HandFan({ actor, side }: { actor: ReplayActor; side: ReplaySide }) {
+  return (
+    <div aria-label={`${side.handCount} cards in ${actor === "self" ? "your" : "the opponent's"} hand`} className={styles.handArea}>
+      <span>Hand</span>
+      <div className={styles.handCards}>
+        {Array.from({ length: side.handCount }).map((_, index) => {
+          const knownCard = actor === "self" ? side.knownHand[index] : undefined;
+          return (
+            <div
+              aria-label={knownCard?.name}
+              className={styles.handCard}
+              data-known={Boolean(knownCard?.imageUrl) || undefined}
+              key={knownCard?.id ?? `hidden-${index}`}
+            >
+              {knownCard?.imageUrl ? (
+                <Image alt={`${knownCard.name}, card in hand`} fill sizes="42px" src={knownCard.imageUrl} />
+              ) : (
+                <div aria-hidden="true" className={styles.cardBack} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StadiumSpot({ actor, stadium }: { actor: ReplayActor; stadium: ReplayState["stadium"] }) {
+  if (!stadium || stadium.actor !== actor) return null;
+
+  return (
+    <div className={styles.stadiumSpot}>
+      <span>Stadium</span>
+      <div className={styles.stadium}>
+        <Image alt={`${stadium.name}, representative card artwork`} fill sizes="62px" src={stadium.imageUrl} />
+        <strong>{stadium.name}</strong>
+      </div>
+    </div>
+  );
+}
+
+function PlayerBoard({ actor, side, stadium }: { actor: ReplayActor; side: ReplaySide; stadium: ReplayState["stadium"] }) {
   return (
     <section className={styles.playerBoard} data-actor={actor}>
       <header className={styles.playerHeader}>
@@ -78,19 +120,18 @@ function PlayerBoard({ actor, side }: { actor: ReplayActor; side: ReplaySide }) 
           <span>{actor === "self" ? "You" : "Opponent"}</span>
           <strong>{side.name}</strong>
         </div>
-        <div className={styles.handCount}>
-          <span>Hand</span>
-          <strong>{side.handCount}</strong>
-        </div>
       </header>
 
       <div className={styles.playArea}>
         <PrizeTrack remaining={side.prizesRemaining} />
 
         <div className={styles.field}>
-          <div className={styles.active} aria-label={`${side.name} Active Spot`}>
-            <span className={styles.zoneLabel}>Active</span>
-            {side.active ? <CardFace card={side.active} /> : <span className={styles.emptyZone}>Active</span>}
+          <div className={styles.activeRow}>
+            <div className={styles.active} aria-label={`${side.name} Active Spot`}>
+              <span className={styles.zoneLabel}>Active</span>
+              {side.active ? <CardFace card={side.active} /> : <span className={styles.emptyZone}>Active</span>}
+            </div>
+            <StadiumSpot actor={actor} stadium={stadium} />
           </div>
           <div className={styles.bench} aria-label={`${side.name} Bench`}>
             <span className={styles.zoneLabel}>Bench</span>
@@ -111,6 +152,7 @@ function PlayerBoard({ actor, side }: { actor: ReplayActor; side: ReplaySide }) 
           />
         </div>
       </div>
+      <HandFan actor={actor} side={side} />
     </section>
   );
 }
@@ -195,19 +237,8 @@ export function BattleReplayPrototype() {
 
       <div className={styles.replayStage} ref={stageRef}>
         <div className={styles.board}>
-          <PlayerBoard actor="opponent" side={state.opponent} />
-          <div className={styles.boardMiddle}>
-            <span>Stadium</span>
-            {state.stadium ? (
-              <div className={styles.stadium}>
-                <Image alt="Jamming Tower, representative card artwork" fill sizes="62px" src={state.stadium.imageUrl} />
-                <strong>{state.stadium.name}</strong>
-              </div>
-            ) : (
-              <span className={styles.emptyStadium}>No Stadium in play</span>
-            )}
-          </div>
-          <PlayerBoard actor="self" side={state.self} />
+          <PlayerBoard actor="opponent" side={state.opponent} stadium={state.stadium} />
+          <PlayerBoard actor="self" side={state.self} stadium={state.stadium} />
         </div>
 
         <div className={styles.currentAction} aria-live="polite">

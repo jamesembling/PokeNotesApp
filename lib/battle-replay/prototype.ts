@@ -19,6 +19,7 @@ export type ReplaySide = {
   bench: ReplayCard[];
   deckCount: number;
   handCount: number;
+  knownHand: Array<{ id: string; name: string; imageUrl?: string }>;
   discard: Array<{ name: string; imageUrl: string }>;
   discardCount: number;
   prizesRemaining: number;
@@ -27,7 +28,7 @@ export type ReplaySide = {
 export type ReplayState = {
   self: ReplaySide;
   opponent: ReplaySide;
-  stadium: { name: string; imageUrl: string } | null;
+  stadium: { name: string; imageUrl: string; actor: ReplayActor } | null;
 };
 
 export type ReplayEvent = {
@@ -41,13 +42,13 @@ export type ReplayEvent = {
 const cardImage = (set: string, number: string) => buildDeckListCardImageUrl(set, number, "SM");
 
 const images = {
-  buddy: cardImage("TEF", "144"),
   charizard: cardImage("OBF", "125"),
   charmander: cardImage("MEW", "004"),
   dragapult: cardImage("TWM", "130"),
   dreepy: cardImage("TWM", "128"),
   pidgey: cardImage("OBF", "162"),
   boss: cardImage("PAL", "172"),
+  neoUpper: cardImage("TEF", "162"),
   psychic: cardImage("SVE", "005"),
   rareCandy: cardImage("SVI", "191"),
   stadium: cardImage("TWM", "165")
@@ -70,6 +71,15 @@ export const initialReplayState: ReplayState = {
     bench: [],
     deckCount: 47,
     handCount: 7,
+    knownHand: [
+      { id: "hand-dreepy-a", name: "Dreepy", imageUrl: images.dreepy },
+      { id: "hand-dreepy-b", name: "Dreepy", imageUrl: images.dreepy },
+      { id: "hand-psychic", name: "Basic Psychic Energy", imageUrl: images.psychic },
+      { id: "hand-rare-candy", name: "Rare Candy", imageUrl: images.rareCandy },
+      { id: "hand-dragapult", name: "Dragapult ex", imageUrl: images.dragapult },
+      { id: "hand-neo-upper", name: "Neo Upper Energy", imageUrl: images.neoUpper },
+      { id: "hand-boss", name: "Boss's Orders", imageUrl: images.boss }
+    ],
     discard: [],
     discardCount: 0,
     prizesRemaining: 6
@@ -80,6 +90,7 @@ export const initialReplayState: ReplayState = {
     bench: [],
     deckCount: 47,
     handCount: 7,
+    knownHand: [],
     discard: [],
     discardCount: 0,
     prizesRemaining: 6
@@ -95,6 +106,14 @@ function updateSide(
   return { ...state, [actor]: update(state[actor]) };
 }
 
+function removeKnownHandCard(
+  hand: ReplaySide["knownHand"],
+  name: string
+): ReplaySide["knownHand"] {
+  const index = hand.findIndex((card) => card.name === name);
+  return index < 0 ? hand : hand.filter((_, cardIndex) => cardIndex !== index);
+}
+
 function playPokemon(
   actor: ReplayActor,
   zone: "active" | "bench",
@@ -105,7 +124,8 @@ function playPokemon(
       ...side,
       active: zone === "active" ? card : side.active,
       bench: zone === "bench" ? [...side.bench, card] : side.bench,
-      handCount: Math.max(0, side.handCount - 1)
+      handCount: Math.max(0, side.handCount - 1),
+      knownHand: removeKnownHandCard(side.knownHand, card.name)
     }));
 }
 
@@ -139,11 +159,15 @@ export const replayEvents: ReplayEvent[] = [
     actor: "self",
     turn: 1,
     label: "Draw",
-    summary: "Drew Buddy-Buddy Poffin.",
+    summary: "Drew Jamming Tower.",
     apply: (state) => updateSide(state, "self", (side) => ({
       ...side,
       deckCount: side.deckCount - 1,
-      handCount: side.handCount + 1
+      handCount: side.handCount + 1,
+      knownHand: [
+        ...side.knownHand,
+        { id: "hand-jamming-tower", name: "Jamming Tower", imageUrl: images.stadium }
+      ]
     }))
   },
   {
@@ -161,7 +185,8 @@ export const replayEvents: ReplayEvent[] = [
     apply: (state) => updateSide(state, "self", (side) => ({
       ...side,
       active: side.active ? { ...side.active, energy: [...side.active.energy, "Psychic"] } : null,
-      handCount: Math.max(0, side.handCount - 1)
+      handCount: Math.max(0, side.handCount - 1),
+      knownHand: removeKnownHandCard(side.knownHand, "Basic Psychic Energy")
     }))
   },
   {
@@ -252,6 +277,10 @@ export const replayEvents: ReplayEvent[] = [
           }
         : null,
       handCount: Math.max(0, side.handCount - 2),
+      knownHand: removeKnownHandCard(
+        removeKnownHandCard(side.knownHand, "Rare Candy"),
+        "Dragapult ex"
+      ),
       discard: [{ name: "Rare Candy", imageUrl: images.rareCandy }, ...side.discard],
       discardCount: side.discardCount + 1
     }))
@@ -266,7 +295,8 @@ export const replayEvents: ReplayEvent[] = [
       active: side.active
         ? { ...side.active, energy: [...side.active.energy, "Neo Upper Energy"] }
         : null,
-      handCount: Math.max(0, side.handCount - 1)
+      handCount: Math.max(0, side.handCount - 1),
+      knownHand: removeKnownHandCard(side.knownHand, "Neo Upper Energy")
     }))
   },
   {
@@ -277,6 +307,7 @@ export const replayEvents: ReplayEvent[] = [
     apply: (state) => updateSide(state, "self", (side) => ({
       ...side,
       handCount: Math.max(0, side.handCount - 1),
+      knownHand: removeKnownHandCard(side.knownHand, "Boss's Orders"),
       discard: [{ name: "Boss's Orders", imageUrl: images.boss }, ...side.discard],
       discardCount: side.discardCount + 1
     }))
@@ -288,8 +319,12 @@ export const replayEvents: ReplayEvent[] = [
     summary: "Played Jamming Tower to the Stadium Spot.",
     apply: (state) => ({
       ...state,
-      self: { ...state.self, handCount: Math.max(0, state.self.handCount - 1) },
-      stadium: { name: "Jamming Tower", imageUrl: images.stadium }
+      self: {
+        ...state.self,
+        handCount: Math.max(0, state.self.handCount - 1),
+        knownHand: removeKnownHandCard(state.self.knownHand, "Jamming Tower")
+      },
+      stadium: { name: "Jamming Tower", imageUrl: images.stadium, actor: "self" }
     })
   },
   {
@@ -322,6 +357,7 @@ export const replayEvents: ReplayEvent[] = [
       self: {
         ...state.self,
         handCount: state.self.handCount + 1,
+        knownHand: [...state.self.knownHand, { id: "hand-prize-1", name: "Prize card" }],
         prizesRemaining: state.self.prizesRemaining - 1
       }
     })

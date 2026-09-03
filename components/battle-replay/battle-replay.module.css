@@ -136,6 +136,11 @@
 
 .playerBoard {
   --replay-player-tint: var(--color-loss);
+  display: grid;
+  grid-template-areas:
+    "header"
+    "play"
+    "hand";
   padding: 0.8rem;
   background: color-mix(in oklab, var(--replay-player-tint) 5%, var(--card));
 }
@@ -144,8 +149,20 @@
   --replay-player-tint: var(--color-win);
 }
 
+.playerBoard[data-actor="opponent"] {
+  grid-template-areas:
+    "header"
+    "hand"
+    "play";
+}
+
+.playerBoard + .playerBoard {
+  border-top: 1px solid var(--border);
+}
+
 .playerHeader {
   display: flex;
+  grid-area: header;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -169,16 +186,6 @@
 .playerHeader strong {
   color: var(--card-foreground);
   font-size: 0.9rem;
-}
-
-.handCount {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-}
-
-.handCount strong {
-  font-variant-numeric: tabular-nums;
 }
 
 .prizes {
@@ -214,6 +221,7 @@
 
 .playArea {
   display: grid;
+  grid-area: play;
   min-height: 15rem;
   grid-template-areas: "prizes field piles";
   grid-template-columns: 4rem minmax(0, 1fr) 4rem;
@@ -281,15 +289,27 @@
   gap: 0.65rem;
 }
 
+.activeRow {
+  display: grid;
+  grid-area: active;
+  grid-template-columns: 3.8rem 6.2rem 3.8rem;
+  align-items: center;
+  justify-content: center;
+  column-gap: 0.35rem;
+}
+
 .bench {
   position: relative;
   display: grid;
   min-width: 0;
   height: 5.5rem;
   grid-area: bench;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: min(100%, 17rem);
+  grid-template-columns: repeat(5, minmax(0, 3.2rem));
   align-items: center;
-  gap: 0.3rem;
+  justify-self: center;
+  justify-content: center;
+  gap: 0.15rem;
 }
 
 .active {
@@ -297,7 +317,7 @@
   display: flex;
   width: 6.2rem;
   min-height: 8.25rem;
-  grid-area: active;
+  grid-column: 2;
   align-items: center;
   justify-self: center;
   justify-content: center;
@@ -309,7 +329,7 @@
 .benchSlot {
   display: flex;
   width: 100%;
-  max-width: 3.7rem;
+  max-width: 3.2rem;
   aspect-ratio: 0.714;
   align-items: center;
   justify-self: center;
@@ -344,8 +364,7 @@
   grid-template-rows: 5.5rem 8.25rem;
 }
 
-.emptyZone,
-.emptyStadium {
+.emptyZone {
   color: var(--muted-foreground);
   font-size: 0.67rem;
   font-weight: 650;
@@ -415,20 +434,17 @@
   background: var(--color-loss);
 }
 
-.boardMiddle {
-  display: flex;
-  min-height: 3.7rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.7rem;
-  padding: 0.45rem;
-  border-block: 1px solid var(--border);
-  background: var(--muted);
+.stadiumSpot {
+  display: grid;
+  grid-column: 3;
+  justify-items: center;
+  gap: 0.2rem;
 }
 
-.boardMiddle > span:first-child {
+.stadiumSpot > span,
+.handArea > span {
   color: var(--muted-foreground);
-  font-size: 0.66rem;
+  font-size: 0.56rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -436,19 +452,53 @@
 
 .stadium {
   position: relative;
-  width: 2.5rem;
+  width: 2.75rem;
   aspect-ratio: 0.714;
 }
 
 .stadium strong {
   position: absolute;
-  top: 50%;
-  left: calc(100% + 0.55rem);
-  width: max-content;
-  max-width: 8rem;
+  inset: auto 50% -1.1rem auto;
+  width: 6rem;
   color: var(--card-foreground);
-  font-size: 0.72rem;
-  transform: translateY(-50%);
+  font-size: 0.58rem;
+  text-align: center;
+  transform: translateX(50%);
+}
+
+.handArea {
+  display: grid;
+  min-height: 4.5rem;
+  grid-area: hand;
+  justify-items: center;
+  gap: 0.25rem;
+  padding-block: 0.35rem 0.15rem;
+}
+
+.handCards {
+  display: flex;
+  min-width: 0;
+  justify-content: center;
+  padding-inline: 1rem;
+}
+
+.handCard {
+  position: relative;
+  width: 2.6rem;
+  aspect-ratio: 0.714;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.28rem;
+  box-shadow: 0 0.18rem 0.45rem color-mix(in oklab, var(--foreground) 16%, transparent);
+}
+
+.handCard + .handCard {
+  margin-left: -0.6rem;
+}
+
+.handCard img {
+  object-fit: cover;
 }
 
 .currentAction {
@@ -588,6 +638,10 @@
     gap: 0.4rem;
   }
 
+  .activeRow {
+    grid-template-columns: 3rem 4.9rem 3rem;
+  }
+
   .playerBoard[data-actor="opponent"] .field {
     grid-template-rows: 4.7rem 7.2rem;
   }
@@ -599,11 +653,13 @@
 
   .bench {
     height: 4.7rem;
-    gap: 0.16rem;
+    width: min(100%, 13.25rem);
+    grid-template-columns: repeat(5, minmax(0, 2.55rem));
+    gap: 0.12rem;
   }
 
   .benchSlot {
-    max-width: 2.75rem;
+    max-width: 2.55rem;
   }
 
   .cardFace {
@@ -631,6 +687,22 @@
 
   .prizes span {
     width: 1rem;
+  }
+
+  .handArea {
+    min-height: 4rem;
+  }
+
+  .handCard {
+    width: 2.25rem;
+  }
+
+  .handCard + .handCard {
+    margin-left: -0.5rem;
+  }
+
+  .stadium {
+    width: 2.25rem;
   }
 
   .currentAction {
