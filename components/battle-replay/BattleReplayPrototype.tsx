@@ -246,46 +246,26 @@ function StadiumSpot({
 
 function PlayedCardSpot({
   actor,
-  playedCards,
+  playedCard,
 }: {
   actor: ReplayActor;
-  playedCards: ReplayState["playedCards"];
+  playedCard: ReplayState["playedCard"];
 }) {
-  if (!playedCards || playedCards.actor !== actor) return null;
-
-  const cardNames = playedCards.cards.map((card) => card.name).join(", ");
+  if (!playedCard || playedCard.actor !== actor) return null;
 
   return (
     <div
-      aria-label={
-        playedCards.cards.length === 1
-          ? `${cardNames} was played`
-          : `${playedCards.cards.length} cards were played: ${cardNames}`
-      }
+      aria-label={`${playedCard.card.name} was played`}
       className={styles.playedCardSpot}
     >
-      <span>
-        Played{playedCards.cards.length > 1 ? ` ${playedCards.cards.length}` : ""}
-      </span>
-      <div className={styles.playedCardStack}>
-        {playedCards.cards.map((card, index) => (
-          <div
-            className={styles.playedCard}
-            key={card.id}
-            style={{
-              insetBlockStart: `${index * 0.42}rem`,
-              insetInlineStart: `${index * 0.12}rem`,
-              zIndex: index + 1,
-            }}
-          >
-            <Image
-              alt={`${card.name}, card played for this action`}
-              fill
-              sizes="54px"
-              src={card.imageUrl}
-            />
-          </div>
-        ))}
+      <span>Played</span>
+      <div className={styles.playedCard}>
+        <Image
+          alt={`${playedCard.card.name}, card played for this action`}
+          fill
+          sizes="54px"
+          src={playedCard.card.imageUrl}
+        />
       </div>
     </div>
   );
@@ -294,13 +274,13 @@ function PlayedCardSpot({
 function PlayerBoard({
   actor,
   onInspectDiscard,
-  playedCards,
+  playedCard,
   side,
   stadium,
 }: {
   actor: ReplayActor;
   onInspectDiscard: (actor: ReplayActor) => void;
-  playedCards: ReplayState["playedCards"];
+  playedCard: ReplayState["playedCard"];
   side: ReplaySide;
   stadium: ReplayState["stadium"];
 }) {
@@ -318,7 +298,7 @@ function PlayerBoard({
 
         <div className={styles.field}>
           <div className={styles.activeRow}>
-            <PlayedCardSpot actor={actor} playedCards={playedCards} />
+            <PlayedCardSpot actor={actor} playedCard={playedCard} />
             <div
               className={styles.active}
               aria-label={`${side.name} Active Spot`}
@@ -470,14 +450,14 @@ export function BattleReplayPrototype() {
           <PlayerBoard
             actor="opponent"
             onInspectDiscard={setInspectedDiscard}
-            playedCards={state.playedCards}
+            playedCard={state.playedCard}
             side={state.opponent}
             stadium={state.stadium}
           />
           <PlayerBoard
             actor="self"
             onInspectDiscard={setInspectedDiscard}
-            playedCards={state.playedCards}
+            playedCard={state.playedCard}
             side={state.self}
             stadium={state.stadium}
           />
