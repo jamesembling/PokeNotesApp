@@ -529,9 +529,11 @@ const legacyReplayEvents: ReplayEvent[] = [
     "self",
     2,
     "Ability",
-    "Your Munkidori used Adrena-Brain; the log reports 3 damage counters moved to your Mega Lucario ex, which is not present in the reconstructed board.",
+    "Your Munkidori used Adrena-Brain and moved 3 damage counters to Mega Lucario ex.",
     (s) => {
       if (s.self.active) s.self.active.damage -= 30;
+      const megaLucario = find(s.opponent, "Mega Lucario ex");
+      if (megaLucario) megaLucario.damage += 30;
     },
   ),
   event(

@@ -270,9 +270,30 @@ function StadiumSpot({
   );
 }
 
-function TransactionCards({ onPreview, stage }: { onPreview: (card: PreviewCard) => void; stage: ReplayTransactionStage }) {
+function resolveBoardCardPreview(card: ReplayZoneCard, stage: ReplayTransactionStage, state: ReplayState): PreviewCard {
+  const allCards = [
+    state.self.active,
+    ...state.self.bench,
+    state.opponent.active,
+    ...state.opponent.bench,
+  ].filter((candidate): candidate is ReplayCard => candidate !== null);
+  const matches = allCards.filter((candidate) => candidate.name === card.name);
+  if (matches.length === 1) return { ...card, ...matches[0], id: card.id };
+
+  const activeMatches = [state.self.active, state.opponent.active]
+    .filter((candidate): candidate is ReplayCard => candidate?.name === card.name);
+  const identifiesActive = stage.kind === "move"
+    || stage.label.toLowerCase().includes("active")
+    || stage.detail?.toLowerCase().includes("active");
+  if (identifiesActive && activeMatches.length === 1)
+    return { ...card, ...activeMatches[0], id: card.id };
+
+  return card;
+}
+
+function TransactionCards({ onPreview, stage, state }: { onPreview: (card: PreviewCard) => void; stage: ReplayTransactionStage; state: ReplayState }) {
   return <div className={styles.transactionCards}>
-    {stage.cards.map((card) => <button aria-label={`Preview ${card.name}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} key={card.id} onClick={() => onPreview(card)} type="button">
+    {stage.cards.map((card) => <button aria-label={`Preview ${card.name}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} key={card.id} onClick={() => onPreview(resolveBoardCardPreview(card, stage, state))} type="button">
       <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="82px" src={card.imageUrl} />
     </button>)}
     {Array.from({ length: Math.min(3, stage.hiddenCount ?? 0) }).map((_, index) =>
@@ -281,7 +302,7 @@ function TransactionCards({ onPreview, stage }: { onPreview: (card: PreviewCard)
   </div>;
 }
 
-function TransactionOverlay({ onPreview, transaction }: { onPreview: (card: PreviewCard) => void; transaction: ReplayTransaction }) {
+function TransactionOverlay({ onPreview, state, transaction }: { onPreview: (card: PreviewCard) => void; state: ReplayState; transaction: ReplayTransaction }) {
   return <section aria-label={`${transaction.title} card resolution`} className={styles.transactionOverlay} data-actor={transaction.actor}>
     <div className={styles.transactionHeading}>
       <span>{transaction.actor === "self" ? "Your action" : "Opponent action"}</span>
@@ -290,7 +311,7 @@ function TransactionOverlay({ onPreview, transaction }: { onPreview: (card: Prev
     <ol className={styles.transactionRail}>{transaction.stages.map((stage, index) =>
       <li className={styles.transactionStage} key={`${stage.kind}-${index}`}>
         {index > 0 ? <ChevronRightIcon aria-hidden="true" className={styles.transactionArrow} /> : null}
-        <div className={styles.transactionStep}><span>{stage.label}</span><TransactionCards onPreview={onPreview} stage={stage} />{stage.detail ? <small>{stage.detail}</small> : null}</div>
+        <div className={styles.transactionStep}><span>{stage.label}</span><TransactionCards onPreview={onPreview} stage={stage} state={state} />{stage.detail ? <small>{stage.detail}</small> : null}</div>
       </li>)}</ol>
     <p>Source-evidenced movement · format-legal representative art</p>
   </section>;
@@ -524,7 +545,7 @@ export function BattleReplayPrototype() {
             <PlayerBoard actor="opponent" currentEvent={currentEvent} onInspectDiscard={setInspectedDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
             <PlayerBoard actor="self" currentEvent={currentEvent} onInspectDiscard={setInspectedDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
           </div>
-          {currentEvent?.transaction ? <TransactionOverlay onPreview={previewCard} transaction={currentEvent.transaction} /> : null}
+          {currentEvent?.transaction ? <TransactionOverlay onPreview={previewCard} state={state} transaction={currentEvent.transaction} /> : null}
         </div>
 
         <div className={styles.currentAction} aria-live="polite">
