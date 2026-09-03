@@ -255,13 +255,13 @@ function ResolvingCardSpot({
 
   return (
     <div
-      aria-label={`${resolvingCard.card.name} is resolving`}
+      aria-label={`${resolvingCard.card.name} was played`}
       className={styles.resolvingCardSpot}
     >
-      <span>Resolving</span>
+      <span>Played</span>
       <div className={styles.resolvingCard}>
         <Image
-          alt={`${resolvingCard.card.name}, card currently resolving`}
+          alt={`${resolvingCard.card.name}, card played for this action`}
           fill
           sizes="54px"
           src={resolvingCard.card.imageUrl}
