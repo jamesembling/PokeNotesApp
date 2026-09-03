@@ -22,24 +22,37 @@ import styles from "./battle-replay.module.css";
 
 function CardFace({ card, compact = false }: { card: ReplayCard; compact?: boolean }) {
   const remainingHp = Math.max(0, card.hp - card.damage);
+  const healthPercent = Math.round((remainingHp / card.hp) * 100);
+  const healthTone = healthPercent <= 24 ? "critical" : healthPercent <= 75 ? "warning" : "healthy";
 
   return (
-    <div className={styles.cardFace} data-compact={compact || undefined}>
-      <Image alt={`${card.name}, representative card artwork`} fill sizes={compact ? "68px" : "104px"} src={card.imageUrl} />
-      <div className={styles.cardHealth}>
-        <span>{card.name}</span>
+    <div className={styles.cardStack} data-compact={compact || undefined}>
+      <div className={styles.cardFace}>
+        <Image alt={`${card.name}, representative card artwork`} fill sizes={compact ? "68px" : "104px"} src={card.imageUrl} />
+        {card.energy.length > 0 ? (
+          <span aria-label={`${card.energy.length} Energy attached`} className={styles.energyBadge}>
+            {card.energy.length} EN
+          </span>
+        ) : null}
+        {card.damage > 0 ? (
+          <span aria-label={`${card.damage} damage`} className={styles.damageBadge}>
+            {card.damage}
+          </span>
+        ) : null}
+      </div>
+      <div className={styles.healthStatus} data-tone={healthTone}>
+        <div
+          aria-label={`${card.name}: ${remainingHp} of ${card.hp} HP remaining`}
+          aria-valuemax={card.hp}
+          aria-valuemin={0}
+          aria-valuenow={remainingHp}
+          className={styles.healthTrack}
+          role="meter"
+        >
+          <span style={{ transform: `scaleX(${healthPercent / 100})` }} />
+        </div>
         <strong>{remainingHp} HP</strong>
       </div>
-      {card.energy.length > 0 ? (
-        <span aria-label={`${card.energy.length} Energy attached`} className={styles.energyBadge}>
-          {card.energy.length} EN
-        </span>
-      ) : null}
-      {card.damage > 0 ? (
-        <span aria-label={`${card.damage} damage`} className={styles.damageBadge}>
-          {card.damage}
-        </span>
-      ) : null}
     </div>
   );
 }

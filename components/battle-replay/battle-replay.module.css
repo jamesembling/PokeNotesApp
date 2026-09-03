@@ -372,41 +372,69 @@
   letter-spacing: 0.07em;
 }
 
+.cardStack {
+  width: 5.25rem;
+}
+
+.cardStack[data-compact] {
+  width: 3.2rem;
+}
+
 .cardFace {
   position: relative;
-  width: 5.25rem;
+  width: 100%;
   aspect-ratio: 0.714;
   border-radius: 0.42rem;
   box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 20%, transparent);
   transition: transform 180ms ease-out;
 }
 
-.cardFace[data-compact] {
-  width: 3.7rem;
+.healthStatus {
+  display: grid;
+  gap: 0.12rem;
+  margin-top: 0.28rem;
 }
 
-.cardHealth {
-  position: absolute;
-  inset: auto 0 0;
-  display: flex;
-  justify-content: space-between;
-  gap: 0.25rem;
-  padding: 0.28rem;
-  border-radius: 0 0 0.42rem 0.42rem;
-  background: var(--replay-card-overlay);
-  color: var(--replay-card-edge);
-  font-size: 0.49rem;
-}
-
-.cardHealth span {
-  min-width: 0;
+.healthTrack {
+  height: 0.38rem;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-radius: 0.2rem;
+  background: color-mix(in oklab, var(--muted-foreground) 22%, transparent);
 }
 
-.cardHealth strong {
-  flex: 0 0 auto;
+.healthTrack span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-win);
+  transform-origin: left center;
+  transition: transform 180ms ease-out, background-color 180ms ease-out;
+}
+
+.healthStatus[data-tone="warning"] .healthTrack span {
+  background: var(--color-warning);
+}
+
+.healthStatus[data-tone="warning"] .healthTrack {
+  background: var(--color-warning-bg);
+}
+
+.healthStatus[data-tone="critical"] .healthTrack span {
+  background: var(--color-loss);
+}
+
+.healthStatus[data-tone="critical"] .healthTrack {
+  background: var(--color-loss-bg);
+  box-shadow: inset 0 0 0 1px var(--color-loss-border);
+}
+
+.healthStatus strong {
+  color: var(--card-foreground);
+  font-size: 0.5rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
 }
 
 .energyBadge,
@@ -662,18 +690,16 @@
     max-width: 2.55rem;
   }
 
-  .cardFace {
+  .cardStack {
     width: 4.2rem;
   }
 
-  .cardFace[data-compact] {
-    width: 3rem;
+  .cardStack[data-compact] {
+    width: 2.55rem;
   }
 
-  .cardHealth {
-    gap: 0.15rem;
-    padding: 0.2rem;
-    font-size: 0.42rem;
+  .healthStatus strong {
+    font-size: 0.44rem;
   }
 
   .pileCards {
@@ -733,7 +759,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cardFace {
+  .cardFace,
+  .healthTrack span {
     transition: none;
   }
 }
