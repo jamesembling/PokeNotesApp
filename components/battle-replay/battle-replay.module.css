@@ -933,7 +933,13 @@ button.pile:disabled {
 .transactionArrow { width: 1rem; flex: 0 0 auto; color: var(--muted-foreground); }
 .transactionStep { min-width: 3.9rem; }
 .transactionStep small { max-width: 8rem; color: var(--muted-foreground); font-size: 0.58rem; text-align: center; }
-.transactionCards { display: flex; min-height: 6.2rem; align-items: center; justify-content: center; }
+.transactionCards { display: flex; min-height: 7rem; align-items: center; justify-content: center; padding: 0.35rem 0.7rem 0.85rem; }
+.transactionCardState {
+  position: relative;
+  width: clamp(3.4rem, 6vw, 4.6rem);
+  flex: 0 0 auto;
+  isolation: isolate;
+}
 .transactionCard {
   position: relative;
   width: clamp(3.4rem, 6vw, 4.6rem);
@@ -945,10 +951,80 @@ button.pile:disabled {
   background: var(--card);
   box-shadow: 0 0.55rem 1.2rem color-mix(in oklab, var(--foreground) 24%, transparent);
 }
+.transactionCardState .transactionCard { z-index: 2; width: 100%; }
 .transactionOverlay[data-actor="self"] .transactionCard { border-color: color-mix(in oklab, var(--color-win) 28%, var(--border)); }
-.transactionCard + .transactionCard { margin-left: clamp(-2.65rem, -3.5vw, -1.8rem); }
+.transactionCards > .transactionCardState + .transactionCardState,
+.transactionCards > .transactionCardState + .transactionCard[data-hidden],
+.transactionCards > .transactionCard[data-hidden] + .transactionCard[data-hidden] { margin-left: clamp(-2.65rem, -3.5vw, -1.8rem); }
 .transactionCard img { object-fit: cover; }
 .transactionCard.cardPreviewTrigger { pointer-events: auto; }
+.transactionDamageCounter {
+  position: absolute;
+  z-index: 4;
+  top: 38%;
+  right: -0.7rem;
+  display: grid;
+  width: 1.8rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 2px solid color-mix(in oklab, #8b4d08 72%, black);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f2b33d, #cf7617);
+  color: #241406;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0.22rem 0.45rem color-mix(in oklab, black 45%, transparent), inset 0 1px 0 color-mix(in oklab, white 55%, transparent);
+  transform: rotate(-5deg);
+}
+.transactionEnergyStack {
+  position: absolute;
+  z-index: 3;
+  bottom: -0.72rem;
+  left: -0.35rem;
+  display: flex;
+  align-items: end;
+}
+.transactionEnergyStack > span {
+  position: relative;
+  width: 1.45rem;
+  overflow: hidden;
+  aspect-ratio: 0.714;
+  border: 1px solid color-mix(in oklab, white 65%, transparent);
+  border-radius: 0.18rem;
+  box-shadow: 0 0.18rem 0.35rem color-mix(in oklab, black 42%, transparent);
+  transform: rotate(-7deg);
+}
+.transactionEnergyStack > span + span { margin-left: -0.72rem; transform: rotate(5deg); }
+.transactionEnergyStack img,
+.transactionEvolutionStack img { object-fit: cover; }
+.transactionEvolutionStack { position: absolute; z-index: 0; inset: 0; }
+.transactionEvolutionStack > span {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 0.38rem;
+  box-shadow: 0 0.35rem 0.75rem color-mix(in oklab, black 30%, transparent);
+  transform: translate(-0.38rem, 0.4rem) rotate(-3deg);
+}
+.transactionEvolutionStack > span:nth-child(2) { transform: translate(-0.68rem, 0.7rem) rotate(-5deg); }
+.transactionTool {
+  position: absolute;
+  z-index: 4;
+  right: -0.55rem;
+  bottom: -0.5rem;
+  max-width: 5.8rem;
+  padding: 0.2rem 0.34rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, white 35%, transparent);
+  border-radius: 0.25rem;
+  background: color-mix(in oklab, black 82%, transparent);
+  color: white;
+  font-size: 0.48rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .transactionCount { align-self: flex-end; margin: 0 0 0.3rem 0.4rem; color: var(--card-foreground); font-size: 0.58rem; font-weight: 700; white-space: nowrap; }
 .transactionOverlay > p { color: var(--muted-foreground); font-size: 0.56rem; letter-spacing: 0.02em; }
 
