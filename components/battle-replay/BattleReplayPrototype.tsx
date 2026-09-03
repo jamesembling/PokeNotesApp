@@ -244,14 +244,43 @@ function StadiumSpot({
   );
 }
 
+function ResolvingCardSpot({
+  actor,
+  resolvingCard,
+}: {
+  actor: ReplayActor;
+  resolvingCard: ReplayState["resolvingCard"];
+}) {
+  if (!resolvingCard || resolvingCard.actor !== actor) return null;
+
+  return (
+    <div
+      aria-label={`${resolvingCard.card.name} is resolving`}
+      className={styles.resolvingCardSpot}
+    >
+      <span>Resolving</span>
+      <div className={styles.resolvingCard}>
+        <Image
+          alt={`${resolvingCard.card.name}, card currently resolving`}
+          fill
+          sizes="54px"
+          src={resolvingCard.card.imageUrl}
+        />
+      </div>
+    </div>
+  );
+}
+
 function PlayerBoard({
   actor,
   onInspectDiscard,
+  resolvingCard,
   side,
   stadium,
 }: {
   actor: ReplayActor;
   onInspectDiscard: (actor: ReplayActor) => void;
+  resolvingCard: ReplayState["resolvingCard"];
   side: ReplaySide;
   stadium: ReplayState["stadium"];
 }) {
@@ -269,6 +298,7 @@ function PlayerBoard({
 
         <div className={styles.field}>
           <div className={styles.activeRow}>
+            <ResolvingCardSpot actor={actor} resolvingCard={resolvingCard} />
             <div
               className={styles.active}
               aria-label={`${side.name} Active Spot`}
@@ -420,12 +450,14 @@ export function BattleReplayPrototype() {
           <PlayerBoard
             actor="opponent"
             onInspectDiscard={setInspectedDiscard}
+            resolvingCard={state.resolvingCard}
             side={state.opponent}
             stadium={state.stadium}
           />
           <PlayerBoard
             actor="self"
             onInspectDiscard={setInspectedDiscard}
+            resolvingCard={state.resolvingCard}
             side={state.self}
             stadium={state.stadium}
           />

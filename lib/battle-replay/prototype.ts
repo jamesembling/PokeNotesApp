@@ -35,6 +35,7 @@ export type ReplayState = {
   self: ReplaySide;
   opponent: ReplaySide;
   stadium: { name: string; imageUrl: string; actor: ReplayActor } | null;
+  resolvingCard: { actor: ReplayActor; card: ReplayZoneCard } | null;
 };
 
 export type ReplayEvent = {
@@ -147,6 +148,11 @@ const event = (
   summary,
   apply: (state) => {
     const next = clone(state);
+    if (next.resolvingCard) {
+      const { actor, card } = next.resolvingCard;
+      discardCards(next[actor], card);
+      next.resolvingCard = null;
+    }
     mutate(next);
     return next;
   },
@@ -237,6 +243,7 @@ export const initialReplayState: ReplayState = {
     prizesRemaining: 6,
   },
   stadium: null,
+  resolvingCard: null,
 };
 
 export const replayEvents: ReplayEvent[] = [
@@ -296,10 +303,10 @@ export const replayEvents: ReplayEvent[] = [
       );
       removeHand(s.self, "Buddy-Buddy Poffin");
       s.self.deckCount = 44;
-      discardCards(
-        s.self,
-        zoneCard("self-t1-poffin", "Buddy-Buddy Poffin", images.poffin),
-      );
+      s.resolvingCard = {
+        actor: "self",
+        card: zoneCard("self-t1-poffin", "Buddy-Buddy Poffin", images.poffin),
+      };
     },
   ),
   event(
