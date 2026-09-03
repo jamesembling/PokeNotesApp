@@ -1,4 +1,4 @@
-import type { Language } from "@/types/index";
+import type { Language, LogSection } from "@/types/index";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 
 const SETUP_PATTERNS: Record<Language, RegExp> = {
@@ -34,7 +34,8 @@ export function extractPlayerNames(lines: string[], language: Language): [string
 
 export function resolveSelfOpponent(
   playerNames: [string, string],
-  ptcglUsername: string
+  ptcglUsername: string,
+  ptcglUsernameAliases: string[] = []
 ) {
   const normalizedUsername = ptcglUsername.trim().toLowerCase();
 
@@ -45,14 +46,19 @@ export function resolveSelfOpponent(
     );
   }
 
-  const selfPlayerName = playerNames.find(
-    (playerName) => playerName.trim().toLowerCase() === normalizedUsername
+  const acceptedUsernames = new Set(
+    [ptcglUsername, ...ptcglUsernameAliases]
+      .map((username) => username.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  const selfPlayerName = playerNames.find((playerName) =>
+    acceptedUsernames.has(playerName.trim().toLowerCase())
   );
 
   if (!selfPlayerName) {
     throw new ImportLogValidationError(
       "UNRESOLVED_SELF_PLAYER",
-      "Could not match your PTCGL username to either player in this log."
+      "Could not match your primary or alternate PTCGL usernames to either player in this log."
     );
   }
 
@@ -70,4 +76,46 @@ export function resolveSelfOpponent(
     selfPlayerName,
     opponentPlayerName
   };
+}
+
+function replaceExactPlayerName(value: string, sourcePlayerName: string, canonicalPlayerName: string) {
+  const escapedPlayerName = sourcePlayerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const playerNamePattern = new RegExp(
+    `(?<![\\p{L}\\p{N}_])${escapedPlayerName}(?![\\p{L}\\p{N}_])`,
+    "gu"
+  );
+
+  return value.replace(playerNamePattern, canonicalPlayerName);
+}
+
+export function canonicalizeSelfPlayerSections(
+  sections: LogSection[],
+  sourcePlayerName: string,
+  canonicalPlayerName: string
+) {
+  if (!sourcePlayerName || !canonicalPlayerName || sourcePlayerName === canonicalPlayerName) {
+    return sections;
+  }
+
+  return sections.map((section) => ({
+    ...section,
+    title: replaceExactPlayerName(section.title, sourcePlayerName, canonicalPlayerName),
+    player:
+      section.player === sourcePlayerName
+        ? canonicalPlayerName
+        : section.player,
+    actions: section.actions.map((action) => ({
+      ...action,
+      title: replaceExactPlayerName(action.title, sourcePlayerName, canonicalPlayerName),
+      details: action.details.map((detail) =>
+        replaceExactPlayerName(detail, sourcePlayerName, canonicalPlayerName)
+      )
+    })),
+    prizesAfterTurn: Object.fromEntries(
+      Object.entries(section.prizesAfterTurn).map(([playerName, prizes]) => [
+        playerName === sourcePlayerName ? canonicalPlayerName : playerName,
+        prizes
+      ])
+    )
+  }));
 }

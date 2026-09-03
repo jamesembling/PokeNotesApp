@@ -568,6 +568,7 @@ export type Database = {
           last_name: string
           login_count: number
           ptcgl_username: string
+          ptcgl_username_aliases: string[]
           role: string
           updated_at: string
         }
@@ -584,6 +585,7 @@ export type Database = {
           last_name?: string
           login_count?: number
           ptcgl_username?: string
+          ptcgl_username_aliases?: string[]
           role?: string
           updated_at?: string
         }
@@ -600,6 +602,7 @@ export type Database = {
           last_name?: string
           login_count?: number
           ptcgl_username?: string
+          ptcgl_username_aliases?: string[]
           role?: string
           updated_at?: string
         }
@@ -1337,6 +1340,7 @@ export type Database = {
           last_name: string
           login_count: number
           ptcgl_username: string
+          ptcgl_username_aliases: string[]
           role: string
           updated_at: string
         }

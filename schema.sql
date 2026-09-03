@@ -25,6 +25,7 @@ create table public.profiles (
   last_name               text not null default '',
   email                   text not null default '',
   ptcgl_username          text not null default '',
+  ptcgl_username_aliases  text[] not null default '{}',
   role                    text not null default 'user'
                             check (role in ('user', 'admin')),
   avatar_color            text not null default 'red',
@@ -40,6 +41,8 @@ comment on table public.profiles is
   'App-specific user profile data. Extends auth.users.';
 comment on column public.profiles.ptcgl_username is
   'The user''s Pokemon TCG Live username. Required for self-player identification during log import.';
+comment on column public.profiles.ptcgl_username_aliases is
+  'Alternate account-owned Pokemon TCG Live usernames accepted for self-player identification.';
 comment on column public.profiles.role is
   'user = standard access, admin = full admin panel access.';
 
@@ -3530,7 +3533,7 @@ create policy "Users can update own profile"
 
 revoke insert, update on table public.profiles from authenticated;
 grant select on table public.profiles to authenticated;
-grant update (display_name, first_name, last_name, ptcgl_username, avatar_color)
+grant update (display_name, first_name, last_name, ptcgl_username, ptcgl_username_aliases, avatar_color)
   on table public.profiles to authenticated;
 grant all privileges on table public.profiles to service_role;
 

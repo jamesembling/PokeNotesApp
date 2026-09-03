@@ -14,6 +14,7 @@ type ProfileRow = {
   last_name: string;
   email: string;
   ptcgl_username: string;
+  ptcgl_username_aliases: string[];
   role: "user" | "admin";
   avatar_color: string;
   auth_account_created_at: string | null;
@@ -29,6 +30,7 @@ type UpdateProfileInput = {
   firstName: string;
   lastName: string;
   ptcglUsername: string;
+  ptcglUsernameAliases: string[];
   avatarColor: string;
 };
 
@@ -85,6 +87,7 @@ function mapProfileRowToUserProfile(
     lastName,
     email: String(row?.email || user.email || "").trim(),
     ptcglUsername: String(row?.ptcgl_username || "").trim(),
+    ptcglUsernameAliases: row?.ptcgl_username_aliases ?? [],
     role: row?.role === "admin" ? "admin" : "user",
     avatarColor: normalizeAvatarColor(String(row?.avatar_color || "")),
     authAccountCreatedAt: row?.auth_account_created_at ?? undefined,
@@ -201,6 +204,7 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
           "last_name",
           "email",
           "ptcgl_username",
+          "ptcgl_username_aliases",
           "role",
           "avatar_color",
           "auth_account_created_at",
@@ -247,6 +251,7 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
               "last_name",
               "email",
               "ptcgl_username",
+              "ptcgl_username_aliases",
               "role",
               "avatar_color",
               "auth_account_created_at",
@@ -308,6 +313,7 @@ export async function updateCurrentProfile(input: UpdateProfileInput): Promise<U
     first_name: firstName,
     last_name: lastName,
     ptcgl_username: input.ptcglUsername.trim(),
+    ptcgl_username_aliases: input.ptcglUsernameAliases,
     avatar_color: avatarColor
   };
 
@@ -323,6 +329,7 @@ export async function updateCurrentProfile(input: UpdateProfileInput): Promise<U
         "last_name",
         "email",
         "ptcgl_username",
+        "ptcgl_username_aliases",
         "role",
         "avatar_color",
         "auth_account_created_at",
@@ -370,6 +377,7 @@ export async function updateCurrentProfileAvatar(avatarColorInput: string): Prom
         "last_name",
         "email",
         "ptcgl_username",
+        "ptcgl_username_aliases",
         "role",
         "avatar_color",
         "auth_account_created_at",

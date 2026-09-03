@@ -9,13 +9,18 @@ import type { IdentificationCatalog, ParsedLog } from "@/lib/log-import/types";
 export function parseBattleLog(args: {
   rawLog: string;
   ptcglUsername: string;
+  ptcglUsernameAliases?: string[];
   catalog: IdentificationCatalog;
 }): ParsedLog {
   const rawLog = String(args.rawLog || "");
   const language = detectLanguage(rawLog);
   const lines = trimBattleLog(rawLog, language);
   const playerNames = extractPlayerNames(lines, language);
-  const { selfPlayerName, opponentPlayerName } = resolveSelfOpponent(playerNames, args.ptcglUsername);
+  const { selfPlayerName, opponentPlayerName } = resolveSelfOpponent(
+    playerNames,
+    args.ptcglUsername,
+    args.ptcglUsernameAliases
+  );
   const sections = divideIntoSections({
     lines,
     language,

@@ -94,6 +94,21 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           </Field>
 
           <Field>
+            <FieldLabel htmlFor="ptcgl-username-aliases">Alternate PTCGL usernames</FieldLabel>
+            <Input
+              defaultValue={profile.ptcglUsernameAliases.join(", ")}
+              id="ptcgl-username-aliases"
+              name="ptcglUsernameAliases"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="JJPokeMan2026"
+            />
+            <p className={styles.description}>
+              Separate multiple usernames with commas. Imported logs display your primary username.
+            </p>
+          </Field>
+
+          <Field>
             <FieldLabel htmlFor="first-name">First Name</FieldLabel>
             <Input
               defaultValue={profile.firstName}

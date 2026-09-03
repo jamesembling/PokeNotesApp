@@ -44,7 +44,23 @@ export async function saveProfileAction(
     const firstName = String(formData.get("firstName") || "").trim();
     const lastName = String(formData.get("lastName") || "").trim();
     const ptcglUsername = String(formData.get("ptcglUsername") || "").trim();
+    const ptcglUsernameAliases = Array.from(
+      new Map(
+        String(formData.get("ptcglUsernameAliases") || "")
+          .split(/[\n,]/)
+          .map((username) => username.trim())
+          .filter((username) => username && username.toLowerCase() !== ptcglUsername.toLowerCase())
+          .map((username) => [username.toLowerCase(), username])
+      ).values()
+    );
     const avatarColor = String(formData.get("avatarColor") || "").trim();
+
+    if (ptcglUsernameAliases.length > 10 || ptcglUsernameAliases.some((username) => username.length > 64)) {
+      return {
+        error: "Add no more than 10 alternate usernames, with up to 64 characters each.",
+        success: null
+      };
+    }
 
     if (!displayName && !firstName && !lastName) {
       return {
@@ -58,6 +74,7 @@ export async function saveProfileAction(
       firstName,
       lastName,
       ptcglUsername,
+      ptcglUsernameAliases,
       avatarColor
     });
 

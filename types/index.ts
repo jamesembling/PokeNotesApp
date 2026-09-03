@@ -47,6 +47,7 @@ export type UserProfile = {
   lastName: string
   email: string
   ptcglUsername: string           // Required for log self-identification
+  ptcglUsernameAliases: string[]  // Alternate identities accepted during log import
   role: Role
   avatarColor: AvatarColor
   authAccountCreatedAt: string | undefined

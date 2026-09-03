@@ -23,6 +23,7 @@ import {
   promoteLearnedSelfArchetype
 } from "@/lib/log-import/learned-self-archetypes";
 import { parseBattleLog } from "@/lib/log-import/parser";
+import { canonicalizeSelfPlayerSections } from "@/lib/log-import/parser/players";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { getDeckListById } from "@/lib/db/deck-lists";
 import { getDeckWithList, getDecks } from "@/lib/db/decks";
@@ -66,6 +67,7 @@ import {
 
 type ProfileRow = {
   ptcgl_username: string;
+  ptcgl_username_aliases: string[];
 };
 
 type ImportContext = {
@@ -73,6 +75,7 @@ type ImportContext = {
   supabase: Awaited<ReturnType<typeof createClient>>;
   catalog: Awaited<ReturnType<typeof loadIdentificationCatalog>>;
   ptcglUsername: string;
+  ptcglUsernameAliases: string[];
 };
 
 type ParseLogActionResult = PersistedBattleLogImportReview | { error: string };
@@ -113,7 +116,7 @@ async function getImportContext(
     measureServerCall("logs.import.loadProfile", async () =>
       await supabase
         .from("profiles")
-        .select("ptcgl_username")
+        .select("ptcgl_username,ptcgl_username_aliases")
         .eq("id", user.id)
         .single()
     )
@@ -125,6 +128,7 @@ async function getImportContext(
   }
 
   const ptcglUsername = ((profile as ProfileRow | null)?.ptcgl_username ?? "").trim();
+  const ptcglUsernameAliases = (profile as ProfileRow | null)?.ptcgl_username_aliases ?? [];
   if (!ptcglUsername) {
     throw new ImportLogValidationError(
       "MISSING_PTCGL_USERNAME",
@@ -136,7 +140,8 @@ async function getImportContext(
     user,
     supabase,
     catalog,
-    ptcglUsername
+    ptcglUsername,
+    ptcglUsernameAliases
   };
 }
 
@@ -156,11 +161,12 @@ async function buildParsedLogReview(
     throw new ImportLogValidationError("EMPTY_INPUT", "Paste a PTCGL battle log before importing.");
   }
 
-  const { catalog, ptcglUsername } = importContext;
+  const { catalog, ptcglUsername, ptcglUsernameAliases } = importContext;
   const parsed = measureServerStep("logs.import.parseBattleLog", () =>
     parseBattleLog({
       rawLog: trimmedRawLog,
       ptcglUsername,
+      ptcglUsernameAliases,
       catalog
     })
   );
@@ -204,7 +210,7 @@ async function buildParsedLogReview(
   const selfDeckSlug = resolvedSelfArchetype?.archetypeId ?? "";
 
   const review: ParsedLogReview = {
-    selfPlayerName: parsed.players.selfPlayerName,
+    selfPlayerName: ptcglUsername,
     opponentPlayerName: parsed.players.opponentPlayerName,
     selfDeckName,
     opponentDeckName: getBattleLogOpponentDisplayName(
@@ -221,7 +227,11 @@ async function buildParsedLogReview(
     result: parsed.stats.result,
     language: parsed.language,
     rawLog: parsed.rawLog,
-    sections: parsed.sections,
+    sections: canonicalizeSelfPlayerSections(
+      parsed.sections,
+      parsed.players.selfPlayerName,
+      ptcglUsername
+    ),
     totalTurns: parsed.stats.totalTurns,
     selfPrizesTaken: parsed.stats.selfPrizesTaken,
     opponentPrizesTaken: parsed.stats.opponentPrizesTaken,
