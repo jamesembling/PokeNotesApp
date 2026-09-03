@@ -7,35 +7,58 @@ import {
   ChevronRightIcon,
   PauseIcon,
   PlayIcon,
-  RotateCcwIcon
+  RotateCcwIcon,
 } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import {
   replayEvents,
   replayFrames,
+  replaySource,
   type ReplayActor,
   type ReplayCard,
   type ReplayState,
-  type ReplaySide
+  type ReplaySide,
 } from "@/lib/battle-replay/prototype";
 import styles from "./battle-replay.module.css";
 
-function CardFace({ card, compact = false }: { card: ReplayCard; compact?: boolean }) {
+function CardFace({
+  card,
+  compact = false,
+}: {
+  card: ReplayCard;
+  compact?: boolean;
+}) {
   const remainingHp = Math.max(0, card.hp - card.damage);
   const healthPercent = Math.round((remainingHp / card.hp) * 100);
-  const healthTone = healthPercent <= 24 ? "critical" : healthPercent <= 75 ? "warning" : "healthy";
+  const healthTone =
+    healthPercent <= 24
+      ? "critical"
+      : healthPercent <= 75
+        ? "warning"
+        : "healthy";
 
   return (
     <div className={styles.cardStack} data-compact={compact || undefined}>
       <div className={styles.cardFace}>
-        <Image alt={`${card.name}, representative card artwork`} fill sizes={compact ? "68px" : "104px"} src={card.imageUrl} />
+        <Image
+          alt={`${card.name}, representative card artwork`}
+          fill
+          sizes={compact ? "68px" : "104px"}
+          src={card.imageUrl}
+        />
         {card.energy.length > 0 ? (
-          <span aria-label={`${card.energy.length} Energy attached`} className={styles.energyBadge}>
+          <span
+            aria-label={`${card.energy.length} Energy attached`}
+            className={styles.energyBadge}
+          >
             {card.energy.length} EN
           </span>
         ) : null}
         {card.damage > 0 ? (
-          <span aria-label={`${card.damage} damage`} className={styles.damageBadge}>
+          <span
+            aria-label={`${card.damage} damage`}
+            className={styles.damageBadge}
+          >
             {card.damage}
           </span>
         ) : null}
@@ -57,7 +80,7 @@ function CardFace({ card, compact = false }: { card: ReplayCard; compact?: boole
   );
 }
 
-function Pile({ count, label, topImage }: { count: number; label: string; topImage?: string }) {
+function Pile({ label, topImage }: { label: string; topImage?: string }) {
   return (
     <div className={styles.pile}>
       <div className={styles.pileCards}>
@@ -68,14 +91,16 @@ function Pile({ count, label, topImage }: { count: number; label: string; topIma
         )}
       </div>
       <span>{label}</span>
-      <strong>{count}</strong>
     </div>
   );
 }
 
 function PrizeTrack({ remaining }: { remaining: number }) {
   return (
-    <div aria-label={`${remaining} Prize cards remaining`} className={styles.prizes}>
+    <div
+      aria-label={`${remaining} Prize cards remaining`}
+      className={styles.prizes}
+    >
       <strong>Prizes</strong>
       {Array.from({ length: 6 }).map((_, index) => (
         <span data-remaining={index < remaining || undefined} key={index} />
@@ -85,12 +110,22 @@ function PrizeTrack({ remaining }: { remaining: number }) {
 }
 
 function HandFan({ actor, side }: { actor: ReplayActor; side: ReplaySide }) {
+  const visibleCardCount =
+    actor === "self" ? side.handCount : Math.min(3, side.handCount);
   return (
-    <div aria-label={`${side.handCount} cards in ${actor === "self" ? "your" : "the opponent's"} hand`} className={styles.handArea}>
+    <div
+      aria-label={
+        actor === "self"
+          ? `${side.handCount} cards in your hand`
+          : "Opponent's hand is hidden"
+      }
+      className={styles.handArea}
+    >
       <span>Hand</span>
       <div className={styles.handCards}>
-        {Array.from({ length: side.handCount }).map((_, index) => {
-          const knownCard = actor === "self" ? side.knownHand[index] : undefined;
+        {Array.from({ length: visibleCardCount }).map((_, index) => {
+          const knownCard =
+            actor === "self" ? side.knownHand[index] : undefined;
           return (
             <div
               aria-label={knownCard?.name}
@@ -99,7 +134,12 @@ function HandFan({ actor, side }: { actor: ReplayActor; side: ReplaySide }) {
               key={knownCard?.id ?? `hidden-${index}`}
             >
               {knownCard?.imageUrl ? (
-                <Image alt={`${knownCard.name}, card in hand`} fill sizes="42px" src={knownCard.imageUrl} />
+                <Image
+                  alt={`${knownCard.name}, card in hand`}
+                  fill
+                  sizes="42px"
+                  src={knownCard.imageUrl}
+                />
               ) : (
                 <div aria-hidden="true" className={styles.cardBack} />
               )}
@@ -111,21 +151,40 @@ function HandFan({ actor, side }: { actor: ReplayActor; side: ReplaySide }) {
   );
 }
 
-function StadiumSpot({ actor, stadium }: { actor: ReplayActor; stadium: ReplayState["stadium"] }) {
+function StadiumSpot({
+  actor,
+  stadium,
+}: {
+  actor: ReplayActor;
+  stadium: ReplayState["stadium"];
+}) {
   if (!stadium || stadium.actor !== actor) return null;
 
   return (
     <div className={styles.stadiumSpot}>
       <span>Stadium</span>
       <div className={styles.stadium}>
-        <Image alt={`${stadium.name}, representative card artwork`} fill sizes="62px" src={stadium.imageUrl} />
+        <Image
+          alt={`${stadium.name}, representative card artwork`}
+          fill
+          sizes="62px"
+          src={stadium.imageUrl}
+        />
         <strong>{stadium.name}</strong>
       </div>
     </div>
   );
 }
 
-function PlayerBoard({ actor, side, stadium }: { actor: ReplayActor; side: ReplaySide; stadium: ReplayState["stadium"] }) {
+function PlayerBoard({
+  actor,
+  side,
+  stadium,
+}: {
+  actor: ReplayActor;
+  side: ReplaySide;
+  stadium: ReplayState["stadium"];
+}) {
   return (
     <section className={styles.playerBoard} data-actor={actor}>
       <header className={styles.playerHeader}>
@@ -140,9 +199,16 @@ function PlayerBoard({ actor, side, stadium }: { actor: ReplayActor; side: Repla
 
         <div className={styles.field}>
           <div className={styles.activeRow}>
-            <div className={styles.active} aria-label={`${side.name} Active Spot`}>
+            <div
+              className={styles.active}
+              aria-label={`${side.name} Active Spot`}
+            >
               <span className={styles.zoneLabel}>Active</span>
-              {side.active ? <CardFace card={side.active} /> : <span className={styles.emptyZone}>Active</span>}
+              {side.active ? (
+                <CardFace card={side.active} />
+              ) : (
+                <span className={styles.emptyZone}>Active</span>
+              )}
             </div>
             <StadiumSpot actor={actor} stadium={stadium} />
           </div>
@@ -150,19 +216,17 @@ function PlayerBoard({ actor, side, stadium }: { actor: ReplayActor; side: Repla
             <span className={styles.zoneLabel}>Bench</span>
             {Array.from({ length: 5 }).map((_, index) => (
               <div className={styles.benchSlot} key={index}>
-                {side.bench[index] ? <CardFace card={side.bench[index]} compact /> : null}
+                {side.bench[index] ? (
+                  <CardFace card={side.bench[index]} compact />
+                ) : null}
               </div>
             ))}
           </div>
         </div>
 
         <div className={styles.zonePiles}>
-          <Pile count={side.deckCount} label="Deck" />
-          <Pile
-            count={side.discardCount}
-            label="Discard"
-            topImage={side.discard[0]?.imageUrl}
-          />
+          <Pile label="Deck" />
+          <Pile label="Discard" topImage={side.discard[0]?.imageUrl} />
         </div>
       </div>
       <HandFan actor={actor} side={side} />
@@ -177,15 +241,25 @@ export function BattleReplayPrototype() {
   const state = replayFrames[actionIndex];
   const currentEvent = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
   const maxIndex = replayFrames.length - 1;
-  const turnStops = useMemo(() => replayEvents.reduce<Array<{ turn: number; index: number }>>(
-    (stops, event, index) => {
-      if (stops.at(-1)?.turn !== event.turn) stops.push({ turn: event.turn, index: index + 1 });
-      return stops;
-    },
-    []
-  ), []);
-  const previousTurnIndex = turnStops.map((stop) => stop.index).filter((index) => index < actionIndex).at(-1);
-  const nextTurnIndex = turnStops.find((stop) => stop.index > actionIndex)?.index;
+  const turnStops = useMemo(
+    () =>
+      replayEvents.reduce<Array<{ turn: number; index: number }>>(
+        (stops, event, index) => {
+          if (stops.at(-1)?.turn !== event.turn)
+            stops.push({ turn: event.turn, index: index + 1 });
+          return stops;
+        },
+        [],
+      ),
+    [],
+  );
+  const previousTurnIndex = turnStops
+    .map((stop) => stop.index)
+    .filter((index) => index < actionIndex)
+    .at(-1);
+  const nextTurnIndex = turnStops.find(
+    (stop) => stop.index > actionIndex,
+  )?.index;
 
   useEffect(() => {
     if (!playing) return;
@@ -194,7 +268,10 @@ export function BattleReplayPrototype() {
       return;
     }
 
-    const timer = window.setTimeout(() => setActionIndex((value) => Math.min(maxIndex, value + 1)), 1100);
+    const timer = window.setTimeout(
+      () => setActionIndex((value) => Math.min(maxIndex, value + 1)),
+      1100,
+    );
     return () => window.clearTimeout(timer);
   }, [actionIndex, maxIndex, playing]);
 
@@ -202,7 +279,9 @@ export function BattleReplayPrototype() {
     setPlaying(false);
     setActionIndex(Math.max(0, Math.min(maxIndex, nextIndex)));
     if (revealBoard && window.matchMedia("(max-width: 68rem)").matches) {
-      window.requestAnimationFrame(() => stageRef.current?.scrollIntoView({ block: "start" }));
+      window.requestAnimationFrame(() =>
+        stageRef.current?.scrollIntoView({ block: "start" }),
+      );
     }
   }
 
@@ -217,9 +296,18 @@ export function BattleReplayPrototype() {
         <div className={styles.timelineHeader}>
           <div>
             <h2>Match timeline</h2>
-            <p>Synthetic prototype · 3 turns · {replayEvents.length} actions</p>
+            <p>
+              Saved today · {replaySource.turns} turns · {replayEvents.length}{" "}
+              visual actions
+            </p>
           </div>
-          <Button aria-label="Restart replay" className={styles.iconControl} onClick={() => seek(0)} size="icon-sm" variant="ghost">
+          <Button
+            aria-label="Restart replay"
+            className={styles.iconControl}
+            onClick={() => seek(0)}
+            size="icon-sm"
+            variant="ghost"
+          >
             <RotateCcwIcon />
           </Button>
         </div>
@@ -238,7 +326,9 @@ export function BattleReplayPrototype() {
                   onClick={() => seek(step, true)}
                   type="button"
                 >
-                  <span>{event.turn === 0 ? "Setup" : `Turn ${event.turn}`}</span>
+                  <span>
+                    {event.turn === 0 ? "Setup" : `Turn ${event.turn}`}
+                  </span>
                   <strong>{event.label}</strong>
                   <p>{event.summary}</p>
                 </button>
@@ -250,19 +340,33 @@ export function BattleReplayPrototype() {
 
       <div className={styles.replayStage} ref={stageRef}>
         <div className={styles.board}>
-          <PlayerBoard actor="opponent" side={state.opponent} stadium={state.stadium} />
+          <PlayerBoard
+            actor="opponent"
+            side={state.opponent}
+            stadium={state.stadium}
+          />
           <PlayerBoard actor="self" side={state.self} stadium={state.stadium} />
         </div>
 
         <div className={styles.currentAction} aria-live="polite">
-          <span>{currentEvent ? (currentEvent.turn === 0 ? "Setup" : `Turn ${currentEvent.turn}`) : "Before setup"}</span>
-          <strong>{currentEvent?.summary ?? "Ready to replay the imported battle."}</strong>
+          <span>
+            {currentEvent
+              ? currentEvent.turn === 0
+                ? "Setup"
+                : `Turn ${currentEvent.turn}`
+              : "Before setup"}
+          </span>
+          <strong>
+            {currentEvent?.summary ?? "Ready to replay the imported battle."}
+          </strong>
         </div>
 
         <div className={styles.scrubber}>
           <label htmlFor="replay-position">
             <span>Replay position</span>
-            <strong>{actionIndex} / {maxIndex}</strong>
+            <strong>
+              {actionIndex} / {maxIndex}
+            </strong>
           </label>
           <input
             aria-label="Scrub through battle replay"
@@ -276,12 +380,30 @@ export function BattleReplayPrototype() {
         </div>
 
         <div className={styles.controls}>
-          <div aria-label="Action controls" className={styles.controlGroup} role="group">
-            <Button aria-label="Previous action" className={styles.iconControl} disabled={actionIndex === 0} onClick={() => seek(actionIndex - 1)} size="icon" variant="outline">
+          <div
+            aria-label="Action controls"
+            className={styles.controlGroup}
+            role="group"
+          >
+            <Button
+              aria-label="Previous action"
+              className={styles.iconControl}
+              disabled={actionIndex === 0}
+              onClick={() => seek(actionIndex - 1)}
+              size="icon"
+              variant="outline"
+            >
               <ChevronLeftIcon />
             </Button>
             <span>Action</span>
-            <Button aria-label="Next action" className={styles.iconControl} disabled={actionIndex === maxIndex} onClick={() => seek(actionIndex + 1)} size="icon" variant="outline">
+            <Button
+              aria-label="Next action"
+              className={styles.iconControl}
+              disabled={actionIndex === maxIndex}
+              onClick={() => seek(actionIndex + 1)}
+              size="icon"
+              variant="outline"
+            >
               <ChevronRightIcon />
             </Button>
           </div>
@@ -294,19 +416,41 @@ export function BattleReplayPrototype() {
           >
             {playing ? <PauseIcon /> : <PlayIcon />}
           </Button>
-          <div aria-label="Turn controls" className={styles.controlGroup} role="group">
-            <Button aria-label="Previous turn" className={styles.iconControl} disabled={previousTurnIndex === undefined} onClick={() => seekTurn(-1)} size="icon" variant="outline">
+          <div
+            aria-label="Turn controls"
+            className={styles.controlGroup}
+            role="group"
+          >
+            <Button
+              aria-label="Previous turn"
+              className={styles.iconControl}
+              disabled={previousTurnIndex === undefined}
+              onClick={() => seekTurn(-1)}
+              size="icon"
+              variant="outline"
+            >
               <ChevronLeftIcon />
             </Button>
             <span>Turn</span>
-            <Button aria-label="Next turn" className={styles.iconControl} disabled={nextTurnIndex === undefined} onClick={() => seekTurn(1)} size="icon" variant="outline">
+            <Button
+              aria-label="Next turn"
+              className={styles.iconControl}
+              disabled={nextTurnIndex === undefined}
+              onClick={() => seekTurn(1)}
+              size="icon"
+              variant="outline"
+            >
               <ChevronRightIcon />
             </Button>
           </div>
         </div>
 
         <p className={styles.artNote}>
-          Card artwork is representative for this prototype. A production replay would use the linked Deck List for exact self-side prints and mark opponent art as representative.
+          Actions and outcome come from saved Battle Log{" "}
+          {replaySource.logId.slice(0, 8)}…. Player names are anonymised; card
+          artwork is representative because this log was not linked to a Deck
+          List. Deck, discard and hidden-hand quantities are left unnumbered
+          where the log does not expose a complete count.
         </p>
       </div>
     </div>
