@@ -47,7 +47,7 @@ export type ReplayState = {
 };
 
 export type ReplayTransactionStage = {
-  kind: "play" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
+  kind: "play" | "ability" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
   label: string;
   cards: ReplayZoneCard[];
   hiddenCount?: number;
@@ -125,6 +125,7 @@ const images = {
   unfairStamp: image("TWM", "165"),
   combusken: image("JTG", "23"),
   moltres: image("PFL", "14"),
+  kieran: image("TWM", "154"),
 };
 
 export const replayEnergyImages: Record<string, string> = {
@@ -1270,6 +1271,93 @@ const sourceTransactions = new Map<number, ReplayTransaction>([
   [113, transaction("self", "Boss's Orders", stage("play", "Play", [z("114-boss", "Boss's Orders", images.boss)]), stage("move", "Active", [z("114-meowth", "Meowth ex", images.meowth)]))],
 ]);
 
+const abilityImages: Record<string, string> = {
+  "Lunatone": images.lunatone,
+  "Drakloak": images.drakloak,
+  "Munkidori": images.munkidori,
+  "Meowth ex": images.meowth,
+  "Blaziken ex": images.blaziken,
+  "Hariyama": images.hariyama,
+};
+
+const reconDirectiveDraws: Record<number, ReplayZoneCard> = {
+  28: z("29-recon-psychic", "Basic Psychic Energy", images.psychic),
+  37: z("38-recon-psychic", "Basic Psychic Energy", images.psychic),
+  53: z("54-recon-darkness", "Basic Darkness Energy", images.darkness),
+  54: z("55-recon-ultra", "Ultra Ball", images.ultraBall),
+  58: z("59-recon-poffin", "Buddy-Buddy Poffin", images.poffin),
+  75: z("76-recon-ultra", "Ultra Ball", images.ultraBall),
+  76: z("77-recon-poffin", "Buddy-Buddy Poffin", images.poffin),
+  91: z("92-recon-moltres", "Moltres", images.moltres),
+  92: z("93-recon-boss", "Boss's Orders", images.boss),
+};
+
+const seethingSpiritResults: Record<number, { energy: ReplayZoneCard; target: ReplayZoneCard; detail: string }> = {
+  55: {
+    energy: z("56-seething-psychic", "Basic Psychic Energy", images.psychic),
+    target: z("56-seething-drakloak", "Drakloak", images.drakloak),
+    detail: "Active",
+  },
+  78: {
+    energy: z("79-seething-psychic", "Basic Psychic Energy", images.psychic),
+    target: z("79-seething-drakloak", "Drakloak", images.drakloak),
+    detail: "Bench",
+  },
+  96: {
+    energy: z("97-seething-darkness", "Basic Darkness Energy", images.darkness),
+    target: z("97-seething-blaziken", "Blaziken ex", images.blaziken),
+    detail: "Bench",
+  },
+};
+
+const abilityTransaction = (sourceAction: ReplaySourceAction, index: number) => {
+  if (getReplaySourceLabel(sourceAction.sourceTitle) !== "Ability") return undefined;
+  const match = sourceAction.sourceTitle.match(/(?:'s|’s) (.+?) used (.+?)\.$/);
+  if (!match || !abilityImages[match[1]]) return undefined;
+  const [pokemonName, abilityName] = [match[1], match[2]];
+  const abilityCard = z(`${index + 1}-ability`, pokemonName, abilityImages[pokemonName]);
+  const opening = stage("ability", "Ability", [abilityCard], abilityName);
+  const reconDraw = reconDirectiveDraws[index];
+  if (abilityName === "Recon Directive" && reconDraw) return transaction(sourceAction.actor, abilityName, opening,
+    stage("draw", "Draw", [reconDraw]));
+  if (abilityName === "Lunar Cycle") return transaction(sourceAction.actor, abilityName, opening,
+    stage("discard", "Discard", [z(`${index + 1}-fighting`, "Basic Fighting Energy", images.fighting)]),
+    stage("draw", "Draw", [], undefined, 3));
+  if (abilityName === "Heave-Ho Catcher") return transaction(sourceAction.actor, abilityName, opening,
+    stage("move", "Move Meowth ex", [z(`${index + 1}-meowth`, "Meowth ex", images.meowth)], "to Active"));
+  if (abilityName === "Last-Ditch Catch") {
+    const foundCard = index === 34
+      ? z("35-lillie", "Lillie's Determination", images.lillie)
+      : index === 110
+        ? z("111-kieran", "Kieran", images.kieran)
+        : null;
+    if (foundCard) return transaction(sourceAction.actor, abilityName, opening,
+      stage("find", "Draw", [foundCard]));
+  }
+  if (abilityName === "Adrena-Brain") {
+    const result = index === 31
+      ? {
+          from: z("32-adrena-from", "Munkidori", images.munkidori),
+          to: z("32-adrena-to", "Mega Lucario ex", images.lucario),
+        }
+      : index === 97
+        ? {
+            from: z("98-adrena-from", "Dragapult ex", images.dragapult),
+            to: z("98-adrena-to", "Riolu", images.riolu),
+          }
+        : null;
+    if (!result) return transaction(sourceAction.actor, abilityName, opening);
+    return transaction(sourceAction.actor, abilityName, opening,
+      stage("heal", `From ${result.from.name}`, [result.from], "3 damage counters"),
+      stage("move", `To ${result.to.name}`, [result.to], "3 damage counters"));
+  }
+  const seethingResult = seethingSpiritResults[index];
+  if (abilityName === "Seething Spirit" && seethingResult) return transaction(sourceAction.actor, abilityName, opening,
+    stage("attach", "Attach", [seethingResult.energy]),
+    stage("move", `To ${seethingResult.target.name}`, [seethingResult.target], seethingResult.detail));
+  return transaction(sourceAction.actor, abilityName, opening);
+};
+
 const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
   [4, (s) => {
     s.opponent.bench.push(card("opp-riolu-a", "Riolu", images.riolu, 70));
@@ -1673,7 +1761,7 @@ export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction
   const visualMutation = sourceVisualMutations.get(index);
   return {
     ...fallback,
-    transaction: sourceTransactions.get(index) ?? legacy?.transaction,
+    transaction: sourceTransactions.get(index) ?? abilityTransaction(sourceAction, index) ?? legacy?.transaction,
     apply: (state) => {
       const next = legacy?.apply(state) ?? fallback.apply(state);
       visualMutation?.(next);
