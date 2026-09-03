@@ -107,7 +107,7 @@ function CardFace({
 
 function PileFace({ card, hidden }: { card?: ReplayZoneCard; hidden?: boolean }) {
   if (card?.imageUrl) {
-    return <Image alt="" fill sizes="54px" src={card.imageUrl} />;
+    return <Image alt="" fill sizes="72px" src={card.imageUrl} />;
   }
 
   if (hidden) return <div aria-hidden="true" className={styles.cardBack} />;
@@ -300,8 +300,9 @@ function PlayerBoard({
           <div className={styles.activeRow}>
             <PlayedCardSpot actor={actor} playedCard={playedCard} />
             <div
-              className={styles.active}
               aria-label={`${side.name} Active Spot`}
+              className={styles.active}
+              data-populated={side.active ? true : undefined}
             >
               <span className={styles.zoneLabel}>Active</span>
               {side.active ? (
@@ -315,7 +316,11 @@ function PlayerBoard({
           <div className={styles.bench} aria-label={`${side.name} Bench`}>
             <span className={styles.zoneLabel}>Bench</span>
             {Array.from({ length: 5 }).map((_, index) => (
-              <div className={styles.benchSlot} key={index}>
+              <div
+                className={styles.benchSlot}
+                data-populated={side.bench[index] ? true : undefined}
+                key={index}
+              >
                 {side.bench[index] ? (
                   <CardFace card={side.bench[index]} compact />
                 ) : null}
