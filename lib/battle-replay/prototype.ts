@@ -1,12 +1,12 @@
 import { buildDeckListCardImageUrl } from "@/lib/deck-lists/render";
 
 export type ReplayActor = "self" | "opponent";
-type HandCard = { id: string; name: string; imageUrl?: string };
+type HandCard = { id: string; name: string; imageUrl: string };
 
 export type ReplayZoneCard = {
   id: string;
   name: string;
-  imageUrl?: string;
+  imageUrl: string;
 };
 
 export type ReplayCard = {
@@ -96,6 +96,10 @@ const images = {
   judge: image("POR", "76"),
   areaZero: image("PRE", "94"),
   fezandipiti: image("ASC", "142"),
+  dawn: image("PFL", "87"),
+  unfairStamp: image("TWM", "165"),
+  combusken: image("JTG", "23"),
+  moltres: image("PFL", "14"),
 };
 
 export const replayEnergyImages: Record<string, string> = {
@@ -119,7 +123,7 @@ const card = (
   energy: [],
   underlying: [],
 });
-const hand = (id: string, name: string, imageUrl?: string): HandCard => ({
+const hand = (id: string, name: string, imageUrl: string): HandCard => ({
   id,
   name,
   imageUrl,
@@ -127,7 +131,7 @@ const hand = (id: string, name: string, imageUrl?: string): HandCard => ({
 const zoneCard = (
   id: string,
   name: string,
-  imageUrl?: string,
+  imageUrl: string,
 ): ReplayZoneCard => ({ id, name, imageUrl });
 const clone = (state: ReplayState): ReplayState => structuredClone(state);
 const event = (
@@ -340,7 +344,7 @@ export const replayEvents: ReplayEvent[] = [
     (s) => {
       setHand(s.self, [
         hand("judge-drakloak", "Drakloak", images.drakloak),
-        hand("judge-poke-pad", "Poké Pad"),
+        hand("judge-poke-pad", "Poké Pad", images.pokePad),
         hand("judge-meowth", "Meowth ex", images.meowth),
         hand("judge-torchic", "Torchic", images.torchic),
       ]);
@@ -399,11 +403,11 @@ export const replayEvents: ReplayEvent[] = [
       s.self.bench.push(card("self-dreepy-c", "Dreepy", images.dreepy, 70));
       s.self.active?.energy.push("Psychic");
       setHand(s.self, [
-        hand("turn-two-stretcher", "Night Stretcher"),
+        hand("turn-two-stretcher", "Night Stretcher", images.nightStretcher),
         hand("turn-two-dragapult", "Dragapult ex", images.dragapult),
-        hand("turn-two-candy", "Rare Candy"),
-        hand("turn-two-boss", "Boss's Orders"),
-        hand("turn-two-dawn", "Dawn"),
+        hand("turn-two-candy", "Rare Candy", images.rareCandy),
+        hand("turn-two-boss", "Boss's Orders", images.boss),
+        hand("turn-two-dawn", "Dawn", images.dawn),
         hand("turn-two-blaziken", "Blaziken ex", images.blaziken),
       ]);
       s.self.deckCount = 30;
@@ -533,7 +537,7 @@ export const replayEvents: ReplayEvent[] = [
         hand("turn-three-stretcher", "Night Stretcher", images.nightStretcher),
         hand("turn-three-dragapult", "Dragapult ex", images.dragapult),
         hand("turn-three-boss", "Boss's Orders", images.boss),
-        hand("turn-three-dawn", "Dawn"),
+        hand("turn-three-dawn", "Dawn", images.dawn),
         hand("turn-three-darkness", "Basic Darkness Energy", images.darkness),
         hand("turn-three-ultra-ball", "Ultra Ball", images.ultraBall),
       ]);
@@ -576,7 +580,7 @@ export const replayEvents: ReplayEvent[] = [
       if (oldActive) s.opponent.bench.push(oldActive);
       setHand(s.self, [
         hand("turn-three-stretcher", "Night Stretcher", images.nightStretcher),
-        hand("turn-three-dawn", "Dawn"),
+        hand("turn-three-dawn", "Dawn", images.dawn),
         hand("turn-three-darkness", "Basic Darkness Energy", images.darkness),
         hand("turn-three-ultra-ball", "Ultra Ball", images.ultraBall),
       ]);
@@ -605,7 +609,7 @@ export const replayEvents: ReplayEvent[] = [
     (s) => {
       setHand(s.self, [
         hand("judge-two-fire", "Basic Fire Energy", images.fire),
-        hand("judge-two-stretcher", "Night Stretcher"),
+        hand("judge-two-stretcher", "Night Stretcher", images.nightStretcher),
         hand("judge-two-darkness", "Basic Darkness Energy", images.darkness),
         hand("judge-two-torchic", "Torchic", images.torchic),
       ]);
@@ -684,7 +688,7 @@ export const replayEvents: ReplayEvent[] = [
         hand("turn-four-dragapult", "Dragapult ex", images.dragapult),
         hand("turn-four-ultra-ball", "Ultra Ball", images.ultraBall),
         hand("turn-four-poffin", "Buddy-Buddy Poffin", images.poffin),
-        hand("prize-unfair-stamp", "Unfair Stamp"),
+        hand("prize-unfair-stamp", "Unfair Stamp", images.unfairStamp),
         hand("prize-crispin", "Crispin", images.crispin),
         hand("prize-fire", "Basic Fire Energy", images.fire),
       ]);
@@ -740,12 +744,12 @@ export const replayEvents: ReplayEvent[] = [
       s.self.deckCount = 17;
       setHand(s.self, [
         hand("turn-five-dragapult", "Dragapult ex", images.dragapult),
-        hand("turn-five-unfair-stamp", "Unfair Stamp"),
+        hand("turn-five-unfair-stamp", "Unfair Stamp", images.unfairStamp),
         hand("turn-five-crispin", "Crispin", images.crispin),
         hand("turn-five-fire", "Basic Fire Energy", images.fire),
         hand("turn-five-blaziken", "Blaziken ex", images.blaziken),
-        hand("turn-five-combusken", "Combusken"),
-        hand("turn-five-moltres", "Moltres"),
+        hand("turn-five-combusken", "Combusken", images.combusken),
+        hand("turn-five-moltres", "Moltres", images.moltres),
         hand("turn-five-boss", "Boss's Orders", images.boss),
       ]);
       discardCards(
@@ -793,12 +797,12 @@ export const replayEvents: ReplayEvent[] = [
       );
       setHand(s.self, [
         hand("turn-five-dragapult", "Dragapult ex", images.dragapult),
-        hand("turn-five-unfair-stamp", "Unfair Stamp"),
+        hand("turn-five-unfair-stamp", "Unfair Stamp", images.unfairStamp),
         hand("turn-five-crispin", "Crispin", images.crispin),
         hand("turn-five-fire", "Basic Fire Energy", images.fire),
         hand("turn-five-blaziken", "Blaziken ex", images.blaziken),
-        hand("turn-five-combusken", "Combusken"),
-        hand("turn-five-moltres", "Moltres"),
+        hand("turn-five-combusken", "Combusken", images.combusken),
+        hand("turn-five-moltres", "Moltres", images.moltres),
         hand("prize-boss", "Boss's Orders", images.boss),
         hand("prize-drakloak", "Drakloak", images.drakloak),
       ]);
@@ -875,7 +879,7 @@ export const replayEvents: ReplayEvent[] = [
       );
       setHand(s.self, [
         ...s.self.knownHand.filter((item) => item.name !== "Boss's Orders"),
-        hand("turn-six-dawn", "Dawn"),
+        hand("turn-six-dawn", "Dawn", images.dawn),
         hand("final-prize-munkidori", "Munkidori", images.munkidori),
       ]);
     },
