@@ -1,0 +1,605 @@
+.replayShell {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.72fr) minmax(34rem, 1.28fr);
+  min-height: 46rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+}
+
+.timelinePane {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: color-mix(in oklab, var(--muted) 44%, var(--card));
+}
+
+.timelineHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.timelineHeader h2 {
+  margin: 0;
+  color: var(--card-foreground);
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.timelineHeader p,
+.timelineAction p,
+.artNote {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+.timelineHeader p {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.timeline {
+  display: grid;
+  max-height: 44rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-color: var(--border) transparent;
+}
+
+.timelineAction {
+  position: relative;
+  display: grid;
+  width: 100%;
+  grid-template-columns: 4.25rem 4.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.65rem;
+  padding: 0.85rem 1.25rem 0.85rem 1.55rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--card-foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.timelineAction::before {
+  position: absolute;
+  top: 1.15rem;
+  left: 0.7rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--color-loss);
+  content: "";
+}
+
+.timelineAction[data-actor="self"]::before {
+  background: var(--color-win);
+}
+
+.timelineAction:hover,
+.timelineAction[data-selected] {
+  background: var(--card);
+}
+
+.timelineAction[data-selected] {
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.timelineAction:focus-visible {
+  z-index: 1;
+  outline: 3px solid color-mix(in oklab, var(--ring) 45%, transparent);
+  outline-offset: -3px;
+}
+
+.timelineAction > span,
+.timelineAction > strong {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.timelineAction > span {
+  color: var(--muted-foreground);
+}
+
+.timelineAction p {
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.replayStage {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 1rem;
+  background: var(--background);
+}
+
+.board {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--card);
+}
+
+.playerBoard {
+  --replay-player-tint: var(--color-loss);
+  padding: 0.8rem;
+  background: color-mix(in oklab, var(--replay-player-tint) 5%, var(--card));
+}
+
+.playerBoard[data-actor="self"] {
+  --replay-player-tint: var(--color-win);
+}
+
+.playerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.playerHeader > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.playerHeader span {
+  color: var(--muted-foreground);
+  font-size: 0.69rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.playerHeader strong {
+  color: var(--card-foreground);
+  font-size: 0.9rem;
+}
+
+.prizes {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.prizes span {
+  width: 0.52rem;
+  height: 0.72rem;
+  border: 1px solid var(--border);
+  border-radius: 0.15rem;
+  background: transparent;
+}
+
+.prizes span[data-remaining] {
+  border-color: color-mix(in oklab, var(--replay-player-tint) 72%, var(--border));
+  background: var(--replay-player-tint);
+}
+
+.playArea {
+  display: grid;
+  min-height: 12.5rem;
+  grid-template-columns: 4.5rem minmax(0, 1fr) 4.5rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.zonePiles {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.pile,
+.hand {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  color: var(--muted-foreground);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pile strong,
+.hand strong {
+  color: var(--card-foreground);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pileCards {
+  position: relative;
+  width: 2.5rem;
+  aspect-ratio: 0.714;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  box-shadow: 0 0.2rem 0.55rem color-mix(in oklab, var(--foreground) 15%, transparent);
+}
+
+.pileCards img,
+.cardFace img,
+.stadium img {
+  object-fit: cover;
+}
+
+.cardBack,
+.handFan span {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    145deg,
+    var(--replay-card-back-ink) 0 32%,
+    var(--replay-card-back-mid) 32% 65%,
+    var(--replay-card-back-accent) 65%
+  );
+}
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6.2rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bench {
+  display: flex;
+  min-height: 6rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px dashed color-mix(in oklab, var(--replay-player-tint) 32%, var(--border));
+  border-radius: 0.6rem;
+}
+
+.active {
+  display: flex;
+  min-height: 9rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in oklab, var(--replay-player-tint) 40%, var(--border));
+  border-radius: 0.65rem;
+  background: color-mix(in oklab, var(--replay-player-tint) 4%, var(--card));
+}
+
+.emptyZone,
+.emptyStadium {
+  color: var(--muted-foreground);
+  font-size: 0.67rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.cardFace {
+  position: relative;
+  width: 5.25rem;
+  aspect-ratio: 0.714;
+  border-radius: 0.42rem;
+  box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 20%, transparent);
+  transition: transform 180ms ease-out;
+}
+
+.cardFace[data-compact] {
+  width: 3.7rem;
+}
+
+.cardHealth {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.25rem;
+  padding: 0.28rem;
+  border-radius: 0 0 0.42rem 0.42rem;
+  background: var(--replay-card-overlay);
+  color: var(--replay-card-edge);
+  font-size: 0.49rem;
+}
+
+.cardHealth span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardHealth strong {
+  flex: 0 0 auto;
+}
+
+.energyBadge,
+.damageBadge {
+  position: absolute;
+  top: -0.38rem;
+  display: grid;
+  min-width: 1.45rem;
+  min-height: 1.45rem;
+  place-items: center;
+  border: 2px solid var(--replay-card-edge);
+  border-radius: 50%;
+  color: var(--replay-card-edge);
+  font-size: 0.5rem;
+  font-weight: 800;
+}
+
+.energyBadge {
+  left: -0.38rem;
+  background: var(--replay-energy);
+}
+
+.damageBadge {
+  right: -0.38rem;
+  background: var(--color-loss);
+}
+
+.handFan {
+  position: relative;
+  width: 3.8rem;
+  height: 3.5rem;
+}
+
+.handFan span {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 1.9rem;
+  height: 2.65rem;
+  border: 1px solid color-mix(in oklab, var(--replay-card-edge) 70%, transparent);
+  border-radius: 0.24rem;
+  transform-origin: bottom center;
+}
+
+.boardMiddle {
+  display: flex;
+  min-height: 3.7rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 0.45rem;
+  border-block: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.boardMiddle > span:first-child {
+  color: var(--muted-foreground);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stadium {
+  position: relative;
+  width: 2.5rem;
+  aspect-ratio: 0.714;
+}
+
+.stadium strong {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 0.55rem);
+  width: max-content;
+  max-width: 8rem;
+  color: var(--card-foreground);
+  font-size: 0.72rem;
+  transform: translateY(-50%);
+}
+
+.currentAction {
+  display: grid;
+  min-height: 4.8rem;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 1rem;
+  margin-top: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-top: 2px solid var(--card-foreground);
+  border-bottom: 1px solid var(--border);
+}
+
+.currentAction span {
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.currentAction strong {
+  color: var(--card-foreground);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.scrubber {
+  padding: 0.75rem 0.25rem 0.25rem;
+}
+
+.scrubber label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+}
+
+.scrubber strong {
+  color: var(--card-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.scrubber input {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 0.65rem 0;
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+}
+
+.controlGroup span {
+  min-width: 3.8rem;
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.artNote {
+  max-width: 68ch;
+  align-self: center;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 68rem) {
+  .replayShell {
+    grid-template-columns: 1fr;
+  }
+
+  .replayStage {
+    order: -1;
+  }
+
+  .timelinePane {
+    border-top: 1px solid var(--border);
+    border-right: 0;
+  }
+
+  .timeline {
+    max-height: 24rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .replayShell {
+    margin-inline: -1rem;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .replayStage {
+    padding: 0.6rem;
+  }
+
+  .playerBoard {
+    padding: 0.6rem;
+  }
+
+  .playerHeader {
+    align-items: flex-start;
+  }
+
+  .playerHeader > div {
+    display: grid;
+    gap: 0.05rem;
+  }
+
+  .playArea {
+    min-height: 10.75rem;
+    grid-template-columns: 3.5rem minmax(0, 1fr) 3.6rem;
+    gap: 0.4rem;
+  }
+
+  .field {
+    grid-template-columns: minmax(0, 1fr) 4.9rem;
+    gap: 0.4rem;
+  }
+
+  .active {
+    min-height: 7.5rem;
+  }
+
+  .bench {
+    min-height: 5rem;
+  }
+
+  .cardFace {
+    width: 4.2rem;
+  }
+
+  .cardFace[data-compact] {
+    width: 3rem;
+  }
+
+  .cardHealth {
+    display: none;
+  }
+
+  .pileCards {
+    width: 2.15rem;
+  }
+
+  .handFan {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .handFan span {
+    width: 1.55rem;
+    height: 2.2rem;
+  }
+
+  .prizes {
+    display: grid;
+    grid-template-columns: repeat(3, 0.52rem);
+  }
+
+  .currentAction {
+    min-height: 5.4rem;
+    grid-template-columns: 4rem minmax(0, 1fr);
+    gap: 0.65rem;
+    padding-inline: 0.45rem;
+  }
+
+  .controls {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    gap: 0.45rem;
+    padding: 0.65rem 0;
+    background: var(--background);
+  }
+
+  .controlGroup span {
+    min-width: 3rem;
+    font-size: 0.65rem;
+  }
+
+  .timelineAction {
+    grid-template-columns: 3.7rem 4rem minmax(0, 1fr);
+    padding-inline: 1.35rem 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardFace {
+    transition: none;
+  }
+}

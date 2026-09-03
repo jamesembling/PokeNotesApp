@@ -1,0 +1,287 @@
+import { buildDeckListCardImageUrl } from "@/lib/deck-lists/render";
+
+export type ReplayActor = "self" | "opponent";
+
+export type ReplayCard = {
+  id: string;
+  name: string;
+  imageUrl: string;
+  hp: number;
+  damage: number;
+  energy: string[];
+  tool?: string;
+};
+
+export type ReplaySide = {
+  name: string;
+  active: ReplayCard | null;
+  bench: ReplayCard[];
+  deckCount: number;
+  handCount: number;
+  discard: Array<{ name: string; imageUrl: string }>;
+  prizesRemaining: number;
+};
+
+export type ReplayState = {
+  self: ReplaySide;
+  opponent: ReplaySide;
+  stadium: { name: string; imageUrl: string } | null;
+};
+
+export type ReplayEvent = {
+  actor: ReplayActor;
+  label: string;
+  summary: string;
+  turn: number;
+  apply: (state: ReplayState) => ReplayState;
+};
+
+const cardImage = (set: string, number: string) => buildDeckListCardImageUrl(set, number, "SM");
+
+const images = {
+  buddy: cardImage("TEF", "144"),
+  charizard: cardImage("OBF", "125"),
+  charmander: cardImage("MEW", "004"),
+  dragapult: cardImage("TWM", "130"),
+  dreepy: cardImage("TWM", "128"),
+  iono: cardImage("PAL", "185"),
+  psychic: cardImage("SVE", "005"),
+  rareCandy: cardImage("SVI", "191"),
+  stadium: cardImage("TWM", "165")
+};
+
+const pokemon = (id: string, name: string, imageUrl: string, hp: number): ReplayCard => ({
+  id,
+  name,
+  imageUrl,
+  hp,
+  damage: 0,
+  energy: []
+});
+
+export const initialReplayState: ReplayState = {
+  self: {
+    name: "JammerUK1993",
+    active: null,
+    bench: [],
+    deckCount: 54,
+    handCount: 7,
+    discard: [],
+    prizesRemaining: 6
+  },
+  opponent: {
+    name: "FixtureOpponent",
+    active: null,
+    bench: [],
+    deckCount: 54,
+    handCount: 7,
+    discard: [],
+    prizesRemaining: 6
+  },
+  stadium: null
+};
+
+function updateSide(
+  state: ReplayState,
+  actor: ReplayActor,
+  update: (side: ReplaySide) => ReplaySide
+): ReplayState {
+  return { ...state, [actor]: update(state[actor]) };
+}
+
+function playPokemon(
+  actor: ReplayActor,
+  zone: "active" | "bench",
+  card: ReplayCard
+): ReplayEvent["apply"] {
+  return (state) =>
+    updateSide(state, actor, (side) => ({
+      ...side,
+      active: zone === "active" ? card : side.active,
+      bench: zone === "bench" ? [...side.bench, card] : side.bench,
+      handCount: Math.max(0, side.handCount - 1)
+    }));
+}
+
+export const replayEvents: ReplayEvent[] = [
+  {
+    actor: "self",
+    turn: 0,
+    label: "Setup",
+    summary: "Dreepy was placed in the Active Spot.",
+    apply: playPokemon("self", "active", pokemon("self-dreepy-a", "Dreepy", images.dreepy, 70))
+  },
+  {
+    actor: "opponent",
+    turn: 0,
+    label: "Setup",
+    summary: "Charmander was placed in the Active Spot.",
+    apply: playPokemon(
+      "opponent",
+      "active",
+      pokemon("opponent-charmander", "Charmander", images.charmander, 70)
+    )
+  },
+  {
+    actor: "self",
+    turn: 1,
+    label: "Draw",
+    summary: "Drew Buddy-Buddy Poffin.",
+    apply: (state) => updateSide(state, "self", (side) => ({
+      ...side,
+      deckCount: side.deckCount - 1,
+      handCount: side.handCount + 1
+    }))
+  },
+  {
+    actor: "self",
+    turn: 1,
+    label: "Bench",
+    summary: "Played Dreepy to the Bench.",
+    apply: playPokemon("self", "bench", pokemon("self-dreepy-b", "Dreepy", images.dreepy, 70))
+  },
+  {
+    actor: "self",
+    turn: 1,
+    label: "Energy",
+    summary: "Attached Basic Psychic Energy to Active Dreepy.",
+    apply: (state) => updateSide(state, "self", (side) => ({
+      ...side,
+      active: side.active ? { ...side.active, energy: [...side.active.energy, "Psychic"] } : null,
+      handCount: Math.max(0, side.handCount - 1)
+    }))
+  },
+  {
+    actor: "self",
+    turn: 1,
+    label: "Attack",
+    summary: "Dreepy used Gnaw for 30 damage.",
+    apply: (state) => updateSide(state, "opponent", (side) => ({
+      ...side,
+      active: side.active ? { ...side.active, damage: side.active.damage + 30 } : null
+    }))
+  },
+  {
+    actor: "opponent",
+    turn: 2,
+    label: "Evolve",
+    summary: "Charmander evolved into Charizard ex.",
+    apply: (state) => updateSide(state, "opponent", (side) => ({
+      ...side,
+      active: pokemon("opponent-charizard", "Charizard ex", images.charizard, 330),
+      handCount: Math.max(0, side.handCount - 2),
+      discard: [{ name: "Rare Candy", imageUrl: images.rareCandy }, ...side.discard]
+    }))
+  },
+  {
+    actor: "opponent",
+    turn: 2,
+    label: "Attack",
+    summary: "Charizard ex used Burning Darkness for 180 damage.",
+    apply: (state) => updateSide(state, "self", (side) => ({
+      ...side,
+      active: side.active ? { ...side.active, damage: 180 } : null
+    }))
+  },
+  {
+    actor: "opponent",
+    turn: 2,
+    label: "KO",
+    summary: "Dreepy was Knocked Out. FixtureOpponent took 1 Prize card.",
+    apply: (state) => ({
+      ...updateSide(state, "self", (side) => ({
+        ...side,
+        active: null,
+        discard: side.active
+          ? [{ name: side.active.name, imageUrl: side.active.imageUrl }, ...side.discard]
+          : side.discard
+      })),
+      opponent: { ...state.opponent, prizesRemaining: state.opponent.prizesRemaining - 1 }
+    })
+  },
+  {
+    actor: "self",
+    turn: 2,
+    label: "Promote",
+    summary: "Benched Dreepy was promoted to the Active Spot.",
+    apply: (state) => updateSide(state, "self", (side) => ({
+      ...side,
+      active: side.bench[0] ?? null,
+      bench: side.bench.slice(1)
+    }))
+  },
+  {
+    actor: "self",
+    turn: 3,
+    label: "Evolve",
+    summary: "Dreepy evolved into Dragapult ex.",
+    apply: (state) => updateSide(state, "self", (side) => ({
+      ...side,
+      active: side.active
+        ? { ...pokemon(side.active.id, "Dragapult ex", images.dragapult, 320), energy: side.active.energy }
+        : null,
+      handCount: Math.max(0, side.handCount - 2),
+      discard: [{ name: "Rare Candy", imageUrl: images.rareCandy }, ...side.discard]
+    }))
+  },
+  {
+    actor: "self",
+    turn: 3,
+    label: "Supporter",
+    summary: "Played Iono. Both players shuffled their hands and drew again.",
+    apply: (state) => ({
+      ...state,
+      self: {
+        ...state.self,
+        handCount: 6,
+        deckCount: state.self.deckCount - 2,
+        discard: [{ name: "Iono", imageUrl: images.iono }, ...state.self.discard]
+      },
+      opponent: { ...state.opponent, handCount: 6, deckCount: state.opponent.deckCount - 1 }
+    })
+  },
+  {
+    actor: "self",
+    turn: 3,
+    label: "Stadium",
+    summary: "Played Jamming Tower to the Stadium Spot.",
+    apply: (state) => ({
+      ...state,
+      self: { ...state.self, handCount: Math.max(0, state.self.handCount - 1) },
+      stadium: { name: "Jamming Tower", imageUrl: images.stadium }
+    })
+  },
+  {
+    actor: "self",
+    turn: 3,
+    label: "Attack",
+    summary: "Dragapult ex used Phantom Dive for 200 damage.",
+    apply: (state) => updateSide(state, "opponent", (side) => ({
+      ...side,
+      active: side.active ? { ...side.active, damage: side.active.damage + 200 } : null
+    }))
+  },
+  {
+    actor: "self",
+    turn: 3,
+    label: "KO",
+    summary: "Charizard ex was Knocked Out. JammerUK1993 took 2 Prize cards.",
+    apply: (state) => ({
+      ...updateSide(state, "opponent", (side) => ({
+        ...side,
+        active: null,
+        discard: side.active
+          ? [{ name: side.active.name, imageUrl: side.active.imageUrl }, ...side.discard]
+          : side.discard
+      })),
+      self: { ...state.self, prizesRemaining: state.self.prizesRemaining - 2 }
+    })
+  }
+];
+
+export const replayFrames = replayEvents.reduce<ReplayState[]>((frames, event) => {
+  frames.push(event.apply(frames[frames.length - 1]));
+  return frames;
+}, [initialReplayState]);
+
+export const representativeCardImages = images;
