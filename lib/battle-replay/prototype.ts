@@ -46,12 +46,27 @@ export type ReplayState = {
   } | null;
 };
 
+export type ReplayTransactionStage = {
+  kind: "play" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
+  label: string;
+  cards: ReplayZoneCard[];
+  hiddenCount?: number;
+  detail?: string;
+};
+
+export type ReplayTransaction = {
+  actor: ReplayActor;
+  title: string;
+  stages: ReplayTransactionStage[];
+};
+
 export type ReplayEvent = {
   actor: ReplayActor;
   label: string;
   sourceTitle: string;
   summary: string;
   turn: number;
+  transaction?: ReplayTransaction;
   apply: (state: ReplayState) => ReplayState;
 };
 
@@ -214,13 +229,25 @@ const showPlayedCard = (
 ) => {
   state.playedCard = { actor, card };
 };
+const stage = (
+  kind: ReplayTransactionStage["kind"],
+  label: string,
+  cards: ReplayZoneCard[] = [],
+  detail?: string,
+  hiddenCount?: number,
+): ReplayTransactionStage => ({ kind, label, cards, detail, hiddenCount });
+const transaction = (
+  actor: ReplayActor,
+  title: string,
+  ...stages: ReplayTransactionStage[]
+): ReplayTransaction => ({ actor, title, stages });
 const playedCardEvent = (
   actor: ReplayActor,
   turn: number,
   card: ReplayZoneCard,
   afterPlay?: (state: ReplayState) => void,
-) =>
-  event(
+) => ({
+  ...event(
     actor,
     turn,
     card.name,
@@ -231,7 +258,9 @@ const playedCardEvent = (
       showPlayedCard(state, actor, card);
       afterPlay?.(state);
     },
-  );
+  ),
+  transaction: transaction(actor, card.name, stage("play", "Play", [card])),
+});
 const removeDiscard = (side: ReplaySide, name: string) => {
   const index = side.discard.findIndex((item) => item.name === name);
   if (index >= 0) side.discard.splice(index, 1);
@@ -1154,6 +1183,93 @@ const replaySourceActions: ReplaySourceAction[] = [
   ], [null, 57, null, null, null, null, 59]),
 ];
 
+// Only source-evidenced card movement is shown. Unknown opponent cards stay
+// hidden rather than receiving a guessed identity.
+const z = (id: string, name: string, imageUrl: string) => zoneCard(`tx-${id}`, name, imageUrl);
+const sourceTransactions = new Map<number, ReplayTransaction>([
+  [7, transaction("opponent", "Ultra Ball",
+    stage("play", "Play", [z("8-ultra", "Ultra Ball", images.ultraBall)]),
+    stage("discard", "Discard", [z("8-boss", "Boss's Orders", images.boss), z("8-prime", "Prime Catcher", images.primeCatcher)]),
+    stage("find", "Find", [z("8-lunatone", "Lunatone", images.lunatone)]))],
+  [11, transaction("self", "Buddy-Buddy Poffin",
+    stage("play", "Play", [z("12-poffin", "Buddy-Buddy Poffin", images.poffin)]),
+    stage("bench", "Bench", [z("12-dreepy-a", "Dreepy", images.dreepy), z("12-dreepy-b", "Dreepy", images.dreepy)]))],
+  [12, transaction("self", "Crispin",
+    stage("play", "Play", [z("13-crispin", "Crispin", images.crispin)]),
+    stage("attach", "Attach", [z("13-fire", "Basic Fire Energy", images.fire)], "to Dreepy"),
+    stage("find", "Find", [z("13-darkness", "Basic Darkness Energy", images.darkness)], "add to hand"))],
+  [17, transaction("opponent", "Judge",
+    stage("play", "Play", [z("18-judge", "Judge", images.judge)]),
+    stage("shuffle", "Shuffle", [], "both hands into their decks"),
+    stage("draw", "Draw", [], "each player", 4))],
+  [20, transaction("opponent", "Fighting Gong",
+    stage("play", "Play", [z("21-gong", "Fighting Gong", images.fightingGong)]),
+    stage("find", "Find", [z("21-fighting", "Basic Fighting Energy", images.fighting)]))],
+  [22, transaction("opponent", "Poké Pad",
+    stage("play", "Play", [z("23-pad", "Poké Pad", images.pokePad)]),
+    stage("find", "Find", [z("23-makuhita", "Makuhita", images.makuhita)]))],
+  [29, transaction("self", "Poké Pad",
+    stage("play", "Play", [z("30-pad", "Poké Pad", images.pokePad)]),
+    stage("find", "Find", [z("30-drakloak", "Drakloak", images.drakloak)]))],
+  [35, transaction("self", "Lillie's Determination",
+    stage("play", "Play", [z("36-lillie", "Lillie's Determination", images.lillie)]),
+    stage("shuffle", "Shuffle", [z("36-moltres", "Moltres", images.moltres)], "into deck"),
+    stage("draw", "Draw", [
+      z("36-stretcher", "Night Stretcher", images.nightStretcher), z("36-dragapult", "Dragapult ex", images.dragapult),
+      z("36-red", "Special Red Card", images.specialRedCard), z("36-candy", "Rare Candy", images.rareCandy),
+      z("36-ultra", "Ultra Ball", images.ultraBall), z("36-boss", "Boss's Orders", images.boss),
+      z("36-dawn", "Dawn", images.dawn), z("36-dreepy", "Dreepy", images.dreepy)]))],
+  [38, transaction("self", "Ultra Ball",
+    stage("play", "Play", [z("39-ultra", "Ultra Ball", images.ultraBall)]),
+    stage("discard", "Discard", [z("39-psychic", "Basic Psychic Energy", images.psychic), z("39-red", "Special Red Card", images.specialRedCard)]),
+    stage("find", "Find", [z("39-blaziken", "Blaziken ex", images.blaziken)]))],
+  [41, transaction("opponent", "Poké Pad",
+    stage("play", "Play", [z("42-pad", "Poké Pad", images.pokePad)]),
+    stage("find", "Find", [z("42-solrock", "Solrock", images.solrock)]))],
+  [43, transaction("opponent", "Lillie's Determination",
+    stage("play", "Play", [z("44-lillie", "Lillie's Determination", images.lillie)]),
+    stage("draw", "Draw", [], undefined, 8))],
+  [44, transaction("opponent", "Gravity Mountain",
+    stage("play", "Play", [z("45-mountain", "Gravity Mountain", images.gravityMountain)]),
+    stage("stadium", "Stadium", [z("45-stadium", "Gravity Mountain", images.gravityMountain)]))],
+  [46, transaction("opponent", "Switch",
+    stage("play", "Play", [z("47-switch", "Switch", images.switch)]),
+    stage("move", "Active", [z("47-solrock", "Solrock", images.solrock)]))],
+  [52, transaction("self", "Rare Candy",
+    stage("play", "Play", [z("53-candy", "Rare Candy", images.rareCandy)]),
+    stage("evolve", "Evolve", [z("53-blaziken", "Blaziken ex", images.blaziken)]))],
+  [59, transaction("self", "Buddy-Buddy Poffin",
+    stage("play", "Play", [z("60-poffin", "Buddy-Buddy Poffin", images.poffin)]),
+    stage("bench", "Bench", [z("60-dreepy", "Dreepy", images.dreepy)]))],
+  [61, transaction("self", "Boss's Orders",
+    stage("play", "Play", [z("62-boss", "Boss's Orders", images.boss)]),
+    stage("move", "Active", [z("62-lucario", "Mega Lucario ex", images.lucario)]))],
+  [70, transaction("opponent", "Judge",
+    stage("play", "Play", [z("71-judge", "Judge", images.judge)]),
+    stage("shuffle", "Shuffle", [], "both hands into their decks"), stage("draw", "Draw", [], "each player", 4))],
+  [84, transaction("opponent", "Wally's Compassion",
+    stage("play", "Play", [z("85-wally", "Wally's Compassion", images.wally)]),
+    stage("return", "Return", [z("85-fighting-a", "Basic Fighting Energy", images.fighting), z("85-fighting-b", "Basic Fighting Energy", images.fighting)], "to hand"),
+    stage("heal", "Heal", [z("85-lucario", "Mega Lucario ex", images.lucario)], "120 damage"))],
+  [90, transaction("self", "Ultra Ball",
+    stage("play", "Play", [z("91-ultra", "Ultra Ball", images.ultraBall)]),
+    stage("discard", "Discard", [z("91-poffin", "Buddy-Buddy Poffin", images.poffin), z("91-torchic", "Torchic", images.torchic)]),
+    stage("find", "Find", [z("91-combusken", "Combusken", images.combusken)]))],
+  [93, transaction("self", "Night Stretcher",
+    stage("play", "Play", [z("94-stretcher", "Night Stretcher", images.nightStretcher)]),
+    stage("return", "Return", [z("94-munkidori", "Munkidori", images.munkidori)], "to hand"))],
+  [98, transaction("self", "Boss's Orders",
+    stage("play", "Play", [z("99-boss", "Boss's Orders", images.boss)]),
+    stage("move", "Active", [z("99-hariyama", "Hariyama", images.hariyama)]))],
+  [105, transaction("opponent", "Carmine",
+    stage("play", "Play", [z("106-carmine", "Carmine", images.carmine)]),
+    stage("discard", "Discard", [z("106-boss", "Boss's Orders", images.boss), z("106-makuhita", "Makuhita", images.makuhita), z("106-lillie", "Lillie's Determination", images.lillie), z("106-ultra", "Ultra Ball", images.ultraBall), z("106-lucario", "Mega Lucario ex", images.lucario), z("106-judge", "Judge", images.judge)]),
+    stage("draw", "Draw", [], undefined, 5))],
+  [106, transaction("opponent", "Fighting Gong", stage("play", "Play", [z("107-gong", "Fighting Gong", images.fightingGong)]), stage("find", "Find", [z("107-energy", "Basic Fighting Energy", images.fighting)]))],
+  [108, transaction("opponent", "Fighting Gong", stage("play", "Play", [z("109-gong", "Fighting Gong", images.fightingGong)]), stage("find", "Find", [z("109-solrock", "Solrock", images.solrock)]))],
+  [113, transaction("self", "Boss's Orders", stage("play", "Play", [z("114-boss", "Boss's Orders", images.boss)]), stage("move", "Active", [z("114-meowth", "Meowth ex", images.meowth)]))],
+]);
+
 const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
   [4, (s) => {
     s.opponent.bench.push(card("opp-riolu-a", "Riolu", images.riolu, 70));
@@ -1557,6 +1673,7 @@ export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction
   const visualMutation = sourceVisualMutations.get(index);
   return {
     ...fallback,
+    transaction: sourceTransactions.get(index) ?? legacy?.transaction,
     apply: (state) => {
       const next = legacy?.apply(state) ?? fallback.apply(state);
       visualMutation?.(next);

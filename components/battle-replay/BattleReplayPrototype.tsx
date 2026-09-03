@@ -26,6 +26,8 @@ import {
   type ReplayCard,
   type ReplayState,
   type ReplaySide,
+  type ReplayTransaction,
+  type ReplayTransactionStage,
   type ReplayZoneCard,
 } from "@/lib/battle-replay/prototype";
 import styles from "./battle-replay.module.css";
@@ -244,43 +246,40 @@ function StadiumSpot({
   );
 }
 
-function PlayedCardSpot({
-  actor,
-  playedCard,
-}: {
-  actor: ReplayActor;
-  playedCard: ReplayState["playedCard"];
-}) {
-  if (!playedCard || playedCard.actor !== actor) return null;
+function TransactionCards({ stage }: { stage: ReplayTransactionStage }) {
+  return <div className={styles.transactionCards}>
+    {stage.cards.map((card) => <div className={styles.transactionCard} key={card.id}>
+      <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="82px" src={card.imageUrl} />
+    </div>)}
+    {Array.from({ length: Math.min(3, stage.hiddenCount ?? 0) }).map((_, index) =>
+      <div aria-hidden="true" className={styles.transactionCard} data-hidden key={`hidden-${index}`}><div className={styles.cardBack} /></div>)}
+    {stage.hiddenCount ? <span className={styles.transactionCount}>{stage.hiddenCount} unknown {stage.hiddenCount === 1 ? "card" : "cards"}</span> : null}
+  </div>;
+}
 
-  return (
-    <div
-      aria-label={`${playedCard.card.name} was played`}
-      className={styles.playedCardSpot}
-    >
-      <span>Played</span>
-      <div className={styles.playedCard}>
-        <Image
-          alt={`${playedCard.card.name}, card played for this action`}
-          fill
-          sizes="54px"
-          src={playedCard.card.imageUrl}
-        />
-      </div>
+function TransactionOverlay({ transaction }: { transaction: ReplayTransaction }) {
+  return <section aria-label={`${transaction.title} card resolution`} className={styles.transactionOverlay} data-actor={transaction.actor}>
+    <div className={styles.transactionHeading}>
+      <span>{transaction.actor === "self" ? "Your action" : "Opponent action"}</span>
+      <strong>{transaction.title}</strong>
     </div>
-  );
+    <ol className={styles.transactionRail}>{transaction.stages.map((stage, index) =>
+      <li className={styles.transactionStage} key={`${stage.kind}-${index}`}>
+        {index > 0 ? <ChevronRightIcon aria-hidden="true" className={styles.transactionArrow} /> : null}
+        <div className={styles.transactionStep}><span>{stage.label}</span><TransactionCards stage={stage} />{stage.detail ? <small>{stage.detail}</small> : null}</div>
+      </li>)}</ol>
+    <p>Source-evidenced movement · format-legal representative art</p>
+  </section>;
 }
 
 function PlayerBoard({
   actor,
   onInspectDiscard,
-  playedCard,
   side,
   stadium,
 }: {
   actor: ReplayActor;
   onInspectDiscard: (actor: ReplayActor) => void;
-  playedCard: ReplayState["playedCard"];
   side: ReplaySide;
   stadium: ReplayState["stadium"];
 }) {
@@ -298,7 +297,6 @@ function PlayerBoard({
 
         <div className={styles.field}>
           <div className={styles.activeRow}>
-            <PlayedCardSpot actor={actor} playedCard={playedCard} />
             <div
               aria-label={`${side.name} Active Spot`}
               className={styles.active}
@@ -352,6 +350,7 @@ export function BattleReplayPrototype() {
   const stageRef = useRef<HTMLDivElement>(null);
   const state = replayFrames[actionIndex];
   const currentEvent = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
+  const autoplayDelay = currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
   const maxIndex = replayFrames.length - 1;
   const turnStops = useMemo(
     () =>
@@ -382,10 +381,10 @@ export function BattleReplayPrototype() {
 
     const timer = window.setTimeout(
       () => setActionIndex((value) => Math.min(maxIndex, value + 1)),
-      1100,
+      autoplayDelay,
     );
     return () => window.clearTimeout(timer);
-  }, [actionIndex, maxIndex, playing]);
+  }, [actionIndex, autoplayDelay, maxIndex, playing]);
 
   function seek(nextIndex: number, revealBoard = false) {
     setPlaying(false);
@@ -451,21 +450,12 @@ export function BattleReplayPrototype() {
       </div>
 
       <div className={styles.replayStage} ref={stageRef}>
-        <div className={styles.board}>
-          <PlayerBoard
-            actor="opponent"
-            onInspectDiscard={setInspectedDiscard}
-            playedCard={state.playedCard}
-            side={state.opponent}
-            stadium={state.stadium}
-          />
-          <PlayerBoard
-            actor="self"
-            onInspectDiscard={setInspectedDiscard}
-            playedCard={state.playedCard}
-            side={state.self}
-            stadium={state.stadium}
-          />
+        <div className={styles.boardFrame} data-transaction={currentEvent?.transaction ? true : undefined}>
+          <div className={styles.board}>
+            <PlayerBoard actor="opponent" onInspectDiscard={setInspectedDiscard} side={state.opponent} stadium={state.stadium} />
+            <PlayerBoard actor="self" onInspectDiscard={setInspectedDiscard} side={state.self} stadium={state.stadium} />
+          </div>
+          {currentEvent?.transaction ? <TransactionOverlay transaction={currentEvent.transaction} /> : null}
         </div>
 
         <div className={styles.currentAction} aria-live="polite">
