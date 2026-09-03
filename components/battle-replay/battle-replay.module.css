@@ -460,6 +460,11 @@
   align-items: center;
 }
 
+.iconControl {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
 .controlGroup span {
   min-width: 3.8rem;
   color: var(--muted-foreground);
@@ -549,7 +554,9 @@
   }
 
   .cardHealth {
-    display: none;
+    gap: 0.15rem;
+    padding: 0.2rem;
+    font-size: 0.42rem;
   }
 
   .pileCards {

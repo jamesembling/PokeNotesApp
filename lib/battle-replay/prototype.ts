@@ -44,7 +44,7 @@ const images = {
   charmander: cardImage("MEW", "004"),
   dragapult: cardImage("TWM", "130"),
   dreepy: cardImage("TWM", "128"),
-  iono: cardImage("PAL", "185"),
+  boss: cardImage("PAL", "172"),
   psychic: cardImage("SVE", "005"),
   rareCandy: cardImage("SVI", "191"),
   stadium: cardImage("TWM", "165")
@@ -64,7 +64,7 @@ export const initialReplayState: ReplayState = {
     name: "JammerUK1993",
     active: null,
     bench: [],
-    deckCount: 54,
+    deckCount: 47,
     handCount: 7,
     discard: [],
     prizesRemaining: 6
@@ -73,7 +73,7 @@ export const initialReplayState: ReplayState = {
     name: "FixtureOpponent",
     active: null,
     bench: [],
-    deckCount: 54,
+    deckCount: 47,
     handCount: 7,
     discard: [],
     prizesRemaining: 6
@@ -168,7 +168,12 @@ export const replayEvents: ReplayEvent[] = [
     summary: "Charmander evolved into Charizard ex.",
     apply: (state) => updateSide(state, "opponent", (side) => ({
       ...side,
-      active: pokemon("opponent-charizard", "Charizard ex", images.charizard, 330),
+      active: {
+        ...pokemon("opponent-charizard", "Charizard ex", images.charizard, 330),
+        damage: side.active?.damage ?? 0,
+        energy: ["Fire", "Fire"]
+      },
+      deckCount: side.deckCount - 2,
       handCount: Math.max(0, side.handCount - 2),
       discard: [{ name: "Rare Candy", imageUrl: images.rareCandy }, ...side.discard]
     }))
@@ -227,18 +232,26 @@ export const replayEvents: ReplayEvent[] = [
   {
     actor: "self",
     turn: 3,
+    label: "Energy",
+    summary: "Attached Neo Upper Energy to Dragapult ex.",
+    apply: (state) => updateSide(state, "self", (side) => ({
+      ...side,
+      active: side.active
+        ? { ...side.active, energy: [...side.active.energy, "Neo Upper Energy"] }
+        : null,
+      handCount: Math.max(0, side.handCount - 1)
+    }))
+  },
+  {
+    actor: "self",
+    turn: 3,
     label: "Supporter",
-    summary: "Played Iono. Both players shuffled their hands and drew again.",
-    apply: (state) => ({
-      ...state,
-      self: {
-        ...state.self,
-        handCount: 6,
-        deckCount: state.self.deckCount - 2,
-        discard: [{ name: "Iono", imageUrl: images.iono }, ...state.self.discard]
-      },
-      opponent: { ...state.opponent, handCount: 6, deckCount: state.opponent.deckCount - 1 }
-    })
+    summary: "Played Boss's Orders.",
+    apply: (state) => updateSide(state, "self", (side) => ({
+      ...side,
+      handCount: Math.max(0, side.handCount - 1),
+      discard: [{ name: "Boss's Orders", imageUrl: images.boss }, ...side.discard]
+    }))
   },
   {
     actor: "self",

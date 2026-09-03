@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -34,7 +34,11 @@ function CardFace({ card, compact = false }: { card: ReplayCard; compact?: boole
           {card.energy.length} EN
         </span>
       ) : null}
-      {card.damage > 0 ? <span className={styles.damageBadge}>{card.damage}</span> : null}
+      {card.damage > 0 ? (
+        <span aria-label={`${card.damage} damage`} className={styles.damageBadge}>
+          {card.damage}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -116,16 +120,19 @@ function PlayerBoard({ actor, side }: { actor: ReplayActor; side: ReplaySide }) 
 export function BattleReplayPrototype() {
   const [actionIndex, setActionIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
   const state = replayFrames[actionIndex];
   const currentEvent = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
   const maxIndex = replayFrames.length - 1;
-  const turnStops = useMemo(
-    () => Array.from(new Set(replayEvents.map((event, index) => `${event.turn}:${index + 1}`))).map((entry) => {
-      const [turn, index] = entry.split(":").map(Number);
-      return { turn, index };
-    }),
+  const turnStops = useMemo(() => replayEvents.reduce<Array<{ turn: number; index: number }>>(
+    (stops, event, index) => {
+      if (stops.at(-1)?.turn !== event.turn) stops.push({ turn: event.turn, index: index + 1 });
+      return stops;
+    },
     []
-  );
+  ), []);
+  const previousTurnIndex = turnStops.map((stop) => stop.index).filter((index) => index < actionIndex).at(-1);
+  const nextTurnIndex = turnStops.find((stop) => stop.index > actionIndex)?.index;
 
   useEffect(() => {
     if (!playing) return;
@@ -138,16 +145,16 @@ export function BattleReplayPrototype() {
     return () => window.clearTimeout(timer);
   }, [actionIndex, maxIndex, playing]);
 
-  function seek(nextIndex: number) {
+  function seek(nextIndex: number, revealBoard = false) {
     setPlaying(false);
     setActionIndex(Math.max(0, Math.min(maxIndex, nextIndex)));
+    if (revealBoard && window.matchMedia("(max-width: 68rem)").matches) {
+      window.requestAnimationFrame(() => stageRef.current?.scrollIntoView({ block: "start" }));
+    }
   }
 
   function seekTurn(direction: -1 | 1) {
-    const candidates = turnStops
-      .map((stop) => stop.index)
-      .filter((index) => direction < 0 ? index < actionIndex : index > actionIndex);
-    const next = direction < 0 ? candidates.at(-1) : candidates[0];
+    const next = direction < 0 ? previousTurnIndex : nextTurnIndex;
     if (typeof next === "number") seek(next);
   }
 
@@ -157,9 +164,9 @@ export function BattleReplayPrototype() {
         <div className={styles.timelineHeader}>
           <div>
             <h2>Match timeline</h2>
-            <p>Synthetic prototype · 3 turns · 15 actions</p>
+            <p>Synthetic prototype · 3 turns · {replayEvents.length} actions</p>
           </div>
-          <Button aria-label="Restart replay" onClick={() => seek(0)} size="icon-sm" variant="ghost">
+          <Button aria-label="Restart replay" className={styles.iconControl} onClick={() => seek(0)} size="icon-sm" variant="ghost">
             <RotateCcwIcon />
           </Button>
         </div>
@@ -175,7 +182,7 @@ export function BattleReplayPrototype() {
                   className={styles.timelineAction}
                   data-actor={event.actor}
                   data-selected={selected || undefined}
-                  onClick={() => seek(step)}
+                  onClick={() => seek(step, true)}
                   type="button"
                 >
                   <span>{event.turn === 0 ? "Setup" : `Turn ${event.turn}`}</span>
@@ -188,7 +195,7 @@ export function BattleReplayPrototype() {
         </ol>
       </div>
 
-      <div className={styles.replayStage}>
+      <div className={styles.replayStage} ref={stageRef}>
         <div className={styles.board}>
           <PlayerBoard actor="opponent" side={state.opponent} />
           <div className={styles.boardMiddle}>
@@ -228,16 +235,17 @@ export function BattleReplayPrototype() {
 
         <div className={styles.controls}>
           <div aria-label="Action controls" className={styles.controlGroup} role="group">
-            <Button aria-label="Previous action" disabled={actionIndex === 0} onClick={() => seek(actionIndex - 1)} size="icon" variant="outline">
+            <Button aria-label="Previous action" className={styles.iconControl} disabled={actionIndex === 0} onClick={() => seek(actionIndex - 1)} size="icon" variant="outline">
               <ChevronLeftIcon />
             </Button>
             <span>Action</span>
-            <Button aria-label="Next action" disabled={actionIndex === maxIndex} onClick={() => seek(actionIndex + 1)} size="icon" variant="outline">
+            <Button aria-label="Next action" className={styles.iconControl} disabled={actionIndex === maxIndex} onClick={() => seek(actionIndex + 1)} size="icon" variant="outline">
               <ChevronRightIcon />
             </Button>
           </div>
           <Button
             aria-label={playing ? "Pause replay" : "Play replay"}
+            className={styles.iconControl}
             disabled={actionIndex === maxIndex && !playing}
             onClick={() => setPlaying((value) => !value)}
             size="icon-lg"
@@ -245,11 +253,11 @@ export function BattleReplayPrototype() {
             {playing ? <PauseIcon /> : <PlayIcon />}
           </Button>
           <div aria-label="Turn controls" className={styles.controlGroup} role="group">
-            <Button aria-label="Previous turn" disabled={actionIndex <= 1} onClick={() => seekTurn(-1)} size="icon" variant="outline">
+            <Button aria-label="Previous turn" className={styles.iconControl} disabled={previousTurnIndex === undefined} onClick={() => seekTurn(-1)} size="icon" variant="outline">
               <ChevronLeftIcon />
             </Button>
             <span>Turn</span>
-            <Button aria-label="Next turn" disabled={actionIndex === maxIndex} onClick={() => seekTurn(1)} size="icon" variant="outline">
+            <Button aria-label="Next turn" className={styles.iconControl} disabled={nextTurnIndex === undefined} onClick={() => seekTurn(1)} size="icon" variant="outline">
               <ChevronRightIcon />
             </Button>
           </div>
