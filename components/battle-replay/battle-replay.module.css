@@ -292,7 +292,7 @@ button.pile:disabled {
 .pileCards img,
 .cardFace img,
 .stadium img,
-.resolvingCard img {
+.playedCard img {
   object-fit: cover;
 }
 
@@ -346,7 +346,7 @@ button.pile:disabled {
   column-gap: 0.35rem;
 }
 
-.resolvingCardSpot {
+.playedCardSpot {
   display: grid;
   grid-column: 1;
   align-self: center;
@@ -354,7 +354,7 @@ button.pile:disabled {
   gap: 0.2rem;
 }
 
-.resolvingCardSpot > span {
+.playedCardSpot > span {
   color: var(--muted-foreground);
   font-size: 0.52rem;
   font-weight: 700;
@@ -362,25 +362,32 @@ button.pile:disabled {
   letter-spacing: 0.06em;
 }
 
-.resolvingCard {
-  position: relative;
+.playedCardStack {
+  display: grid;
   width: 3.35rem;
-  overflow: hidden;
-  aspect-ratio: 0.714;
-  border-radius: 0.35rem;
-  box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 24%, transparent);
-  animation: resolving-card-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes resolving-card-in {
+.playedCard {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  aspect-ratio: 0.714;
+  grid-area: 1 / 1;
+  border-radius: 0.35rem;
+  box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 24%, transparent);
+  transform: rotate(-2deg);
+  animation: played-card-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes played-card-in {
   from {
     opacity: 0.78;
-    transform: translateY(0.35rem) rotate(-2deg) scale(0.96);
+    filter: blur(1px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) rotate(-2deg) scale(1);
+    filter: blur(0);
   }
 }
 
@@ -914,7 +921,7 @@ button.pile:disabled {
     width: 2.25rem;
   }
 
-  .resolvingCard {
+  .playedCardStack {
     width: 2.65rem;
   }
 
@@ -949,7 +956,7 @@ button.pile:disabled {
   .cardFace,
   .healthTrack span,
   .pileCards,
-  .resolvingCard {
+  .playedCard {
     animation: none;
     transition: none;
   }

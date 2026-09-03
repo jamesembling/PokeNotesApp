@@ -35,7 +35,10 @@ export type ReplayState = {
   self: ReplaySide;
   opponent: ReplaySide;
   stadium: { name: string; imageUrl: string; actor: ReplayActor } | null;
-  resolvingCard: { actor: ReplayActor; card: ReplayZoneCard } | null;
+  playedCards: {
+    actor: ReplayActor;
+    cards: [ReplayZoneCard, ...ReplayZoneCard[]];
+  } | null;
 };
 
 export type ReplayEvent = {
@@ -148,10 +151,10 @@ const event = (
   summary,
   apply: (state) => {
     const next = clone(state);
-    if (next.resolvingCard) {
-      const { actor, card } = next.resolvingCard;
-      discardCards(next[actor], card);
-      next.resolvingCard = null;
+    if (next.playedCards) {
+      const { actor, cards } = next.playedCards;
+      discardCards(next[actor], ...cards);
+      next.playedCards = null;
     }
     mutate(next);
     return next;
@@ -184,6 +187,14 @@ const evolve = (
 });
 const discardCards = (side: ReplaySide, ...cards: ReplayZoneCard[]) => {
   side.discard.unshift(...[...cards].reverse());
+};
+const showPlayedCards = (
+  state: ReplayState,
+  actor: ReplayActor,
+  card: ReplayZoneCard,
+  ...additionalCards: ReplayZoneCard[]
+) => {
+  state.playedCards = { actor, cards: [card, ...additionalCards] };
 };
 const removeDiscard = (side: ReplaySide, name: string) => {
   const index = side.discard.findIndex((item) => item.name === name);
@@ -243,7 +254,7 @@ export const initialReplayState: ReplayState = {
     prizesRemaining: 6,
   },
   stadium: null,
-  resolvingCard: null,
+  playedCards: null,
 };
 
 export const replayEvents: ReplayEvent[] = [
@@ -280,6 +291,10 @@ export const replayEvents: ReplayEvent[] = [
         s.opponent,
         zoneCard("opp-t1-boss", "Boss's Orders", images.boss),
         zoneCard("opp-t1-prime", "Prime Catcher", images.primeCatcher),
+      );
+      showPlayedCards(
+        s,
+        "opponent",
         zoneCard("opp-t1-ultra", "Ultra Ball", images.ultraBall),
       );
     },
@@ -303,10 +318,11 @@ export const replayEvents: ReplayEvent[] = [
       );
       removeHand(s.self, "Buddy-Buddy Poffin");
       s.self.deckCount = 44;
-      s.resolvingCard = {
-        actor: "self",
-        card: zoneCard("self-t1-poffin", "Buddy-Buddy Poffin", images.poffin),
-      };
+      showPlayedCards(
+        s,
+        "self",
+        zoneCard("self-t1-poffin", "Buddy-Buddy Poffin", images.poffin),
+      );
     },
   ),
   event(
@@ -319,8 +335,9 @@ export const replayEvents: ReplayEvent[] = [
       s.self.active?.energy.push("Darkness");
       removeHand(s.self, "Crispin");
       s.self.deckCount = 42;
-      discardCards(
-        s.self,
+      showPlayedCards(
+        s,
+        "self",
         zoneCard("self-t1-crispin", "Crispin", images.crispin),
       );
     },
@@ -358,8 +375,9 @@ export const replayEvents: ReplayEvent[] = [
       s.self.deckCount = 43;
       s.opponent.deckCount = 41;
       s.opponent.handCount = 4;
-      discardCards(
-        s.opponent,
+      showPlayedCards(
+        s,
+        "opponent",
         zoneCard("opp-t2-judge", "Judge", images.judge),
       );
     },
@@ -380,16 +398,20 @@ export const replayEvents: ReplayEvent[] = [
       discardCards(
         s.opponent,
         zoneCard(
+          "opp-t2-fighting",
+          "Basic Fighting Energy",
+          images.fighting,
+        ),
+      );
+      showPlayedCards(
+        s,
+        "opponent",
+        zoneCard(
           "opp-t2-premium",
           "Premium Power Pro",
           images.premiumPowerPro,
         ),
         zoneCard("opp-t2-gong", "Fighting Gong", images.fightingGong),
-        zoneCard(
-          "opp-t2-fighting",
-          "Basic Fighting Energy",
-          images.fighting,
-        ),
         zoneCard("opp-t2-poke-pad", "Poké Pad", images.pokePad),
       );
     },
@@ -420,12 +442,6 @@ export const replayEvents: ReplayEvent[] = [
       s.self.deckCount = 30;
       discardCards(
         s.self,
-        zoneCard("self-t2-poke-pad", "Poké Pad", images.pokePad),
-        zoneCard(
-          "self-t2-lillie",
-          "Lillie's Determination",
-          images.lillie,
-        ),
         zoneCard(
           "self-t2-psychic",
           "Basic Psychic Energy",
@@ -435,6 +451,16 @@ export const replayEvents: ReplayEvent[] = [
           "self-t2-special-red",
           "Special Red Card",
           images.specialRedCard,
+        ),
+      );
+      showPlayedCards(
+        s,
+        "self",
+        zoneCard("self-t2-poke-pad", "Poké Pad", images.pokePad),
+        zoneCard(
+          "self-t2-lillie",
+          "Lillie's Determination",
+          images.lillie,
         ),
         zoneCard("self-t2-ultra", "Ultra Ball", images.ultraBall),
       );
@@ -471,8 +497,9 @@ export const replayEvents: ReplayEvent[] = [
       );
       s.opponent.deckCount = 28;
       s.opponent.handCount = 7;
-      discardCards(
-        s.opponent,
+      showPlayedCards(
+        s,
+        "opponent",
         zoneCard("opp-t3-poke-pad", "Poké Pad", images.pokePad),
         zoneCard(
           "opp-t3-lillie",
@@ -506,6 +533,10 @@ export const replayEvents: ReplayEvent[] = [
           "Basic Fighting Energy",
           images.fighting,
         ),
+      );
+      showPlayedCards(
+        s,
+        "opponent",
         zoneCard("opp-t3-switch", "Switch", images.switch),
       );
     },
@@ -548,8 +579,9 @@ export const replayEvents: ReplayEvent[] = [
         hand("turn-three-darkness", "Basic Darkness Energy", images.darkness),
         hand("turn-three-ultra-ball", "Ultra Ball", images.ultraBall),
       ]);
-      discardCards(
-        s.self,
+      showPlayedCards(
+        s,
+        "self",
         zoneCard("self-t3-rare-candy", "Rare Candy", images.rareCandy),
         zoneCard("self-t3-poke-pad", "Poké Pad", images.pokePad),
         zoneCard(
@@ -591,8 +623,9 @@ export const replayEvents: ReplayEvent[] = [
         hand("turn-three-darkness", "Basic Darkness Energy", images.darkness),
         hand("turn-three-ultra-ball", "Ultra Ball", images.ultraBall),
       ]);
-      discardCards(
-        s.self,
+      showPlayedCards(
+        s,
+        "self",
         zoneCard("self-t3-boss", "Boss's Orders", images.boss),
       );
     },
@@ -653,6 +686,10 @@ export const replayEvents: ReplayEvent[] = [
           "Basic Fighting Energy",
           images.fighting,
         ),
+      );
+      showPlayedCards(
+        s,
+        "opponent",
         zoneCard(
           "opp-t4-premium",
           "Premium Power Pro",
@@ -724,6 +761,10 @@ export const replayEvents: ReplayEvent[] = [
           "Basic Fighting Energy",
           images.fighting,
         ),
+      );
+      showPlayedCards(
+        s,
+        "opponent",
         zoneCard(
           "opp-t5-wally",
           "Wally's Compassion",
@@ -767,6 +808,10 @@ export const replayEvents: ReplayEvent[] = [
           images.poffin,
         ),
         zoneCard("self-t5-torchic", "Torchic", images.torchic),
+      );
+      showPlayedCards(
+        s,
+        "self",
         zoneCard("self-t5-ultra", "Ultra Ball", images.ultraBall),
         zoneCard(
           "self-t5-stretcher",
@@ -798,8 +843,9 @@ export const replayEvents: ReplayEvent[] = [
       );
       promote(s.opponent, "Mega Lucario ex");
       s.self.prizesRemaining -= 2;
-      discardCards(
-        s.self,
+      showPlayedCards(
+        s,
+        "self",
         zoneCard("self-t5-boss", "Boss's Orders", images.boss),
       );
       setHand(s.self, [
@@ -843,13 +889,17 @@ export const replayEvents: ReplayEvent[] = [
         zoneCard("opp-t6-ultra", "Ultra Ball", images.ultraBall),
         zoneCard("opp-t6-lucario", "Mega Lucario ex", images.lucario),
         zoneCard("opp-t6-judge", "Judge", images.judge),
-        zoneCard("opp-t6-carmine", "Carmine", images.carmine),
-        zoneCard("opp-t6-gong-a", "Fighting Gong", images.fightingGong),
         zoneCard(
           "opp-t6-fighting",
           "Basic Fighting Energy",
           images.fighting,
         ),
+      );
+      showPlayedCards(
+        s,
+        "opponent",
+        zoneCard("opp-t6-carmine", "Carmine", images.carmine),
+        zoneCard("opp-t6-gong-a", "Fighting Gong", images.fightingGong),
         zoneCard("opp-t6-gong-b", "Fighting Gong", images.fightingGong),
       );
       if (s.self.active) s.self.active.damage += 130;
@@ -880,8 +930,9 @@ export const replayEvents: ReplayEvent[] = [
       }
       s.self.prizesRemaining -= 1;
       s.self.deckCount = 16;
-      discardCards(
-        s.self,
+      showPlayedCards(
+        s,
+        "self",
         zoneCard("self-t6-boss", "Boss's Orders", images.boss),
       );
       setHand(s.self, [

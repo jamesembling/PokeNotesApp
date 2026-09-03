@@ -244,28 +244,48 @@ function StadiumSpot({
   );
 }
 
-function ResolvingCardSpot({
+function PlayedCardSpot({
   actor,
-  resolvingCard,
+  playedCards,
 }: {
   actor: ReplayActor;
-  resolvingCard: ReplayState["resolvingCard"];
+  playedCards: ReplayState["playedCards"];
 }) {
-  if (!resolvingCard || resolvingCard.actor !== actor) return null;
+  if (!playedCards || playedCards.actor !== actor) return null;
+
+  const cardNames = playedCards.cards.map((card) => card.name).join(", ");
 
   return (
     <div
-      aria-label={`${resolvingCard.card.name} was played`}
-      className={styles.resolvingCardSpot}
+      aria-label={
+        playedCards.cards.length === 1
+          ? `${cardNames} was played`
+          : `${playedCards.cards.length} cards were played: ${cardNames}`
+      }
+      className={styles.playedCardSpot}
     >
-      <span>Played</span>
-      <div className={styles.resolvingCard}>
-        <Image
-          alt={`${resolvingCard.card.name}, card played for this action`}
-          fill
-          sizes="54px"
-          src={resolvingCard.card.imageUrl}
-        />
+      <span>
+        Played{playedCards.cards.length > 1 ? ` ${playedCards.cards.length}` : ""}
+      </span>
+      <div className={styles.playedCardStack}>
+        {playedCards.cards.map((card, index) => (
+          <div
+            className={styles.playedCard}
+            key={card.id}
+            style={{
+              insetBlockStart: `${index * 0.42}rem`,
+              insetInlineStart: `${index * 0.12}rem`,
+              zIndex: index + 1,
+            }}
+          >
+            <Image
+              alt={`${card.name}, card played for this action`}
+              fill
+              sizes="54px"
+              src={card.imageUrl}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -274,13 +294,13 @@ function ResolvingCardSpot({
 function PlayerBoard({
   actor,
   onInspectDiscard,
-  resolvingCard,
+  playedCards,
   side,
   stadium,
 }: {
   actor: ReplayActor;
   onInspectDiscard: (actor: ReplayActor) => void;
-  resolvingCard: ReplayState["resolvingCard"];
+  playedCards: ReplayState["playedCards"];
   side: ReplaySide;
   stadium: ReplayState["stadium"];
 }) {
@@ -298,7 +318,7 @@ function PlayerBoard({
 
         <div className={styles.field}>
           <div className={styles.activeRow}>
-            <ResolvingCardSpot actor={actor} resolvingCard={resolvingCard} />
+            <PlayedCardSpot actor={actor} playedCards={playedCards} />
             <div
               className={styles.active}
               aria-label={`${side.name} Active Spot`}
@@ -450,14 +470,14 @@ export function BattleReplayPrototype() {
           <PlayerBoard
             actor="opponent"
             onInspectDiscard={setInspectedDiscard}
-            resolvingCard={state.resolvingCard}
+            playedCards={state.playedCards}
             side={state.opponent}
             stadium={state.stadium}
           />
           <PlayerBoard
             actor="self"
             onInspectDiscard={setInspectedDiscard}
-            resolvingCard={state.resolvingCard}
+            playedCards={state.playedCards}
             side={state.self}
             stadium={state.stadium}
           />
