@@ -31,12 +31,12 @@ export default function BattleReplayPrototypePage() {
 
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 border-y border-border py-4 text-sm sm:grid-cols-4">
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">Result</span>
-            <strong className="mt-1 block text-win-strong">Win</strong>
+            <span className="block text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">State</span>
+            <strong className="mt-1 block text-card-foreground">In progress</strong>
           </div>
           <div>
             <span className="block text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">Prizes</span>
-            <strong className="mt-1 block tabular-nums text-card-foreground">2–1</strong>
+            <strong className="mt-1 block tabular-nums text-card-foreground">5–5 remaining</strong>
           </div>
           <div>
             <span className="block text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">Turns</span>

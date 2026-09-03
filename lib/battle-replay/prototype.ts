@@ -9,6 +9,7 @@ export type ReplayCard = {
   hp: number;
   damage: number;
   energy: string[];
+  underlyingCount: number;
   tool?: string;
 };
 
@@ -19,6 +20,7 @@ export type ReplaySide = {
   deckCount: number;
   handCount: number;
   discard: Array<{ name: string; imageUrl: string }>;
+  discardCount: number;
   prizesRemaining: number;
 };
 
@@ -44,6 +46,7 @@ const images = {
   charmander: cardImage("MEW", "004"),
   dragapult: cardImage("TWM", "130"),
   dreepy: cardImage("TWM", "128"),
+  pidgey: cardImage("OBF", "162"),
   boss: cardImage("PAL", "172"),
   psychic: cardImage("SVE", "005"),
   rareCandy: cardImage("SVI", "191"),
@@ -56,7 +59,8 @@ const pokemon = (id: string, name: string, imageUrl: string, hp: number): Replay
   imageUrl,
   hp,
   damage: 0,
-  energy: []
+  energy: [],
+  underlyingCount: 0
 });
 
 export const initialReplayState: ReplayState = {
@@ -67,6 +71,7 @@ export const initialReplayState: ReplayState = {
     deckCount: 47,
     handCount: 7,
     discard: [],
+    discardCount: 0,
     prizesRemaining: 6
   },
   opponent: {
@@ -76,6 +81,7 @@ export const initialReplayState: ReplayState = {
     deckCount: 47,
     handCount: 7,
     discard: [],
+    discardCount: 0,
     prizesRemaining: 6
   },
   stadium: null
@@ -121,6 +127,13 @@ export const replayEvents: ReplayEvent[] = [
       "active",
       pokemon("opponent-charmander", "Charmander", images.charmander, 70)
     )
+  },
+  {
+    actor: "opponent",
+    turn: 0,
+    label: "Bench",
+    summary: "Pidgey was placed on the Bench.",
+    apply: playPokemon("opponent", "bench", pokemon("opponent-pidgey", "Pidgey", images.pidgey, 60))
   },
   {
     actor: "self",
@@ -171,11 +184,13 @@ export const replayEvents: ReplayEvent[] = [
       active: {
         ...pokemon("opponent-charizard", "Charizard ex", images.charizard, 330),
         damage: side.active?.damage ?? 0,
-        energy: ["Fire", "Fire"]
+        energy: ["Fire", "Fire"],
+        underlyingCount: (side.active?.underlyingCount ?? 0) + 1
       },
       deckCount: side.deckCount - 2,
       handCount: Math.max(0, side.handCount - 2),
-      discard: [{ name: "Rare Candy", imageUrl: images.rareCandy }, ...side.discard]
+      discard: [{ name: "Rare Candy", imageUrl: images.rareCandy }, ...side.discard],
+      discardCount: side.discardCount + 1
     }))
   },
   {
@@ -199,9 +214,16 @@ export const replayEvents: ReplayEvent[] = [
         active: null,
         discard: side.active
           ? [{ name: side.active.name, imageUrl: side.active.imageUrl }, ...side.discard]
-          : side.discard
+          : side.discard,
+        discardCount: side.active
+          ? side.discardCount + 1 + side.active.energy.length + side.active.underlyingCount
+          : side.discardCount
       })),
-      opponent: { ...state.opponent, prizesRemaining: state.opponent.prizesRemaining - 1 }
+      opponent: {
+        ...state.opponent,
+        handCount: state.opponent.handCount + 1,
+        prizesRemaining: state.opponent.prizesRemaining - 1
+      }
     })
   },
   {
@@ -223,10 +245,15 @@ export const replayEvents: ReplayEvent[] = [
     apply: (state) => updateSide(state, "self", (side) => ({
       ...side,
       active: side.active
-        ? { ...pokemon(side.active.id, "Dragapult ex", images.dragapult, 320), energy: side.active.energy }
+        ? {
+            ...pokemon(side.active.id, "Dragapult ex", images.dragapult, 320),
+            energy: side.active.energy,
+            underlyingCount: side.active.underlyingCount + 1
+          }
         : null,
       handCount: Math.max(0, side.handCount - 2),
-      discard: [{ name: "Rare Candy", imageUrl: images.rareCandy }, ...side.discard]
+      discard: [{ name: "Rare Candy", imageUrl: images.rareCandy }, ...side.discard],
+      discardCount: side.discardCount + 1
     }))
   },
   {
@@ -250,7 +277,8 @@ export const replayEvents: ReplayEvent[] = [
     apply: (state) => updateSide(state, "self", (side) => ({
       ...side,
       handCount: Math.max(0, side.handCount - 1),
-      discard: [{ name: "Boss's Orders", imageUrl: images.boss }, ...side.discard]
+      discard: [{ name: "Boss's Orders", imageUrl: images.boss }, ...side.discard],
+      discardCount: side.discardCount + 1
     }))
   },
   {
@@ -268,26 +296,34 @@ export const replayEvents: ReplayEvent[] = [
     actor: "self",
     turn: 3,
     label: "Attack",
-    summary: "Dragapult ex used Phantom Dive for 200 damage.",
+    summary: "Dragapult ex dealt 200 damage to Charizard ex and placed 6 damage counters on Pidgey.",
     apply: (state) => updateSide(state, "opponent", (side) => ({
       ...side,
-      active: side.active ? { ...side.active, damage: side.active.damage + 200 } : null
+      active: side.active ? { ...side.active, damage: side.active.damage + 200 } : null,
+      bench: side.bench.map((card, index) => index === 0 ? { ...card, damage: card.damage + 60 } : card)
     }))
   },
   {
     actor: "self",
     turn: 3,
     label: "KO",
-    summary: "Charizard ex was Knocked Out. JammerUK1993 took 2 Prize cards.",
+    summary: "Pidgey was Knocked Out by Phantom Dive's damage counters. JammerUK1993 took 1 Prize card.",
     apply: (state) => ({
       ...updateSide(state, "opponent", (side) => ({
         ...side,
-        active: null,
-        discard: side.active
-          ? [{ name: side.active.name, imageUrl: side.active.imageUrl }, ...side.discard]
-          : side.discard
+        bench: side.bench.slice(1),
+        discard: side.bench[0]
+          ? [{ name: side.bench[0].name, imageUrl: side.bench[0].imageUrl }, ...side.discard]
+          : side.discard,
+        discardCount: side.bench[0]
+          ? side.discardCount + 1 + side.bench[0].energy.length + side.bench[0].underlyingCount
+          : side.discardCount
       })),
-      self: { ...state.self, prizesRemaining: state.self.prizesRemaining - 2 }
+      self: {
+        ...state.self,
+        handCount: state.self.handCount + 1,
+        prizesRemaining: state.self.prizesRemaining - 1
+      }
     })
   }
 ];

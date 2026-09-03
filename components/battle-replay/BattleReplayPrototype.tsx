@@ -62,6 +62,7 @@ function Pile({ count, label, topImage }: { count: number; label: string; topIma
 function PrizeTrack({ remaining }: { remaining: number }) {
   return (
     <div aria-label={`${remaining} Prize cards remaining`} className={styles.prizes}>
+      <strong>Prizes</strong>
       {Array.from({ length: 6 }).map((_, index) => (
         <span data-remaining={index < remaining || undefined} key={index} />
       ))}
@@ -73,44 +74,41 @@ function PlayerBoard({ actor, side }: { actor: ReplayActor; side: ReplaySide }) 
   return (
     <section className={styles.playerBoard} data-actor={actor}>
       <header className={styles.playerHeader}>
-        <div>
+        <div className={styles.playerIdentity}>
           <span>{actor === "self" ? "You" : "Opponent"}</span>
           <strong>{side.name}</strong>
         </div>
-        <PrizeTrack remaining={side.prizesRemaining} />
+        <div className={styles.handCount}>
+          <span>Hand</span>
+          <strong>{side.handCount}</strong>
+        </div>
       </header>
 
       <div className={styles.playArea}>
+        <PrizeTrack remaining={side.prizesRemaining} />
+
+        <div className={styles.field}>
+          <div className={styles.active} aria-label={`${side.name} Active Spot`}>
+            <span className={styles.zoneLabel}>Active</span>
+            {side.active ? <CardFace card={side.active} /> : <span className={styles.emptyZone}>Active</span>}
+          </div>
+          <div className={styles.bench} aria-label={`${side.name} Bench`}>
+            <span className={styles.zoneLabel}>Bench</span>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div className={styles.benchSlot} key={index}>
+                {side.bench[index] ? <CardFace card={side.bench[index]} compact /> : null}
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className={styles.zonePiles}>
           <Pile count={side.deckCount} label="Deck" />
           <Pile
-            count={side.discard.length}
+            count={side.discardCount}
             label="Discard"
             topImage={side.discard[0]?.imageUrl}
           />
-        </div>
-
-        <div className={styles.field}>
-          <div className={styles.bench} aria-label={`${side.name} Bench`}>
-            {side.bench.length > 0 ? (
-              side.bench.map((card) => <CardFace card={card} compact key={card.id} />)
-            ) : (
-              <span className={styles.emptyZone}>Bench</span>
-            )}
-          </div>
-          <div className={styles.active} aria-label={`${side.name} Active Spot`}>
-            {side.active ? <CardFace card={side.active} /> : <span className={styles.emptyZone}>Active</span>}
-          </div>
-        </div>
-
-        <div className={styles.hand} aria-label={`${side.handCount} cards in hand`}>
-          <div aria-hidden="true" className={styles.handFan}>
-            {Array.from({ length: Math.min(side.handCount, 5) }).map((_, index) => (
-              <span key={index} style={{ transform: `translateX(${index * 6}px) rotate(${(index - 2) * 3}deg)` }} />
-            ))}
-          </div>
-          <span>Hand</span>
-          <strong>{side.handCount}</strong>
         </div>
       </div>
     </section>
