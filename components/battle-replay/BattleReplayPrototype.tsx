@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/shadcn/button";
 import {
   replayEvents,
+  replayEnergyImages,
   replayFrames,
   replaySource,
   type ReplayActor,
@@ -38,22 +39,38 @@ function CardFace({
         : "healthy";
 
   return (
-    <div className={styles.cardStack} data-compact={compact || undefined}>
+    <div
+      className={styles.cardStack}
+      data-compact={compact || undefined}
+    >
+      {card.energy.length > 0 ? (
+        <div
+          aria-label={`${card.energy.length} Energy attached to ${card.name}: ${card.energy.join(", ")}`}
+          className={styles.attachedEnergyStack}
+        >
+          {card.energy.map((energy, index) => (
+            <div
+              className={styles.attachedEnergyCard}
+              key={`${energy}-${index}`}
+              style={{ top: `${8 + index * 18}%` }}
+            >
+              <Image
+                alt=""
+                fill
+                sizes={compact ? "34px" : "54px"}
+                src={replayEnergyImages[energy]}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className={styles.cardFace}>
         <Image
-          alt={`${card.name}, representative card artwork`}
+          alt={`${card.name}, format-legal representative card artwork`}
           fill
           sizes={compact ? "68px" : "104px"}
           src={card.imageUrl}
         />
-        {card.energy.length > 0 ? (
-          <span
-            aria-label={`${card.energy.length} Energy attached`}
-            className={styles.energyBadge}
-          >
-            {card.energy.length} EN
-          </span>
-        ) : null}
         {card.damage > 0 ? (
           <span
             aria-label={`${card.damage} damage`}
@@ -165,7 +182,7 @@ function StadiumSpot({
       <span>Stadium</span>
       <div className={styles.stadium}>
         <Image
-          alt={`${stadium.name}, representative card artwork`}
+          alt={`${stadium.name}, format-legal representative card artwork`}
           fill
           sizes="62px"
           src={stadium.imageUrl}
@@ -297,8 +314,8 @@ export function BattleReplayPrototype() {
           <div>
             <h2>Match timeline</h2>
             <p>
-              Saved today · {replaySource.turns} turns · {replayEvents.length}{" "}
-              visual actions
+              Saved today · {replaySource.format} · {replaySource.turns} turns ·{" "}
+              {replayEvents.length} visual actions
             </p>
           </div>
           <Button
@@ -447,9 +464,10 @@ export function BattleReplayPrototype() {
 
         <p className={styles.artNote}>
           Actions and outcome come from saved Battle Log{" "}
-          {replaySource.logId.slice(0, 8)}…. Player names are anonymised; card
-          artwork is representative because this log was not linked to a Deck
-          List. Deck, discard and hidden-hand quantities are left unnumbered
+          {replaySource.logId.slice(0, 8)}…. Player names are anonymised. Card
+          candidates are restricted to prints legal in {replaySource.format};
+          where the log cannot prove an exact printing, a legal representative
+          is shown. Deck, discard and hidden-hand quantities are left unnumbered
           where the log does not expose a complete count.
         </p>
       </div>

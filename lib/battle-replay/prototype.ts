@@ -43,6 +43,7 @@ export type ReplayEvent = {
 export const replaySource = {
   logId: "6ddfba49-7d8d-45b4-8230-cdbf84886275",
   playedOn: "3 September 2026",
+  format: "TEF-PBL",
   result: "Win",
   selfDeck: "Dragapult / Blaziken",
   opponentDeck: "Mega Lucario / Hariyama",
@@ -61,18 +62,26 @@ const images = {
   torchic: image("JTG", "22"),
   blaziken: image("JTG", "24"),
   meowth: image("POR", "62"),
-  solrock: image("PGO", "39"),
-  lunatone: image("PGO", "34"),
+  solrock: image("MEG", "75"),
+  lunatone: image("MEG", "74"),
   riolu: image("MEG", "76"),
   lucario: image("MEG", "77"),
-  makuhita: image("SVI", "112"),
-  hariyama: image("SVI", "113"),
+  makuhita: image("MEG", "72"),
+  hariyama: image("MEG", "73"),
   gravityMountain: image("SSP", "177"),
   poffin: image("MEG", "167"),
   darkness: image("SVE", "7"),
   psychic: image("SVE", "5"),
   fire: image("SVE", "2"),
+  fighting: image("SVE", "6"),
   crispin: image("SCR", "133"),
+};
+
+export const replayEnergyImages: Record<string, string> = {
+  Darkness: images.darkness,
+  Fighting: images.fighting,
+  Fire: images.fire,
+  Psychic: images.psychic,
 };
 
 const card = (
@@ -376,7 +385,7 @@ export const replayEvents: ReplayEvent[] = [
     "self",
     3,
     "Evolve",
-    "Rare Candy evolved Torchic into Blaziken ex, and your board developed another Drakloak.",
+    "Rare Candy evolved Torchic into Blaziken ex. Seething Spirit attached Psychic Energy to your Active Drakloak, and your board developed another Drakloak.",
     (s) => {
       s.self.bench = s.self.bench.map((item) =>
         item.name === "Torchic"
@@ -386,6 +395,7 @@ export const replayEvents: ReplayEvent[] = [
       const dreepy = find(s.self, "Dreepy");
       if (dreepy)
         Object.assign(dreepy, evolve(dreepy, "Drakloak", images.drakloak, 90));
+      s.self.active?.energy.push("Psychic");
       removeHand(s.self, "Rare Candy");
       removeHand(s.self, "Blaziken ex");
     },

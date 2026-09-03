@@ -222,7 +222,7 @@
 .playArea {
   display: grid;
   grid-area: play;
-  min-height: 15rem;
+  min-height: 16rem;
   grid-template-areas: "prizes field piles";
   grid-template-columns: 4rem minmax(0, 1fr) 4rem;
   align-items: center;
@@ -284,9 +284,9 @@
   grid-template-areas:
     "active"
     "bench";
-  grid-template-rows: 8.25rem 5.5rem;
+  grid-template-rows: 8.5rem 5.5rem;
   align-items: center;
-  gap: 0.65rem;
+  gap: 1.25rem;
 }
 
 .activeRow {
@@ -304,12 +304,12 @@
   min-width: 0;
   height: 5.5rem;
   grid-area: bench;
-  width: min(100%, 17rem);
+  width: min(100%, 19.5rem);
   grid-template-columns: repeat(5, minmax(0, 3.2rem));
   align-items: center;
   justify-self: center;
   justify-content: center;
-  gap: 0.15rem;
+  gap: 0.8rem;
 }
 
 .active {
@@ -353,15 +353,15 @@
 
 .bench > .zoneLabel {
   top: -0.15rem;
-  left: 50%;
-  transform: translate(-50%, -100%);
+  left: 0;
+  transform: translateY(-100%);
 }
 
 .playerBoard[data-actor="opponent"] .field {
   grid-template-areas:
     "bench"
     "active";
-  grid-template-rows: 5.5rem 8.25rem;
+  grid-template-rows: 5.5rem 8.5rem;
 }
 
 .emptyZone {
@@ -373,7 +373,9 @@
 }
 
 .cardStack {
+  position: relative;
   width: 5.25rem;
+  isolation: isolate;
 }
 
 .cardStack[data-compact] {
@@ -382,6 +384,7 @@
 
 .cardFace {
   position: relative;
+  z-index: 10;
   width: 100%;
   aspect-ratio: 0.714;
   border-radius: 0.42rem;
@@ -389,7 +392,31 @@
   transition: transform 180ms ease-out;
 }
 
+.attachedEnergyStack {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.attachedEnergyCard {
+  position: absolute;
+  right: -0.8rem;
+  width: 52%;
+  overflow: hidden;
+  aspect-ratio: 0.714;
+  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
+  border-radius: 0.3rem;
+  box-shadow: 0 0.22rem 0.55rem color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+
+.attachedEnergyCard img {
+  object-fit: cover;
+}
+
 .healthStatus {
+  position: relative;
+  z-index: 12;
   display: grid;
   gap: 0.12rem;
   margin-top: 0.28rem;
@@ -437,7 +464,6 @@
   text-align: right;
 }
 
-.energyBadge,
 .damageBadge {
   position: absolute;
   top: -0.38rem;
@@ -450,11 +476,6 @@
   color: var(--replay-card-edge);
   font-size: 0.5rem;
   font-weight: 800;
-}
-
-.energyBadge {
-  left: -0.38rem;
-  background: var(--replay-energy);
 }
 
 .damageBadge {
@@ -656,14 +677,14 @@
   }
 
   .playArea {
-    min-height: 13.5rem;
+    min-height: 14rem;
     grid-template-columns: 3rem minmax(0, 1fr) 3.1rem;
     gap: 0.4rem;
   }
 
   .field {
     grid-template-rows: 7.2rem 4.7rem;
-    gap: 0.4rem;
+    gap: 0.9rem;
   }
 
   .activeRow {
@@ -681,9 +702,9 @@
 
   .bench {
     height: 4.7rem;
-    width: min(100%, 13.25rem);
+    width: min(100%, 15.4rem);
     grid-template-columns: repeat(5, minmax(0, 2.55rem));
-    gap: 0.12rem;
+    gap: 0.65rem;
   }
 
   .benchSlot {
@@ -696,6 +717,10 @@
 
   .cardStack[data-compact] {
     width: 2.55rem;
+  }
+
+  .cardStack[data-compact] .attachedEnergyCard {
+    right: -0.6rem;
   }
 
   .healthStatus strong {
