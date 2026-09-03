@@ -239,10 +239,33 @@
   display: grid;
   justify-items: center;
   gap: 0.15rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--muted-foreground);
+  font: inherit;
   font-size: 0.64rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+button.pile {
+  cursor: pointer;
+}
+
+button.pile:hover .pileCards {
+  border-color: var(--ring);
+  transform: translateY(-0.1rem);
+}
+
+button.pile:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--ring) 45%, transparent);
+  outline-offset: 0.25rem;
+  border-radius: 0.35rem;
+}
+
+button.pile:disabled {
+  cursor: default;
 }
 
 .pile strong {
@@ -259,6 +282,11 @@
   border: 1px solid var(--border);
   border-radius: 0.3rem;
   box-shadow: 0 0.2rem 0.55rem color-mix(in oklab, var(--foreground) 15%, transparent);
+  transition: border-color 160ms ease-out, transform 160ms ease-out;
+}
+
+.pileCards[data-empty] {
+  box-shadow: none;
 }
 
 .pileCards img,
@@ -276,6 +304,25 @@
     var(--replay-card-back-mid) 32% 65%,
     var(--replay-card-back-accent) 65%
   );
+}
+
+.emptyPile {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 0.2rem;
+  background: color-mix(in oklab, var(--muted) 48%, transparent);
+}
+
+.emptyPile span {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 0.42rem;
+  font-weight: 650;
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: ellipsis;
 }
 
 .field {
@@ -491,7 +538,7 @@
 }
 
 .stadiumSpot > span,
-.handArea > span {
+.handLabel span {
   color: var(--muted-foreground);
   font-size: 0.56rem;
   font-weight: 700;
@@ -524,6 +571,18 @@
   padding-block: 0.35rem 0.15rem;
 }
 
+.handLabel {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.handLabel strong {
+  color: var(--card-foreground);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .handCards {
   display: flex;
   min-width: 0;
@@ -548,6 +607,66 @@
 
 .handCard img {
   object-fit: cover;
+}
+
+.discardSheet {
+  width: min(28rem, calc(100vw - 1rem));
+  max-width: none;
+  gap: 0;
+}
+
+.discardSheetHeader {
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem;
+}
+
+.discardList {
+  display: grid;
+  min-height: 0;
+  margin: 0;
+  padding: 0 1.25rem 1.25rem;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-color: var(--border) transparent;
+}
+
+.discardList li {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.9rem;
+  padding-block: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.discardCardImage {
+  position: relative;
+  width: 3.25rem;
+  overflow: hidden;
+  aspect-ratio: 0.714;
+  border-radius: 0.35rem;
+  box-shadow: 0 0.25rem 0.65rem color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
+.discardCardImage img {
+  object-fit: cover;
+}
+
+.discardList li > div:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.discardList strong {
+  overflow-wrap: anywhere;
+  color: var(--card-foreground);
+  font-size: 0.9rem;
+}
+
+.discardList span {
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
 }
 
 .currentAction {
@@ -785,7 +904,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cardFace,
-  .healthTrack span {
+  .healthTrack span,
+  .pileCards {
     transition: none;
   }
 }

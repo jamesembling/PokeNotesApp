@@ -11,6 +11,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/shadcn/sheet";
+import {
   replayEvents,
   replayEnergyImages,
   replayFrames,
@@ -19,6 +26,7 @@ import {
   type ReplayCard,
   type ReplayState,
   type ReplaySide,
+  type ReplayZoneCard,
 } from "@/lib/battle-replay/prototype";
 import styles from "./battle-replay.module.css";
 
@@ -97,18 +105,59 @@ function CardFace({
   );
 }
 
-function Pile({ label, topImage }: { label: string; topImage?: string }) {
+function PileFace({ card, hidden }: { card?: ReplayZoneCard; hidden?: boolean }) {
+  if (card?.imageUrl) {
+    return <Image alt="" fill sizes="54px" src={card.imageUrl} />;
+  }
+
+  if (hidden) return <div aria-hidden="true" className={styles.cardBack} />;
+
   return (
-    <div className={styles.pile}>
-      <div className={styles.pileCards}>
-        {topImage ? (
-          <Image alt="" fill sizes="54px" src={topImage} />
-        ) : (
-          <div aria-hidden="true" className={styles.cardBack} />
-        )}
+    <div className={styles.emptyPile}>
+      {card ? <span>{card.name}</span> : null}
+    </div>
+  );
+}
+
+function Pile({
+  count,
+  label,
+  onInspect,
+  topCard,
+}: {
+  count: number;
+  label: string;
+  onInspect?: () => void;
+  topCard?: ReplayZoneCard;
+}) {
+  const pileContents = (
+    <>
+      <div className={styles.pileCards} data-empty={count === 0 || undefined}>
+        <PileFace card={topCard} hidden={label === "Deck" && count > 0} />
       </div>
       <span>{label}</span>
-    </div>
+      <strong>{count}</strong>
+    </>
+  );
+
+  if (!onInspect) {
+    return (
+      <div aria-label={`${count} cards in ${label.toLowerCase()}`} className={styles.pile}>
+        {pileContents}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      aria-label={`View ${label.toLowerCase()}, ${count} ${count === 1 ? "card" : "cards"}`}
+      className={styles.pile}
+      disabled={count === 0}
+      onClick={onInspect}
+      type="button"
+    >
+      {pileContents}
+    </button>
   );
 }
 
@@ -127,18 +176,20 @@ function PrizeTrack({ remaining }: { remaining: number }) {
 }
 
 function HandFan({ actor, side }: { actor: ReplayActor; side: ReplaySide }) {
-  const visibleCardCount =
-    actor === "self" ? side.handCount : Math.min(3, side.handCount);
+  const visibleCardCount = side.handCount;
   return (
     <div
       aria-label={
         actor === "self"
           ? `${side.handCount} cards in your hand`
-          : "Opponent's hand is hidden"
+          : `${side.handCount} cards in the opponent's hidden hand`
       }
       className={styles.handArea}
     >
-      <span>Hand</span>
+      <div className={styles.handLabel}>
+        <span>Hand</span>
+        <strong>{side.handCount}</strong>
+      </div>
       <div className={styles.handCards}>
         {Array.from({ length: visibleCardCount }).map((_, index) => {
           const knownCard =
@@ -195,10 +246,12 @@ function StadiumSpot({
 
 function PlayerBoard({
   actor,
+  onInspectDiscard,
   side,
   stadium,
 }: {
   actor: ReplayActor;
+  onInspectDiscard: (actor: ReplayActor) => void;
   side: ReplaySide;
   stadium: ReplayState["stadium"];
 }) {
@@ -242,8 +295,13 @@ function PlayerBoard({
         </div>
 
         <div className={styles.zonePiles}>
-          <Pile label="Deck" />
-          <Pile label="Discard" topImage={side.discard[0]?.imageUrl} />
+          <Pile count={side.deckCount} label="Deck" />
+          <Pile
+            count={side.discard.length}
+            label="Discard"
+            onInspect={() => onInspectDiscard(actor)}
+            topCard={side.discard[0]}
+          />
         </div>
       </div>
       <HandFan actor={actor} side={side} />
@@ -253,6 +311,8 @@ function PlayerBoard({
 
 export function BattleReplayPrototype() {
   const [actionIndex, setActionIndex] = useState(0);
+  const [inspectedDiscard, setInspectedDiscard] =
+    useState<ReplayActor | null>(null);
   const [playing, setPlaying] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const state = replayFrames[actionIndex];
@@ -359,10 +419,16 @@ export function BattleReplayPrototype() {
         <div className={styles.board}>
           <PlayerBoard
             actor="opponent"
+            onInspectDiscard={setInspectedDiscard}
             side={state.opponent}
             stadium={state.stadium}
           />
-          <PlayerBoard actor="self" side={state.self} stadium={state.stadium} />
+          <PlayerBoard
+            actor="self"
+            onInspectDiscard={setInspectedDiscard}
+            side={state.self}
+            stadium={state.stadium}
+          />
         </div>
 
         <div className={styles.currentAction} aria-live="polite">
@@ -467,9 +533,54 @@ export function BattleReplayPrototype() {
           {replaySource.logId.slice(0, 8)}…. Player names are anonymised. Card
           candidates are restricted to prints legal in {replaySource.format};
           where the log cannot prove an exact printing, a legal representative
-          is shown. Deck, discard and hidden-hand quantities are left unnumbered
-          where the log does not expose a complete count.
+          is shown. Deck, hand and discard totals are reconstructed from the
+          logged draws, searches, shuffles and card movements.
         </p>
+
+        <Sheet
+          onOpenChange={(open) => {
+            if (!open) setInspectedDiscard(null);
+          }}
+          open={inspectedDiscard !== null}
+        >
+          <SheetContent className={styles.discardSheet} side="right">
+            <SheetHeader className={styles.discardSheetHeader}>
+              <SheetTitle>
+                {inspectedDiscard === "self" ? "Your" : "Opponent's"} discard
+                pile
+              </SheetTitle>
+              <SheetDescription>
+                {(inspectedDiscard ? state[inspectedDiscard].discard.length : 0)}{" "}
+                cards · newest first
+              </SheetDescription>
+            </SheetHeader>
+            <ol className={styles.discardList}>
+              {(inspectedDiscard
+                ? state[inspectedDiscard].discard
+                : []
+              ).map((discardedCard, index) => (
+                <li key={discardedCard.id}>
+                  <div className={styles.discardCardImage}>
+                    {discardedCard.imageUrl ? (
+                      <Image
+                        alt={`${discardedCard.name}, format-legal representative card artwork`}
+                        fill
+                        sizes="74px"
+                        src={discardedCard.imageUrl}
+                      />
+                    ) : (
+                      <div aria-hidden="true" className={styles.cardBack} />
+                    )}
+                  </div>
+                  <div>
+                    <strong>{discardedCard.name}</strong>
+                    <span>{index === 0 ? "Newest discard" : `#${index + 1}`}</span>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );
