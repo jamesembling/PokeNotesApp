@@ -515,7 +515,6 @@ button.pile:disabled {
   transition: transform 180ms ease-out, box-shadow 180ms ease-out;
 }
 
-.cardPreviewTrigger:hover,
 .cardPreviewTrigger:focus-visible {
   z-index: 30;
   outline: 2px solid var(--ring);
@@ -523,6 +522,7 @@ button.pile:disabled {
 }
 
 .cardPreviewTrigger:hover {
+  z-index: 30;
   transform: scale(1.12);
 }
 
