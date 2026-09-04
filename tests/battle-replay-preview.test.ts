@@ -9,6 +9,7 @@ import {
   shouldShowTransactionEvolutionStack,
 } from "@/lib/battle-replay/preview";
 import { prototypeBattleLogSections } from "@/lib/battle-replay/prototype-log";
+import { replayPilots } from "@/lib/battle-replay/pilots";
 import {
   flattenReplaySourceActions,
   getDamageCounterPlacements,
@@ -265,4 +266,86 @@ test("transaction cards inherit board state only when the stage references an in
   assert.deepEqual(switchStages?.map((stage) => stage.label), ["Play", "Out", "In"]);
   assert.deepEqual(switchStages?.slice(1).map((stage) => stage.cards[0].id), ["opp-solrock-a", "opp-solrock-b"]);
   assert.match(switchStages?.[0].cards[0].imageUrl ?? "", /\/MEG\/MEG_130_R_EN_SM\.png$/);
+
+  const secondPilot = replayPilots.find((pilot) => pilot.id === "bex-0815");
+  assert.ok(secondPilot);
+  assert.equal(secondPilot.events.length, 132);
+  assert.equal(secondPilot.frames.length, 133);
+  assert.equal(secondPilot.events[0].sourceTitle, "B3xCharz24 chose heads for the opening coin flip.");
+  assert.equal(secondPilot.events.at(-1)?.sourceTitle, "All Prize cards taken. B3xCharz24 wins.");
+  assert.deepEqual(secondPilot.frames[0].self.knownHand.map((card) => card.name), [
+    "Lillie's Determination",
+    "Dawn",
+    "Torchic",
+    "Dreepy",
+    "Buddy-Buddy Poffin",
+    "Ultra Ball",
+    "Basic Darkness Energy",
+  ]);
+  assert.ok(secondPilot.frames.every((frame) =>
+    frame.self.knownHand.length <= frame.self.handCount
+      && frame.opponent.knownHand.length <= frame.opponent.handCount,
+  ));
+  const unfairStamp = secondPilot.events.find((event) => event.sourceTitle === "Guintu played Unfair Stamp.");
+  assert.deepEqual(unfairStamp?.transaction?.stages.map((stage) => [stage.kind, stage.scope]), [
+    ["play", undefined],
+    ["shuffle", "both"],
+    ["draw", "both"],
+  ]);
+  assert.deepEqual(unfairStamp?.transaction?.stages[1].actorCounts, {
+    opponent: 10,
+    self: 8,
+  });
+  assert.deepEqual(unfairStamp?.transaction?.stages[2].actorCounts, {
+    opponent: 5,
+    self: 2,
+  });
+  const unfairStampIndex = secondPilot.events.indexOf(unfairStamp!);
+  const unfairStampBefore = secondPilot.frames[unfairStampIndex];
+  const unfairStampAfter = secondPilot.frames[unfairStampIndex + 1];
+  assert.equal(
+    resolveTransactionStage(unfairStamp!.transaction!.stages[2], "opponent", unfairStampBefore, unfairStampAfter).hiddenCount,
+    5,
+  );
+  assert.deepEqual(
+    resolveTransactionStage(unfairStamp!.transaction!.stages[2], "self", unfairStampBefore, unfairStampAfter).cards.map((card) => card.name),
+    ["Crispin", "Dawn"],
+  );
+
+  const crispin = secondPilot.events[40];
+  assert.equal(crispin.sourceTitle, "Guintu played Crispin.");
+  assert.deepEqual(crispin.transaction?.stages.map((stage) => stage.kind), ["play", "draw", "attach", "move"]);
+  assert.deepEqual(crispin.transaction?.stages.map((stage) => stage.label), ["Play", "Draw", "Attach", "To Drakloak"]);
+  assert.equal(crispin.transaction?.stages[2].cards[0].name, "Basic Fire Energy");
+  assert.deepEqual(
+    resolveBoardCardPreview(
+      crispin.transaction!.stages[3].cards[0],
+      crispin.transaction!.stages[3],
+      "opponent",
+      secondPilot.frames[41],
+      secondPilot.frames[40],
+    ).energy,
+    ["Fire"],
+  );
+
+  const lastDitchCatch = secondPilot.events[43];
+  assert.match(lastDitchCatch.transaction?.stages[1].cards[0].imageUrl ?? "", /\/DRI\/DRI_176_R_EN_SM\.png$/);
+  assert.equal(lastDitchCatch.transaction?.stages[1].cards[0].name, "Team Rocket's Petrel");
+
+  assert.equal(secondPilot.events[44].sourceTitle, "Guintu's Budew used Itchy Pollen on B3xCharz24’s Drakloak for 10 damage.");
+  assert.equal(secondPilot.frames[45].self.itemLocked, true);
+  assert.equal(secondPilot.frames[46].self.itemLocked, true);
+  assert.equal(secondPilot.frames[56].self.itemLocked, false);
+
+  assert.ok(secondPilot.events[52].transaction?.stages.every((stage) =>
+    !stage.detail?.includes("B3xCharz24") && !stage.detail?.includes("Guintu")
+  ));
+  assert.deepEqual(secondPilot.events[60].transaction?.stages.map((stage) => stage.label), [
+    "Adrena-Brain",
+    "From Drakloak",
+    "To Dragapult ex",
+  ]);
+  const secondPilotFinal = secondPilot.frames.at(-1)!;
+  assert.equal(secondPilotFinal.self.prizesRemaining, 0);
+  assert.equal(secondPilotFinal.opponent.prizesRemaining, 2);
 });

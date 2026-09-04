@@ -32,21 +32,27 @@ export function resolveTransactionStage(
   previousState: ReplayState,
   state: ReplayState = previousState,
 ) {
+  const actorCount = stage.actorCounts?.[actor];
   if (actor === "self" && stage.cards.length === 0) {
     if (stage.kind === "shuffle") {
-      const cards = previousState.self.knownHand;
-      const hiddenCount = Math.max(0, previousState.self.handCount - cards.length);
+      const expectedCount = actorCount ?? previousState.self.handCount;
+      const cards = previousState.self.knownHand.slice(0, expectedCount);
+      const hiddenCount = Math.max(0, expectedCount - cards.length);
       return { ...stage, cards, hiddenCount: hiddenCount || undefined };
     }
 
     if (stage.kind === "draw") {
       const previousCardIds = new Set(previousState.self.knownHand.map((card) => card.id));
       const evidencedDraws = state.self.knownHand.filter((card) => !previousCardIds.has(card.id));
-      const expectedCount = stage.hiddenCount ?? evidencedDraws.length;
+      const expectedCount = actorCount ?? stage.hiddenCount ?? evidencedDraws.length;
       const cards = evidencedDraws.slice(0, expectedCount);
       const hiddenCount = Math.max(0, expectedCount - cards.length);
       return { ...stage, cards, hiddenCount: hiddenCount || undefined };
     }
+  }
+
+  if (actorCount !== undefined && stage.cards.length === 0) {
+    return { ...stage, hiddenCount: actorCount };
   }
 
   if (

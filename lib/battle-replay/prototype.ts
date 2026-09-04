@@ -41,6 +41,7 @@ export type ReplaySide = {
   knownHand: HandCard[];
   discard: ReplayZoneCard[];
   prizesRemaining: number;
+  itemLocked?: boolean;
 };
 
 export type ReplayState = {
@@ -68,6 +69,7 @@ export type ReplayTransactionStage = {
     multiplier?: number;
   };
   scope?: "both";
+  actorCounts?: Partial<Record<ReplayActor, number>>;
 };
 
 export type ReplayTransaction = {

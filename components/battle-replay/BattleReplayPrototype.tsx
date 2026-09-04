@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -25,18 +25,17 @@ import {
   SheetTitle,
 } from "@/components/shadcn/sheet";
 import {
-  replayEvents,
   replayEnergyImages,
-  replayFrames,
-  replaySource,
   type ReplayActor,
   type ReplayCard,
+  type ReplayEvent,
   type ReplayState,
   type ReplaySide,
   type ReplayTransaction,
   type ReplayTransactionStage,
   type ReplayZoneCard,
 } from "@/lib/battle-replay/prototype";
+import { replayPilots } from "@/lib/battle-replay/pilots";
 import {
   resolveBoardCardPreview,
   resolveTransactionActors,
@@ -115,12 +114,12 @@ function CardFace({
         onClick={() => onPreview(card)}
         type="button"
       >
-        <Image
+        {card.imageUrl ? <Image
           alt={`${card.name}, format-legal representative card artwork`}
           fill
           sizes={compact ? "68px" : "104px"}
           src={card.imageUrl}
-        />
+        /> : <div aria-hidden="true" className={styles.cardBack} />}
         {card.damage > 0 ? (
           <span
             aria-label={`${card.damage} damage`}
@@ -278,12 +277,12 @@ function StadiumSpot({
     <div className={styles.stadiumSpot}>
       <span>Stadium</span>
       <button aria-label={`Preview ${stadium.name}`} className={`${styles.stadium} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ id: "stadium", name: stadium.name, imageUrl: stadium.imageUrl })} type="button">
-        <Image
+        {stadium.imageUrl ? <Image
           alt={`${stadium.name}, format-legal representative card artwork`}
           fill
           sizes="62px"
           src={stadium.imageUrl}
-        />
+        /> : <div aria-hidden="true" className={styles.cardBack} />}
         <strong>{stadium.name}</strong>
       </button>
     </div>
@@ -292,7 +291,7 @@ function StadiumSpot({
 
 function TransactionCards({ actor, onPreview, previousState, stage, state }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; previousState: ReplayState; stage: ReplayTransactionStage; state: ReplayState }) {
   const hiddenCardCount = Math.max(0, Math.floor(stage.hiddenCount ?? 0));
-  return <div className={styles.transactionCards}>
+  return <div className={styles.transactionCards} data-many={stage.cards.length > 4 || undefined}>
     {stage.coinFace ? <div aria-label={`Coin flip result: ${stage.coinFace}`} className={styles.replayCoin} data-face={stage.coinFace}>
       <span>{stage.coinFace}</span>
     </div> : null}
@@ -302,11 +301,11 @@ function TransactionCards({ actor, onPreview, previousState, stage, state }: { a
       return <div className={styles.transactionCardState} data-stateful={hasBoardState || undefined} key={card.id}>
         {shouldShowTransactionEvolutionStack(stage, boardCard) ? <div aria-label={`Evolution stack: ${boardCard.underlying?.map((item) => item.name).join(", ")}`} className={styles.transactionEvolutionStack}>
           {(boardCard.underlying ?? []).map((item) => <span key={item.id}>
-            <Image alt="" fill sizes="82px" src={item.imageUrl} />
+            {item.imageUrl ? <Image alt="" fill sizes="82px" src={item.imageUrl} /> : <div aria-hidden="true" className={styles.cardBack} />}
           </span>)}
         </div> : null}
         <button aria-label={`Preview ${card.name}${boardCard.abilityUsed ? ", ability used this turn" : ""}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview(boardCard)} type="button">
-          <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="112px" src={card.imageUrl} />
+          {card.imageUrl ? <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="112px" src={card.imageUrl} /> : <div aria-hidden="true" className={styles.cardBack} />}
         </button>
         {boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
         {boardCard.abilityUsed ? <AbilityUsedMarker className={styles.transactionAbilityUsedMarker} /> : null}
@@ -367,7 +366,7 @@ function PlayerBoard({
   stadium,
 }: {
   actor: ReplayActor;
-  currentEvent: (typeof replayEvents)[number] | null;
+  currentEvent: ReplayEvent | null;
   onInspectDiscard: (actor: ReplayActor) => void;
   onPreview: (card: PreviewCard) => void;
   previousSide: ReplaySide;
@@ -394,6 +393,7 @@ function PlayerBoard({
           <span>{actor === "self" ? "You" : "Opponent"}</span>
           <strong>{side.name}</strong>
         </div>
+        {side.itemLocked ? <span className={styles.itemLockBadge}>Item lock</span> : null}
       </header>
 
       <div className={styles.playArea}>
@@ -458,12 +458,17 @@ function PlayerBoard({
 }
 
 export function BattleReplayPrototype() {
+  const [pilotId, setPilotId] = useState(replayPilots[0].id);
   const [actionIndex, setActionIndex] = useState(0);
   const [previewedCard, setPreviewedCard] = useState<PreviewCard | null>(null);
   const [inspectedDiscard, setInspectedDiscard] =
     useState<ReplayActor | null>(null);
   const [playing, setPlaying] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
+  const activePilot = replayPilots.find((pilot) => pilot.id === pilotId) ?? replayPilots[0];
+  const replayEvents = activePilot.events;
+  const replayFrames = activePilot.frames;
+  const replaySource = activePilot.source;
   const state = replayFrames[actionIndex];
   const previousState = replayFrames[Math.max(0, actionIndex - 1)];
   const currentEvent = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
@@ -477,16 +482,12 @@ export function BattleReplayPrototype() {
     : previewHealthPercent <= 75
       ? "warning"
       : "healthy";
-  const turnStops = useMemo(
-    () =>
-      replayEvents.reduce<Array<{ turn: number; index: number }>>(
-        (stops, event, index) => {
-          if (stops.at(-1)?.turn !== event.turn)
-            stops.push({ turn: event.turn, index: index + 1 });
-          return stops;
-        },
-        [],
-      ),
+  const turnStops = replayEvents.reduce<Array<{ turn: number; index: number }>>(
+    (stops, event, index) => {
+      if (stops.at(-1)?.turn !== event.turn)
+        stops.push({ turn: event.turn, index: index + 1 });
+      return stops;
+    },
     [],
   );
   const previousTurnIndex = turnStops
@@ -531,8 +532,43 @@ export function BattleReplayPrototype() {
     setPreviewedCard(card);
   }
 
+  function selectPilot(nextPilotId: string) {
+    setPilotId(nextPilotId);
+    setActionIndex(0);
+    setPlaying(false);
+    setPreviewedCard(null);
+    setInspectedDiscard(null);
+  }
+
   return (
-    <div className={styles.replayShell}>
+    <div className={styles.prototype}>
+      <section aria-label="Replay pilot selection" className={styles.pilotBar}>
+        <div>
+          <strong>Replay pilot</strong>
+          <span>Switch between two real saved Battle Logs.</span>
+        </div>
+        <div aria-label="Choose Battle Log" className={styles.pilotChoices} role="group">
+          {replayPilots.map((pilot) => (
+            <button
+              aria-pressed={pilot.id === activePilot.id}
+              key={pilot.id}
+              onClick={() => selectPilot(pilot.id)}
+              type="button"
+            >
+              {pilot.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className={styles.matchMeta}>
+        <div><span>Matchup</span><strong>{replaySource.selfDeck} vs {replaySource.opponentDeck}</strong></div>
+        <div><span>Result</span><strong>{replaySource.result}</strong></div>
+        <div><span>Prizes taken</span><strong>{replaySource.selfPrizesTaken}–{replaySource.opponentPrizesTaken}</strong></div>
+        <div><span>Turns</span><strong>{replaySource.turns}</strong></div>
+      </div>
+
+      <div className={styles.replayShell}>
       <div className={styles.timelinePane}>
         <div className={styles.timelineHeader}>
           <div>
@@ -692,6 +728,7 @@ export function BattleReplayPrototype() {
           where the log cannot prove an exact printing, a legal representative
           is shown. Deck, hand and discard totals are reconstructed from the
           logged draws, searches, shuffles and card movements.
+          {activePilot.id === "bex-0815" ? " This second pilot is compiled from generic source-action grammar rather than a position-indexed event map." : ""}
         </p>
 
         <Sheet
@@ -745,7 +782,7 @@ export function BattleReplayPrototype() {
             <DialogDescription className="sr-only">Enlarged card preview</DialogDescription>
             {previewedCard ? <div className={styles.cardPreviewStage}>
               <div className={styles.cardPreviewImage}>
-                <Image alt={`${previewedCard.name}, enlarged card preview`} fill sizes="340px" src={previewedCard.imageUrl} />
+                {previewedCard.imageUrl ? <Image alt={`${previewedCard.name}, enlarged card preview`} fill sizes="340px" src={previewedCard.imageUrl} /> : <div aria-hidden="true" className={styles.cardBack} />}
                 {previewedCard.damage ? <span aria-label={`${previewedCard.damage} damage`} className={styles.cardPreviewDamage}>{previewedCard.damage}</span> : null}
                 {previewedCard.abilityUsed ? <AbilityUsedMarker className={styles.previewAbilityUsedMarker} /> : null}
                 {previewedCard.tool ? <span className={styles.cardPreviewTool}>Tool · {previewedCard.tool}</span> : null}
@@ -764,6 +801,7 @@ export function BattleReplayPrototype() {
             </div> : null}
           </AppDialogContent>
         </Dialog>
+      </div>
       </div>
     </div>
   );
