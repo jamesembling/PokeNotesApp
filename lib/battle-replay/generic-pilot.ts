@@ -210,7 +210,7 @@ function parseCardNames(value: string) {
   return value.split(",").map((name) => name.trim()).filter(Boolean);
 }
 
-function transactionStages(action: ReplaySourceAction): ReplayTransactionStage[] {
+function transactionStages(action: ReplaySourceAction, selfPlayerName: string): ReplayTransactionStage[] {
   const stages: ReplayTransactionStage[] = [];
   const stadiumCandidate = action.sourceTitle.match(/\bplayed (.+?) to the Stadium spot\.$/i)?.[1];
   const candidate = stadiumCandidate ?? extractBattleLogActionCardCandidate(action.sourceTitle);
@@ -270,14 +270,21 @@ function transactionStages(action: ReplaySourceAction): ReplayTransactionStage[]
   const coalesceBoth = (kind: "shuffle" | "draw", detail: string) => {
     const matches = stages.filter((stage) => stage.kind === kind);
     if (matches.length < 2) return;
-    const detailCounts = action.details.map(clean).flatMap((value) => {
+    const actorEntries = action.details.flatMap((rawValue, detailIndex) => {
+      const value = clean(rawValue);
       const pattern = kind === "draw"
-        ? /^.+? drew (a|\d+) cards?$/i
-        : /^.+? shuffled (a|\d+) cards? into their deck$/i;
+        ? /^(.+?) drew (a|\d+) cards?$/i
+        : /^(.+?) shuffled (a|\d+) cards? into their deck$/i;
       const match = value.match(pattern);
-      return match?.[1] ? [pluralCount(match[1])] : [];
+      if (!match?.[1] || !match[2]) return [];
+      return [{
+        actor: playerActor(match[1], selfPlayerName),
+        cards: listAfter(action.details, detailIndex).map((name, cardIndex) =>
+          zoneCard(`detail-${detailIndex}-${cardIndex}-${name}`, name)
+        ),
+        count: pluralCount(match[2]),
+      }];
     });
-    const otherActor: ReplayActor = action.actor === "self" ? "opponent" : "self";
     const firstIndex = stages.findIndex((stage) => stage.kind === kind);
     const combined: ReplayTransactionStage = {
       kind,
@@ -285,10 +292,10 @@ function transactionStages(action: ReplaySourceAction): ReplayTransactionStage[]
       cards: [],
       scope: "both",
       detail,
-      actorCounts: {
-        [action.actor]: detailCounts[0],
-        [otherActor]: detailCounts[1],
-      },
+      actorCounts: Object.fromEntries(actorEntries.map((entry) => [entry.actor, entry.count])),
+      actorCards: Object.fromEntries(
+        actorEntries.filter((entry) => entry.cards.length).map((entry) => [entry.actor, entry.cards]),
+      ),
     };
     stages.splice(firstIndex, 0, combined);
     for (let index = stages.length - 1; index > firstIndex; index -= 1) {
@@ -400,10 +407,14 @@ function applyDetails(
   const counterPreferred: ReplayActor = /\bused .+ on .+ for \d+/i.test(action.sourceTitle)
     ? action.actor === "self" ? "opponent" : "self"
     : action.actor;
-  getDamageCounterPlacements(action.details).forEach((placement) => {
+  action.details.forEach((detail, detailIndex) => getDamageCounterPlacements([detail]).forEach((placement) => {
     const target = locateBoardCard(state, placement.targetName, counterPreferred)?.card;
-    if (target) target.damage += placement.counters * 10;
-  });
+    if (target) {
+      target.damage += placement.counters * 10;
+      const targetStage = stages.find((stage) => stage.cards[0]?.id === `damage-${detailIndex}`);
+      if (targetStage) targetStage.cards[0] = { ...targetStage.cards[0], id: target.id };
+    }
+  }));
 }
 
 function buildEvent(
@@ -414,7 +425,7 @@ function buildEvent(
   startsTurn: boolean,
 ): ReplayEvent {
   const eventId = `bex-${eventIndex}`;
-  const stages = transactionStages(action);
+  const stages = transactionStages(action, selfPlayerName);
   const summary = anonymisePlayers(
     formatBattleLogActionTitle(action.sourceTitle, { retainActor: false }) || action.sourceTitle,
     selfPlayerName,

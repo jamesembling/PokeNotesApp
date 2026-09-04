@@ -303,6 +303,23 @@ test("transaction cards inherit board state only when the stage references an in
   const unfairStampIndex = secondPilot.events.indexOf(unfairStamp!);
   const unfairStampBefore = secondPilot.frames[unfairStampIndex];
   const unfairStampAfter = secondPilot.frames[unfairStampIndex + 1];
+  const resolvedSelfShuffle = resolveTransactionStage(
+    unfairStamp!.transaction!.stages[1],
+    "self",
+    unfairStampBefore,
+    unfairStampAfter,
+  );
+  assert.deepEqual(resolvedSelfShuffle.cards.map((card) => card.name), [
+    "Psyduck",
+    "Lillie's Clefairy ex",
+    "Crispin",
+    "Buddy-Buddy Poffin",
+    "Drakloak",
+    "Basic Fire Energy",
+    "Buddy-Buddy Poffin",
+    "Night Stretcher",
+  ]);
+  assert.equal(resolvedSelfShuffle.hiddenCount, undefined);
   assert.equal(
     resolveTransactionStage(unfairStamp!.transaction!.stages[2], "opponent", unfairStampBefore, unfairStampAfter).hiddenCount,
     5,
@@ -345,6 +362,18 @@ test("transaction cards inherit board state only when the stage references an in
     "From Drakloak",
     "To Dragapult ex",
   ]);
+  const splitCounterAttack = secondPilot.events[73];
+  const fezandipitiStage = splitCounterAttack.transaction?.stages.at(-1);
+  assert.equal(fezandipitiStage?.cards[0].id, secondPilot.frames[74].opponent.bench.find(
+    (card) => card.name === "Fezandipiti ex",
+  )?.id);
+  assert.equal(resolveBoardCardPreview(
+    fezandipitiStage!.cards[0],
+    fezandipitiStage!,
+    "self",
+    secondPilot.frames[74],
+    secondPilot.frames[73],
+  ).damage, 10);
   const secondPilotFinal = secondPilot.frames.at(-1)!;
   assert.equal(secondPilotFinal.self.prizesRemaining, 0);
   assert.equal(secondPilotFinal.opponent.prizesRemaining, 2);

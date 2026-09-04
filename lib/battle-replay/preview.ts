@@ -33,6 +33,14 @@ export function resolveTransactionStage(
   state: ReplayState = previousState,
 ) {
   const actorCount = stage.actorCounts?.[actor];
+  const actorCards = stage.actorCards?.[actor];
+  if (stage.cards.length === 0 && actorCards) {
+    const expectedCount = actorCount ?? actorCards.length;
+    const cards = actorCards.slice(0, expectedCount);
+    const hiddenCount = Math.max(0, expectedCount - cards.length);
+    return { ...stage, cards, hiddenCount: hiddenCount || undefined };
+  }
+
   if (actor === "self" && stage.cards.length === 0) {
     if (stage.kind === "shuffle") {
       const expectedCount = actorCount ?? previousState.self.handCount;
