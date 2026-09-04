@@ -1232,6 +1232,7 @@ const sourceTransactions = new Map<number, ReplayTransaction>([
     stage("find", "Find", [z("42-solrock", "Solrock", images.solrock)]))],
   [43, transaction("opponent", "Lillie's Determination",
     stage("play", "Play", [z("44-lillie", "Lillie's Determination", images.lillie)]),
+    stage("shuffle", "Shuffle", [], "into deck", 2),
     stage("draw", "Draw", [], undefined, 8))],
   [44, transaction("opponent", "Gravity Mountain",
     stage("play", "Play", [z("45-mountain", "Gravity Mountain", images.gravityMountain)]),
@@ -1244,6 +1245,9 @@ const sourceTransactions = new Map<number, ReplayTransaction>([
     stage("play", "Play", [z("53-candy", "Rare Candy", images.rareCandy)]),
     stage("before", "From", [z("53-torchic", "Torchic", images.torchic)], "Bench"),
     stage("evolve", "Evolve into", [z("53-blaziken", "Blaziken ex", images.blaziken)], "Bench"))],
+  [56, transaction("self", "Poké Pad",
+    stage("play", "Play", [z("57-pad", "Poké Pad", images.pokePad)]),
+    stage("find", "Find", [z("57-drakloak", "Drakloak", images.drakloak)], "add to hand"))],
   [62, transaction("self", "Phantom Dive",
     stage("attack", "Attack", [z("63-dragapult", "Dragapult ex", images.dragapult)]),
     stage("damage", "200 damage", [zoneCard("opp-riolu-a", "Mega Lucario ex", images.lucario)], "Active"),
@@ -1513,6 +1517,9 @@ const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
   [55, (s) => {
     s.self.active?.energy.push("Psychic");
     removeDiscard(s.self, "Basic Psychic Energy");
+  }],
+  [56, (s) => {
+    drawKnown(s.self, hand("self-t3-pad-drakloak", "Drakloak", images.drakloak));
   }],
   [57, (s) => {
     removeHand(s.self, "Drakloak");

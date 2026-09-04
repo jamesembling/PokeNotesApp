@@ -52,20 +52,42 @@ export function resolveBoardCardPreview(
 
   const frame = stage.kind === "before" ? previousState : state;
   const actingSide = actor === "self" ? frame.self : frame.opponent;
+  const currentActingSide = actor === "self" ? state.self : state.opponent;
+  const previousActingSide = actor === "self" ? previousState.self : previousState.opponent;
+  const sideCards = (side: typeof actingSide) => [side.active, ...side.bench]
+    .filter((candidate): candidate is ReplayCard => candidate !== null);
   const allBoardCards = [
     frame.self.active,
     ...frame.self.bench,
     frame.opponent.active,
     ...frame.opponent.bench,
   ].filter((candidate): candidate is ReplayCard => candidate !== null);
-  const actorBoardCards = [actingSide.active, ...actingSide.bench]
-    .filter((candidate): candidate is ReplayCard => candidate !== null);
+  const actorBoardCards = sideCards(actingSide);
+  const currentActorBoardCards = sideCards(currentActingSide);
+  const previousActorBoardCards = sideCards(previousActingSide);
   const canReferenceEitherBoard = stage.kind === "damage" || stage.kind === "heal" || stage.kind === "move";
   const allCards = canReferenceEitherBoard ? allBoardCards : actorBoardCards;
   const identityMatch = allCards.find((candidate) => candidate.id === card.id);
   if (identityMatch) return { ...card, ...identityMatch, id: card.id };
   const matches = allCards.filter((candidate) => candidate.name === card.name);
   if (matches.length === 1) return { ...card, ...matches[0], id: card.id };
+
+  if (stage.kind === "before") {
+    const transitioningCard = matches.find((candidate) => {
+      const currentCard = currentActorBoardCards.find((current) => current.id === candidate.id);
+      return currentCard?.name !== candidate.name
+        && currentCard?.underlying?.some((underlying) => underlying.name === candidate.name);
+    });
+    if (transitioningCard) return { ...card, ...transitioningCard, id: card.id };
+  }
+
+  if (stage.kind === "evolve") {
+    const transitioningCard = matches.find((candidate) => {
+      const previousCard = previousActorBoardCards.find((previous) => previous.id === candidate.id);
+      return previousCard && previousCard.name !== candidate.name;
+    });
+    if (transitioningCard) return { ...card, ...transitioningCard, id: card.id };
+  }
 
   const identifiesActive = stage.kind === "move"
     || stage.label.toLowerCase().includes("active")

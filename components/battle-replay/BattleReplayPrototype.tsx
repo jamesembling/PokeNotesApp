@@ -292,7 +292,7 @@ function TransactionCards({ actor, onPreview, previousState, stage, state }: { a
           </span>)}
         </div> : null}
         <button aria-label={`Preview ${card.name}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview(boardCard)} type="button">
-          <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="96px" src={card.imageUrl} />
+          <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="112px" src={card.imageUrl} />
         </button>
         {boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
         {boardCard.energy?.length ? <div aria-label={`${boardCard.energy.length} Energy attached: ${boardCard.energy.join(", ")}`} className={styles.transactionEnergyStack}>

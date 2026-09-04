@@ -92,6 +92,12 @@ test("transaction cards inherit board state only when the stage references an in
   assert.deepEqual(activeAfter.energy, ["Fire", "Psychic"]);
   assert.equal(shouldShowTransactionEvolutionStack(activeEvolution!.stages[0], activeBefore), false);
 
+  const duplicateBenchEvolution = replayEvents[27].transaction;
+  const duplicateBenchBefore = resolveBoardCardPreview(duplicateBenchEvolution!.stages[0].cards[0], duplicateBenchEvolution!.stages[0], "self", replayFrames[28], replayFrames[27]);
+  const duplicateBenchAfter = resolveBoardCardPreview(duplicateBenchEvolution!.stages[1].cards[0], duplicateBenchEvolution!.stages[1], "self", replayFrames[28], replayFrames[27]);
+  assert.deepEqual(duplicateBenchBefore.energy, ["Fire"]);
+  assert.deepEqual(duplicateBenchAfter.energy, ["Fire"]);
+
   const rareCandyStages = replayEvents[52].transaction?.stages;
   assert.deepEqual(rareCandyStages?.map((stage) => stage.label), ["Play", "From", "Evolve into"]);
   assert.deepEqual(rareCandyStages?.slice(1).map((stage) => stage.cards[0].name), ["Torchic", "Blaziken ex"]);
@@ -99,6 +105,16 @@ test("transaction cards inherit board state only when the stage references an in
   const phantomDiveStages = replayEvents[62].transaction?.stages;
   assert.deepEqual(phantomDiveStages?.map((stage) => stage.label), ["Attack", "200 damage", "Place counters"]);
   assert.equal(phantomDiveStages?.[2].detail, "6 damage counters · Bench");
+
+  const opponentLillieStages = replayEvents[43].transaction?.stages;
+  assert.deepEqual(opponentLillieStages?.map((stage) => stage.label), ["Play", "Shuffle", "Draw"]);
+  assert.equal(opponentLillieStages?.[1].hiddenCount, 2);
+
+  const pokePadStages = replayEvents[56].transaction?.stages;
+  assert.deepEqual(pokePadStages?.map((stage) => stage.label), ["Play", "Find"]);
+  assert.equal(pokePadStages?.[1].cards[0].name, "Drakloak");
+  assert.equal(replayFrames[57].self.handCount, 5);
+  assert.equal(replayFrames[58].self.handCount, 4);
 
   const hiddenStages = replayEvents.flatMap((event) => event.transaction?.stages ?? []).filter((stage) => stage.hiddenCount);
   assert.ok(hiddenStages.some((stage) => stage.hiddenCount === 8));
