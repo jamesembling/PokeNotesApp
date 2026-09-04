@@ -26,6 +26,7 @@ export type ReplayCard = {
   imageUrl: string;
   hp: number;
   damage: number;
+  abilityUsed?: boolean;
   energy: string[];
   underlying: ReplayZoneCard[];
   tool?: string;
@@ -1919,6 +1920,30 @@ const applyDamageCounterPlacements = (
   });
 };
 
+const clearTurnAbilityUsage = (state: ReplayState) => {
+  [state.self, state.opponent].forEach((side) => {
+    [side.active, ...side.bench].forEach((card) => {
+      if (card) card.abilityUsed = undefined;
+    });
+  });
+};
+
+const markLoggedAbilityUsage = (
+  state: ReplayState,
+  sourceAction: ReplaySourceAction,
+) => {
+  if (getReplaySourceLabel(sourceAction.sourceTitle) !== "Ability") return;
+  const match = sourceAction.sourceTitle.match(/(?:'s|’s) (.+?) used .+?\.$/);
+  if (!match) return;
+
+  const side = state[sourceAction.actor];
+  const candidates = [side.active, ...side.bench].filter(
+    (card): card is ReplayCard => card?.name === match[1],
+  );
+  const usedCard = candidates.find((card) => !card.abilityUsed) ?? candidates[0];
+  if (usedCard) usedCard.abilityUsed = true;
+};
+
 export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction, index) => {
   const displayDetails = sourceAction.details.map(formatReplaySourceDetail);
   const fallback = event(
@@ -1948,8 +1973,17 @@ export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction
       ?? legacy?.transaction,
     apply: (state) => {
       const next = legacy?.apply(state) ?? fallback.apply(state);
+      const previousAction = replaySourceActions[index - 1];
+      if (
+        index === 0
+        || previousAction?.turn !== sourceAction.turn
+        || previousAction?.actor !== sourceAction.actor
+      ) {
+        clearTurnAbilityUsage(next);
+      }
       visualMutation?.(next);
       applyDamageCounterPlacements(next, sourceAction, index);
+      markLoggedAbilityUsage(next, sourceAction);
       return next;
     },
   };

@@ -18,6 +18,7 @@ const boardStateStageKinds = new Set<ReplayTransactionStage["kind"]>([
 ]);
 
 export type ReplayCardPreview = ReplayZoneCard & {
+  abilityUsed?: boolean;
   damage?: number;
   energy?: string[];
   hp?: number;
@@ -105,6 +106,16 @@ export function resolveBoardCardPreview(
   if (identityMatch) return { ...card, ...identityMatch, id: card.id };
   const matches = allCards.filter((candidate) => candidate.name === card.name);
   if (matches.length === 1) return { ...card, ...matches[0], id: card.id };
+
+  if (stage.kind === "ability") {
+    const newlyUsedCard = matches.find((candidate) => {
+      const previousCard = previousActorBoardCards.find(
+        (previous) => previous.id === candidate.id,
+      );
+      return candidate.abilityUsed && !previousCard?.abilityUsed;
+    });
+    if (newlyUsedCard) return { ...card, ...newlyUsedCard, id: newlyUsedCard.id };
+  }
 
   if (stage.kind === "before") {
     const transitioningCard = matches.find((candidate) => {

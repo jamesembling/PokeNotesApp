@@ -8,6 +8,7 @@ import {
   PauseIcon,
   PlayIcon,
   RotateCcwIcon,
+  TriangleIcon,
 } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { AppDialogContent } from "@/components/ui/AppDialog";
@@ -45,12 +46,21 @@ import {
 import styles from "./battle-replay.module.css";
 
 type PreviewCard = ReplayZoneCard & {
+  abilityUsed?: boolean;
   damage?: number;
   energy?: string[];
   hp?: number;
   underlying?: ReplayZoneCard[];
   tool?: string;
 };
+
+function AbilityUsedMarker({ className }: { className: string }) {
+  return (
+    <span aria-label="Ability used this turn" className={className}>
+      <TriangleIcon aria-hidden="true" />
+    </span>
+  );
+}
 
 function CardFace({
   card,
@@ -100,7 +110,7 @@ function CardFace({
         </div>
       ) : null}
       <button
-        aria-label={`Preview ${card.name}`}
+        aria-label={`Preview ${card.name}${card.abilityUsed ? ", ability used this turn" : ""}`}
         className={`${styles.cardFace} ${styles.cardPreviewTrigger}`}
         onClick={() => onPreview(card)}
         type="button"
@@ -118,6 +128,9 @@ function CardFace({
           >
             {card.damage}
           </span>
+        ) : null}
+        {card.abilityUsed ? (
+          <AbilityUsedMarker className={styles.boardAbilityUsedMarker} />
         ) : null}
       </button>
       <div className={styles.healthStatus} data-tone={healthTone}>
@@ -292,10 +305,11 @@ function TransactionCards({ actor, onPreview, previousState, stage, state }: { a
             <Image alt="" fill sizes="82px" src={item.imageUrl} />
           </span>)}
         </div> : null}
-        <button aria-label={`Preview ${card.name}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview(boardCard)} type="button">
+        <button aria-label={`Preview ${card.name}${boardCard.abilityUsed ? ", ability used this turn" : ""}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview(boardCard)} type="button">
           <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="112px" src={card.imageUrl} />
         </button>
         {boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
+        {boardCard.abilityUsed ? <AbilityUsedMarker className={styles.transactionAbilityUsedMarker} /> : null}
         {boardCard.energy?.length ? <div aria-label={`${boardCard.energy.length} Energy attached: ${boardCard.energy.join(", ")}`} className={styles.transactionEnergyStack}>
           {boardCard.energy.map((energy, index) => replayEnergyImages[energy] ? <span key={`${energy}-${index}`}>
             <Image alt="" fill sizes="28px" src={replayEnergyImages[energy]} />
@@ -733,6 +747,7 @@ export function BattleReplayPrototype() {
               <div className={styles.cardPreviewImage}>
                 <Image alt={`${previewedCard.name}, enlarged card preview`} fill sizes="340px" src={previewedCard.imageUrl} />
                 {previewedCard.damage ? <span aria-label={`${previewedCard.damage} damage`} className={styles.cardPreviewDamage}>{previewedCard.damage}</span> : null}
+                {previewedCard.abilityUsed ? <AbilityUsedMarker className={styles.previewAbilityUsedMarker} /> : null}
                 {previewedCard.tool ? <span className={styles.cardPreviewTool}>Tool · {previewedCard.tool}</span> : null}
               </div>
               {previewedCard.energy?.length ? <div aria-label={`${previewedCard.energy.length} Energy attached: ${previewedCard.energy.join(", ")}`} className={styles.cardPreviewEnergy}>

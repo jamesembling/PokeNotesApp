@@ -80,6 +80,43 @@ test("transaction cards inherit board state only when the stage references an in
   assert.equal(attachmentEvents.length, 9);
   assert.ok(attachmentEvents.every((event) => event.transaction?.stages.map((stage) => stage.kind).join(",") === "attach,move"));
 
+  const firstDuplicateRecon = replayEvents[53].transaction?.stages[0];
+  const secondDuplicateRecon = replayEvents[54].transaction?.stages[0];
+  assert.ok(firstDuplicateRecon);
+  assert.ok(secondDuplicateRecon);
+  assert.deepEqual(
+    [replayFrames[54].self.active, ...replayFrames[54].self.bench]
+      .filter((card) => card?.name === "Drakloak")
+      .map((card) => card?.abilityUsed),
+    [true, undefined],
+  );
+  assert.deepEqual(
+    [replayFrames[55].self.active, ...replayFrames[55].self.bench]
+      .filter((card) => card?.name === "Drakloak")
+      .map((card) => card?.abilityUsed),
+    [true, true],
+  );
+  assert.ok(
+    [replayFrames[54].opponent.active, ...replayFrames[54].opponent.bench]
+      .every((card) => !card?.abilityUsed),
+  );
+  assert.equal(
+    resolveBoardCardPreview(
+      secondDuplicateRecon.cards[0],
+      secondDuplicateRecon,
+      "self",
+      replayFrames[55],
+      replayFrames[54],
+    ).id,
+    "self-dreepy-b",
+  );
+  const firstTurnFourPosition = replayEvents.findIndex((event) => event.turn === 4) + 1;
+  assert.ok(firstTurnFourPosition > 0);
+  assert.ok(
+    [replayFrames[firstTurnFourPosition].self.active, ...replayFrames[firstTurnFourPosition].self.bench]
+      .every((card) => !card?.abilityUsed),
+  );
+
   const evolutionEvents = replayEvents.filter((event) => / evolved .+ to .+ (?:in|on) the /.test(event.sourceTitle));
   assert.equal(evolutionEvents.length, 7);
   assert.ok(evolutionEvents.every((event) => event.transaction?.stages.map((stage) => stage.kind).join(",") === "before,evolve"));
