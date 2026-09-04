@@ -128,10 +128,20 @@ test("transaction cards inherit board state only when the stage references an in
     7,
   );
   assert.equal(
-    resolveTransactionStage(opponentJudgeShuffle, "self", replayFrames[70]).hiddenCount,
-    replayFrames[70].self.handCount,
+    resolveTransactionStage(opponentJudgeShuffle, "self", replayFrames[70], replayFrames[71]).hiddenCount,
+    undefined,
   );
-  assert.deepEqual(replayEvents[70].transaction?.stages[2].scope, "both");
+  assert.deepEqual(
+    resolveTransactionStage(opponentJudgeShuffle, "self", replayFrames[70], replayFrames[71]).cards.map((card) => card.name),
+    ["Night Stretcher", "Dawn", "Basic Darkness Energy", "Ultra Ball"],
+  );
+  const opponentJudgeDraw = replayEvents[70].transaction?.stages[2];
+  assert.ok(opponentJudgeDraw);
+  assert.equal(opponentJudgeDraw.scope, "both");
+  assert.deepEqual(
+    resolveTransactionStage(opponentJudgeDraw, "self", replayFrames[70], replayFrames[71]).cards.map((card) => card.name),
+    ["Basic Fire Energy", "Night Stretcher", "Basic Darkness Energy", "Torchic"],
+  );
 
   const pokePadStages = replayEvents[56].transaction?.stages;
   assert.deepEqual(pokePadStages?.map((stage) => stage.label), ["Play", "Find"]);

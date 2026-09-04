@@ -328,7 +328,7 @@ function TransactionOverlay({ onPreview, previousState, state, transaction }: { 
           <div className={styles.transactionParticipants} data-multiple={actors.length > 1 || undefined}>
             {actors.map((actor) => <div className={styles.transactionParticipant} data-actor={actor} key={actor}>
               {actors.length > 1 ? <strong>{actor === "self" ? "You" : "Opponent"}</strong> : null}
-              <TransactionCards actor={actor} onPreview={onPreview} previousState={previousState} stage={resolveTransactionStage(stage, actor, previousState)} state={state} />
+              <TransactionCards actor={actor} onPreview={onPreview} previousState={previousState} stage={resolveTransactionStage(stage, actor, previousState, state)} state={state} />
             </div>)}
           </div>
           {stage.detail ? <small>{stage.detail}</small> : null}
