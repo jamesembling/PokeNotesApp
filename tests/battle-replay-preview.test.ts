@@ -114,6 +114,18 @@ test("transaction cards inherit board state only when the stage references an in
   assert.equal(firstAttackStages?.[0].cards[0].name, "Solrock");
   assert.equal(firstAttackStages?.[1].cards[0].name, "Munkidori");
   assert.equal(firstAttackStages?.[1].label, "100 damage");
+  const weaknessAttack = attackEvents.find((event) => event.sourceTitle.includes("because of Fighting Weakness"));
+  const weaknessDamageStage = weaknessAttack?.transaction?.stages[1];
+  assert.deepEqual(weaknessDamageStage?.damageModifier, {
+    kind: "weakness",
+    type: "Fighting",
+    baseDamage: 160,
+    bonusDamage: 160,
+    multiplier: 2,
+  });
+  assert.equal(weaknessDamageStage?.label, "320 damage");
+  assert.equal(weaknessDamageStage?.detail, "Active · Fighting Weakness · 160 × 2");
+  assert.ok(attackEvents.filter((event) => event !== weaknessAttack).every((event) => event.transaction?.stages[1].damageModifier === undefined));
 
   const opponentLillieStages = replayEvents[43].transaction?.stages;
   assert.deepEqual(opponentLillieStages?.map((stage) => stage.label), ["Play", "Shuffle", "Draw"]);

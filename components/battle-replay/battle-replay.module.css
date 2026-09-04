@@ -1035,6 +1035,26 @@ button.pile:disabled {
   box-shadow: 0 0.22rem 0.45rem color-mix(in oklab, black 45%, transparent), inset 0 1px 0 color-mix(in oklab, white 55%, transparent);
   transform: rotate(-5deg);
 }
+.transactionWeaknessMarker {
+  position: absolute;
+  z-index: 5;
+  top: -0.45rem;
+  left: -0.65rem;
+  display: grid;
+  min-width: 2.65rem;
+  justify-items: center;
+  gap: 0.08rem;
+  padding: 0.32rem 0.38rem 0.28rem;
+  border: 2px solid color-mix(in oklab, var(--color-warning) 68%, black);
+  border-radius: 0.48rem;
+  background: var(--color-warning);
+  color: color-mix(in oklab, var(--color-warning) 14%, black);
+  box-shadow: 0 0.35rem 0.7rem color-mix(in oklab, black 48%, transparent);
+  line-height: 1;
+  transform: rotate(-4deg);
+}
+.transactionWeaknessMarker strong { font-size: 0.82rem; font-weight: 900; }
+.transactionWeaknessMarker span { font-size: 0.38rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
 .transactionEnergyStack {
   position: absolute;
   z-index: 3;

@@ -53,6 +53,13 @@ export type ReplayTransactionStage = {
   coinFace?: "heads" | "tails";
   hiddenCount?: number;
   detail?: string;
+  damageModifier?: {
+    kind: "weakness";
+    type: string;
+    baseDamage: number;
+    bonusDamage: number;
+    multiplier?: number;
+  };
   scope?: "both";
 };
 
@@ -1429,9 +1436,34 @@ const attackTransaction = (sourceAction: ReplaySourceAction, index: number) => {
   const targetImage = pokemonImages[targetName];
   if (!attackerImage || !targetImage) return undefined;
 
+  const totalDamage = Number(damage);
+  const weaknessMatch = sourceAction.sourceTitle.match(
+    /took (\d+) more damage because of (.+?) Weakness\./,
+  );
+  const weaknessBonus = weaknessMatch ? Number(weaknessMatch[1]) : 0;
+  const weaknessBase = totalDamage - weaknessBonus;
+  const weaknessMultiplier = weaknessBase > 0 && totalDamage % weaknessBase === 0
+    ? totalDamage / weaknessBase
+    : undefined;
+  const damageModifier = weaknessMatch && weaknessBase > 0
+    ? {
+        kind: "weakness" as const,
+        type: weaknessMatch[2],
+        baseDamage: weaknessBase,
+        bonusDamage: weaknessBonus,
+        multiplier: weaknessMultiplier,
+      }
+    : undefined;
+  const damageDetail = damageModifier
+    ? `Active · ${damageModifier.type} Weakness · ${damageModifier.baseDamage} ${damageModifier.multiplier ? `× ${damageModifier.multiplier}` : `+ ${damageModifier.bonusDamage}`}`
+    : "Active";
+
   return transaction(sourceAction.actor, attackName,
     stage("attack", "Attack", [z(`${index + 1}-attacker`, attackerName, attackerImage)], attackName),
-    stage("damage", `${damage} damage`, [z(`${index + 1}-target`, targetName, targetImage)], "Active"));
+    {
+      ...stage("damage", `${damage} damage`, [z(`${index + 1}-target`, targetName, targetImage)], damageDetail),
+      damageModifier,
+    });
 };
 
 const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
