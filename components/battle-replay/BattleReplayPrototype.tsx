@@ -36,6 +36,7 @@ import {
   type ReplayTransactionStage,
   type ReplayZoneCard,
 } from "@/lib/battle-replay/prototype";
+import { resolveBoardCardPreview } from "@/lib/battle-replay/preview";
 import styles from "./battle-replay.module.css";
 
 type PreviewCard = ReplayZoneCard & {
@@ -271,31 +272,10 @@ function StadiumSpot({
   );
 }
 
-function resolveBoardCardPreview(card: ReplayZoneCard, stage: ReplayTransactionStage, state: ReplayState): PreviewCard {
-  const allCards = [
-    state.self.active,
-    ...state.self.bench,
-    state.opponent.active,
-    ...state.opponent.bench,
-  ].filter((candidate): candidate is ReplayCard => candidate !== null);
-  const matches = allCards.filter((candidate) => candidate.name === card.name);
-  if (matches.length === 1) return { ...card, ...matches[0], id: card.id };
-
-  const activeMatches = [state.self.active, state.opponent.active]
-    .filter((candidate): candidate is ReplayCard => candidate?.name === card.name);
-  const identifiesActive = stage.kind === "move"
-    || stage.label.toLowerCase().includes("active")
-    || stage.detail?.toLowerCase().includes("active");
-  if (identifiesActive && activeMatches.length === 1)
-    return { ...card, ...activeMatches[0], id: card.id };
-
-  return card;
-}
-
-function TransactionCards({ onPreview, stage, state }: { onPreview: (card: PreviewCard) => void; stage: ReplayTransactionStage; state: ReplayState }) {
+function TransactionCards({ actor, onPreview, stage, state }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; stage: ReplayTransactionStage; state: ReplayState }) {
   return <div className={styles.transactionCards}>
     {stage.cards.map((card) => {
-      const boardCard = resolveBoardCardPreview(card, stage, state);
+      const boardCard = resolveBoardCardPreview(card, stage, actor, state);
       const hasBoardState = boardCard.hp !== undefined;
       return <div className={styles.transactionCardState} data-stateful={hasBoardState || undefined} key={card.id}>
         {boardCard.underlying?.length ? <div aria-label={`Evolution stack: ${boardCard.underlying.map((item) => item.name).join(", ")}`} className={styles.transactionEvolutionStack}>
@@ -330,7 +310,7 @@ function TransactionOverlay({ onPreview, state, transaction }: { onPreview: (car
     <ol className={styles.transactionRail}>{transaction.stages.map((stage, index) =>
       <li className={styles.transactionStage} key={`${stage.kind}-${index}`}>
         {index > 0 ? <ChevronRightIcon aria-hidden="true" className={styles.transactionArrow} /> : null}
-        <div className={styles.transactionStep}><span>{stage.label}</span><TransactionCards onPreview={onPreview} stage={stage} state={state} />{stage.detail ? <small>{stage.detail}</small> : null}</div>
+        <div className={styles.transactionStep}><span>{stage.label}</span><TransactionCards actor={transaction.actor} onPreview={onPreview} stage={stage} state={state} />{stage.detail ? <small>{stage.detail}</small> : null}</div>
       </li>)}</ol>
     <p>Source-evidenced movement · format-legal representative art</p>
   </section>;
@@ -725,7 +705,7 @@ export function BattleReplayPrototype() {
             {previewedCard ? <div className={styles.cardPreviewStage}>
               <div className={styles.cardPreviewImage}>
                 <Image alt={`${previewedCard.name}, enlarged card preview`} fill sizes="340px" src={previewedCard.imageUrl} />
-                {previewedCard.damage ? <span className={styles.cardPreviewDamage}>{previewedCard.damage} damage</span> : null}
+                {previewedCard.damage ? <span aria-label={`${previewedCard.damage} damage`} className={styles.cardPreviewDamage}>{previewedCard.damage}</span> : null}
                 {previewedCard.tool ? <span className={styles.cardPreviewTool}>Tool · {previewedCard.tool}</span> : null}
               </div>
               {previewedCard.energy?.length ? <div aria-label={`${previewedCard.energy.length} Energy attached: ${previewedCard.energy.join(", ")}`} className={styles.cardPreviewEnergy}>

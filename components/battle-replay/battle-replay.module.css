@@ -772,8 +772,23 @@ button.pile:disabled {
 .cardPreviewImage { position: relative; width: 100%; aspect-ratio: 0.714; filter: drop-shadow(0 1.25rem 1.5rem color-mix(in oklab, var(--foreground) 30%, transparent)); }
 .cardPreviewImage > img { border-radius: 0.75rem; object-fit: cover; }
 .cardPreviewDamage,
-.cardPreviewTool { position: absolute; z-index: 1; border-radius: 999px; color: white; font-size: 0.72rem; font-weight: 800; line-height: 1; box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 28%, transparent); }
-.cardPreviewDamage { top: 0.75rem; left: 0.75rem; padding: 0.48rem 0.62rem; background: color-mix(in oklab, var(--color-loss) 88%, black); }
+.cardPreviewTool { position: absolute; z-index: 1; color: white; font-size: 0.72rem; font-weight: 800; line-height: 1; box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 28%, transparent); }
+.cardPreviewDamage {
+  top: 38%;
+  right: -0.8rem;
+  display: grid;
+  width: 3rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 2px solid color-mix(in oklab, var(--color-loss) 68%, black);
+  border-radius: 50%;
+  background: var(--color-loss);
+  color: white;
+  font-size: 0.92rem;
+  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 38%, transparent), inset 0 1px 0 color-mix(in oklab, white 30%, transparent);
+  transform: rotate(-5deg);
+}
+.cardPreviewTool { border-radius: 999px; }
 .cardPreviewTool { right: 0.75rem; bottom: 0.75rem; max-width: calc(100% - 1.5rem); padding: 0.42rem 0.58rem; overflow: hidden; background: color-mix(in oklab, black 78%, transparent); text-overflow: ellipsis; white-space: nowrap; }
 .cardPreviewEnergy { z-index: 1; display: flex; justify-content: center; min-height: 4.7rem; margin-top: -3.75rem; padding-inline: 1rem; }
 .cardPreviewEnergy > span { position: relative; width: 3.3rem; aspect-ratio: 0.714; transform: rotate(-4deg); filter: drop-shadow(0 0.35rem 0.35rem color-mix(in oklab, black 32%, transparent)); }
@@ -967,10 +982,10 @@ button.pile:disabled {
   width: 1.8rem;
   aspect-ratio: 1;
   place-items: center;
-  border: 2px solid color-mix(in oklab, #8b4d08 72%, black);
+  border: 2px solid color-mix(in oklab, var(--color-loss) 68%, black);
   border-radius: 50%;
-  background: linear-gradient(145deg, #f2b33d, #cf7617);
-  color: #241406;
+  background: var(--color-loss);
+  color: white;
   font-size: 0.68rem;
   font-weight: 900;
   line-height: 1;
