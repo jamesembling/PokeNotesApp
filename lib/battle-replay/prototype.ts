@@ -53,6 +53,7 @@ export type ReplayTransactionStage = {
   coinFace?: "heads" | "tails";
   hiddenCount?: number;
   detail?: string;
+  scope?: "both";
 };
 
 export type ReplayTransaction = {
@@ -238,6 +239,10 @@ const stage = (
   detail?: string,
   hiddenCount?: number,
 ): ReplayTransactionStage => ({ kind, label, cards, detail, hiddenCount });
+const bothPlayers = (value: ReplayTransactionStage): ReplayTransactionStage => ({
+  ...value,
+  scope: "both",
+});
 const transaction = (
   actor: ReplayActor,
   title: string,
@@ -1204,8 +1209,8 @@ const sourceTransactions = new Map<number, ReplayTransaction>([
     stage("find", "Find", [z("13-darkness", "Basic Darkness Energy", images.darkness)], "add to hand"))],
   [17, transaction("opponent", "Judge",
     stage("play", "Play", [z("18-judge", "Judge", images.judge)]),
-    stage("shuffle", "Shuffle", [], "both hands into their decks"),
-    stage("draw", "Draw", [], "each player", 4))],
+    bothPlayers(stage("shuffle", "Shuffle", [], "both hands into their decks")),
+    bothPlayers(stage("draw", "Draw", [], "each player", 4)))],
   [20, transaction("opponent", "Fighting Gong",
     stage("play", "Play", [z("21-gong", "Fighting Gong", images.fightingGong)]),
     stage("find", "Find", [z("21-fighting", "Basic Fighting Energy", images.fighting)]))],
@@ -1260,7 +1265,8 @@ const sourceTransactions = new Map<number, ReplayTransaction>([
     stage("move", "Active", [z("62-lucario", "Mega Lucario ex", images.lucario)]))],
   [70, transaction("opponent", "Judge",
     stage("play", "Play", [z("71-judge", "Judge", images.judge)]),
-    stage("shuffle", "Shuffle", [], "both hands into their decks"), stage("draw", "Draw", [], "each player", 4))],
+    bothPlayers(stage("shuffle", "Shuffle", [], "both hands into their decks")),
+    bothPlayers(stage("draw", "Draw", [], "each player", 4)))],
   [84, transaction("opponent", "Wally's Compassion",
     stage("play", "Play", [z("85-wally", "Wally's Compassion", images.wally)]),
     stage("return", "Return", [z("85-fighting-a", "Basic Fighting Energy", images.fighting), z("85-fighting-b", "Basic Fighting Energy", images.fighting)], "to hand"),

@@ -39,6 +39,7 @@ import {
 import {
   getHiddenCardSlots,
   resolveBoardCardPreview,
+  resolveTransactionActors,
   resolveTransactionStage,
   shouldShowTransactionEvolutionStack,
 } from "@/lib/battle-replay/preview";
@@ -318,11 +319,20 @@ function TransactionOverlay({ onPreview, previousState, state, transaction }: { 
       <span>{transaction.actor === "self" ? "Your action" : "Opponent action"}</span>
       <strong>{transaction.title}</strong>
     </div>
-    <ol className={styles.transactionRail}>{transaction.stages.map((sourceStage, index) => {
-      const stage = resolveTransactionStage(sourceStage, transaction.actor, previousState);
-      return <li className={styles.transactionStage} data-kind={stage.kind} key={`${stage.kind}-${index}`}>
+    <ol className={styles.transactionRail}>{transaction.stages.map((stage, index) => {
+      const actors = resolveTransactionActors(stage, transaction.actor);
+      return <li className={styles.transactionStage} data-kind={stage.kind} data-multi-actor={actors.length > 1 || undefined} key={`${stage.kind}-${index}`}>
         {index > 0 ? <ChevronRightIcon aria-hidden="true" className={styles.transactionArrow} /> : null}
-        <div className={styles.transactionStep}><span>{stage.label}</span><TransactionCards actor={transaction.actor} onPreview={onPreview} previousState={previousState} stage={stage} state={state} />{stage.detail ? <small>{stage.detail}</small> : null}</div>
+        <div className={styles.transactionStep}>
+          <span>{stage.label}</span>
+          <div className={styles.transactionParticipants} data-multiple={actors.length > 1 || undefined}>
+            {actors.map((actor) => <div className={styles.transactionParticipant} data-actor={actor} key={actor}>
+              {actors.length > 1 ? <strong>{actor === "self" ? "You" : "Opponent"}</strong> : null}
+              <TransactionCards actor={actor} onPreview={onPreview} previousState={previousState} stage={resolveTransactionStage(stage, actor, previousState)} state={state} />
+            </div>)}
+          </div>
+          {stage.detail ? <small>{stage.detail}</small> : null}
+        </div>
       </li>;
     })}</ol>
     <p>Source-evidenced movement · format-legal representative art</p>

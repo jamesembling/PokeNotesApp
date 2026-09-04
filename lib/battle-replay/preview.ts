@@ -47,6 +47,14 @@ export function resolveTransactionStage(
   return { ...stage, hiddenCount: side.handCount };
 }
 
+export function resolveTransactionActors(
+  stage: ReplayTransactionStage,
+  actor: ReplayActor,
+): ReplayActor[] {
+  if (stage.scope !== "both") return [actor];
+  return actor === "self" ? ["self", "opponent"] : ["opponent", "self"];
+}
+
 export function shouldShowTransactionEvolutionStack(
   stage: ReplayTransactionStage,
   card: ReplayCardPreview,

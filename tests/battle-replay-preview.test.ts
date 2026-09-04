@@ -5,6 +5,7 @@ import { replayEvents, replayFrames } from "@/lib/battle-replay/prototype";
 import {
   getHiddenCardSlots,
   resolveBoardCardPreview,
+  resolveTransactionActors,
   resolveTransactionStage,
   shouldShowTransactionEvolutionStack,
 } from "@/lib/battle-replay/preview";
@@ -121,10 +122,16 @@ test("transaction cards inherit board state only when the stage references an in
 
   const opponentJudgeShuffle = replayEvents[70].transaction?.stages[1];
   assert.ok(opponentJudgeShuffle);
+  assert.deepEqual(resolveTransactionActors(opponentJudgeShuffle, "opponent"), ["opponent", "self"]);
   assert.equal(
     resolveTransactionStage(opponentJudgeShuffle, "opponent", replayFrames[70]).hiddenCount,
     7,
   );
+  assert.equal(
+    resolveTransactionStage(opponentJudgeShuffle, "self", replayFrames[70]).hiddenCount,
+    replayFrames[70].self.handCount,
+  );
+  assert.deepEqual(replayEvents[70].transaction?.stages[2].scope, "both");
 
   const pokePadStages = replayEvents[56].transaction?.stages;
   assert.deepEqual(pokePadStages?.map((stage) => stage.label), ["Play", "Find"]);
