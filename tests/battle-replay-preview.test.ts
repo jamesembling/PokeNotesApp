@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { replayEvents } from "@/lib/battle-replay/prototype";
 import { resolveBoardCardPreview } from "@/lib/battle-replay/preview";
 import type {
   ReplayState,
@@ -61,4 +62,19 @@ test("transaction cards inherit board state only when the stage references an in
     cards: [solrock],
   };
   assert.equal(resolveBoardCardPreview(solrock, moveStage, "self", state).damage, 60);
+
+  const coinFlip = replayEvents[0].transaction;
+  assert.equal(coinFlip?.stages[0].coinFace, "tails");
+
+  const attachmentEvents = replayEvents.filter((event) => /attached Basic .+ Energy to/.test(event.sourceTitle));
+  assert.equal(attachmentEvents.length, 9);
+  assert.ok(attachmentEvents.every((event) => event.transaction?.stages.map((stage) => stage.kind).join(",") === "attach,move"));
+
+  const evolutionEvents = replayEvents.filter((event) => / evolved .+ to .+ (?:in|on) the /.test(event.sourceTitle));
+  assert.equal(evolutionEvents.length, 7);
+  assert.ok(evolutionEvents.every((event) => event.transaction?.stages.map((stage) => stage.kind).join(",") === "return,evolve"));
+
+  const switchStages = replayEvents[46].transaction?.stages;
+  assert.deepEqual(switchStages?.map((stage) => stage.label), ["Play", "Out", "In"]);
+  assert.deepEqual(switchStages?.slice(1).map((stage) => stage.cards[0].id), ["opp-solrock-a", "opp-solrock-b"]);
 });

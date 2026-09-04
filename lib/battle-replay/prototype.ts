@@ -47,9 +47,10 @@ export type ReplayState = {
 };
 
 export type ReplayTransactionStage = {
-  kind: "play" | "ability" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
+  kind: "play" | "ability" | "coin" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
   label: string;
   cards: ReplayZoneCard[];
+  coinFace?: "heads" | "tails";
   hiddenCount?: number;
   detail?: string;
 };
@@ -1237,7 +1238,8 @@ const sourceTransactions = new Map<number, ReplayTransaction>([
     stage("stadium", "Stadium", [z("45-stadium", "Gravity Mountain", images.gravityMountain)]))],
   [46, transaction("opponent", "Switch",
     stage("play", "Play", [z("47-switch", "Switch", images.switch)]),
-    stage("move", "Active", [z("47-solrock", "Solrock", images.solrock)]))],
+    stage("move", "Out", [zoneCard("opp-solrock-a", "Solrock", images.solrock)], "to Bench"),
+    stage("move", "In", [zoneCard("opp-solrock-b", "Solrock", images.solrock)], "to Active"))],
   [52, transaction("self", "Rare Candy",
     stage("play", "Play", [z("53-candy", "Rare Candy", images.rareCandy)]),
     stage("evolve", "Evolve", [z("53-blaziken", "Blaziken ex", images.blaziken)]))],
@@ -1273,13 +1275,19 @@ const sourceTransactions = new Map<number, ReplayTransaction>([
   [113, transaction("self", "Boss's Orders", stage("play", "Play", [z("114-boss", "Boss's Orders", images.boss)]), stage("move", "Active", [z("114-meowth", "Meowth ex", images.meowth)]))],
 ]);
 
-const abilityImages: Record<string, string> = {
+const pokemonImages: Record<string, string> = {
+  "Dreepy": images.dreepy,
+  "Dragapult ex": images.dragapult,
+  "Hariyama": images.hariyama,
   "Lunatone": images.lunatone,
+  "Makuhita": images.makuhita,
+  "Mega Lucario ex": images.lucario,
   "Drakloak": images.drakloak,
   "Munkidori": images.munkidori,
   "Meowth ex": images.meowth,
+  "Riolu": images.riolu,
+  "Solrock": images.solrock,
   "Blaziken ex": images.blaziken,
-  "Hariyama": images.hariyama,
 };
 
 const reconDirectiveDraws: Record<number, ReplayZoneCard> = {
@@ -1315,9 +1323,9 @@ const seethingSpiritResults: Record<number, { energy: ReplayZoneCard; target: Re
 const abilityTransaction = (sourceAction: ReplaySourceAction, index: number) => {
   if (getReplaySourceLabel(sourceAction.sourceTitle) !== "Ability") return undefined;
   const match = sourceAction.sourceTitle.match(/(?:'s|’s) (.+?) used (.+?)\.$/);
-  if (!match || !abilityImages[match[1]]) return undefined;
+  if (!match || !pokemonImages[match[1]]) return undefined;
   const [pokemonName, abilityName] = [match[1], match[2]];
-  const abilityCard = z(`${index + 1}-ability`, pokemonName, abilityImages[pokemonName]);
+  const abilityCard = z(`${index + 1}-ability`, pokemonName, pokemonImages[pokemonName]);
   const opening = stage("ability", "Ability", [abilityCard], abilityName);
   const reconDraw = reconDirectiveDraws[index];
   if (abilityName === "Recon Directive" && reconDraw) return transaction(sourceAction.actor, abilityName, opening,
@@ -1358,6 +1366,42 @@ const abilityTransaction = (sourceAction: ReplaySourceAction, index: number) => 
     stage("attach", "Attach", [seethingResult.energy]),
     stage("move", `To ${seethingResult.target.name}`, [seethingResult.target], seethingResult.detail));
   return transaction(sourceAction.actor, abilityName, opening);
+};
+
+const coinFlipTransaction = (sourceAction: ReplaySourceAction) => {
+  const match = sourceAction.sourceTitle.match(/chose (heads|tails) for the opening coin flip/i);
+  if (!match) return undefined;
+  const coinFace = match[1].toLowerCase() as "heads" | "tails";
+  return transaction(sourceAction.actor, "Opening coin flip", {
+    kind: "coin",
+    label: "Result",
+    cards: [],
+    coinFace,
+  });
+};
+
+const energyAttachmentTransaction = (sourceAction: ReplaySourceAction, index: number) => {
+  const match = sourceAction.sourceTitle.match(/attached Basic (.+?) Energy to (.+?) (?:in|on) the (Active Spot|Bench)\.$/);
+  if (!match) return undefined;
+  const [, energyType, pokemonName, location] = match;
+  const energyImage = replayEnergyImages[energyType];
+  const pokemonImage = pokemonImages[pokemonName];
+  if (!energyImage || !pokemonImage) return undefined;
+  return transaction(sourceAction.actor, "Attach Energy",
+    stage("attach", "Attach", [z(`${index + 1}-energy`, `Basic ${energyType} Energy`, energyImage)]),
+    stage("move", `To ${pokemonName}`, [z(`${index + 1}-target`, pokemonName, pokemonImage)], location === "Active Spot" ? "Active" : "Bench"));
+};
+
+const evolutionTransaction = (sourceAction: ReplaySourceAction, index: number) => {
+  const match = sourceAction.sourceTitle.match(/evolved (.+?) to (.+?) (?:in|on) the (Active Spot|Bench)\.$/);
+  if (!match) return undefined;
+  const [, fromName, toName, location] = match;
+  const fromImage = pokemonImages[fromName];
+  const toImage = pokemonImages[toName];
+  if (!fromImage || !toImage) return undefined;
+  return transaction(sourceAction.actor, "Evolution",
+    stage("return", "From", [z(`${index + 1}-from`, fromName, fromImage)]),
+    stage("evolve", "Evolve into", [z(`${index + 1}-to`, toName, toImage)], location === "Active Spot" ? "Active" : "Bench"));
 };
 
 const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
@@ -1763,7 +1807,12 @@ export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction
   const visualMutation = sourceVisualMutations.get(index);
   return {
     ...fallback,
-    transaction: sourceTransactions.get(index) ?? abilityTransaction(sourceAction, index) ?? legacy?.transaction,
+    transaction: sourceTransactions.get(index)
+      ?? abilityTransaction(sourceAction, index)
+      ?? coinFlipTransaction(sourceAction)
+      ?? energyAttachmentTransaction(sourceAction, index)
+      ?? evolutionTransaction(sourceAction, index)
+      ?? legacy?.transaction,
     apply: (state) => {
       const next = legacy?.apply(state) ?? fallback.apply(state);
       visualMutation?.(next);

@@ -41,6 +41,8 @@ export function resolveBoardCardPreview(
     .filter((candidate): candidate is ReplayCard => candidate !== null);
   const canReferenceEitherBoard = stage.kind === "heal" || stage.kind === "move";
   const allCards = canReferenceEitherBoard ? allBoardCards : actorBoardCards;
+  const identityMatch = allCards.find((candidate) => candidate.id === card.id);
+  if (identityMatch) return { ...card, ...identityMatch, id: card.id };
   const matches = allCards.filter((candidate) => candidate.name === card.name);
   if (matches.length === 1) return { ...card, ...matches[0], id: card.id };
 

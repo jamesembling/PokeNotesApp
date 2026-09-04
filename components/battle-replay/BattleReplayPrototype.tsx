@@ -10,9 +10,9 @@ import {
   RotateCcwIcon,
 } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogTitle,
 } from "@/components/shadcn/dialog";
@@ -274,6 +274,9 @@ function StadiumSpot({
 
 function TransactionCards({ actor, onPreview, stage, state }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; stage: ReplayTransactionStage; state: ReplayState }) {
   return <div className={styles.transactionCards}>
+    {stage.coinFace ? <div aria-label={`Coin flip result: ${stage.coinFace}`} className={styles.replayCoin} data-face={stage.coinFace}>
+      <span>{stage.coinFace}</span>
+    </div> : null}
     {stage.cards.map((card) => {
       const boardCard = resolveBoardCardPreview(card, stage, actor, state);
       const hasBoardState = boardCard.hp !== undefined;
@@ -308,7 +311,7 @@ function TransactionOverlay({ onPreview, state, transaction }: { onPreview: (car
       <strong>{transaction.title}</strong>
     </div>
     <ol className={styles.transactionRail}>{transaction.stages.map((stage, index) =>
-      <li className={styles.transactionStage} key={`${stage.kind}-${index}`}>
+      <li className={styles.transactionStage} data-kind={stage.kind} key={`${stage.kind}-${index}`}>
         {index > 0 ? <ChevronRightIcon aria-hidden="true" className={styles.transactionArrow} /> : null}
         <div className={styles.transactionStep}><span>{stage.label}</span><TransactionCards actor={transaction.actor} onPreview={onPreview} stage={stage} state={state} />{stage.detail ? <small>{stage.detail}</small> : null}</div>
       </li>)}</ol>
@@ -699,7 +702,7 @@ export function BattleReplayPrototype() {
         </Sheet>
 
         <Dialog onOpenChange={(open) => { if (!open) setPreviewedCard(null); }} open={previewedCard !== null}>
-          <DialogContent className={styles.cardPreviewDialog}>
+          <AppDialogContent className={styles.cardPreviewDialog} size="compact">
             <DialogTitle className="sr-only">{previewedCard?.name}</DialogTitle>
             <DialogDescription className="sr-only">Enlarged card preview</DialogDescription>
             {previewedCard ? <div className={styles.cardPreviewStage}>
@@ -720,7 +723,7 @@ export function BattleReplayPrototype() {
                 <strong>{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
               </div> : null}
             </div> : null}
-          </DialogContent>
+          </AppDialogContent>
         </Dialog>
       </div>
     </div>
