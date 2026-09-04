@@ -4,6 +4,12 @@ import {
   getBattleLogActionTagLabel,
 } from "@/lib/battle-log/display";
 import { extractBattleLogActionCardCandidate } from "@/lib/battle-log/action-tags";
+import { prototypeBattleLogSections } from "@/lib/battle-replay/prototype-log";
+import {
+  flattenReplaySourceActions,
+  getDamageCounterPlacements,
+  type ReplaySourceAction,
+} from "@/lib/battle-replay/source";
 
 export type ReplayActor = "self" | "opponent";
 type HandCard = { id: string; name: string; imageUrl: string };
@@ -73,6 +79,7 @@ export type ReplayEvent = {
   actor: ReplayActor;
   label: string;
   sourceTitle: string;
+  sourceDetails: string[];
   summary: string;
   turn: number;
   transaction?: ReplayTransaction;
@@ -180,6 +187,7 @@ const event = (
   turn,
   label,
   sourceTitle: summary,
+  sourceDetails: [],
   summary,
   apply: (state) => {
     const next = clone(state);
@@ -773,8 +781,6 @@ const legacyReplayEvents: ReplayEvent[] = [
     "Dragapult ex used Phantom Dive for 200 damage and placed 60 damage on a Benched Riolu.",
     (s) => {
       if (s.opponent.active) s.opponent.active.damage += 200;
-      const riolu = find(s.opponent, "Riolu");
-      if (riolu) riolu.damage += 60;
     },
   ),
   playedCardEvent(
@@ -998,7 +1004,7 @@ const legacyReplayEvents: ReplayEvent[] = [
   event("self", 6, "Result", "All Prize cards taken. You won.", () => {}),
 ];
 
-type ReplaySourceAction = {
+type ReplaySourceActionShell = {
   actor: ReplayActor;
   turn: number;
   sourceTitle: string;
@@ -1010,7 +1016,7 @@ const sourceActions = (
   turn: number,
   labels: string[],
   legacyIndices: Array<number | null>,
-): ReplaySourceAction[] =>
+): ReplaySourceActionShell[] =>
   labels.map((sourceTitle, index) => ({
     actor,
     turn,
@@ -1028,6 +1034,14 @@ const anonymiseReplayTitle = (title: string) =>
     .replaceAll("VoltRunner90", "The opponent")
     .replaceAll("You wins", "You win");
 
+const formatReplaySourceDetail = (detail: string) => {
+  const placement = getDamageCounterPlacements([detail])[0];
+  if (placement) {
+    return `${placement.counters} damage ${placement.counters === 1 ? "counter" : "counters"} on ${placement.targetName}`;
+  }
+  return detail.trim().replace(/^[-•]\s*/, "");
+};
+
 const getReplaySourceLabel = (sourceTitle: string) => {
   const cardName = extractBattleLogActionCardCandidate(sourceTitle);
   if (cardName) return cardName;
@@ -1042,10 +1056,11 @@ const getReplaySourceLabel = (sourceTitle: string) => {
   return tagLabel;
 };
 
-// This is the ordered action list stored on the selected Battle Log. Every
-// timeline row is one source action; entries without a safe visual mutation
-// intentionally remain no-ops instead of guessing at hidden state.
-const replaySourceActions: ReplaySourceAction[] = [
+// Compatibility mapping from each exact fixture action to the prototype's
+// existing visual mutation. Runtime titles and details come from the stored
+// LogSection fixture below; matching the duplicated titles fails closed if the
+// legacy adapter drifts from that source.
+const replaySourceActionShells: ReplaySourceActionShell[] = [
   ...sourceActions("self", 0, [
     "JammerUK1993 chose tails for the opening coin flip.",
   ], [null]),
@@ -1199,9 +1214,30 @@ const replaySourceActions: ReplaySourceAction[] = [
   ], [null, 57, null, null, null, null, 59]),
 ];
 
+const replaySourceActions = flattenReplaySourceActions(
+  prototypeBattleLogSections,
+  "JammerUK1993",
+  replaySourceActionShells.map((action) => action.legacyIndex),
+);
+
+if (
+  replaySourceActions.length !== replaySourceActionShells.length ||
+  replaySourceActions.some((action, index) => action.sourceTitle !== replaySourceActionShells[index]?.sourceTitle)
+) {
+  throw new Error("The replay fixture no longer matches its legacy visual adapter.");
+}
+
 // Only source-evidenced card movement is shown. Unknown opponent cards stay
 // hidden rather than receiving a guessed identity.
 const z = (id: string, name: string, imageUrl: string) => zoneCard(`tx-${id}`, name, imageUrl);
+// The source log names placement targets but does not identify a physical copy
+// when duplicate Pokemon share that name. These hints bind only those ambiguous
+// names to the stable board identities tracked by this prototype fixture.
+const counterPlacementTargetIds = new Map<number, string[]>([
+  [79, ["opp-riolu-b"]],
+  [99, ["opp-solrock-a", "opp-riolu-c"]],
+  [114, ["opp-solrock-a"]],
+]);
 const sourceTransactions = new Map<number, ReplayTransaction>([
   [7, transaction("opponent", "Ultra Ball",
     stage("play", "Play", [z("8-ultra", "Ultra Ball", images.ultraBall)]),
@@ -1260,10 +1296,6 @@ const sourceTransactions = new Map<number, ReplayTransaction>([
   [56, transaction("self", "Poké Pad",
     stage("play", "Play", [z("57-pad", "Poké Pad", images.pokePad)]),
     stage("find", "Find", [z("57-drakloak", "Drakloak", images.drakloak)], "add to hand"))],
-  [62, transaction("self", "Phantom Dive",
-    stage("attack", "Attack", [z("63-dragapult", "Dragapult ex", images.dragapult)]),
-    stage("damage", "200 damage", [zoneCard("opp-riolu-a", "Mega Lucario ex", images.lucario)], "Active"),
-    stage("damage", "Place counters", [zoneCard("opp-riolu-b", "Riolu", images.riolu)], "6 damage counters · Bench"))],
   [59, transaction("self", "Buddy-Buddy Poffin",
     stage("play", "Play", [z("60-poffin", "Buddy-Buddy Poffin", images.poffin)]),
     stage("bench", "Bench", [z("60-dreepy", "Dreepy", images.dreepy)]))],
@@ -1456,12 +1488,26 @@ const attackTransaction = (sourceAction: ReplaySourceAction, index: number) => {
     : undefined;
   const damageDetail = damageModifier ? undefined : "Active";
 
+  const placementStages = getDamageCounterPlacements(sourceAction.details).flatMap(({ targetName, counters }, placementIndex) => {
+    const targetImage = pokemonImages[targetName];
+    if (!targetImage) return [];
+    const targetId = counterPlacementTargetIds.get(index)?.[placementIndex]
+      ?? `${index + 1}-counter-target-${placementIndex + 1}`;
+    return [stage(
+      "damage",
+      "Place counters",
+      [zoneCard(targetId, targetName, targetImage)],
+      `${counters} damage ${counters === 1 ? "counter" : "counters"}`,
+    )];
+  });
+
   return transaction(sourceAction.actor, attackName,
     stage("attack", "Attack", [z(`${index + 1}-attacker`, attackerName, attackerImage)], attackName),
     {
       ...stage("damage", `${damage} damage`, [z(`${index + 1}-target`, targetName, targetImage)], damageDetail),
       damageModifier,
-    });
+    },
+    ...placementStages);
 };
 
 const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
@@ -1667,8 +1713,6 @@ const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
   }],
   [79, (s) => {
     if (s.opponent.active) s.opponent.active.damage += 200;
-    const riolu = find(s.opponent, "Riolu");
-    if (riolu) riolu.damage += 60;
   }],
   [80, (s) => {
     discardActive(s.opponent);
@@ -1760,10 +1804,6 @@ const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
   }],
   [99, (s) => {
     if (s.opponent.active) s.opponent.active.damage += 200;
-    const solrock = find(s.opponent, "Solrock");
-    if (solrock) solrock.damage += 60;
-    const riolu = find(s.opponent, "Riolu");
-    if (riolu) riolu.damage += 50;
   }],
   [100, (s) => {
     discardActive(s.opponent);
@@ -1833,14 +1873,12 @@ const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
   }],
   [114, (s) => {
     if (s.opponent.active) s.opponent.active.damage += 200;
-    const solrock = find(s.opponent, "Solrock");
-    if (solrock) solrock.damage += 60;
   }],
   [115, (s) => {
     discardActive(s.opponent);
   }],
   [116, (s) => {
-    const solrock = s.opponent.bench.find((item) => item.name === "Solrock");
+    const solrock = s.opponent.bench.find((item) => item.id === "opp-solrock-a");
     if (solrock) {
       s.opponent.bench = s.opponent.bench.filter((item) => item.id !== solrock.id);
       discardCards(s.opponent, zoneCard("opp-t6-solrock", "Solrock", solrock.imageUrl));
@@ -1855,15 +1893,46 @@ const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
   }],
 ]);
 
+const applyDamageCounterPlacements = (
+  state: ReplayState,
+  sourceAction: ReplaySourceAction,
+  actionIndex: number,
+) => {
+  const boardCards = [
+    state.self.active,
+    ...state.self.bench,
+    state.opponent.active,
+    ...state.opponent.bench,
+  ].filter((candidate): candidate is ReplayCard => candidate !== null);
+  const targetIds = counterPlacementTargetIds.get(actionIndex) ?? [];
+
+  getDamageCounterPlacements(sourceAction.details).forEach((placement, placementIndex) => {
+    const targetId = targetIds[placementIndex];
+    const matchingCards = boardCards.filter((card) => card.name === placement.targetName);
+    const target = targetId
+      ? matchingCards.find((card) => card.id === targetId)
+      : matchingCards.length === 1
+        ? matchingCards[0]
+        : undefined;
+
+    if (target) target.damage += placement.counters * 10;
+  });
+};
+
 export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction, index) => {
+  const displayDetails = sourceAction.details.map(formatReplaySourceDetail);
   const fallback = event(
     sourceAction.actor,
     sourceAction.turn,
     getReplaySourceLabel(sourceAction.sourceTitle),
-    anonymiseReplayTitle(formatBattleLogActionTitle(sourceAction.sourceTitle)),
+    anonymiseReplayTitle([
+      formatBattleLogActionTitle(sourceAction.sourceTitle),
+      ...displayDetails,
+    ].filter(Boolean).join(" · ")),
     () => {},
   );
   fallback.sourceTitle = sourceAction.sourceTitle;
+  fallback.sourceDetails = [...sourceAction.details];
   const legacy = sourceAction.legacyIndex === null
     ? null
     : legacyReplayEvents[sourceAction.legacyIndex];
@@ -1880,6 +1949,7 @@ export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction
     apply: (state) => {
       const next = legacy?.apply(state) ?? fallback.apply(state);
       visualMutation?.(next);
+      applyDamageCounterPlacements(next, sourceAction, index);
       return next;
     },
   };

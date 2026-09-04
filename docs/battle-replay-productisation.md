@@ -10,6 +10,8 @@ The visual board, timeline controls, transaction overlays, card previews, discar
 
 The replay data layer is currently specific to one saved battle. `lib/battle-replay/prototype.ts` contains a hard-coded source log and opening state, manually selected card prints, position-specific transaction overlays, position-specific board mutations, and ability outcomes keyed to action indexes. Those mappings were appropriate for validating the experience, but they must not become the production replay engine.
 
+The prototype now preserves this selected Battle Log as its exact parsed `LogSection[]` fixture and flattens all 119 action titles and detail rows through the same generic source adapter a production compiler can accept. Damage-counter placement amounts and target names are parsed from those detail rows, so the timeline, overlay, and board mutation share one source fact. Stable-instance hints remain only where the PTCGL text names one of several identical Pokemon without identifying the physical copy. The rest of the board reducer and several overlay types are still legacy, position-indexed prototype code; this improvement does not make arbitrary-log replay production-ready.
+
 ## Product promise
 
 Replay every evidenced event from any supported Pokemon TCG Live log without fabricating hidden or missing state.

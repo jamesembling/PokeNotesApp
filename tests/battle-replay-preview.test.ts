@@ -8,6 +8,11 @@ import {
   resolveTransactionStage,
   shouldShowTransactionEvolutionStack,
 } from "@/lib/battle-replay/preview";
+import { prototypeBattleLogSections } from "@/lib/battle-replay/prototype-log";
+import {
+  flattenReplaySourceActions,
+  getDamageCounterPlacements,
+} from "@/lib/battle-replay/source";
 import type {
   ReplayState,
   ReplayTransactionStage,
@@ -103,9 +108,63 @@ test("transaction cards inherit board state only when the stage references an in
   assert.deepEqual(rareCandyStages?.map((stage) => stage.label), ["Play", "From", "Evolve into"]);
   assert.deepEqual(rareCandyStages?.slice(1).map((stage) => stage.cards[0].name), ["Torchic", "Blaziken ex"]);
 
-  const phantomDiveStages = replayEvents[62].transaction?.stages;
-  assert.deepEqual(phantomDiveStages?.map((stage) => stage.label), ["Attack", "200 damage", "Place counters"]);
-  assert.equal(phantomDiveStages?.[2].detail, "6 damage counters · Bench");
+  const phantomDiveExpectations = [
+    {
+      position: 63,
+      targets: [{ stageId: "63-counter-target-1", boardId: "opp-riolu-b", name: "Riolu", damage: 60, detail: "6 damage counters" }],
+    },
+    {
+      position: 80,
+      targets: [{ stageId: "opp-riolu-b", boardId: "opp-riolu-b", name: "Mega Lucario ex", damage: 120, detail: "6 damage counters" }],
+    },
+    {
+      position: 100,
+      targets: [
+        { stageId: "opp-solrock-a", boardId: "opp-solrock-a", name: "Solrock", damage: 70, detail: "1 damage counter" },
+        { stageId: "opp-riolu-c", boardId: "opp-riolu-c", name: "Riolu", damage: 80, detail: "5 damage counters" },
+      ],
+    },
+    {
+      position: 115,
+      targets: [{ stageId: "opp-solrock-a", boardId: "opp-solrock-a", name: "Solrock", damage: 130, detail: "6 damage counters" }],
+    },
+  ];
+  for (const expectation of phantomDiveExpectations) {
+    const stages = replayEvents[expectation.position - 1].transaction?.stages;
+    const placementStages = stages?.filter((stage) => stage.label === "Place counters") ?? [];
+    assert.deepEqual(
+      placementStages.map((stage) => ({ id: stage.cards[0].id, name: stage.cards[0].name, detail: stage.detail })),
+      expectation.targets.map(({ stageId: id, name, detail }) => ({ id, name, detail })),
+    );
+    for (const target of expectation.targets) {
+      assert.equal(
+        replayFrames[expectation.position].opponent.bench.find((card) => card.id === target.boardId)?.damage,
+        target.damage,
+      );
+    }
+  }
+  assert.match(replayEvents[79].summary, /6 damage counters on Mega Lucario ex/);
+  assert.deepEqual(replayEvents[79].sourceDetails, [
+    "- JammerUK1993 put 6 damage counters on JammerUK1993's Mega Lucario ex.",
+  ]);
+
+  const sourceActions = flattenReplaySourceActions(prototypeBattleLogSections, "JammerUK1993");
+  assert.equal(sourceActions.length, 119);
+  assert.deepEqual(sourceActions[79].details, [
+    "- JammerUK1993 put 6 damage counters on JammerUK1993's Mega Lucario ex.",
+  ]);
+  assert.deepEqual(getDamageCounterPlacements(sourceActions[99].details), [
+    { counters: 1, targetName: "Solrock" },
+    { counters: 5, targetName: "Riolu" },
+  ]);
+  assert.equal(
+    replayFrames[117].opponent.discard[0]?.id,
+    "opp-t6-solrock",
+  );
+  assert.deepEqual(
+    replayFrames[117].opponent.bench.filter((card) => card.name === "Solrock").map((card) => card.id),
+    ["opp-solrock-b"],
+  );
 
   const attackEvents = replayEvents.filter((event) => / used .+ on .+ for \d+\+? damage\./.test(event.sourceTitle));
   assert.equal(attackEvents.length, 10);
