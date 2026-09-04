@@ -532,6 +532,11 @@ export function BattleReplayPrototype() {
     setPreviewedCard(card);
   }
 
+  function inspectDiscard(actor: ReplayActor) {
+    setPlaying(false);
+    setInspectedDiscard(actor);
+  }
+
   function selectPilot(nextPilotId: string) {
     setPilotId(nextPilotId);
     setActionIndex(0);
@@ -618,8 +623,8 @@ export function BattleReplayPrototype() {
       <div className={styles.replayStage} ref={stageRef}>
         <div className={styles.boardFrame} data-transaction={currentEvent?.transaction ? true : undefined}>
           <div className={styles.board}>
-            <PlayerBoard actor="opponent" currentEvent={currentEvent} onInspectDiscard={setInspectedDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
-            <PlayerBoard actor="self" currentEvent={currentEvent} onInspectDiscard={setInspectedDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
+            <PlayerBoard actor="opponent" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
+            <PlayerBoard actor="self" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
           </div>
           {currentEvent?.transaction ? <TransactionOverlay onPreview={previewCard} previousState={previousState} state={state} transaction={currentEvent.transaction} /> : null}
         </div>
@@ -737,7 +742,7 @@ export function BattleReplayPrototype() {
           }}
           open={inspectedDiscard !== null}
         >
-          <SheetContent className={styles.discardSheet} side="right">
+          <SheetContent className={styles.discardSheet} side="bottom">
             <SheetHeader className={styles.discardSheetHeader}>
               <SheetTitle>
                 {inspectedDiscard === "self" ? "Your" : "Opponent's"} discard
@@ -759,7 +764,7 @@ export function BattleReplayPrototype() {
                       <Image
                         alt={`${discardedCard.name}, format-legal representative card artwork`}
                         fill
-                        sizes="74px"
+                        sizes="(max-width: 44rem) 76px, 88px"
                         src={discardedCard.imageUrl}
                       />
                     ) : (

@@ -866,46 +866,97 @@ button.pile:disabled {
 }
 
 .discardSheet {
-  width: min(28rem, calc(100vw - 1rem));
+  width: 100%;
   max-width: none;
+  max-height: min(48svh, 24rem);
   gap: 0;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .discardSheetHeader {
   border-bottom: 1px solid var(--border);
-  padding: 1.25rem;
+  padding: 1rem 4rem 0.9rem 1.25rem;
 }
 
 .discardList {
-  display: grid;
+  display: flex;
   min-height: 0;
   margin: 0;
-  padding: 0 1.25rem 1.25rem;
-  overflow-y: auto;
+  gap: 0.9rem;
+  padding: 1rem 1.25rem 1.25rem;
+  overflow-x: auto;
+  overflow-y: hidden;
   list-style: none;
+  scroll-padding-inline: 1.25rem;
+  scroll-snap-type: x proximity;
   scrollbar-color: var(--border) transparent;
 }
 
 .discardList li {
   display: grid;
-  grid-template-columns: 3.25rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.9rem;
-  padding-block: 0.75rem;
-  border-bottom: 1px solid var(--border);
+  width: 5.5rem;
+  flex: 0 0 5.5rem;
+  align-content: start;
+  gap: 0.45rem;
+  scroll-snap-align: start;
+}
+
+.discardList li > div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.discardList li strong,
+.discardList li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discardList li strong {
+  color: var(--card-foreground);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.discardList li span {
+  color: var(--muted-foreground);
+  font-size: 0.62rem;
+  line-height: 1.2;
 }
 
 .discardCardImage {
   position: relative;
-  width: 3.25rem;
+  width: 5.5rem;
   overflow: hidden;
   aspect-ratio: 0.714;
-  border-radius: 0.35rem;
+  border-radius: 0.4rem;
   box-shadow: 0 0.25rem 0.65rem color-mix(in oklab, var(--foreground) 18%, transparent);
 }
 
 .discardCardImage img {
   object-fit: cover;
+}
+
+@media (max-width: 44rem) {
+  .discardSheet {
+    max-height: min(52svh, 21rem);
+  }
+
+  .discardList {
+    gap: 0.75rem;
+    padding-inline: 1rem;
+    scroll-padding-inline: 1rem;
+  }
+
+  .discardList li,
+  .discardCardImage {
+    width: 4.75rem;
+  }
+
+  .discardList li {
+    flex-basis: 4.75rem;
+  }
 }
 
 .cardPreviewDialog {
