@@ -1413,6 +1413,21 @@ const evolutionTransaction = (sourceAction: ReplaySourceAction, index: number) =
     stage("evolve", "Evolve into", [z(`${index + 1}-to`, toName, toImage)], location === "Active Spot" ? "Active" : "Bench"));
 };
 
+const attackTransaction = (sourceAction: ReplaySourceAction, index: number) => {
+  const match = sourceAction.sourceTitle.match(
+    /^.+?['’]s (.+?) used (.+?) on .+?['’]s (.+?) for (\d+)\+? damage\./,
+  );
+  if (!match) return undefined;
+  const [, attackerName, attackName, targetName, damage] = match;
+  const attackerImage = pokemonImages[attackerName];
+  const targetImage = pokemonImages[targetName];
+  if (!attackerImage || !targetImage) return undefined;
+
+  return transaction(sourceAction.actor, attackName,
+    stage("attack", "Attack", [z(`${index + 1}-attacker`, attackerName, attackerImage)], attackName),
+    stage("damage", `${damage} damage`, [z(`${index + 1}-target`, targetName, targetImage)], "Active"));
+};
+
 const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
   [4, (s) => {
     s.opponent.bench.push(card("opp-riolu-a", "Riolu", images.riolu, 70));
@@ -1824,6 +1839,7 @@ export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction
       ?? coinFlipTransaction(sourceAction)
       ?? energyAttachmentTransaction(sourceAction, index)
       ?? evolutionTransaction(sourceAction, index)
+      ?? attackTransaction(sourceAction, index)
       ?? legacy?.transaction,
     apply: (state) => {
       const next = legacy?.apply(state) ?? fallback.apply(state);

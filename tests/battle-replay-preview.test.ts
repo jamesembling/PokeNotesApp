@@ -5,6 +5,7 @@ import { replayEvents, replayFrames } from "@/lib/battle-replay/prototype";
 import {
   getHiddenCardSlots,
   resolveBoardCardPreview,
+  resolveTransactionStage,
   shouldShowTransactionEvolutionStack,
 } from "@/lib/battle-replay/preview";
 import type {
@@ -106,9 +107,24 @@ test("transaction cards inherit board state only when the stage references an in
   assert.deepEqual(phantomDiveStages?.map((stage) => stage.label), ["Attack", "200 damage", "Place counters"]);
   assert.equal(phantomDiveStages?.[2].detail, "6 damage counters · Bench");
 
+  const attackEvents = replayEvents.filter((event) => / used .+ on .+ for \d+\+? damage\./.test(event.sourceTitle));
+  assert.equal(attackEvents.length, 10);
+  assert.ok(attackEvents.every((event) => event.transaction?.stages[0].kind === "attack"));
+  const firstAttackStages = attackEvents[0].transaction?.stages;
+  assert.equal(firstAttackStages?.[0].cards[0].name, "Solrock");
+  assert.equal(firstAttackStages?.[1].cards[0].name, "Munkidori");
+  assert.equal(firstAttackStages?.[1].label, "100 damage");
+
   const opponentLillieStages = replayEvents[43].transaction?.stages;
   assert.deepEqual(opponentLillieStages?.map((stage) => stage.label), ["Play", "Shuffle", "Draw"]);
   assert.equal(opponentLillieStages?.[1].hiddenCount, 2);
+
+  const opponentJudgeShuffle = replayEvents[70].transaction?.stages[1];
+  assert.ok(opponentJudgeShuffle);
+  assert.equal(
+    resolveTransactionStage(opponentJudgeShuffle, "opponent", replayFrames[70]).hiddenCount,
+    7,
+  );
 
   const pokePadStages = replayEvents[56].transaction?.stages;
   assert.deepEqual(pokePadStages?.map((stage) => stage.label), ["Play", "Find"]);

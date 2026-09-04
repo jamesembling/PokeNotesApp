@@ -150,6 +150,7 @@
 
 .playerBoard {
   --replay-player-tint: var(--color-loss);
+  --replay-pile-card-width: 3.4rem;
   display: grid;
   grid-template-areas:
     "header"
@@ -205,7 +206,7 @@
 .prizes {
   display: grid;
   grid-area: prizes;
-  grid-template-columns: repeat(2, 1.65rem);
+  grid-template-columns: repeat(2, var(--replay-pile-card-width));
   align-content: center;
   justify-content: center;
   gap: 0.3rem;
@@ -221,7 +222,7 @@
 }
 
 .prizes span {
-  width: 1.65rem;
+  width: var(--replay-pile-card-width);
   aspect-ratio: 0.714;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -240,7 +241,7 @@
   grid-area: play;
   min-height: 16rem;
   grid-template-areas: "prizes field piles";
-  grid-template-columns: 4rem minmax(0, 1fr) 4rem;
+  grid-template-columns: calc(var(--replay-pile-card-width) + var(--replay-pile-card-width) + 0.3rem) minmax(0, 1fr) 4rem;
   align-items: center;
   gap: 0.75rem;
 }
@@ -292,7 +293,7 @@ button.pile:disabled {
 
 .pileCards {
   position: relative;
-  width: 3.4rem;
+  width: var(--replay-pile-card-width);
   aspect-ratio: 0.714;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -1119,6 +1120,7 @@ button.pile:disabled {
   }
 
   .playerBoard {
+    --replay-pile-card-width: 2.8rem;
     padding: 0.6rem;
   }
 
@@ -1133,7 +1135,7 @@ button.pile:disabled {
 
   .playArea {
     min-height: 14rem;
-    grid-template-columns: 3rem minmax(0, 1fr) 3.1rem;
+    grid-template-columns: calc(var(--replay-pile-card-width) + var(--replay-pile-card-width) + 0.2rem) minmax(0, 1fr) 3.1rem;
     gap: 0.4rem;
   }
 
@@ -1186,17 +1188,8 @@ button.pile:disabled {
     font-size: 0.44rem;
   }
 
-  .pileCards {
-    width: 2.8rem;
-  }
-
   .prizes {
-    grid-template-columns: repeat(2, 1.25rem);
     gap: 0.2rem;
-  }
-
-  .prizes span {
-    width: 1.25rem;
   }
 
   .handArea {

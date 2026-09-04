@@ -32,6 +32,21 @@ export function getHiddenCardSlots(hiddenCount?: number) {
   );
 }
 
+export function resolveTransactionStage(
+  stage: ReplayTransactionStage,
+  actor: ReplayActor,
+  previousState: ReplayState,
+) {
+  if (
+    stage.kind !== "shuffle"
+    || stage.cards.length > 0
+    || stage.hiddenCount !== undefined
+  ) return stage;
+
+  const side = actor === "self" ? previousState.self : previousState.opponent;
+  return { ...stage, hiddenCount: side.handCount };
+}
+
 export function shouldShowTransactionEvolutionStack(
   stage: ReplayTransactionStage,
   card: ReplayCardPreview,
