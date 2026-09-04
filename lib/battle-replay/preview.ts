@@ -25,13 +25,6 @@ export type ReplayCardPreview = ReplayZoneCard & {
   tool?: string;
 };
 
-export function getHiddenCardSlots(hiddenCount?: number) {
-  return Array.from(
-    { length: Math.max(0, Math.floor(hiddenCount ?? 0)) },
-    (_, index) => index,
-  );
-}
-
 export function resolveTransactionStage(
   stage: ReplayTransactionStage,
   actor: ReplayActor,

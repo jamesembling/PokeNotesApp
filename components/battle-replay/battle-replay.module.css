@@ -963,10 +963,8 @@ button.pile:disabled {
 .transactionCards { display: flex; height: 100%; min-height: 0; align-items: center; justify-content: center; padding: 0.35rem 1rem 1rem; }
 .transactionParticipants[data-multiple] .transactionCards { padding-inline: 0; }
 .transactionParticipants[data-multiple] .transactionCardState,
-.transactionParticipants[data-multiple] .transactionCard { width: 3.2rem; }
-.transactionParticipants[data-multiple] .transactionCards > .transactionCardState + .transactionCardState { margin-left: -2.3rem; }
-.transactionParticipants[data-multiple] .transactionHiddenFan > .transactionCard { width: 2.15rem; }
-.transactionParticipants[data-multiple] .transactionHiddenFan > .transactionCard + .transactionCard { margin-left: -1.75rem; }
+.transactionParticipants[data-multiple] .transactionCard { width: 4.5rem; }
+.transactionParticipants[data-multiple] .transactionCards > .transactionCardState + .transactionCardState { margin-left: -3.65rem; }
 .replayCoin {
   position: relative;
   display: grid;
@@ -1016,10 +1014,8 @@ button.pile:disabled {
 .transactionCards > .transactionCardState + .transactionCardState { margin-left: clamp(-3.1rem, -4vw, -2.2rem); }
 .transactionCard img { object-fit: cover; }
 .transactionCard.cardPreviewTrigger { pointer-events: auto; }
-.transactionHiddenCards { display: grid; justify-items: center; gap: 0.35rem; }
-.transactionHiddenFan { display: flex; justify-content: center; padding-inline: 0.25rem; }
-.transactionHiddenFan > .transactionCard { width: 2.8rem; }
-.transactionHiddenFan > .transactionCard + .transactionCard { margin-left: -2.15rem; }
+.transactionHiddenCards { position: relative; display: flex; align-items: center; }
+.transactionHiddenCards .transactionCard { width: clamp(6rem, 9vw, 7.25rem); }
 .transactionDamageCounter {
   position: absolute;
   z-index: 4;
@@ -1087,7 +1083,25 @@ button.pile:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.transactionCount { color: var(--card-foreground); font-size: 0.58rem; font-weight: 700; white-space: nowrap; }
+.transactionCount {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-loss);
+  color: white;
+  box-shadow: 0 0.35rem 0.7rem color-mix(in oklab, black 58%, transparent);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  transform: translate(-50%, -50%);
+}
 .transactionOverlay > p { color: var(--muted-foreground); font-size: 0.56rem; letter-spacing: 0.02em; }
 
 @keyframes transaction-overlay-in { from { opacity: 0; } to { opacity: 1; } }
@@ -1228,19 +1242,15 @@ button.pile:disabled {
   .transactionParticipant > strong { font-size: 0.48rem; }
   .transactionCards { min-height: 0; padding: 0.25rem 0.4rem 0.7rem; }
   .transactionParticipants[data-multiple] .transactionCardState,
-  .transactionParticipants[data-multiple] .transactionCard { width: 2rem; }
-  .transactionParticipants[data-multiple] .transactionCards > .transactionCardState + .transactionCardState { margin-left: -1.45rem; }
-  .transactionParticipants[data-multiple] .transactionHiddenFan > .transactionCard { width: 1.6rem; }
-  .transactionParticipants[data-multiple] .transactionHiddenFan > .transactionCard + .transactionCard { margin-left: -1.32rem; }
+  .transactionParticipants[data-multiple] .transactionCard { width: 2.75rem; }
+  .transactionParticipants[data-multiple] .transactionCards > .transactionCardState + .transactionCardState { margin-left: -2.05rem; }
   .transactionCardState,
   .transactionCard { width: 3.75rem; }
+  .transactionHiddenCards .transactionCard { width: 4.25rem; }
   .transactionCard + .transactionCard { margin-left: -1.95rem; }
-  .transactionHiddenFan > .transactionCard { width: 2.1rem; }
-  .transactionHiddenFan > .transactionCard + .transactionCard { margin-left: -1.62rem; }
   .transactionArrow { width: 0.75rem; }
-  .transactionOverlay > p,
-  .transactionCount { font-size: 0.48rem; }
-  .transactionCount { max-width: 3.8rem; margin-left: 0.2rem; white-space: normal; }
+  .transactionOverlay > p { font-size: 0.48rem; }
+  .transactionCount { min-width: 1.7rem; height: 1.7rem; font-size: 0.68rem; }
 
   .playedCard {
     width: 2.65rem;

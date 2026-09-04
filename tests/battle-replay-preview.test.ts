@@ -3,7 +3,6 @@ import test from "node:test";
 
 import { replayEvents, replayFrames } from "@/lib/battle-replay/prototype";
 import {
-  getHiddenCardSlots,
   resolveBoardCardPreview,
   resolveTransactionActors,
   resolveTransactionStage,
@@ -151,7 +150,6 @@ test("transaction cards inherit board state only when the stage references an in
 
   const hiddenStages = replayEvents.flatMap((event) => event.transaction?.stages ?? []).filter((stage) => stage.hiddenCount);
   assert.ok(hiddenStages.some((stage) => stage.hiddenCount === 8));
-  assert.ok(hiddenStages.every((stage) => getHiddenCardSlots(stage.hiddenCount).length === stage.hiddenCount));
 
   const switchStages = replayEvents[46].transaction?.stages;
   assert.deepEqual(switchStages?.map((stage) => stage.label), ["Play", "Out", "In"]);

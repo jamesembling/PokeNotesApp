@@ -37,7 +37,6 @@ import {
   type ReplayZoneCard,
 } from "@/lib/battle-replay/prototype";
 import {
-  getHiddenCardSlots,
   resolveBoardCardPreview,
   resolveTransactionActors,
   resolveTransactionStage,
@@ -279,7 +278,7 @@ function StadiumSpot({
 }
 
 function TransactionCards({ actor, onPreview, previousState, stage, state }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; previousState: ReplayState; stage: ReplayTransactionStage; state: ReplayState }) {
-  const hiddenCardSlots = getHiddenCardSlots(stage.hiddenCount);
+  const hiddenCardCount = Math.max(0, Math.floor(stage.hiddenCount ?? 0));
   return <div className={styles.transactionCards}>
     {stage.coinFace ? <div aria-label={`Coin flip result: ${stage.coinFace}`} className={styles.replayCoin} data-face={stage.coinFace}>
       <span>{stage.coinFace}</span>
@@ -305,10 +304,9 @@ function TransactionCards({ actor, onPreview, previousState, stage, state }: { a
         {boardCard.tool ? <span className={styles.transactionTool}>Tool · {boardCard.tool}</span> : null}
       </div>;
     })}
-    {hiddenCardSlots.length ? <div aria-label={`${hiddenCardSlots.length} unknown ${hiddenCardSlots.length === 1 ? "card" : "cards"}`} className={styles.transactionHiddenCards}>
-      <div className={styles.transactionHiddenFan}>{hiddenCardSlots.map((index) =>
-        <div aria-hidden="true" className={styles.transactionCard} data-hidden key={`hidden-${index}`}><div className={styles.cardBack} /></div>)}</div>
-      <span className={styles.transactionCount}>{hiddenCardSlots.length} unknown {hiddenCardSlots.length === 1 ? "card" : "cards"}</span>
+    {hiddenCardCount ? <div aria-label={`${hiddenCardCount} unknown ${hiddenCardCount === 1 ? "card" : "cards"}`} className={styles.transactionHiddenCards}>
+      <div aria-hidden="true" className={styles.transactionCard} data-hidden><div className={styles.cardBack} /></div>
+      <span aria-hidden="true" className={styles.transactionCount}>{hiddenCardCount}</span>
     </div> : null}
   </div>;
 }
