@@ -114,7 +114,7 @@ const images = {
   pokePad: image("POR", "81"),
   lillie: image("ASC", "192"),
   specialRedCard: image("CRI", "82"),
-  switch: image("PBL", "107"),
+  switch: image("MEG", "130"),
   wally: image("MEG", "132"),
   nightStretcher: image("ASC", "196"),
   carmine: image("PRE", "103"),

@@ -36,7 +36,11 @@ import {
   type ReplayTransactionStage,
   type ReplayZoneCard,
 } from "@/lib/battle-replay/prototype";
-import { resolveBoardCardPreview } from "@/lib/battle-replay/preview";
+import {
+  getHiddenCardSlots,
+  resolveBoardCardPreview,
+  shouldShowTransactionEvolutionStack,
+} from "@/lib/battle-replay/preview";
 import styles from "./battle-replay.module.css";
 
 type PreviewCard = ReplayZoneCard & {
@@ -273,6 +277,7 @@ function StadiumSpot({
 }
 
 function TransactionCards({ actor, onPreview, stage, state }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; stage: ReplayTransactionStage; state: ReplayState }) {
+  const hiddenCardSlots = getHiddenCardSlots(stage.hiddenCount);
   return <div className={styles.transactionCards}>
     {stage.coinFace ? <div aria-label={`Coin flip result: ${stage.coinFace}`} className={styles.replayCoin} data-face={stage.coinFace}>
       <span>{stage.coinFace}</span>
@@ -281,13 +286,13 @@ function TransactionCards({ actor, onPreview, stage, state }: { actor: ReplayAct
       const boardCard = resolveBoardCardPreview(card, stage, actor, state);
       const hasBoardState = boardCard.hp !== undefined;
       return <div className={styles.transactionCardState} data-stateful={hasBoardState || undefined} key={card.id}>
-        {boardCard.underlying?.length ? <div aria-label={`Evolution stack: ${boardCard.underlying.map((item) => item.name).join(", ")}`} className={styles.transactionEvolutionStack}>
-          {boardCard.underlying.map((item) => <span key={item.id}>
+        {shouldShowTransactionEvolutionStack(stage, boardCard) ? <div aria-label={`Evolution stack: ${boardCard.underlying?.map((item) => item.name).join(", ")}`} className={styles.transactionEvolutionStack}>
+          {(boardCard.underlying ?? []).map((item) => <span key={item.id}>
             <Image alt="" fill sizes="82px" src={item.imageUrl} />
           </span>)}
         </div> : null}
         <button aria-label={`Preview ${card.name}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview(boardCard)} type="button">
-          <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="82px" src={card.imageUrl} />
+          <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="96px" src={card.imageUrl} />
         </button>
         {boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
         {boardCard.energy?.length ? <div aria-label={`${boardCard.energy.length} Energy attached: ${boardCard.energy.join(", ")}`} className={styles.transactionEnergyStack}>
@@ -298,9 +303,11 @@ function TransactionCards({ actor, onPreview, stage, state }: { actor: ReplayAct
         {boardCard.tool ? <span className={styles.transactionTool}>Tool · {boardCard.tool}</span> : null}
       </div>;
     })}
-    {Array.from({ length: Math.min(3, stage.hiddenCount ?? 0) }).map((_, index) =>
-      <div aria-hidden="true" className={styles.transactionCard} data-hidden key={`hidden-${index}`}><div className={styles.cardBack} /></div>)}
-    {stage.hiddenCount ? <span className={styles.transactionCount}>{stage.hiddenCount} unknown {stage.hiddenCount === 1 ? "card" : "cards"}</span> : null}
+    {hiddenCardSlots.length ? <div aria-label={`${hiddenCardSlots.length} unknown ${hiddenCardSlots.length === 1 ? "card" : "cards"}`} className={styles.transactionHiddenCards}>
+      <div className={styles.transactionHiddenFan}>{hiddenCardSlots.map((index) =>
+        <div aria-hidden="true" className={styles.transactionCard} data-hidden key={`hidden-${index}`}><div className={styles.cardBack} /></div>)}</div>
+      <span className={styles.transactionCount}>{hiddenCardSlots.length} unknown {hiddenCardSlots.length === 1 ? "card" : "cards"}</span>
+    </div> : null}
   </div>;
 }
 

@@ -22,6 +22,20 @@ export type ReplayCardPreview = ReplayZoneCard & {
   tool?: string;
 };
 
+export function getHiddenCardSlots(hiddenCount?: number) {
+  return Array.from(
+    { length: Math.max(0, Math.floor(hiddenCount ?? 0)) },
+    (_, index) => index,
+  );
+}
+
+export function shouldShowTransactionEvolutionStack(
+  stage: ReplayTransactionStage,
+  card: ReplayCardPreview,
+) {
+  return stage.kind !== "evolve" && Boolean(card.underlying?.length);
+}
+
 export function resolveBoardCardPreview(
   card: ReplayZoneCard,
   stage: ReplayTransactionStage,
