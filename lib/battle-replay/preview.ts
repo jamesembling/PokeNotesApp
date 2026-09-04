@@ -8,7 +8,10 @@ import type {
 
 const boardStateStageKinds = new Set<ReplayTransactionStage["kind"]>([
   "ability",
+  "attack",
+  "before",
   "bench",
+  "damage",
   "evolve",
   "heal",
   "move",
@@ -33,7 +36,9 @@ export function shouldShowTransactionEvolutionStack(
   stage: ReplayTransactionStage,
   card: ReplayCardPreview,
 ) {
-  return stage.kind !== "evolve" && Boolean(card.underlying?.length);
+  return stage.kind !== "before"
+    && stage.kind !== "evolve"
+    && Boolean(card.underlying?.length);
 }
 
 export function resolveBoardCardPreview(
@@ -41,19 +46,21 @@ export function resolveBoardCardPreview(
   stage: ReplayTransactionStage,
   actor: ReplayActor,
   state: ReplayState,
+  previousState: ReplayState = state,
 ): ReplayCardPreview {
   if (!boardStateStageKinds.has(stage.kind)) return card;
 
-  const actingSide = actor === "self" ? state.self : state.opponent;
+  const frame = stage.kind === "before" ? previousState : state;
+  const actingSide = actor === "self" ? frame.self : frame.opponent;
   const allBoardCards = [
-    state.self.active,
-    ...state.self.bench,
-    state.opponent.active,
-    ...state.opponent.bench,
+    frame.self.active,
+    ...frame.self.bench,
+    frame.opponent.active,
+    ...frame.opponent.bench,
   ].filter((candidate): candidate is ReplayCard => candidate !== null);
   const actorBoardCards = [actingSide.active, ...actingSide.bench]
     .filter((candidate): candidate is ReplayCard => candidate !== null);
-  const canReferenceEitherBoard = stage.kind === "heal" || stage.kind === "move";
+  const canReferenceEitherBoard = stage.kind === "damage" || stage.kind === "heal" || stage.kind === "move";
   const allCards = canReferenceEitherBoard ? allBoardCards : actorBoardCards;
   const identityMatch = allCards.find((candidate) => candidate.id === card.id);
   if (identityMatch) return { ...card, ...identityMatch, id: card.id };

@@ -276,14 +276,14 @@ function StadiumSpot({
   );
 }
 
-function TransactionCards({ actor, onPreview, stage, state }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; stage: ReplayTransactionStage; state: ReplayState }) {
+function TransactionCards({ actor, onPreview, previousState, stage, state }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; previousState: ReplayState; stage: ReplayTransactionStage; state: ReplayState }) {
   const hiddenCardSlots = getHiddenCardSlots(stage.hiddenCount);
   return <div className={styles.transactionCards}>
     {stage.coinFace ? <div aria-label={`Coin flip result: ${stage.coinFace}`} className={styles.replayCoin} data-face={stage.coinFace}>
       <span>{stage.coinFace}</span>
     </div> : null}
     {stage.cards.map((card) => {
-      const boardCard = resolveBoardCardPreview(card, stage, actor, state);
+      const boardCard = resolveBoardCardPreview(card, stage, actor, state, previousState);
       const hasBoardState = boardCard.hp !== undefined;
       return <div className={styles.transactionCardState} data-stateful={hasBoardState || undefined} key={card.id}>
         {shouldShowTransactionEvolutionStack(stage, boardCard) ? <div aria-label={`Evolution stack: ${boardCard.underlying?.map((item) => item.name).join(", ")}`} className={styles.transactionEvolutionStack}>
@@ -311,7 +311,7 @@ function TransactionCards({ actor, onPreview, stage, state }: { actor: ReplayAct
   </div>;
 }
 
-function TransactionOverlay({ onPreview, state, transaction }: { onPreview: (card: PreviewCard) => void; state: ReplayState; transaction: ReplayTransaction }) {
+function TransactionOverlay({ onPreview, previousState, state, transaction }: { onPreview: (card: PreviewCard) => void; previousState: ReplayState; state: ReplayState; transaction: ReplayTransaction }) {
   return <section aria-label={`${transaction.title} card resolution`} className={styles.transactionOverlay} data-actor={transaction.actor}>
     <div className={styles.transactionHeading}>
       <span>{transaction.actor === "self" ? "Your action" : "Opponent action"}</span>
@@ -320,7 +320,7 @@ function TransactionOverlay({ onPreview, state, transaction }: { onPreview: (car
     <ol className={styles.transactionRail}>{transaction.stages.map((stage, index) =>
       <li className={styles.transactionStage} data-kind={stage.kind} key={`${stage.kind}-${index}`}>
         {index > 0 ? <ChevronRightIcon aria-hidden="true" className={styles.transactionArrow} /> : null}
-        <div className={styles.transactionStep}><span>{stage.label}</span><TransactionCards actor={transaction.actor} onPreview={onPreview} stage={stage} state={state} />{stage.detail ? <small>{stage.detail}</small> : null}</div>
+        <div className={styles.transactionStep}><span>{stage.label}</span><TransactionCards actor={transaction.actor} onPreview={onPreview} previousState={previousState} stage={stage} state={state} />{stage.detail ? <small>{stage.detail}</small> : null}</div>
       </li>)}</ol>
     <p>Source-evidenced movement · format-legal representative art</p>
   </section>;
@@ -554,7 +554,7 @@ export function BattleReplayPrototype() {
             <PlayerBoard actor="opponent" currentEvent={currentEvent} onInspectDiscard={setInspectedDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
             <PlayerBoard actor="self" currentEvent={currentEvent} onInspectDiscard={setInspectedDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
           </div>
-          {currentEvent?.transaction ? <TransactionOverlay onPreview={previewCard} state={state} transaction={currentEvent.transaction} /> : null}
+          {currentEvent?.transaction ? <TransactionOverlay onPreview={previewCard} previousState={previousState} state={state} transaction={currentEvent.transaction} /> : null}
         </div>
 
         <div className={styles.currentAction} aria-live="polite">

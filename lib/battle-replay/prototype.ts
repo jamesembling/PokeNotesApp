@@ -47,7 +47,7 @@ export type ReplayState = {
 };
 
 export type ReplayTransactionStage = {
-  kind: "play" | "ability" | "coin" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
+  kind: "play" | "ability" | "attack" | "before" | "coin" | "damage" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
   label: string;
   cards: ReplayZoneCard[];
   coinFace?: "heads" | "tails";
@@ -1242,7 +1242,12 @@ const sourceTransactions = new Map<number, ReplayTransaction>([
     stage("move", "In", [zoneCard("opp-solrock-b", "Solrock", images.solrock)], "to Active"))],
   [52, transaction("self", "Rare Candy",
     stage("play", "Play", [z("53-candy", "Rare Candy", images.rareCandy)]),
-    stage("evolve", "Evolve", [z("53-blaziken", "Blaziken ex", images.blaziken)]))],
+    stage("before", "From", [z("53-torchic", "Torchic", images.torchic)], "Bench"),
+    stage("evolve", "Evolve into", [z("53-blaziken", "Blaziken ex", images.blaziken)], "Bench"))],
+  [62, transaction("self", "Phantom Dive",
+    stage("attack", "Attack", [z("63-dragapult", "Dragapult ex", images.dragapult)]),
+    stage("damage", "200 damage", [zoneCard("opp-riolu-a", "Mega Lucario ex", images.lucario)], "Active"),
+    stage("damage", "Place counters", [zoneCard("opp-riolu-b", "Riolu", images.riolu)], "6 damage counters · Bench"))],
   [59, transaction("self", "Buddy-Buddy Poffin",
     stage("play", "Play", [z("60-poffin", "Buddy-Buddy Poffin", images.poffin)]),
     stage("bench", "Bench", [z("60-dreepy", "Dreepy", images.dreepy)]))],
@@ -1400,7 +1405,7 @@ const evolutionTransaction = (sourceAction: ReplaySourceAction, index: number) =
   const toImage = pokemonImages[toName];
   if (!fromImage || !toImage) return undefined;
   return transaction(sourceAction.actor, "Evolution",
-    stage("return", "From", [z(`${index + 1}-from`, fromName, fromImage)]),
+    stage("before", "From", [z(`${index + 1}-from`, fromName, fromImage)], location === "Active Spot" ? "Active" : "Bench"),
     stage("evolve", "Evolve into", [z(`${index + 1}-to`, toName, toImage)], location === "Active Spot" ? "Active" : "Bench"));
 };
 

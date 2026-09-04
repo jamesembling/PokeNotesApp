@@ -317,12 +317,7 @@ button.pile:disabled {
 .cardBack {
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    145deg,
-    var(--replay-card-back-ink) 0 32%,
-    var(--replay-card-back-mid) 32% 65%,
-    var(--replay-card-back-accent) 65%
-  );
+  background: var(--replay-card-back-ink) url("https://images.pokemontcg.io/card-back.png") center / cover no-repeat;
 }
 
 .emptyPile {
@@ -427,6 +422,7 @@ button.pile:disabled {
   width: 6.2rem;
   min-height: 8.25rem;
   grid-column: 2;
+  grid-row: 1;
   align-items: center;
   justify-self: center;
   justify-content: center;
@@ -634,6 +630,7 @@ button.pile:disabled {
 .stadiumSpot {
   display: grid;
   grid-column: 1;
+  grid-row: 1;
   justify-items: center;
   gap: 0.2rem;
 }
@@ -954,7 +951,7 @@ button.pile:disabled {
 .transactionArrow { width: 1rem; flex: 0 0 auto; color: var(--muted-foreground); }
 .transactionStep { min-width: 4.5rem; grid-template-rows: 1rem 8.7rem 1rem; align-items: center; }
 .transactionStep > span { align-self: end; }
-.transactionStep small { align-self: start; max-width: 8rem; color: var(--muted-foreground); font-size: 0.58rem; text-align: center; }
+.transactionStep small { align-self: start; max-width: 8rem; color: color-mix(in oklab, var(--card-foreground) 76%, var(--muted-foreground)); font-size: 0.6875rem; text-align: center; }
 .transactionCards { display: flex; height: 100%; min-height: 0; align-items: center; justify-content: center; padding: 0.35rem 1rem 1rem; }
 .replayCoin {
   position: relative;
@@ -1220,7 +1217,7 @@ button.pile:disabled {
   .transactionHeading strong { font-size: 0.78rem; }
   .transactionRail,
   .transactionStage { gap: 0.25rem; }
-  .transactionStep { min-width: 3.2rem; grid-template-rows: 0.8rem 5.5rem 0.8rem; gap: 0.25rem; }
+  .transactionStep { min-width: 3.2rem; grid-template-rows: 0.8rem 5.5rem 1rem; gap: 0.25rem; }
   .transactionCards { min-height: 0; padding: 0.25rem 0.4rem 0.7rem; }
   .transactionCardState,
   .transactionCard { width: 3.2rem; }
@@ -1228,7 +1225,6 @@ button.pile:disabled {
   .transactionHiddenFan > .transactionCard { width: 2.1rem; }
   .transactionHiddenFan > .transactionCard + .transactionCard { margin-left: -1.62rem; }
   .transactionArrow { width: 0.75rem; }
-  .transactionStep small,
   .transactionOverlay > p,
   .transactionCount { font-size: 0.48rem; }
   .transactionCount { max-width: 3.8rem; margin-left: 0.2rem; white-space: normal; }
