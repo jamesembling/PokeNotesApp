@@ -296,13 +296,6 @@ function TransactionCards({ actor, onPreview, previousState, stage, state }: { a
           <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="112px" src={card.imageUrl} />
         </button>
         {boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
-        {stage.damageModifier ? <span
-          aria-label={`${stage.damageModifier.type} Weakness ${stage.damageModifier.multiplier ? `multiplied damage by ${stage.damageModifier.multiplier}` : `added ${stage.damageModifier.bonusDamage} damage`}`}
-          className={styles.transactionWeaknessMarker}
-        >
-          <strong>{stage.damageModifier.multiplier ? `×${stage.damageModifier.multiplier}` : `+${stage.damageModifier.bonusDamage}`}</strong>
-          <span>Weakness</span>
-        </span> : null}
         {boardCard.energy?.length ? <div aria-label={`${boardCard.energy.length} Energy attached: ${boardCard.energy.join(", ")}`} className={styles.transactionEnergyStack}>
           {boardCard.energy.map((energy, index) => replayEnergyImages[energy] ? <span key={`${energy}-${index}`}>
             <Image alt="" fill sizes="28px" src={replayEnergyImages[energy]} />
@@ -336,7 +329,13 @@ function TransactionOverlay({ onPreview, previousState, state, transaction }: { 
               <TransactionCards actor={actor} onPreview={onPreview} previousState={previousState} stage={resolveTransactionStage(stage, actor, previousState, state)} state={state} />
             </div>)}
           </div>
-          {stage.detail ? <small>{stage.detail}</small> : null}
+          {stage.damageModifier ? <div
+            aria-label={`${stage.damageModifier.type} Weakness. ${stage.damageModifier.baseDamage} ${stage.damageModifier.multiplier ? `times ${stage.damageModifier.multiplier}` : `plus ${stage.damageModifier.bonusDamage}`} equals ${stage.damageModifier.baseDamage + stage.damageModifier.bonusDamage} damage`}
+            className={styles.transactionWeaknessBreakdown}
+          >
+            <span>{stage.damageModifier.type} Weakness</span>
+            <strong>{stage.damageModifier.baseDamage} {stage.damageModifier.multiplier ? `x ${stage.damageModifier.multiplier}` : `+ ${stage.damageModifier.bonusDamage}`} = {stage.damageModifier.baseDamage + stage.damageModifier.bonusDamage}</strong>
+          </div> : stage.detail ? <small>{stage.detail}</small> : null}
         </div>
       </li>;
     })}</ol>

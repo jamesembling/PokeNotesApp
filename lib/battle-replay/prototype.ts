@@ -1454,9 +1454,7 @@ const attackTransaction = (sourceAction: ReplaySourceAction, index: number) => {
         multiplier: weaknessMultiplier,
       }
     : undefined;
-  const damageDetail = damageModifier
-    ? `Active · ${damageModifier.type} Weakness · ${damageModifier.baseDamage} ${damageModifier.multiplier ? `× ${damageModifier.multiplier}` : `+ ${damageModifier.bonusDamage}`}`
-    : "Active";
+  const damageDetail = damageModifier ? undefined : "Active";
 
   return transaction(sourceAction.actor, attackName,
     stage("attack", "Attack", [z(`${index + 1}-attacker`, attackerName, attackerImage)], attackName),

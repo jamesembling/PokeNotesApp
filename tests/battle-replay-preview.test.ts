@@ -124,7 +124,7 @@ test("transaction cards inherit board state only when the stage references an in
     multiplier: 2,
   });
   assert.equal(weaknessDamageStage?.label, "320 damage");
-  assert.equal(weaknessDamageStage?.detail, "Active · Fighting Weakness · 160 × 2");
+  assert.equal(weaknessDamageStage?.detail, undefined);
   assert.ok(attackEvents.filter((event) => event !== weaknessAttack).every((event) => event.transaction?.stages[1].damageModifier === undefined));
 
   const opponentLillieStages = replayEvents[43].transaction?.stages;
