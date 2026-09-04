@@ -71,6 +71,7 @@ export type ReplayTransactionStage = {
   scope?: "both";
   actorCounts?: Partial<Record<ReplayActor, number>>;
   actorCards?: Partial<Record<ReplayActor, ReplayZoneCard[]>>;
+  targetResolved?: boolean;
 };
 
 export type ReplayTransaction = {

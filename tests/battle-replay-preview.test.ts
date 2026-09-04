@@ -374,6 +374,40 @@ test("transaction cards inherit board state only when the stage references an in
     secondPilot.frames[74],
     secondPilot.frames[73],
   ).damage, 10);
+  const impossibleCounterAttack = secondPilot.events[80];
+  const unresolvedDrakloakStage = impossibleCounterAttack.transaction?.stages.at(-1);
+  const survivingDrakloak = secondPilot.frames[81].self.bench.find(
+    (card) => card.name === "Drakloak",
+  );
+  assert.equal(unresolvedDrakloakStage?.targetResolved, false);
+  assert.equal(survivingDrakloak?.damage, 60);
+  assert.equal(resolveBoardCardPreview(
+    unresolvedDrakloakStage!.cards[0],
+    unresolvedDrakloakStage!,
+    "opponent",
+    secondPilot.frames[81],
+    secondPilot.frames[80],
+  ).damage, undefined);
+  assert.ok(secondPilot.frames.slice(81, 104).every((frame) =>
+    frame.self.bench.every((card) => card.damage < card.hp)
+  ));
+  const laterAdrenaBrain = secondPilot.events[97];
+  assert.equal(laterAdrenaBrain.sourceTitle, "Guintu's Munkidori used Adrena-Brain.");
+  assert.equal(secondPilot.frames[98].self.bench.find(
+    (card) => card.name === "Drakloak",
+  )?.damage, 80);
+  assert.equal(secondPilot.frames[104].self.bench.find(
+    (card) => card.name === "Dragapult ex" && card.id === survivingDrakloak?.id,
+  )?.damage, 80);
+  const evidencedLethalPlacement = secondPilot.events[108].transaction?.stages.at(-1);
+  assert.notEqual(evidencedLethalPlacement?.targetResolved, false);
+  const knockedOutDreepy = secondPilot.frames[109].opponent.bench.find(
+    (card) => card.name === "Dreepy",
+  );
+  assert.ok(knockedOutDreepy && knockedOutDreepy.damage >= knockedOutDreepy.hp);
+  assert.equal(secondPilot.frames[111].opponent.bench.some(
+    (card) => card.name === "Dreepy",
+  ), false);
   const secondPilotFinal = secondPilot.frames.at(-1)!;
   assert.equal(secondPilotFinal.self.prizesRemaining, 0);
   assert.equal(secondPilotFinal.opponent.prizesRemaining, 2);

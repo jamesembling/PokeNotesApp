@@ -97,6 +97,7 @@ export function resolveBoardCardPreview(
   state: ReplayState,
   previousState: ReplayState = state,
 ): ReplayCardPreview {
+  if (stage.targetResolved === false) return card;
   if (!boardStateStageKinds.has(stage.kind)) return card;
 
   const frame = stage.kind === "before" ? previousState : state;

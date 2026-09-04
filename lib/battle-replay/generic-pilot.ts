@@ -180,6 +180,26 @@ function locateBoardCard(
   return fallbackCard ? { actor: fallback, card: fallbackCard } : null;
 }
 
+function locateDamageCounterTarget(
+  state: ReplayState,
+  name: string,
+  preferred: ReplayActor,
+  damage: number,
+  followingKnockouts: Set<string>,
+) {
+  const fallback: ReplayActor = preferred === "self" ? "opponent" : "self";
+  const candidates = ([preferred, fallback] as const).flatMap((actor) =>
+    allBoardCards(state[actor])
+      .filter((card) => card.name === name)
+      .map((card) => ({ actor, card }))
+  );
+  const isLethal = ({ card }: (typeof candidates)[number]) => card.damage + damage >= card.hp;
+  const evidencedKnockout = candidates.find((candidate) =>
+    isLethal(candidate) && followingKnockouts.has(`${candidate.actor}:${candidate.card.name}`)
+  );
+  return evidencedKnockout ?? candidates.find((candidate) => !isLethal(candidate)) ?? null;
+}
+
 function promote(side: ReplaySide, name: string) {
   const index = side.bench.findIndex((card) => card.name === name);
   if (index < 0) return false;
@@ -319,6 +339,7 @@ function applyDetails(
   selfPlayerName: string,
   eventId: string,
   stages: ReplayTransactionStage[],
+  followingKnockouts: Set<string>,
 ) {
   action.details.forEach((detail, index) => {
     const value = clean(detail);
@@ -408,12 +429,19 @@ function applyDetails(
     ? action.actor === "self" ? "opponent" : "self"
     : action.actor;
   action.details.forEach((detail, detailIndex) => getDamageCounterPlacements([detail]).forEach((placement) => {
-    const target = locateBoardCard(state, placement.targetName, counterPreferred)?.card;
+    const damage = placement.counters * 10;
+    const targetStage = stages.find((stage) => stage.cards[0]?.id === `damage-${detailIndex}`);
+    const target = locateDamageCounterTarget(
+      state,
+      placement.targetName,
+      counterPreferred,
+      damage,
+      followingKnockouts,
+    )?.card;
     if (target) {
-      target.damage += placement.counters * 10;
-      const targetStage = stages.find((stage) => stage.cards[0]?.id === `damage-${detailIndex}`);
+      target.damage += damage;
       if (targetStage) targetStage.cards[0] = { ...targetStage.cards[0], id: target.id };
-    }
+    } else if (targetStage) targetStage.targetResolved = false;
   }));
 }
 
@@ -423,6 +451,7 @@ function buildEvent(
   opponentPlayerName: string,
   eventIndex: number,
   startsTurn: boolean,
+  followingKnockouts: Set<string>,
 ): ReplayEvent {
   const eventId = `bex-${eventIndex}`;
   const stages = transactionStages(action, selfPlayerName);
@@ -521,7 +550,7 @@ function buildEvent(
 
       if (/ended their turn/i.test(title)) state[action.actor].itemLocked = false;
 
-      applyDetails(state, action, selfPlayerName, eventId, stages);
+      applyDetails(state, action, selfPlayerName, eventId, stages, followingKnockouts);
       (["self", "opponent"] as const).forEach((actor) => {
         const side = state[actor];
         if (side.knownHand.length > side.handCount) {
@@ -551,7 +580,22 @@ export function compileReplayPilot(
     if (key !== lastKey && action.turn > 0) firstTurnActions.add(index);
     lastKey = key;
   });
-  const events = actions.map((action, index) => buildEvent(action, selfPlayerName, opponentPlayerName, index, firstTurnActions.has(index)));
+  const events = actions.map((action, index) => {
+    const followingKnockouts = new Set<string>();
+    for (let nextIndex = index + 1; nextIndex < actions.length; nextIndex += 1) {
+      const knockout = actions[nextIndex].sourceTitle.match(/^(.+?)['’]s (.+?) was Knocked Out!$/i);
+      if (!knockout?.[1] || !knockout[2]) break;
+      followingKnockouts.add(`${playerActor(knockout[1], selfPlayerName)}:${knockout[2]}`);
+    }
+    return buildEvent(
+      action,
+      selfPlayerName,
+      opponentPlayerName,
+      index,
+      firstTurnActions.has(index),
+      followingKnockouts,
+    );
+  });
   const openingDetails = sections[0]?.actions.flatMap((action) => action.details) ?? [];
   const knownOpening = openingDetails.find((detail) => detail.trim().startsWith("•"));
   const openingCards = knownOpening ? parseCardNames(clean(knownOpening)) : [];
