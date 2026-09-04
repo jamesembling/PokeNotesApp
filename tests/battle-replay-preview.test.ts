@@ -9,12 +9,16 @@ import {
   shouldShowTransactionEvolutionStack,
 } from "@/lib/battle-replay/preview";
 import { prototypeBattleLogSections } from "@/lib/battle-replay/prototype-log";
-import { replayPilots } from "@/lib/battle-replay/pilots";
+import {
+  replayPilots,
+  resolveReplayLocation,
+} from "@/lib/battle-replay/pilots";
 import {
   flattenReplaySourceActions,
   getDamageCounterPlacements,
 } from "@/lib/battle-replay/source";
 import type {
+  ReplayActor,
   ReplayState,
   ReplayTransactionStage,
   ReplayZoneCard,
@@ -59,6 +63,18 @@ const state: ReplayState = {
 };
 
 test("transaction cards inherit board state only when the stage references an in-play Pokemon", () => {
+  assert.deepEqual(resolveReplayLocation("bex-0815", "92"), {
+    pilotId: "bex-0815",
+    actionIndex: 92,
+  });
+  assert.deepEqual(resolveReplayLocation("missing", "not-a-position"), {
+    pilotId: "original",
+    actionIndex: 0,
+  });
+  assert.deepEqual(resolveReplayLocation("bex-0815", "9999"), {
+    pilotId: "bex-0815",
+    actionIndex: replayPilots[1].frames.length - 1,
+  });
   const findStage: ReplayTransactionStage = {
     kind: "find",
     label: "Find",
@@ -345,6 +361,84 @@ test("transaction cards inherit board state only when the stage references an in
     ["Fire"],
   );
 
+  for (const position of [41, 108, 120]) {
+    const before: ReplayState = secondPilot.frames[position - 1];
+    const after: ReplayState = secondPilot.frames[position];
+    const actor: ReplayActor = secondPilot.events[position - 1].actor;
+    assert.equal(after[actor].deckCount, before[actor].deckCount - 2);
+  }
+
+  const prizeExpectations = [
+    { position: 21, count: 1, names: [] },
+    { position: 55, count: 1, names: ["Night Stretcher"] },
+    { position: 78, count: 1, names: [] },
+    { position: 83, count: 2, names: [] },
+    { position: 93, count: 2, names: ["Dragapult ex", "Poké Pad"] },
+    { position: 112, count: 2, names: ["Munkidori", "Drakloak"] },
+    { position: 131, count: 1, names: ["Lillie's Determination"] },
+  ];
+  for (const { position, count, names } of prizeExpectations) {
+    const actor: ReplayActor = secondPilot.events[position - 1].actor;
+    const before: ReplayState["self"] = secondPilot.frames[position - 1][actor];
+    const after: ReplayState["self"] = secondPilot.frames[position][actor];
+    assert.equal(after.handCount, before.handCount + count);
+    assert.ok(names.every((name) => after.knownHand.some((card) => card.name === name)));
+    assert.equal(secondPilot.events[position - 1].transaction?.stages[0].label, "Take Prize");
+  }
+  assert.equal(secondPilot.events[20].transaction?.stages[1].actor, "self");
+  assert.equal(secondPilot.events[20].transaction?.stages[1].detail, "you promote Dreepy");
+  assert.equal(secondPilot.events[54].transaction?.stages[1].actor, "opponent");
+  assert.equal(secondPilot.events[54].transaction?.stages[1].detail, "opponent promotes Drakloak");
+
+  const retreatExpectations = [
+    { position: 10, pokemon: "Dreepy", energy: ["Darkness"] },
+    { position: 40, pokemon: "Moltres", energy: ["Fire"] },
+    { position: 106, pokemon: "Blaziken ex", energy: ["Fire", "Psychic"] },
+    { position: 127, pokemon: "Dragapult ex", energy: ["Fire"] },
+  ];
+  for (const { position, pokemon, energy } of retreatExpectations) {
+    const actor: ReplayActor = secondPilot.events[position - 1].actor;
+    const after: ReplayState["self"] = secondPilot.frames[position][actor];
+    const retreated = after.bench.find((card) => card.name === pokemon);
+    assert.ok(retreated);
+    assert.ok(energy.every((type) => !retreated.energy.includes(type)));
+    assert.ok(energy.every((type) => after.discard.some((card) => card.name === `Basic ${type} Energy`)));
+    assert.deepEqual(secondPilot.events[position - 1].transaction?.stages.map((stage) => stage.kind), ["move", "discard", "move"]);
+    assert.deepEqual(
+      secondPilot.events[position - 1].transaction?.stages[1].cards.map((card) => card.name),
+      energy.map((type) => `Basic ${type} Energy`),
+    );
+  }
+
+  const specialRedCard = secondPilot.events[86];
+  assert.deepEqual(specialRedCard.transaction?.stages.map((stage) => stage.kind), ["play", "shuffle", "draw"]);
+  assert.deepEqual(specialRedCard.transaction?.stages.slice(1).map((stage) => stage.actor), ["opponent", "opponent"]);
+  assert.deepEqual(resolveTransactionActors(specialRedCard.transaction!.stages[1], "self"), ["opponent"]);
+  assert.equal(secondPilot.frames[87].self.handCount, secondPilot.frames[86].self.handCount - 1);
+  assert.equal(secondPilot.frames[87].opponent.handCount, 3);
+  assert.equal(
+    secondPilot.frames[87].opponent.deckCount,
+    secondPilot.frames[86].opponent.deckCount + secondPilot.frames[86].opponent.handCount - 3,
+  );
+  assert.ok(secondPilot.frames[88].self.discard.some((card) => card.name === "Special Red Card"));
+
+  const secondPilotEvolutions = secondPilot.events.filter((event) => / evolved .+ to .+ (?:in|on) the /.test(event.sourceTitle));
+  assert.ok(secondPilotEvolutions.length > 0);
+  assert.ok(secondPilotEvolutions.every((event) => event.transaction?.stages.map((stage) => stage.kind).join(",") === "before,evolve"));
+
+  const secondPilotKnockouts = secondPilot.events.filter((event) => / was Knocked Out!$/.test(event.sourceTitle));
+  assert.ok(secondPilotKnockouts.length > 0);
+  assert.ok(secondPilotKnockouts.every((event) => event.transaction?.stages.map((stage) => stage.kind).join(",") === "before,discard"));
+  assert.deepEqual(secondPilot.events[91].transaction?.stages[1].cards.map((card) => card.name), [
+    "Dragapult ex",
+    "Basic Fire Energy",
+    "Basic Psychic Energy",
+    "Drakloak",
+    "Dreepy",
+  ]);
+  assert.equal(secondPilot.frames[82].self.discard.length - secondPilot.frames[81].self.discard.length, 5);
+  assert.equal(secondPilot.frames[92].opponent.discard.length - secondPilot.frames[91].opponent.discard.length, 5);
+
   const lastDitchCatch = secondPilot.events[43];
   assert.match(lastDitchCatch.transaction?.stages[1].cards[0].imageUrl ?? "", /\/DRI\/DRI_176_R_EN_SM\.png$/);
   assert.equal(lastDitchCatch.transaction?.stages[1].cards[0].name, "Team Rocket's Petrel");
@@ -391,6 +485,18 @@ test("transaction cards inherit board state only when the stage references an in
   assert.ok(secondPilot.frames.slice(81, 104).every((frame) =>
     frame.self.bench.every((card) => card.damage < card.hp)
   ));
+  secondPilot.events.forEach((event, index) => {
+    if (!event.sourceTitle.includes("used Phantom Dive")) return;
+    const defendingActor: ReplayActor = event.actor === "self" ? "opponent" : "self";
+    const defendingIds = new Set([
+      secondPilot.frames[index + 1][defendingActor].active,
+      ...secondPilot.frames[index + 1][defendingActor].bench,
+    ].flatMap((card) => card ? [card.id] : []));
+    event.transaction?.stages.slice(2).forEach((stage) => {
+      if (stage.targetResolved === false) return;
+      assert.ok(defendingIds.has(stage.cards[0].id));
+    });
+  });
   const laterAdrenaBrain = secondPilot.events[97];
   assert.equal(laterAdrenaBrain.sourceTitle, "Guintu's Munkidori used Adrena-Brain.");
   assert.equal(secondPilot.frames[98].self.bench.find(

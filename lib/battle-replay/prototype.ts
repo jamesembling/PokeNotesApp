@@ -72,6 +72,7 @@ export type ReplayTransactionStage = {
   actorCounts?: Partial<Record<ReplayActor, number>>;
   actorCards?: Partial<Record<ReplayActor, ReplayZoneCard[]>>;
   targetResolved?: boolean;
+  actor?: ReplayActor;
 };
 
 export type ReplayTransaction = {

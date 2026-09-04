@@ -77,6 +77,7 @@ export function resolveTransactionActors(
   stage: ReplayTransactionStage,
   actor: ReplayActor,
 ): ReplayActor[] {
+  if (stage.actor) return [stage.actor];
   if (stage.scope !== "both") return [actor];
   return actor === "self" ? ["self", "opponent"] : ["opponent", "self"];
 }

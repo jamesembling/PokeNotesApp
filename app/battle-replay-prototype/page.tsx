@@ -5,6 +5,7 @@ import { BattleReplayPrototype } from "@/components/battle-replay/BattleReplayPr
 import { Button } from "@/components/shadcn/button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
+import { resolveReplayLocation } from "@/lib/battle-replay/pilots";
 
 export const metadata: Metadata = {
   title: "Battle Replay Prototype | Poke Notes",
@@ -12,7 +13,14 @@ export const metadata: Metadata = {
     "Interactive visual replay prototype for an imported Pokémon TCG battle log.",
 };
 
-export default function BattleReplayPrototypePage() {
+export default async function BattleReplayPrototypePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pilot?: string | string[]; position?: string | string[] }>;
+}) {
+  const { pilot, position } = await searchParams;
+  const initialLocation = resolveReplayLocation(pilot, position);
+
   return (
     <main className="min-h-screen bg-background px-4 py-6 sm:px-6 lg:px-8">
       <PageWidth size="wide">
@@ -33,7 +41,10 @@ export default function BattleReplayPrototypePage() {
           title="Battle replay pilots"
         />
 
-        <BattleReplayPrototype />
+        <BattleReplayPrototype
+          initialActionIndex={initialLocation.actionIndex}
+          initialPilotId={initialLocation.pilotId}
+        />
       </PageWidth>
     </main>
   );

@@ -54,6 +54,10 @@ test("extractBattleLogActionCardCandidate finds likely card names in played and 
     extractBattleLogActionCardCandidate("Johan attached Bravery Charm to Munkidori."),
     "Bravery Charm"
   );
+  assert.equal(
+    extractBattleLogActionCardCandidate("Johan played Special Red Card."),
+    "Special Red Card"
+  );
   assert.equal(extractBattleLogActionCardCandidate("Johan benched Munkidori."), null);
   assert.equal(extractBattleLogActionCardCandidate("Johan played a card."), null);
 });

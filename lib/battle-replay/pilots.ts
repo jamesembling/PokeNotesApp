@@ -36,3 +36,20 @@ export const replayPilots: ReplayPilot[] = [
     "B3xCharz24",
   ),
 ];
+
+export function resolveReplayLocation(
+  pilotParam?: string | string[],
+  positionParam?: string | string[],
+) {
+  const requestedPilotId = Array.isArray(pilotParam) ? pilotParam[0] : pilotParam;
+  const pilot = replayPilots.find(({ id }) => id === requestedPilotId) ?? replayPilots[0];
+  const requestedPosition = Array.isArray(positionParam) ? positionParam[0] : positionParam;
+  const parsedPosition = requestedPosition && /^\d+$/.test(requestedPosition)
+    ? Number(requestedPosition)
+    : 0;
+
+  return {
+    pilotId: pilot.id,
+    actionIndex: Math.min(parsedPosition, pilot.frames.length - 1),
+  };
+}

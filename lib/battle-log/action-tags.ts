@@ -91,7 +91,6 @@ function sanitizeCardCandidate(value: string) {
   const normalized = normalizeValue(candidate);
   if (
     normalized === "card" ||
-    normalized.endsWith(" card") ||
     normalized === "energy" ||
     normalized.endsWith(" energy")
   ) {

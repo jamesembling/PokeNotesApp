@@ -103,9 +103,28 @@ const pokemonCard = (id: string, name: string): ReplayCard => ({
 const clone = (state: ReplayState) => structuredClone(state);
 const clean = (value: string) => value.trim().replace(/^[-•]\s*/, "").replace(/\.$/, "");
 const pluralCount = (value: string) => value.toLowerCase() === "a" ? 1 : Number(value);
-const attackEffects: Record<string, { itemLock?: boolean }> = {
-  "Itchy Pollen": { itemLock: true },
+type ReplayEffectRule = {
+  attachmentOrigin?: "deck" | "discard";
+  counterTarget?: "defending-board";
+  itemLock?: boolean;
+  shuffleEntireAffectedHand?: boolean;
 };
+
+const replayEffectRules: Record<string, ReplayEffectRule> = {
+  Crispin: { attachmentOrigin: "deck" },
+  "Itchy Pollen": { itemLock: true },
+  "Phantom Dive": { counterTarget: "defending-board" },
+  "Seething Spirit": { attachmentOrigin: "discard" },
+  "Special Red Card": { shuffleEntireAffectedHand: true },
+};
+
+function effectRuleForAction(title: string) {
+  return Object.entries(replayEffectRules).find(([name]) =>
+    title.includes(`played ${name}.`)
+    || title.includes(`used ${name}.`)
+    || title.includes(`used ${name} on `)
+  )?.[1];
+}
 
 function playerActor(value: string, selfPlayerName: string): ReplayActor {
   return value.replace(/[’']s$/, "") === selfPlayerName ? "self" : "opponent";
@@ -144,6 +163,20 @@ function draw(side: ReplaySide, names: string[], count = names.length || 1) {
   names.forEach((name, index) => side.knownHand.push(zoneCard(`hand-${name}-${side.knownHand.length}-${index}`, name)));
   side.handCount += count;
   side.deckCount = Math.max(0, side.deckCount - count);
+}
+
+function addToHand(side: ReplaySide, names: string[], count: number, prefix: string) {
+  names.slice(0, count).forEach((name, index) =>
+    side.knownHand.push(zoneCard(`${prefix}-hand-${index}-${name}`, name))
+  );
+  side.handCount += count;
+}
+
+function removeDiscard(side: ReplaySide, name: string) {
+  const index = side.discard.findIndex((card) => card.name === name);
+  if (index < 0) return false;
+  side.discard.splice(index, 1);
+  return true;
 }
 
 function discard(side: ReplaySide, names: string[], prefix: string) {
@@ -186,9 +219,11 @@ function locateDamageCounterTarget(
   preferred: ReplayActor,
   damage: number,
   followingKnockouts: Set<string>,
+  restrictToPreferred = false,
 ) {
   const fallback: ReplayActor = preferred === "self" ? "opponent" : "self";
-  const candidates = ([preferred, fallback] as const).flatMap((actor) =>
+  const actors: ReplayActor[] = restrictToPreferred ? [preferred] : [preferred, fallback];
+  const candidates = actors.flatMap((actor) =>
     allBoardCards(state[actor])
       .filter((card) => card.name === name)
       .map((card) => ({ actor, card }))
@@ -198,6 +233,34 @@ function locateDamageCounterTarget(
     isLethal(candidate) && followingKnockouts.has(`${candidate.actor}:${candidate.card.name}`)
   );
   return evidencedKnockout ?? candidates.find((candidate) => !isLethal(candidate)) ?? null;
+}
+
+function discardAttachedCards(
+  side: ReplaySide,
+  targetName: string,
+  names: string[],
+  prefix: string,
+  targetId?: string,
+) {
+  const target = targetId
+    ? allBoardCards(side).find((card) => card.id === targetId)
+    : findBoardCard(side, targetName);
+  if (!target) return;
+  names.forEach((name, index) => {
+    const energy = name.match(/^Basic (.+?) Energy$/i)?.[1];
+    if (energy) {
+      const energyIndex = target.energy.findIndex((type) => type.toLowerCase() === energy.toLowerCase());
+      if (energyIndex < 0) return;
+      target.energy.splice(energyIndex, 1);
+    } else if (target.tool === name) {
+      target.tool = undefined;
+    } else {
+      const underlyingIndex = target.underlying.findIndex((card) => card.name === name);
+      if (underlyingIndex < 0) return;
+      target.underlying.splice(underlyingIndex, 1);
+    }
+    side.discard.unshift(zoneCard(`${prefix}-attached-discard-${index}-${name}`, name));
+  });
 }
 
 function promote(side: ReplaySide, name: string) {
@@ -238,6 +301,76 @@ function transactionStages(action: ReplaySourceAction, selfPlayerName: string): 
     stages.push({ kind: "play", label: "Play", cards: [zoneCard(`overlay-${action.legacyIndex ?? action.sourceTitle}`, candidate)] });
   }
 
+  const evolved = action.sourceTitle.match(/^(.+?) evolved (.+?) to (.+?) (?:in|on) the (Active Spot|Bench)\.$/i);
+  if (evolved) {
+    stages.push({ kind: "before", label: "From", cards: [zoneCard(`evolve-from-${action.sourceTitle}`, evolved[2])] });
+    stages.push({ kind: "evolve", label: "Evolve into", cards: [zoneCard(`evolve-to-${action.sourceTitle}`, evolved[3])] });
+  }
+
+  const retreated = action.sourceTitle.match(/^(.+?) retreated (.+?) to the Bench\.$/i);
+  if (retreated) {
+    const discarded = action.details.flatMap((detail, index) => {
+      const value = clean(detail);
+      if (/(?:was|were) discarded from/i.test(value)) {
+        const listed = listAfter(action.details, index);
+        if (listed.length) return listed;
+        const single = value.match(/^(.+?) was discarded from/i)?.[1];
+        return single ? [single] : [];
+      }
+      return [];
+    });
+    const promotion = action.details.map(clean)
+      .map((detail) => detail.match(/^.+?['’]s (.+?) is now in the Active Spot$/i)?.[1])
+      .find(Boolean);
+    stages.push({ kind: "move", label: "Out", cards: [zoneCard(`retreat-out-${action.sourceTitle}`, retreated[2])] });
+    stages.push({ kind: "discard", label: "Discard", cards: discarded.map((name, index) => zoneCard(`retreat-discard-${index}-${name}`, name)) });
+    if (promotion) stages.push({ kind: "move", label: "In", cards: [zoneCard(`retreat-in-${action.sourceTitle}`, promotion)] });
+  }
+
+  const prize = action.sourceTitle.match(/^(.+?) took (a|\d+) Prize cards?\.$/i);
+  if (prize) {
+    const count = pluralCount(prize[2]);
+    const names = action.details.flatMap((detail) => {
+      const added = clean(detail).match(/^(.+?) was added to .+?['’]s hand$/i)?.[1];
+      return added && added.toLowerCase() !== "a card" ? [added] : [];
+    });
+    stages.push({
+      kind: "draw",
+      label: "Take Prize",
+      cards: names.map((name, index) => zoneCard(`prize-${index}-${name}`, name)),
+      hiddenCount: Math.max(0, count - names.length) || undefined,
+    });
+    const promotion = action.details.map(clean)
+      .map((detail) => detail.match(/^(.+?)['’]s (.+?) is now in the Active Spot$/i))
+      .find(Boolean);
+    if (promotion?.[1] && promotion[2]) {
+      const promotionActor = playerActor(promotion[1], selfPlayerName);
+      stages.push({
+        kind: "move",
+        label: "Promote",
+        cards: [zoneCard(`prize-promote-${action.sourceTitle}`, promotion[2])],
+        actor: promotionActor,
+        detail: `${promotionActor === "self" ? "you promote" : "opponent promotes"} ${promotion[2]}`,
+      });
+    }
+  }
+
+  const knockedOut = action.sourceTitle.match(/^(.+?)['’]s (.+?) was Knocked Out!$/i);
+  if (knockedOut) {
+    const discarded = action.details.flatMap((detail, index) => {
+      const listed = listAfter(action.details, index);
+      if (listed.length) return listed;
+      const single = clean(detail).match(/^(.+?) was discarded from/i)?.[1];
+      return single ? [single] : [];
+    });
+    stages.push({ kind: "before", label: "Knocked Out", cards: [zoneCard(`knockout-${action.sourceTitle}`, knockedOut[2])] });
+    stages.push({
+      kind: "discard",
+      label: "Discard",
+      cards: [knockedOut[2], ...discarded].map((name, index) => zoneCard(`knockout-discard-${index}-${name}`, name)),
+    });
+  }
+
   const ability = action.sourceTitle.match(/['’]s (.+?) used (.+?)\./i);
   const attack = action.sourceTitle.match(/['’]s (.+?) used (.+?) on (?:.+?['’]s )?(.+?) for (\d+)\+? damage/i);
   if (attack?.[1]) {
@@ -266,10 +399,36 @@ function transactionStages(action: ReplaySourceAction, selfPlayerName: string): 
     if (/opening hand/i.test(value) || /^\d+ drawn cards?$/i.test(value)) return;
     const cards = listAfter(action.details, index).map((name, cardIndex) => zoneCard(`detail-${index}-${cardIndex}-${name}`, name));
     if (/discarded? (?:a|\d+) cards?/i.test(value)) stages.push({ kind: "discard", label: "Discard", cards, hiddenCount: cards.length ? undefined : Number(value.match(/\d+/)?.[0] ?? 1) });
+    else if (/^(.+?) shuffled their hand$/i.test(value)) {
+      const match = value.match(/^(.+?) shuffled their hand$/i);
+      stages.push({
+        kind: "shuffle",
+        label: "Shuffle",
+        cards: [],
+        actor: match?.[1] ? playerActor(match[1], selfPlayerName) : action.actor,
+        detail: match?.[1] && playerActor(match[1], selfPlayerName) === "self"
+          ? "you shuffle your hand into your deck"
+          : "opponent shuffles their hand into their deck",
+      });
+    }
     else if (/shuffled? (?:a|\d+) cards?/i.test(value)) stages.push({ kind: "shuffle", label: "Shuffle", cards, hiddenCount: cards.length ? undefined : Number(value.match(/\d+/)?.[0] ?? 1) });
     else if (/drew \d+ cards? and played them to the Bench/i.test(value)) stages.push({ kind: "bench", label: "Bench", cards });
-    else if (/drew (?:a|\d+) cards?/i.test(value)) stages.push({ kind: "draw", label: "Draw", cards, hiddenCount: cards.length ? undefined : pluralCount(value.match(/drew (a|\d+)/i)?.[1] ?? "1") });
-    else if (/drew .+/i.test(value)) stages.push({ kind: "draw", label: "Draw", cards: [zoneCard(`detail-draw-${index}`, value.replace(/^.+? drew /i, ""))] });
+    else if (/drew (?:a|\d+) cards?/i.test(value)) stages.push({
+      kind: "draw",
+      label: "Draw",
+      cards,
+      hiddenCount: cards.length ? undefined : pluralCount(value.match(/drew (a|\d+)/i)?.[1] ?? "1"),
+      actor: playerActor(value.match(/^(.+?) drew/i)?.[1] ?? action.sourceTitle, selfPlayerName),
+      detail: playerActor(value.match(/^(.+?) drew/i)?.[1] ?? action.sourceTitle, selfPlayerName) === action.actor
+        ? undefined
+        : `${playerActor(value.match(/^(.+?) drew/i)?.[1] ?? action.sourceTitle, selfPlayerName) === "self" ? "you draw" : "opponent draws"} ${pluralCount(value.match(/drew (a|\d+)/i)?.[1] ?? "1")} cards`,
+    });
+    else if (/drew .+/i.test(value)) stages.push({
+      kind: "draw",
+      label: "Draw",
+      cards: [zoneCard(`detail-draw-${index}`, value.replace(/^.+? drew /i, ""))],
+      actor: playerActor(value.match(/^(.+?) drew/i)?.[1] ?? action.sourceTitle, selfPlayerName),
+    });
     else if (/attached Basic .+ Energy to/i.test(value)) {
       const attachment = value.match(/attached (Basic .+? Energy) to (.+?) (?:in|on) the (?:Active Spot|Bench)$/i);
       stages.push({ kind: "attach", label: "Attach", cards: [zoneCard(`detail-attach-${index}`, attachment?.[1] ?? "Energy")] });
@@ -341,10 +500,19 @@ function applyDetails(
   stages: ReplayTransactionStage[],
   followingKnockouts: Set<string>,
 ) {
+  const effectRule = effectRuleForAction(action.sourceTitle);
   action.details.forEach((detail, index) => {
     const value = clean(detail);
     if (/opening hand/i.test(value) || /^\d+ drawn cards?$/i.test(value)) return;
     const names = listAfter(action.details, index);
+    const shuffledHand = value.match(/^(.+?) shuffled their hand$/i);
+    if (shuffledHand && effectRule?.shuffleEntireAffectedHand) {
+      const side = state[playerActor(shuffledHand[1], selfPlayerName)];
+      side.deckCount += side.handCount;
+      side.handCount = 0;
+      side.knownHand = [];
+      return;
+    }
     const drawBench = value.match(/^(.+?) drew (a|\d+) cards? and played them to the Bench$/i);
     if (drawBench) {
       const actor = playerActor(drawBench[1], selfPlayerName);
@@ -374,11 +542,38 @@ function applyDetails(
     }
     const bottom = value.match(/^(.+?) put (a|\d+) cards? on the bottom of their deck$/i);
     if (bottom) {
+      if (effectRule?.shuffleEntireAffectedHand) return;
       const side = state[playerActor(bottom[1], selfPlayerName)];
       const count = pluralCount(bottom[2]);
       side.handCount = Math.max(0, side.handCount - count);
       side.knownHand = [];
       side.deckCount += count;
+      return;
+    }
+    const discardedFrom = value.match(/^(.+?) was discarded from (.+?)['’]s (.+)$/i);
+    if (discardedFrom) {
+      const retreatingId = stages.find((stage) => stage.kind === "move" && stage.label === "Out")?.cards[0]?.id;
+      if (!retreatingId) return;
+      discardAttachedCards(
+        state[playerActor(discardedFrom[2], selfPlayerName)],
+        discardedFrom[3],
+        [discardedFrom[1]],
+        eventId,
+        retreatingId,
+      );
+      return;
+    }
+    const cardsDiscardedFrom = value.match(/^(?:a|\d+) cards? were discarded from (.+?)['’]s (.+)$/i);
+    if (cardsDiscardedFrom) {
+      const retreatingId = stages.find((stage) => stage.kind === "move" && stage.label === "Out")?.cards[0]?.id;
+      if (!retreatingId) return;
+      discardAttachedCards(
+        state[playerActor(cardsDiscardedFrom[1], selfPlayerName)],
+        cardsDiscardedFrom[2],
+        names,
+        eventId,
+        retreatingId,
+      );
       return;
     }
     const discarded = value.match(/^(.+?) discarded (a|\d+) cards?$/i);
@@ -400,6 +595,11 @@ function applyDetails(
           && stage.cards[0]?.id === `detail-attach-target-${index}`
         );
         if (targetStage) targetStage.cards[0] = { ...targetStage.cards[0], id: target.id };
+      }
+      if (effectRule?.attachmentOrigin === "deck") {
+        state[actor].deckCount = Math.max(0, state[actor].deckCount - 1);
+      } else if (effectRule?.attachmentOrigin === "discard") {
+        removeDiscard(state[actor], attached[2]);
       }
       return;
     }
@@ -425,7 +625,8 @@ function applyDetails(
     if (promotion) promote(state[playerActor(promotion[1], selfPlayerName)], promotion[2]);
   });
 
-  const counterPreferred: ReplayActor = /\bused .+ on .+ for \d+/i.test(action.sourceTitle)
+  const counterRestrictedToDefendingBoard = effectRule?.counterTarget === "defending-board";
+  const counterPreferred: ReplayActor = counterRestrictedToDefendingBoard
     ? action.actor === "self" ? "opponent" : "self"
     : action.actor;
   action.details.forEach((detail, detailIndex) => getDamageCounterPlacements([detail]).forEach((placement) => {
@@ -437,6 +638,7 @@ function applyDetails(
       counterPreferred,
       damage,
       followingKnockouts,
+      counterRestrictedToDefendingBoard,
     )?.card;
     if (target) {
       target.damage += damage;
@@ -502,10 +704,14 @@ function buildEvent(
         const actor = playerActor(evolved[1], selfPlayerName);
         const base = findBoardCard(state[actor], evolved[2]);
         if (base) {
+          const beforeStage = stages.find((stage) => stage.kind === "before" && stage.cards[0]?.name === evolved[2]);
+          const evolveStage = stages.find((stage) => stage.kind === "evolve" && stage.cards[0]?.name === evolved[3]);
+          if (beforeStage) beforeStage.cards[0] = { ...beforeStage.cards[0], id: base.id };
           base.underlying.push(zoneCard(`${base.id}-under-${base.name}`, base.name));
           base.name = evolved[3];
           base.imageUrl = imageFor(evolved[3]);
           base.hp = references[evolved[3]]?.hp ?? base.hp;
+          if (evolveStage) evolveStage.cards[0] = { ...evolveStage.cards[0], id: base.id };
         }
         removeHand(state[actor], evolved[3]);
       } else if (attached) {
@@ -517,25 +723,40 @@ function buildEvent(
         const actor = playerActor(retreated[1], selfPlayerName);
         const side = state[actor];
         const promotion = action.details.map(clean).map((detail) => detail.match(/^.+?['’]s (.+?) is now in the Active Spot$/i)?.[1]).find(Boolean);
+        const retreatingCard = findBoardCard(side, retreated[2]);
+        const promotedCard = promotion ? findBoardCard(side, promotion) : undefined;
+        const outStage = stages.find((stage) => stage.kind === "move" && stage.label === "Out");
+        const inStage = stages.find((stage) => stage.kind === "move" && stage.label === "In");
+        if (retreatingCard && outStage) outStage.cards[0] = { ...outStage.cards[0], id: retreatingCard.id };
+        if (promotedCard && inStage) inStage.cards[0] = { ...inStage.cards[0], id: promotedCard.id };
         if (promotion) promote(side, promotion);
       } else if (attack) {
         const targetActor = playerActor(attack[4], selfPlayerName);
         const target = findBoardCard(state[targetActor], attack[5]);
         if (target) target.damage += Number(attack[6]);
-        if (attackEffects[attack[3]]?.itemLock) state[targetActor].itemLocked = true;
+        if (replayEffectRules[attack[3]]?.itemLock) state[targetActor].itemLocked = true;
       } else if (ability) {
         const actor = playerActor(ability[1], selfPlayerName);
         const source = findBoardCard(state[actor], ability[2], true);
         if (source) source.abilityUsed = true;
       } else if (knockedOut) {
-        discardPokemon(state[playerActor(knockedOut[1], selfPlayerName)], knockedOut[2], eventId);
+        const actor = playerActor(knockedOut[1], selfPlayerName);
+        const target = findBoardCard(state[actor], knockedOut[2]);
+        const beforeStage = stages.find((stage) => stage.kind === "before");
+        if (target && beforeStage) beforeStage.cards[0] = { ...beforeStage.cards[0], id: target.id };
+        discardPokemon(state[actor], knockedOut[2], eventId);
       } else if (drew) {
         const actor = playerActor(drew[1], selfPlayerName);
         draw(state[actor], drew[2] === "a card" ? [] : [drew[2]], 1);
       } else if (prize) {
         const actor = playerActor(prize[1], selfPlayerName);
         const count = pluralCount(prize[2]);
+        const names = action.details.flatMap((detail) => {
+          const added = clean(detail).match(/^(.+?) was added to .+?['’]s hand$/i)?.[1];
+          return added && added.toLowerCase() !== "a card" ? [added] : [];
+        });
         state[actor].prizesRemaining = Math.max(0, state[actor].prizesRemaining - count);
+        addToHand(state[actor], names, count, eventId);
       } else if (stadium) {
         const actor = playerActor(stadium[1], selfPlayerName);
         removeHand(state[actor], stadium[2]);

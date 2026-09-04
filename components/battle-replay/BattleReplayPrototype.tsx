@@ -457,9 +457,18 @@ function PlayerBoard({
   );
 }
 
-export function BattleReplayPrototype() {
-  const [pilotId, setPilotId] = useState(replayPilots[0].id);
-  const [actionIndex, setActionIndex] = useState(0);
+export function BattleReplayPrototype({
+  initialActionIndex = 0,
+  initialPilotId = replayPilots[0].id,
+}: {
+  initialActionIndex?: number;
+  initialPilotId?: string;
+}) {
+  const initialPilot = replayPilots.find((pilot) => pilot.id === initialPilotId) ?? replayPilots[0];
+  const [pilotId, setPilotId] = useState(initialPilot.id);
+  const [actionIndex, setActionIndex] = useState(() =>
+    Math.max(0, Math.min(initialPilot.frames.length - 1, initialActionIndex)),
+  );
   const [previewedCard, setPreviewedCard] = useState<PreviewCard | null>(null);
   const [inspectedDiscard, setInspectedDiscard] =
     useState<ReplayActor | null>(null);
@@ -511,6 +520,13 @@ export function BattleReplayPrototype() {
     );
     return () => window.clearTimeout(timer);
   }, [actionIndex, autoplayDelay, maxIndex, playing]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("pilot", pilotId);
+    url.searchParams.set("position", String(actionIndex));
+    window.history.replaceState(window.history.state, "", url);
+  }, [actionIndex, pilotId]);
 
   function seek(nextIndex: number, revealBoard = false) {
     setPlaying(false);
