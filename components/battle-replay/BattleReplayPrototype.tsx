@@ -38,6 +38,7 @@ import {
 import { replayPilots } from "@/lib/battle-replay/pilots";
 import {
   resolveBoardCardPreview,
+  resolveEnergyMarkers,
   resolveOpeningCoinToss,
   resolveOpeningTurnChoice,
   resolveResultOnlyCoinFlip,
@@ -68,9 +69,11 @@ function AbilityUsedMarker({ className }: { className: string }) {
 const energySymbolTypes = new Set(["grass", "fire", "water", "lightning", "psychic", "fighting", "darkness", "metal", "fairy", "dragon", "colorless"]);
 
 function EnergyOrbs({ energy, className }: { energy: string[]; className: string }) {
+  const markers = resolveEnergyMarkers(energy);
   return <div aria-label={`${energy.length} Energy attached: ${energy.join(", ")}`} className={`${styles.energyOrbs} ${className}`}>
-    {energy.map((type, index) => <span className={styles.energyOrb} key={`${type}-${index}`} title={`${type} Energy`}>
+    {markers.map(({ count, type }, index) => <span className={styles.energyOrb} key={`${type}-${index}`} title={count ? `${count} Energy attached` : `${type} Energy`}>
       {energySymbolTypes.has(type.toLowerCase()) ? <Image alt="" width={64} height={64} src={`/images/battle-replay/energy/${type.toLowerCase()}.svg`} /> : <span aria-hidden="true">?</span>}
+      {count ? <strong aria-hidden="true" className={styles.energyOrbCount}>{count}</strong> : null}
     </span>)}
   </div>;
 }
@@ -327,15 +330,15 @@ function StadiumSpot({
   return (
     <div className={styles.stadiumSpot}>
       <span>Stadium</span>
-      <strong className={styles.stadiumName}>{stadium.name}</strong>
       <button aria-label={`Preview ${stadium.name}`} className={`${styles.stadium} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ id: "stadium", name: stadium.name, imageUrl: stadium.imageUrl })} type="button">
         {stadium.imageUrl ? <Image quality={95}
           alt={`${stadium.name}, format-legal representative card artwork`}
           fill
-          sizes="(max-width: 40rem) 52px, 80px"
+          sizes="(max-width: 40rem) 56px, 80px"
           src={stadium.imageUrl}
         /> : <div aria-hidden="true" className={styles.cardBack} />}
       </button>
+      <strong className={styles.stadiumName}>{stadium.name}</strong>
     </div>
   );
 }

@@ -28,6 +28,14 @@ export type ReplayCardPreview = ReplayZoneCard & {
   tool?: string;
 };
 
+export function resolveEnergyMarkers(energy: string[]): Array<{ type: string; count?: number }> {
+  if (energy.length <= 5) {
+    return energy.map((type) => ({ type }));
+  }
+
+  return [{ type: energy[0] ?? "Colorless", count: energy.length }];
+}
+
 export function resolveTransactionStage(
   stage: ReplayTransactionStage,
   actor: ReplayActor,

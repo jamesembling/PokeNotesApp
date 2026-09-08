@@ -5,6 +5,7 @@ import test from "node:test";
 import { replayEvents, replayFrames } from "@/lib/battle-replay/prototype";
 import {
   resolveBoardCardPreview,
+  resolveEnergyMarkers,
   resolveOpeningCoinToss,
   resolveOpeningTurnChoice,
   resolveResultOnlyCoinFlip,
@@ -67,6 +68,16 @@ const state: ReplayState = {
 };
 
 test("transaction cards inherit board state only when the stage references an in-play Pokemon", () => {
+  assert.deepEqual(resolveEnergyMarkers(["Metal", "Metal", "Metal", "Metal", "Metal"]), [
+    { type: "Metal" },
+    { type: "Metal" },
+    { type: "Metal" },
+    { type: "Metal" },
+    { type: "Metal" },
+  ]);
+  assert.deepEqual(resolveEnergyMarkers(["Metal", "Metal", "Metal", "Metal", "Metal", "Metal"]), [
+    { type: "Metal", count: 6 },
+  ]);
   const affected = applyReplayConditions(state, structuredClone(state), {
     sourceTitle: "OtherPlayer's Solrock is now Poisoned.",
     sourceDetails: ["OtherPlayer's Solrock is now Burned.", "OtherPlayer's Solrock is now Asleep."],
