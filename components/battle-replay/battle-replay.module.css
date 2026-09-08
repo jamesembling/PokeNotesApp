@@ -754,7 +754,12 @@ button.pile:disabled {
   place-items: center;
   border: 2px solid color-mix(in oklab, var(--color-warning) 72%, black);
   border-radius: 50%;
-  background: radial-gradient(circle at 34% 28%, #ffc866 0 13%, var(--color-warning) 58%, #dc6b0b 100%);
+  background: radial-gradient(
+    circle at 34% 28%,
+    color-mix(in oklab, var(--color-warning) 42%, white) 0 13%,
+    var(--color-warning) 58%,
+    color-mix(in oklab, var(--color-warning) 76%, black) 100%
+  );
   color: white;
   font-size: 0.5rem;
   font-weight: 800;
