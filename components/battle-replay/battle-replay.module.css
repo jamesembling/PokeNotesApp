@@ -752,26 +752,35 @@ button.pile:disabled {
   min-width: 1.45rem;
   min-height: 1.45rem;
   place-items: center;
-  border: 2px solid var(--replay-card-edge);
+  border: 2px solid color-mix(in oklab, var(--color-warning) 72%, black);
   border-radius: 50%;
-  color: var(--replay-card-edge);
+  background: radial-gradient(circle at 34% 28%, #ffc866 0 13%, var(--color-warning) 58%, #dc6b0b 100%);
+  color: white;
   font-size: 0.5rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  paint-order: stroke fill;
+  text-shadow: 0 0.08rem 0.06rem black;
   transform: translateY(-50%) rotate(-5deg);
+  -webkit-text-stroke: 0.055rem black;
 }
 
 .damageBadge {
   right: -0.38rem;
-  background: var(--color-loss);
 }
 
 .cardStack:not([data-compact]) .damageBadge {
-  top: 0;
-  min-width: 2.2rem;
-  min-height: 2.2rem;
-  right: -0.7rem;
-  border-width: 3px;
-  font-size: 0.85rem;
+  top: 38%;
+  min-width: 2.35rem;
+  min-height: 2.35rem;
+  right: -0.8rem;
+  font-size: 0.9rem;
+  box-shadow: 0 0.28rem 0.58rem color-mix(in oklab, black 45%, transparent);
+}
+
+.cardStack:not([data-compact]) .damageBadge + .boardAbilityUsedMarker {
+  top: 68%;
 }
 
 .cardStack:not([data-compact]) .boardAbilityUsedMarker {

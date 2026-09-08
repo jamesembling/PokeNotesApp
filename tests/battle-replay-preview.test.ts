@@ -7,6 +7,7 @@ import {
   resolveBoardCardPreview,
   resolveOpeningCoinToss,
   resolveOpeningTurnChoice,
+  resolveResultOnlyCoinFlip,
   resolveTransactionActors,
   resolveTransactionStage,
   shouldShowTransactionEvolutionStack,
@@ -571,7 +572,16 @@ test("transaction cards inherit board state only when the stage references an in
   const burnRecoveredIndex = burnPilot.events.findIndex((event) =>
     event.sourceTitle.includes("is no longer Burned")
   );
+  const burnRecoveryFlipIndex = burnPilot.events.findIndex((event) =>
+    event.sourceTitle.includes("flipped a coin and it landed on")
+  );
   assert.ok(burnAppliedIndex >= 0 && burnDamageIndex > burnAppliedIndex && burnRecoveredIndex > burnDamageIndex);
+  assert.ok(burnRecoveryFlipIndex > burnDamageIndex);
+  assert.deepEqual(resolveResultOnlyCoinFlip(burnPilot.events[burnRecoveryFlipIndex]), {
+    actor: "self",
+    result: "heads",
+  });
+  assert.equal(resolveResultOnlyCoinFlip(burnPilot.events[0]), null);
   assert.deepEqual(burnPilot.frames[burnAppliedIndex + 1].self.active?.conditions, ["Burned"]);
   assert.equal(
     burnPilot.frames[burnDamageIndex + 1].self.active?.damage,

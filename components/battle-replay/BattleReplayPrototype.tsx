@@ -40,6 +40,7 @@ import {
   resolveBoardCardPreview,
   resolveOpeningCoinToss,
   resolveOpeningTurnChoice,
+  resolveResultOnlyCoinFlip,
   resolveTransactionActors,
   resolveTransactionStage,
   shouldShowTransactionEvolutionStack,
@@ -400,24 +401,33 @@ function TransactionOverlay({ onPreview, previousState, state, transaction }: { 
   </section>;
 }
 
-type CoinTossPhase = "call" | "toss" | "result";
+type CoinFlipPhase = "call" | "toss" | "result";
 
-function useCoinTossPhase(event: ReplayEvent | null): CoinTossPhase {
-  const [step, setStep] = useState<{ event: ReplayEvent | null; phase: CoinTossPhase }>({ event: null, phase: "call" });
+function useCoinFlipPhase(event: ReplayEvent | null): CoinFlipPhase {
+  const openingToss = resolveOpeningCoinToss(event);
+  const initialPhase: CoinFlipPhase = openingToss ? "call" : "toss";
+  const [step, setStep] = useState<{ event: ReplayEvent | null; phase: CoinFlipPhase }>({ event: null, phase: "call" });
   useEffect(() => {
-    if (!resolveOpeningCoinToss(event)) {
+    const hasOpeningToss = Boolean(resolveOpeningCoinToss(event));
+    const hasResultOnlyFlip = Boolean(resolveResultOnlyCoinFlip(event));
+    if (!hasOpeningToss && !hasResultOnlyFlip) {
       setStep({ event, phase: "call" });
       return;
     }
-    setStep({ event, phase: "call" });
-    const toss = window.setTimeout(() => setStep({ event, phase: "toss" }), 900);
-    const result = window.setTimeout(() => setStep({ event, phase: "result" }), 2300);
+    setStep({ event, phase: hasOpeningToss ? "call" : "toss" });
+    const toss = hasOpeningToss
+      ? window.setTimeout(() => setStep({ event, phase: "toss" }), 900)
+      : undefined;
+    const result = window.setTimeout(
+      () => setStep({ event, phase: "result" }),
+      hasOpeningToss ? 2300 : 1400,
+    );
     return () => {
-      window.clearTimeout(toss);
+      if (toss) window.clearTimeout(toss);
       window.clearTimeout(result);
     };
   }, [event]);
-  return step.event === event ? step.phase : "call";
+  return step.event === event ? step.phase : initialPhase;
 }
 
 function PlayerBoard({
@@ -431,7 +441,7 @@ function PlayerBoard({
   stadium,
 }: {
   actor: ReplayActor;
-  coinPhase: CoinTossPhase;
+  coinPhase: CoinFlipPhase;
   currentEvent: ReplayEvent | null;
   onInspectDiscard: (actor: ReplayActor) => void;
   onPreview: (card: PreviewCard) => void;
@@ -577,8 +587,10 @@ export function BattleReplayPrototype({
   const previousState = replayFrames[Math.max(0, actionIndex - 1)];
   const currentEvent = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
   const coinToss = resolveOpeningCoinToss(currentEvent);
-  const coinPhase = useCoinTossPhase(currentEvent);
-  const autoplayDelay = currentEvent?.label === "KO" ? 2000 : currentEvent?.label === "Attack" ? 2400 : coinToss ? 4400 : resolveOpeningTurnChoice(currentEvent) ? 2400 : currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
+  const resultOnlyCoinFlip = resolveResultOnlyCoinFlip(currentEvent);
+  const coinFlipResult = coinToss?.result ?? resultOnlyCoinFlip?.result ?? null;
+  const coinPhase = useCoinFlipPhase(currentEvent);
+  const autoplayDelay = currentEvent?.label === "KO" ? 2000 : currentEvent?.label === "Attack" ? 2400 : coinToss ? 4400 : resultOnlyCoinFlip ? 2800 : resolveOpeningTurnChoice(currentEvent) ? 2400 : currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
   const maxIndex = replayFrames.length - 1;
   const previewHealthPercent = previewedCard?.hp
     ? Math.max(0, ((previewedCard.hp - (previewedCard.damage ?? 0)) / previewedCard.hp) * 100)
@@ -743,16 +755,17 @@ export function BattleReplayPrototype({
                 <strong>{currentEvent.transaction?.stages.find((stage) => stage.kind === "attack")?.label ?? "Attack"}</strong>
               </div>
             </div> : null}
-            {coinToss ? <div className={styles.boardCoinToss} role="status" aria-label={coinPhase === "call"
+            {coinToss || resultOnlyCoinFlip ? <div className={styles.boardCoinToss} role="status" aria-label={coinPhase === "call" && coinToss
               ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}`
               : coinPhase === "toss" ? "Tossing the coin"
-                : coinToss.winner ? `${coinToss.result}. ${coinToss.winner === "self" ? "You won" : "Opponent won"} the toss.` : "Result not recorded."}>
+                : coinToss?.winner ? `${coinToss.result}. ${coinToss.winner === "self" ? "You won" : "Opponent won"} the toss.`
+                  : resultOnlyCoinFlip ? `${resultOnlyCoinFlip.result}. ${resultOnlyCoinFlip.actor === "self" ? "Your" : "Opponent’s"} coin flip.` : "Result not recorded."}>
               {coinPhase !== "call" ? <div aria-hidden="true" className={styles.replayCoin} data-phase={coinPhase}>
-                <div className={styles.coinRotor} data-result={coinToss.result}>
+                <div className={styles.coinRotor} data-result={coinFlipResult}>
                   <span className={styles.coinMetalFace} data-side="heads" />
                   <span className={styles.coinMetalFace} data-side="tails" />
                 </div>
-                {coinPhase === "result" && !coinToss.result ? <span>Unknown</span> : null}
+                {coinPhase === "result" && !coinFlipResult ? <span>Unknown</span> : null}
               </div> : null}
             </div> : null}
             <PlayerBoard coinPhase={coinPhase} actor="self" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
@@ -769,8 +782,8 @@ export function BattleReplayPrototype({
               : "Before setup"}
           </span>
           <strong>
-            {coinToss && coinPhase !== "result"
-              ? coinPhase === "call" ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}` : "Tossing the coin…"
+            {(coinToss || resultOnlyCoinFlip) && coinPhase !== "result"
+              ? coinPhase === "call" && coinToss ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}` : "Tossing the coin…"
               : currentEvent?.summary ?? "Ready to replay the imported battle."}
           </strong>
         </div>

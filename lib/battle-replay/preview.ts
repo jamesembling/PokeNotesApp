@@ -184,6 +184,15 @@ export function resolveOpeningCoinToss(event: ReplayEvent | null) {
   };
 }
 
+export function resolveResultOnlyCoinFlip(event: ReplayEvent | null) {
+  const flip = event?.sourceTitle.match(/^(.+?) flipped a coin and it landed on (heads|tails)\.?$/i);
+  if (!event || !flip) return null;
+  return {
+    actor: event.actor,
+    result: flip[2].toLowerCase() as "heads" | "tails",
+  };
+}
+
 export function resolveOpeningTurnChoice(event: ReplayEvent | null) {
   if (!event || event.turn !== 0) return null;
   const match = event.sourceTitle.match(/^.+? decided to go (first|second)\.?$/i);
