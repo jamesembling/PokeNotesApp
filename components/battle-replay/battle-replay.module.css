@@ -477,7 +477,7 @@ button.pile:disabled {
 .activeRow {
   display: grid;
   grid-area: active;
-  grid-template-columns: 4rem 8.5rem 4rem;
+  grid-template-columns: 6.5rem 8.5rem 6.5rem;
   align-items: center;
   justify-content: center;
   column-gap: 0.35rem;
@@ -833,7 +833,7 @@ button.pile:disabled {
   grid-column: 1;
   grid-row: 1;
   justify-items: center;
-  gap: 0.2rem;
+  gap: 0.3rem;
 }
 
 .stadiumSpot > span,
@@ -847,18 +847,19 @@ button.pile:disabled {
 
 .stadium {
   position: relative;
-  width: 4rem;
+  width: 5rem;
+  overflow: hidden;
   aspect-ratio: 0.714;
+  border-radius: 0.42rem;
+  box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 20%, transparent);
 }
 
-.stadium strong {
-  position: absolute;
-  inset: auto 50% -1.1rem auto;
-  width: 6rem;
+.stadiumName {
+  width: 6.5rem;
   color: var(--card-foreground);
   font-size: 0.58rem;
+  line-height: 1.2;
   text-align: center;
-  transform: translateX(50%);
 }
 
 .handArea {
@@ -1502,8 +1503,10 @@ button.pile:disabled {
   }
 
   .stadium {
-    width: 2.75rem;
+    width: 3.5rem;
   }
+
+  .stadiumName { font-size: 0.5rem; }
 
   .transactionOverlay { gap: 0.4rem; padding: 0.65rem 0.4rem; }
   .transactionHeading strong { font-size: 0.78rem; }
@@ -1732,7 +1735,16 @@ button.pile:disabled {
     grid-template-areas: "bench bench bench" "prizes field piles";
   }
   .field { display: contents; }
-  .activeRow { grid-area: field; grid-template-columns: minmax(0, 1fr) 5.8rem minmax(0, 1fr); }
+  .activeRow {
+    grid-area: field;
+    grid-template-columns: 5.8rem;
+    grid-template-rows: 8.8rem auto;
+    align-content: center;
+    row-gap: 0.5rem;
+  }
+  .active { grid-column: 1; grid-row: 1; }
+  .stadiumSpot { grid-column: 1; grid-row: 2; }
+  .stadiumName { width: 5.5rem; }
   .active { width: 5.8rem; min-height: 8.8rem; }
   .cardStack { width: 5.5rem; }
   .cardStack[data-compact] { width: min(100%, 3.4rem); }

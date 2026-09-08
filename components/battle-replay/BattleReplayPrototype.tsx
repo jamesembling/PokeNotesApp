@@ -327,14 +327,14 @@ function StadiumSpot({
   return (
     <div className={styles.stadiumSpot}>
       <span>Stadium</span>
+      <strong className={styles.stadiumName}>{stadium.name}</strong>
       <button aria-label={`Preview ${stadium.name}`} className={`${styles.stadium} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ id: "stadium", name: stadium.name, imageUrl: stadium.imageUrl })} type="button">
         {stadium.imageUrl ? <Image quality={95}
           alt={`${stadium.name}, format-legal representative card artwork`}
           fill
-          sizes="(max-width: 40rem) 44px, 64px"
+          sizes="(max-width: 40rem) 52px, 80px"
           src={stadium.imageUrl}
         /> : <div aria-hidden="true" className={styles.cardBack} />}
-        <strong>{stadium.name}</strong>
       </button>
     </div>
   );

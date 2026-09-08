@@ -578,8 +578,21 @@ test("transaction cards inherit board state only when the stage references an in
   const factoryPlayedIndex = burnPilot.events.findIndex((event) =>
     event.sourceTitle.includes("played Team Rocket's Factory to the Stadium spot")
   );
+  const multiEnergyMetalMakerIndex = burnPilot.events.findIndex((event) =>
+    event.sourceTitle.includes("used Metal Maker")
+    && event.sourceDetails.filter((detail) => detail.includes("attached Basic Metal Energy")).length === 2
+  );
   assert.ok(burnAppliedIndex >= 0 && burnDamageIndex > burnAppliedIndex && burnRecoveredIndex > burnDamageIndex);
   assert.ok(factoryPlayedIndex >= 0);
+  assert.ok(multiEnergyMetalMakerIndex >= 0);
+  assert.deepEqual(
+    burnPilot.events[multiEnergyMetalMakerIndex].transaction?.stages.map((stage) => [stage.label, stage.cards.map((card) => card.name)]),
+    [
+      ["Metal Maker", ["Metang"]],
+      ["Attach 2 Energy", ["Basic Metal Energy", "Basic Metal Energy"]],
+      ["To Heatran", ["Heatran"]],
+    ],
+  );
   assert.match(
     burnPilot.frames[factoryPlayedIndex + 1].stadium?.imageUrl ?? "",
     /\/DRI\/DRI_173_R_EN_LG\.png$/,

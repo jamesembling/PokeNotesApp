@@ -319,6 +319,42 @@ function parseSpecialConditionDamage(title: string) {
   };
 }
 
+function groupRepeatedAttachments(stages: ReplayTransactionStage[]) {
+  const grouped: ReplayTransactionStage[] = [];
+
+  for (let index = 0; index < stages.length;) {
+    const attachment = stages[index];
+    const target = stages[index + 1];
+    if (attachment?.kind !== "attach" || target?.kind !== "move") {
+      grouped.push(attachment);
+      index += 1;
+      continue;
+    }
+
+    const cards = [...attachment.cards];
+    let nextIndex = index + 2;
+    while (
+      stages[nextIndex]?.kind === "attach"
+      && stages[nextIndex + 1]?.kind === "move"
+      && stages[nextIndex + 1]?.label === target.label
+      && stages[nextIndex + 1]?.actor === target.actor
+    ) {
+      cards.push(...stages[nextIndex].cards);
+      nextIndex += 2;
+    }
+
+    grouped.push(
+      cards.length > 1
+        ? { ...attachment, label: `Attach ${cards.length} Energy`, cards }
+        : attachment,
+      target,
+    );
+    index = nextIndex;
+  }
+
+  return grouped;
+}
+
 function transactionStages(action: ReplaySourceAction, selfPlayerName: string): ReplayTransactionStage[] {
   const stages: ReplayTransactionStage[] = [];
   const stadiumCandidate = action.sourceTitle.match(/\bplayed (.+?) to the Stadium spot\.$/i)?.[1];
@@ -527,7 +563,7 @@ function transactionStages(action: ReplaySourceAction, selfPlayerName: string): 
   coalesceBoth("draw", drawCounts.length === 2 && drawCounts[0] === drawCounts[1]
     ? `each player draws ${drawCounts[0]} cards`
     : "both players draw the logged cards");
-  return stages;
+  return groupRepeatedAttachments(stages);
 }
 
 function applyDetails(
