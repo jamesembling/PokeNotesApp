@@ -37,7 +37,7 @@ export default async function BattleReplayPrototypePage({
             { label: "Battle Logs", href: "/logs" },
             { label: "Visual replay prototype" },
           ]}
-          subtitle="Switch between two real saved Battle Logs and test how their source actions reconstruct the board. Player names are anonymised in this isolated prototype."
+          subtitle="Switch between real saved Battle Logs and test how their source actions reconstruct the board. Player names are anonymised in this isolated prototype."
           title="Battle replay pilots"
         />
 

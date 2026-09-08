@@ -46,9 +46,13 @@ export type ReplayPilot = {
 type CardReference = { set: string; number: string; hp?: number };
 
 const references: Record<string, CardReference> = {
+  "Air Balloon": { set: "MEG", number: "166" },
+  "Area Zero Underdepths": { set: "PRE", number: "94" },
   "Basic Darkness Energy": { set: "SVE", number: "7" },
   "Basic Fire Energy": { set: "SVE", number: "2" },
+  "Basic Metal Energy": { set: "SVE", number: "8" },
   "Basic Psychic Energy": { set: "SVE", number: "5" },
+  Beldum: { set: "TEF", number: "113", hp: 70 },
   "Blaziken ex": { set: "JTG", number: "24", hp: 320 },
   "Boss's Orders": { set: "ASC", number: "183" },
   "Buddy-Buddy Poffin": { set: "MEG", number: "167" },
@@ -56,25 +60,33 @@ const references: Record<string, CardReference> = {
   Combusken: { set: "JTG", number: "23", hp: 90 },
   Crispin: { set: "SCR", number: "133" },
   Dawn: { set: "PFL", number: "87" },
+  Drilbur: { set: "PBL", number: "46", hp: 70 },
   Dragapult: { set: "TWM", number: "130", hp: 320 },
   "Dragapult ex": { set: "TWM", number: "130", hp: 320 },
   Drakloak: { set: "TWM", number: "129", hp: 90 },
   Dreepy: { set: "TWM", number: "128", hp: 70 },
+  "Energy Recycler": { set: "POR", number: "108" },
   "Fezandipiti ex": { set: "ASC", number: "142", hp: 210 },
+  "Genesect ex": { set: "BLK", number: "67", hp: 220 },
+  Heatran: { set: "TWM", number: "123", hp: 140 },
   "Lillie's Clefairy ex": { set: "JTG", number: "56", hp: 190 },
   "Lillie's Determination": { set: "ASC", number: "192" },
   Judge: { set: "POR", number: "76" },
   Meowth: { set: "POR", number: "62", hp: 200 },
   "Meowth ex": { set: "POR", number: "62", hp: 200 },
+  Metagross: { set: "CRI", number: "61", hp: 180 },
+  Metang: { set: "TEF", number: "114", hp: 100 },
   Moltres: { set: "PFL", number: "14", hp: 120 },
   Munkidori: { set: "TWM", number: "95", hp: 110 },
   "Night Stretcher": { set: "ASC", number: "196" },
   "Poké Pad": { set: "POR", number: "81" },
+  "Precious Trolley": { set: "SSP", number: "185" },
   Psyduck: { set: "ASC", number: "226", hp: 70 },
   "Rare Candy": { set: "MEG", number: "125" },
   "Risky Ruins": { set: "MEG", number: "127" },
   "Special Red Card": { set: "CRI", number: "82" },
   "Team Rocket's Petrel": { set: "DRI", number: "176" },
+  "Team Rocket's Factory": { set: "DRI", number: "203" },
   Torchic: { set: "JTG", number: "22", hp: 60 },
   "Ultra Ball": { set: "ASC", number: "213" },
   "Unfair Stamp": { set: "TWM", number: "165" },
@@ -294,6 +306,19 @@ function parseCardNames(value: string) {
   return value.split(",").map((name) => name.trim()).filter(Boolean);
 }
 
+function parseSpecialConditionDamage(title: string) {
+  const match = title.match(
+    /^(a|\d+) damage counters? (?:was|were) placed on (.+?)['’]s (.+?) for the Special Condition (Poisoned|Burned)\.$/i,
+  );
+  if (!match?.[1] || !match[2] || !match[3] || !match[4]) return null;
+  return {
+    counters: pluralCount(match[1]),
+    owner: match[2],
+    targetName: match[3],
+    condition: match[4],
+  };
+}
+
 function transactionStages(action: ReplaySourceAction, selfPlayerName: string): ReplayTransactionStage[] {
   const stages: ReplayTransactionStage[] = [];
   const stadiumCandidate = action.sourceTitle.match(/\bplayed (.+?) to the Stadium spot\.$/i)?.[1];
@@ -369,6 +394,18 @@ function transactionStages(action: ReplaySourceAction, selfPlayerName: string): 
       kind: "discard",
       label: "Discard",
       cards: [knockedOut[2], ...discarded].map((name, index) => zoneCard(`knockout-discard-${index}-${name}`, name)),
+    });
+  }
+
+  const conditionDamage = parseSpecialConditionDamage(action.sourceTitle);
+  if (conditionDamage) {
+    const damage = conditionDamage.counters * 10;
+    stages.push({
+      kind: "damage",
+      label: `${damage} damage`,
+      cards: [zoneCard(`condition-damage-${action.sourceTitle}`, conditionDamage.targetName)],
+      actor: playerActor(conditionDamage.owner, selfPlayerName),
+      detail: `${damage} damage from ${conditionDamage.condition}`,
     });
   }
 
@@ -694,6 +731,7 @@ function buildEvent(
       const drew = title.match(/^(.+?) drew (a card|.+?)\.$/i);
       const prize = title.match(/^(.+?) took (a|\d+) Prize cards?\.$/i);
       const stadium = title.match(/^(.+?) played (.+?) to the Stadium spot\.$/i);
+      const conditionDamage = parseSpecialConditionDamage(title);
 
       if (playedBoard) {
         const actor = playerActor(playedBoard[1], selfPlayerName);
@@ -762,6 +800,14 @@ function buildEvent(
         const actor = playerActor(stadium[1], selfPlayerName);
         removeHand(state[actor], stadium[2]);
         state.stadium = { actor, name: stadium[2], imageUrl: imageFor(stadium[2]) };
+      } else if (conditionDamage) {
+        const actor = playerActor(conditionDamage.owner, selfPlayerName);
+        const target = findBoardCard(state[actor], conditionDamage.targetName);
+        if (target) {
+          target.damage += conditionDamage.counters * 10;
+          const damageStage = stages.find((stage) => stage.kind === "damage");
+          if (damageStage) damageStage.cards[0] = { ...damageStage.cards[0], id: target.id };
+        }
       } else {
         const candidate = extractBattleLogActionCardCandidate(title);
         if (candidate && /\bplayed\b/i.test(title)) {

@@ -559,4 +559,26 @@ test("transaction cards inherit board state only when the stage references an in
   const secondPilotFinal = secondPilot.frames.at(-1)!;
   assert.equal(secondPilotFinal.self.prizesRemaining, 0);
   assert.equal(secondPilotFinal.opponent.prizesRemaining, 2);
+
+  const burnPilot = replayPilots.find((pilot) => pilot.id === "burn-2026-09-08");
+  assert.ok(burnPilot);
+  const burnAppliedIndex = burnPilot.events.findIndex((event) =>
+    event.sourceDetails.some((detail) => detail.includes("is now Burned"))
+  );
+  const burnDamageIndex = burnPilot.events.findIndex((event) =>
+    event.sourceTitle.includes("for the Special Condition Burned")
+  );
+  const burnRecoveredIndex = burnPilot.events.findIndex((event) =>
+    event.sourceTitle.includes("is no longer Burned")
+  );
+  assert.ok(burnAppliedIndex >= 0 && burnDamageIndex > burnAppliedIndex && burnRecoveredIndex > burnDamageIndex);
+  assert.deepEqual(burnPilot.frames[burnAppliedIndex + 1].self.active?.conditions, ["Burned"]);
+  assert.equal(
+    burnPilot.frames[burnDamageIndex + 1].self.active?.damage,
+    (burnPilot.frames[burnDamageIndex].self.active?.damage ?? 0) + 20,
+  );
+  assert.deepEqual(burnPilot.frames[burnDamageIndex + 1].self.active?.conditions, ["Burned"]);
+  assert.deepEqual(burnPilot.frames[burnRecoveredIndex + 1].self.active?.conditions, []);
+  assert.equal(burnPilot.events[burnDamageIndex].transaction?.stages[0]?.actor, "self");
+  assert.equal(burnPilot.events[burnDamageIndex].transaction?.stages[0]?.label, "20 damage");
 });
