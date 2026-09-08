@@ -86,7 +86,7 @@ const references: Record<string, CardReference> = {
   "Risky Ruins": { set: "MEG", number: "127" },
   "Special Red Card": { set: "CRI", number: "82" },
   "Team Rocket's Petrel": { set: "DRI", number: "176" },
-  "Team Rocket's Factory": { set: "DRI", number: "203" },
+  "Team Rocket's Factory": { set: "DRI", number: "173" },
   Torchic: { set: "JTG", number: "22", hp: 60 },
   "Ultra Ball": { set: "ASC", number: "213" },
   "Unfair Stamp": { set: "TWM", number: "165" },

@@ -575,7 +575,15 @@ test("transaction cards inherit board state only when the stage references an in
   const burnRecoveryFlipIndex = burnPilot.events.findIndex((event) =>
     event.sourceTitle.includes("flipped a coin and it landed on")
   );
+  const factoryPlayedIndex = burnPilot.events.findIndex((event) =>
+    event.sourceTitle.includes("played Team Rocket's Factory to the Stadium spot")
+  );
   assert.ok(burnAppliedIndex >= 0 && burnDamageIndex > burnAppliedIndex && burnRecoveredIndex > burnDamageIndex);
+  assert.ok(factoryPlayedIndex >= 0);
+  assert.match(
+    burnPilot.frames[factoryPlayedIndex + 1].stadium?.imageUrl ?? "",
+    /\/DRI\/DRI_173_R_EN_LG\.png$/,
+  );
   assert.ok(burnRecoveryFlipIndex > burnDamageIndex);
   assert.deepEqual(resolveResultOnlyCoinFlip(burnPilot.events[burnRecoveryFlipIndex]), {
     actor: "self",

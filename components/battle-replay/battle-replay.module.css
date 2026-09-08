@@ -1953,8 +1953,8 @@ button.pile:disabled {
   z-index: 16;
   bottom: 0;
   transform: translateY(50%);
-  left: -0.3rem;
-  width: calc(100% + 0.6rem);
+  left: 0;
+  width: 100%;
 }
 .cardStack[data-has-energy] .healthStatus { margin-top: 1rem; }
 .cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.9rem; bottom: 0; left: 0.1rem; }
