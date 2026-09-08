@@ -745,12 +745,16 @@ button.pile:disabled {
   text-align: right;
 }
 
-.damageBadge {
+.damageBadge,
+.transactionDamageCounter,
+.cardPreviewDamage {
   position: absolute;
+  z-index: 4;
   top: 30%;
+  right: -0.38rem;
   display: grid;
-  min-width: 1.45rem;
-  min-height: 1.45rem;
+  width: 1.45rem;
+  aspect-ratio: 1;
   place-items: center;
   border: 2px solid color-mix(in oklab, var(--color-warning) 72%, black);
   border-radius: 50%;
@@ -762,24 +766,24 @@ button.pile:disabled {
   );
   color: white;
   font-size: 0.5rem;
-  font-weight: 800;
+  font-weight: 900;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   paint-order: stroke fill;
+  box-shadow: 0 0.18rem 0.4rem color-mix(in oklab, black 42%, transparent);
   text-shadow: 0 0.08rem 0.06rem black;
   transform: translateY(-50%) rotate(-5deg);
   -webkit-text-stroke: 0.055rem black;
 }
 
 .damageBadge {
-  right: -0.38rem;
+  z-index: 1;
 }
 
 .cardStack:not([data-compact]) .damageBadge {
   top: 38%;
-  min-width: 2.35rem;
-  min-height: 2.35rem;
   right: -0.8rem;
+  width: 2.35rem;
   font-size: 0.9rem;
   box-shadow: 0 0.28rem 0.58rem color-mix(in oklab, black 45%, transparent);
 }
@@ -1030,22 +1034,13 @@ button.pile:disabled {
 .cardPreviewStage { display: grid; justify-items: center; width: min(78vw, 22rem, 55dvh); gap: 0.65rem; }
 .cardPreviewImage { position: relative; width: 100%; aspect-ratio: 0.714; filter: drop-shadow(0 1.25rem 1.5rem color-mix(in oklab, var(--foreground) 30%, transparent)); }
 .cardPreviewImage > img { border-radius: 0.75rem; object-fit: cover; }
-.cardPreviewDamage,
 .cardPreviewTool { position: absolute; z-index: 1; color: white; font-size: 0.72rem; font-weight: 800; line-height: 1; box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 28%, transparent); }
 .cardPreviewDamage {
-  top: 30%;
+  top: 38%;
   right: -0.8rem;
-  display: grid;
-  width: 3rem;
-  aspect-ratio: 1;
-  place-items: center;
-  border: 2px solid color-mix(in oklab, var(--color-loss) 68%, black);
-  border-radius: 50%;
-  background: var(--color-loss);
-  color: white;
-  font-size: 0.92rem;
-  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 38%, transparent), inset 0 1px 0 color-mix(in oklab, white 30%, transparent);
-  transform: translateY(-50%) rotate(-5deg);
+  width: 2.35rem;
+  font-size: 0.9rem;
+  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 38%, transparent);
 }
 .previewAbilityUsedMarker {
   top: 50%;
@@ -1287,23 +1282,10 @@ button.pile:disabled {
 .transactionHiddenCards { position: relative; display: flex; align-items: center; }
 .transactionHiddenCards .transactionCard { width: clamp(6rem, 9vw, 7.25rem); }
 .transactionDamageCounter {
-  position: absolute;
-  z-index: 4;
-  top: 30%;
   right: -0.7rem;
-  display: grid;
   width: 1.8rem;
-  aspect-ratio: 1;
-  place-items: center;
-  border: 2px solid color-mix(in oklab, var(--color-loss) 68%, black);
-  border-radius: 50%;
-  background: var(--color-loss);
-  color: white;
   font-size: 0.68rem;
-  font-weight: 900;
-  line-height: 1;
-  box-shadow: 0 0.22rem 0.45rem color-mix(in oklab, black 45%, transparent), inset 0 1px 0 color-mix(in oklab, white 55%, transparent);
-  transform: translateY(-50%) rotate(-5deg);
+  box-shadow: 0 0.22rem 0.45rem color-mix(in oklab, black 45%, transparent);
 }
 .transactionAbilityUsedMarker {
   top: 50%;
@@ -1972,8 +1954,8 @@ button.pile:disabled {
   box-shadow: inset 0 0 0 1px color-mix(in oklab, white 33%, transparent), inset -0.15rem -0.25rem 0.3rem color-mix(in oklab, black 33%, transparent);
 }
 .boardEnergyOrbs {
-  --energy-orb-size: 1.5rem;
-  --energy-orb-count-size: 0.72rem;
+  --energy-orb-size: 0.75rem;
+  --energy-orb-count-size: 0.48rem;
   position: absolute;
   z-index: 16;
   bottom: 0;
@@ -1982,11 +1964,10 @@ button.pile:disabled {
   width: 100%;
 }
 .cardStack[data-has-energy] .healthStatus { margin-top: 0.6rem; }
-.cardStack:not([data-compact]) .boardEnergyOrbs { --energy-orb-size: 0.75rem; --energy-orb-count-size: 0.48rem; }
-.cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.9rem; --energy-orb-count-size: 0.56rem; bottom: 0; left: 0.1rem; }
-.cardStack[data-compact][data-has-energy] .healthStatus { margin-top: 0.65rem; }
-.transactionEnergyOrbs { position: absolute; z-index: 16; bottom: 0; transform: translateY(50%); left: -0.25rem; max-width: calc(100% + 0.5rem); --energy-orb-size: 1.4rem; --energy-orb-count-size: 0.72rem; }
-.previewEnergyOrbs { position: absolute; bottom: 0; left: 0; width: 100%; transform: translateY(50%); z-index: 16; --energy-orb-size: 2.75rem; --energy-orb-count-size: 1.1rem; }
+.cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.55rem; --energy-orb-count-size: 0.4rem; }
+.cardStack[data-compact][data-has-energy] .healthStatus { margin-top: 0.5rem; }
+.transactionEnergyOrbs { position: absolute; z-index: 16; bottom: 0; left: 0; width: 100%; transform: translateY(50%); --energy-orb-size: 0.625rem; --energy-orb-count-size: 0.42rem; }
+.previewEnergyOrbs { position: absolute; z-index: 16; bottom: 0; left: 0; width: 100%; transform: translateY(50%); --energy-orb-size: 1.5rem; --energy-orb-count-size: 0.72rem; }
 @keyframes energy-orb-arrive {
   from { opacity: 0; scale: 0.4; translate: 0 0.4rem; }
   to { opacity: 1; scale: 1; translate: 0 0; }
@@ -1995,7 +1976,7 @@ button.pile:disabled {
 
 .cardSurface { position: relative; width: 100%; }
 .cardSurface > button, .transactionCardState > button { display: block; }
-.cardPreviewImage:has(.previewEnergyOrbs) { margin-bottom: 1.5rem; }
+.cardPreviewImage:has(.previewEnergyOrbs) { margin-bottom: 0.85rem; }
 
 /* Scale the card and attached orbs together. */
 .cardSurface {
