@@ -1,3 +1,4 @@
+import { applyReplayConditions } from "./conditions";
 import { buildDeckListCardImageUrl } from "@/lib/deck-lists/render";
 import {
   formatBattleLogActionTitle,
@@ -82,7 +83,7 @@ const references: Record<string, CardReference> = {
 const imageFor = (name: string) => {
   const reference = references[name];
   return reference
-    ? buildDeckListCardImageUrl(reference.set, reference.number, "SM")
+    ? buildDeckListCardImageUrl(reference.set, reference.number, "LG")
     : "";
 };
 
@@ -826,7 +827,7 @@ export function compileReplayPilot(
     stadium: null,
     playedCard: null,
   };
-  const frames = events.reduce<ReplayState[]>((all, nextEvent) => [...all, nextEvent.apply(all.at(-1)!)], [initial]);
+  const frames = events.reduce<ReplayState[]>((all, nextEvent) => [...all, applyReplayConditions(all.at(-1)!, nextEvent.apply(all.at(-1)!), nextEvent, selfPlayerName)], [initial]);
   const unresolvedMutations = actions.filter((action) =>
     !/(?:drew|played|attached|retreated|evolved|used|Knocked Out|took .+ Prize|ended|wins|activated|decided|coin flip)/i.test(action.sourceTitle),
   ).length;

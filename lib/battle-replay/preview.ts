@@ -1,6 +1,7 @@
 import type {
   ReplayActor,
   ReplayCard,
+  ReplayEvent,
   ReplayState,
   ReplayTransactionStage,
   ReplayZoneCard,
@@ -19,6 +20,7 @@ const boardStateStageKinds = new Set<ReplayTransactionStage["kind"]>([
 
 export type ReplayCardPreview = ReplayZoneCard & {
   abilityUsed?: boolean;
+  conditions?: ReplayCard["conditions"];
   damage?: number;
   energy?: string[];
   hp?: number;
@@ -161,4 +163,30 @@ export function resolveBoardCardPreview(
     return { ...card, ...identifiedActive, id: card.id };
 
   return card;
+}
+
+export function resolveOpeningCoinToss(event: ReplayEvent | null) {
+  const call = event?.sourceTitle.match(/^(.+?) chose (heads|tails) for the opening coin flip\.?$/i);
+  if (!event || !call) return null;
+  const choice = call[2].toLowerCase() as "heads" | "tails";
+  const winners = [...new Set(event.sourceDetails.flatMap((detail) => {
+    const winner = detail.trim().match(/^(?:- )?(.+?) won the coin toss\.?$/i);
+    return winner ? [winner[1]] : [];
+  }))];
+  const winner: ReplayActor | null = winners.length === 1
+    ? winners[0] === call[1] ? event.actor : event.actor === "self" ? "opponent" : "self"
+    : null;
+  return {
+    caller: event.actor,
+    choice,
+    winner,
+    result: winner === null ? null : winner === event.actor ? choice : choice === "heads" ? "tails" : "heads",
+  };
+}
+
+export function resolveOpeningTurnChoice(event: ReplayEvent | null) {
+  if (!event || event.turn !== 0) return null;
+  const match = event.sourceTitle.match(/^.+? decided to go (first|second)\.?$/i);
+  if (!match) return null;
+  return { actor: event.actor, order: match[1].toLowerCase() as "first" | "second" };
 }

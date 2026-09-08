@@ -1,9 +1,12 @@
+import { applyReplayConditions } from "@/lib/battle-replay/conditions";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { replayEvents, replayFrames } from "@/lib/battle-replay/prototype";
 import {
   resolveBoardCardPreview,
+  resolveOpeningCoinToss,
+  resolveOpeningTurnChoice,
   resolveTransactionActors,
   resolveTransactionStage,
   shouldShowTransactionEvolutionStack,
@@ -63,6 +66,29 @@ const state: ReplayState = {
 };
 
 test("transaction cards inherit board state only when the stage references an in-play Pokemon", () => {
+  const affected = applyReplayConditions(state, structuredClone(state), {
+    sourceTitle: "OtherPlayer's Solrock is now Poisoned.",
+    sourceDetails: ["OtherPlayer's Solrock is now Burned.", "OtherPlayer's Solrock is now Asleep."],
+  }, "SelfPlayer");
+  assert.deepEqual(affected.opponent.active?.conditions, ["Poisoned", "Burned", "Asleep"]);
+  assert.equal(state.opponent.active?.conditions, undefined);
+  assert.deepEqual(resolveBoardCardPreview(solrock, { kind: "ability", label: "Ability", cards: [solrock] }, "opponent", affected).conditions, ["Poisoned", "Burned", "Asleep"]);
+  const recovered = applyReplayConditions(affected, structuredClone(affected), {
+    sourceTitle: "OtherPlayer's Solrock woke up.", sourceDetails: ["OtherPlayer's Solrock recovered from Burned."],
+  }, "SelfPlayer");
+  assert.deepEqual(recovered.opponent.active?.conditions, ["Poisoned"]);
+  const evolved = structuredClone(affected);
+  evolved.opponent.active!.name = "Evolved Pokémon";
+  applyReplayConditions(affected, evolved, { sourceTitle: "Evolution", sourceDetails: [] }, "SelfPlayer");
+  assert.deepEqual(evolved.opponent.active?.conditions, []);
+  const benched = structuredClone(affected);
+  benched.opponent.bench = [benched.opponent.active!];
+  benched.opponent.active = null;
+  applyReplayConditions(affected, benched, { sourceTitle: "Retreat", sourceDetails: [] }, "SelfPlayer");
+  assert.deepEqual(benched.opponent.bench[0].conditions, []);
+  const wrongOwner = applyReplayConditions(state, structuredClone(state), { sourceTitle: "SelfPlayer's Solrock is now Poisoned.", sourceDetails: [] }, "SelfPlayer");
+  assert.deepEqual(wrongOwner.opponent.active?.conditions, []);
+
   assert.deepEqual(resolveReplayLocation("bex-0815", "92"), {
     pilotId: "bex-0815",
     actionIndex: 92,
@@ -90,8 +116,24 @@ test("transaction cards inherit board state only when the stage references an in
   };
   assert.equal(resolveBoardCardPreview(solrock, moveStage, "self", state).damage, 60);
 
-  const coinFlip = replayEvents[0].transaction;
-  assert.equal(coinFlip?.stages[0].coinFace, "tails");
+  assert.deepEqual(resolveOpeningCoinToss(replayEvents[0]), {
+    caller: "self", choice: "tails", winner: "opponent", result: "heads",
+  });
+  assert.deepEqual(resolveOpeningCoinToss(replayPilots[1].events[0]), {
+    caller: "self", choice: "heads", winner: "self", result: "heads",
+  });
+  assert.equal(resolveOpeningCoinToss(replayEvents[1]), null);
+  assert.deepEqual(resolveOpeningTurnChoice(replayEvents[1]), { actor: "opponent", order: "first" });
+  assert.deepEqual(resolveOpeningTurnChoice(replayPilots[1].events[1]), { actor: "self", order: "first" });
+  assert.deepEqual(resolveOpeningTurnChoice({ ...replayEvents[1], sourceTitle: "Player decided to go second." }), { actor: "opponent", order: "second" });
+  assert.equal(resolveOpeningTurnChoice(replayEvents[0]), null);
+
+  assert.deepEqual(resolveOpeningCoinToss({ ...replayEvents[0], sourceDetails: [] }), {
+    caller: "self", choice: "tails", winner: null, result: null,
+  });
+  assert.deepEqual(resolveOpeningCoinToss({ ...replayEvents[0], actor: "opponent" }), {
+    caller: "opponent", choice: "tails", winner: "self", result: "heads",
+  });
 
   const attachmentEvents = replayEvents.filter((event) => /attached Basic .+ Energy to/.test(event.sourceTitle));
   assert.equal(attachmentEvents.length, 9);
@@ -281,7 +323,7 @@ test("transaction cards inherit board state only when the stage references an in
   const switchStages = replayEvents[46].transaction?.stages;
   assert.deepEqual(switchStages?.map((stage) => stage.label), ["Play", "Out", "In"]);
   assert.deepEqual(switchStages?.slice(1).map((stage) => stage.cards[0].id), ["opp-solrock-a", "opp-solrock-b"]);
-  assert.match(switchStages?.[0].cards[0].imageUrl ?? "", /\/MEG\/MEG_130_R_EN_SM\.png$/);
+  assert.match(switchStages?.[0].cards[0].imageUrl ?? "", /\/MEG\/MEG_130_R_EN_LG\.png$/);
 
   const secondPilot = replayPilots.find((pilot) => pilot.id === "bex-0815");
   assert.ok(secondPilot);
@@ -440,7 +482,7 @@ test("transaction cards inherit board state only when the stage references an in
   assert.equal(secondPilot.frames[92].opponent.discard.length - secondPilot.frames[91].opponent.discard.length, 5);
 
   const lastDitchCatch = secondPilot.events[43];
-  assert.match(lastDitchCatch.transaction?.stages[1].cards[0].imageUrl ?? "", /\/DRI\/DRI_176_R_EN_SM\.png$/);
+  assert.match(lastDitchCatch.transaction?.stages[1].cards[0].imageUrl ?? "", /\/DRI\/DRI_176_R_EN_LG\.png$/);
   assert.equal(lastDitchCatch.transaction?.stages[1].cards[0].name, "Team Rocket's Petrel");
 
   assert.equal(secondPilot.events[44].sourceTitle, "Guintu's Budew used Itchy Pollen on B3xCharz24’s Drakloak for 10 damage.");

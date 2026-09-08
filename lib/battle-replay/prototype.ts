@@ -1,3 +1,4 @@
+import { applyReplayConditions, type ReplayCondition } from "./conditions";
 import { buildDeckListCardImageUrl } from "@/lib/deck-lists/render";
 import {
   formatBattleLogActionTitle,
@@ -27,6 +28,7 @@ export type ReplayCard = {
   hp: number;
   damage: number;
   abilityUsed?: boolean;
+  conditions?: ReplayCondition[];
   energy: string[];
   underlying: ReplayZoneCard[];
   tool?: string;
@@ -55,10 +57,9 @@ export type ReplayState = {
 };
 
 export type ReplayTransactionStage = {
-  kind: "play" | "ability" | "attack" | "before" | "coin" | "damage" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
+  kind: "play" | "ability" | "attack" | "before" | "damage" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
   label: string;
   cards: ReplayZoneCard[];
-  coinFace?: "heads" | "tails";
   hiddenCount?: number;
   detail?: string;
   damageModifier?: {
@@ -105,7 +106,7 @@ export const replaySource = {
 } as const;
 
 const image = (set: string, number: string) =>
-  buildDeckListCardImageUrl(set, number, "SM");
+  buildDeckListCardImageUrl(set, number, "LG");
 const images = {
   munkidori: image("TWM", "95"),
   dreepy: image("TWM", "128"),
@@ -1428,18 +1429,6 @@ const abilityTransaction = (sourceAction: ReplaySourceAction, index: number) => 
   return transaction(sourceAction.actor, abilityName, opening);
 };
 
-const coinFlipTransaction = (sourceAction: ReplaySourceAction) => {
-  const match = sourceAction.sourceTitle.match(/chose (heads|tails) for the opening coin flip/i);
-  if (!match) return undefined;
-  const coinFace = match[1].toLowerCase() as "heads" | "tails";
-  return transaction(sourceAction.actor, "Opening coin flip", {
-    kind: "coin",
-    label: "Result",
-    cards: [],
-    coinFace,
-  });
-};
-
 const energyAttachmentTransaction = (sourceAction: ReplaySourceAction, index: number) => {
   const match = sourceAction.sourceTitle.match(/attached Basic (.+?) Energy to (.+?) (?:in|on) the (Active Spot|Bench)\.$/);
   if (!match) return undefined;
@@ -1971,7 +1960,6 @@ export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction
     ...fallback,
     transaction: sourceTransactions.get(index)
       ?? abilityTransaction(sourceAction, index)
-      ?? coinFlipTransaction(sourceAction)
       ?? energyAttachmentTransaction(sourceAction, index)
       ?? evolutionTransaction(sourceAction, index)
       ?? attackTransaction(sourceAction, index)
@@ -1996,7 +1984,8 @@ export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction
 
 export const replayFrames = replayEvents.reduce<ReplayState[]>(
   (frames, action) => {
-    frames.push(action.apply(frames[frames.length - 1]));
+    const previous = frames[frames.length - 1];
+    frames.push(applyReplayConditions(previous, action.apply(previous), action, "JammerUK1993"));
     return frames;
   },
   [initialReplayState],

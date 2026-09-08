@@ -9,6 +9,7 @@ import {
   PlayIcon,
   RotateCcwIcon,
   TriangleIcon,
+  TrophyIcon,
 } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { AppDialogContent } from "@/components/ui/AppDialog";
@@ -25,7 +26,6 @@ import {
   SheetTitle,
 } from "@/components/shadcn/sheet";
 import {
-  replayEnergyImages,
   type ReplayActor,
   type ReplayCard,
   type ReplayEvent,
@@ -38,6 +38,8 @@ import {
 import { replayPilots } from "@/lib/battle-replay/pilots";
 import {
   resolveBoardCardPreview,
+  resolveOpeningCoinToss,
+  resolveOpeningTurnChoice,
   resolveTransactionActors,
   resolveTransactionStage,
   shouldShowTransactionEvolutionStack,
@@ -46,6 +48,7 @@ import styles from "./battle-replay.module.css";
 
 type PreviewCard = ReplayZoneCard & {
   abilityUsed?: boolean;
+  conditions?: ReplayCard["conditions"];
   damage?: number;
   energy?: string[];
   hp?: number;
@@ -61,17 +64,68 @@ function AbilityUsedMarker({ className }: { className: string }) {
   );
 }
 
+const energySymbolTypes = new Set(["grass", "fire", "water", "lightning", "psychic", "fighting", "darkness", "metal", "fairy", "dragon", "colorless"]);
+
+function EnergyOrbs({ energy, className }: { energy: string[]; className: string }) {
+  return <div aria-label={`${energy.length} Energy attached: ${energy.join(", ")}`} className={`${styles.energyOrbs} ${className}`}>
+    {energy.map((type, index) => <span className={styles.energyOrb} key={`${type}-${index}`} title={`${type} Energy`}>
+      {energySymbolTypes.has(type.toLowerCase()) ? <Image alt="" width={64} height={64} src={`/images/battle-replay/energy/${type.toLowerCase()}.svg`} /> : <span aria-hidden="true">?</span>}
+    </span>)}
+  </div>;
+}
+
+function ConditionMarkers({ conditions }: { conditions?: ReplayCard["conditions"] }) {
+  if (!conditions?.length) return null;
+  return <div className={styles.conditionMarkers}>
+    {conditions.map((condition) => <span key={condition} aria-label={condition} title={condition} className={styles.conditionMarker} data-condition={condition}>
+      {condition === "Asleep" ? <span aria-hidden="true">Zzz</span> : <Image alt="" width={41} height={41} src={`/images/battle-replay/conditions/${condition.toLowerCase()}.png`} />}
+    </span>)}
+  </div>;
+}
+
 function CardFace({
   card,
+  attackName,
+  damageTaken = 0,
+  knockedOut = false,
+  effectKey,
   compact = false,
+  faceDown = false,
   motion,
   onPreview,
 }: {
   card: ReplayCard;
+  attackName?: string;
+  damageTaken?: number;
+  knockedOut?: boolean;
+  effectKey?: string;
   compact?: boolean;
+  faceDown?: boolean;
   motion?: "bench" | "evolve" | "promote" | "retreat";
   onPreview: (card: PreviewCard) => void;
 }) {
+  const stackRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!knockedOut) return;
+    const stack = stackRef.current;
+    const destination = stack?.closest("section")?.querySelector<HTMLElement>('[data-pile-face="Discard"]');
+    if (!stack || !destination) return;
+    const source = stack.getBoundingClientRect();
+    const target = destination.getBoundingClientRect();
+    const x = target.left - source.left;
+    const y = target.top - source.top;
+    const scale = target.width / source.width;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const animation = stack.animate(reducedMotion ? [
+      { opacity: 1 }, { opacity: 0 },
+    ] : [
+      { transform: "translate(0, 0) scale(1)", opacity: 1, offset: 0 },
+      { transform: `translate(${x * 0.3}px, ${y * 0.3 - 30}px) scale(1.05) rotate(-8deg)`, opacity: 1, offset: 0.3 },
+      { transform: `translate(${x}px, ${y}px) scale(${scale}) rotate(0deg)`, opacity: 1, offset: 0.85 },
+      { transform: `translate(${x}px, ${y}px) scale(${scale}) rotate(0deg)`, opacity: 0, offset: 1 },
+    ], { delay: 850, duration: reducedMotion ? 250 : 850, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" });
+    return () => animation.cancel();
+  }, [knockedOut, effectKey]);
   const remainingHp = Math.max(0, card.hp - card.damage);
   const healthPercent = Math.round((remainingHp / card.hp) * 100);
   const healthTone =
@@ -83,56 +137,52 @@ function CardFace({
 
   return (
     <div
+      ref={stackRef}
       className={styles.cardStack}
       data-compact={compact || undefined}
       data-motion={motion}
+      data-knocked-out={knockedOut || undefined}
+      data-face-down={faceDown || undefined}
+      data-has-energy={card.energy.length > 0 || undefined}
     >
-      {card.energy.length > 0 ? (
-        <div
-          aria-label={`${card.energy.length} Energy attached to ${card.name}: ${card.energy.join(", ")}`}
-          className={styles.attachedEnergyStack}
-        >
-          {card.energy.map((energy, index) => (
-            <div
-              className={styles.attachedEnergyCard}
-              key={`${energy}-${index}`}
-              style={{ top: `${8 + index * 18}%` }}
-            >
-              <Image
-                alt=""
-                fill
-                sizes={compact ? "34px" : "54px"}
-                src={replayEnergyImages[energy]}
-              />
-            </div>
-          ))}
-        </div>
-      ) : null}
+      {knockedOut ? <span key={`ko-${effectKey}`} className={styles.knockoutStamp} role="status" aria-label={`${card.name} was Knocked Out`}>KO</span> : null}
+      {attackName ? <div key={`attack-${effectKey}`} className={styles.boardAttack} role="status"><span className={styles.attackPulse} aria-hidden="true" /><strong>{attackName}</strong></div> : null}
+      {damageTaken > 0 ? <span key={`damage-${effectKey}`} className={styles.attackDamage} role="status" aria-label={`${card.name} took ${damageTaken} damage`}>−{damageTaken}</span> : null}
+      <div className={styles.cardSurface}>
       <button
-        aria-label={`Preview ${card.name}${card.abilityUsed ? ", ability used this turn" : ""}`}
+        aria-label={faceDown ? "Face-down Pokémon" : `Preview ${card.name}${card.abilityUsed ? ", ability used this turn" : ""}`}
+        disabled={faceDown}
         className={`${styles.cardFace} ${styles.cardPreviewTrigger}`}
         onClick={() => onPreview(card)}
         type="button"
       >
-        {card.imageUrl ? <Image
-          alt={`${card.name}, format-legal representative card artwork`}
-          fill
-          sizes={compact ? "68px" : "104px"}
-          src={card.imageUrl}
-        /> : <div aria-hidden="true" className={styles.cardBack} />}
-        {card.damage > 0 ? (
-          <span
-            aria-label={`${card.damage} damage`}
-            className={styles.damageBadge}
-          >
-            {card.damage}
+        <span className={styles.cardFlipper}>
+          <span aria-hidden={faceDown} className={styles.cardFront}>
+            {card.imageUrl ? <Image quality={95}
+              alt={`${card.name}, format-legal representative card artwork`}
+              fill
+              sizes={compact ? "80px" : "144px"}
+              src={card.imageUrl}
+            /> : <div aria-hidden="true" className={styles.cardBack} />}
+            {card.damage > 0 ? (
+              <span
+                aria-label={`${card.damage} damage`}
+                className={styles.damageBadge}
+              >
+                {card.damage}
+              </span>
+            ) : null}
+            {card.abilityUsed ? (
+              <AbilityUsedMarker className={styles.boardAbilityUsedMarker} />
+            ) : null}
           </span>
-        ) : null}
-        {card.abilityUsed ? (
-          <AbilityUsedMarker className={styles.boardAbilityUsedMarker} />
-        ) : null}
+          <span aria-hidden="true" className={styles.cardReverse}><span className={styles.cardBack} /></span>
+        </span>
       </button>
-      <div className={styles.healthStatus} data-tone={healthTone}>
+      {!faceDown ? <ConditionMarkers conditions={card.conditions} /> : null}
+      {card.energy.length > 0 && !faceDown ? <EnergyOrbs energy={card.energy} className={styles.boardEnergyOrbs} /> : null}
+      </div>
+      <div aria-hidden={faceDown} className={styles.healthStatus} data-tone={healthTone}>
         <div
           aria-label={`${card.name}: ${remainingHp} of ${card.hp} HP remaining`}
           aria-valuemax={card.hp}
@@ -151,7 +201,7 @@ function CardFace({
 
 function PileFace({ card, hidden }: { card?: ReplayZoneCard; hidden?: boolean }) {
   if (card?.imageUrl) {
-    return <Image alt="" fill sizes="72px" src={card.imageUrl} />;
+    return <Image quality={95} alt="" fill sizes="72px" src={card.imageUrl} />;
   }
 
   if (hidden) return <div aria-hidden="true" className={styles.cardBack} />;
@@ -178,7 +228,7 @@ function Pile({
 }) {
   const pileContents = (
     <>
-      <div className={styles.pileCards} data-empty={count === 0 || undefined} data-new-card={animate || undefined} key={topCard?.id ?? label}>
+      <div className={styles.pileCards} data-pile-face={label} data-empty={count === 0 || undefined} data-new-card={animate || undefined} key={topCard?.id ?? label}>
         <PileFace card={topCard} hidden={label === "Deck" && count > 0} />
       </div>
       <span>{label}</span>
@@ -249,7 +299,7 @@ function HandFan({ actor, onPreview, side }: { actor: ReplayActor; onPreview: (c
             >
               {knownCard?.imageUrl ? (
                 <button aria-label={`Preview ${knownCard.name}`} className={styles.cardPreviewTrigger} onClick={() => onPreview(knownCard)} type="button">
-                  <Image alt={`${knownCard.name}, card in hand`} fill sizes="42px" src={knownCard.imageUrl} />
+                  <Image quality={95} alt={`${knownCard.name}, card in hand`} fill sizes="80px" src={knownCard.imageUrl} />
                 </button>
               ) : (
                 <div aria-hidden="true" className={styles.cardBack} />
@@ -277,10 +327,10 @@ function StadiumSpot({
     <div className={styles.stadiumSpot}>
       <span>Stadium</span>
       <button aria-label={`Preview ${stadium.name}`} className={`${styles.stadium} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ id: "stadium", name: stadium.name, imageUrl: stadium.imageUrl })} type="button">
-        {stadium.imageUrl ? <Image
+        {stadium.imageUrl ? <Image quality={95}
           alt={`${stadium.name}, format-legal representative card artwork`}
           fill
-          sizes="62px"
+          sizes="(max-width: 40rem) 44px, 64px"
           src={stadium.imageUrl}
         /> : <div aria-hidden="true" className={styles.cardBack} />}
         <strong>{stadium.name}</strong>
@@ -292,28 +342,22 @@ function StadiumSpot({
 function TransactionCards({ actor, onPreview, previousState, stage, state }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; previousState: ReplayState; stage: ReplayTransactionStage; state: ReplayState }) {
   const hiddenCardCount = Math.max(0, Math.floor(stage.hiddenCount ?? 0));
   return <div className={styles.transactionCards} data-many={stage.cards.length > 4 || undefined}>
-    {stage.coinFace ? <div aria-label={`Coin flip result: ${stage.coinFace}`} className={styles.replayCoin} data-face={stage.coinFace}>
-      <span>{stage.coinFace}</span>
-    </div> : null}
     {stage.cards.map((card) => {
       const boardCard = resolveBoardCardPreview(card, stage, actor, state, previousState);
       const hasBoardState = boardCard.hp !== undefined;
       return <div className={styles.transactionCardState} data-stateful={hasBoardState || undefined} key={card.id}>
         {shouldShowTransactionEvolutionStack(stage, boardCard) ? <div aria-label={`Evolution stack: ${boardCard.underlying?.map((item) => item.name).join(", ")}`} className={styles.transactionEvolutionStack}>
           {(boardCard.underlying ?? []).map((item) => <span key={item.id}>
-            {item.imageUrl ? <Image alt="" fill sizes="82px" src={item.imageUrl} /> : <div aria-hidden="true" className={styles.cardBack} />}
+            {item.imageUrl ? <Image quality={95} alt="" fill sizes="82px" src={item.imageUrl} /> : <div aria-hidden="true" className={styles.cardBack} />}
           </span>)}
         </div> : null}
         <button aria-label={`Preview ${card.name}${boardCard.abilityUsed ? ", ability used this turn" : ""}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview(boardCard)} type="button">
-          {card.imageUrl ? <Image alt={`${card.name}, format-legal representative card artwork`} fill sizes="112px" src={card.imageUrl} /> : <div aria-hidden="true" className={styles.cardBack} />}
+          {card.imageUrl ? <Image quality={95} alt={`${card.name}, format-legal representative card artwork`} fill sizes="112px" src={card.imageUrl} /> : <div aria-hidden="true" className={styles.cardBack} />}
         </button>
+        <ConditionMarkers conditions={boardCard.conditions} />
         {boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
         {boardCard.abilityUsed ? <AbilityUsedMarker className={styles.transactionAbilityUsedMarker} /> : null}
-        {boardCard.energy?.length ? <div aria-label={`${boardCard.energy.length} Energy attached: ${boardCard.energy.join(", ")}`} className={styles.transactionEnergyStack}>
-          {boardCard.energy.map((energy, index) => replayEnergyImages[energy] ? <span key={`${energy}-${index}`}>
-            <Image alt="" fill sizes="28px" src={replayEnergyImages[energy]} />
-          </span> : null)}
-        </div> : null}
+        {boardCard.energy?.length ? <EnergyOrbs energy={boardCard.energy} className={styles.transactionEnergyOrbs} /> : null}
         {boardCard.tool ? <span className={styles.transactionTool}>Tool · {boardCard.tool}</span> : null}
       </div>;
     })}
@@ -356,8 +400,29 @@ function TransactionOverlay({ onPreview, previousState, state, transaction }: { 
   </section>;
 }
 
+type CoinTossPhase = "call" | "toss" | "result";
+
+function useCoinTossPhase(event: ReplayEvent | null): CoinTossPhase {
+  const [step, setStep] = useState<{ event: ReplayEvent | null; phase: CoinTossPhase }>({ event: null, phase: "call" });
+  useEffect(() => {
+    if (!resolveOpeningCoinToss(event)) {
+      setStep({ event, phase: "call" });
+      return;
+    }
+    setStep({ event, phase: "call" });
+    const toss = window.setTimeout(() => setStep({ event, phase: "toss" }), 900);
+    const result = window.setTimeout(() => setStep({ event, phase: "result" }), 2300);
+    return () => {
+      window.clearTimeout(toss);
+      window.clearTimeout(result);
+    };
+  }, [event]);
+  return step.event === event ? step.phase : "call";
+}
+
 function PlayerBoard({
   actor,
+  coinPhase,
   currentEvent,
   onInspectDiscard,
   onPreview,
@@ -366,6 +431,7 @@ function PlayerBoard({
   stadium,
 }: {
   actor: ReplayActor;
+  coinPhase: CoinTossPhase;
   currentEvent: ReplayEvent | null;
   onInspectDiscard: (actor: ReplayActor) => void;
   onPreview: (card: PreviewCard) => void;
@@ -373,7 +439,20 @@ function PlayerBoard({
   side: ReplaySide;
   stadium: ReplayState["stadium"];
 }) {
+  const coinToss = resolveOpeningCoinToss(currentEvent);
+  const turnChoice = resolveOpeningTurnChoice(currentEvent);
+  const faceDown = !currentEvent || currentEvent.turn === 0;
   const isCurrentActor = currentEvent?.actor === actor;
+  const isKnockout = currentEvent?.label === "KO";
+  const currentCards = [side.active, ...side.bench].filter((card): card is ReplayCard => Boolean(card));
+  const knockedOutIds = new Set(isKnockout
+    ? [previousSide.active, ...previousSide.bench].filter((card): card is ReplayCard => Boolean(card) && !currentCards.some((current) => current.id === card?.id)).map((card) => card.id)
+    : []);
+  // Hold the departing Pokémon in its original slot for this KO action.
+  const displayActive = previousSide.active && knockedOutIds.has(previousSide.active.id) ? previousSide.active : side.active;
+  const displayBench = knockedOutIds.size > 0
+    ? previousSide.bench.map((card) => currentCards.find((current) => current.id === card.id) ?? card)
+    : side.bench;
   const previousActive = side.active
     ? [previousSide.active, ...previousSide.bench].find((card) => card?.id === side.active?.id)
     : undefined;
@@ -384,7 +463,12 @@ function PlayerBoard({
         ? "promote"
         : undefined
     : undefined;
-  const benchCapacity = Math.min(8, Math.max(5, side.bench.length));
+  const isAttack = currentEvent?.label === "Attack";
+  const attackName = isAttack && isCurrentActor
+    ? currentEvent.transaction?.stages.find((stage) => stage.kind === "attack")?.label ?? "Attack"
+    : undefined;
+  const damageTaken = (card: ReplayCard, previous?: ReplayCard | null) => isAttack && previous ? Math.max(0, card.damage - previous.damage) : 0;
+  const benchCapacity = Math.min(8, Math.max(5, displayBench.length));
 
   return (
     <section className={styles.playerBoard} data-actor={actor}>
@@ -397,28 +481,39 @@ function PlayerBoard({
       </header>
 
       <div className={styles.playArea}>
+          {coinToss ? <div className={styles.coinCall} data-caller={coinToss.caller === actor || undefined} data-phase={coinPhase} data-winner={coinPhase === "result" && coinToss.winner === actor || undefined}>
+            <span className={styles.coinCaller}>{coinToss.caller === actor
+              ? `${actor === "self" ? "You" : "Opponent"} called`
+              : actor === "self" ? "Your side" : "Opponent’s side"}</span>
+            <span aria-hidden="true" className={styles.coinOption} data-side={coinToss.caller === actor ? coinToss.choice : coinToss.choice === "heads" ? "tails" : "heads"} />
+            <strong>{coinToss.caller === actor ? coinToss.choice : coinToss.choice === "heads" ? "tails" : "heads"}</strong>
+            <span aria-hidden={coinPhase !== "result" || coinToss.winner !== actor} className={styles.coinWinner}><TrophyIcon aria-hidden="true" /> Won the toss</span>
+          </div> : null}
+          {turnChoice ? <div className={`${styles.coinCall} ${styles.turnChoice}`} data-chooser={turnChoice.actor === actor || undefined}>
+            <span className={styles.coinCaller}>{turnChoice.actor === actor ? `${actor === "self" ? "You" : "Opponent"} chose to go` : actor === "self" ? "You play" : "Opponent plays"}</span>
+            <strong>{turnChoice.actor === actor ? turnChoice.order : turnChoice.order === "first" ? "second" : "first"}</strong>
+          </div> : null}
         <PrizeTrack remaining={side.prizesRemaining} />
 
         <div className={styles.field}>
+
           <div className={styles.activeRow}>
             <div
               aria-label={`${side.name} Active Spot`}
               className={styles.active}
-              data-populated={side.active ? true : undefined}
+              data-populated={displayActive ? true : undefined}
             >
-              <span className={styles.zoneLabel}>Active</span>
-              {side.active ? (
-                <CardFace card={side.active} motion={activeMotion} onPreview={onPreview} />
+              {displayActive ? (
+                <CardFace attackName={attackName} damageTaken={damageTaken(displayActive, previousActive)} knockedOut={knockedOutIds.has(displayActive.id)} effectKey={currentEvent?.sourceTitle} card={displayActive} faceDown={faceDown} motion={activeMotion} onPreview={onPreview} />
               ) : (
-                <span className={styles.emptyZone}>Active</span>
+                <span aria-hidden="true" className={styles.emptyZone} />
               )}
             </div>
             <StadiumSpot actor={actor} onPreview={onPreview} stadium={stadium} />
           </div>
           <div className={styles.bench} aria-label={`${side.name} Bench`} data-capacity={benchCapacity}>
-            <span className={styles.zoneLabel}>Bench</span>
             {Array.from({ length: benchCapacity }).map((_, index) => {
-              const benchCard = side.bench[index];
+              const benchCard = displayBench[index];
               const previousCard = benchCard
                 ? [previousSide.active, ...previousSide.bench].find((card) => card?.id === benchCard.id)
                 : undefined;
@@ -434,7 +529,7 @@ function PlayerBoard({
                 key={index}
               >
                 {benchCard ? (
-                  <CardFace card={benchCard} compact motion={motion} onPreview={onPreview} />
+                  <CardFace knockedOut={knockedOutIds.has(benchCard.id)} damageTaken={damageTaken(benchCard, previousCard)} effectKey={currentEvent?.sourceTitle} card={benchCard} compact faceDown={faceDown} motion={motion} onPreview={onPreview} />
                 ) : null}
               </div>
             );})}
@@ -481,7 +576,9 @@ export function BattleReplayPrototype({
   const state = replayFrames[actionIndex];
   const previousState = replayFrames[Math.max(0, actionIndex - 1)];
   const currentEvent = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
-  const autoplayDelay = currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
+  const coinToss = resolveOpeningCoinToss(currentEvent);
+  const coinPhase = useCoinTossPhase(currentEvent);
+  const autoplayDelay = currentEvent?.label === "KO" ? 2000 : currentEvent?.label === "Attack" ? 2400 : coinToss ? 4400 : resolveOpeningTurnChoice(currentEvent) ? 2400 : currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
   const maxIndex = replayFrames.length - 1;
   const previewHealthPercent = previewedCard?.hp
     ? Math.max(0, ((previewedCard.hp - (previewedCard.damage ?? 0)) / previewedCard.hp) * 100)
@@ -637,12 +734,30 @@ export function BattleReplayPrototype({
       </div>
 
       <div className={styles.replayStage} ref={stageRef}>
-        <div className={styles.boardFrame} data-transaction={currentEvent?.transaction ? true : undefined}>
+        <div className={styles.boardFrame} data-transaction={currentEvent?.transaction && currentEvent.label !== "Attack" && currentEvent.label !== "KO" ? true : undefined}>
           <div className={styles.board}>
-            <PlayerBoard actor="opponent" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
-            <PlayerBoard actor="self" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
+            <PlayerBoard coinPhase={coinPhase} actor="opponent" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
+            {currentEvent?.label === "Attack" ? <div aria-hidden="true" className={styles.attackAnnouncementAnchor}>
+              <div key={`${pilotId}-${actionIndex}`} className={styles.attackAnnouncement}>
+                <span>{currentEvent.actor === "self" ? "Your attack" : "Opponent’s attack"}</span>
+                <strong>{currentEvent.transaction?.stages.find((stage) => stage.kind === "attack")?.label ?? "Attack"}</strong>
+              </div>
+            </div> : null}
+            {coinToss ? <div className={styles.boardCoinToss} role="status" aria-label={coinPhase === "call"
+              ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}`
+              : coinPhase === "toss" ? "Tossing the coin"
+                : coinToss.winner ? `${coinToss.result}. ${coinToss.winner === "self" ? "You won" : "Opponent won"} the toss.` : "Result not recorded."}>
+              {coinPhase !== "call" ? <div aria-hidden="true" className={styles.replayCoin} data-phase={coinPhase}>
+                <div className={styles.coinRotor} data-result={coinToss.result}>
+                  <span className={styles.coinMetalFace} data-side="heads" />
+                  <span className={styles.coinMetalFace} data-side="tails" />
+                </div>
+                {coinPhase === "result" && !coinToss.result ? <span>Unknown</span> : null}
+              </div> : null}
+            </div> : null}
+            <PlayerBoard coinPhase={coinPhase} actor="self" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
           </div>
-          {currentEvent?.transaction ? <TransactionOverlay onPreview={previewCard} previousState={previousState} state={state} transaction={currentEvent.transaction} /> : null}
+          {currentEvent?.transaction && currentEvent.label !== "Attack" && currentEvent.label !== "KO" ? <TransactionOverlay onPreview={previewCard} previousState={previousState} state={state} transaction={currentEvent.transaction} /> : null}
         </div>
 
         <div className={styles.currentAction} aria-live="polite">
@@ -654,7 +769,9 @@ export function BattleReplayPrototype({
               : "Before setup"}
           </span>
           <strong>
-            {currentEvent?.summary ?? "Ready to replay the imported battle."}
+            {coinToss && coinPhase !== "result"
+              ? coinPhase === "call" ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}` : "Tossing the coin…"
+              : currentEvent?.summary ?? "Ready to replay the imported battle."}
           </strong>
         </div>
 
@@ -742,15 +859,7 @@ export function BattleReplayPrototype({
           </div>
         </div>
 
-        <p className={styles.artNote}>
-          Actions and outcome come from saved Battle Log{" "}
-          {replaySource.logId.slice(0, 8)}…. Player names are anonymised. Card
-          candidates are restricted to prints legal in {replaySource.format};
-          where the log cannot prove an exact printing, a legal representative
-          is shown. Deck, hand and discard totals are reconstructed from the
-          logged draws, searches, shuffles and card movements.
-          {activePilot.id === "bex-0815" ? " This second pilot is compiled from generic source-action grammar rather than a position-indexed event map." : ""}
-        </p>
+
 
         <Sheet
           onOpenChange={(open) => {
@@ -777,7 +886,7 @@ export function BattleReplayPrototype({
                 <li key={discardedCard.id}>
                   <button aria-label={`Preview ${discardedCard.name}`} className={`${styles.discardCardImage} ${styles.cardPreviewTrigger}`} onClick={() => previewCard(discardedCard)} type="button">
                     {discardedCard.imageUrl ? (
-                      <Image
+                      <Image quality={95}
                         alt={`${discardedCard.name}, format-legal representative card artwork`}
                         fill
                         sizes="(max-width: 44rem) 76px, 88px"
@@ -803,16 +912,13 @@ export function BattleReplayPrototype({
             <DialogDescription className="sr-only">Enlarged card preview</DialogDescription>
             {previewedCard ? <div className={styles.cardPreviewStage}>
               <div className={styles.cardPreviewImage}>
-                {previewedCard.imageUrl ? <Image alt={`${previewedCard.name}, enlarged card preview`} fill sizes="340px" src={previewedCard.imageUrl} /> : <div aria-hidden="true" className={styles.cardBack} />}
+                {previewedCard.imageUrl ? <Image quality={95} alt={`${previewedCard.name}, enlarged card preview`} fill sizes="340px" src={previewedCard.imageUrl} /> : <div aria-hidden="true" className={styles.cardBack} />}
+                <ConditionMarkers conditions={previewedCard.conditions} />
                 {previewedCard.damage ? <span aria-label={`${previewedCard.damage} damage`} className={styles.cardPreviewDamage}>{previewedCard.damage}</span> : null}
                 {previewedCard.abilityUsed ? <AbilityUsedMarker className={styles.previewAbilityUsedMarker} /> : null}
                 {previewedCard.tool ? <span className={styles.cardPreviewTool}>Tool · {previewedCard.tool}</span> : null}
+                {previewedCard.energy?.length ? <EnergyOrbs energy={previewedCard.energy} className={styles.previewEnergyOrbs} /> : null}
               </div>
-              {previewedCard.energy?.length ? <div aria-label={`${previewedCard.energy.length} Energy attached: ${previewedCard.energy.join(", ")}`} className={styles.cardPreviewEnergy}>
-                {previewedCard.energy.map((energy, index) => replayEnergyImages[energy] ? <span key={`${energy}-${index}`}>
-                  <Image alt="" fill sizes="58px" src={replayEnergyImages[energy]} />
-                </span> : null)}
-              </div> : null}
               {previewedCard.hp ? <div className={styles.cardPreviewHealth} data-tone={previewHealthTone}>
                 <div aria-label={`${Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} of ${previewedCard.hp} HP remaining`} aria-valuemax={previewedCard.hp} aria-valuemin={0} aria-valuenow={Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} role="progressbar">
                   <span style={{ width: `${Math.max(0, ((previewedCard.hp - (previewedCard.damage ?? 0)) / previewedCard.hp) * 100)}%` }} />

@@ -257,7 +257,7 @@
 
 .playerBoard {
   --replay-player-tint: var(--color-loss);
-  --replay-pile-card-width: 3.4rem;
+  --replay-pile-card-width: 4.4rem;
   display: grid;
   grid-template-areas:
     "header"
@@ -360,9 +360,9 @@
 .playArea {
   display: grid;
   grid-area: play;
-  min-height: 16rem;
+  min-height: 24rem;
   grid-template-areas: "prizes field piles";
-  grid-template-columns: calc(var(--replay-pile-card-width) + var(--replay-pile-card-width) + 0.3rem) minmax(0, 1fr) 4rem;
+  grid-template-columns: calc(var(--replay-pile-card-width) + var(--replay-pile-card-width) + 0.3rem) minmax(0, 1fr) 5rem;
   align-items: center;
   gap: 0.75rem;
 }
@@ -469,7 +469,7 @@ button.pile:disabled {
   grid-template-areas:
     "active"
     "bench";
-  grid-template-rows: 8.5rem 5.5rem;
+  grid-template-rows: 12rem 8rem;
   align-items: center;
   gap: 1.25rem;
 }
@@ -477,7 +477,7 @@ button.pile:disabled {
 .activeRow {
   display: grid;
   grid-area: active;
-  grid-template-columns: 3.8rem 6.2rem 3.8rem;
+  grid-template-columns: 4rem 8.5rem 4rem;
   align-items: center;
   justify-content: center;
   column-gap: 0.35rem;
@@ -526,10 +526,10 @@ button.pile:disabled {
   position: relative;
   display: grid;
   min-width: 0;
-  height: 5.5rem;
+  height: 8rem;
   grid-area: bench;
-  width: min(100%, 19.5rem);
-  grid-template-columns: repeat(5, minmax(0, 3.2rem));
+  width: min(100%, 26rem);
+  grid-template-columns: repeat(5, minmax(0, 4.2rem));
   align-items: center;
   justify-self: center;
   justify-content: center;
@@ -543,8 +543,8 @@ button.pile:disabled {
 .active {
   position: relative;
   display: flex;
-  width: 6.2rem;
-  min-height: 8.25rem;
+  width: 8.5rem;
+  min-height: 12rem;
   grid-column: 2;
   grid-row: 1;
   align-items: center;
@@ -558,7 +558,7 @@ button.pile:disabled {
 .benchSlot {
   display: flex;
   width: 100%;
-  max-width: 3.2rem;
+  max-width: 4.2rem;
   aspect-ratio: 0.714;
   align-items: center;
   justify-self: center;
@@ -596,7 +596,7 @@ button.pile:disabled {
   grid-template-areas:
     "bench"
     "active";
-  grid-template-rows: 5.5rem 8.5rem;
+  grid-template-rows: 8rem 12rem;
 }
 
 .emptyZone {
@@ -609,12 +609,12 @@ button.pile:disabled {
 
 .cardStack {
   position: relative;
-  width: 5.25rem;
+  width: 7.5rem;
   isolation: isolate;
 }
 
 .cardStack[data-compact] {
-  width: 3.2rem;
+  width: min(100%, 4.2rem);
 }
 
 .cardFace {
@@ -626,6 +626,38 @@ button.pile:disabled {
   box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 20%, transparent);
   transition: transform 180ms ease-out;
 }
+
+/* Keep both faces mounted so seeking across setup reverses the same flip. */
+.cardFlipper {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-style: preserve-3d;
+  transform: perspective(700px) rotateY(0deg);
+  transition: transform 680ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.cardFront,
+.cardReverse {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: inherit;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.cardReverse {
+  overflow: hidden;
+  border-radius: 0.42rem;
+  transform: rotateY(180deg);
+}
+
+.cardReverse .cardBack { display: block; }
+.cardStack[data-face-down] .cardFlipper { transform: perspective(700px) rotateY(180deg); }
+.cardStack[data-face-down] .healthStatus { visibility: hidden; }
+.cardStack[data-face-down] .cardPreviewTrigger { cursor: default; }
+.cardStack[data-face-down] .cardPreviewTrigger:hover { transform: none; }
 
 .cardPreviewTrigger {
   padding: 0;
@@ -660,27 +692,8 @@ button.pile:disabled {
 .cardStack[data-motion="retreat"],
 .cardStack[data-motion="bench"] { animation: bench-arrival 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-.attachedEnergyStack {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  pointer-events: none;
-}
 
-.attachedEnergyCard {
-  position: absolute;
-  right: -0.8rem;
-  width: 52%;
-  overflow: hidden;
-  aspect-ratio: 0.714;
-  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
-  border-radius: 0.3rem;
-  box-shadow: 0 0.22rem 0.55rem color-mix(in oklab, var(--foreground) 22%, transparent);
-}
 
-.attachedEnergyCard img {
-  object-fit: cover;
-}
 
 .healthStatus {
   position: relative;
@@ -752,6 +765,21 @@ button.pile:disabled {
   background: var(--color-loss);
 }
 
+.cardStack:not([data-compact]) .damageBadge {
+  top: 0;
+  min-width: 2.2rem;
+  min-height: 2.2rem;
+  right: -0.7rem;
+  border-width: 3px;
+  font-size: 0.85rem;
+}
+
+.cardStack:not([data-compact]) .boardAbilityUsedMarker {
+  width: 2rem;
+  right: -0.8rem;
+  top: 46%;
+}
+
 .boardAbilityUsedMarker,
 .transactionAbilityUsedMarker,
 .previewAbilityUsedMarker {
@@ -805,7 +833,7 @@ button.pile:disabled {
 
 .stadium {
   position: relative;
-  width: 2.75rem;
+  width: 4rem;
   aspect-ratio: 0.714;
 }
 
@@ -821,7 +849,7 @@ button.pile:disabled {
 
 .handArea {
   display: grid;
-  min-height: 4.5rem;
+  min-height: 8rem;
   grid-area: hand;
   justify-items: center;
   gap: 0.25rem;
@@ -832,6 +860,10 @@ button.pile:disabled {
   display: flex;
   align-items: baseline;
   gap: 0.3rem;
+}
+
+.playerBoard[data-actor="opponent"] .handLabel {
+  grid-row: 2;
 }
 
 .handLabel strong {
@@ -849,7 +881,7 @@ button.pile:disabled {
 
 .handCard {
   position: relative;
-  width: 2.6rem;
+  width: 4.5rem;
   aspect-ratio: 0.714;
   flex: 0 0 auto;
   overflow: hidden;
@@ -859,7 +891,7 @@ button.pile:disabled {
 }
 
 .handCard + .handCard {
-  margin-left: -0.6rem;
+  margin-left: -1.1rem;
 }
 
 .handCard img {
@@ -1007,10 +1039,6 @@ button.pile:disabled {
 }
 .cardPreviewTool { border-radius: 999px; }
 .cardPreviewTool { right: 0.75rem; bottom: 0.75rem; max-width: calc(100% - 1.5rem); padding: 0.42rem 0.58rem; overflow: hidden; background: color-mix(in oklab, black 78%, transparent); text-overflow: ellipsis; white-space: nowrap; }
-.cardPreviewEnergy { z-index: 1; display: flex; justify-content: center; min-height: 4.7rem; margin-top: -3.75rem; padding-inline: 1rem; }
-.cardPreviewEnergy > span { position: relative; width: 3.3rem; aspect-ratio: 0.714; transform: rotate(-4deg); filter: drop-shadow(0 0.35rem 0.35rem color-mix(in oklab, black 32%, transparent)); }
-.cardPreviewEnergy > span + span { margin-left: -1.15rem; transform: rotate(4deg); }
-.cardPreviewEnergy img { border-radius: 0.25rem; object-fit: cover; }
 .cardPreviewHealth { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.7rem; color: white; font-size: 0.72rem; text-shadow: 0 1px 0.35rem black; }
 .cardPreviewHealth > div { height: 0.46rem; overflow: hidden; border-radius: 999px; background: color-mix(in oklab, white 22%, transparent); }
 .cardPreviewHealth span { display: block; height: 100%; border-radius: inherit; background: var(--color-win); }
@@ -1179,31 +1207,45 @@ button.pile:disabled {
 .transactionParticipants[data-multiple] .transactionCards > .transactionCardState + .transactionCardState { margin-left: -3.65rem; }
 .replayCoin {
   position: relative;
-  display: grid;
-  width: clamp(4.5rem, 8vw, 6rem);
+  width: clamp(5.5rem, 9vw, 7rem);
   aspect-ratio: 1;
-  place-items: center;
-  border: 0.3rem solid color-mix(in oklab, var(--color-warning) 68%, black);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 28%, color-mix(in oklab, white 48%, transparent), transparent 28%), var(--color-warning);
-  color: color-mix(in oklab, var(--color-warning) 18%, black);
-  box-shadow: 0 0.7rem 1.25rem color-mix(in oklab, black 38%, transparent), inset 0 0 0 0.2rem color-mix(in oklab, white 30%, transparent);
-  font-size: 0.75rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  animation: coin-result 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  perspective: 800px;
+  filter: drop-shadow(0 0.6rem 0.6rem color-mix(in oklab, black 45%, transparent));
 }
-.replayCoin::before {
+.coinRotor {
   position: absolute;
-  width: 46%;
-  aspect-ratio: 1;
-  border: 0.18rem solid currentColor;
-  border-radius: 50%;
-  content: "";
-  opacity: 0.22;
+  inset: 0;
+  transform-style: preserve-3d;
 }
-.replayCoin span { position: absolute; bottom: 0.7rem; }
+.coinRotor[data-result="tails"] { transform: rotateY(180deg); }
+.coinMetalFace, .coinOption {
+  display: block;
+  border-radius: 50%;
+  /* Source: https://archives.bulbagarden.net/wiki/File:TCGP_Coin_Pikachu.png */
+  background-image: url("/images/battle-replay/coin-pikachu.png");
+  background-size: 138%;
+  background-position: center;
+}
+.coinMetalFace {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0.14rem);
+}
+.coinMetalFace[data-side="tails"] {
+  transform: rotateY(180deg) translateZ(0.14rem);
+}
+.coinOption {
+  width: 2.8rem;
+  aspect-ratio: 1;
+  margin-block: 0.2rem;
+}
+.coinMetalFace[data-side="tails"], .coinOption[data-side="tails"] {
+  /* Source: https://archives.bulbagarden.net/wiki/File:Coin_Back_Metal_Pikachu.png */
+  background-image: url("/images/battle-replay/coin-pokemon-back.png");
+  background-size: cover;
+}
 .transactionCardState {
   position: relative;
   width: clamp(5rem, 8vw, 6.5rem);
@@ -1274,26 +1316,6 @@ button.pile:disabled {
   text-transform: uppercase;
 }
 .transactionWeaknessBreakdown strong { color: white; font-size: 0.6875rem; font-weight: 800; line-height: 1; }
-.transactionEnergyStack {
-  position: absolute;
-  z-index: 3;
-  bottom: -0.72rem;
-  left: -0.35rem;
-  display: flex;
-  align-items: end;
-}
-.transactionEnergyStack > span {
-  position: relative;
-  width: 1.45rem;
-  overflow: hidden;
-  aspect-ratio: 0.714;
-  border: 1px solid color-mix(in oklab, white 65%, transparent);
-  border-radius: 0.18rem;
-  box-shadow: 0 0.18rem 0.35rem color-mix(in oklab, black 42%, transparent);
-  transform: rotate(-7deg);
-}
-.transactionEnergyStack > span + span { margin-left: -0.72rem; transform: rotate(5deg); }
-.transactionEnergyStack img,
 .transactionEvolutionStack img { object-fit: cover; }
 .transactionEvolutionStack { position: absolute; z-index: 0; inset: 0; }
 .transactionEvolutionStack > span {
@@ -1444,9 +1466,6 @@ button.pile:disabled {
     width: 2.55rem;
   }
 
-  .cardStack[data-compact] .attachedEnergyCard {
-    right: -0.6rem;
-  }
 
   .healthStatus strong {
     font-size: 0.44rem;
@@ -1469,7 +1488,7 @@ button.pile:disabled {
   }
 
   .stadium {
-    width: 2.25rem;
+    width: 2.75rem;
   }
 
   .transactionOverlay { gap: 0.4rem; padding: 0.65rem 0.4rem; }
@@ -1523,6 +1542,7 @@ button.pile:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .cardFlipper { transition: none; }
   .cardFace,
   .healthTrack span,
   .pileCards,
@@ -1542,3 +1562,424 @@ button.pile:disabled {
     animation: none;
   }
 }
+
+
+.boardCoinToss {
+  position: relative;
+  z-index: 25;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.boardCoinToss > * {
+  position: absolute;
+  translate: 0 -50%;
+}
+
+.playArea:has(.coinCall) { position: relative; }
+.playArea:has(.coinCall) .field { visibility: hidden; }
+.coinCall {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  pointer-events: none;
+  text-align: center;
+}
+.coinCaller {
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+}
+.coinCall strong {
+  color: var(--foreground);
+  font-size: clamp(1.5rem, 2.5vw, 2.1rem);
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  text-transform: capitalize;
+}
+.coinCall[data-winner] strong { color: var(--color-warning); }
+.coinWinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  color: var(--color-warning);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.coinWinner svg { width: 0.95rem; height: 0.95rem; }
+
+
+/* The call, landing and winner share a stable layout throughout the sequence. */
+.coinCall {
+  transition: opacity 450ms ease-out, transform 550ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.coinCall {
+  animation: coin-call-enter 550ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.coinCall[data-caller][data-phase="toss"] { opacity: 0.55; transform: scale(0.96); }
+.coinCall[data-phase="call"]:not([data-caller]) { opacity: 0.65; }
+.coinCall[data-caller] .coinCaller { color: var(--foreground); font-weight: 700; }
+.coinCall[data-caller] .coinCaller::before {
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+.coinCall[data-phase="result"]:not([data-winner]) { opacity: 0.45; }
+.coinCall[data-winner] { transform: scale(1.1); }
+.coinCall[data-winner] .coinWinner { font-size: 0.95rem; }
+.turnChoice[data-chooser] strong { color: var(--color-warning); }
+.turnChoice:not([data-chooser]) { opacity: 0.65; }
+.coinCall strong { transition: color 500ms ease-out; }
+.coinWinner {
+  min-height: 1.2rem;
+  opacity: 0;
+  transform: translateY(0.45rem);
+  transition: opacity 450ms ease-out 150ms, transform 550ms cubic-bezier(0.16, 1, 0.3, 1) 150ms;
+}
+.coinCall[data-winner] .coinWinner { opacity: 1; transform: translateY(0); }
+.boardCoinToss .replayCoin[data-phase="result"] > span {
+  animation: coin-result-label 350ms ease-out both;
+}
+@keyframes coin-call-enter {
+  from { opacity: 0; transform: translateY(0.65rem) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes coin-result-label {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.boardCoinToss .replayCoin { animation: none; }
+.boardCoinToss .replayCoin[data-phase="toss"] {
+  animation: board-coin-toss 1400ms cubic-bezier(0.2, 0.65, 0.4, 1) both;
+}
+@keyframes board-coin-toss {
+  0% { opacity: 0; transform: translateY(0.7rem) scale(0.8); }
+  15% { opacity: 1; }
+  45% { transform: translateY(-1.5rem) scale(1.1); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boardCoinToss .replayCoin[data-phase="toss"],
+  .coinCall,
+  .boardCoinToss .replayCoin[data-phase="result"] > span { animation: none; }
+  .coinCall, .coinWinner { transition: opacity 150ms ease-out; transform: none; }
+  .coinCall[data-caller][data-phase="toss"],
+  .coinCall:not([data-caller]),
+  .coinCall[data-winner] { transform: none; }
+}
+
+
+/* Rotate the two-sided rotor inside the shadowed shell, not its flattened image. */
+.replayCoin[data-phase="toss"] .coinRotor {
+  animation: coin-spin-heads 1400ms cubic-bezier(0.2, 0.65, 0.4, 1) both;
+}
+.replayCoin[data-phase="toss"] .coinRotor[data-result="tails"] {
+  animation-name: coin-spin-tails;
+}
+@keyframes coin-spin-heads {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(1800deg); }
+}
+@keyframes coin-spin-tails {
+  from { transform: rotateY(180deg); }
+  to { transform: rotateY(1980deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .replayCoin[data-phase="toss"] .coinRotor { animation: none; }
+}
+
+
+/* Keep enlarged hands bounded when a log records a large draw. */
+.handArea { min-width: 0; }
+.handCards { max-width: 100%; overflow-x: auto; justify-content: safe center; padding-block: 0.35rem; }
+
+@media (max-width: 40rem) {
+  .playerBoard { --replay-pile-card-width: 3.2rem; }
+  .playArea {
+    min-height: 24rem;
+    grid-template-areas: "prizes field piles" "bench bench bench";
+    grid-template-columns: 6.6rem minmax(0, 1fr) 3.8rem;
+    row-gap: 1.3rem;
+    padding-block: 0.75rem;
+  }
+  .playerBoard[data-actor="opponent"] .playArea {
+    grid-template-areas: "bench bench bench" "prizes field piles";
+  }
+  .field { display: contents; }
+  .activeRow { grid-area: field; grid-template-columns: minmax(0, 1fr) 5.8rem minmax(0, 1fr); }
+  .active { width: 5.8rem; min-height: 8.8rem; }
+  .cardStack { width: 5.5rem; }
+  .cardStack[data-compact] { width: min(100%, 3.4rem); }
+  .bench { width: 100%; height: 6rem; grid-template-columns: repeat(5, minmax(0, 3.4rem)); gap: 0.4rem; }
+  .benchSlot { max-width: 3.4rem; }
+  .handArea { min-height: 6.5rem; }
+  .handCard { width: 3.4rem; }
+  .handCard + .handCard { margin-left: -1rem; }
+}
+
+
+/* Attack feedback stays anchored to the Pokémon involved. */
+.boardAttack {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.boardAttack strong {
+  position: absolute;
+  bottom: calc(100% + 0.6rem);
+  left: 50%;
+  width: max-content;
+  max-width: 12rem;
+  transform: translateX(-50%);
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  color: var(--card-foreground);
+  font-size: 0.75rem;
+  text-align: center;
+  animation: attack-label-in 220ms ease-out both;
+}
+.attackPulse {
+  position: absolute;
+  inset: -0.3rem -0.3rem 1.4rem;
+  border: 2px solid var(--primary);
+  border-radius: 0.5rem;
+  animation: attack-pulse 700ms ease-out 2;
+}
+.attackDamage {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  z-index: 20;
+  pointer-events: none;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.5rem;
+  background: var(--color-loss);
+  color: white;
+  font-size: 1.4rem;
+  font-weight: 800;
+  transform: translate(-50%, -50%);
+  animation: attack-damage-in 420ms 180ms ease-out both;
+}
+.cardStack[data-compact] .attackDamage { font-size: 1rem; }
+@keyframes attack-label-in {
+  from { opacity: 0; translate: 0 0.3rem; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes attack-pulse {
+  0% { opacity: 0.5; scale: 0.98; }
+  40% { opacity: 1; scale: 1.04; }
+  100% { opacity: 0.7; scale: 1; }
+}
+@keyframes attack-damage-in {
+  from { opacity: 0; translate: 0 0.6rem; scale: 0.85; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boardAttack strong, .attackPulse, .attackDamage { animation: none; }
+}
+
+
+.attackAnnouncementAnchor {
+  position: relative;
+  height: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+.attackAnnouncement {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 1rem 1.5rem;
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, transparent, var(--card) 18%, var(--card) 82%, transparent);
+  color: var(--card-foreground);
+  text-align: center;
+  animation: attack-announcement 1800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.attackAnnouncement span {
+  color: var(--muted-foreground);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.attackAnnouncement strong {
+  font-size: clamp(1.7rem, 4vw, 3.6rem);
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+@keyframes attack-announcement {
+  0% { opacity: 0; translate: -12% 0; scale: 0.88; }
+  18%, 72% { opacity: 1; translate: 0 0; scale: 1; }
+  100% { opacity: 0; translate: 8% 0; scale: 1.03; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .attackAnnouncement { animation-name: attack-announcement-fade; }
+}
+@keyframes attack-announcement-fade {
+  0%, 100% { opacity: 0; }
+  15%, 75% { opacity: 1; }
+}
+
+
+.knockoutStamp {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  z-index: 35;
+  pointer-events: none;
+  padding: 0.1rem 0.55rem;
+  border: 3px solid currentColor;
+  border-radius: 0.35rem;
+  background: var(--color-loss);
+  color: white;
+  font-size: 2.7rem;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1.1;
+  letter-spacing: -0.06em;
+  transform: translate(-50%, -50%) rotate(-10deg);
+  animation: knockout-stamp 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.cardStack[data-compact] .knockoutStamp {
+  font-size: 1.6rem;
+  border-width: 2px;
+  padding-inline: 0.3rem;
+}
+.cardStack[data-knocked-out] .cardFace {
+  filter: grayscale(0.75) brightness(0.6);
+  transition: filter 500ms ease-out;
+}
+@keyframes knockout-stamp {
+  0% { opacity: 0; scale: 1.8; }
+  40% { opacity: 1; scale: 0.9; }
+  65% { scale: 1.08; }
+  100% { opacity: 1; scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .knockoutStamp { animation: none; }
+  .cardStack[data-knocked-out] .cardFace { transition: none; }
+}
+
+
+.cardStack[data-knocked-out] {
+  z-index: 45;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.cardStack[data-knocked-out] .healthStatus {
+  opacity: 0;
+}
+.playerBoard:has([data-knocked-out]) [data-pile-face="Discard"] {
+  animation: knockout-discard-arrival 400ms 1450ms ease-out both;
+}
+@keyframes knockout-discard-arrival {
+  0%, 100% { scale: 1; }
+  40% { scale: 1.12; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .playerBoard:has([data-knocked-out]) [data-pile-face="Discard"] { animation: none; }
+}
+
+
+.energyOrbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.12rem;
+  pointer-events: none;
+}
+.energyOrb {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  width: var(--energy-orb-size, 2rem);
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0.12rem 0.3rem color-mix(in oklab, black 53%, transparent);
+  animation: energy-orb-arrive 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.energyOrb img { width: 100%; height: 100%; }
+.energyOrb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 30% 18%, color-mix(in oklab, white 67%, transparent), transparent 45%);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, white 33%, transparent), inset -0.15rem -0.25rem 0.3rem color-mix(in oklab, black 33%, transparent);
+}
+.boardEnergyOrbs {
+  --energy-orb-size: 1.5rem;
+  position: absolute;
+  z-index: 16;
+  bottom: 0;
+  transform: translateY(50%);
+  left: -0.3rem;
+  width: calc(100% + 0.6rem);
+}
+.cardStack[data-has-energy] .healthStatus { margin-top: 1rem; }
+.cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.9rem; bottom: 0; left: 0.1rem; }
+.cardStack[data-compact][data-has-energy] .healthStatus { margin-top: 0.65rem; }
+.transactionEnergyOrbs { position: absolute; z-index: 16; bottom: 0; transform: translateY(50%); left: -0.25rem; max-width: calc(100% + 0.5rem); --energy-orb-size: 1.4rem; }
+.previewEnergyOrbs { position: absolute; bottom: 0; left: 0; width: 100%; transform: translateY(50%); z-index: 16; --energy-orb-size: 2.75rem; }
+@keyframes energy-orb-arrive {
+  from { opacity: 0; scale: 0.4; translate: 0 0.4rem; }
+  to { opacity: 1; scale: 1; translate: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) { .energyOrb { animation: none; } }
+
+.cardSurface { position: relative; width: 100%; }
+.cardSurface > button, .transactionCardState > button { display: block; }
+.cardPreviewImage:has(.previewEnergyOrbs) { margin-bottom: 1.5rem; }
+
+/* Scale the card and attached orbs together. */
+.cardSurface {
+  transition: transform 180ms ease-out;
+}
+.cardSurface:has(> .cardPreviewTrigger:hover),
+.cardSurface:has(> .cardPreviewTrigger:focus-visible) {
+  z-index: 30;
+  transform: scale(1.12);
+}
+.cardSurface > .cardPreviewTrigger:hover,
+.cardSurface > .cardPreviewTrigger:focus-visible {
+  transform: none;
+  z-index: 10;
+}
+.cardStack[data-face-down] .cardSurface { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .cardSurface { transition: none; }
+}
+
+
+.conditionMarkers { position: absolute; top: 0.4rem; left: -0.4rem; z-index: 32; display: flex; flex-direction: column; gap: 0.25rem; pointer-events: none; }
+.conditionMarker { display: grid; place-items: center; width: 1.8rem; aspect-ratio: 1; filter: drop-shadow(0 0.1rem 0.2rem color-mix(in oklab, black 45%, transparent)); }
+.conditionMarker img { width: 100%; height: 100%; object-fit: contain; }
+.conditionMarker[data-condition="Asleep"] { border: 1px solid var(--border); border-radius: 50%; background: var(--card); color: var(--card-foreground); font-size: 0.75rem; font-weight: 800; }
+.cardStack[data-compact] .conditionMarker { width: 1rem; font-size: 0.5rem; }
+.cardPreviewImage .conditionMarker { width: 2.3rem; font-size: 1rem; }
