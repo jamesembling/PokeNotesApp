@@ -28,6 +28,15 @@
       "limitlessFormatCode": null,
       "status": "announced",
       "notes": "Special expansion announced officially. Discover and verify identifiers rather than guessing them."
+    },
+    {
+      "name": "Mega Evolution—Delta Reign",
+      "releaseDate": "2026-11-06",
+      "officialSource": "https://www.pokemon.com/us/news/the-pokemon-tcg-mega-evolution-delta-reign-expansion-arrives-november-6-2026",
+      "pokemonTcgSetId": null,
+      "limitlessFormatCode": null,
+      "status": "announced",
+      "notes": "Officially announced with over 135 cards, featuring Mega Rayquaza ex."
     }
   ]
 }
