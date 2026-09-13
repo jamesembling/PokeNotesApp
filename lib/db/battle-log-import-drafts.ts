@@ -26,7 +26,10 @@ type ImportDraftRow = {
   user_id: string;
 };
 
-export type PersistedBattleLogImportReview = Omit<ParsedLogReview, "rawLog"> & {
+export type PersistedBattleLogImportReview = Omit<
+  ParsedLogReview,
+  "rawLog" | "sections"
+> & {
   draftId: string;
   expiresAt: string;
 };
@@ -92,7 +95,13 @@ export async function createPersistedBattleLogImportDraft(args: {
     throw error;
   }
 
-  const { rawLog: _serverOwnedRawLog, ...clientReview } = args.review;
+  const {
+    rawLog: _serverOwnedRawLog,
+    sections: _serverOwnedSections,
+    ...clientReview
+  } = args.review;
+  void _serverOwnedRawLog;
+  void _serverOwnedSections;
 
   return {
     ...clientReview,

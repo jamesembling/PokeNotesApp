@@ -107,3 +107,17 @@ export function measureServerStep<T>(label: string, fn: () => T): T {
     logPerf(label, startedAt);
   }
 }
+
+export function reportServerPerformance(
+  label: string,
+  measurements: Record<string, number>
+) {
+  const normalizedMeasurements = Object.fromEntries(
+    Object.entries(measurements).map(([key, value]) => [
+      key,
+      Math.max(0, Math.round(value))
+    ])
+  );
+
+  console.info(`[perf] ${label} ${JSON.stringify(normalizedMeasurements)}`);
+}

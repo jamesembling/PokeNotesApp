@@ -53,7 +53,12 @@ import {
 } from "@/lib/server/action-errors";
 import { getFormRedirectPath } from "@/lib/server/action-redirect";
 import { parseStringArray } from "@/lib/server/form-values";
-import { measureServerCall, measureServerStep } from "@/lib/server/perf";
+import {
+  measureServerCall,
+  measureServerCallWithTiming,
+  measureServerStep,
+  reportServerPerformance
+} from "@/lib/server/perf";
 import { invalidateInitialLogsCache } from "@/lib/server/logs-initial-cache";
 import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
 import { getPublicSharedLogUrl } from "@/lib/server/share-url";
@@ -71,11 +76,25 @@ type ProfileRow = {
 };
 
 type ImportContext = {
-  user: Awaited<ReturnType<typeof requireAuth>>;
-  supabase: Awaited<ReturnType<typeof createClient>>;
   catalog: Awaited<ReturnType<typeof loadIdentificationCatalog>>;
   ptcglUsername: string;
   ptcglUsernameAliases: string[];
+  timings: {
+    catalogMs: number;
+    profileMs: number;
+  };
+};
+
+type ParsedLogReviewResult = {
+  review: ParsedLogReview;
+  timings: {
+    catalogMs: number;
+    deckCandidatesMs: number;
+    identificationMs: number;
+    inputMs: number;
+    parseMs: number;
+    profileMs: number;
+  };
 };
 
 type ParseLogActionResult = PersistedBattleLogImportReview | { error: string };
@@ -106,14 +125,14 @@ async function getImportContext(
   user: Awaited<ReturnType<typeof requireAuth>>,
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<ImportContext> {
-  const [catalog, profileResult] = await Promise.all([
-    measureServerCall("logs.import.loadIdentificationCatalog", () =>
+  const [catalogTiming, profileTiming] = await Promise.all([
+    measureServerCallWithTiming("logs.import.loadIdentificationCatalog", () =>
       loadIdentificationCatalog({
         supabase,
         userId: user.id
       })
     ),
-    measureServerCall("logs.import.loadProfile", async () =>
+    measureServerCallWithTiming("logs.import.loadProfile", async () =>
       await supabase
         .from("profiles")
         .select("ptcgl_username,ptcgl_username_aliases")
@@ -121,6 +140,8 @@ async function getImportContext(
         .single()
     )
   ]);
+  const catalog = catalogTiming.value;
+  const profileResult = profileTiming.value;
   const { data: profile, error: profileError } = profileResult;
 
   if (profileError) {
@@ -137,24 +158,31 @@ async function getImportContext(
   }
 
   return {
-    user,
-    supabase,
     catalog,
     ptcglUsername,
-    ptcglUsernameAliases
+    ptcglUsernameAliases,
+    timings: {
+      catalogMs: catalogTiming.durationMs,
+      profileMs: profileTiming.durationMs
+    }
   };
 }
 
 async function buildParsedLogReview(
   rawLog: string,
-  context: ImportContext | Promise<ImportContext>
-): Promise<ParsedLogReview> {
-  const [resolvedRawLog, importContext] = await Promise.all([
-    measureServerCall("logs.import.resolveBattleLogImportInput", () =>
+  context: ImportContext | Promise<ImportContext>,
+  deckLinkCandidates: ReturnType<typeof getDeckLinkCandidates>
+): Promise<ParsedLogReviewResult> {
+  const [inputTiming, importContext, deckCandidatesTiming] = await Promise.all([
+    measureServerCallWithTiming("logs.import.resolveBattleLogImportInput", () =>
       resolveBattleLogImportInput(rawLog)
     ),
-    context
+    context,
+    measureServerCallWithTiming("logs.import.getDeckLinkCandidatesForReview", () =>
+      deckLinkCandidates
+    )
   ]);
+  const resolvedRawLog = inputTiming.value;
   const trimmedRawLog = String(resolvedRawLog || "").trim();
 
   if (!trimmedRawLog) {
@@ -162,6 +190,7 @@ async function buildParsedLogReview(
   }
 
   const { catalog, ptcglUsername, ptcglUsernameAliases } = importContext;
+  const parseStartedAt = performance.now();
   const parsed = measureServerStep("logs.import.parseBattleLog", () =>
     parseBattleLog({
       rawLog: trimmedRawLog,
@@ -170,7 +199,9 @@ async function buildParsedLogReview(
       catalog
     })
   );
+  const parseMs = performance.now() - parseStartedAt;
 
+  const identificationStartedAt = performance.now();
   const selfArchetype = measureServerStep("logs.import.identifyLikelyArchetype.self", () =>
     identifyLikelyArchetype({
       evidence: parsed.pokemonEvidence.self,
@@ -202,6 +233,7 @@ async function buildParsedLogReview(
   const resolvedSelfSprites = selfSprites.slugs;
   const resolvedOpponentArchetype =
     opponentSprites.selectionSource === "archetype" ? opponentArchetype : null;
+  const identificationMs = performance.now() - identificationStartedAt;
 
   const selfDeckName = getBattleLogDeckDisplayName(
     resolvedSelfArchetype?.label ?? "",
@@ -242,17 +274,23 @@ async function buildParsedLogReview(
     reason: parsed.stats.reason
   };
 
-  const deckLinkCandidates = await measureServerCall(
-    "logs.import.getDeckLinkCandidatesForReview",
-    () => getDeckLinkCandidates(importContext.user.id, importContext.supabase)
-  );
-  review.suggestedLinkedDeckId = resolveConservativeDeckLink(deckLinkCandidates, {
+  review.suggestedLinkedDeckId = resolveConservativeDeckLink(deckCandidatesTiming.value, {
     deckName: selfDeckName,
     deckSlug: selfDeckSlug,
     sprites: resolvedSelfSprites
   }) ?? undefined;
 
-  return review;
+  return {
+    review,
+    timings: {
+      catalogMs: importContext.timings.catalogMs,
+      deckCandidatesMs: deckCandidatesTiming.durationMs,
+      identificationMs,
+      inputMs: inputTiming.durationMs,
+      parseMs,
+      profileMs: importContext.timings.profileMs
+    }
+  };
 }
 
 function assertMutatedRows(
@@ -266,20 +304,44 @@ function assertMutatedRows(
 }
 
 export async function parseLogAction(formData: FormData): Promise<ParseLogActionResult> {
-  const [user, supabase] = await Promise.all([
-    measureServerCall("logs.import.requireUser", () => requireAuth()),
-    measureServerCall("logs.import.createClient", () => createClient())
+  const actionStartedAt = performance.now();
+  const [userTiming, clientTiming] = await Promise.all([
+    measureServerCallWithTiming("logs.import.requireUser", () => requireAuth()),
+    measureServerCallWithTiming("logs.import.createClient", () => createClient())
   ]);
+  const user = userTiming.value;
+  const supabase = clientTiming.value;
 
   try {
     const rawLog = String(formData.get("rawLog") || "");
     const format = String(formData.get("format") || "").trim();
-    const review = await buildParsedLogReview(rawLog, getImportContext(user, supabase));
-    return await createPersistedBattleLogImportDraft({
-      format,
-      review,
-      userId: user.id
+    const parsedResult = await buildParsedLogReview(
+      rawLog,
+      getImportContext(user, supabase),
+      getDeckLinkCandidates(user.id, supabase)
+    );
+    const draftTiming = await measureServerCallWithTiming(
+      "logs.import.createPersistedBattleLogImportDraft",
+      () =>
+        createPersistedBattleLogImportDraft({
+          format,
+          review: parsedResult.review,
+          userId: user.id
+        })
+    );
+    reportServerPerformance("logs.import.review", {
+      actionMs: performance.now() - actionStartedAt,
+      authMs: userTiming.durationMs,
+      catalogMs: parsedResult.timings.catalogMs,
+      clientMs: clientTiming.durationMs,
+      deckCandidatesMs: parsedResult.timings.deckCandidatesMs,
+      draftMs: draftTiming.durationMs,
+      identificationMs: parsedResult.timings.identificationMs,
+      inputMs: parsedResult.timings.inputMs,
+      parseMs: parsedResult.timings.parseMs,
+      profileMs: parsedResult.timings.profileMs
     });
+    return draftTiming.value;
   } catch (error) {
     if (error instanceof ImportLogValidationError) {
       return {
