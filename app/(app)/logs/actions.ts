@@ -29,8 +29,8 @@ import { getDeckWithList, getDecks } from "@/lib/db/decks";
 import { validateDeckListReference } from "@/lib/db/deck-lists";
 import {
   commitPersistedBattleLogImportDraft,
-  createPersistedBattleLogImportDraft,
   getPersistedBattleLogImportDraft,
+  startPersistedBattleLogImportDraft,
   type PersistedBattleLogImportReview
 } from "@/lib/db/battle-log-import-drafts";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
@@ -59,6 +59,7 @@ import {
   reportServerPerformance
 } from "@/lib/server/perf";
 import { invalidateInitialLogsCache } from "@/lib/server/logs-initial-cache";
+import { reportError } from "@/lib/server/report-error";
 import {
   invalidateBattleLogImportContext,
   loadCachedBattleLogImportContext
@@ -296,27 +297,42 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
     const rawLog = String(formData.get("rawLog") || "");
     const format = String(formData.get("format") || "").trim();
     const parsedResult = await buildParsedLogReview(rawLog, getImportContext(user.id));
-    const draftTiming = await measureServerCallWithTiming(
-      "logs.import.createPersistedBattleLogImportDraft",
-      () =>
-        createPersistedBattleLogImportDraft({
-          format,
-          review: parsedResult.review,
+    const draftStartedAt = performance.now();
+    const draft = startPersistedBattleLogImportDraft({
+      format,
+      review: parsedResult.review,
+      userId: user.id
+    });
+    const draftScheduleMs = performance.now() - draftStartedAt;
+    after(async () => {
+      const persistStartedAt = performance.now();
+      try {
+        await draft.persist;
+        reportServerPerformance("logs.import.draftPersist", {
+          persistMs: performance.now() - persistStartedAt
+        });
+      } catch (error) {
+        reportError(error, {
+          action: "persistBattleLogImportDraft",
+          area: "logs",
+          boundary: "battle-log-import-draft-after",
+          route: "/logs",
           userId: user.id
-        })
-    );
+        });
+      }
+    });
     reportServerPerformance("logs.import.review", {
       actionMs: performance.now() - actionStartedAt,
       authMs: userTiming.durationMs,
       catalogMs: parsedResult.timings.catalogMs,
       contextCacheMiss: parsedResult.timings.contextCacheMiss,
       contextMs: parsedResult.timings.contextMs,
-      draftMs: draftTiming.durationMs,
+      draftScheduleMs,
       identificationMs: parsedResult.timings.identificationMs,
       inputMs: parsedResult.timings.inputMs,
       parseMs: parsedResult.timings.parseMs
     });
-    return draftTiming.value;
+    return draft.review;
   } catch (error) {
     if (error instanceof ImportLogValidationError) {
       return {

@@ -67,11 +67,14 @@ function mapRowToDraft(row: ImportDraftRow): BattleLogImportDraft {
   };
 }
 
-export async function createPersistedBattleLogImportDraft(args: {
+export function startPersistedBattleLogImportDraft(args: {
   format: string;
   review: ParsedLogReview;
   userId: string;
-}): Promise<PersistedBattleLogImportReview> {
+}): {
+  persist: Promise<void>;
+  review: PersistedBattleLogImportReview;
+} {
   const now = new Date();
   const draft = createBattleLogImportDraft({
     id: crypto.randomUUID(),
@@ -81,19 +84,21 @@ export async function createPersistedBattleLogImportDraft(args: {
     review: args.review,
     format: args.format
   });
-  const admin = createAdminClient();
-  const { error } = await admin.from("battle_log_import_drafts").insert({
-    id: draft.id,
-    user_id: draft.userId,
-    immutable_facts: asJson(draft.immutable),
-    initial_editable: asJson(draft.editable),
-    created_at: draft.createdAt,
-    expires_at: draft.expiresAt
-  });
+  const persist = (async () => {
+    const admin = createAdminClient();
+    const { error } = await admin.from("battle_log_import_drafts").insert({
+      id: draft.id,
+      user_id: draft.userId,
+      immutable_facts: asJson(draft.immutable),
+      initial_editable: asJson(draft.editable),
+      created_at: draft.createdAt,
+      expires_at: draft.expiresAt
+    });
 
-  if (error) {
-    throw error;
-  }
+    if (error) {
+      throw error;
+    }
+  })();
 
   const {
     rawLog: _serverOwnedRawLog,
@@ -104,9 +109,12 @@ export async function createPersistedBattleLogImportDraft(args: {
   void _serverOwnedSections;
 
   return {
-    ...clientReview,
-    draftId: draft.id,
-    expiresAt: draft.expiresAt
+    persist,
+    review: {
+      ...clientReview,
+      draftId: draft.id,
+      expiresAt: draft.expiresAt
+    }
   };
 }
 
