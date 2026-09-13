@@ -23,6 +23,7 @@ const DynamicImportLogDialog = dynamic<ImportLogDialogProps>(
 );
 
 let importDialogAssetsWarmed = false;
+let importContextWarmRequest: Promise<void> | null = null;
 
 function warmImportDialogAssets() {
   if (importDialogAssetsWarmed) {
@@ -31,6 +32,30 @@ function warmImportDialogAssets() {
 
   importDialogAssetsWarmed = true;
   void import("@/components/ui/ImportLogDialog");
+}
+
+function warmImportContext() {
+  if (importContextWarmRequest) {
+    return;
+  }
+
+  importContextWarmRequest = fetch("/api/log-import/bootstrap", {
+    cache: "no-store",
+    credentials: "same-origin"
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Could not prepare the Battle Log importer.");
+      }
+    })
+    .catch(() => {
+      importContextWarmRequest = null;
+    });
+}
+
+function warmImportDialog() {
+  warmImportDialogAssets();
+  warmImportContext();
 }
 
 export function LazyImportLogButton({
@@ -55,12 +80,12 @@ export function LazyImportLogButton({
     <>
       <Button
         className={className}
-        onFocus={warmImportDialogAssets}
+        onFocus={warmImportDialog}
         onClick={() => {
           setDialogOpen(true);
-          warmImportDialogAssets();
+          warmImportDialog();
         }}
-        onPointerEnter={warmImportDialogAssets}
+        onPointerEnter={warmImportDialog}
       >
         {label}
       </Button>

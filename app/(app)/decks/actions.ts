@@ -27,6 +27,7 @@ import {
   parseJsonOrRepeatedSprites
 } from "@/lib/server/form-values";
 import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
+import { invalidateBattleLogImportContext } from "@/lib/server/battle-log-import-context-cache";
 import { createClient } from "@/lib/supabase/server";
 
 function parseSelectedSprites(formData: FormData) {
@@ -112,6 +113,7 @@ export async function createDeckAction(formData: FormData): Promise<SaveActionRe
       throw error;
     }
 
+    invalidateBattleLogImportContext(user.id);
     revalidateDeckAndLogWorkspace();
 
     return {
@@ -172,6 +174,7 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
 
     assertSingleMutationResult(updatedDeck, "Deck could not be found.");
 
+    invalidateBattleLogImportContext(user.id);
     revalidateDeckAndLogWorkspace();
 
     return {
@@ -285,6 +288,7 @@ export async function deleteDeckAction(formData: FormData): Promise<SaveActionRe
 
     assertSingleMutationResult(deletedDeck, "Deck could not be found.");
 
+    invalidateBattleLogImportContext(user.id);
     revalidateDeckAndLogWorkspace({
       deckId,
       deckListIds,

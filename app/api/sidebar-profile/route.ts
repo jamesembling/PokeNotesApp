@@ -1,13 +1,25 @@
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { getCurrentSidebarProfile } from "@/lib/db/profile";
 import { normalizeAvatarColor, PROFILE_AVATAR_COOKIE } from "@/lib/profile-avatar";
 import { privateJson, reportApiError } from "@/lib/server/api-response";
 import { requireApiUser } from "@/lib/server/api-auth";
 import { measureServerCallWithTiming } from "@/lib/server/perf";
+import { warmBattleLogImportContext } from "@/lib/server/battle-log-import-context-cache";
+import { reportError } from "@/lib/server/report-error";
 
 export async function GET() {
   try {
-    await requireApiUser();
+    const user = await requireApiUser();
+    const importContextWarm = warmBattleLogImportContext(user.id).catch((error) => {
+      reportError(error, {
+        action: "warmBattleLogImportContext",
+        area: "api",
+        boundary: "sidebar-profile-import-context-warm",
+        route: "/api/sidebar-profile"
+      });
+    });
+    after(() => importContextWarm);
     const [profileTiming, cookieStore] = await Promise.all([
       measureServerCallWithTiming("api.sidebarProfile.profile", () => getCurrentSidebarProfile()),
       cookies()

@@ -1,7 +1,10 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
+import { after } from "next/server";
 import { privateJson, reportApiError } from "@/lib/server/api-response";
 import { loadInitialLogsPageData } from "@/lib/server/logs-page-data";
+import { warmBattleLogImportContext } from "@/lib/server/battle-log-import-context-cache";
+import { reportError } from "@/lib/server/report-error";
 import {
   measureServerCallWithTimeline,
   takeServerRuntimeSnapshot
@@ -69,6 +72,16 @@ export async function GET() {
         { headers: authResponseHeaders, status: 401 }
       );
     }
+
+    const importContextWarm = warmBattleLogImportContext(userId).catch((error) => {
+      reportError(error, {
+        action: "warmBattleLogImportContext",
+        area: "logs",
+        boundary: "logs-bootstrap-import-context-warm",
+        route: "/api/logs/bootstrap"
+      });
+    });
+    after(() => importContextWarm);
 
     const dataTiming = await measureServerCallWithTimeline("api.logs.bootstrap.data", () =>
       loadInitialLogsPageData(userId)

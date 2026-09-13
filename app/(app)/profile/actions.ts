@@ -6,6 +6,7 @@ import { requireAuth } from "@/lib/auth";
 import { updateCurrentProfile, updateCurrentProfileAvatar } from "@/lib/db/profile";
 import { PROFILE_AVATAR_COOKIE } from "@/lib/profile-avatar";
 import { reportError } from "@/lib/server/report-error";
+import { invalidateBattleLogImportContext } from "@/lib/server/battle-log-import-context-cache";
 import type { AvatarColor } from "@/types/index";
 
 export type ProfileActionState = {
@@ -37,7 +38,7 @@ export async function saveProfileAction(
   _previousState: ProfileActionState,
   formData: FormData
 ): Promise<ProfileActionState> {
-  await requireAuth();
+  const user = await requireAuth();
 
   try {
     const displayName = String(formData.get("displayName") || "").trim();
@@ -79,6 +80,7 @@ export async function saveProfileAction(
     });
 
     await setProfileAvatarCookie(profile.avatarColor);
+    invalidateBattleLogImportContext(user.id);
     revalidateProfileWorkspace();
 
     return {

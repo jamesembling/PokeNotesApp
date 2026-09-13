@@ -256,7 +256,7 @@ async function loadArchetypeRows(supabase: ArchetypeRowsClient) {
   }
 }
 
-async function loadLearnedArchetypeRows(args: {
+export async function loadLearnedArchetypeRows(args: {
   supabase: ArchetypeRowsClient;
   userId: string;
 }) {
@@ -317,19 +317,22 @@ const loadBuiltIdentificationCatalog = cache(async (): Promise<IdentificationCat
 });
 
 export async function loadIdentificationCatalog(args?: {
+  learnedArchetypeRows?: ArchetypeCatalogRow[];
   supabase?: ArchetypeRowsClient;
   userId?: string;
 }): Promise<IdentificationCatalog> {
-  if (!args?.supabase || !args.userId) {
+  if (!args?.learnedArchetypeRows && (!args?.supabase || !args.userId)) {
     return loadBuiltIdentificationCatalog();
   }
 
   const [{ pokemonRows, archetypeRows }, learnedArchetypeRows] = await Promise.all([
     loadIdentificationCatalogCached(),
-    loadLearnedArchetypeRows({
-      supabase: args.supabase,
-      userId: args.userId
-    })
+    args.learnedArchetypeRows
+      ? Promise.resolve(args.learnedArchetypeRows)
+      : loadLearnedArchetypeRows({
+          supabase: args.supabase!,
+          userId: args.userId!
+        })
   ]);
   const pokemon = buildPokemonIndex(pokemonRows);
   const curatedCanonicalIds = new Set(

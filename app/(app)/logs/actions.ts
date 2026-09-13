@@ -10,7 +10,6 @@ import {
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { resolveBattleLogImportInput } from "@/lib/battle-log/training-court";
 import {
-  getDeckLinkCandidates,
   resolveConservativeDeckLink
 } from "@/lib/log-import/deck-linking";
 import { buildImportDate } from "@/lib/log-import/import-date";
@@ -60,6 +59,10 @@ import {
   reportServerPerformance
 } from "@/lib/server/perf";
 import { invalidateInitialLogsCache } from "@/lib/server/logs-initial-cache";
+import {
+  invalidateBattleLogImportContext,
+  loadCachedBattleLogImportContext
+} from "@/lib/server/battle-log-import-context-cache";
 import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
 import { getPublicSharedLogUrl } from "@/lib/server/share-url";
 import { createClient } from "@/lib/supabase/server";
@@ -70,18 +73,17 @@ import {
   parseBattleLogImportSaveRequest
 } from "@/lib/log-import/import-draft";
 
-type ProfileRow = {
-  ptcgl_username: string;
-  ptcgl_username_aliases: string[];
-};
-
 type ImportContext = {
+  cacheOutcome: "hit" | "miss";
   catalog: Awaited<ReturnType<typeof loadIdentificationCatalog>>;
+  deckLinkCandidates: Awaited<
+    ReturnType<typeof loadCachedBattleLogImportContext>
+  >["value"]["deckLinkCandidates"];
   ptcglUsername: string;
   ptcglUsernameAliases: string[];
   timings: {
     catalogMs: number;
-    profileMs: number;
+    contextMs: number;
   };
 };
 
@@ -89,11 +91,11 @@ type ParsedLogReviewResult = {
   review: ParsedLogReview;
   timings: {
     catalogMs: number;
-    deckCandidatesMs: number;
+    contextCacheMiss: number;
+    contextMs: number;
     identificationMs: number;
     inputMs: number;
     parseMs: number;
-    profileMs: number;
   };
 };
 
@@ -121,35 +123,17 @@ function splitJoinedSprites(value: string) {
     .split(","), (slug) => slug.trim());
 }
 
-async function getImportContext(
-  user: Awaited<ReturnType<typeof requireAuth>>,
-  supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<ImportContext> {
-  const [catalogTiming, profileTiming] = await Promise.all([
-    measureServerCallWithTiming("logs.import.loadIdentificationCatalog", () =>
+async function getImportContext(userId: string): Promise<ImportContext> {
+  const context = await loadCachedBattleLogImportContext(userId);
+  const catalogTiming = await measureServerCallWithTiming(
+    "logs.import.buildIdentificationCatalog",
+    () =>
       loadIdentificationCatalog({
-        supabase,
-        userId: user.id
+        learnedArchetypeRows: context.value.learnedArchetypeRows
       })
-    ),
-    measureServerCallWithTiming("logs.import.loadProfile", async () =>
-      await supabase
-        .from("profiles")
-        .select("ptcgl_username,ptcgl_username_aliases")
-        .eq("id", user.id)
-        .single()
-    )
-  ]);
-  const catalog = catalogTiming.value;
-  const profileResult = profileTiming.value;
-  const { data: profile, error: profileError } = profileResult;
+  );
+  const { deckLinkCandidates, ptcglUsername, ptcglUsernameAliases } = context.value;
 
-  if (profileError) {
-    throw profileError;
-  }
-
-  const ptcglUsername = ((profile as ProfileRow | null)?.ptcgl_username ?? "").trim();
-  const ptcglUsernameAliases = (profile as ProfileRow | null)?.ptcgl_username_aliases ?? [];
   if (!ptcglUsername) {
     throw new ImportLogValidationError(
       "MISSING_PTCGL_USERNAME",
@@ -158,29 +142,27 @@ async function getImportContext(
   }
 
   return {
-    catalog,
+    cacheOutcome: context.cacheOutcome,
+    catalog: catalogTiming.value,
+    deckLinkCandidates,
     ptcglUsername,
     ptcglUsernameAliases,
     timings: {
       catalogMs: catalogTiming.durationMs,
-      profileMs: profileTiming.durationMs
+      contextMs: context.durationMs
     }
   };
 }
 
 async function buildParsedLogReview(
   rawLog: string,
-  context: ImportContext | Promise<ImportContext>,
-  deckLinkCandidates: ReturnType<typeof getDeckLinkCandidates>
+  context: ImportContext | Promise<ImportContext>
 ): Promise<ParsedLogReviewResult> {
-  const [inputTiming, importContext, deckCandidatesTiming] = await Promise.all([
+  const [inputTiming, importContext] = await Promise.all([
     measureServerCallWithTiming("logs.import.resolveBattleLogImportInput", () =>
       resolveBattleLogImportInput(rawLog)
     ),
-    context,
-    measureServerCallWithTiming("logs.import.getDeckLinkCandidatesForReview", () =>
-      deckLinkCandidates
-    )
+    context
   ]);
   const resolvedRawLog = inputTiming.value;
   const trimmedRawLog = String(resolvedRawLog || "").trim();
@@ -274,7 +256,7 @@ async function buildParsedLogReview(
     reason: parsed.stats.reason
   };
 
-  review.suggestedLinkedDeckId = resolveConservativeDeckLink(deckCandidatesTiming.value, {
+  review.suggestedLinkedDeckId = resolveConservativeDeckLink(importContext.deckLinkCandidates, {
     deckName: selfDeckName,
     deckSlug: selfDeckSlug,
     sprites: resolvedSelfSprites
@@ -284,11 +266,11 @@ async function buildParsedLogReview(
     review,
     timings: {
       catalogMs: importContext.timings.catalogMs,
-      deckCandidatesMs: deckCandidatesTiming.durationMs,
+      contextCacheMiss: importContext.cacheOutcome === "miss" ? 1 : 0,
+      contextMs: importContext.timings.contextMs,
       identificationMs,
       inputMs: inputTiming.durationMs,
-      parseMs,
-      profileMs: importContext.timings.profileMs
+      parseMs
     }
   };
 }
@@ -305,21 +287,15 @@ function assertMutatedRows(
 
 export async function parseLogAction(formData: FormData): Promise<ParseLogActionResult> {
   const actionStartedAt = performance.now();
-  const [userTiming, clientTiming] = await Promise.all([
-    measureServerCallWithTiming("logs.import.requireUser", () => requireAuth()),
-    measureServerCallWithTiming("logs.import.createClient", () => createClient())
-  ]);
+  const userTiming = await measureServerCallWithTiming("logs.import.requireUser", () =>
+    requireAuth()
+  );
   const user = userTiming.value;
-  const supabase = clientTiming.value;
 
   try {
     const rawLog = String(formData.get("rawLog") || "");
     const format = String(formData.get("format") || "").trim();
-    const parsedResult = await buildParsedLogReview(
-      rawLog,
-      getImportContext(user, supabase),
-      getDeckLinkCandidates(user.id, supabase)
-    );
+    const parsedResult = await buildParsedLogReview(rawLog, getImportContext(user.id));
     const draftTiming = await measureServerCallWithTiming(
       "logs.import.createPersistedBattleLogImportDraft",
       () =>
@@ -333,13 +309,12 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
       actionMs: performance.now() - actionStartedAt,
       authMs: userTiming.durationMs,
       catalogMs: parsedResult.timings.catalogMs,
-      clientMs: clientTiming.durationMs,
-      deckCandidatesMs: parsedResult.timings.deckCandidatesMs,
+      contextCacheMiss: parsedResult.timings.contextCacheMiss,
+      contextMs: parsedResult.timings.contextMs,
       draftMs: draftTiming.durationMs,
       identificationMs: parsedResult.timings.identificationMs,
       inputMs: parsedResult.timings.inputMs,
-      parseMs: parsedResult.timings.parseMs,
-      profileMs: parsedResult.timings.profileMs
+      parseMs: parsedResult.timings.parseMs
     });
     return draftTiming.value;
   } catch (error) {
@@ -434,6 +409,7 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       minimumExistingMatches: selfSelectionChanged ? 1 : LEARNED_SELF_ARCHETYPE_THRESHOLD
     });
 
+    invalidateBattleLogImportContext(user.id);
     invalidateInitialLogsCache(user.id);
     after(() => {
       revalidateDeckAndLogWorkspace();
