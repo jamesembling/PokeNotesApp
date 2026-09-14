@@ -50,6 +50,7 @@ type Stage = "raw" | "review";
 type SaveState = "idle" | "saving" | "success";
 
 const SUCCESS_CLOSE_DELAY_MS = 250;
+const BULK_PASTE_CHARACTER_THRESHOLD = 200;
 
 function SaveButton({
   onClick,
@@ -773,7 +774,13 @@ export function ImportLogDialog({
                       onPaste={() => {
                         shouldAutoParseImmediatelyRef.current = true;
                       }}
-                      onChange={(event) => setRawLog(event.target.value)}
+                      onChange={(event) => {
+                        const nextRawLog = event.target.value;
+                        if (nextRawLog.length - rawLog.length >= BULK_PASTE_CHARACTER_THRESHOLD) {
+                          shouldAutoParseImmediatelyRef.current = true;
+                        }
+                        setRawLog(nextRawLog);
+                      }}
                       placeholder="Paste your full PTCGL battle log here"
                       spellCheck={false}
                       value={rawLog}
