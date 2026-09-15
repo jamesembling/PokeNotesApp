@@ -74,5 +74,8 @@ test("tournament record counts tied and special round outcomes once per round", 
     alt: "Pokémon International Championships badge",
     src: "/tournament-badges/international-championships.png"
   });
-  assert.equal(getTournamentCompetitionBadge("local"), null);
+  assert.deepEqual(getTournamentCompetitionBadge("local"), {
+    alt: "Play! Pokémon Friendly Tournament logo",
+    src: "/tournament-badges/friendly-tournament.png"
+  });
 });

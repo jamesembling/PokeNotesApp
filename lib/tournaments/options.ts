@@ -11,7 +11,7 @@ export const TOURNAMENT_CATEGORY_OPTIONS: Array<{
   value: Exclude<TournamentCategory, "">;
   label: string;
 }> = [
-  { value: "local", label: "Locals" },
+  { value: "local", label: "Friendly Tournament" },
   { value: "challenge", label: "League Challenge" },
   { value: "cup", label: "League Cup" },
   { value: "prerelease", label: "Prerelease Event" },
@@ -24,6 +24,10 @@ export const TOURNAMENT_CATEGORY_OPTIONS: Array<{
 const TOURNAMENT_COMPETITION_BADGES: Partial<
   Record<Exclude<TournamentCategory, "">, { alt: string; src: string }>
 > = {
+  local: {
+    alt: "Play! Pokémon Friendly Tournament logo",
+    src: "/tournament-badges/friendly-tournament.png"
+  },
   challenge: {
     alt: "Pokémon League Challenge badge",
     src: "/tournament-badges/league-challenge.png"
