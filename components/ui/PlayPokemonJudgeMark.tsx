@@ -8,7 +8,7 @@ export function PlayPokemonJudgeMark({
   return (
     <Image
       alt="Play! Pokémon Professor logo"
-      className={`${className} shrink-0 object-contain`}
+      className={`${className} shrink-0 object-contain invert dark:invert-0`}
       height={56}
       priority={false}
       sizes="56px"
