@@ -69,6 +69,7 @@ const TOURNAMENT_EVENT_DETAILS_SELECT = [
   "name",
   "tournament_identifier",
   "location",
+  "championship_points",
   "date_from",
   "date_to",
   "linked_deck_id",
@@ -91,6 +92,7 @@ type TournamentRow = {
   name: string;
   tournament_identifier?: string;
   location?: string;
+  championship_points?: number | null;
   date_from: string;
   date_to: string;
   linked_deck_id: string | null;
@@ -139,6 +141,7 @@ function mapTournamentRow(row: TournamentRow): Tournament {
     name: row.name,
     tournamentIdentifier: row.tournament_identifier || "",
     location: row.location || "",
+    championshipPoints: row.championship_points ?? null,
     dateFrom: row.date_from,
     dateTo: row.date_to,
     linkedDeckId: row.linked_deck_id ?? undefined,

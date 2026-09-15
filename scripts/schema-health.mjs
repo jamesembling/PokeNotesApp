@@ -193,6 +193,7 @@ const REQUIRED_COLUMNS = {
     "name",
     "tournament_identifier",
     "location",
+    "championship_points",
     "date_from",
     "date_to",
     "linked_deck_id",

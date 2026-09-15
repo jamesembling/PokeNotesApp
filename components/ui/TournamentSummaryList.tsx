@@ -19,8 +19,9 @@ export function TournamentCollectionHeader() {
     <div aria-hidden="true" className={`${styles.columns} ${styles.listHeader}`}>
       <span />
       <span>Event</span>
-      <span className={styles.placement}>Placement</span>
-      <span className={styles.alignEnd}>Record</span>
+      <span className={styles.metricHeader}>Placement</span>
+      <span className={styles.metricHeader}>Record</span>
+      <span className={styles.metricHeader}>Points (CP)</span>
       <span />
     </div>
   );
@@ -100,6 +101,12 @@ export function TournamentSummaryList({
                       </p>
                     </>
                   )}
+                  <p className={`${styles.metric} ${styles.points}`}>
+                    <span className={styles.metricLabel}>Championship Points (CP)</span>
+                    <span className={styles.metricValue}>
+                      {tournament.championshipPoints ?? "—"}
+                    </span>
+                  </p>
                   <ChevronIcon aria-hidden="true" className={styles.chevron} />
                 </Link>
               </li>

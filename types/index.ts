@@ -358,6 +358,7 @@ export type Tournament = {
   name: string
   tournamentIdentifier: string
   location: string
+  championshipPoints: number | null
   dateFrom: string
   dateTo: string
   linkedDeckId: string | undefined

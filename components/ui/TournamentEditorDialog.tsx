@@ -437,7 +437,7 @@ export function TournamentEditorDialog({
                     />
                   </Field>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-[1fr_1.5fr_0.75fr]">
                     <Field>
                       <FieldLabel htmlFor="tournament-identifier">Tournament ID</FieldLabel>
                       <Input
@@ -459,6 +459,24 @@ export function TournamentEditorDialog({
                         maxLength={160}
                         name="location"
                         placeholder="Venue, store, city, or online"
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="tournament-championship-points">
+                        Championship Points (CP)
+                      </FieldLabel>
+                      <Input
+                        className="min-h-[2.75rem] text-base font-semibold placeholder:font-semibold sm:min-h-[3rem] sm:text-sm"
+                        defaultValue={tournament?.championshipPoints ?? ""}
+                        id="tournament-championship-points"
+                        inputMode="numeric"
+                        max={2147483647}
+                        min={0}
+                        name="championshipPoints"
+                        placeholder="0"
+                        step={1}
+                        type="number"
                       />
                     </Field>
                   </div>

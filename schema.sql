@@ -164,6 +164,8 @@ create table public.tournaments (
   name              text not null default '',
   tournament_identifier text not null default '',
   location          text not null default '',
+  championship_points integer
+                      check (championship_points is null or championship_points >= 0),
   date_from         date not null,
   date_to           date not null,
   linked_deck_id    text references public.decks(id) on delete set null,
@@ -198,6 +200,8 @@ comment on column public.tournaments.tournament_identifier is
   'Optional organizer-facing Tournament ID, such as a Play! Pokemon event identifier.';
 comment on column public.tournaments.location is
   'Optional venue, store, city, or online location supplied by the user.';
+comment on column public.tournaments.championship_points is
+  'Optional Championship Points awarded for the tournament.';
 comment on column public.tournaments.deck_sprites is
   'Array of Pokemon slug strings used for tournament deck display.';
 comment on column public.tournaments.linked_deck_list_id is
