@@ -2,9 +2,14 @@ import Link from "next/link";
 import { ChevronIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { ItemTitle } from "@/components/ui/Typography";
+import { PlayPokemonJudgeMark } from "@/components/ui/PlayPokemonJudgeMark";
 import { formatDayDate } from "@/lib/client/date-format";
 import { getTournamentRecord } from "@/lib/tournaments/display";
-import { getTournamentCategoryLabel, getTournamentPlacementLabel } from "@/lib/tournaments/options";
+import {
+  getTournamentCategoryLabel,
+  getTournamentJudgeRoleLabel,
+  getTournamentPlacementLabel
+} from "@/lib/tournaments/options";
 import type { TournamentSummary } from "@/types/index";
 import styles from "./tournament/collection.module.css";
 
@@ -36,6 +41,7 @@ export function TournamentSummaryList({
         <TournamentCollectionHeader />
         <ul aria-label="Saved Tournaments" role="list">
           {tournaments.map((tournament) => {
+            const isJudge = tournament.participation === "judge";
             const placement = tournament.placement
               ? getTournamentPlacementLabel(tournament.placement)
               : "No placement";
@@ -52,20 +58,35 @@ export function TournamentSummaryList({
                   prefetch={false}
                 >
                   <div className={styles.sprites}>
-                    <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={tournament.deckSprites} />
+                    {isJudge ? (
+                      <PlayPokemonJudgeMark className="size-12" />
+                    ) : (
+                      <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={tournament.deckSprites} />
+                    )}
                   </div>
                   <div className={styles.identity}>
                     <ItemTitle as="h2" className={styles.name}>{tournament.name}</ItemTitle>
                     <p className={styles.subtitle}>{subtitle}</p>
                   </div>
-                  <p className={`${styles.metric} ${styles.placement}`}>
-                    <span className={styles.metricLabel}>Placement</span>
-                    <span className={styles.metricValue}>{placement}</span>
-                  </p>
-                  <p className={`${styles.metric} ${styles.record}`}>
-                    <span className={styles.metricLabel}>Record</span>
-                    <span className={styles.metricValue}>{getTournamentRecord(tournament.rounds)}</span>
-                  </p>
+                  {isJudge ? (
+                    <p className={`${styles.metric} ${styles.judgeRole}`}>
+                      <span className={styles.metricLabel}>Role</span>
+                      <span className={styles.metricValue}>
+                        {getTournamentJudgeRoleLabel(tournament.judgeRole)}
+                      </span>
+                    </p>
+                  ) : (
+                    <>
+                      <p className={`${styles.metric} ${styles.placement}`}>
+                        <span className={styles.metricLabel}>Placement</span>
+                        <span className={styles.metricValue}>{placement}</span>
+                      </p>
+                      <p className={`${styles.metric} ${styles.record}`}>
+                        <span className={styles.metricLabel}>Record</span>
+                        <span className={styles.metricValue}>{getTournamentRecord(tournament.rounds)}</span>
+                      </p>
+                    </>
+                  )}
                   <ChevronIcon aria-hidden="true" className={styles.chevron} />
                 </Link>
               </li>

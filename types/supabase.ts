@@ -981,6 +981,8 @@ export type Database = {
           linked_deck_list_id: string | null
           name: string
           notes: string
+          judge_role: string | null
+          participation: string
           placement: string
           updated_at: string
           user_id: string
@@ -998,6 +1000,8 @@ export type Database = {
           linked_deck_list_id?: string | null
           name?: string
           notes?: string
+          judge_role?: string | null
+          participation?: string
           placement?: string
           updated_at?: string
           user_id: string
@@ -1015,6 +1019,8 @@ export type Database = {
           linked_deck_list_id?: string | null
           name?: string
           notes?: string
+          judge_role?: string | null
+          participation?: string
           placement?: string
           updated_at?: string
           user_id?: string

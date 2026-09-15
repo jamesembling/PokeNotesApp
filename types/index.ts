@@ -324,6 +324,10 @@ export type TournamentPlacement =
   | "champion"
   | ""
 
+export type TournamentParticipation = "player" | "judge"
+
+export type TournamentJudgeRole = "judge" | "head judge" | ""
+
 export type TournamentRoundLegacyResult = "Win" | "Loss" | "Tie"
 export type TournamentRoundSpecialResult = "BYE" | "ID" | "NO SHOW"
 export type TournamentRoundGameResult = "W" | "L" | "T"
@@ -359,6 +363,8 @@ export type Tournament = {
   deckSprites: string[]
   category: TournamentCategory
   placement: TournamentPlacement
+  participation: TournamentParticipation
+  judgeRole: TournamentJudgeRole
   format: string
   notes: string
   createdAt: string

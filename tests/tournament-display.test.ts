@@ -5,6 +5,11 @@ import {
   getRoundSpecialResult,
   getTournamentRecord
 } from "@/lib/tournaments/display";
+import {
+  getTournamentJudgeRoleLabel,
+  parseTournamentJudgeRole,
+  parseTournamentParticipation
+} from "@/lib/tournaments/options";
 import type { TournamentRound } from "@/types/index";
 
 function buildRound(
@@ -57,4 +62,11 @@ test("tournament record counts tied and special round outcomes once per round", 
   ]);
 
   assert.equal(record, "2-0-2");
+  assert.equal(parseTournamentParticipation(null), "player");
+  assert.equal(parseTournamentParticipation("invalid"), "player");
+  assert.equal(parseTournamentParticipation("judge"), "judge");
+  assert.equal(parseTournamentJudgeRole("judge"), "judge");
+  assert.equal(parseTournamentJudgeRole("head judge"), "head judge");
+  assert.equal(parseTournamentJudgeRole("organizer"), "");
+  assert.equal(getTournamentJudgeRoleLabel("head judge"), "Head Judge");
 });

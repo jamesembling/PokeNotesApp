@@ -17,12 +17,15 @@ import { normalizeTournamentDateRange } from "@/lib/tournaments/date-range";
 import { saveTournamentDeckListForTournament } from "@/lib/tournaments/deck-list-workflow";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
+  parseTournamentJudgeRole,
+  parseTournamentParticipation,
   TOURNAMENT_PLACEMENT_OPTIONS,
   TOURNAMENT_ROUND_GAME_RESULT_OPTIONS,
   TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS
 } from "@/lib/tournaments/options";
 import type {
   TournamentCategory,
+  TournamentJudgeRole,
   TournamentPlacement,
   TournamentRoundGameResult,
   TournamentRoundSpecialResult,
@@ -84,6 +87,15 @@ function toUserFacingDatabaseError(error: PostgrestLikeError) {
     );
   }
 
+  if (
+    error.code === "42703" &&
+    /participation|judge_role/i.test([error.message, error.details, error.hint].filter(Boolean).join(" "))
+  ) {
+    return userFacingActionError(
+      "Tournament judge roles need the latest database migration before they can be saved."
+    );
+  }
+
   return userFacingActionError("We couldn't save that tournament update right now.");
 }
 
@@ -99,6 +111,16 @@ function parsePlacement(value: FormDataEntryValue | null): TournamentPlacement {
   return TOURNAMENT_PLACEMENT_OPTIONS.some((option) => option.value === normalized)
     ? (normalized as TournamentPlacement)
     : "";
+}
+
+function requireJudgeRole(value: FormDataEntryValue | null): Exclude<TournamentJudgeRole, ""> {
+  const role = parseTournamentJudgeRole(value);
+
+  if (!role) {
+    throw userFacingActionError("Choose a judge role before saving.");
+  }
+
+  return role;
 }
 
 function parseRoundGameResult(value: FormDataEntryValue | null): "" | TournamentRoundGameResult {
@@ -256,6 +278,8 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
     const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
+    const participation = parseTournamentParticipation(formData.get("participation"));
+    const judgeRole = participation === "judge" ? requireJudgeRole(formData.get("judgeRole")) : null;
     const validatedReference = await validateDeckListReference({
       linkedDeckId: linkedDeckId || null,
       linkedDeckListId: linkedDeckListId || null,
@@ -283,7 +307,9 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
       deck_sprites:
         selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
       category: parseCategory(formData.get("category")),
-      placement: parsePlacement(formData.get("placement")),
+      placement: participation === "judge" ? "" : parsePlacement(formData.get("placement")),
+      participation,
+      judge_role: judgeRole,
       format,
       notes: String(formData.get("notes") || "").trim()
     };
@@ -302,7 +328,9 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
         deck_sprites:
           selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
         category: parseCategory(formData.get("category")),
-        placement: parsePlacement(formData.get("placement")),
+        placement: participation === "judge" ? "" : parsePlacement(formData.get("placement")),
+        participation,
+        judge_role: judgeRole,
         format,
         notes: String(formData.get("notes") || "").trim()
       }));
@@ -340,6 +368,8 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
     const name = String(formData.get("name") || "").trim();
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
+    const participation = parseTournamentParticipation(formData.get("participation"));
+    const judgeRole = participation === "judge" ? requireJudgeRole(formData.get("judgeRole")) : null;
     const validatedReference = await validateDeckListReference({
       linkedDeckId: linkedDeckId || null,
       linkedDeckListId: linkedDeckListId || null,
@@ -370,7 +400,9 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       deck_sprites:
         selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
       category: parseCategory(formData.get("category")),
-      placement: parsePlacement(formData.get("placement")),
+      placement: participation === "judge" ? "" : parsePlacement(formData.get("placement")),
+      participation,
+      judge_role: judgeRole,
       format,
       notes: String(formData.get("notes") || "").trim()
     };
@@ -397,7 +429,9 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
               ? selectedDeckSprites
               : (resolvedDeck?.deckSprites ?? []),
           category: parseCategory(formData.get("category")),
-          placement: parsePlacement(formData.get("placement")),
+          placement: participation === "judge" ? "" : parsePlacement(formData.get("placement")),
+          participation,
+          judge_role: judgeRole,
           format,
           notes: String(formData.get("notes") || "").trim()
         })

@@ -199,6 +199,8 @@ const REQUIRED_COLUMNS = {
     "deck_sprites",
     "category",
     "placement",
+    "participation",
+    "judge_role",
     "format",
     "notes",
     "created_at",

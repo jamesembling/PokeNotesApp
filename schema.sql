@@ -172,13 +172,22 @@ create table public.tournaments (
                       check (category in ('', 'online', 'local', 'challenge', 'cup', 'prerelease', 'regional', 'world')),
   placement         text not null default ''
                       check (placement in ('', 'no placement', 'dropped', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 't1024', 't512', 't256', 't128', 't64', 't32', 't16', 't8', 't4', 'finalist', 'champion')),
+  participation     text not null default 'player'
+                      check (participation in ('player', 'judge')),
+  judge_role        text
+                      check (judge_role in ('judge', 'head judge')),
   format            text not null default '',
   notes             text not null default '',
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now(),
 
   constraint tournaments_valid_date_range
-    check (date_to >= date_from)
+    check (date_to >= date_from),
+  constraint tournaments_participation_role_consistency
+    check (
+      (participation = 'player' and judge_role is null) or
+      (participation = 'judge' and judge_role is not null and placement = '')
+    )
 );
 
 comment on table public.tournaments is
@@ -187,6 +196,10 @@ comment on column public.tournaments.deck_sprites is
   'Array of Pokemon slug strings used for tournament deck display.';
 comment on column public.tournaments.linked_deck_list_id is
   'References a deck list within linked_deck_id. Not a foreign key as deck lists are stored in JSONB.';
+comment on column public.tournaments.participation is
+  'Whether the account owner attended this event as a player or judge.';
+comment on column public.tournaments.judge_role is
+  'Judge responsibility for judge participation: judge or head judge.';
 
 
 -- ============================================================

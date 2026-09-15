@@ -14,7 +14,7 @@ import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
 import { Dialog } from "@/components/shadcn/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
 import { Switch } from "@/components/shadcn/switch";
 import { Textarea } from "@/components/shadcn/textarea";
@@ -23,10 +23,16 @@ import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
+  TOURNAMENT_JUDGE_ROLE_OPTIONS,
   TOURNAMENT_PLACEMENT_OPTIONS
 } from "@/lib/tournaments/options";
 import { isTournamentMultiDay } from "@/lib/tournaments/date-range";
-import type { PokemonOption, Tournament } from "@/types/index";
+import type {
+  PokemonOption,
+  Tournament,
+  TournamentJudgeRole,
+  TournamentParticipation
+} from "@/types/index";
 
 export type TournamentEditorDialogProps = {
   initialOpen?: boolean;
@@ -142,6 +148,12 @@ export function TournamentEditorDialog({
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [category, setCategory] = useState<string>(tournament?.category ?? "");
   const [placement, setPlacement] = useState<string>(tournament?.placement ?? "");
+  const [participation, setParticipation] = useState<TournamentParticipation>(
+    tournament?.participation ?? "player"
+  );
+  const [judgeRole, setJudgeRole] = useState<TournamentJudgeRole>(
+    tournament?.judgeRole || "judge"
+  );
   const [format, setFormat] = useState<string>(tournament?.format || defaultFormat);
   const [dateTo, setDateTo] = useState(tournament?.dateTo ?? "");
   const [isMultiDay, setIsMultiDay] = useState(
@@ -186,6 +198,12 @@ export function TournamentEditorDialog({
     setFormat((current) => current || defaultFormat);
   }, [defaultFormat, tournament?.format]);
 
+  useEffect(() => {
+    if (participation === "judge" && !judgeRole) {
+      setJudgeRole("judge");
+    }
+  }, [judgeRole, participation]);
+
   function clearCloseTimer() {
     if (closeTimerRef.current !== null) {
       window.clearTimeout(closeTimerRef.current);
@@ -203,6 +221,8 @@ export function TournamentEditorDialog({
   function resetState() {
     setCategory(tournament?.category ?? "");
     setPlacement(tournament?.placement ?? "");
+    setParticipation(tournament?.participation ?? "player");
+    setJudgeRole(tournament?.judgeRole || "judge");
     setFormat(tournament?.format || defaultFormat);
     setDateTo(tournament?.dateTo ?? "");
     setIsMultiDay(isTournamentMultiDay(tournament?.dateFrom, tournament?.dateTo));
@@ -290,6 +310,7 @@ export function TournamentEditorDialog({
   }
 
   const isBusy = saveState === "saving" || deleteState === "deleting";
+  const isJudge = participation === "judge";
 
   return (
     <Dialog
@@ -342,7 +363,7 @@ export function TournamentEditorDialog({
                   ) : null}
                 </ButtonGroup>
               )}
-              description={isEditing ? "Update tournament details, deck choices, and notes." : "Create a tournament with deck choices and notes."}
+              description={isEditing ? "Update event details, participation, and notes." : "Create an event record with participation and notes."}
               title={isEditing ? "Edit Tournament" : "New Tournament"}
             />
 
@@ -416,6 +437,41 @@ export function TournamentEditorDialog({
                     />
                   </Field>
 
+                  <FieldSet className="gap-2">
+                    <FieldLegend className="text-sm" variant="label">Participation</FieldLegend>
+                    <div className="grid grid-cols-2 gap-2" data-slot="radio-group">
+                      {(["player", "judge"] as const).map((option) => {
+                        const checked = participation === option;
+
+                        return (
+                          <label
+                            className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring sm:min-h-12 sm:rounded-xl sm:px-4 ${
+                              checked
+                                ? "border-primary bg-primary/5 text-card-foreground"
+                                : "border-border bg-muted text-muted-foreground hover:text-card-foreground"
+                            }`}
+                            key={option}
+                          >
+                            <input
+                              checked={checked}
+                              className="size-4 accent-[var(--primary)]"
+                              name="participation"
+                              onChange={() => {
+                                setParticipation(option);
+                                if (option === "judge" && !judgeRole) {
+                                  setJudgeRole("judge");
+                                }
+                              }}
+                              type="radio"
+                              value={option}
+                            />
+                            <span>{option === "player" ? "Player" : "Judge"}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </FieldSet>
+
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4">
                     <Field>
                       <FieldLabel htmlFor="tournament-category">Category</FieldLabel>
@@ -444,15 +500,17 @@ export function TournamentEditorDialog({
                     </Field>
 
                     <Field className="col-span-2 sm:col-span-1">
-                      <FieldLabel htmlFor="tournament-placement">Placement</FieldLabel>
+                      <FieldLabel htmlFor={isJudge ? "tournament-judge-role" : "tournament-placement"}>
+                        {isJudge ? "Role" : "Placement"}
+                      </FieldLabel>
                       <AppSelect
                         className="min-h-[2.75rem] rounded-lg px-3 py-2.5 text-base font-semibold sm:min-h-[3rem] sm:rounded-xl sm:px-4 sm:py-3 sm:text-sm"
-                        id="tournament-placement"
-                        name="placement"
-                        onChange={setPlacement}
-                        options={placementOptions}
-                        placeholder="Select placement..."
-                        value={placement}
+                        id={isJudge ? "tournament-judge-role" : "tournament-placement"}
+                        name={isJudge ? "judgeRole" : "placement"}
+                        onChange={isJudge ? (value) => setJudgeRole(value as TournamentJudgeRole) : setPlacement}
+                        options={isJudge ? TOURNAMENT_JUDGE_ROLE_OPTIONS : placementOptions}
+                        placeholder={isJudge ? "Select role..." : "Select placement..."}
+                        value={isJudge ? judgeRole : placement}
                       />
                     </Field>
                   </div>
@@ -510,12 +568,23 @@ export function TournamentEditorDialog({
                 />
               ))}
 
-              <BattleLogSpritePicker
-                onChange={setSelectedSprites}
-                pokemonOptions={pokemonOptions}
-                sprites={selectedSprites}
-                title="Tournament sprites"
-              />
+              <fieldset
+                aria-describedby={isJudge ? "judge-pokemon-lock-message" : undefined}
+                className={isJudge ? "grid gap-2 opacity-50" : "grid gap-2"}
+                disabled={isJudge}
+              >
+                <BattleLogSpritePicker
+                  onChange={setSelectedSprites}
+                  pokemonOptions={pokemonOptions}
+                  sprites={selectedSprites}
+                  title="Tournament Pokémon"
+                />
+                {isJudge ? (
+                  <p className="text-sm text-muted-foreground" id="judge-pokemon-lock-message">
+                    Pokémon selection is unavailable for judge events.
+                  </p>
+                ) : null}
+              </fieldset>
 
               <Field className="border-t border-border pt-5 sm:border-0 sm:pt-0">
                 <FieldLabel htmlFor="tournament-notes">Notes</FieldLabel>

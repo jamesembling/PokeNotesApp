@@ -1,5 +1,7 @@
 import type {
   TournamentCategory,
+  TournamentJudgeRole,
+  TournamentParticipation,
   TournamentPlacement,
   TournamentRoundGameResult,
   TournamentRoundSpecialResult
@@ -44,6 +46,14 @@ export const TOURNAMENT_PLACEMENT_OPTIONS: Array<{
   { value: "no placement", label: "No placement" }
 ];
 
+export const TOURNAMENT_JUDGE_ROLE_OPTIONS: Array<{
+  value: Exclude<TournamentJudgeRole, "">;
+  label: string;
+}> = [
+  { value: "judge", label: "Judge" },
+  { value: "head judge", label: "Head Judge" }
+];
+
 export const TOURNAMENT_ROUND_GAME_RESULT_OPTIONS: TournamentRoundGameResult[] = ["W", "L", "T"];
 export const TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS: Array<{
   value: TournamentRoundSpecialResult;
@@ -64,4 +74,19 @@ export function getTournamentPlacementLabel(placement: TournamentPlacement) {
     TOURNAMENT_PLACEMENT_OPTIONS.find((option) => option.value === placement)?.label ||
     "No placement"
   );
+}
+
+export function parseTournamentParticipation(value: unknown): TournamentParticipation {
+  return String(value || "").trim().toLowerCase() === "judge" ? "judge" : "player";
+}
+
+export function parseTournamentJudgeRole(value: unknown): TournamentJudgeRole {
+  const normalized = String(value || "").trim().toLowerCase();
+  return TOURNAMENT_JUDGE_ROLE_OPTIONS.some((option) => option.value === normalized)
+    ? (normalized as TournamentJudgeRole)
+    : "";
+}
+
+export function getTournamentJudgeRoleLabel(role: TournamentJudgeRole) {
+  return TOURNAMENT_JUDGE_ROLE_OPTIONS.find((option) => option.value === role)?.label || "Judge";
 }

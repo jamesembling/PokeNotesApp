@@ -11,6 +11,7 @@ import { LazyTournamentRoundEditorButton } from "@/components/ui/LazyTournamentR
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageActions } from "@/components/ui/PageActions";
 import { PageWidth } from "@/components/ui/PageWidth";
+import { PlayPokemonJudgeMark } from "@/components/ui/PlayPokemonJudgeMark";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { TournamentRoundRow } from "@/components/ui/TournamentRoundRow";
@@ -26,7 +27,11 @@ import {
 } from "@/lib/db/tournaments";
 import { formatTournamentDateRange, getTournamentRecord } from "@/lib/tournaments/display";
 import { resolveTournamentDeckListForDisplay } from "@/lib/tournaments/deck-list-workflow";
-import { getTournamentCategoryLabel, getTournamentPlacementLabel } from "@/lib/tournaments/options";
+import {
+  getTournamentCategoryLabel,
+  getTournamentJudgeRoleLabel,
+  getTournamentPlacementLabel
+} from "@/lib/tournaments/options";
 import { getTournamentPlacementPillClassName } from "@/lib/tournaments/placement-pill";
 
 type TournamentDetailPageProps = {
@@ -144,6 +149,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   }
 
   const record = getTournamentRecord(rounds);
+  const isJudge = tournament.participation === "judge";
   const tournamentSubheading = [
     formatTournamentDateRange(tournament.dateFrom, tournament.dateTo),
     tournament.category ? getTournamentCategoryLabel(tournament.category) : "",
@@ -157,11 +163,13 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
     user.email?.split("@")[0] ||
     "Trainer";
   const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
-  const resolvedTournamentDeckList = await resolveTournamentDeckListForDisplay({
-    loadDeckList: getDeckListById,
-    tournament,
-    userId: user.id
-  });
+  const resolvedTournamentDeckList = isJudge
+    ? null
+    : await resolveTournamentDeckListForDisplay({
+        loadDeckList: getDeckListById,
+        tournament,
+        userId: user.id
+      });
 
   return (
     <PageWidth size="standard">
@@ -174,12 +182,18 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
         meta={
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge>{record}</Badge>
-              {tournament.placement ? (
-                <Badge className={getTournamentPlacementPillClassName(tournament.placement)}>
-                  {getTournamentPlacementLabel(tournament.placement)}
-                </Badge>
-              ) : null}
+              {isJudge ? (
+                <Badge>{getTournamentJudgeRoleLabel(tournament.judgeRole)}</Badge>
+              ) : (
+                <>
+                  <Badge>{record}</Badge>
+                  {tournament.placement ? (
+                    <Badge className={getTournamentPlacementPillClassName(tournament.placement)}>
+                      {getTournamentPlacementLabel(tournament.placement)}
+                    </Badge>
+                  ) : null}
+                </>
+              )}
             </div>
             {tournamentSubheading ? (
               <p className="max-w-[65ch] text-base leading-7 text-muted-foreground">
@@ -221,15 +235,21 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
       <section className="flex flex-col gap-6 border-b border-border pb-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="flex min-w-0 flex-1 items-center gap-4">
-            <SpriteStrip maxVisible={3} size="xl" sprites={tournament.deckSprites} />
+            {isJudge ? (
+              <PlayPokemonJudgeMark className="size-14" />
+            ) : (
+              <SpriteStrip maxVisible={3} size="xl" sprites={tournament.deckSprites} />
+            )}
             <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
               <div className="min-w-0">
                 <ItemTitle as="p" size="lg">
-                  {stackDeckName(tournamentDeckName)}
+                  {isJudge
+                    ? getTournamentJudgeRoleLabel(tournament.judgeRole)
+                    : stackDeckName(tournamentDeckName)}
                 </ItemTitle>
               </div>
               <div className="flex shrink-0">
-                {resolvedTournamentDeckList ? (
+                {isJudge ? null : resolvedTournamentDeckList ? (
                   <DeckListViewDialog
                     deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
                     rawList={resolvedTournamentDeckList?.rawList}
