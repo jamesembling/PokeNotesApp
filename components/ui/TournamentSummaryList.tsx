@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronIcon } from "@/components/ui/icons";
+import { ChevronIcon, MapPinIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { ItemTitle } from "@/components/ui/Typography";
 import { PlayPokemonJudgeMark } from "@/components/ui/PlayPokemonJudgeMark";
@@ -49,8 +49,7 @@ export function TournamentSummaryList({
               : "No placement";
             const subtitle = [
               formatDayDate(tournament.dateFrom),
-              tournament.category ? getTournamentCategoryLabel(tournament.category) : "",
-              tournament.location
+              tournament.category ? getTournamentCategoryLabel(tournament.category) : ""
             ].filter(Boolean).join(" · ");
 
             return (
@@ -74,7 +73,18 @@ export function TournamentSummaryList({
                     />
                     <div className={styles.identityText}>
                       <ItemTitle as="h2" className={styles.name}>{tournament.name}</ItemTitle>
-                      <p className={styles.subtitle}>{subtitle}</p>
+                      <p className={styles.subtitle}>
+                        {subtitle}
+                        {tournament.location ? (
+                          <>
+                            <span aria-hidden="true"> · </span>
+                            <span className={styles.location}>
+                              <MapPinIcon className={styles.locationIcon} />
+                              {tournament.location}
+                            </span>
+                          </>
+                        ) : null}
+                      </p>
                       {tournament.tournamentIdentifier ? (
                         <p className={styles.identifier}>
                           Tournament ID {tournament.tournamentIdentifier}
