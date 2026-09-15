@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { importLogAction, parseLogAction } from "@/app/(app)/logs/actions";
+import {
+  importLogAction,
+  type ParseLogActionResult
+} from "@/app/(app)/logs/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
@@ -329,10 +332,25 @@ export function ImportLogDialog({
 
   const requestParseReview = useCallback(
     async (rawLogValue: string, requestId: number) => {
-      const formData = new FormData();
-      formData.set("rawLog", rawLogValue.trim());
-      formData.set("format", defaultFormat);
-      const result = await parseLogAction(formData);
+      let result: ParseLogActionResult;
+
+      try {
+        const response = await fetch("/api/log-import/review", {
+          body: JSON.stringify({
+            format: defaultFormat,
+            rawLog: rawLogValue.trim()
+          }),
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          method: "POST"
+        });
+        result = (await response.json()) as ParseLogActionResult;
+      } catch {
+        result = { error: "Could not review this Battle Log." };
+      }
 
       if (autoParseRequestIdRef.current !== requestId) {
         return;

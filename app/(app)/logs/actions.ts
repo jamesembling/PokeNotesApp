@@ -100,7 +100,7 @@ type ParsedLogReviewResult = {
   };
 };
 
-type ParseLogActionResult = PersistedBattleLogImportReview | { error: string };
+export type ParseLogActionResult = PersistedBattleLogImportReview | { error: string };
 type SaveActionResult = {
   ok: true;
   redirectTo: string;
