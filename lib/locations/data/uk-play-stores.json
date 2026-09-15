@@ -1,0 +1,3146 @@
+[
+  {
+    "id": "f2ec548d-686d-26b7-9827-74f85f80be8e",
+    "leagueId": "L6234634",
+    "name": "7TH CITY",
+    "address": "LENTON ST LENTON ST, SANDIACRE, ENGLAND NG10 5DJ, GB",
+    "latitude": 52.928075,
+    "longitude": -1.286602
+  },
+  {
+    "id": "aedbeb45-521d-405c-893b-7c13a0bd603a",
+    "leagueId": "L26057468",
+    "name": "AA PHONE FIX",
+    "address": "AA PHONE FIX, 158 - 160 VICTORIA ST S, GRIMSBY DN31 1NX, UK",
+    "latitude": 53.566545,
+    "longitude": -0.081305
+  },
+  {
+    "id": "c3c8b7b1-69e8-75e9-8922-26bb0bc178a8",
+    "leagueId": "L6244503",
+    "name": "ACCENT GAMING (DUNFERMLINE) LTD",
+    "address": "15 NEW ROW, SCOTLAND KY12 7EA, GB",
+    "latitude": 56.071034,
+    "longitude": -3.458703
+  },
+  {
+    "id": "cecb6a5c-9410-43ec-9e45-baf8b595e84d",
+    "leagueId": "L26057159",
+    "name": "ACCENTGAMING_KIRKCALDY",
+    "address": "179 ST CLAIR STREET, FIFE KY12BX, GB",
+    "latitude": 56.127449,
+    "longitude": -3.138887
+  },
+  {
+    "id": "c0d7f6a2-6e95-d4a0-763d-b0ed578a3ba8",
+    "leagueId": "L110909",
+    "name": "ACME GAMES",
+    "address": "7 LLOYD ST, WALES LL30 2UU, GB",
+    "latitude": 53.323874,
+    "longitude": -3.830341
+  },
+  {
+    "id": "6e48bebb-0d08-a265-d567-6b7716b857d3",
+    "leagueId": "L6235636",
+    "name": "AFK GAMING LTD",
+    "address": "129 QUEEN ST 129 QUEEN STREET, ENGLAND TQ12 2BN, GB",
+    "latitude": 50.531052,
+    "longitude": -3.602295
+  },
+  {
+    "id": "79556685-ba6b-4676-b727-02a8297f1cea",
+    "leagueId": "L26027413",
+    "name": "AJ-TCG CARLISLE",
+    "address": "3 EARLS LANE, CARLISLE CA3 8DG, UK",
+    "latitude": 54.894699,
+    "longitude": -2.932766
+  },
+  {
+    "id": "c557b1df-2c2a-f79c-a613-fe172e8645be",
+    "leagueId": "L6240145",
+    "name": "AJ-TCG LTD",
+    "address": "54 MANCHESTER RD, ENGLAND PR1 3YH, GB",
+    "latitude": 53.757451,
+    "longitude": -2.691143
+  },
+  {
+    "id": "7ea29c73-30e7-f158-3393-060bf3983383",
+    "leagueId": "L6241469",
+    "name": "ALBION GAMES CAFÉ",
+    "address": "21 ST BENEDICTS ST, ENGLAND NR2 4PF, GB",
+    "latitude": 52.631029,
+    "longitude": 1.289677
+  },
+  {
+    "id": "e8705edb-3392-16d9-dd44-82eadc5cd405",
+    "leagueId": "L6245589",
+    "name": "ANGLE GAMING LOUNGE",
+    "address": "939 LINCOLN RD WALTON, ENGLAND PE4 6AF, GB",
+    "latitude": 52.600711,
+    "longitude": -0.264241
+  },
+  {
+    "id": "8d4959e8-229d-c57a-87d1-0169e5103baa",
+    "leagueId": "L6237514",
+    "name": "ANIMEZ",
+    "address": "86 BOUTPORT ST, ENGLAND EX31 1SR, GB",
+    "latitude": 51.079876,
+    "longitude": -4.058313
+  },
+  {
+    "id": "2e100041-3dac-b2df-b87f-c862a61425ac",
+    "leagueId": "L6239615",
+    "name": "ANTICS",
+    "address": "BRUNEL WAY BRUNEL WAY, STONEHOUSE, ENGLAND GL10 3SX, GB",
+    "latitude": 51.750245,
+    "longitude": -2.300483
+  },
+  {
+    "id": "a750d5db-6c33-0986-4ff7-8cb5bace937e",
+    "leagueId": "L4201",
+    "name": "ANTICS",
+    "address": "86 CORNWALL ST, ENGLAND PL1 1LR, GB",
+    "latitude": 50.372501,
+    "longitude": -4.144402
+  },
+  {
+    "id": "7d2443b2-3f4a-1707-1eb1-68880a845896",
+    "leagueId": "L6238942",
+    "name": "ARCHERON GAMES",
+    "address": "65 GEORGE ST, HULL, ENGLAND HU1 3BA, GB",
+    "latitude": 53.74626,
+    "longitude": -0.336868
+  },
+  {
+    "id": "b3face14-2392-432b-965f-7ce9cde9c8a4",
+    "leagueId": "L26058989",
+    "name": "AREA 1-51",
+    "address": "8-9 BEWELL SQUARE, HEREFORD, GB-HEF HR4 0BB, GB",
+    "latitude": 52.056807,
+    "longitude": -2.717091
+  },
+  {
+    "id": "5645d8ef-57a7-4e91-9527-60055843dafe",
+    "leagueId": "L26018125",
+    "name": "ASHDOWN GAMING",
+    "address": "SHOP 3, LEXDEN LODGE, CROWBOROUGH HILL, JARVIS BROOK, CROWBOROUGH TN6 2EG, UK",
+    "latitude": 51.046981,
+    "longitude": 0.189028
+  },
+  {
+    "id": "6f52930b-4c76-58ef-d6a9-9548f4d8c10a",
+    "leagueId": "L652914",
+    "name": "ATHENA GAMES",
+    "address": "9 ST GREGORYS ALLEY, ENGLAND NR2 1ER, GB",
+    "latitude": 52.630518,
+    "longitude": 1.29112
+  },
+  {
+    "id": "736dab7b-ec9d-535e-2dbc-20f4c40aab31",
+    "leagueId": "L6238080",
+    "name": "ATOMIC CARDS SWINDON",
+    "address": "HOBLEY DR UNIT T18, THE IO CENTRE, ENGLAND SN3 4JG, GB",
+    "latitude": 51.581003,
+    "longitude": -1.751582
+  },
+  {
+    "id": "39359005-207f-4e4c-b6c9-1e5088ef3dda",
+    "leagueId": "L26080793",
+    "name": "ATOMIC COMICS & GAMES",
+    "address": "8 VICARAGE WALK QUEDAM SHIPPING CENTRE, YEOVIL, ENGLAND BA20 1EU, GB",
+    "latitude": 50.942037,
+    "longitude": -2.630386
+  },
+  {
+    "id": "03f35a46-f2af-4941-af99-057113c627b6",
+    "leagueId": "L26035266",
+    "name": "BAD MOON CAFE HOLLOWAY ROAD",
+    "address": "ARCH 5, 303 HOLLOWAY RD, LONDON N7 8HS, UK",
+    "latitude": 51.552918,
+    "longitude": -0.112912
+  },
+  {
+    "id": "08394a6e-91b9-7358-2b7d-be2d8296a8b0",
+    "leagueId": "L6242001",
+    "name": "BAD MOON CAFE LTD.",
+    "address": "159A GREAT DOVER ST, ENGLAND SE1 4GZ, GB",
+    "latitude": 51.496608,
+    "longitude": -0.088309
+  },
+  {
+    "id": "5c09cfd3-1b99-e116-139e-0ca1088d7491",
+    "leagueId": "L6239671",
+    "name": "BAD WOLF GAMING",
+    "address": "19 WHITEFRIARGATE, HULL, ENGLAND HU1 2ER, GB",
+    "latitude": 53.74301,
+    "longitude": -0.336419
+  },
+  {
+    "id": "50792cc8-342f-4f9a-9623-e8e89ce19f83",
+    "leagueId": "L6239506",
+    "name": "BADGER BADGER - DEPTFORD",
+    "address": "139 DEPTFORD HIGH ST, ENGLAND SE8 3NU, GB",
+    "latitude": 51.479058,
+    "longitude": -0.026274
+  },
+  {
+    "id": "fc851dac-2ef1-72ae-3542-0cfdd92c5a0f",
+    "leagueId": "L6243241",
+    "name": "BADGER BADGER WEST NORWOOD",
+    "address": "543 NORWOOD RD, ENGLAND SE27 9DW, GB",
+    "latitude": 51.434155,
+    "longitude": -0.103512
+  },
+  {
+    "id": "ede05a4e-0b4c-4e63-ab15-78eb6ee852eb",
+    "leagueId": "L26015306",
+    "name": "BALTIC TCG",
+    "address": "70 STANHOPE STREET, LIVERPOOL L8 5RF, GB",
+    "latitude": 53.393197,
+    "longitude": -2.97799
+  },
+  {
+    "id": "4b862ac2-3fba-424f-8cc5-d496a55c8102",
+    "leagueId": "L26078747",
+    "name": "BANTER (TRADING NAME OF INCLUSIVE SPACES CIC)",
+    "address": "BANTER, UNIT 10/11 WINDSOR INDUSTRIAL ESTATE, HAWKINS LANE BURTON, BURTON, GB-STS DE14 1QF, GB",
+    "latitude": 52.812971,
+    "longitude": -1.627348
+  },
+  {
+    "id": "bf73528b-a7fa-5f92-7ddf-4aecd7f16cd7",
+    "leagueId": "L6241336",
+    "name": "BAO TO THE BROTH",
+    "address": "48 ST OWEN'S ST HR1 2PU, GB",
+    "latitude": 52.054285,
+    "longitude": -2.711034
+  },
+  {
+    "id": "dcabb364-9699-f8d5-ef4d-bc44b80cc497",
+    "leagueId": "L6239910",
+    "name": "BARNSLEY MODELS AND GAMES",
+    "address": "37 THE ARCADE, ENGLAND S70 2QP, GB",
+    "latitude": 53.553328,
+    "longitude": -1.480068
+  },
+  {
+    "id": "3d9840fa-5a2a-4477-a293-cc87e7ea612b",
+    "leagueId": "L5683200",
+    "name": "BATH TCG",
+    "address": "4, VICTORIA BUILDINGS, LOWER BRISTOL RD, BATH BA2 3EH, UK",
+    "latitude": 51.38131,
+    "longitude": -2.374512
+  },
+  {
+    "id": "ea6bc261-9422-da25-d6b3-5694574187b5",
+    "leagueId": "L6235307",
+    "name": "BATTLEGROUND GAMING UK",
+    "address": "UNIT 4C, WATERSIDE BUSINESS PARK, 1649 PERSHORE RD, KING'S NORTON, BIRMINGHAM B30 3DR, UK",
+    "latitude": 52.421455,
+    "longitude": -1.923156
+  },
+  {
+    "id": "38041d15-f63c-5f37-335d-15a076cd32ec",
+    "leagueId": "L6241275",
+    "name": "BAY GAMES",
+    "address": "BAY GAMES 78 PARK VIEW, WHITLEY BAY, GB-NTY NE26 2TH, GB",
+    "latitude": 55.041983,
+    "longitude": -1.44987
+  },
+  {
+    "id": "ccd27021-0c10-d319-424d-a374ed5a9c7b",
+    "leagueId": "L6244742",
+    "name": "BEACON GAMES",
+    "address": "None TRINITY SQUARE, ENGLAND EX13 5AP, GB",
+    "latitude": 50.782251,
+    "longitude": -2.99908
+  },
+  {
+    "id": "7a72149b-1e7c-6312-6624-250a9949ce4e",
+    "leagueId": "L862900",
+    "name": "Beanie Games",
+    "address": "26 BISHOPTON LN, ENGLAND TS18 2AA, GB",
+    "latitude": 54.568171,
+    "longitude": -1.31457
+  },
+  {
+    "id": "30851059-2ae0-47d7-85c8-3e9237386fed",
+    "leagueId": "L26067736",
+    "name": "BECKS COLLECTS",
+    "address": "BECKS COLLECTS 15 MARKET STREET, BARNSLEY, GB-BNS S70 1SL, GB",
+    "latitude": 53.551949,
+    "longitude": -1.481329
+  },
+  {
+    "id": "f9ab5fb7-deee-2117-ca8e-3f567f45d22a",
+    "leagueId": "L6245199",
+    "name": "BEER & PRETZEL GAMING",
+    "address": "95A HIGHGATE, ENGLAND LA9 4EN, GB",
+    "latitude": 54.325249,
+    "longitude": -2.747402
+  },
+  {
+    "id": "dd56dbb4-5968-e896-15d1-65252a33edd1",
+    "leagueId": "L6241874",
+    "name": "BIBLIOTHECA MAGICA CIC",
+    "address": "CHOPWELL PARK PAVILION, CHOPWELL, NEWCASTLE UPON TYNE NE17 7EH, UK",
+    "latitude": 54.917596,
+    "longitude": -1.811226
+  },
+  {
+    "id": "160122e8-93a2-4564-8d02-63cfecb765c3",
+    "leagueId": "L25099501",
+    "name": "BINDERFUL",
+    "address": "12 FORTH ST, NEWCASTLE UPON TYNE, ENGLAND NE1 3NZ, GB",
+    "latitude": 54.968465,
+    "longitude": -1.613027
+  },
+  {
+    "id": "6f7b624e-2abe-c6eb-a235-77bdcf15fb15",
+    "leagueId": "L6237516",
+    "name": "BLACK DRAGON GAMES",
+    "address": "17 BURTON ST, ENGLAND LE13 1AE, GB",
+    "latitude": 52.763771,
+    "longitude": -0.885102
+  },
+  {
+    "id": "59f13344-e0f1-4bda-9ec6-8ad95c5936ac",
+    "leagueId": "L26058234",
+    "name": "BLACK RAVEN GAMES LIMITED",
+    "address": "29 BRUNEL WAY, THETFORD IP24 1HP, UK",
+    "latitude": 52.425424,
+    "longitude": 0.73706
+  },
+  {
+    "id": "b6a88076-77f2-5f55-7308-7fa7b46d696f",
+    "leagueId": "L6241094",
+    "name": "BOARD IN BRUM",
+    "address": "UNIT 2, THE ERA INDUSTRIAL ESTATE, WALSALL, WILLENHALL WV12 5QU, UK",
+    "latitude": 52.602796,
+    "longitude": -2.039768
+  },
+  {
+    "id": "9056c274-6776-76af-1333-c84e0c0eedd8",
+    "leagueId": "L6235529",
+    "name": "BOARD IN THE CITY CIC",
+    "address": "38-40 ONSLOW RD, ENGLAND SO14 0JG, GB",
+    "latitude": 50.913496,
+    "longitude": -1.398895
+  },
+  {
+    "id": "50ae0c30-0f0b-8c0a-ec7c-509ae4c47f22",
+    "leagueId": "L6237685",
+    "name": "BOARDROOM GAMING CAFÉ",
+    "address": "13 NEW ST WELLINGTON, ENGLAND TF1 1LU, GB",
+    "latitude": 52.700818,
+    "longitude": -2.517926
+  },
+  {
+    "id": "2cefb3be-a787-c16c-f7bd-f23cfaabf96f",
+    "leagueId": "L6235523",
+    "name": "BOARDS AND SWORDS HOBBIES",
+    "address": "3 JUBILEE PKWY STORES ROAD, ENGLAND DE21 4BJ, GB",
+    "latitude": 52.928066,
+    "longitude": -1.466348
+  },
+  {
+    "id": "1ce04429-fa94-31d7-e63f-0d0f679326e8",
+    "leagueId": "L6235005",
+    "name": "BOSS MINIATURES AND GAMING",
+    "address": "27-28 KING ST, ENGLAND DT4 7BQ, GB",
+    "latitude": 50.614649,
+    "longitude": -2.453272
+  },
+  {
+    "id": "f0bb1548-3e17-6741-fafd-4f7241eafb30",
+    "leagueId": "L6241318",
+    "name": "BOURNE TOYS",
+    "address": "UNIT 5, THE BURGHLEY CENTRE, BOURNE PE10 9EG, UK",
+    "latitude": 52.768915,
+    "longitude": -0.376384
+  },
+  {
+    "id": "567d8277-dca9-8a0d-39cd-8b0da927a859",
+    "leagueId": "L6235134",
+    "name": "BRIDGE TROLL HOBBIES",
+    "address": "14 ANGEL HILL, ENGLAND EX16 6PE, GB",
+    "latitude": 50.902735,
+    "longitude": -3.489779
+  },
+  {
+    "id": "3b813b3a-9fa1-4862-bb49-1084b9c098a8",
+    "leagueId": "L26070820",
+    "name": "BRISTOL INDEPENDENT GAMING",
+    "address": "BRISTOL INDEPENDENT GAMING 11-16 CATER ROAD, BRISTOL, GB-BST BS13 7TW, GB",
+    "latitude": 51.415477,
+    "longitude": -2.609575
+  },
+  {
+    "id": "47ec6f2e-337a-c0a5-2f51-387acaaf6ec9",
+    "leagueId": "L6241125",
+    "name": "BROWN BEAR GAMES",
+    "address": "7 NEWPORT ARCADE HIGH STREET, WALES NP20 1GD, GB",
+    "latitude": 51.588823,
+    "longitude": -2.997604
+  },
+  {
+    "id": "26a6e1e5-7be9-4c74-890d-b176756f5044",
+    "leagueId": "L26077417",
+    "name": "BULSTRODES TOY SHOP",
+    "address": "27 BRIDGE ST, FRAMLINGHAM, WOODBRIDGE IP13 9AJ, UK",
+    "latitude": 52.222305,
+    "longitude": 1.343289
+  },
+  {
+    "id": "0a73279f-0853-6f6e-b475-6eac417f91a7",
+    "leagueId": "L6237869",
+    "name": "BULWARK GAMES",
+    "address": "4B CHURCH RD BEBINGTON, BEBINGTON, ENGLAND CH63 7PH, GB",
+    "latitude": 53.34992,
+    "longitude": -3.003089
+  },
+  {
+    "id": "9001a5fe-ba0a-1c76-6432-9bd2646e30ac",
+    "leagueId": "L28904",
+    "name": "BUS STOP TOY SHOP",
+    "address": "23 IRVINE RD, SCOTLAND KA30 8HR, GB",
+    "latitude": 55.791092,
+    "longitude": -4.862336
+  },
+  {
+    "id": "87d01a46-e6c2-34d7-f839-3ed99eba5528",
+    "leagueId": "L5573204",
+    "name": "CALAMITY COMICS HATFIELD",
+    "address": "44 WHITE LION SQUARE, HATFIELD AL10 0JJ, UK",
+    "latitude": 51.764086,
+    "longitude": -0.226578
+  },
+  {
+    "id": "cd30f955-6c8a-7e5b-6e0f-9e01120d8a14",
+    "leagueId": "L6240345",
+    "name": "CARD CATCHER SHOP",
+    "address": "118 HIGH ST STAPLE HILL, ENGLAND BS16 5HH, GB",
+    "latitude": 51.481077,
+    "longitude": -2.507523
+  },
+  {
+    "id": "91987f2a-13d8-aa8e-38c8-01b56e9ee252",
+    "leagueId": "L6245641",
+    "name": "CARD GOBLIN",
+    "address": "31 BIGGIN ST, ENGLAND LE11 1UA, GB",
+    "latitude": 52.773574,
+    "longitude": -1.205745
+  },
+  {
+    "id": "21d26a01-c843-c133-f0c9-ce7791b39f6c",
+    "leagueId": "L2483102",
+    "name": "CATACLYSM GAMES",
+    "address": "45 CANTERBURY ST, ENGLAND ME7 5TR, GB",
+    "latitude": 51.386064,
+    "longitude": 0.544075
+  },
+  {
+    "id": "b6789e51-f886-42e1-981d-4ea543dd538b",
+    "leagueId": "L26067709",
+    "name": "CATCH ‘N’ COLLECT",
+    "address": "48 GAOL LN, SUDBURY CO10 1JL, UK",
+    "latitude": 52.039606,
+    "longitude": 0.729967
+  },
+  {
+    "id": "f3e2103b-fb92-4147-a8a7-d8b27f213a5d",
+    "leagueId": "L26026411",
+    "name": "CHANGE THE GAME",
+    "address": "102 SEASIDE RD, EASTBOURNE BN21 3PF, UK",
+    "latitude": 50.769096,
+    "longitude": 0.292596
+  },
+  {
+    "id": "b269eec7-e18e-d0a7-22fb-7ac60d643cbf",
+    "leagueId": "L6234495",
+    "name": "CLIFTON ROAD GAMES",
+    "address": "16 CLIFTON RD, ENGLAND EX1 2BR, GB",
+    "latitude": 50.72612,
+    "longitude": -3.519462
+  },
+  {
+    "id": "8dac1f8b-8f2d-23a3-7b2c-cedaa21be54e",
+    "leagueId": "L6245643",
+    "name": "CLOCKWORK DRAGON ABINGDON",
+    "address": "42 BATH ST, ENGLAND OX14 3QH, GB",
+    "latitude": 51.67128,
+    "longitude": -1.283807
+  },
+  {
+    "id": "c05de364-6cc2-d0bf-1714-8b543360a1dc",
+    "leagueId": "L6241786",
+    "name": "COLLECTAMANIA",
+    "address": "7 CENTRAL ARCADE ST, ENGLAND DL7 8PY, GB",
+    "latitude": 54.340218,
+    "longitude": -1.43326
+  },
+  {
+    "id": "d4e4dde2-afa9-3ba8-df90-580020cb4727",
+    "leagueId": "L6239049",
+    "name": "COLLECTEEBLES",
+    "address": "28A, CHANTRY CENTRE, ANDOVER SP10 1LS, UK",
+    "latitude": 51.208866,
+    "longitude": -1.48048
+  },
+  {
+    "id": "da6ada2b-ed0b-4d3d-b156-3a41ae69d13a",
+    "leagueId": "L26015942",
+    "name": "COLLECTOR'S EDGE LTD",
+    "address": "UNIT 2 THE COURTYARD STAPLEFIELD RD, CUCKFIELD, HAYWARDS HEATH, GB-WSX RH17 5JT, GB",
+    "latitude": 51.023001,
+    "longitude": -0.172571
+  },
+  {
+    "id": "285ba627-6512-39dd-95aa-1c83d3b03896",
+    "leagueId": "L6242328",
+    "name": "COLLECTORS CARD CAVE",
+    "address": "23 CLIFTON RD, ENGLAND SG17 5AF, GB",
+    "latitude": 52.03783,
+    "longitude": -0.329753
+  },
+  {
+    "id": "fb41f7c3-c460-668e-71a3-2256a323da3d",
+    "leagueId": "L6243427",
+    "name": "COLLECTORS LOUNGE",
+    "address": "10 ARMOURY RD 10 ARMOURY ROAD, ENGLAND BA22 8RL, GB",
+    "latitude": 50.949978,
+    "longitude": -2.677307
+  },
+  {
+    "id": "846c7c0d-74ad-a393-3f04-17676ccbf4bf",
+    "leagueId": "L6236833",
+    "name": "COMICS GAMES AND COFFEE WORTHING",
+    "address": "None, ENGLAND BN11 1YJ, GB",
+    "latitude": 50.811036,
+    "longitude": -0.370667
+  },
+  {
+    "id": "ed6a652c-3507-b2f2-6e95-9e6d11c991c0",
+    "leagueId": "L5973205",
+    "name": "COMICS, GAMES AND COFFEE LTD",
+    "address": "NORTH ST, ENGLAND PO19 1LR, GB",
+    "latitude": 50.838185,
+    "longitude": -0.778545
+  },
+  {
+    "id": "fbc2424c-a28e-48f0-bf0e-9903f34da530",
+    "leagueId": "L25115752",
+    "name": "COMMON GROUND GAMES",
+    "address": "40B COWANE ST, STIRLING FK8 1JR, UK",
+    "latitude": 56.124098,
+    "longitude": -3.939293
+  },
+  {
+    "id": "785eb01d-79d6-7af0-9655-c24552ca1dae",
+    "leagueId": "L6244183",
+    "name": "COMMUNITEA GAMING",
+    "address": "UNIT 16-17, ORTON GATE SHOPPING CENTRE, PETERBOROUGH PE2 5TD, UK",
+    "latitude": 52.543356,
+    "longitude": -0.30226
+  },
+  {
+    "id": "cb46ab2d-c6f7-f33f-fec5-0dd56dcff5c5",
+    "leagueId": "L5943205",
+    "name": "COMMUNITY WISE",
+    "address": "OCKLYNGE RD, EASTBOURNE BN21 1PY, UK",
+    "latitude": 50.774552,
+    "longitude": 0.266623
+  },
+  {
+    "id": "d5dc7ab7-c903-d27b-af71-54934211f8e5",
+    "leagueId": "L6244811",
+    "name": "CORNERSTONE GAMING",
+    "address": "3135 ST COLMANS PARK UNIT 1, NORTHERN IRELAND BT34 2AA, GB",
+    "latitude": 54.173088,
+    "longitude": -6.340547
+  },
+  {
+    "id": "42368c6a-7dbd-de97-15fd-9baef38f1474",
+    "leagueId": "L6239025",
+    "name": "COSMIC COLLECTABLES",
+    "address": "3 BERRIEW ST, WALES SY21 7SQ, GB",
+    "latitude": 52.65916,
+    "longitude": -3.147109
+  },
+  {
+    "id": "34d25f55-8069-6513-41e0-968e3bf1c314",
+    "leagueId": "L6244670",
+    "name": "CRAZY COLLECTABLES",
+    "address": "CHENEY MANOR RD CHANEY MANOR, ENGLAND SN2 2PJ, GB",
+    "latitude": 51.572004,
+    "longitude": -1.804635
+  },
+  {
+    "id": "9511f417-4b58-40ed-a9e7-97927c314890",
+    "leagueId": "L26028690",
+    "name": "CRYOGENIK LTD",
+    "address": "UNIT 21-22 ABERAFAN SHOPPING CENTRE, PORT TALBOT, GB-NTL SA13 1PB, GB",
+    "latitude": 51.596792,
+    "longitude": -3.784878
+  },
+  {
+    "id": "ae8f5301-aa70-30a5-2e65-e6461ae0e171",
+    "leagueId": "L6242973",
+    "name": "CRYPTIC CABIN",
+    "address": "76 HIGH ST HANHAM, ENGLAND BS15 3DS, GB",
+    "latitude": 51.448705,
+    "longitude": -2.516599
+  },
+  {
+    "id": "339a195f-baee-afa8-4637-a6a84585a426",
+    "leagueId": "L6238458",
+    "name": "CRYPTIC CABIN",
+    "address": "11D, MOSS END GARDEN VILLAGE, WARFIELD, BRACKNELL RG42 6EJ, UK",
+    "latitude": 51.445734,
+    "longitude": -0.750376
+  },
+  {
+    "id": "6d229725-dec2-1b77-19e6-23c4eed8e2fb",
+    "leagueId": "L6242143",
+    "name": "CYRILS FUN HOUSE",
+    "address": "3 ACTON RD, LONG EATON, ENGLAND NG10 1FR, GB",
+    "latitude": 52.891646,
+    "longitude": -1.266999
+  },
+  {
+    "id": "a9102498-ebcf-3bcc-59be-b83043604ae4",
+    "leagueId": "L6234829",
+    "name": "D20 BOARD GAME CAFE",
+    "address": "87 QUEEN'S RD, ENGLAND WD17 2QN, GB",
+    "latitude": 51.658056,
+    "longitude": -0.392222
+  },
+  {
+    "id": "9919336b-b80b-baaa-9c8c-a23210b56330",
+    "leagueId": "L6239788",
+    "name": "DARK FIRE CAFE",
+    "address": "UNIT 8, THE GAVEL CENTRE, PORTERS WOOD, ST ALBANS AL3 6PQ, UK",
+    "latitude": 51.770534,
+    "longitude": -0.326323
+  },
+  {
+    "id": "e428e2bc-c8f1-3595-a742-83124128492c",
+    "leagueId": "L6240004",
+    "name": "DARK SPHERE",
+    "address": "UNIT 8 W12 SHOPPING CENTRE, LONDON W12 8PP, UK",
+    "latitude": 51.503539,
+    "longitude": -0.218481
+  },
+  {
+    "id": "e3d0b3f3-238e-213d-cfc3-9202fdd195c3",
+    "leagueId": "L6234038",
+    "name": "DARK STAR GAMING",
+    "address": "9 MOON ST, ENGLAND PL4 0BB, GB",
+    "latitude": 50.370808,
+    "longitude": -4.134208
+  },
+  {
+    "id": "265cdc29-72ad-a656-42e5-a3efcc0fce5b",
+    "leagueId": "L4953206",
+    "name": "DAYDREAM NATION",
+    "address": "6 KENSINGTON GARDENS, BRIGHTON AND HOVE, ENGLAND BN1 4AL, GB",
+    "latitude": 50.826633,
+    "longitude": -0.138685
+  },
+  {
+    "id": "e0edcb57-19fe-128c-92b8-3cf8c6a2d959",
+    "leagueId": "L6236555",
+    "name": "DECK YEAH! GAMING",
+    "address": "UNIT C1 MULBERRY HOUSE PARK PLACE, STEVENAGE, GB-HRT SG1 1BF, GB",
+    "latitude": 51.902617,
+    "longitude": -0.200631
+  },
+  {
+    "id": "b0d4675e-fc89-49c1-956e-621c23b95aa7",
+    "leagueId": "L26035930",
+    "name": "DECKHEADUK",
+    "address": "GALLAN PK, WATLING ST, CANNOCK WS11 0XG, UK",
+    "latitude": 52.676005,
+    "longitude": -2.036904
+  },
+  {
+    "id": "dd4e24c9-eb2c-1fc1-96a8-6e1b4ce02dcf",
+    "leagueId": "L6237515",
+    "name": "DICE & DESTINY TABLETOP STORE",
+    "address": "79 NORTHGATE, CANTERBURY, ENGLAND CT1 1BA, GB",
+    "latitude": 51.282605,
+    "longitude": 1.084013
+  },
+  {
+    "id": "be408a60-0f11-23df-992f-a599a253d38b",
+    "leagueId": "L6244336",
+    "name": "DICE AND A SLICE",
+    "address": "37 QUEEN ST, ENGLAND CO1 2PQ, GB",
+    "latitude": 51.888336,
+    "longitude": 0.903795
+  },
+  {
+    "id": "88141db4-1488-44f9-9e31-06908a8cf116",
+    "leagueId": "L26083830",
+    "name": "DICE BOARD GAME LOUNGE",
+    "address": "149 ALBERT RD, SOUTHSEA, PORTSMOUTH, SOUTHSEA PO4 0JW, UK",
+    "latitude": 50.786722,
+    "longitude": -1.075675
+  },
+  {
+    "id": "708523d4-1f18-cada-138b-1483f92c5019",
+    "leagueId": "L6237606",
+    "name": "DICE CAVERN GAMES",
+    "address": "62 WELBY ST, ENGLAND NG31 6EA, GB",
+    "latitude": 52.910615,
+    "longitude": -0.644104
+  },
+  {
+    "id": "4420ce98-c75d-745d-966a-d21eb32455a1",
+    "leagueId": "L6233811",
+    "name": "DICE SALOON",
+    "address": "88 LONDON RD, BRIGHTON AND HOVE, ENGLAND BN1 4JF, GB",
+    "latitude": 50.832394,
+    "longitude": -0.137262
+  },
+  {
+    "id": "2b29e5be-4b9e-b1aa-9904-e26cd98d210e",
+    "leagueId": "L6245010",
+    "name": "DISS GAMES",
+    "address": "UNIT V5, VINCE'S RD, DISS IP22 4HQ, UK",
+    "latitude": 52.375332,
+    "longitude": 1.121985
+  },
+  {
+    "id": "989b5089-24d7-b4b2-eb10-80cbd8ddb53b",
+    "leagueId": "L6245088",
+    "name": "DISTINCT GAMING",
+    "address": "8A KING ST 8A KING STREET, ENGLAND DE56 1PS, GB",
+    "latitude": 53.022662,
+    "longitude": -1.48368
+  },
+  {
+    "id": "a57d0c3a-fb1e-4173-96f1-ec346e13aaff",
+    "leagueId": "L25095268",
+    "name": "DNA GAMES",
+    "address": "UNIT 4B, KINGS HILL INDUSTRIAL ESTATE, BUDE EX23 8QN, UK",
+    "latitude": 50.821914,
+    "longitude": -4.533269
+  },
+  {
+    "id": "4e51b3eb-c485-b510-c949-b96ec8f16e8a",
+    "leagueId": "L6239488",
+    "name": "DO OR DICE ADDLESTONE",
+    "address": "DO OR DICE, UNIT 6B ADDLESTONE ONE MARKET STREET, ADDLESTONE, GB-SRY KT15 2GD, GB",
+    "latitude": 51.370188,
+    "longitude": -0.489522
+  },
+  {
+    "id": "ee9c5544-3c90-5f81-b24f-b72e07b81489",
+    "leagueId": "L6238709",
+    "name": "DOMINION",
+    "address": "135 MAIN ST, SCOTLAND KA8 8BX, GB",
+    "latitude": 55.468405,
+    "longitude": -4.62977
+  },
+  {
+    "id": "a99ca836-ee56-477e-abe3-97e3ae71a56d",
+    "leagueId": "L25098186",
+    "name": "DRAGONSCALE CARDS",
+    "address": "20 BOULEVARD, WESTON-SUPER-MARE BS23 1NA, UK",
+    "latitude": 51.35006,
+    "longitude": -2.975903
+  },
+  {
+    "id": "51692157-61cd-63ea-85b4-107356cdc014",
+    "leagueId": "L6237789",
+    "name": "DUKE'S GAMING",
+    "address": "135 OSBORNE RD, WALES NP4 6LT, GB",
+    "latitude": 51.703848,
+    "longitude": -3.042007
+  },
+  {
+    "id": "8751c4cd-adc7-4b84-9b56-297fa90d88e4",
+    "leagueId": "L26066107",
+    "name": "DUNGEONS & DICE",
+    "address": "32 WEST ST, SITTINGBOURNE ME10 1AP, UK",
+    "latitude": 51.340798,
+    "longitude": 0.732032
+  },
+  {
+    "id": "a55797d6-e413-a208-0342-e2754fdc5da3",
+    "leagueId": "L2032937",
+    "name": "ECLECTIC GAMES",
+    "address": "21 DUKE ST, READING, ENGLAND RG1 4SA, GB",
+    "latitude": 51.454316,
+    "longitude": -0.968537
+  },
+  {
+    "id": "f798aa2d-dba5-8cba-2494-25c7297f0cef",
+    "leagueId": "L6241236",
+    "name": "ECLIPSE GAMING",
+    "address": "39 RAILWAY ST, ENGLAND ME4 4RH, GB",
+    "latitude": 51.381923,
+    "longitude": 0.522786
+  },
+  {
+    "id": "09b149f7-f393-acba-5bff-5932aa221d1a",
+    "leagueId": "L6237512",
+    "name": "EH GAMING",
+    "address": "STOCKTON LN STOCKTON LANE, ENGLAND YO32 9LE, GB",
+    "latitude": 53.990332,
+    "longitude": -1.013532
+  },
+  {
+    "id": "9e393993-cbac-440c-a117-a9f9fd251cb3",
+    "leagueId": "L26055340",
+    "name": "ELITE 4 COLLECTABLES",
+    "address": "13 ANGEL PAVEMENT, ROYSTON SG8 9AS, UK",
+    "latitude": 52.0465,
+    "longitude": -0.022626
+  },
+  {
+    "id": "ba1ce3f2-fd71-ef70-12c1-9e2b8d16afad",
+    "leagueId": "L6242245",
+    "name": "ELITE GAMING LOUNGE",
+    "address": "30 HIGH ST, ENGLAND LE67 3ED, GB",
+    "latitude": 52.725142,
+    "longitude": -1.373265
+  },
+  {
+    "id": "f79411f7-02eb-e49a-6549-2fb15d9a1557",
+    "leagueId": "L6241715",
+    "name": "ENTOYMENT WARGAMING AND HOBBY CENTRE",
+    "address": "27 HARWELL RD, ENGLAND BH17 8PJ, GB",
+    "latitude": 50.740411,
+    "longitude": -1.975736
+  },
+  {
+    "id": "71aeccd0-afc2-4f55-9616-fae3995e1312",
+    "leagueId": "L26061653",
+    "name": "EUROPA GAMING",
+    "address": "370 CALEDONIAN RD, LONDON, ENGLAND N1 1DY, GB",
+    "latitude": 51.541883,
+    "longitude": -0.116948
+  },
+  {
+    "id": "f0d17085-320c-c888-74fc-ffd146ff5ccd",
+    "leagueId": "L6242309",
+    "name": "EVANS HOBBY AND TECH",
+    "address": "76 HIGH ST, ANNAN DG12 6DL, UK",
+    "latitude": 54.987448,
+    "longitude": -3.262047
+  },
+  {
+    "id": "a7f332e7-b032-4ede-fa57-fa4519675afb",
+    "leagueId": "L6242930",
+    "name": "EVOLUTION TRADING CARDS",
+    "address": "1 ORRELL ST, WIGAN WN1 3AQ, UK",
+    "latitude": 53.541302,
+    "longitude": -2.623348
+  },
+  {
+    "id": "eed9f097-d931-0175-8242-b4adfd0face5",
+    "leagueId": "L6239336",
+    "name": "EXCALIBUR GAMING",
+    "address": "33 BRIDGE ST, ENGLAND TA1 1TQ, GB",
+    "latitude": 51.018484,
+    "longitude": -3.105536
+  },
+  {
+    "id": "7afaa9a1-74a5-0520-ccce-428a457d4f41",
+    "leagueId": "L6235998",
+    "name": "EXCELSIOR! COMICS & GAMES",
+    "address": "51-53 MERCHANT ST BROADMEAD, ENGLAND BS1 3EE, GB",
+    "latitude": 51.45849,
+    "longitude": -2.589435
+  },
+  {
+    "id": "55be1e31-9c3d-9242-0b06-cca09aeb1ad2",
+    "leagueId": "L6473",
+    "name": "FAMOUS COLLECTABLES",
+    "address": "19 WESTERN RD, BEXHILL, ENGLAND TN40 1DU, GB",
+    "latitude": 50.840066,
+    "longitude": 0.472391
+  },
+  {
+    "id": "cab7ab6d-a3ae-1586-bab1-580f7ac25a9f",
+    "leagueId": "L961",
+    "name": "FANBOY 3",
+    "address": "25 HILTON ST 25 HILTON ST, ENGLAND M1 1EL, GB",
+    "latitude": 53.482296,
+    "longitude": -2.232842
+  },
+  {
+    "id": "cf4fb1e7-903c-dad4-c734-a4ce44c724a6",
+    "leagueId": "L6240915",
+    "name": "FAZPACK",
+    "address": "13-17 ALL HALLOWS RD, ENGLAND FY2 0AS, GB",
+    "latitude": 53.852863,
+    "longitude": -3.039012
+  },
+  {
+    "id": "4ac53f1c-bbc9-40c5-8043-afba723cd5de",
+    "leagueId": "L26047999",
+    "name": "FINDABLEZ",
+    "address": "3-7 TATTON ROAD EMPORIUM, M33, SALE M33 7EB, UK",
+    "latitude": 53.425277,
+    "longitude": -2.320512
+  },
+  {
+    "id": "535e8cf0-b325-2068-7919-7d24029ab9e4",
+    "leagueId": "L1452907",
+    "name": "FIRESTORM GAMES",
+    "address": "SLOPER RD, CARDIFF CF11 8AB, UK",
+    "latitude": 51.471675,
+    "longitude": -3.198921
+  },
+  {
+    "id": "e1cbe8d2-f530-11ec-231d-bfc6bd9387b0",
+    "leagueId": "L6241110",
+    "name": "FIRESTORM GAMES BRIDGEND",
+    "address": "6 CAROLINE ST, BRIDGEND CF31 1DQ, UK",
+    "latitude": 51.505996,
+    "longitude": -3.578492
+  },
+  {
+    "id": "89143876-d5b8-c4d5-edab-433e95be627e",
+    "leagueId": "L6244142",
+    "name": "FIRESTORM GAMES GLOUCESTER",
+    "address": "48 WESTGATE ST, ENGLAND GL1 2NF, GB",
+    "latitude": 51.866334,
+    "longitude": -2.247464
+  },
+  {
+    "id": "44f43c76-3f6f-4192-35ea-7b805d83d329",
+    "leagueId": "L6241833",
+    "name": "FIRESTORM GAMES MERTHYR TYDFIL",
+    "address": "129 HIGH ST, WALES CF47 8DN, GB",
+    "latitude": 51.744742,
+    "longitude": -3.378443
+  },
+  {
+    "id": "713066ec-f3c7-3608-3155-2cfc8e73f97b",
+    "leagueId": "L2333018",
+    "name": "FIRESTORM GAMES NEWPORT",
+    "address": "F2, TESCO, NEWPORT RETAIL PARK SPYTTY ROAD, NEWPORT NP19 4TX, UK",
+    "latitude": 51.575948,
+    "longitude": -2.94546
+  },
+  {
+    "id": "f24d5e46-d8d8-d0ec-9787-0d705c59d0d7",
+    "leagueId": "L6242576",
+    "name": "FORBIDDEN PLANET",
+    "address": "52 STAFFORD ST, ENGLAND ST1 1JB, GB",
+    "latitude": 53.026065,
+    "longitude": -2.176286
+  },
+  {
+    "id": "fc129c8b-c338-4058-ba01-70f814b8a891",
+    "leagueId": "L26053797",
+    "name": "FORBIDDEN PLANET CROYDON",
+    "address": "43 CHURCH ST, CROYDON CR0 1RH, UK",
+    "latitude": 51.373269,
+    "longitude": -0.102713
+  },
+  {
+    "id": "751e406b-668a-4660-b306-017745456678",
+    "leagueId": "L25129677",
+    "name": "FORBIDDEN PLANET INTERNATIONAL",
+    "address": "28 ST PETERS ST, DERBY DE1 1SL, UK",
+    "latitude": 52.92111,
+    "longitude": -1.476455
+  },
+  {
+    "id": "d8c3c138-c6b0-439e-8a5c-e3acf0fa96f0",
+    "leagueId": "L26043964",
+    "name": "FORBIDDEN PLANET LIVERPOOL",
+    "address": "92 BOLD ST, LIVERPOOL L1 4HY, UK",
+    "latitude": 53.402681,
+    "longitude": -2.977668
+  },
+  {
+    "id": "7620fb6a-c058-9de9-ba35-a69e8dd96f13",
+    "leagueId": "L6244999",
+    "name": "FORBIDDEN PLANET MEGASTORE",
+    "address": "None CLIFTON HEIGHTS, ENGLAND BS8 1EJ, GB",
+    "latitude": 51.456477,
+    "longitude": -2.608152
+  },
+  {
+    "id": "98c357c9-5767-46ee-be10-bf9c1a0bcdd0",
+    "leagueId": "L26027823",
+    "name": "FORBIDDEN PLANET NEWCASTLE",
+    "address": "49 GRAINGER ST, NEWCASTLE UPON TYNE NE1 5JE, UK",
+    "latitude": 54.970905,
+    "longitude": -1.615743
+  },
+  {
+    "id": "67482dc8-9420-4fc0-a847-cbb8dec72c82",
+    "leagueId": "L26028174",
+    "name": "FOREST LOOT",
+    "address": "1C BELLE VUE RD, CINDERFORD GL14 2AA, UK",
+    "latitude": 51.823535,
+    "longitude": -2.49818
+  },
+  {
+    "id": "6bda8f93-145b-4cc0-9099-6b77b5d0fd30",
+    "leagueId": "L25105037",
+    "name": "FORGE AND FINDS",
+    "address": "36 LLOYDS AVE, IPSWICH, ENGLAND IP1 3HD, GB",
+    "latitude": 52.058924,
+    "longitude": 1.153465
+  },
+  {
+    "id": "ec4268ab-45c0-43b3-bce9-fbde9a8876b8",
+    "leagueId": "L26050047",
+    "name": "FULL FIRE TCG",
+    "address": "BIDDLE & SHIPTON WAREHOUSE, THE DOCKS, GLOUCESTER GL1 2BY, UK",
+    "latitude": 51.862478,
+    "longitude": -2.252653
+  },
+  {
+    "id": "74a18eb7-8f44-eb21-3b67-ae518db83fd2",
+    "leagueId": "L6238322",
+    "name": "G3 TOYS",
+    "address": "HIGH ST UNIT 33, THE SOVEREIGN, ENGLAND BS23 1HL, GB",
+    "latitude": 51.34869,
+    "longitude": -2.980474
+  },
+  {
+    "id": "782e2910-e2b2-4358-af54-1dad31d48010",
+    "leagueId": "L26047887",
+    "name": "GAME CORNER",
+    "address": "UNIT 18, THE GALLERIES, BROADMEAD, THE GALLERIES SHOPPING CENTRE, BRISTOL BS1 3XA, UK",
+    "latitude": 51.456513,
+    "longitude": -2.590043
+  },
+  {
+    "id": "d05231a3-f3e7-4d8e-a410-70d4a51344db",
+    "leagueId": "L26053887",
+    "name": "GAME DISTRICT",
+    "address": "177 UNION ST, ABERDEEN AB11 6BB, UK",
+    "latitude": 57.145234,
+    "longitude": -2.102681
+  },
+  {
+    "id": "182bb364-df82-1827-c09d-bfaf96fe7a64",
+    "leagueId": "L5863203",
+    "name": "GAME HQ",
+    "address": "UNIT 31 GREAT WESTERN ARCADE, BIRMINGHAM B2 5HU, UK",
+    "latitude": 52.481839,
+    "longitude": -1.897327
+  },
+  {
+    "id": "468608c5-e4df-24e8-5d85-f922e4a93a80",
+    "leagueId": "L6244590",
+    "name": "GAME KNIGHTS",
+    "address": "11 SIDMOUTH ST, ENGLAND SN10 1LD, GB",
+    "latitude": 51.352121,
+    "longitude": -1.990819
+  },
+  {
+    "id": "cc34b227-f707-1d5c-e7e2-e656c36d9108",
+    "leagueId": "L6244182",
+    "name": "GAME OF GNOMES",
+    "address": "95 TYLACELYN RD, WALES CF40 1JR, GB",
+    "latitude": 51.615277,
+    "longitude": -3.448184
+  },
+  {
+    "id": "40638c25-c78c-edf7-cbf4-6b3655b97b06",
+    "leagueId": "L6244239",
+    "name": "GAME ON TOYMASTER",
+    "address": "30 HIGH ST, ENGLAND CB10 1AX, GB",
+    "latitude": 52.023349,
+    "longitude": 0.238938
+  },
+  {
+    "id": "0454f8ce-3e6a-4b20-8602-6b17f9402d6c",
+    "leagueId": "L25118274",
+    "name": "GAME XP",
+    "address": "7-9 STIRLING ST, AIRDRIE ML6 0AH, UK",
+    "latitude": 55.865933,
+    "longitude": -3.9813
+  },
+  {
+    "id": "281cd605-2e3e-4040-b87b-8a0d1355c850",
+    "leagueId": "L26016500",
+    "name": "GAME XP ELGIN",
+    "address": "95-97 HIGH STREET, ELGIN IV30 1EA, GB",
+    "latitude": 57.648989,
+    "longitude": -3.314404
+  },
+  {
+    "id": "bbb2bd80-a4dc-7703-1b38-12fe527ac45c",
+    "leagueId": "L6239381",
+    "name": "GAMEPARK",
+    "address": "2 NORTHGATE ST 2 NORTHGATE STREET, WALES SY23 2JS, GB",
+    "latitude": 52.41603,
+    "longitude": -4.07991
+  },
+  {
+    "id": "9f951eab-243b-45df-7d8f-fc5b807a2540",
+    "leagueId": "L6233666",
+    "name": "GAMERS@HART",
+    "address": "None BOVIS HOUSE  VICTORIA ROAD, ENGLAND TS24 7SE, GB",
+    "latitude": 54.685144,
+    "longitude": -1.215965
+  },
+  {
+    "id": "75246767-4b94-fbdb-d803-1f48cf0d82f9",
+    "leagueId": "L5665",
+    "name": "GAMES HUB",
+    "address": "101 LAURISTON PL, SCOTLAND EH3 9JB, GB",
+    "latitude": 55.944334,
+    "longitude": -3.201589
+  },
+  {
+    "id": "9875adb1-b975-62a7-15d2-11b7b2037412",
+    "leagueId": "L6240818",
+    "name": "GAMES NETWORK",
+    "address": "100 BLATCHINGTON RD, BRIGHTON AND HOVE, ENGLAND BN3 3YF, GB",
+    "latitude": 50.830865,
+    "longitude": -0.172611
+  },
+  {
+    "id": "f2d34caa-7b66-48f8-b3f0-23800da531cc",
+    "leagueId": "L26060751",
+    "name": "GATECRASH",
+    "address": "GATECRASH, WHITTINGTON MOOR, CHESTERFIELD , S41 9AP GATECRASH, WHITTINGTON MOOR, CHESTERFIELD , S41 9AP, CHESTERFIELD, GB-DBY S41 9AP, GB",
+    "latitude": 53.261131,
+    "longitude": -1.428142
+  },
+  {
+    "id": "b881c164-898b-c926-857f-f558b36ad207",
+    "leagueId": "L6239062",
+    "name": "GATHERING GAMES (SKIPTON)",
+    "address": "3 SACKVILLE ST, ENGLAND BD23 2PB, GB",
+    "latitude": 53.958637,
+    "longitude": -2.017848
+  },
+  {
+    "id": "8f228c7b-4b5b-4b81-b25d-18962752f6a3",
+    "leagueId": "L26080716",
+    "name": "GEAR HED GAMES",
+    "address": "2A BULL RING, WAKEFIELD WF1 1HA, UK",
+    "latitude": 53.683553,
+    "longitude": -1.49854
+  },
+  {
+    "id": "ace4cedf-f7e2-9713-1983-d88d93fec201",
+    "leagueId": "L652906",
+    "name": "GEEK RETREAT BIRMINGHAM",
+    "address": "18B HALL ST, ENGLAND B18 6BS, GB",
+    "latitude": 52.487972,
+    "longitude": -1.908756
+  },
+  {
+    "id": "2dfb5070-d0e0-7d1c-febb-5e30259ac236",
+    "leagueId": "L6235754",
+    "name": "GEEK RETREAT BLACKBURN",
+    "address": "50 CHURCH ST, ENGLAND BB1 5AL, GB",
+    "latitude": 53.747977,
+    "longitude": -2.481285
+  },
+  {
+    "id": "748cc242-c52c-f6d8-8bbb-99df74ca7779",
+    "leagueId": "L6236300",
+    "name": "GEEK RETREAT BURTON-UPON-TRENT",
+    "address": "169 HIGH ST, BURTON UPON TRENT, ENGLAND DE14 1JE, GB",
+    "latitude": 52.802122,
+    "longitude": -1.630158
+  },
+  {
+    "id": "951ea37a-3451-074f-81b0-3e499158d199",
+    "leagueId": "L6235423",
+    "name": "GEEK RETREAT BURY",
+    "address": "40 BOLTON ST, ENGLAND BL9 0LL, GB",
+    "latitude": 53.593715,
+    "longitude": -2.300061
+  },
+  {
+    "id": "f82e3ba8-a010-0ab8-235a-fb17ccc8a3c5",
+    "leagueId": "L6236094",
+    "name": "GEEK RETREAT CARDIFF",
+    "address": "2 BARRY LANE, MORGAN ARCADE, CARDIFF CF10 1AF, UK",
+    "latitude": 51.478845,
+    "longitude": -3.176765
+  },
+  {
+    "id": "fabca16a-3c01-3d0f-db66-16d3e7cc8bce",
+    "leagueId": "L6235405",
+    "name": "GEEK RETREAT CHELMSFORD",
+    "address": "48 CUNARD SQUARE CHELMSFORD, ENGLAND CM1 1AQ, GB",
+    "latitude": 51.737946,
+    "longitude": 0.470043
+  },
+  {
+    "id": "aa9445cd-cc6a-88cd-16c6-a99a4e87fdf9",
+    "leagueId": "L6236538",
+    "name": "GEEK RETREAT DUDLEY",
+    "address": "195 HIGH ST, ENGLAND DY1 1QE, GB",
+    "latitude": 52.509793,
+    "longitude": -2.085127
+  },
+  {
+    "id": "ddd1dd7e-01d2-d793-ae4c-007999093f27",
+    "leagueId": "L6235803",
+    "name": "GEEK RETREAT HARROGATE",
+    "address": "30 OXFORD ST, ENGLAND HG1 1PP, GB",
+    "latitude": 53.993878,
+    "longitude": -1.542209
+  },
+  {
+    "id": "4ef67877-5dd1-3889-ad3e-f7ff36a7d58c",
+    "leagueId": "L6239404",
+    "name": "GEEK RETREAT HARTLEPOOL",
+    "address": "105 YORK RD, ENGLAND TS26 9DH, GB",
+    "latitude": 54.684957,
+    "longitude": -1.21704
+  },
+  {
+    "id": "4b69dbc2-0b98-463f-a34d-4063d018a94a",
+    "leagueId": "L26052809",
+    "name": "GEEK RETREAT HOBBYCRAFT NORTHAMPTON",
+    "address": "HOBBYCRAFT, WEEDON ROAD INDUSTRIAL ESTATE, TYNE RD, NORTHAMPTON NN5 5AF, UK",
+    "latitude": 52.238882,
+    "longitude": -0.927822
+  },
+  {
+    "id": "6886691a-1730-c5ff-228b-fdb27583fcb7",
+    "leagueId": "L6236256",
+    "name": "GEEK RETREAT KETTERING",
+    "address": "10-12 HIGH ST, ENGLAND NN16 8ST, GB",
+    "latitude": 52.398345,
+    "longitude": -0.727998
+  },
+  {
+    "id": "5b8a1c96-2abe-ba7f-a5a7-1b1d952aa65a",
+    "leagueId": "L6235555",
+    "name": "GEEK RETREAT SUNDERLAND",
+    "address": "1 JOHN ST, ENGLAND SR1 1DX, GB",
+    "latitude": 54.907484,
+    "longitude": -1.380707
+  },
+  {
+    "id": "9d483736-20a5-5403-da57-68b05cbbe2ef",
+    "leagueId": "L6236562",
+    "name": "GEEK RETREAT WARRINGTON",
+    "address": "4 CROWN ST, ENGLAND WA1 2AE, GB",
+    "latitude": 53.391705,
+    "longitude": -2.592591
+  },
+  {
+    "id": "48377081-dd3c-3199-0c58-30aac55c4335",
+    "leagueId": "L6241398",
+    "name": "GEEKIAM COLLECTABLES",
+    "address": "28, HARRATON TERRACE, BIRTLEY, GATESHEAD DH3 2QG, UK",
+    "latitude": 54.894314,
+    "longitude": -1.577917
+  },
+  {
+    "id": "727ce9aa-0e1c-87f5-9ce3-e60ebaea92b5",
+    "leagueId": "L2243001",
+    "name": "GEEKSHQ",
+    "address": "3 HIGH ST, CHESTERFIELD S40 1PS, UK",
+    "latitude": 53.235674,
+    "longitude": -1.427971
+  },
+  {
+    "id": "ca6df225-788f-8b7d-e75d-8a762d76758b",
+    "leagueId": "L6236474",
+    "name": "GEMINI GAMES",
+    "address": "16 HIGH ST, ENGLAND HD1 2LE, GB",
+    "latitude": 53.644851,
+    "longitude": -1.784285
+  },
+  {
+    "id": "5995b484-147b-ea53-85d0-f4316c007e58",
+    "leagueId": "L6244324",
+    "name": "GET DECKED GAMES",
+    "address": "63 SOUTH BRIDGE ST, SCOTLAND ML6 6JH, GB",
+    "latitude": 55.867693,
+    "longitude": -3.981513
+  },
+  {
+    "id": "13292d2c-1b1e-2965-8fd2-9e9389a0c8fa",
+    "leagueId": "L6233839",
+    "name": "GOBLIN GAMING",
+    "address": "3-5 WITTON ST, ENGLAND CW9 5AT, GB",
+    "latitude": 53.261778,
+    "longitude": -2.514272
+  },
+  {
+    "id": "1387f695-92c9-a8d6-93ac-7f21a83c4bd9",
+    "leagueId": "L6238052",
+    "name": "GOBSMACK COMICS LTD",
+    "address": "None, SWAN WALK, ENGLAND RH12 1HQ, GB",
+    "latitude": 51.064117,
+    "longitude": -0.329488
+  },
+  {
+    "id": "6d45e7c9-f498-ac04-dafb-b47e81ab0384",
+    "leagueId": "L6242795",
+    "name": "GOTCHA GEEK",
+    "address": "7 QUEEN ST, DEAL CT14 6ET, UK",
+    "latitude": 51.22302,
+    "longitude": 1.402047
+  },
+  {
+    "id": "3ed9dbd2-b4f5-4819-a51a-cafd85f7f595",
+    "leagueId": "L25117264",
+    "name": "GREAT HARRY'S CARD GAME EMPORIUM 2.0",
+    "address": "HAMPTON COURT WAY, EAST MOLESLY, GB-RIC KT8 9AU, GB",
+    "latitude": 51.4042,
+    "longitude": -0.342136
+  },
+  {
+    "id": "02d307cf-be89-d2ed-e674-3b30f2afc2aa",
+    "leagueId": "L6235364",
+    "name": "GRIFFINS GAMING",
+    "address": "40 TRENT ST 40 TRENT STREET, ENGLAND B5 5NL, GB",
+    "latitude": 52.476556,
+    "longitude": -1.885504
+  },
+  {
+    "id": "bfb5975d-b511-d1db-de16-6ba0e7382072",
+    "leagueId": "L6235478",
+    "name": "GRIM DICE TABLETOP GAMING LTD",
+    "address": "21 WELLOWGATE, ENGLAND DN32 0RY, GB",
+    "latitude": 53.562388,
+    "longitude": -0.087475
+  },
+  {
+    "id": "328bd761-7e02-4ad6-5ec4-84edc0107fa5",
+    "leagueId": "L6242388",
+    "name": "GUILD OF GAMES",
+    "address": "8 HIGH ST, ENGLAND S60 1PP, GB",
+    "latitude": 53.43074,
+    "longitude": -1.355473
+  },
+  {
+    "id": "278fa14d-9a91-bee6-bc22-98069db9dd88",
+    "leagueId": "L6233329",
+    "name": "HARLEQUINS PRESTON",
+    "address": "52 MANCHESTER RD, ENGLAND PR1 3YH, GB",
+    "latitude": 53.758483,
+    "longitude": -2.6933
+  },
+  {
+    "id": "c4dc19cf-7988-deff-2c28-bc09911cfa68",
+    "leagueId": "L6242597",
+    "name": "HEATH HAYES COMMUNITY COFFEE SHOP",
+    "address": "172 HEDNESFORD RD HEATH HAYES, HEATH HAYES, ENGLAND WS12 3DZ, GB",
+    "latitude": 52.690098,
+    "longitude": -1.982554
+  },
+  {
+    "id": "e5a8c095-6a12-af25-c947-40dbb5440523",
+    "leagueId": "L98939",
+    "name": "HEROES",
+    "address": "64-65 PYLE STREET, NEWPORT, ISLE OF WIGHT PO30 1UL, GB",
+    "latitude": 50.698946,
+    "longitude": -1.296275
+  },
+  {
+    "id": "97a06f05-1182-7e7a-9669-019c85c8c1ba",
+    "leagueId": "L6245596",
+    "name": "HEX LABS GAMES LTD",
+    "address": "1A EDWARD BRIGHT CL, ENGLAND CM9 5RU, GB",
+    "latitude": 51.730206,
+    "longitude": 0.683143
+  },
+  {
+    "id": "88dd8a67-7cdb-d47b-8b49-921049aba788",
+    "leagueId": "L4993201",
+    "name": "HIGHLANDER GAMES",
+    "address": "104 ANNFIELD RD, SCOTLAND DD1 5LW, GB",
+    "latitude": 56.460021,
+    "longitude": -2.992631
+  },
+  {
+    "id": "e22a612c-dadb-2eda-75db-ecf9750b2b02",
+    "leagueId": "L6233557",
+    "name": "HOBBY SHOP",
+    "address": "240 HIGH ST, WALES LL57 1PA, GB",
+    "latitude": 53.22646,
+    "longitude": -4.125494
+  },
+  {
+    "id": "794e6952-d7cf-6555-edf5-208b166dc4df",
+    "leagueId": "L6245618",
+    "name": "HOKEY POKE GAMES",
+    "address": "13 HIGH ST, ENGLAND CV21 3BG, GB",
+    "latitude": 52.371393,
+    "longitude": -1.262601
+  },
+  {
+    "id": "687b0c41-7301-4811-ad58-6d3f528c16af",
+    "leagueId": "L26048216",
+    "name": "HOLOCRON CARD LOUNGE",
+    "address": "HOLOCRON CARD LOUNGE, 11 HIGH ST, BRIDGWATER TA6 3BE, UK",
+    "latitude": 51.1283,
+    "longitude": -3.004568
+  },
+  {
+    "id": "c773d9d9-d0f1-e243-31d1-f072e74b58ed",
+    "leagueId": "L6243507",
+    "name": "HULL POPS GAMING CENTRE",
+    "address": "26 PRIORY TEC PK SAXON WAY, HESSLE, ENGLAND HU13 9PB, GB",
+    "latitude": 53.720996,
+    "longitude": -0.427078
+  },
+  {
+    "id": "99061cc7-710d-4390-9158-3675b6975d83",
+    "leagueId": "L26082303",
+    "name": "IMPACT LEAGUE TCG",
+    "address": "16 WATERBORNE WALK, LEIGHTON BUZZARD, GB-CBF LU7 1DH, GB",
+    "latitude": 51.916913,
+    "longitude": -0.663812
+  },
+  {
+    "id": "c5955228-551f-456a-b52c-056759da6c5f",
+    "leagueId": "L26077029",
+    "name": "IMPACT LEAGUE TCG",
+    "address": "16 WATERBORNE WALK, LEIGHTON BUZZARD LU7 1DH, UK",
+    "latitude": 51.916913,
+    "longitude": -0.663812
+  },
+  {
+    "id": "0c588b37-52d4-25e3-e178-eb73a423f0a6",
+    "leagueId": "L6241066",
+    "name": "IMPERIAL GAMES LIMITED",
+    "address": "31A SIDWELL ST, ENGLAND EX4 6NN, GB",
+    "latitude": 50.726477,
+    "longitude": -3.525333
+  },
+  {
+    "id": "7978214d-2185-1d64-468f-60470f089924",
+    "leagueId": "L6240923",
+    "name": "INCOM GAMING",
+    "address": "CHURCH ST, CHELTENHAM GL50 3HA, UK",
+    "latitude": 51.90135,
+    "longitude": -2.075527
+  },
+  {
+    "id": "df7cfd24-04f9-4a86-bca3-9f9a9f3c0693",
+    "leagueId": "L26094796",
+    "name": "INK AND COAL GAMES LTD",
+    "address": "INK AND COAL GAMES LTD FORMER ST ANNE'S MEMORIAL, PORTH, GB-RCT CF39 0ET, GB",
+    "latitude": 51.626271,
+    "longitude": -3.409682
+  },
+  {
+    "id": "da5e133e-692a-7888-132d-0a2eb4f18f70",
+    "leagueId": "L6245738",
+    "name": "ITEMDROP",
+    "address": "11 MARINE PL, ENGLAND EX12 2QJ, GB",
+    "latitude": 50.704439,
+    "longitude": -3.070599
+  },
+  {
+    "id": "5df12904-d072-f2bb-6629-adf501e2e14a",
+    "leagueId": "L6233379",
+    "name": "ITS ALL GEEK TO ME",
+    "address": "135 GODWIN ST, ENGLAND BD1 3PP, GB",
+    "latitude": 53.795824,
+    "longitude": -1.754931
+  },
+  {
+    "id": "20dba4cf-9b3e-6b31-6b4e-70aca54e8a25",
+    "leagueId": "L6236601",
+    "name": "JACK IN A BOX",
+    "address": "1, BARCLAY BUILDING, HIGH ST, RIPLEY DE5 3AE, UK",
+    "latitude": 53.049826,
+    "longitude": -1.406801
+  },
+  {
+    "id": "1d494b7c-bdb5-435e-9a6b-47145fa3b37e",
+    "leagueId": "L25100248",
+    "name": "JADLAM TOYS & MODELS",
+    "address": "JADLAM RACING LTD ADLAM CENTRAL PARK, GLASTONBURY BA6 9XE, GB",
+    "latitude": 51.141662,
+    "longitude": -2.731118
+  },
+  {
+    "id": "daa2e754-49df-12f5-ced6-e76c415cea6b",
+    "leagueId": "L6240184",
+    "name": "JESTER GAMES STORE",
+    "address": "35 KING ST E, ENGLAND SK1 1XJ, GB",
+    "latitude": 53.413164,
+    "longitude": -2.155681
+  },
+  {
+    "id": "58efddd9-ba39-408e-97db-62f36ab4566d",
+    "leagueId": "L26040347",
+    "name": "JET CARDS",
+    "address": "UNIT 7D, BRYDGES COURT CASTLEDOWN BUSINESS PARK, LUDGERSHALL SP11 9FT, GB",
+    "latitude": 51.253666,
+    "longitude": -1.61941
+  },
+  {
+    "id": "838b061a-818b-b6e8-1756-7eb2ce3cf445",
+    "leagueId": "L6244564",
+    "name": "JKGAMES",
+    "address": "102 EMBANKMENT RD, ENGLAND PL4 9HY, GB",
+    "latitude": 50.370779,
+    "longitude": -4.119274
+  },
+  {
+    "id": "35274e58-750a-7cc0-be6f-5144a198576f",
+    "leagueId": "L2112903",
+    "name": "JUST GAMES GSY",
+    "address": ", GUERNSEY GY1 1AE, GB",
+    "latitude": 49.452222,
+    "longitude": -2.535249
+  },
+  {
+    "id": "68d7ef87-57ee-ddf1-44ce-51dfbe06309b",
+    "leagueId": "L5363203",
+    "name": "JUST PLAY LIVERPOOL",
+    "address": "61 TITHEBARN ST 59-61 TITHEBARN ST,, ENGLAND L2 2SB, GB",
+    "latitude": 53.409981,
+    "longitude": -2.989639
+  },
+  {
+    "id": "5a95bdac-959a-b30a-68cf-1b6cef7ce94f",
+    "leagueId": "L6243826",
+    "name": "KABOOM SPORTS TRADING CARDS",
+    "address": "3-4 WELLS TERRACE, ENGLAND N4 3JU, GB",
+    "latitude": 51.565027,
+    "longitude": -0.108442
+  },
+  {
+    "id": "6eb00eae-10a3-4b30-8745-0b025a2e7994",
+    "leagueId": "L26039531",
+    "name": "KATZENWORLD LTD T/A AS BLACK LOTUS",
+    "address": "87 ROCKINGHAM RD, KETTERING, ENGLAND NN16 8LA, GB",
+    "latitude": 52.40514,
+    "longitude": -0.727086
+  },
+  {
+    "id": "f1e3ce3b-8add-6f92-b9de-0f2af1a61152",
+    "leagueId": "L6237697",
+    "name": "KINGDOM GAMING",
+    "address": "7 THE RIDINGS THE RIDINGS ARCADE, ENGLAND NN1 2BA, GB",
+    "latitude": 52.238115,
+    "longitude": -0.892003
+  },
+  {
+    "id": "91730a83-1ebf-96ea-9adc-ced58022fd67",
+    "leagueId": "L6241446",
+    "name": "KIRKBY SALES & EXCHANGE",
+    "address": "78 STATION ST, KIRKBY IN ASHFIELD, ENGLAND NG17 7AN, GB",
+    "latitude": 53.099027,
+    "longitude": -1.244647
+  },
+  {
+    "id": "ea2bdd36-b7b9-098c-683e-a195fb4d782e",
+    "leagueId": "L6244139",
+    "name": "KIRTON GAMES",
+    "address": "86 HIGH ST STARCROSS, ENGLAND EX17 3LB, GB",
+    "latitude": 50.791085,
+    "longitude": -3.663347
+  },
+  {
+    "id": "291aae00-c2df-4b41-069f-b17e5d6211f3",
+    "leagueId": "L6239778",
+    "name": "KNIGHTLY GAMING",
+    "address": "2-6 HOPETOUN ST, SCOTLAND EH48 4EU, GB",
+    "latitude": 55.902664,
+    "longitude": -3.641822
+  },
+  {
+    "id": "f304007f-3ebf-3b9d-3aa1-d7a1a29fc9ad",
+    "leagueId": "L6237868",
+    "name": "KRAKEN GAMING LTD",
+    "address": "52 STEPNEY ST, WALES SA15 3TR, GB",
+    "latitude": 51.681954,
+    "longitude": -4.162116
+  },
+  {
+    "id": "f6b1d679-6fb4-593e-7d4a-1060dc11c87b",
+    "leagueId": "L6237759",
+    "name": "KUSHTI COMICS",
+    "address": "15 SHERRINGTON WAY FESTIVAL PLACE, ENGLAND RG22 4DQ, GB",
+    "latitude": 51.250571,
+    "longitude": -1.103968
+  },
+  {
+    "id": "ee0d2797-324d-921c-3761-10a83b52b1e9",
+    "leagueId": "L6240917",
+    "name": "L T GAMING",
+    "address": "41A ROBERTSON ST, ENGLAND TN34 1HL, GB",
+    "latitude": 50.854952,
+    "longitude": 0.576777
+  },
+  {
+    "id": "17a0d8de-00cc-2637-92ed-36277bb7fd1e",
+    "leagueId": "L6243833",
+    "name": "LABYRINTHE",
+    "address": "OLD HILL, CHISLEHURST BR7 5NB, UK",
+    "latitude": 51.407226,
+    "longitude": 0.057566
+  },
+  {
+    "id": "3db02190-d9e4-8a9c-9c7f-c033d45972f4",
+    "leagueId": "L6245355",
+    "name": "LADS N DADS TRADING CARD GAMES",
+    "address": "19 LOWTOWN, ENGLAND LS28 7BQ, GB",
+    "latitude": 53.797186,
+    "longitude": -1.660917
+  },
+  {
+    "id": "7a990c79-f81f-f3ca-0c85-5be2d4d04d0b",
+    "leagueId": "L6240326",
+    "name": "LANCASTER BORAD AND SWORD",
+    "address": "28 SUN ST, ENGLAND LA1 1EW, GB",
+    "latitude": 54.04927,
+    "longitude": -2.802721
+  },
+  {
+    "id": "79e89851-4dbd-48d5-b0a1-12703f5cabfc",
+    "leagueId": "L26039718",
+    "name": "LAST STAND GAMES",
+    "address": "47 MARKET PL, SOUTH CAVE, BROUGH HU15 2BS, UK",
+    "latitude": 53.768825,
+    "longitude": -0.600596
+  },
+  {
+    "id": "af4e410d-2a5b-43b7-ceb6-6cc0877b453e",
+    "leagueId": "L5183201",
+    "name": "LAZY DRAGON GAMING",
+    "address": "231 DICKSON RD, ENGLAND FY1 2JH, GB",
+    "latitude": 53.829597,
+    "longitude": -3.052958
+  },
+  {
+    "id": "5b874cab-bb1d-f97b-ad05-8f5b563e553f",
+    "leagueId": "L6240474",
+    "name": "LAZY PANDA COLLECTIBLES",
+    "address": "None UNIT 16, WALFORD WALK, ENGLAND B97 4HJ, GB",
+    "latitude": 52.305409,
+    "longitude": -1.93996
+  },
+  {
+    "id": "809b0e72-e464-d0e4-ea83-c508a2f31305",
+    "leagueId": "L6244989",
+    "name": "LEAKY TEACUP LTD",
+    "address": "25 BRIDGEGATE, ENGLAND DN22 7UX, GB",
+    "latitude": 53.324007,
+    "longitude": -0.945662
+  },
+  {
+    "id": "422d4efb-7f91-97e8-410f-e75350d510cc",
+    "leagueId": "L6244223",
+    "name": "LEANNE'S ANIME AND COLLECTABLES",
+    "address": "39 BAKER ST GORLESTON-ON-SEA, GORLESTON-ON-SEA, ENGLAND NR31 6QT, GB",
+    "latitude": 52.577646,
+    "longitude": 1.728031
+  },
+  {
+    "id": "fda0978a-39e0-4b6b-bc95-d3c566badb22",
+    "leagueId": "L26012326",
+    "name": "LEGION GAMES",
+    "address": "27 HIGH STREET SHIREHAMPTON, BRISTOL BS11 0DX, GB",
+    "latitude": 51.489019,
+    "longitude": -2.675559
+  },
+  {
+    "id": "f31b4d90-3f27-4203-8654-57fe5d391e2b",
+    "leagueId": "L26079111",
+    "name": "LEVEL 1 GAMES",
+    "address": "123 EXETER RD, EXMOUTH EX8 1QE, UK",
+    "latitude": 50.625521,
+    "longitude": -3.411158
+  },
+  {
+    "id": "087636d7-3a8d-47fd-a2b1-afe089ded1c5",
+    "leagueId": "L26065794",
+    "name": "LEYLINE CAFE",
+    "address": "98 ANNFIELD RD, DUNDEE, SCOTLAND DD1 5JH, GB",
+    "latitude": 56.459941,
+    "longitude": -2.992574
+  },
+  {
+    "id": "5bcac6a8-27d0-4966-72b6-a4e59c3c4cfe",
+    "leagueId": "L6235479",
+    "name": "LIVING REALMS",
+    "address": "13-15 SAGAR ST, ENGLAND WF10 1AG, GB",
+    "latitude": 53.72679,
+    "longitude": -1.351383
+  },
+  {
+    "id": "42acb787-74ec-e00d-a600-898596d13f59",
+    "leagueId": "L6242918",
+    "name": "LONG REST",
+    "address": "10 CHEAPSIDE HANLEY, ENGLAND ST1 1HL, GB",
+    "latitude": 53.024745,
+    "longitude": -2.176558
+  },
+  {
+    "id": "d7a0050f-4cf3-a086-fea6-22984285856a",
+    "leagueId": "L6240759",
+    "name": "LOOT DROP",
+    "address": "28A HIGH ST, ENGLAND CB9 8AR, GB",
+    "latitude": 52.081336,
+    "longitude": 0.440003
+  },
+  {
+    "id": "7aa15e97-0f68-4800-ab91-0b13b634f233",
+    "leagueId": "L25105013",
+    "name": "LOOT UP LTD, T/A SIN CITY COMICS AND GAMING",
+    "address": "UNIT 31 KINGSWAY SHOPPING CENTRE, NEWPORT NP20 1EB, GB",
+    "latitude": 51.585402,
+    "longitude": -2.992821
+  },
+  {
+    "id": "497b60a4-f0ed-f453-69f8-cb29cc34982d",
+    "leagueId": "L6235819",
+    "name": "LOST ARK GAMES",
+    "address": "29 MARKET PL, ENGLAND SG1 1DH, GB",
+    "latitude": 51.901382,
+    "longitude": -0.199839
+  },
+  {
+    "id": "24251bc0-0a0a-4b5e-9621-862cf361b169",
+    "leagueId": "L26053362",
+    "name": "LUCK BOX CARDS & COLLECTABLES",
+    "address": "RETAIL ISLE, TRINITY MARKET, TRINITY HOUSE LN, HULL HU1 2JH, UK",
+    "latitude": 53.742341,
+    "longitude": -0.334323
+  },
+  {
+    "id": "90a1755b-ed62-85db-69fc-1a6390e42e3c",
+    "leagueId": "L6233342",
+    "name": "LVL UP",
+    "address": "266 CHARMINSTER RD, ENGLAND BH8 9QW, GB",
+    "latitude": 50.740193,
+    "longitude": -1.863387
+  },
+  {
+    "id": "34a19152-5f8a-06a5-0e8e-e0cc3e6f748f",
+    "leagueId": "L4398",
+    "name": "MAD FOR MINIATURES",
+    "address": "MARKET HILL, ST AUSTELL, ENGLAND PL25 5QB, GB",
+    "latitude": 50.339054,
+    "longitude": -4.792527
+  },
+  {
+    "id": "7ff4733e-117e-ae97-1fae-9a914edeb800",
+    "leagueId": "L6239597",
+    "name": "MAGIC MAYHEM HOBBIES",
+    "address": "51 ST LEONARDS RD, BEXHILL, ENGLAND TN40 1JA, GB",
+    "latitude": 50.839821,
+    "longitude": 0.476626
+  },
+  {
+    "id": "56bd9ebb-5f68-2d69-f397-db10bd29b3c2",
+    "leagueId": "L2273002",
+    "name": "MANA GAMING",
+    "address": "1ST FLOOR, 182 - 184 TERMINUS RD, EASTBOURNE BN21 3BB, UK",
+    "latitude": 50.767855,
+    "longitude": 0.288194
+  },
+  {
+    "id": "74727c20-ce40-6a86-6378-62d014f90150",
+    "leagueId": "L4963202",
+    "name": "MANAFLUX GAMING",
+    "address": "19A THE, ROEBUCK CENTRE, NEWCASTLE-UNDER-LYME, NEWCASTLE ST5 1SW, UK",
+    "latitude": 53.010956,
+    "longitude": -2.229164
+  },
+  {
+    "id": "9afc6262-e917-9c17-60d1-66485f19241b",
+    "leagueId": "L6244879",
+    "name": "MANAFORGE GAMES",
+    "address": "5 BABINGTON LN, ENGLAND DE1 1SU, GB",
+    "latitude": 52.919589,
+    "longitude": -1.475906
+  },
+  {
+    "id": "7f13f424-9fab-1732-9f7e-8580a46e682e",
+    "leagueId": "L6234726",
+    "name": "MANASCREW NORTHAMPTON",
+    "address": "CHANCERY HOUSE, 52 SHEEP ST, NORTHAMPTON NN1 2LZ, UK",
+    "latitude": 52.240524,
+    "longitude": -0.898009
+  },
+  {
+    "id": "5cecd391-d2c5-7c53-4e12-38930b7520e8",
+    "leagueId": "L2580",
+    "name": "MARQUEE MODELS HARLOW",
+    "address": "71 HARVEY CENTRE APPROACH, ENGLAND CM20 1XS, GB",
+    "latitude": 51.769574,
+    "longitude": 0.093867
+  },
+  {
+    "id": "95863659-5bc0-0678-bb1d-5d814958b45d",
+    "leagueId": "L6239012",
+    "name": "MEDI CAFE",
+    "address": "63 GOLDERS GREEN RD, ENGLAND NW11 8EL, GB",
+    "latitude": 51.572395,
+    "longitude": -0.19829
+  },
+  {
+    "id": "22a1b4a0-77da-35fc-0114-cf2377b904de",
+    "leagueId": "L6237517",
+    "name": "MIGHTY LANCER GAMES LTD",
+    "address": "2 PRINCE ST 39-43 KING STREET, ENGLAND YO15 2NW, GB",
+    "latitude": 54.081888,
+    "longitude": -0.18939
+  },
+  {
+    "id": "b29c2599-772d-1b7b-6db3-fff00f50cfc5",
+    "leagueId": "L6238295",
+    "name": "MIWK LTD",
+    "address": "45A BELL ST, ENGLAND RH2 7AQ, GB",
+    "latitude": 51.236234,
+    "longitude": -0.204789
+  },
+  {
+    "id": "db71d11d-63dd-4d2b-8d7e-59a949cc7203",
+    "leagueId": "L26039521",
+    "name": "MK YOUTH STUDIO",
+    "address": "142 FRONT ST CHESTER LE STREET, CHESTER-LE-STREET, ENGLAND DH3 3AY, GB",
+    "latitude": 54.854507,
+    "longitude": -1.573501
+  },
+  {
+    "id": "723bcec9-c11a-dc97-ec7d-227736959eac",
+    "leagueId": "L6239524",
+    "name": "MONSTER COLLECTIBLES",
+    "address": "1 VICTORIA RD WOOLSTON, ENGLAND SO19 9RH, GB",
+    "latitude": 50.897895,
+    "longitude": -1.378888
+  },
+  {
+    "id": "447fcbaa-95ee-4083-b9b8-ef49b08962ec",
+    "leagueId": "L25124034",
+    "name": "MORNING SUNSHINE COFFEE",
+    "address": "MORNING SUNSHINE COFFEE 48 THE SQUARE, KENILWORTH CV81EB, GB",
+    "latitude": 52.3425,
+    "longitude": -1.579411
+  },
+  {
+    "id": "e6344bcb-eab6-3958-b6d7-f5e444cdf6b8",
+    "leagueId": "L6236018",
+    "name": "MULLIGAN GAME CAFE",
+    "address": "41A UPPER BROOK ST, IPSWICH IP4 1DU, UK",
+    "latitude": 52.056377,
+    "longitude": 1.156314
+  },
+  {
+    "id": "09b56051-d1ea-a1f0-db15-373c910ca77d",
+    "leagueId": "L6235447",
+    "name": "MYSTIC GAMES",
+    "address": "UNIT 11, MARKET SQUARE, WOOLGATE SHOPPING CENTRE, MARKET SQUARE, WITNEY OX28 6AP, UK",
+    "latitude": 51.784946,
+    "longitude": -1.484754
+  },
+  {
+    "id": "218c534a-d56f-9b26-8e1e-d3930937e125",
+    "leagueId": "L6243873",
+    "name": "MYTHIC GOBLIN",
+    "address": "89 TIVERTON ST, ENGLAND SE1 6PD, GB",
+    "latitude": 51.496533,
+    "longitude": -0.098779
+  },
+  {
+    "id": "edb6db4e-5a7b-de00-1d5b-979389fdb316",
+    "leagueId": "L6236780",
+    "name": "NERD BASE",
+    "address": "5 MALTINGS RD 5 MALTINGS ROAD, BATTLESBRIDGE, BATTLESBRIDGE, ENGLAND SS11 7RF, GB",
+    "latitude": 51.623728,
+    "longitude": 0.569719
+  },
+  {
+    "id": "ca4a21ba-3bb1-43a7-9c1d-1944ed7006f4",
+    "leagueId": "L26062348",
+    "name": "NERD BASE - COLCHESTER",
+    "address": "24 SIR ISAAC'S WALK CULVER CENTRE, COLCHESTER, ENGLAND CO1 1JJ, GB",
+    "latitude": 51.888045,
+    "longitude": 0.898118
+  },
+  {
+    "id": "68f7ef8f-c7bc-e6ff-5646-e3cadd27d145",
+    "leagueId": "L6237656",
+    "name": "NERD BASE CANVEY ISLAND",
+    "address": "KNIGHTSWICK SHOPPING CENTRE, FOKSVILLE RD, CANVEY ISLAND SS8 7AD, UK",
+    "latitude": 51.522356,
+    "longitude": 0.593205
+  },
+  {
+    "id": "c9df18c5-f35f-4ee9-948b-24fd53731143",
+    "leagueId": "L26079164",
+    "name": "NERDVANA",
+    "address": "UNIT 11 BEVERIDGE SQUARE, LIVINGSTON EH54 6QF, UK",
+    "latitude": 55.881349,
+    "longitude": -3.512098
+  },
+  {
+    "id": "81d16f3e-c324-2c8e-f9fa-2464e3d0dd60",
+    "leagueId": "L6241048",
+    "name": "NERDY",
+    "address": "49 MARDOL, ENGLAND SY1 1PU, GB",
+    "latitude": 52.709384,
+    "longitude": -2.75633
+  },
+  {
+    "id": "a2bd0074-82dc-a1d6-7876-a141420fa64c",
+    "leagueId": "L6239101",
+    "name": "NEW REALITIES GAMING",
+    "address": "142 FISHERTON ST, ENGLAND SP2 7QT, GB",
+    "latitude": 51.070648,
+    "longitude": -1.803029
+  },
+  {
+    "id": "9d328169-9bc7-4416-ba15-ed17e31af54d",
+    "leagueId": "L26038713",
+    "name": "NEXUS GAMES TORQUAY",
+    "address": "71 UNION ST, TORQUAY TQ1 3DA, UK",
+    "latitude": 50.466788,
+    "longitude": -3.52946
+  },
+  {
+    "id": "20f138da-1d67-4b81-a5d3-eda3b44b1e4f",
+    "leagueId": "L25109461",
+    "name": "NORTHERN ALLIANCE GAMES",
+    "address": "6 MALING COURT, HOULTS YARD, WALKER RD, BYKER, NEWCASTLE UPON TYNE NE6 2HL, UK",
+    "latitude": 54.969389,
+    "longitude": -1.579948
+  },
+  {
+    "id": "8125435b-de7f-c92a-9a98-2d54fb8a4d8c",
+    "leagueId": "L6236783",
+    "name": "NORTHERN CARD GAMING STORE",
+    "address": "142 FRANCES ST, NORTHERN IRELAND BT23 7LS, GB",
+    "latitude": 54.593548,
+    "longitude": -5.687909
+  },
+  {
+    "id": "a79d0925-ade7-8354-54d0-928215293704",
+    "leagueId": "L6238088",
+    "name": "NORTHUMBRIAN TIN SOLDIER",
+    "address": "21 W PERCY ST WEST PERCY STREET, ENGLAND NE29 0DW, GB",
+    "latitude": 55.009644,
+    "longitude": -1.450605
+  },
+  {
+    "id": "72329f2b-532e-bc39-4215-8f9f1e468b09",
+    "leagueId": "L6242139",
+    "name": "NORTON TCG",
+    "address": "84B HIGH ST MIDSOMER NORTON, MIDSOMER NORTON, ENGLAND BA3 2DE, GB",
+    "latitude": 51.287547,
+    "longitude": -2.479141
+  },
+  {
+    "id": "05ae2baa-f391-abb8-d4ed-2cfa15d38626",
+    "leagueId": "L6237116",
+    "name": "OASIS",
+    "address": "CARPENTERS RD, BRADING, SANDOWN PO36 0QA, UK",
+    "latitude": 50.693093,
+    "longitude": -1.140292
+  },
+  {
+    "id": "ab19ef93-9e96-829a-2f85-7734211305a1",
+    "leagueId": "L6243464",
+    "name": "OFFWORLD OUTPOST",
+    "address": "STUDIO 6 & 61, BARLEYLANDS CRAFT VILLAGE, BILLERICAY CM11 2UD, UK",
+    "latitude": 51.601006,
+    "longitude": 0.446515
+  },
+  {
+    "id": "9f93b84d-40d8-9a7f-69a1-8b4132b6adde",
+    "leagueId": "L6240479",
+    "name": "OLD WORLD TEA ROOMS",
+    "address": "HIGH ST, GODSHILL, VENTNOR PO38 3HZ, UK",
+    "latitude": 50.632328,
+    "longitude": -1.252269
+  },
+  {
+    "id": "816b2517-60a4-6939-b74a-e4863e05a0f0",
+    "leagueId": "L6243196",
+    "name": "ONE FIVE ONE COLLECTIBLES",
+    "address": "30 CORPORATION ST, BOLTON BL1 2AN, UK",
+    "latitude": 53.580191,
+    "longitude": -2.428889
+  },
+  {
+    "id": "874b6b0f-b70e-4785-9b2f-1c6d638df520",
+    "leagueId": "L26060446",
+    "name": "ONLY GRADED",
+    "address": "UNIT 9, YORK HOUSE, LANGSTON RD, LONDON, LOUGHTON IG10 3TQ, UK",
+    "latitude": 51.64601,
+    "longitude": 0.089053
+  },
+  {
+    "id": "a65226dc-9336-4d65-a62b-d52cb6b34868",
+    "leagueId": "L25103191",
+    "name": "ONYX DAWN GAMES",
+    "address": "ST. CUTHBERT'S ARCADE, 26 ST CUTHBERT'S ST, BEDFORD MK40 3JG, UK",
+    "latitude": 52.138663,
+    "longitude": -0.463425
+  },
+  {
+    "id": "f7e8b315-743f-2e34-b786-de77e1b6b51f",
+    "leagueId": "L6244025",
+    "name": "OUT OF THIS GALAXY",
+    "address": "23 SCOTT ST, PERTH PH1 5EH, UK",
+    "latitude": 56.395788,
+    "longitude": -3.432564
+  },
+  {
+    "id": "11bc232e-e971-14c8-4e3f-563787e78fc6",
+    "leagueId": "L6243407",
+    "name": "OXSHED CAFE",
+    "address": "RATCLIFFE COURT, WALLINGFORD OX10 9QF, UK",
+    "latitude": 51.571438,
+    "longitude": -1.138654
+  },
+  {
+    "id": "3bc0a18a-2749-b283-5e24-32c5903e9d68",
+    "leagueId": "L6241152",
+    "name": "P9 CARD GAME",
+    "address": "4 DOMINION WALK 4 DOMINION WALK, ENGLAND E14 9FX, GB",
+    "latitude": 51.507132,
+    "longitude": -0.006362
+  },
+  {
+    "id": "d97ec1a7-ac30-6d0d-d675-de695a7e4503",
+    "leagueId": "L6245266",
+    "name": "P9 CARD GAME BOW",
+    "address": "521 ROMAN RD, ENGLAND E3 5EL, GB",
+    "latitude": 51.532599,
+    "longitude": -0.031473
+  },
+  {
+    "id": "490c528a-c4d1-eb15-ebd9-a27433eb896c",
+    "leagueId": "L6244648",
+    "name": "PARSONS POPCULTURE",
+    "address": "15 HIGH ST, ENGLAND PO38 1RZ, GB",
+    "latitude": 50.595426,
+    "longitude": -1.205364
+  },
+  {
+    "id": "fa405390-d7c9-999d-ece1-296949738f04",
+    "leagueId": "L2819",
+    "name": "PATRIOT GAMES",
+    "address": "97 MARY ST, ENGLAND S1 4RT, GB",
+    "latitude": 53.374078,
+    "longitude": -1.469427
+  },
+  {
+    "id": "1f056771-7201-42a2-d2ce-3404ed7e7e73",
+    "leagueId": "L6241364",
+    "name": "PENDULUM GAMING",
+    "address": "2 WESTGATE, ENGLAND NG31 6LT, GB",
+    "latitude": 52.912457,
+    "longitude": -0.643606
+  },
+  {
+    "id": "deecfb00-020b-46c1-a8c1-6742ce43c486",
+    "leagueId": "L26037402",
+    "name": "PHANTOM CARDS UK LTD",
+    "address": "312 HIGH RD, CHILWELL, BEESTON, NOTTINGHAM NG9 5EG, UK",
+    "latitude": 52.915841,
+    "longitude": -1.23546
+  },
+  {
+    "id": "6f24e58b-ef5b-4930-9fd7-3ba103039d17",
+    "leagueId": "L26011473",
+    "name": "PICKLESTIX TCG",
+    "address": "PICKLESTIX TCG 4 FISHERS YARD, ST NEOTS PE19 2AG, GB",
+    "latitude": 52.227039,
+    "longitude": -0.270482
+  },
+  {
+    "id": "34f11f57-d8db-41e9-0aea-4133c21d37d8",
+    "leagueId": "L6243629",
+    "name": "PIRANHA CAFE",
+    "address": "19 PYDAR ST, ENGLAND TR1 2AY, GB",
+    "latitude": 50.264816,
+    "longitude": -5.054101
+  },
+  {
+    "id": "df274e1a-a00f-c973-4c8e-f8cb1c85fd71",
+    "leagueId": "L6238050",
+    "name": "PLANET JJS GEEKERY",
+    "address": "11, QUARRY HILL PARADE, TONBRIDGE TN9 2HR, UK",
+    "latitude": 51.189912,
+    "longitude": 0.270015
+  },
+  {
+    "id": "85506b91-a3bf-b384-d1ab-354b5dd6b56a",
+    "leagueId": "L6240275",
+    "name": "Pop 'n' Tee Chester le Street Pokémon League",
+    "address": "98 FRONT ST CHESTER LE STREET, ENGLAND DH3 3BA, GB",
+    "latitude": 54.855591,
+    "longitude": -1.57361
+  },
+  {
+    "id": "79f10f5a-b062-5b21-3c34-7adbae660a38",
+    "leagueId": "L6242737",
+    "name": "POP & PUP TOY SHOP",
+    "address": "UNIT 10, FIVE VALLEYS SHOPPING CENTRE, STROUD GL5 1RR, UK",
+    "latitude": 51.746519,
+    "longitude": -2.218701
+  },
+  {
+    "id": "91b8d965-dbe4-7415-25a4-846a34aca15c",
+    "leagueId": "L6243684",
+    "name": "PRESTIGE WARGAMING",
+    "address": "34 SHAMBLES ST, ENGLAND S70 2SH, GB",
+    "latitude": 53.553305,
+    "longitude": -1.483625
+  },
+  {
+    "id": "be642aee-3242-45be-8dd0-c91dea98bae0",
+    "leagueId": "L26064505",
+    "name": "PRIMAL CARDS LTD (TCG HOUSED WITHIN CURIO&QUIRK LANCASTER)",
+    "address": "CURIO&QUIRK 54 CHURCH STREET, LANCASTER, GB-LAN LA1 2UA, GB",
+    "latitude": 54.049898,
+    "longitude": -2.80133
+  },
+  {
+    "id": "ba044d1b-0683-4097-de3b-50aeef2b6b95",
+    "leagueId": "L6237037",
+    "name": "PRO TECH GAME LTD",
+    "address": "7, MARSTON COURT, PORTRACK IND EST, MARSTON RD, STOCKTON-ON-TEES TS18 2PN, UK",
+    "latitude": 54.570904,
+    "longitude": -1.28065
+  },
+  {
+    "id": "b617e6c7-6980-eea7-bff9-2fa80fcb5a7f",
+    "leagueId": "L6240334",
+    "name": "PÚCA PÚCA",
+    "address": "RICHMOND CENTRE, FERRYQUAY ST, DERRY/LONDONDERRY, LONDONDERRY BT48 6PE, UK",
+    "latitude": 54.995953,
+    "longitude": -7.320835
+  },
+  {
+    "id": "e24481e5-e3f1-49f5-8003-4f6b51d9aad6",
+    "leagueId": "L26063975",
+    "name": "RARE RIPS TCG LTD",
+    "address": "11 MORTON PETO RD, GREAT YARMOUTH NR31 0LT, UK",
+    "latitude": 52.591391,
+    "longitude": 1.70856
+  },
+  {
+    "id": "6c435ad4-a802-45e6-b0a7-693702cbb64d",
+    "leagueId": "L26055001",
+    "name": "RAVENSPIRE GAMES",
+    "address": "THE GRANARY, SPRATLING COURT OFFICE SUITES, SPRATLING STREET, MANSTON, GB-KEN CT12 5AN, GB",
+    "latitude": 51.347199,
+    "longitude": 1.380904
+  },
+  {
+    "id": "0aff0375-8e01-3b52-a372-264e31880cf1",
+    "leagueId": "L6242223",
+    "name": "RED DRAGON VAULT",
+    "address": "5 RHOSDDU RD QUEENS SQUARE, WREXHAM, WALES LL11 1AT, GB",
+    "latitude": 53.046643,
+    "longitude": -2.993872
+  },
+  {
+    "id": "f90ff131-032f-2562-a96c-73c4259b39b6",
+    "leagueId": "L6238019",
+    "name": "REPLAY",
+    "address": "97 HIGH ST, NORTHERN IRELAND BT20 5BD, GB",
+    "latitude": 54.66347,
+    "longitude": -5.662901
+  },
+  {
+    "id": "0243658c-f0d8-5e77-008c-11c1bb5e7d99",
+    "leagueId": "L6239151",
+    "name": "REROLL BOARD GAME CAFE",
+    "address": "34/36 GRANBY ST UPPER FLOOR, ENGLAND LE1 1DE, GB",
+    "latitude": 52.633755,
+    "longitude": -1.130379
+  },
+  {
+    "id": "80cec894-9168-4218-b9b9-4b4f5ffd761a",
+    "leagueId": "L26077289",
+    "name": "RETRO GIANT",
+    "address": "18A TO 18B, THE QUADRANT ARCADE, SOUTH ST, ROMFORD RM1 3ED, UK",
+    "latitude": 51.577962,
+    "longitude": 0.181222
+  },
+  {
+    "id": "d6be7164-aec8-e549-4b1d-54bc2ed3b956",
+    "leagueId": "L4363204",
+    "name": "REWIND COLLECTABLES AND GAMES",
+    "address": "10 WELLINGTON ST, ENGLAND OL6 7RU, GB",
+    "latitude": 53.488186,
+    "longitude": -2.092252
+  },
+  {
+    "id": "cd0516fc-89ea-e8e0-a186-f78e8c59201f",
+    "leagueId": "L6234943",
+    "name": "RISING PHOENIX GAMES",
+    "address": "39-41 BOROUGH RD, ENGLAND TS1 4AF, GB",
+    "latitude": 54.572995,
+    "longitude": -1.23877
+  },
+  {
+    "id": "76fbf71c-3e32-290a-f476-67a4009ba15c",
+    "leagueId": "L2593200",
+    "name": "RnG Games",
+    "address": "45 OLD SNEDDON ST, SCOTLAND PA3 2AN, GB",
+    "latitude": 55.847854,
+    "longitude": -4.423586
+  },
+  {
+    "id": "b06ab82b-54e1-8581-23ab-34a8bf772878",
+    "leagueId": "L6245305",
+    "name": "ROBINS HOBBY CAFE",
+    "address": "9 QUEENS RD BELFAST, NORTHERN IRELAND BT3 9DT, GB",
+    "latitude": 54.60836,
+    "longitude": -5.907247
+  },
+  {
+    "id": "0b88e726-2434-4be2-842f-d310a6be6b94",
+    "leagueId": "L26059952",
+    "name": "ROCKAWAY TOYS",
+    "address": "UNIT 9, AND COURTYARD, BRIMSTAGE HALL, BRIMSTAGE RD, BRIMSTAGE, BIRKENHEAD, WIRRAL CH63 6JA, UK",
+    "latitude": 53.336632,
+    "longitude": -3.046857
+  },
+  {
+    "id": "b32f9bb5-b2d6-4960-a289-5023d05d75ea",
+    "leagueId": "L25119549",
+    "name": "ROCKET PROPELLED GAMES",
+    "address": "150-151 BARTHOLOMEW STREET, NEWBURY, WEST BERKSHIRE RG14 5HB, GB",
+    "latitude": 51.401014,
+    "longitude": -1.324112
+  },
+  {
+    "id": "be79fa4e-5e64-6a55-e8a4-6c9db625b896",
+    "leagueId": "L6240034",
+    "name": "ROCKETS HIDEOUT",
+    "address": "64A GOWTHORPE, SELBY YO8 4ET, UK",
+    "latitude": 53.783575,
+    "longitude": -1.072825
+  },
+  {
+    "id": "3b224495-cb33-007b-0327-514ae40175e4",
+    "leagueId": "L6243491",
+    "name": "ROLL THE DICE",
+    "address": "8 COINAGEHALL ST, ENGLAND TR13 8EB, GB",
+    "latitude": 50.100851,
+    "longitude": -5.274539
+  },
+  {
+    "id": "e2942d9d-59b2-caef-0a5b-2bc2f96d2a89",
+    "leagueId": "L6238718",
+    "name": "ROLLPLAY",
+    "address": "41 HIGH ST, ENGLAND PE15 9JJ, GB",
+    "latitude": 52.548702,
+    "longitude": 0.087899
+  },
+  {
+    "id": "51398c67-4333-4baf-8201-c9dafee26143",
+    "leagueId": "L25091049",
+    "name": "RUSTYS COLLECTABLES",
+    "address": "13 CHURCH GREEN E, REDDITCH B98 8BP, UK",
+    "latitude": 52.307305,
+    "longitude": -1.940052
+  },
+  {
+    "id": "ccd88cb6-aced-ee76-1114-bf78ce01fa0b",
+    "leagueId": "L6238285",
+    "name": "SAINT’Z DRAGONS",
+    "address": "16 CHURCH ST, ENGLAND BB8 0LG, GB",
+    "latitude": 53.857165,
+    "longitude": -2.169232
+  },
+  {
+    "id": "be7e171b-b859-4a00-a9e8-d3ca25b92bdf",
+    "leagueId": "L26015286",
+    "name": "SANCTUARY GAMING CENTRE",
+    "address": "ASHBROOK HOUSE, FOREST ST, SUTTON-IN-ASHFIELD NG17 1BE, UK",
+    "latitude": 53.126024,
+    "longitude": -1.262062
+  },
+  {
+    "id": "719f79ff-4d84-49e1-ab44-c059708d635c",
+    "leagueId": "L26046276",
+    "name": "SETTLERS SHAWLANDS",
+    "address": "243 KILMARNOCK ROAD SHAWLANDS, SHAWLANDS, GLASGOW, GB-GLG G41 3JF, GB",
+    "latitude": 55.82651,
+    "longitude": -4.285104
+  },
+  {
+    "id": "73c6f8c2-9622-c1df-e523-228a7f3a64e2",
+    "leagueId": "L6091",
+    "name": "shoreham pokemon",
+    "address": "32A HIGH ST, ENGLAND BN43 5DA, GB",
+    "latitude": 50.831923,
+    "longitude": -0.27595
+  },
+  {
+    "id": "f4a91f88-5324-44dc-cb5a-aa323f84d9b2",
+    "leagueId": "L6239242",
+    "name": "SHUFFLE BOARD GAME CAFE",
+    "address": "63 ST ANDREW'S STREET S, BURY ST EDMUNDS, ENGLAND IP33 1SD, GB",
+    "latitude": 52.246515,
+    "longitude": 0.711094
+  },
+  {
+    "id": "4ae64e55-20f2-4f9c-9c51-ad7e92cd1f17",
+    "leagueId": "L26099924",
+    "name": "SIDE QUEST",
+    "address": "SIDE QUEST OLD POST OFFICE, SHORT BRIDGE STREET, NEWTOWN, GB-POW SY16 1AG, GB",
+    "latitude": 52.514419,
+    "longitude": -3.313147
+  },
+  {
+    "id": "aaa14e4a-0bc9-4231-8467-352c2b8eef23",
+    "leagueId": "L25108209",
+    "name": "SILVERMINE",
+    "address": "G/F, 170 HOLLIDAY ST, BIRMINGHAM B1 1TJ, UK",
+    "latitude": 52.475276,
+    "longitude": -1.909189
+  },
+  {
+    "id": "5f369b77-7355-da2f-15a7-17cf96632886",
+    "leagueId": "L6113202",
+    "name": "SKYWARD FIRE GAMES",
+    "address": "UNIT 9, CAPITOL TRADING ESTATE, WHAPLOAD RD, LOWESTOFT NR32 1TY, UK",
+    "latitude": 52.481627,
+    "longitude": 1.758244
+  },
+  {
+    "id": "065e5b17-4ab7-439d-a42f-f27c77a7df57",
+    "leagueId": "L26067814",
+    "name": "SNACKS AND LADDERS BOARD GAME CAFE",
+    "address": "69-70 SAINT JAMES' STREET, NEWPORT, GB-IOW PO30 1EQ, GB",
+    "latitude": 50.697214,
+    "longitude": -1.295337
+  },
+  {
+    "id": "fd940f8a-76db-4580-a263-4b03eb04f916",
+    "leagueId": "L25099332",
+    "name": "SNAPS GAMES",
+    "address": "SNAPS GAMES ST ANDREWS HOUSE, BRIDPORT DT6 3EX, GB",
+    "latitude": 50.741398,
+    "longitude": -2.741444
+  },
+  {
+    "id": "f6c55942-23be-1f05-fd37-c0c6875e3617",
+    "leagueId": "L4143201",
+    "name": "SOMERSTOWN CENTRAL COMMUNITY CENTRE",
+    "address": "WINSTON CHURCHILL AVE, SOUTHSEA, PORTSMOUTH, SOUTHSEA PO5 4JJ, UK",
+    "latitude": 50.795316,
+    "longitude": -1.086353
+  },
+  {
+    "id": "3dde0c30-a7e2-b71a-ddc0-c741e08a88ae",
+    "leagueId": "L6244980",
+    "name": "SPAWN POINT COLLECTIBLES",
+    "address": "9 QUEEN'S ARCADE, CARDIFF CF10 2BY, UK",
+    "latitude": 51.481527,
+    "longitude": -3.177546
+  },
+  {
+    "id": "67e87b19-0d19-b582-76a5-e19bdb8ffd0a",
+    "leagueId": "L6233420",
+    "name": "SPECTRUM GAMING",
+    "address": "43 WATER ST, WALES LL18 1SR, GB",
+    "latitude": 53.320597,
+    "longitude": -3.493474
+  },
+  {
+    "id": "c2085a8a-1e24-520a-585a-72655ecf4ead",
+    "leagueId": "L6244355",
+    "name": "SPELLBOUND GAMES",
+    "address": "ARCH 4 ANGEL LN, LONDON SE17 3FE, UK",
+    "latitude": 51.488642,
+    "longitude": -0.097405
+  },
+  {
+    "id": "c37b5e66-06de-63a8-de7b-29820f5e9fee",
+    "leagueId": "L6242141",
+    "name": "SPIKE'S HIDEOUT",
+    "address": "10 VICTORIA RD, ENGLAND YO11 1SD, GB",
+    "latitude": 54.283247,
+    "longitude": -0.404782
+  },
+  {
+    "id": "97dfcf46-d1d7-47cf-a75e-1249a50f9ca1",
+    "leagueId": "L26069653",
+    "name": "SQUEEZED.",
+    "address": "265 BALHAM HIGH RD, TOOTING BEC, LONDON SW17 7BD, UK",
+    "latitude": 51.436798,
+    "longitude": -0.157655
+  },
+  {
+    "id": "88193962-cffe-e32b-6e8d-4442e4f6ade6",
+    "leagueId": "L1262904",
+    "name": "STAN'S GAMES",
+    "address": "9 BERKELEY VALE, ENGLAND TR11 3PL, GB",
+    "latitude": 50.154095,
+    "longitude": -5.074289
+  },
+  {
+    "id": "785e55ba-3f11-8da3-9202-8b6929c3ce74",
+    "leagueId": "L6245119",
+    "name": "STYLECREEP",
+    "address": "25 ST JOHN'S RD, ENGLAND TW7 6NB, GB",
+    "latitude": 51.473335,
+    "longitude": -0.33789
+  },
+  {
+    "id": "e3101252-dd10-6fbd-d869-9184ef39c184",
+    "leagueId": "L6242702",
+    "name": "SWORD & SORCERY",
+    "address": "76 TOWNHEAD, KIRKINTILLOCH, SCOTLAND G66 1NZ, GB",
+    "latitude": 55.936245,
+    "longitude": -4.152737
+  },
+  {
+    "id": "c4aa7eb4-152b-4b56-aeab-e6d67db479ab",
+    "leagueId": "L25109989",
+    "name": "TABLETOP DOMINION",
+    "address": "14 BROADWAY, ACCRINGTON BB5 1EY, UK",
+    "latitude": 53.753474,
+    "longitude": -2.365114
+  },
+  {
+    "id": "3dec5281-d0d5-580c-5edb-a58474923987",
+    "leagueId": "L6237327",
+    "name": "TABLETOP REPUBLIC",
+    "address": "3-5 DAMSIDE ST LANCASTER, ENGLAND LA1 1PD, GB",
+    "latitude": 54.049904,
+    "longitude": -2.800168
+  },
+  {
+    "id": "54dd06b0-7848-6583-794e-5ad8cced783d",
+    "leagueId": "L6237975",
+    "name": "TABLETOP REPUBLIC HIGH WYCOMBE",
+    "address": "37 HIGH ST, ENGLAND HP11 2AG, GB",
+    "latitude": 51.628729,
+    "longitude": -0.750402
+  },
+  {
+    "id": "49389155-d5db-9a9b-9867-b809ae21f271",
+    "leagueId": "L6235265",
+    "name": "TAYLORED GAMES",
+    "address": "63 FORE ST, ENGLAND TQ7 1PG, GB",
+    "latitude": 50.285479,
+    "longitude": -3.777664
+  },
+  {
+    "id": "02402688-461d-f0c2-6002-fae816db5935",
+    "leagueId": "L6234466",
+    "name": "THE BOARD GAME HUT",
+    "address": "10-12 CLARENCE ST, ENGLAND SS1 1BD, GB",
+    "latitude": 51.535932,
+    "longitude": 0.713285
+  },
+  {
+    "id": "cc2556e8-6aee-d6c9-9c54-15655bbd06cb",
+    "leagueId": "L6240848",
+    "name": "THE BOX ROOM BOARD GAME CAFE",
+    "address": "58 REGENT ST, ENGLAND CB2 1DP, GB",
+    "latitude": 52.200837,
+    "longitude": 0.125804
+  },
+  {
+    "id": "65ff22ac-cfff-4638-92c0-502d2d3cbf2b",
+    "leagueId": "L26055346",
+    "name": "THE BROTHERHOOD GAMES",
+    "address": "210-212 SOUTHWARK PARK RD., LONDON SE16 3RW, UK",
+    "latitude": 51.492005,
+    "longitude": -0.06415
+  },
+  {
+    "id": "33184068-0272-8be4-fc87-5d5f4e4c38d8",
+    "leagueId": "L6242861",
+    "name": "THE CARD CORNER",
+    "address": "THE CARD CORNER 8 HIGH STREET, SKEGNESS PE25 3NW, GB",
+    "latitude": 53.143303,
+    "longitude": 0.335966
+  },
+  {
+    "id": "1eff7986-ad97-4faa-8423-79b6d54ef568",
+    "leagueId": "L25104531",
+    "name": "THE CARD DEN LTD",
+    "address": "20 RAVENDALE STREET NORTH, SCUNTHORPE DN15 6NJ, GB",
+    "latitude": 53.590564,
+    "longitude": -0.648909
+  },
+  {
+    "id": "8b8bd395-e6d4-43f4-b7cb-5ae6bf41b50d",
+    "leagueId": "L26029172",
+    "name": "THE CARD KEEP",
+    "address": "BREWERY STREET SHOPPING CENTRE BREWERY STREET, RUGELEY, GB-STS WS152DY, GB",
+    "latitude": 52.759123,
+    "longitude": -1.934243
+  },
+  {
+    "id": "a3371bc0-8944-4bac-ba5a-5925e0b6212e",
+    "leagueId": "L26015568",
+    "name": "THE CARD VAULT",
+    "address": "37 BATH STREET, GLASGOW G2 1HW, GB",
+    "latitude": 55.863584,
+    "longitude": -4.255334
+  },
+  {
+    "id": "e2aca0b0-159f-1f8f-2d38-361bc9484a1c",
+    "leagueId": "L6240872",
+    "name": "THE CAVERN",
+    "address": "56 WESTGATE ST, GLOUCESTER GL1 2NF, UK",
+    "latitude": 51.866487,
+    "longitude": -2.247772
+  },
+  {
+    "id": "8af35d1f-cfaf-4329-b0cf-af0eeec85ba7",
+    "leagueId": "L26052163",
+    "name": "THE COLLECTIBLES LOUNGE",
+    "address": "24, GLANVILLES MILL, IVYBRIDGE PL21 9PS, UK",
+    "latitude": 50.388739,
+    "longitude": -3.921795
+  },
+  {
+    "id": "ce75dec3-ee15-401b-ad7b-7e799f9e066c",
+    "leagueId": "L26038344",
+    "name": "THE COMPLETE CARD SHOP",
+    "address": "9 HIGH ST, GOSPORT, ENGLAND PO12 1BX, GB",
+    "latitude": 50.795269,
+    "longitude": -1.124002
+  },
+  {
+    "id": "851c64b1-57ab-4194-8968-c99933cbe617",
+    "leagueId": "L26078439",
+    "name": "THE DECK DEN",
+    "address": "3 MOORGATE, ORMSKIRK L39 4RT, UK",
+    "latitude": 53.566917,
+    "longitude": -2.884608
+  },
+  {
+    "id": "a087dd55-3ab7-df40-2dba-107fe8358441",
+    "leagueId": "L6233932",
+    "name": "THE DICE CUP",
+    "address": "68-70 MANSFIELD RD, ENGLAND NG1 3GY, GB",
+    "latitude": 52.959298,
+    "longitude": -1.149238
+  },
+  {
+    "id": "4798f10c-fcb2-01df-9365-3967fa3a6bee",
+    "leagueId": "L6239701",
+    "name": "THE DICE JAIL",
+    "address": "16 QUEEN ST NG250AA, ENGLAND NG25 0AA, GB",
+    "latitude": 53.078622,
+    "longitude": -0.955798
+  },
+  {
+    "id": "e8990a26-18fb-7a65-36ac-951f130d2106",
+    "leagueId": "L6244373",
+    "name": "THE G ZONE",
+    "address": "34-36 SOUTH ST, ENGLAND BN11 3AA, GB",
+    "latitude": 50.811076,
+    "longitude": -0.369661
+  },
+  {
+    "id": "cca58f95-9ce5-5948-efc9-d35c4ec33d27",
+    "leagueId": "L6242665",
+    "name": "THE GAMERS GUILD",
+    "address": "12 LINKFIELD COR, ENGLAND RH1 1BB, GB",
+    "latitude": 51.239657,
+    "longitude": -0.178108
+  },
+  {
+    "id": "3a313034-318f-b7ce-e292-9ab3c9f08ab2",
+    "leagueId": "L3333201",
+    "name": "THE GAMERS LODGE",
+    "address": "61A KEMPSTON ST, ENGLAND L3 8HE, GB",
+    "latitude": 53.410636,
+    "longitude": -2.971542
+  },
+  {
+    "id": "ed3bf1aa-155e-35f7-0f2d-81f61791d4bc",
+    "leagueId": "L852923",
+    "name": "THE GAMERS' EMPORIUM (NEW VENUE)",
+    "address": "5-6 UNION ST, SWANSEA SA1 3EE, UK",
+    "latitude": 51.619223,
+    "longitude": -3.946121
+  },
+  {
+    "id": "30d3072d-e699-edfe-cffd-27ffa17f8321",
+    "leagueId": "L6238629",
+    "name": "THE GAMES DEN",
+    "address": "7 PARK ST, ROYAL LEAMINGTON SPA, ENGLAND CV32 4QN, GB",
+    "latitude": 52.291704,
+    "longitude": -1.533314
+  },
+  {
+    "id": "09fd218b-ef5f-7339-aa70-f372ab568227",
+    "leagueId": "L2313027",
+    "name": "THE GAMES PIT",
+    "address": "6 ZETLAND ST, ENGLAND WF1 1QG, GB",
+    "latitude": 53.683516,
+    "longitude": -1.494022
+  },
+  {
+    "id": "f1768469-4612-f79f-1ee8-08485f0f6c51",
+    "leagueId": "L4247",
+    "name": "THE GAMES SHOP",
+    "address": "6 WELLINGTON ST, ENGLAND GU11 1DZ, GB",
+    "latitude": 51.249488,
+    "longitude": -0.764024
+  },
+  {
+    "id": "a5bac78c-c569-5288-17c2-abcc2dbee1be",
+    "leagueId": "L6234122",
+    "name": "THE GAMES STORE",
+    "address": "10 STONEBOW CENTRE SILVER STREET, ENGLAND LN2 1DY, GB",
+    "latitude": 53.22927,
+    "longitude": -0.539275
+  },
+  {
+    "id": "3e680dae-0ec7-dd06-3573-ca1e49a25a63",
+    "leagueId": "L6243056",
+    "name": "THE GAMING DEN",
+    "address": "12 LONDON ST, ENGLAND RG21 7NU, GB",
+    "latitude": 51.262565,
+    "longitude": -1.086167
+  },
+  {
+    "id": "7ee5a3d6-f8cc-4e1c-b145-fa19de8cc383",
+    "leagueId": "L26058806",
+    "name": "THE GEEK IN ME",
+    "address": "UNIT 7B, LOW WILLINGTON INDUSTRIAL ESTATE, LOW WILLINGTON, WILLINGTON, CROOK DL15 0FB, UK",
+    "latitude": 54.714114,
+    "longitude": -1.676787
+  },
+  {
+    "id": "21c3ea18-dd59-426f-3a43-2ef293922bb0",
+    "leagueId": "L6235304",
+    "name": "THE GLASSHOUSE,",
+    "address": "STATION HILL ST. GEORGES, ENGLAND TF2 9JX, GB",
+    "latitude": 52.694211,
+    "longitude": -2.445988
+  },
+  {
+    "id": "867c3d15-c357-7ce7-4524-3034f22b3187",
+    "leagueId": "L6242171",
+    "name": "THE GRAND STRATEGIUM",
+    "address": "7 LOWTOWN PUDSEY, ENGLAND LS28 7BQ, GB",
+    "latitude": 53.797,
+    "longitude": -1.661589
+  },
+  {
+    "id": "6bdf80de-b3aa-4e45-e215-5a9714ac36fc",
+    "leagueId": "L6245149",
+    "name": "THE GRUMPY GOBLIN",
+    "address": "82 QUEEN ST, ENGLAND CT11 9ER, GB",
+    "latitude": 51.332107,
+    "longitude": 1.415782
+  },
+  {
+    "id": "dd561e08-997c-b19e-ffc8-1e56f0e1bd10",
+    "leagueId": "L6233423",
+    "name": "THE HIVE GAMING BANBURY",
+    "address": "13 CHURCH LN, ENGLAND OX16 5LR, GB",
+    "latitude": 52.06139,
+    "longitude": -1.337016
+  },
+  {
+    "id": "861eb673-7b3e-36eb-2577-2326cfc2cc70",
+    "leagueId": "L2153001",
+    "name": "THE HOBBIT HOLE",
+    "address": "53 HIGH ST, ENGLAND PE16 6BH, GB",
+    "latitude": 52.457275,
+    "longitude": 0.047922
+  },
+  {
+    "id": "59edc149-3658-428d-b317-c3bb01a57383",
+    "leagueId": "L6240847",
+    "name": "THE JEDI ARCHIVES",
+    "address": "THE JEDI ARCHIVES SUITE 301, ANTELOPE WALK OFFICES, ANTELOPE WALK, DORCHESTER DT1 1BE, UK",
+    "latitude": 50.714934,
+    "longitude": -2.436982
+  },
+  {
+    "id": "9da71958-0ea6-4a21-9533-52341044853f",
+    "leagueId": "L26074130",
+    "name": "THE LIZARDS LAIR GAMING COMPANY",
+    "address": "22 VICTORIA CENTRE, CREWE, GB-CHE CW1 2PU, GB",
+    "latitude": 53.099448,
+    "longitude": -2.442876
+  },
+  {
+    "id": "0fd05b4d-b740-5d2f-5bc3-bc7e6cf4baf2",
+    "leagueId": "L6244090",
+    "name": "THE MAGIC CHEST",
+    "address": "67 ENGLISH ST, CARLISLE CA3 8JU, UK",
+    "latitude": 54.893233,
+    "longitude": -2.934638
+  },
+  {
+    "id": "d697934e-b47e-496b-8913-6d649c6c5aec",
+    "leagueId": "L26071268",
+    "name": "THE MERCHANTS' GUILD",
+    "address": "50 ALBION ST, GLASGOW G1 1LH, UK",
+    "latitude": 55.857767,
+    "longitude": -4.244495
+  },
+  {
+    "id": "11c370c6-d673-ae59-67c2-f8a5ef1f4b36",
+    "leagueId": "L6238972",
+    "name": "THE MOVIE SHACK",
+    "address": "2 MAYPLACE RD W, ENGLAND DA7 4JB, GB",
+    "latitude": 51.456894,
+    "longitude": 0.147755
+  },
+  {
+    "id": "eee7c0c3-6297-ddf9-c840-5655d38b0038",
+    "leagueId": "L3413200",
+    "name": "THE MUG AND MEEPLE",
+    "address": "TOWN PIER SQ, GRAVESEND DA11 0BJ, UK",
+    "latitude": 51.444922,
+    "longitude": 0.369461
+  },
+  {
+    "id": "c6807ea7-199c-4783-a815-cc399450015a",
+    "leagueId": "L26033265",
+    "name": "THE OTHER GAMES",
+    "address": "13, 126 NEWLAND ST, WITHAM CM8 1AA, UK",
+    "latitude": 51.797681,
+    "longitude": 0.637041
+  },
+  {
+    "id": "735c04f2-e8da-6204-d402-e7bd7e0dd203",
+    "leagueId": "L6243177",
+    "name": "THE OUTPOST SHEFFIELD",
+    "address": "35 WALKER ST, ENGLAND S3 8GZ, GB",
+    "latitude": 53.388499,
+    "longitude": -1.46289
+  },
+  {
+    "id": "ac83c151-19a7-ce6c-0554-8b9ecfff860d",
+    "leagueId": "L6240830",
+    "name": "THE SCRUM",
+    "address": "25 SHEEP ST, ENGLAND CV21 3BX, GB",
+    "latitude": 52.371391,
+    "longitude": -1.263577
+  },
+  {
+    "id": "223c7be0-37d7-5002-1367-2a199738be80",
+    "leagueId": "L6243217",
+    "name": "THE SUB CENTER",
+    "address": "3-5 WILLIAM ST, ENGLAND CT6 5EW, GB",
+    "latitude": 51.372342,
+    "longitude": 1.128766
+  },
+  {
+    "id": "89ba080d-9ec6-126d-58a3-38b5b3076854",
+    "leagueId": "L6237723",
+    "name": "THE TOY MOON",
+    "address": "5B NEW ROAD, CHIPPENHAM, GB-WIL SN151EL, GB",
+    "latitude": 51.460599,
+    "longitude": -2.118032
+  },
+  {
+    "id": "991e218d-05b8-acf6-2c81-e3310711d95e",
+    "leagueId": "L6244244",
+    "name": "THE VAULT",
+    "address": "14 KING ST, ENGLAND NR30 2NZ, GB",
+    "latitude": 52.606743,
+    "longitude": 1.72773
+  },
+  {
+    "id": "dd1b92db-aafd-41c2-9fc6-a6509570aa65",
+    "leagueId": "L26093693",
+    "name": "THE VAULT TCC LTD",
+    "address": "6-8 SLIP INN LANE, LANCASTER LA1 1JT, UK",
+    "latitude": 54.048526,
+    "longitude": -2.80082
+  },
+  {
+    "id": "ba91437a-f2d9-41cd-8877-f492015bb202",
+    "leagueId": "L25107118",
+    "name": "THE VIRIDIAN VAULT",
+    "address": "72B SENHOUSE ST, MARYPORT CA15 6BS, UK",
+    "latitude": 54.714073,
+    "longitude": -3.497374
+  },
+  {
+    "id": "b9832ea4-4dac-40e3-a73f-500093a4298c",
+    "leagueId": "L26058558",
+    "name": "THE WARP LTD",
+    "address": "THE WARP, HAVANT, GB-HAM PO9 1UN, GB",
+    "latitude": 50.852422,
+    "longitude": -0.981496
+  },
+  {
+    "id": "6eab4c37-a267-b34d-2edd-1a9ab6c4f14f",
+    "leagueId": "L6241893",
+    "name": "THISTLE TAVERN",
+    "address": "395 UNION ST, SCOTLAND AB11 6BX, GB",
+    "latitude": 57.143658,
+    "longitude": -2.108623
+  },
+  {
+    "id": "96b07ede-a349-4a56-8179-26463878248b",
+    "leagueId": "L26071914",
+    "name": "THISTLE TAVERN GAMES HUB",
+    "address": "79 SHANDWICK PL, EDINBURGH EH2 4SD, UK",
+    "latitude": 55.949203,
+    "longitude": -3.210053
+  },
+  {
+    "id": "49e52a3f-2c1b-4505-9f0a-6c44239853f0",
+    "leagueId": "L26042212",
+    "name": "THUNDERBOLT CARDS",
+    "address": "19 COOMBE RD, NEW MALDEN KT3 4QG, UK",
+    "latitude": 51.404518,
+    "longitude": -0.256923
+  },
+  {
+    "id": "7562ced5-f0d3-44f4-90a2-37e74d0a9747",
+    "leagueId": "L26060606",
+    "name": "TIC TAC TABLETOP",
+    "address": "BEDFORD COURT 14 PLYMOUTH ROAD, TAVISTOCK, GB-DEV PL198AY, GB",
+    "latitude": 50.548866,
+    "longitude": -4.1462
+  },
+  {
+    "id": "71f7078b-fa37-45e0-b871-099d6e868e7f",
+    "leagueId": "L26054684",
+    "name": "TIGEROO TOYS",
+    "address": "11 COLLEGE ST, BELFAST BT1 6ET, UK",
+    "latitude": 54.598096,
+    "longitude": -5.932794
+  },
+  {
+    "id": "b873697a-81de-4d1e-b1f7-1b64e0abf341",
+    "leagueId": "L26071058",
+    "name": "TOKYOTOTS SITTINGBOURNE",
+    "address": "4/5 THE FORUM, SITTINGBOURNE ME10 3DL, UK",
+    "latitude": 51.340626,
+    "longitude": 0.735634
+  },
+  {
+    "id": "ecaeab72-9b35-9386-1d07-f840ed91054c",
+    "leagueId": "L6244595",
+    "name": "TOKYOTOYS GLASGOW",
+    "address": "27 UNION ST, SCOTLAND G1 3RB, GB",
+    "latitude": 55.858963,
+    "longitude": -4.257106
+  },
+  {
+    "id": "1d9fc10b-8126-4048-8684-b75a37d2f02b",
+    "leagueId": "L6242079",
+    "name": "TOP DOG GAMING CAFE",
+    "address": "3 KINVER ST, ENGLAND DY8 5AA, GB",
+    "latitude": 52.478047,
+    "longitude": -2.160849
+  },
+  {
+    "id": "a0124f6b-df7b-afa4-390a-3881891fb968",
+    "leagueId": "L6235567",
+    "name": "TOTAL CARDS GAMING CENTRE",
+    "address": "6 MAPLE WAY, ENGLAND DL5 6BF, GB",
+    "latitude": 54.600937,
+    "longitude": -1.567658
+  },
+  {
+    "id": "bcbd23a5-0fbe-47be-8862-b852c64ae866",
+    "leagueId": "L26015539",
+    "name": "TOTALLY AWESOME YORK",
+    "address": "8 COLLIERGATE, YORK YO1 8BP, UK",
+    "latitude": 53.959619,
+    "longitude": -1.079742
+  },
+  {
+    "id": "016be189-a27e-1f9a-ab14-89f93f6656b6",
+    "leagueId": "L1251",
+    "name": "TOY BARNHAUS",
+    "address": "64-65 COUNTY MALL, CRAWLEY RH10 1FD, UK",
+    "latitude": 51.113512,
+    "longitude": -0.185265
+  },
+  {
+    "id": "6dd48eda-8162-0ae3-96aa-e79a0ed96199",
+    "leagueId": "L3783216",
+    "name": "TOYS & GAMES OF WORCESTER",
+    "address": "47 BROAD ST, ENGLAND WR1 3LR, GB",
+    "latitude": 52.192525,
+    "longitude": -2.223457
+  },
+  {
+    "id": "f18c7ddf-53ef-41c9-97b0-e16ee7edba70",
+    "leagueId": "L26066963",
+    "name": "TOYS GALORE",
+    "address": "TOYS GALORE, 193 MORNINGSIDE ROAD, EDINBURGH, GB-MLN EH10 4QP, GB",
+    "latitude": 55.928594,
+    "longitude": -3.20929
+  },
+  {
+    "id": "adc32892-e5ca-c08c-3419-20003e1a8dd6",
+    "leagueId": "L6245617",
+    "name": "TRADING CARDS GAINSBOROUGH LTD",
+    "address": "25 LORD ST, ENGLAND DN21 2DD, GB",
+    "latitude": 53.399885,
+    "longitude": -0.777356
+  },
+  {
+    "id": "2afa565b-04e0-4950-49c1-ad251043356c",
+    "leagueId": "L4303206",
+    "name": "TRAVELLING MAN",
+    "address": "32 CENTRAL RD, ENGLAND LS1 6DE, GB",
+    "latitude": 53.796779,
+    "longitude": -1.540989
+  },
+  {
+    "id": "46831509-46f7-6a3e-a3a7-502416d17285",
+    "leagueId": "L5713206",
+    "name": "TRAVELLING MAN NEWCASTLE",
+    "address": "43 GRAINGER ST, ENGLAND NE1 5JE, GB",
+    "latitude": 54.970716,
+    "longitude": -1.615875
+  },
+  {
+    "id": "c97ad919-d36f-a185-7910-7a5be4c2f075",
+    "leagueId": "L6244089",
+    "name": "TRAVELLING MAN YORK",
+    "address": "74 GOODRAMGATE, ENGLAND YO1 7LF, GB",
+    "latitude": 53.960786,
+    "longitude": -1.080279
+  },
+  {
+    "id": "e0e84a2a-2b13-67f3-a3f8-1df4c7021ea9",
+    "leagueId": "L6237772",
+    "name": "TRIDENTCARDS LIMITED",
+    "address": "18 COMMERCIAL RD, ENGLAND NG6 8HA, GB",
+    "latitude": 53.001545,
+    "longitude": -1.197449
+  },
+  {
+    "id": "a5ba7434-5ee7-ac99-4fd8-fe7a61dedcbb",
+    "leagueId": "L6183226",
+    "name": "TRIDENTCARDS MANSFIELD",
+    "address": "1 QUEEN ST, MANSFIELD NG18 1JN, UK",
+    "latitude": 53.143415,
+    "longitude": -1.197841
+  },
+  {
+    "id": "b1eef9c4-e30f-4c2b-b8c3-fadb549200b2",
+    "leagueId": "L26017413",
+    "name": "TRIGON GAMES",
+    "address": "UNIT 1&2, 58-64 GROVE RD, ROCHESTER ME2 4BY, UK",
+    "latitude": 51.397526,
+    "longitude": 0.499171
+  },
+  {
+    "id": "29b9efba-48fc-485a-925f-1711d9440e8c",
+    "leagueId": "L25101161",
+    "name": "TRINITY CARD CAPITAL LTD",
+    "address": "OLD POST OFFICE, 5 PINK LN, NEWCASTLE UPON TYNE NE1 5DW, UK",
+    "latitude": 54.96956,
+    "longitude": -1.617738
+  },
+  {
+    "id": "65373ccd-56e7-800c-e77b-9800c0e724a9",
+    "leagueId": "L6241739",
+    "name": "TRITEX GAMES LTD",
+    "address": "NEWPORT RD CASTLEFIELDS, NEWPORT ROAD, ENGLAND ST16 1BG, GB",
+    "latitude": 52.803416,
+    "longitude": -2.124945
+  },
+  {
+    "id": "2db9dc61-0ea7-18e6-d4d4-77d6e974e3ce",
+    "leagueId": "L6242361",
+    "name": "TROLL TRADER BROMLEY",
+    "address": "3 THE MALL BROMLEY, ENGLAND BR1 1TS, GB",
+    "latitude": 51.625838,
+    "longitude": -0.1162
+  },
+  {
+    "id": "38b0ec6f-21d0-4cf0-4a34-4aa445dd9856",
+    "leagueId": "L6235703",
+    "name": "TROLL TRADER TRURO",
+    "address": "TROLL TRADER TRURO THE LEATS, TRURO, GB-CON TR1 3AG, GB",
+    "latitude": 50.263696,
+    "longitude": -5.053198
+  },
+  {
+    "id": "83a029b9-97de-41a9-b6f2-ef8a41ed3b33",
+    "leagueId": "L26069178",
+    "name": "TROVE FIVE REALMS",
+    "address": "436 WIMBOURNE ROAD, BOURNEMOUTH, GB-DOR BH9 4EZ, GB",
+    "latitude": 50.742877,
+    "longitude": -1.878959
+  },
+  {
+    "id": "9701549f-47e4-b6e2-1d69-3a415e59df27",
+    "leagueId": "L6245081",
+    "name": "ULTIMATE TCG LTD.",
+    "address": "STANLEY CABINET WORKS, ST JAMES' ST, ACCRINGTON BB5 1LX, UK",
+    "latitude": 53.750817,
+    "longitude": -2.36756
+  },
+  {
+    "id": "58920619-5f8d-822d-42f0-b84bb205a578",
+    "leagueId": "L6237535",
+    "name": "UNDERWORLD GAMES",
+    "address": "THE, THE COOK BUILDING, LITEHOUSE BUSINESS CENTRE, CROCUS ST, NOTTINGHAM NG2 3EJ, UK",
+    "latitude": 52.945632,
+    "longitude": -1.14345
+  },
+  {
+    "id": "57283c9f-89c7-4aa1-b071-880e864ea9cd",
+    "leagueId": "L25123193",
+    "name": "UNIFIED CARDS LTD",
+    "address": "35A CORPORATION ST, WILLOW PL, CORBY NN17 1NQ, UK",
+    "latitude": 52.487617,
+    "longitude": -0.701602
+  },
+  {
+    "id": "9b2fab78-50c4-842f-745b-d745440b1aa7",
+    "leagueId": "L6243681",
+    "name": "UNION COUNTY GAMES LTD",
+    "address": "21 WHIPTON VILLAGE RD UNION COUNTY GAMES LTD, ENGLAND EX4 8AN, GB",
+    "latitude": 50.732507,
+    "longitude": -3.492067
+  },
+  {
+    "id": "18718ed1-172e-0785-646e-94bc3dfb968b",
+    "leagueId": "L1122917",
+    "name": "VAULT 14",
+    "address": "34 WATERDALE KINGSGATE WATERDALE SHOPPING CENTRE, ENGLAND DN1, GB",
+    "latitude": 53.521,
+    "longitude": -1.133024
+  },
+  {
+    "id": "657163d8-c395-4cb8-bf20-10cbd467df93",
+    "leagueId": "L26011234",
+    "name": "VAULT 42",
+    "address": "55 STRAND STREET, DOUGLAS IM1 2EL, GB",
+    "latitude": 54.151629,
+    "longitude": -4.479284
+  },
+  {
+    "id": "15c91ad5-aa2f-43f4-8ca2-bd3da90237aa",
+    "leagueId": "L26059913",
+    "name": "VICTORY ROAD COLLECTABLES",
+    "address": "5 LETHERBY DR, GLASGOW G44 4TS, UK",
+    "latitude": 55.82491,
+    "longitude": -4.256645
+  },
+  {
+    "id": "04eb067f-7004-5937-e7a1-ed1e10fc33e3",
+    "leagueId": "L6239965",
+    "name": "VOID GAMES",
+    "address": "UNIT 8, BRIERLEY BUSINESS CENTRE, MIRION ST, CREWE CW1 2AZ, UK",
+    "latitude": 53.099608,
+    "longitude": -2.436276
+  },
+  {
+    "id": "39914de9-d6b2-583e-407a-8848db6ff7eb",
+    "leagueId": "L6242629",
+    "name": "VORUM GAMES",
+    "address": "6 MARKET PL, ENGLAND NR25 6BW, GB",
+    "latitude": 52.905842,
+    "longitude": 1.089244
+  },
+  {
+    "id": "a28ac346-addd-10f5-9241-48a1c4717844",
+    "leagueId": "L6237878",
+    "name": "WARDYS GAMING",
+    "address": "9 RHIW RD, WALES LL29 7TE, GB",
+    "latitude": 53.293181,
+    "longitude": -3.726244
+  },
+  {
+    "id": "0bd28e2b-0d7a-3ef0-bd02-4945655c39b6",
+    "leagueId": "L3503205",
+    "name": "WARGAMES WORKSHOP MK",
+    "address": "18 WINCHESTER CIR, KINGSTON, ENGLAND MK10 0BA, GB",
+    "latitude": 52.036436,
+    "longitude": -0.689076
+  },
+  {
+    "id": "cf0d93d3-1389-474c-b96d-89e605b81c04",
+    "leagueId": "L26023053",
+    "name": "WAYLAND GAMES CENTRE",
+    "address": "WAYLAND GAMES, UNIT 3A LONDON BRENTWOOD COMMERCIAL TILBURY ROAD, WEST HORNDON CM13 3LR, GB",
+    "latitude": 51.577083,
+    "longitude": 0.35762
+  },
+  {
+    "id": "8702a677-1d5a-4f95-a7e1-51d4cc0d1041",
+    "leagueId": "L26074979",
+    "name": "WE BUY & SELL LIMITED",
+    "address": "2-3 SAMUEL HOUSE BLOXWICH, WALSALL WS3 2EU, GB",
+    "latitude": 52.617105,
+    "longitude": -2.005161
+  },
+  {
+    "id": "b2f9c0f0-2329-d2b5-88c7-0de1ec85d17d",
+    "leagueId": "L6242959",
+    "name": "WE LOVE COLLECTIBLES SHOP",
+    "address": "STRASBOURG ST STRASBOURG STREET, ENGLAND CT9 4JJ, GB",
+    "latitude": 51.368832,
+    "longitude": 1.389751
+  },
+  {
+    "id": "358a8bf2-ab53-5781-2dd2-92b9140ca349",
+    "leagueId": "L6245097",
+    "name": "WEST END GAMES",
+    "address": "162 QUEEN MARGARET DR, SCOTLAND G20 8NY, GB",
+    "latitude": 55.881502,
+    "longitude": -4.282899
+  },
+  {
+    "id": "c109a50e-56ca-073a-ed91-0f76beaa017f",
+    "leagueId": "L6241905",
+    "name": "WILDPHIRE COLLECTABLES",
+    "address": "91 HIGH ST, ENGLAND NN10 0NZ, GB",
+    "latitude": 52.29128,
+    "longitude": -0.598155
+  },
+  {
+    "id": "dd659b45-44ff-6159-1a71-ffa288d804da",
+    "leagueId": "L6242149",
+    "name": "WILLS TOY SHOP",
+    "address": "335 N DEESIDE RD CULTS, SCOTLAND AB15 9SN, GB",
+    "latitude": 57.117889,
+    "longitude": -2.17517
+  },
+  {
+    "id": "31d631e4-f1ab-3464-7531-1721b17b8278",
+    "leagueId": "L6240170",
+    "name": "WISHLIST COLLECTABLES",
+    "address": "128 BURNT ASH RD, ENGLAND SE12 8PU, GB",
+    "latitude": 51.450374,
+    "longitude": 0.0124
+  },
+  {
+    "id": "c0ee0fcb-63e7-e595-1c95-57b4a1029e25",
+    "leagueId": "L6243636",
+    "name": "YARD'S GAMES",
+    "address": "117 HIGH ST, SCOTLAND DD11 1DP, GB",
+    "latitude": 56.558844,
+    "longitude": -2.581215
+  },
+  {
+    "id": "eb696ab8-8bb1-02d4-4612-ee80081aae01",
+    "leagueId": "L6241102",
+    "name": "ZATU GAMES",
+    "address": "40 BARNARD RD, ENGLAND NR5 9JB, GB",
+    "latitude": 52.643827,
+    "longitude": 1.206128
+  },
+  {
+    "id": "a7ae0b9a-a706-c98b-8145-14f433834107",
+    "leagueId": "L6243451",
+    "name": "ZOMBIE GAMES CAFE",
+    "address": "15A CRICKLEWOOD BROADWAY, ENGLAND NW2 3JX, GB",
+    "latitude": 51.552702,
+    "longitude": -0.210842
+  }
+]

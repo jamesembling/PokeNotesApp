@@ -36,6 +36,10 @@ const TOURNAMENT_COMPETITION_BADGES: Partial<
     alt: "Pokémon League Cup badge",
     src: "/tournament-badges/league-cup.png"
   },
+  prerelease: {
+    alt: "Pokémon Prerelease badge",
+    src: "/tournament-badges/prerelease.png"
+  },
   regional: {
     alt: "Pokémon Regional Championships badge",
     src: "/tournament-badges/regional-championships.png"

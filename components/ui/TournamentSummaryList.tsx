@@ -1,23 +1,17 @@
 import Link from "next/link";
-import { ChevronIcon, MapPinIcon } from "@/components/ui/icons";
-import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { CalendarIcon, ChevronIcon, MapPinIcon } from "@/components/ui/icons";
 import { ItemTitle } from "@/components/ui/Typography";
 import { PlayPokemonJudgeMark } from "@/components/ui/PlayPokemonJudgeMark";
 import { TournamentCompetitionBadge } from "@/components/ui/TournamentCompetitionBadge";
-import { formatDayDate } from "@/lib/client/date-format";
+import { formatLongDayDate } from "@/lib/client/date-format";
 import { getTournamentRecord } from "@/lib/tournaments/display";
-import {
-  getTournamentCategoryLabel,
-  getTournamentJudgeRoleLabel,
-  getTournamentPlacementLabel
-} from "@/lib/tournaments/options";
+import { getTournamentJudgeRoleLabel, getTournamentPlacementLabel } from "@/lib/tournaments/options";
 import type { TournamentSummary } from "@/types/index";
 import styles from "./tournament/collection.module.css";
 
 export function TournamentCollectionHeader() {
   return (
     <div aria-hidden="true" className={`${styles.columns} ${styles.listHeader}`}>
-      <span />
       <span>Event</span>
       <span className={styles.metricHeader}>Placement</span>
       <span className={styles.metricHeader}>Record</span>
@@ -47,10 +41,7 @@ export function TournamentSummaryList({
             const placement = tournament.placement
               ? getTournamentPlacementLabel(tournament.placement)
               : "No placement";
-            const subtitle = [
-              formatDayDate(tournament.dateFrom),
-              tournament.category ? getTournamentCategoryLabel(tournament.category) : ""
-            ].filter(Boolean).join(" · ");
+            const date = formatLongDayDate(tournament.dateFrom);
 
             return (
               <li key={tournament.id}>
@@ -59,22 +50,21 @@ export function TournamentSummaryList({
                   href={`/tournaments/${tournament.id}`}
                   prefetch={false}
                 >
-                  <div className={styles.sprites}>
-                    {isJudge ? (
-                      <PlayPokemonJudgeMark className="size-12" />
-                    ) : (
-                      <SpriteStrip className="-space-x-2 gap-0" size="lg" sprites={tournament.deckSprites} />
-                    )}
-                  </div>
                   <div className={styles.identity}>
-                    <TournamentCompetitionBadge
-                      category={tournament.category}
-                      className={styles.competitionBadge}
-                    />
+                    <div className={styles.eventMarks}>
+                      {isJudge ? <PlayPokemonJudgeMark className={styles.judgeMark} /> : null}
+                      <TournamentCompetitionBadge
+                        category={tournament.category}
+                        className={styles.competitionBadge}
+                      />
+                    </div>
                     <div className={styles.identityText}>
                       <ItemTitle as="h2" className={styles.name}>{tournament.name}</ItemTitle>
                       <p className={styles.subtitle}>
-                        {subtitle}
+                        <span className={styles.date}>
+                          <CalendarIcon className={styles.dateIcon} />
+                          {date}
+                        </span>
                         {tournament.location ? (
                           <>
                             <span aria-hidden="true"> · </span>

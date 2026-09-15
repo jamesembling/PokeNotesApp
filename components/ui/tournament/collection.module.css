@@ -15,12 +15,15 @@
 .row { position: relative; min-height: 5.5rem; border-bottom: 1px solid var(--border); padding-block: 1.25rem; content-visibility: auto; contain-intrinsic-size: 88px; transition: background-color 140ms ease-out; }
 .row:hover { background: var(--card); }
 .row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.sprites { display: none; min-width: 0; }
 .identity { grid-column: 1 / -1; display: flex; min-width: 0; align-items: center; gap: 0.75rem; padding-right: 2rem; }
+.eventMarks { display: flex; flex: none; align-items: center; gap: 0.375rem; }
 .identityText { min-width: 0; }
 .competitionBadge { width: 3rem; height: 3rem; object-fit: contain; }
+.judgeMark { width: 3rem; height: 3rem; }
 .name { overflow-wrap: anywhere; }
 .subtitle { margin-top: 0.375rem; color: var(--muted-foreground); font-size: 0.875rem; line-height: 1.6; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.date { display: inline-flex; align-items: center; gap: 0.25rem; }
+.dateIcon { width: 0.875rem; height: 0.875rem; }
 .location { overflow-wrap: anywhere; }
 .locationIcon { display: inline-block; width: 0.875rem; height: 0.875rem; margin-right: 0.1875rem; vertical-align: -0.125rem; }
 .identifier { margin-top: 0.125rem; color: var(--muted-foreground); font-size: 0.75rem; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -35,18 +38,17 @@
 .empty p { max-width: 65ch; color: var(--muted-foreground); font-size: 1rem; line-height: 1.6; }
 
 @container tournament-collection (min-width: 40rem) {
-  .columns { grid-template-columns: 5rem minmax(0, 1fr) repeat(3, 7rem) 1rem; gap: 1.25rem; }
+  .columns { grid-template-columns: minmax(0, 1fr) repeat(3, 7rem) 1rem; gap: 1.25rem; }
   .listHeader { display: grid; min-height: 3rem; border-bottom: 1px solid var(--border); color: var(--muted-foreground); font-size: 0.8125rem; font-weight: 500; }
   .row { padding-block: 1rem; }
-  .sprites { display: flex; justify-content: start; }
   .identity { grid-column: auto; padding-right: 0; }
   .metric { align-self: center; }
   .placement { align-items: center; text-align: center; }
   .metricLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .metricValue { font-size: 0.875rem; }
   .record { align-items: center; text-align: center; }
-  .points { grid-column: 5; align-items: center; text-align: center; }
-  .judgeRole { grid-column: 3; align-items: center; text-align: center; }
+  .points { grid-column: 4; align-items: center; text-align: center; }
+  .judgeRole { grid-column: 2; align-items: center; text-align: center; }
   .chevron { position: static; justify-self: end; }
 }
 

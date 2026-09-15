@@ -14,13 +14,14 @@ import { Button } from "@/components/shadcn/button";
 import { ButtonGroup } from "@/components/shadcn/button-group";
 import { AppDialogContent, AppDialogHeader, AppDialogMobileFooter } from "@/components/ui/AppDialog";
 import { Dialog } from "@/components/shadcn/dialog";
-import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/shadcn/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
 import { Input } from "@/components/shadcn/input";
 import { Switch } from "@/components/shadcn/switch";
 import { Textarea } from "@/components/shadcn/textarea";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
+import { TournamentLocationField } from "@/components/ui/TournamentLocationField";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
   TOURNAMENT_JUDGE_ROLE_OPTIONS,
@@ -427,7 +428,33 @@ export function TournamentEditorDialog({
               <div className="border-b border-border pb-5 sm:border-0 sm:pb-0">
                 <FieldGroup className="grid gap-4">
                   <Field>
-                    <FieldLabel htmlFor="tournament-name">Tournament Name</FieldLabel>
+                    <div className="flex items-center justify-between gap-4">
+                      <FieldLabel htmlFor="tournament-name">Tournament Name</FieldLabel>
+                      <fieldset className="ml-auto flex items-center gap-3 sm:gap-4">
+                        <legend className="sr-only">Participation</legend>
+                        {(["player", "judge"] as const).map((option) => (
+                          <label
+                            className="flex min-h-11 cursor-pointer items-center gap-2 px-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-card-foreground has-[:checked]:text-card-foreground has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring"
+                            key={option}
+                          >
+                            <input
+                              checked={participation === option}
+                              className="size-4 accent-[var(--primary)]"
+                              name="participation"
+                              onChange={() => {
+                                setParticipation(option);
+                                if (option === "judge" && !judgeRole) {
+                                  setJudgeRole("judge");
+                                }
+                              }}
+                              type="radio"
+                              value={option}
+                            />
+                            <span>{option === "player" ? "Player" : "Judge"}</span>
+                          </label>
+                        ))}
+                      </fieldset>
+                    </div>
                     <Input
                       className="min-h-[2.75rem] text-base font-semibold placeholder:font-semibold sm:min-h-[3rem] sm:text-sm"
                       defaultValue={tournament?.name ?? ""}
@@ -450,21 +477,11 @@ export function TournamentEditorDialog({
                       />
                     </Field>
 
-                    <Field>
-                      <FieldLabel htmlFor="tournament-location">Location</FieldLabel>
-                      <Input
-                        className="min-h-[2.75rem] text-base font-semibold placeholder:font-semibold sm:min-h-[3rem] sm:text-sm"
-                        defaultValue={tournament?.location ?? ""}
-                        id="tournament-location"
-                        maxLength={160}
-                        name="location"
-                        placeholder="Venue, store, city, or online"
-                      />
-                    </Field>
+                    <TournamentLocationField defaultValue={tournament?.location ?? ""} />
 
                     <Field>
                       <FieldLabel htmlFor="tournament-championship-points">
-                        Championship Points (CP)
+                        Points (CP)
                       </FieldLabel>
                       <Input
                         className="min-h-[2.75rem] text-base font-semibold placeholder:font-semibold sm:min-h-[3rem] sm:text-sm"
@@ -480,41 +497,6 @@ export function TournamentEditorDialog({
                       />
                     </Field>
                   </div>
-
-                  <FieldSet className="gap-2">
-                    <FieldLegend className="text-sm" variant="label">Participation</FieldLegend>
-                    <div className="grid grid-cols-2 gap-2" data-slot="radio-group">
-                      {(["player", "judge"] as const).map((option) => {
-                        const checked = participation === option;
-
-                        return (
-                          <label
-                            className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring sm:min-h-12 sm:rounded-xl sm:px-4 ${
-                              checked
-                                ? "border-primary bg-primary/5 text-card-foreground"
-                                : "border-border bg-muted text-muted-foreground hover:text-card-foreground"
-                            }`}
-                            key={option}
-                          >
-                            <input
-                              checked={checked}
-                              className="size-4 accent-[var(--primary)]"
-                              name="participation"
-                              onChange={() => {
-                                setParticipation(option);
-                                if (option === "judge" && !judgeRole) {
-                                  setJudgeRole("judge");
-                                }
-                              }}
-                              type="radio"
-                              value={option}
-                            />
-                            <span>{option === "player" ? "Player" : "Judge"}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </FieldSet>
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4">
                     <Field>

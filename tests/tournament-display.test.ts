@@ -78,4 +78,8 @@ test("tournament record counts tied and special round outcomes once per round", 
     alt: "Play! Pokémon Friendly Tournament logo",
     src: "/tournament-badges/friendly-tournament.png"
   });
+  assert.deepEqual(getTournamentCompetitionBadge("prerelease"), {
+    alt: "Pokémon Prerelease badge",
+    src: "/tournament-badges/prerelease.png"
+  });
 });
