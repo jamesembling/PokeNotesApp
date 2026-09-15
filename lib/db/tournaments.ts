@@ -63,10 +63,34 @@ const TOURNAMENT_PARTICIPATION_SELECT = [
   "updated_at"
 ].join(",");
 
+const TOURNAMENT_EVENT_DETAILS_SELECT = [
+  "id",
+  "user_id",
+  "name",
+  "tournament_identifier",
+  "location",
+  "date_from",
+  "date_to",
+  "linked_deck_id",
+  "linked_deck_list_id",
+  "deck_name",
+  "deck_sprites",
+  "category",
+  "placement",
+  "participation",
+  "judge_role",
+  "format",
+  "notes",
+  "created_at",
+  "updated_at"
+].join(",");
+
 type TournamentRow = {
   id: string;
   user_id: string;
   name: string;
+  tournament_identifier?: string;
+  location?: string;
   date_from: string;
   date_to: string;
   linked_deck_id: string | null;
@@ -113,6 +137,8 @@ function mapTournamentRow(row: TournamentRow): Tournament {
     id: row.id,
     userId: row.user_id,
     name: row.name,
+    tournamentIdentifier: row.tournament_identifier || "",
+    location: row.location || "",
     dateFrom: row.date_from,
     dateTo: row.date_to,
     linkedDeckId: row.linked_deck_id ?? undefined,
@@ -168,11 +194,22 @@ export const getTournaments = cache(async (userId: string): Promise<Tournament[]
   let { data, error } = await measureServerCall("db.tournaments.list", async () =>
     await supabase
       .from("tournaments")
-      .select(TOURNAMENT_PARTICIPATION_SELECT)
+      .select(TOURNAMENT_EVENT_DETAILS_SELECT)
       .eq("user_id", userId)
       .order("date_from", { ascending: false })
       .order("created_at", { ascending: false })
   );
+
+  if (isMissingTournamentDeckListColumns(error)) {
+    ({ data, error } = await measureServerCall("db.tournaments.list.preEventDetails", async () =>
+      await supabase
+        .from("tournaments")
+        .select(TOURNAMENT_PARTICIPATION_SELECT)
+        .eq("user_id", userId)
+        .order("date_from", { ascending: false })
+        .order("created_at", { ascending: false })
+    ));
+  }
 
   if (isMissingTournamentDeckListColumns(error)) {
     ({ data, error } = await measureServerCall("db.tournaments.list.preParticipation", async () =>
@@ -244,11 +281,22 @@ export const getTournamentById = cache(
     let { data, error } = await measureServerCall("db.tournaments.detail", async () =>
       await supabase
         .from("tournaments")
-        .select(TOURNAMENT_PARTICIPATION_SELECT)
+        .select(TOURNAMENT_EVENT_DETAILS_SELECT)
         .eq("user_id", userId)
         .eq("id", tournamentId)
         .maybeSingle()
     );
+
+    if (isMissingTournamentDeckListColumns(error)) {
+      ({ data, error } = await measureServerCall("db.tournaments.detail.preEventDetails", async () =>
+        await supabase
+          .from("tournaments")
+          .select(TOURNAMENT_PARTICIPATION_SELECT)
+          .eq("user_id", userId)
+          .eq("id", tournamentId)
+          .maybeSingle()
+      ));
+    }
 
     if (isMissingTournamentDeckListColumns(error)) {
       ({ data, error } = await measureServerCall("db.tournaments.detail.preParticipation", async () =>

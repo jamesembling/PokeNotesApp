@@ -162,6 +162,8 @@ create table public.tournaments (
   id                text primary key,
   user_id           uuid not null references auth.users(id) on delete cascade,
   name              text not null default '',
+  tournament_identifier text not null default '',
+  location          text not null default '',
   date_from         date not null,
   date_to           date not null,
   linked_deck_id    text references public.decks(id) on delete set null,
@@ -169,7 +171,7 @@ create table public.tournaments (
   deck_name         text not null default '',
   deck_sprites      jsonb not null default '[]',
   category          text not null default ''
-                      check (category in ('', 'online', 'local', 'challenge', 'cup', 'prerelease', 'regional', 'world')),
+                      check (category in ('', 'online', 'local', 'challenge', 'cup', 'prerelease', 'regional', 'international', 'world')),
   placement         text not null default ''
                       check (placement in ('', 'no placement', 'dropped', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 't1024', 't512', 't256', 't128', 't64', 't32', 't16', 't8', 't4', 'finalist', 'champion')),
   participation     text not null default 'player'
@@ -192,6 +194,10 @@ create table public.tournaments (
 
 comment on table public.tournaments is
   'User tournament records. Can link to a saved deck or store a manual deck snapshot.';
+comment on column public.tournaments.tournament_identifier is
+  'Optional organizer-facing Tournament ID, such as a Play! Pokemon event identifier.';
+comment on column public.tournaments.location is
+  'Optional venue, store, city, or online location supplied by the user.';
 comment on column public.tournaments.deck_sprites is
   'Array of Pokemon slug strings used for tournament deck display.';
 comment on column public.tournaments.linked_deck_list_id is

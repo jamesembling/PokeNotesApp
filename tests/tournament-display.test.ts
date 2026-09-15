@@ -6,6 +6,7 @@ import {
   getTournamentRecord
 } from "@/lib/tournaments/display";
 import {
+  getTournamentCompetitionBadge,
   getTournamentJudgeRoleLabel,
   parseTournamentJudgeRole,
   parseTournamentParticipation
@@ -69,4 +70,9 @@ test("tournament record counts tied and special round outcomes once per round", 
   assert.equal(parseTournamentJudgeRole("head judge"), "head judge");
   assert.equal(parseTournamentJudgeRole("organizer"), "");
   assert.equal(getTournamentJudgeRoleLabel("head judge"), "Head Judge");
+  assert.deepEqual(getTournamentCompetitionBadge("international"), {
+    alt: "Pokémon International Championships badge",
+    src: "/tournament-badges/international-championships.png"
+  });
+  assert.equal(getTournamentCompetitionBadge("local"), null);
 });

@@ -437,6 +437,32 @@ export function TournamentEditorDialog({
                     />
                   </Field>
 
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="tournament-identifier">Tournament ID</FieldLabel>
+                      <Input
+                        className="min-h-[2.75rem] text-base font-semibold placeholder:font-semibold sm:min-h-[3rem] sm:text-sm"
+                        defaultValue={tournament?.tournamentIdentifier ?? ""}
+                        id="tournament-identifier"
+                        maxLength={100}
+                        name="tournamentIdentifier"
+                        placeholder="e.g. 26-09-018725"
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="tournament-location">Location</FieldLabel>
+                      <Input
+                        className="min-h-[2.75rem] text-base font-semibold placeholder:font-semibold sm:min-h-[3rem] sm:text-sm"
+                        defaultValue={tournament?.location ?? ""}
+                        id="tournament-location"
+                        maxLength={160}
+                        name="location"
+                        placeholder="Venue, store, city, or online"
+                      />
+                    </Field>
+                  </div>
+
                   <FieldSet className="gap-2">
                     <FieldLegend className="text-sm" variant="label">Participation</FieldLegend>
                     <div className="grid grid-cols-2 gap-2" data-slot="radio-group">

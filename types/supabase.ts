@@ -979,11 +979,13 @@ export type Database = {
           id: string
           linked_deck_id: string | null
           linked_deck_list_id: string | null
+          location: string
           name: string
           notes: string
           judge_role: string | null
           participation: string
           placement: string
+          tournament_identifier: string
           updated_at: string
           user_id: string
         }
@@ -998,11 +1000,13 @@ export type Database = {
           id: string
           linked_deck_id?: string | null
           linked_deck_list_id?: string | null
+          location?: string
           name?: string
           notes?: string
           judge_role?: string | null
           participation?: string
           placement?: string
+          tournament_identifier?: string
           updated_at?: string
           user_id: string
         }
@@ -1017,11 +1021,13 @@ export type Database = {
           id?: string
           linked_deck_id?: string | null
           linked_deck_list_id?: string | null
+          location?: string
           name?: string
           notes?: string
           judge_role?: string | null
           participation?: string
           placement?: string
+          tournament_identifier?: string
           updated_at?: string
           user_id?: string
         }

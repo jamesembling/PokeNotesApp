@@ -298,6 +298,7 @@ export type TournamentCategory =
   | "cup"
   | "prerelease"
   | "regional"
+  | "international"
   | "world"
   | ""
 
@@ -355,6 +356,8 @@ export type Tournament = {
   id: string
   userId: string
   name: string
+  tournamentIdentifier: string
+  location: string
   dateFrom: string
   dateTo: string
   linkedDeckId: string | undefined

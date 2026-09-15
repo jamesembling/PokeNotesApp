@@ -153,7 +153,11 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   const tournamentSubheading = [
     formatTournamentDateRange(tournament.dateFrom, tournament.dateTo),
     tournament.category ? getTournamentCategoryLabel(tournament.category) : "",
-    tournament.format
+    tournament.format,
+    tournament.location,
+    tournament.tournamentIdentifier
+      ? `Tournament ID ${tournament.tournamentIdentifier}`
+      : ""
   ]
     .filter(Boolean)
     .join(" · ");

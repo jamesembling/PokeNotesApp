@@ -16,9 +16,35 @@ export const TOURNAMENT_CATEGORY_OPTIONS: Array<{
   { value: "cup", label: "League Cup" },
   { value: "prerelease", label: "Prerelease Event" },
   { value: "online", label: "Online Tournament" },
-  { value: "regional", label: "Regionals" },
-  { value: "world", label: "Worlds" }
+  { value: "regional", label: "Regional Championships" },
+  { value: "international", label: "International Championships" },
+  { value: "world", label: "World Championships" }
 ];
+
+const TOURNAMENT_COMPETITION_BADGES: Partial<
+  Record<Exclude<TournamentCategory, "">, { alt: string; src: string }>
+> = {
+  challenge: {
+    alt: "Pokémon League Challenge badge",
+    src: "/tournament-badges/league-challenge.png"
+  },
+  cup: {
+    alt: "Pokémon League Cup badge",
+    src: "/tournament-badges/league-cup.png"
+  },
+  regional: {
+    alt: "Pokémon Regional Championships badge",
+    src: "/tournament-badges/regional-championships.png"
+  },
+  international: {
+    alt: "Pokémon International Championships badge",
+    src: "/tournament-badges/international-championships.png"
+  },
+  world: {
+    alt: "Pokémon World Championships badge",
+    src: "/tournament-badges/world-championships.png"
+  }
+};
 
 export const TOURNAMENT_PLACEMENT_OPTIONS: Array<{
   value: Exclude<TournamentPlacement, "">;
@@ -67,6 +93,10 @@ export function getTournamentCategoryLabel(category: TournamentCategory) {
   return (
     TOURNAMENT_CATEGORY_OPTIONS.find((option) => option.value === category)?.label || "Uncategorized"
   );
+}
+
+export function getTournamentCompetitionBadge(category: TournamentCategory) {
+  return category ? TOURNAMENT_COMPETITION_BADGES[category] ?? null : null;
 }
 
 export function getTournamentPlacementLabel(placement: TournamentPlacement) {

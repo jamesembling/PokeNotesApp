@@ -191,6 +191,8 @@ const REQUIRED_COLUMNS = {
     "id",
     "user_id",
     "name",
+    "tournament_identifier",
+    "location",
     "date_from",
     "date_to",
     "linked_deck_id",

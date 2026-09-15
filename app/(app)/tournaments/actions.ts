@@ -69,6 +69,22 @@ function isOutdatedTournamentRoundResultConstraint(error: PostgrestLikeError) {
     .some((value) => String(value).includes("tournament_rounds_result_check"));
 }
 
+function isMissingTournamentEventDetailsMigration(error: PostgrestLikeError) {
+  const errorText = [error.message, error.details, error.hint].filter(Boolean).join(" ");
+
+  if (
+    ["42703", "PGRST204"].includes(String(error.code || "")) &&
+    /tournament_identifier|location/i.test(errorText)
+  ) {
+    return true;
+  }
+
+  return (
+    error.code === "23514" &&
+    /tournaments_category_check/i.test(errorText)
+  );
+}
+
 function revalidateTournamentWorkspace(tournamentId?: string) {
   revalidatePath("/tournaments", "layout");
   if (tournamentId) {
@@ -87,12 +103,20 @@ function toUserFacingDatabaseError(error: PostgrestLikeError) {
     );
   }
 
+  if (isMissingTournamentEventDetailsMigration(error)) {
+    return userFacingActionError(
+      "Tournament event details need the latest database migration before they can be saved."
+    );
+  }
+
   if (
-    error.code === "42703" &&
-    /participation|judge_role/i.test([error.message, error.details, error.hint].filter(Boolean).join(" "))
+    ["42703", "PGRST204"].includes(String(error.code || "")) &&
+    /participation|judge_role/i.test(
+      [error.message, error.details, error.hint].filter(Boolean).join(" ")
+    )
   ) {
     return userFacingActionError(
-      "Tournament judge roles need the latest database migration before they can be saved."
+      "Tournament participation needs the latest database migration before it can be saved."
     );
   }
 
@@ -111,6 +135,20 @@ function parsePlacement(value: FormDataEntryValue | null): TournamentPlacement {
   return TOURNAMENT_PLACEMENT_OPTIONS.some((option) => option.value === normalized)
     ? (normalized as TournamentPlacement)
     : "";
+}
+
+function parseOptionalEventDetail(
+  value: FormDataEntryValue | null,
+  label: string,
+  maxLength: number
+) {
+  const normalized = String(value || "").trim();
+
+  if (normalized.length > maxLength) {
+    throw userFacingActionError(`${label} must be ${maxLength} characters or fewer.`);
+  }
+
+  return normalized;
 }
 
 function requireJudgeRole(value: FormDataEntryValue | null): Exclude<TournamentJudgeRole, ""> {
@@ -275,6 +313,12 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
     const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
     const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
     const name = String(formData.get("name") || "").trim();
+    const tournamentIdentifier = parseOptionalEventDetail(
+      formData.get("tournamentIdentifier"),
+      "Tournament ID",
+      100
+    );
+    const location = parseOptionalEventDetail(formData.get("location"), "Location", 160);
     const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
@@ -299,6 +343,8 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
       id: tournamentId,
       user_id: user.id,
       name,
+      tournament_identifier: tournamentIdentifier,
+      location,
       date_from: dateFrom,
       date_to: dateTo,
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
@@ -321,6 +367,8 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
         id: tournamentId,
         user_id: user.id,
         name,
+        tournament_identifier: tournamentIdentifier,
+        location,
         date_from: dateFrom,
         date_to: dateTo,
         linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
@@ -366,6 +414,12 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
     const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
     const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
     const name = String(formData.get("name") || "").trim();
+    const tournamentIdentifier = parseOptionalEventDetail(
+      formData.get("tournamentIdentifier"),
+      "Tournament ID",
+      100
+    );
+    const location = parseOptionalEventDetail(formData.get("location"), "Location", 160);
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
     const participation = parseTournamentParticipation(formData.get("participation"));
@@ -392,6 +446,8 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
 
     const nextTournament = {
       name,
+      tournament_identifier: tournamentIdentifier,
+      location,
       date_from: dateFrom,
       date_to: dateTo,
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
@@ -420,6 +476,8 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
         .from("tournaments")
         .update({
           name,
+          tournament_identifier: tournamentIdentifier,
+          location,
           date_from: dateFrom,
           date_to: dateTo,
           linked_deck_id: resolvedDeck?.linkedDeckId ?? null,

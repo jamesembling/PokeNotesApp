@@ -3,6 +3,7 @@ import { ChevronIcon } from "@/components/ui/icons";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { ItemTitle } from "@/components/ui/Typography";
 import { PlayPokemonJudgeMark } from "@/components/ui/PlayPokemonJudgeMark";
+import { TournamentCompetitionBadge } from "@/components/ui/TournamentCompetitionBadge";
 import { formatDayDate } from "@/lib/client/date-format";
 import { getTournamentRecord } from "@/lib/tournaments/display";
 import {
@@ -47,7 +48,8 @@ export function TournamentSummaryList({
               : "No placement";
             const subtitle = [
               formatDayDate(tournament.dateFrom),
-              tournament.category ? getTournamentCategoryLabel(tournament.category) : ""
+              tournament.category ? getTournamentCategoryLabel(tournament.category) : "",
+              tournament.location
             ].filter(Boolean).join(" · ");
 
             return (
@@ -65,8 +67,19 @@ export function TournamentSummaryList({
                     )}
                   </div>
                   <div className={styles.identity}>
-                    <ItemTitle as="h2" className={styles.name}>{tournament.name}</ItemTitle>
-                    <p className={styles.subtitle}>{subtitle}</p>
+                    <TournamentCompetitionBadge
+                      category={tournament.category}
+                      className={styles.competitionBadge}
+                    />
+                    <div className={styles.identityText}>
+                      <ItemTitle as="h2" className={styles.name}>{tournament.name}</ItemTitle>
+                      <p className={styles.subtitle}>{subtitle}</p>
+                      {tournament.tournamentIdentifier ? (
+                        <p className={styles.identifier}>
+                          Tournament ID {tournament.tournamentIdentifier}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                   {isJudge ? (
                     <p className={`${styles.metric} ${styles.judgeRole}`}>
