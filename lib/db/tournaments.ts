@@ -70,6 +70,7 @@ const TOURNAMENT_EVENT_DETAILS_SELECT = [
   "tournament_identifier",
   "location",
   "championship_points",
+  "professor_points",
   "date_from",
   "date_to",
   "linked_deck_id",
@@ -86,6 +87,11 @@ const TOURNAMENT_EVENT_DETAILS_SELECT = [
   "updated_at"
 ].join(",");
 
+const TOURNAMENT_CHAMPIONSHIP_POINTS_SELECT = TOURNAMENT_EVENT_DETAILS_SELECT
+  .split(",")
+  .filter((column) => column !== "professor_points")
+  .join(",");
+
 type TournamentRow = {
   id: string;
   user_id: string;
@@ -93,6 +99,7 @@ type TournamentRow = {
   tournament_identifier?: string;
   location?: string;
   championship_points?: number | null;
+  professor_points?: number | null;
   date_from: string;
   date_to: string;
   linked_deck_id: string | null;
@@ -134,6 +141,13 @@ function isMissingTournamentDeckListColumns(error: PostgrestLikeError | null) {
   return error?.code === "42703";
 }
 
+function isMissingTournamentProfessorPointsColumn(error: PostgrestLikeError | null) {
+  return (
+    ["42703", "PGRST204"].includes(String(error?.code || "")) &&
+    /professor_points/i.test(String(error?.message || ""))
+  );
+}
+
 function mapTournamentRow(row: TournamentRow): Tournament {
   return {
     id: row.id,
@@ -141,7 +155,12 @@ function mapTournamentRow(row: TournamentRow): Tournament {
     name: row.name,
     tournamentIdentifier: row.tournament_identifier || "",
     location: row.location || "",
-    championshipPoints: row.championship_points ?? null,
+    championshipPoints:
+      row.participation === "judge" ? null : (row.championship_points ?? null),
+    professorPoints:
+      row.participation === "judge"
+        ? (row.professor_points ?? row.championship_points ?? null)
+        : null,
     dateFrom: row.date_from,
     dateTo: row.date_to,
     linkedDeckId: row.linked_deck_id ?? undefined,
@@ -202,6 +221,17 @@ export const getTournaments = cache(async (userId: string): Promise<Tournament[]
       .order("date_from", { ascending: false })
       .order("created_at", { ascending: false })
   );
+
+  if (isMissingTournamentProfessorPointsColumn(error)) {
+    ({ data, error } = await measureServerCall("db.tournaments.list.preProfessorPoints", async () =>
+      await supabase
+        .from("tournaments")
+        .select(TOURNAMENT_CHAMPIONSHIP_POINTS_SELECT)
+        .eq("user_id", userId)
+        .order("date_from", { ascending: false })
+        .order("created_at", { ascending: false })
+    ));
+  }
 
   if (isMissingTournamentDeckListColumns(error)) {
     ({ data, error } = await measureServerCall("db.tournaments.list.preEventDetails", async () =>
@@ -289,6 +319,19 @@ export const getTournamentById = cache(
         .eq("id", tournamentId)
         .maybeSingle()
     );
+
+    if (isMissingTournamentProfessorPointsColumn(error)) {
+      ({ data, error } = await measureServerCall(
+        "db.tournaments.detail.preProfessorPoints",
+        async () =>
+          await supabase
+            .from("tournaments")
+            .select(TOURNAMENT_CHAMPIONSHIP_POINTS_SELECT)
+            .eq("user_id", userId)
+            .eq("id", tournamentId)
+            .maybeSingle()
+      ));
+    }
 
     if (isMissingTournamentDeckListColumns(error)) {
       ({ data, error } = await measureServerCall("db.tournaments.detail.preEventDetails", async () =>

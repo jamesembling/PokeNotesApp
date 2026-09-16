@@ -360,6 +360,7 @@ export type Tournament = {
   tournamentIdentifier: string
   location: string
   championshipPoints: number | null
+  professorPoints: number | null
   dateFrom: string
   dateTo: string
   linkedDeckId: string | undefined

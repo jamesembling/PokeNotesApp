@@ -15,7 +15,7 @@ export function TournamentCollectionHeader() {
       <span>Event</span>
       <span className={styles.metricHeader}>Placement</span>
       <span className={styles.metricHeader}>Record</span>
-      <span className={styles.metricHeader}>Points (CP)</span>
+      <span className={styles.metricHeader}>Points (CP/PP)</span>
       <span />
     </div>
   );
@@ -102,9 +102,13 @@ export function TournamentSummaryList({
                     </>
                   )}
                   <p className={`${styles.metric} ${styles.points}`}>
-                    <span className={styles.metricLabel}>Championship Points (CP)</span>
+                    <span className={styles.metricLabel}>
+                      {isJudge ? "Professor Points (PP)" : "Championship Points (CP)"}
+                    </span>
                     <span className={styles.metricValue}>
-                      {tournament.championshipPoints ?? "—"}
+                      {(isJudge
+                        ? tournament.professorPoints
+                        : tournament.championshipPoints) ?? "—"}
                     </span>
                   </p>
                   <ChevronIcon aria-hidden="true" className={styles.chevron} />

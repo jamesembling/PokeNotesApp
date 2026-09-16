@@ -15,10 +15,35 @@ export function TournamentCompetitionBadge({
     return null;
   }
 
+  const imageClassName = `${className} shrink-0 object-contain`;
+
+  if (badge.darkSrc) {
+    return (
+      <>
+        <Image
+          alt={badge.alt}
+          className={`${imageClassName} dark:hidden`}
+          height={56}
+          sizes="56px"
+          src={badge.src}
+          width={56}
+        />
+        <Image
+          alt={badge.alt}
+          className={`${imageClassName} hidden dark:block`}
+          height={56}
+          sizes="56px"
+          src={badge.darkSrc}
+          width={56}
+        />
+      </>
+    );
+  }
+
   return (
     <Image
       alt={badge.alt}
-      className={`${className} shrink-0 object-contain`}
+      className={imageClassName}
       height={56}
       sizes="56px"
       src={badge.src}

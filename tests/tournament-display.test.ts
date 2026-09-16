@@ -80,6 +80,7 @@ test("tournament record counts tied and special round outcomes once per round", 
   });
   assert.deepEqual(getTournamentCompetitionBadge("prerelease"), {
     alt: "Pokémon Prerelease badge",
+    darkSrc: "/tournament-badges/prerelease-dark.png",
     src: "/tournament-badges/prerelease.png"
   });
 });

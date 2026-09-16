@@ -971,6 +971,7 @@ export type Database = {
         Row: {
           category: string
           championship_points: number | null
+          professor_points: number | null
           created_at: string
           date_from: string
           date_to: string
@@ -993,6 +994,7 @@ export type Database = {
         Insert: {
           category?: string
           championship_points?: number | null
+          professor_points?: number | null
           created_at?: string
           date_from: string
           date_to: string
@@ -1015,6 +1017,7 @@ export type Database = {
         Update: {
           category?: string
           championship_points?: number | null
+          professor_points?: number | null
           created_at?: string
           date_from?: string
           date_to?: string

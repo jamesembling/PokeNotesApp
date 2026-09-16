@@ -74,7 +74,7 @@ function isMissingTournamentEventDetailsMigration(error: PostgrestLikeError) {
 
   if (
     ["42703", "PGRST204"].includes(String(error.code || "")) &&
-    /tournament_identifier|location|championship_points/i.test(errorText)
+    /tournament_identifier|location|championship_points|professor_points/i.test(errorText)
   ) {
     return true;
   }
@@ -151,7 +151,7 @@ function parseOptionalEventDetail(
   return normalized;
 }
 
-function parseOptionalChampionshipPoints(value: FormDataEntryValue | null) {
+function parseOptionalPoints(value: FormDataEntryValue | null, label: string) {
   const normalized = String(value || "").trim();
 
   if (!normalized) {
@@ -160,13 +160,13 @@ function parseOptionalChampionshipPoints(value: FormDataEntryValue | null) {
 
   if (!/^\d+$/.test(normalized)) {
     throw userFacingActionError(
-      "Enter Championship Points as a whole number of 0 or more."
+      `Enter ${label} as a whole number of 0 or more.`
     );
   }
 
   const points = Number(normalized);
   if (!Number.isSafeInteger(points) || points > 2_147_483_647) {
-    throw userFacingActionError("Championship Points are too large to save.");
+    throw userFacingActionError(`${label} are too large to save.`);
   }
 
   return points;
@@ -340,14 +340,17 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
       100
     );
     const location = parseOptionalEventDetail(formData.get("location"), "Location", 160);
-    const championshipPoints = parseOptionalChampionshipPoints(
-      formData.get("championshipPoints")
-    );
     const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
     const participation = parseTournamentParticipation(formData.get("participation"));
     const judgeRole = participation === "judge" ? requireJudgeRole(formData.get("judgeRole")) : null;
+    const championshipPoints = participation === "player"
+      ? parseOptionalPoints(formData.get("championshipPoints"), "Championship Points")
+      : null;
+    const professorPoints = participation === "judge"
+      ? parseOptionalPoints(formData.get("professorPoints"), "Professor Points")
+      : null;
     const validatedReference = await validateDeckListReference({
       linkedDeckId: linkedDeckId || null,
       linkedDeckListId: linkedDeckListId || null,
@@ -370,6 +373,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
       tournament_identifier: tournamentIdentifier,
       location,
       championship_points: championshipPoints,
+      professor_points: professorPoints,
       date_from: dateFrom,
       date_to: dateTo,
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
@@ -395,6 +399,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
         tournament_identifier: tournamentIdentifier,
         location,
         championship_points: championshipPoints,
+        professor_points: professorPoints,
         date_from: dateFrom,
         date_to: dateTo,
         linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
@@ -446,13 +451,16 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       100
     );
     const location = parseOptionalEventDetail(formData.get("location"), "Location", 160);
-    const championshipPoints = parseOptionalChampionshipPoints(
-      formData.get("championshipPoints")
-    );
     const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
     const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
     const participation = parseTournamentParticipation(formData.get("participation"));
     const judgeRole = participation === "judge" ? requireJudgeRole(formData.get("judgeRole")) : null;
+    const championshipPoints = participation === "player"
+      ? parseOptionalPoints(formData.get("championshipPoints"), "Championship Points")
+      : null;
+    const professorPoints = participation === "judge"
+      ? parseOptionalPoints(formData.get("professorPoints"), "Professor Points")
+      : null;
     const validatedReference = await validateDeckListReference({
       linkedDeckId: linkedDeckId || null,
       linkedDeckListId: linkedDeckListId || null,
@@ -478,6 +486,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       tournament_identifier: tournamentIdentifier,
       location,
       championship_points: championshipPoints,
+      professor_points: professorPoints,
       date_from: dateFrom,
       date_to: dateTo,
       linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
@@ -509,6 +518,7 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
           tournament_identifier: tournamentIdentifier,
           location,
           championship_points: championshipPoints,
+          professor_points: professorPoints,
           date_from: dateFrom,
           date_to: dateTo,
           linked_deck_id: resolvedDeck?.linkedDeckId ?? null,

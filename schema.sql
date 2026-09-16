@@ -166,6 +166,8 @@ create table public.tournaments (
   location          text not null default '',
   championship_points integer
                       check (championship_points is null or championship_points >= 0),
+  professor_points  integer
+                      check (professor_points is null or professor_points >= 0),
   date_from         date not null,
   date_to           date not null,
   linked_deck_id    text references public.decks(id) on delete set null,
@@ -202,6 +204,8 @@ comment on column public.tournaments.location is
   'Optional venue, store, city, or online location supplied by the user.';
 comment on column public.tournaments.championship_points is
   'Optional Championship Points awarded for the tournament.';
+comment on column public.tournaments.professor_points is
+  'Optional Professor Points awarded for judging the tournament.';
 comment on column public.tournaments.deck_sprites is
   'Array of Pokemon slug strings used for tournament deck display.';
 comment on column public.tournaments.linked_deck_list_id is

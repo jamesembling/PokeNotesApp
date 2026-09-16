@@ -155,6 +155,12 @@ export function TournamentEditorDialog({
   const [judgeRole, setJudgeRole] = useState<TournamentJudgeRole>(
     tournament?.judgeRole || "judge"
   );
+  const [championshipPoints, setChampionshipPoints] = useState(
+    tournament?.championshipPoints?.toString() ?? ""
+  );
+  const [professorPoints, setProfessorPoints] = useState(
+    tournament?.professorPoints?.toString() ?? ""
+  );
   const [format, setFormat] = useState<string>(tournament?.format || defaultFormat);
   const [dateTo, setDateTo] = useState(tournament?.dateTo ?? "");
   const [isMultiDay, setIsMultiDay] = useState(
@@ -224,6 +230,8 @@ export function TournamentEditorDialog({
     setPlacement(tournament?.placement ?? "");
     setParticipation(tournament?.participation ?? "player");
     setJudgeRole(tournament?.judgeRole || "judge");
+    setChampionshipPoints(tournament?.championshipPoints?.toString() ?? "");
+    setProfessorPoints(tournament?.professorPoints?.toString() ?? "");
     setFormat(tournament?.format || defaultFormat);
     setDateTo(tournament?.dateTo ?? "");
     setIsMultiDay(isTournamentMultiDay(tournament?.dateFrom, tournament?.dateTo));
@@ -480,20 +488,37 @@ export function TournamentEditorDialog({
                     <TournamentLocationField defaultValue={tournament?.location ?? ""} />
 
                     <Field>
-                      <FieldLabel htmlFor="tournament-championship-points">
-                        Points (CP)
+                      <FieldLabel
+                        htmlFor={
+                          isJudge
+                            ? "tournament-professor-points"
+                            : "tournament-championship-points"
+                        }
+                      >
+                        {isJudge ? "Points (PP)" : "Points (CP)"}
                       </FieldLabel>
                       <Input
                         className="min-h-[2.75rem] text-base font-semibold placeholder:font-semibold sm:min-h-[3rem] sm:text-sm"
-                        defaultValue={tournament?.championshipPoints ?? ""}
-                        id="tournament-championship-points"
+                        id={
+                          isJudge
+                            ? "tournament-professor-points"
+                            : "tournament-championship-points"
+                        }
                         inputMode="numeric"
                         max={2147483647}
                         min={0}
-                        name="championshipPoints"
+                        name={isJudge ? "professorPoints" : "championshipPoints"}
+                        onChange={(event) => {
+                          if (isJudge) {
+                            setProfessorPoints(event.target.value);
+                          } else {
+                            setChampionshipPoints(event.target.value);
+                          }
+                        }}
                         placeholder="0"
                         step={1}
                         type="number"
+                        value={isJudge ? professorPoints : championshipPoints}
                       />
                     </Field>
                   </div>

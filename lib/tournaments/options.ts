@@ -22,7 +22,7 @@ export const TOURNAMENT_CATEGORY_OPTIONS: Array<{
 ];
 
 const TOURNAMENT_COMPETITION_BADGES: Partial<
-  Record<Exclude<TournamentCategory, "">, { alt: string; src: string }>
+  Record<Exclude<TournamentCategory, "">, { alt: string; darkSrc?: string; src: string }>
 > = {
   local: {
     alt: "Play! Pokémon Friendly Tournament logo",
@@ -38,6 +38,7 @@ const TOURNAMENT_COMPETITION_BADGES: Partial<
   },
   prerelease: {
     alt: "Pokémon Prerelease badge",
+    darkSrc: "/tournament-badges/prerelease-dark.png",
     src: "/tournament-badges/prerelease.png"
   },
   regional: {
