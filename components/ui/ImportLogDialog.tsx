@@ -198,6 +198,22 @@ export function ImportLogDialog({
       ? [...siteFormatOptions]
       : [normalizedFormat, ...siteFormatOptions];
   }, [selectedFormat, siteFormatOptions]);
+  const detectedDeckOptions = useMemo(() => {
+    if (
+      !selectedDeckId ||
+      selectedDeckId !== review?.suggestedLinkedDeckId ||
+      userDecks.some((deck) => deck.id === selectedDeckId)
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        label: review.suggestedLinkedDeckName || "Detected deck strategy",
+        value: selectedDeckId
+      }
+    ];
+  }, [review, selectedDeckId, userDecks]);
 
   function resetImportState() {
     setStage("raw");
@@ -475,10 +491,10 @@ export function ImportLogDialog({
   }, [isOpen, isTrainingCourtUrl, requestParseReview, stage, trimmedRawLog]);
 
   useEffect(() => {
-    if (stage === "review" && sharedUserDecks === null) {
+    if (isOpen && sharedUserDecks === null) {
       void ensureUserDecks().catch(() => undefined);
     }
-  }, [ensureUserDecks, sharedUserDecks, stage]);
+  }, [ensureUserDecks, isOpen, sharedUserDecks]);
 
   function renderHeader() {
     if (stage === "raw") {
@@ -644,6 +660,7 @@ export function ImportLogDialog({
                                   : "No linked deck",
                                 value: ""
                               },
+                              ...detectedDeckOptions,
                               ...userDecks.map((deck) => ({
                                 label: deck.deckName,
                                 value: deck.id
@@ -726,6 +743,7 @@ export function ImportLogDialog({
                               : "No linked deck",
                             value: ""
                           },
+                          ...detectedDeckOptions,
                           ...userDecks.map((deck) => ({
                             label: deck.deckName,
                             value: deck.id

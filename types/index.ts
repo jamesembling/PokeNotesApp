@@ -176,6 +176,7 @@ export type ParsedLogReview = {
   opponentMulligans: number
   reason: string
   suggestedLinkedDeckId?: string
+  suggestedLinkedDeckName?: string
 }
 
 

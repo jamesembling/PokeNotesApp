@@ -258,11 +258,17 @@ async function buildParsedLogReview(
     reason: parsed.stats.reason
   };
 
-  review.suggestedLinkedDeckId = resolveConservativeDeckLink(importContext.deckLinkCandidates, {
+  const suggestedLinkedDeckId = resolveConservativeDeckLink(importContext.deckLinkCandidates, {
     deckName: selfDeckName,
     deckSlug: selfDeckSlug,
     sprites: resolvedSelfSprites
-  }) ?? undefined;
+  });
+  const suggestedLinkedDeck = suggestedLinkedDeckId
+    ? importContext.deckLinkCandidates.find((deck) => deck.id === suggestedLinkedDeckId)
+    : null;
+
+  review.suggestedLinkedDeckId = suggestedLinkedDeckId ?? undefined;
+  review.suggestedLinkedDeckName = suggestedLinkedDeck?.deckName;
 
   return {
     review,
