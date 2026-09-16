@@ -10,7 +10,7 @@ import {
   type ReactElement
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { updateLogAction } from "@/app/(app)/logs/actions";
+import type { SaveActionResult } from "@/app/(app)/logs/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { BattleLogSpritePicker } from "@/components/ui/BattleLogSpritePicker";
@@ -252,7 +252,19 @@ export function EditLogDialog({
     setSaveState("saving");
 
     try {
-      const result = await updateLogAction(formData);
+      const response = await fetch("/api/logs/update", {
+        body: formData,
+        cache: "no-store",
+        credentials: "same-origin",
+        method: "POST"
+      });
+      const result = (await response.json()) as SaveActionResult | { error?: string };
+
+      if (!response.ok || !("ok" in result)) {
+        const message = "error" in result ? result.error : undefined;
+        throw new Error(message || "Could not save this battle log.");
+      }
+
       setSaveState("success");
 
       clearCloseTimer();

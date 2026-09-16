@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  importLogAction,
-  type ParseLogActionResult
+  type ParseLogActionResult,
+  type SaveActionResult
 } from "@/app/(app)/logs/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { AppSelect } from "@/components/shadcn/app-select";
@@ -400,7 +400,19 @@ export function ImportLogDialog({
     setSaveState("saving");
 
     try {
-      const result = await importLogAction(formData);
+      const response = await fetch("/api/log-import/save", {
+        body: formData,
+        cache: "no-store",
+        credentials: "same-origin",
+        method: "POST"
+      });
+      const result = (await response.json()) as SaveActionResult | { error?: string };
+
+      if (!response.ok || !("ok" in result)) {
+        const message = "error" in result ? result.error : undefined;
+        throw new Error(message || "Could not save this battle log.");
+      }
+
       setSaveState("success");
       router.prefetch(result.redirectTo);
 

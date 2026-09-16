@@ -1,6 +1,6 @@
 import "server-only";
 
-import { unstable_cache, updateTag } from "next/cache";
+import { revalidateTag, unstable_cache, updateTag } from "next/cache";
 import { getDeckLinkCandidates } from "@/lib/log-import/deck-linking";
 import { loadLearnedArchetypeRows } from "@/lib/log-import/identifier/catalog";
 import { createClient } from "@/lib/supabase/server";
@@ -68,4 +68,8 @@ export async function warmBattleLogImportContext(userId: string) {
 
 export function invalidateBattleLogImportContext(userId: string) {
   updateTag(getBattleLogImportContextCacheTag(userId));
+}
+
+export function revalidateBattleLogImportContext(userId: string) {
+  revalidateTag(getBattleLogImportContextCacheTag(userId), { expire: 0 });
 }

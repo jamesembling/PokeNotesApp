@@ -1,4 +1,4 @@
-import { unstable_cache, updateTag } from "next/cache";
+import { revalidateTag, unstable_cache, updateTag } from "next/cache";
 import { getInitialLogsPageDataWithClientDiagnostics } from "@/lib/db/logs";
 import { reportError } from "@/lib/server/report-error";
 import { createClient } from "@/lib/supabase/server";
@@ -29,8 +29,11 @@ export function requireCacheableInitialLogsData(result: InitialLogsReadDiagnosti
 }
 
 export const logsInitialCacheTestHooks = {
+  revalidateTag,
   updateTag
 };
+
+export type CacheInvalidationContext = "route-handler" | "server-action";
 
 export function getInitialLogsCacheTag(userId: string) {
   return `initial-logs:${userId}`;
@@ -109,6 +112,16 @@ export async function getCachedInitialLogsPageDataWithDiagnostics(userId: string
   };
 }
 
-export function invalidateInitialLogsCache(userId: string) {
-  logsInitialCacheTestHooks.updateTag(getInitialLogsCacheTag(userId));
+export function invalidateInitialLogsCache(
+  userId: string,
+  context: CacheInvalidationContext = "server-action"
+) {
+  const tag = getInitialLogsCacheTag(userId);
+
+  if (context === "route-handler") {
+    logsInitialCacheTestHooks.revalidateTag(tag, { expire: 0 });
+    return;
+  }
+
+  logsInitialCacheTestHooks.updateTag(tag);
 }

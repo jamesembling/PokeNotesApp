@@ -62,7 +62,8 @@ import { invalidateInitialLogsCache } from "@/lib/server/logs-initial-cache";
 import { reportError } from "@/lib/server/report-error";
 import {
   invalidateBattleLogImportContext,
-  loadCachedBattleLogImportContext
+  loadCachedBattleLogImportContext,
+  revalidateBattleLogImportContext
 } from "@/lib/server/battle-log-import-context-cache";
 import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
 import { getPublicSharedLogUrl } from "@/lib/server/share-url";
@@ -101,7 +102,7 @@ type ParsedLogReviewResult = {
 };
 
 export type ParseLogActionResult = PersistedBattleLogImportReview | { error: string };
-type SaveActionResult = {
+export type SaveActionResult = {
   ok: true;
   redirectTo: string;
 };
@@ -353,7 +354,10 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
   }
 }
 
-export async function importLogAction(formData: FormData): Promise<SaveActionResult> {
+export async function importLogAction(
+  formData: FormData,
+  invalidationContext: "route-handler" | "server-action" = "server-action"
+): Promise<SaveActionResult> {
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
@@ -425,8 +429,12 @@ export async function importLogAction(formData: FormData): Promise<SaveActionRes
       minimumExistingMatches: selfSelectionChanged ? 1 : LEARNED_SELF_ARCHETYPE_THRESHOLD
     });
 
-    invalidateBattleLogImportContext(user.id);
-    invalidateInitialLogsCache(user.id);
+    if (invalidationContext === "route-handler") {
+      revalidateBattleLogImportContext(user.id);
+    } else {
+      invalidateBattleLogImportContext(user.id);
+    }
+    invalidateInitialLogsCache(user.id, invalidationContext);
     after(() => {
       revalidateDeckAndLogWorkspace();
     });
@@ -483,7 +491,10 @@ export async function saveMatchNotesAction(
   }
 }
 
-export async function updateLogAction(formData: FormData): Promise<SaveActionResult> {
+export async function updateLogAction(
+  formData: FormData,
+  invalidationContext: "route-handler" | "server-action" = "server-action"
+): Promise<SaveActionResult> {
   const logId = String(formData.get("logId") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
@@ -554,7 +565,7 @@ export async function updateLogAction(formData: FormData): Promise<SaveActionRes
 
     assertMutatedRows(updatedLogs, 1, "Battle log not found.");
 
-    invalidateInitialLogsCache(user.id);
+    invalidateInitialLogsCache(user.id, invalidationContext);
     revalidateDeckAndLogWorkspace();
 
     return {
