@@ -9,6 +9,7 @@ import {
   CardsIcon,
   ChartLineIcon,
   ClipboardTextIcon,
+  HouseIcon,
   ListBulletsIcon,
   TrophyIcon,
   type Icon
@@ -58,6 +59,7 @@ type SidebarProps = {
 };
 
 const navItems: Array<{ label: string; href: string; icon: Icon }> = [
+  { label: "Dashboard", href: "/dashboard", icon: HouseIcon },
   { label: "Battle Logs", href: "/logs", icon: ClipboardTextIcon },
   { label: "Deck Strategy", href: "/decks", icon: CardsIcon },
   { label: "Deck Lists", href: "/deck-lists", icon: ListBulletsIcon },
@@ -115,7 +117,7 @@ function SidebarLogo({ onNavigate }: { onNavigate?: () => void }) {
     <Link
       aria-label="Go to Poke Notes home"
       className="inline-flex items-center"
-      href="/logs"
+      href="/dashboard"
       onClick={onNavigate}
       prefetch={false}
     >

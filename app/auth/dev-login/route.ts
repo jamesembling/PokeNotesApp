@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
   const { config, origin } = validation;
 
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
-  const response = privateRedirect(new URL("/logs", origin));
+  const response = privateRedirect(new URL("/dashboard", origin));
   let authResponseHeaders: Record<string, string> = {};
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {

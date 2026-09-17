@@ -47,6 +47,7 @@ test("navigation report path allowlist covers product surfaces only", () => {
     "/logs",
     "/logs/123",
     "/logs-canary",
+    "/dashboard",
     "/decks",
     "/deck-lists/123",
     "/tournaments",
