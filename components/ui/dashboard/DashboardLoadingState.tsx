@@ -2,6 +2,19 @@ import { Skeleton } from "@/components/shadcn/skeleton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import styles from "./dashboard.module.css";
 
+export function DashboardPointTotalsLoading() {
+  return (
+    <div aria-label="Loading tournament point totals" className={styles.pointTotals} role="status">
+      {Array.from({ length: 2 }, (_, index) => (
+        <div className={styles.pointTotal} key={index}>
+          <Skeleton className="h-3 w-24 rounded-none" />
+          <Skeleton className="h-7 w-12 rounded-none" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function DashboardStatsLoading() {
   return (
     <section aria-label="Loading performance summary" className={styles.stats} role="status">
@@ -38,8 +51,8 @@ export function DashboardPageLoadingState() {
   return (
     <div aria-busy="true" aria-label="Loading Dashboard" className={styles.page} data-route-loading>
       <PageHeader
+        action={<DashboardPointTotalsLoading />}
         breadcrumb={[{ label: "Poke Notes" }]}
-        subtitle="Your recent play, results, and preparation in one place."
         title="Dashboard"
       />
       <div className={styles.overview}>

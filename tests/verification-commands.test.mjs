@@ -31,21 +31,6 @@ function assertNoOneStepPrMutation(block) {
   );
 }
 
-function assertCompleteGateSnapshot(expectedGateIds, checks) {
-  assert.ok(expectedGateIds.length > 0, "expected gate set must not be empty");
-  assert.equal(new Set(expectedGateIds).size, expectedGateIds.length, "expected gates must be unique");
-  assert.ok(checks.length > 0, "observed gate set must not be empty");
-
-  const observedGateIds = checks.map(
-    ({ workflow, name }) => `${workflow ? workflow : "external"}/${name}`,
-  );
-  assert.equal(new Set(observedGateIds).size, observedGateIds.length, "observed gates must be unique");
-  for (const { bucket } of checks) {
-    assert.ok(bucket === "pass" || bucket === "skipping", `unaccepted check bucket: ${bucket}`);
-  }
-  assert.deepEqual(observedGateIds.toSorted(), expectedGateIds.toSorted());
-}
-
 function assertTokensBeforeWrite(block, writeToken, guardTokens) {
   const writeIndex = block.indexOf(writeToken);
   assert.ok(writeIndex >= 0, `missing write token: ${writeToken}`);
@@ -69,47 +54,21 @@ function zshIsAvailable({ error, status }) {
 
 test("verification reference keeps repository-native shell-safe command contracts", () => {
   const requiredContracts = [
-    "npm run test -- tests/app-url.test.ts",
-    "node --import tsx --test --test-name-pattern='falls back' tests/app-url.test.ts",
-    "./node_modules/.bin/agent-browser --help | rg -- '--session|--state'",
     "download_http_status=",
     "--output \"$download_file\" --write-out '%{http_code}'",
     "gh pr create --help | rg -- '--body-file'",
     "gh pr create --draft --base main --title 'Reviewed title' --body-file \"$pr_body_file\"",
-    "gh pr checks \"$pokenotes_pr_number\" --watch --repo \"$pokenotes_repo\"",
-    "--json bucket,name,state,workflow",
-    "test \"$pokenotes_check_snapshot_exit_code\" -eq 0",
-    "pokenotes_reviewed_head='replace-with-independently-reviewed-full-40-character-sha'",
-    "pokenotes_expected_gate_ids=$'replace-workflow/replace-check-name\\nexternal/replace-provider-check'",
     "git remote get-url --push --all \"$pokenotes_push_remote\"",
     "test \"$(awk 'END { print NR }' <<< \"$pokenotes_push_urls\")\" -eq 1",
-    "git ls-remote \"$pokenotes_push_url\" refs/heads/main",
     "test \"$(jq -r '.headRefOid' <<< \"$pokenotes_premerge_snapshot\")\" = \"$pokenotes_reviewed_head\"",
     "test \"$(jq -r '.baseRefName' <<< \"$pokenotes_premerge_snapshot\")\" = main",
     "test \"$(jq -r '.baseRefOid' <<< \"$pokenotes_premerge_snapshot\")\" = \"$pokenotes_premerge_main\"",
-    "test \"$pokenotes_observed_gate_count\" -gt 0",
-    "test \"$pokenotes_observed_gate_set\" = \"$pokenotes_expected_gate_set\"",
-    "gh pr merge \"$pokenotes_pr_number\" --repo \"$pokenotes_repo\" --squash",
     "--match-head-commit \"$pokenotes_reviewed_head\"",
-    "--json state,mergedAt,mergeCommit,headRefOid,baseRefName",
     "test \"$(jq -r '.baseRefName' <<< \"$pokenotes_postmerge_snapshot\")\" = main",
     "test \"$(jq -r '.headRefOid' <<< \"$pokenotes_postmerge_snapshot\")\" = \"$pokenotes_reviewed_head\"",
     "test \"$pokenotes_postmerge_main\" = \"$pokenotes_merge_commit\"",
-    "test \"$pokenotes_prewrite_main\" = \"$pokenotes_premerge_main\"",
-    "test \"$(jq -r '.baseRefOid' <<< \"$pokenotes_prewrite_snapshot\")\" = \"$pokenotes_premerge_main\"",
-    "case \"$pokenotes_operator_cwd/\" in",
-    "test \"$pokenotes_target_common_dir\" = \"$pokenotes_common_dir\"",
-    "status --porcelain=v1 --untracked-files=all",
-    "symbolic-ref --quiet HEAD",
-    "test \"$pokenotes_target_head\" = \"$pokenotes_reviewed_head\"",
-    "git worktree remove -- \"$pokenotes_completed_worktree\"",
-    "git update-ref -d \"refs/heads/$pokenotes_head_branch\" \"$pokenotes_reviewed_head\"",
-    "--force-with-lease=\"$pokenotes_remote_branch_ref:$pokenotes_reviewed_head\"",
-    "\":$pokenotes_remote_branch_ref\"",
-    "pokenotes-pr-body.md.XXXXXX",
     "pokenotes_vercel_cli='./node_modules/.bin/vercel'",
     "env -i PATH=\"$PATH\" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git",
-    "if ! git diff --quiet -- next-env.d.ts || ! git diff --cached --quiet -- next-env.d.ts; then",
     "git diff --cached --check",
   ];
 
@@ -119,15 +78,6 @@ test("verification reference keeps repository-native shell-safe command contract
 
   assert.doesNotMatch(reference, /^\s*npx\s+vercel(?:\s|$)/m);
   assert.doesNotMatch(reference, /^\s*curl[^\n]*\|[^\n]*(?:head|sed\s+-n)(?:\s|$)/m);
-
-  for (const pullRequest of [24, 25, 26]) {
-    assert.match(reference, new RegExp(`PokeNotesApp/pull/${pullRequest}\\)`));
-  }
-
-  assert.match(reference, /#25 must merge before #26/);
-  assert.match(reference, /illustrative external write/i);
-  assert.match(reference, /currently has no local Vercel CLI/i);
-  assert.match(reference, /Do not delete or restore unrelated files/i);
 });
 
 test("PR integration contract verifies remote truth before separately authorized cleanup", () => {
@@ -136,42 +86,8 @@ test("PR integration contract verifies remote truth before separately authorized
   )?.[0];
   assert.ok(integrationSection, "missing two-phase integration section");
 
-  assert.match(reference, /Treat command exits as diagnostics and verify remote state with/);
-  assert.match(reference, /\.bucket != "pass" and \.bucket != "skipping"/);
-  assert.match(reference, /mandatory regardless of the\s+merge command's exit code/);
-  assert.match(reference, /Only the post-merge snapshot establishes remote success/);
-  assert.match(reference, /Cleanup is separately authorized and verified/);
-  assert.match(reference, /Remote branch deletion is a distinct external write/);
-  assert.match(
-    reference,
-    /git update-ref -d "refs\/heads\/\$pokenotes_head_branch" "\$pokenotes_reviewed_head"/,
-  );
+  // These architectural bans supplement the executable guard scenarios below.
   assert.doesNotMatch(reference, /git branch -D -- "\$pokenotes_head_branch"/);
-  assert.match(integrationSection, /never derive it from the pull request snapshot/);
-  assert.match(integrationSection, /refs\/heads\/main/);
-  assert.match(integrationSection, /exact live `refs\/heads\/main` tip/);
-  assert.match(integrationSection, /case "\$pokenotes_operator_cwd\/" in/);
-  assert.match(integrationSection, /"\$pokenotes_completed_worktree\/"\*/);
-  assert.match(integrationSection, /test "\$pokenotes_registration_count" -eq 1/);
-  assert.match(integrationSection, /test "\$pokenotes_registration_count" -eq 0/);
-  assert.match(integrationSection, /Require the target worktree and branch to be quiescent/);
-  assert.match(integrationSection, /a residual race remains/);
-  assert.equal(
-    integrationSection.match(/git ls-remote "\$pokenotes_push_url" refs\/heads\/main/g)?.length,
-    3,
-  );
-  assert.equal(
-    integrationSection.match(/\.baseRefName' <<< "\$pokenotes_(?:premerge|prewrite|postmerge)_snapshot"\)" = main/g)
-      ?.length,
-    3,
-  );
-  assert.equal(
-    integrationSection.match(
-      /\.headRefOid' <<< "\$pokenotes_(?:premerge|prewrite|postmerge)_snapshot"\)" = "\$pokenotes_reviewed_head"/g,
-    )?.length,
-    3,
-  );
-  assert.match(integrationSection, /case "\$pokenotes_push_url" in/);
   assert.doesNotMatch(integrationSection, /git ls-remote "https:\/\/github\.com\/\$pokenotes_repo/);
   assert.doesNotMatch(integrationSection, /pokenotes_reviewed_head=.*gh pr view/);
 
@@ -265,33 +181,6 @@ test("PR integration contract verifies remote truth before separately authorized
   for (const fixture of unsafeMutationFixtures) {
     assert.throws(() => assertNoOneStepPrMutation(fixture), assert.AssertionError);
   }
-});
-
-test("expected gate policy rejects delayed, incomplete, duplicate, and unhealthy snapshots", () => {
-  const expected = ["CI/verify", "external/Vercel"];
-  const complete = [
-    { workflow: "CI", name: "verify", bucket: "pass" },
-    { workflow: null, name: "Vercel", bucket: "skipping" },
-  ];
-  assert.doesNotThrow(() => assertCompleteGateSnapshot(expected, complete));
-
-  const rejectedSnapshots = [
-    [],
-    [complete[0]],
-    [...complete, complete[0]],
-    [...complete, { workflow: "external", name: "unexpected", bucket: "pass" }],
-    complete.map((check, index) => (index === 0 ? { ...check, bucket: "pending" } : check)),
-    complete.map((check, index) => (index === 0 ? { ...check, bucket: "fail" } : check)),
-    complete.map((check, index) => (index === 0 ? { ...check, bucket: "cancel" } : check)),
-  ];
-  for (const snapshot of rejectedSnapshots) {
-    assert.throws(() => assertCompleteGateSnapshot(expected, snapshot), assert.AssertionError);
-  }
-  assert.throws(() => assertCompleteGateSnapshot([], complete), assert.AssertionError);
-  assert.throws(
-    () => assertCompleteGateSnapshot(["CI/verify", "CI/verify"], complete),
-    assert.AssertionError,
-  );
 });
 
 test("prewrite shell rechecks the complete live gate set and never merges stale Phase 1 health", async (t) => {

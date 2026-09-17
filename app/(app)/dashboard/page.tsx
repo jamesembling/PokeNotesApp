@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { DashboardOverview } from "@/components/ui/dashboard/DashboardOverview";
 import {
   DashboardActivityLoading,
+  DashboardPointTotalsLoading,
   DashboardStatsLoading,
   DashboardTournamentsLoading
 } from "@/components/ui/dashboard/DashboardLoadingState";
@@ -35,8 +36,12 @@ export default async function DashboardPage() {
     <div className={styles.page}>
       <ProxyAuthTimingMarker />
       <PageHeader
+        action={
+          <Suspense fallback={<DashboardPointTotalsLoading />}>
+            <DashboardOverview.PointTotals dataPromise={tournamentsPromise} />
+          </Suspense>
+        }
         breadcrumb={[{ label: "Poke Notes" }]}
-        subtitle="Your recent play, results, and preparation in one place."
         title="Dashboard"
       />
 

@@ -1,7 +1,10 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowUpRight } from "lucide-react";
+import { MapPinIcon } from "@/components/ui/icons";
+import { PlayPokemonJudgeMark } from "@/components/ui/PlayPokemonJudgeMark";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
+import { TournamentCompetitionBadge } from "@/components/ui/TournamentCompetitionBadge";
 import { ItemTitle, SectionTitle } from "@/components/ui/Typography";
 import { getBattleLogOpponentDisplayName } from "@/lib/battle-log/deck-display";
 import { formatDayDate } from "@/lib/client/date-format";
@@ -16,7 +19,11 @@ import {
 } from "@/lib/db/tournaments";
 import { getRecentPerformance } from "@/lib/stats/performance";
 import { getTournamentRecord } from "@/lib/tournaments/display";
-import { getTournamentCategoryLabel, getTournamentPlacementLabel } from "@/lib/tournaments/options";
+import {
+  getTournamentCategoryLabel,
+  getTournamentJudgeRoleLabel,
+  getTournamentPlacementLabel
+} from "@/lib/tournaments/options";
 import styles from "./dashboard.module.css";
 
 const number = new Intl.NumberFormat("en-GB");
@@ -35,7 +42,6 @@ function DashboardOverviewRoot({ battleLogs, stats, tournaments }: DashboardOver
         {battleLogs}
         {tournaments}
       </div>
-      <ExploreWorkspace />
     </div>
   );
 }
@@ -46,6 +52,46 @@ function SectionLink({ href, children }: { href: string; children: ReactNode }) 
       {children}
       <ArrowUpRight aria-hidden="true" size={16} />
     </Link>
+  );
+}
+
+async function DashboardPointTotals({
+  dataPromise
+}: {
+  dataPromise: ReturnType<typeof getTournamentSummaries>;
+}) {
+  let tournaments: Awaited<ReturnType<typeof getTournamentSummaries>> = [];
+  let pointsUnavailable = false;
+
+  try {
+    tournaments = await dataPromise;
+  } catch (error) {
+    if (!(error instanceof TournamentSchemaMissingError)) {
+      throw error;
+    }
+
+    pointsUnavailable = true;
+  }
+
+  const totals = tournaments.reduce(
+    (current, tournament) => ({
+      championship: current.championship + (tournament.championshipPoints ?? 0),
+      professor: current.professor + (tournament.professorPoints ?? 0)
+    }),
+    { championship: 0, professor: 0 }
+  );
+
+  return (
+    <dl aria-label="Tournament point totals" className={styles.pointTotals}>
+      <div className={styles.pointTotal}>
+        <dt>Champ Points</dt>
+        <dd>{pointsUnavailable ? "—" : number.format(totals.championship)}</dd>
+      </div>
+      <div className={styles.pointTotal}>
+        <dt>Professor Points</dt>
+        <dd>{pointsUnavailable ? "—" : number.format(totals.professor)}</dd>
+      </div>
+    </dl>
   );
 }
 
@@ -180,21 +226,48 @@ async function DashboardTournaments({
       {tournaments.length > 0 ? (
         <ul aria-label="Latest Tournaments" className={styles.activityList}>
           {tournaments.map((tournament) => {
+            const isJudge = tournament.participation === "judge";
             const placement = tournament.placement
               ? getTournamentPlacementLabel(tournament.placement)
               : "No placement";
             const category = tournament.category ? getTournamentCategoryLabel(tournament.category) : "Tournament";
+            const points = isJudge ? tournament.professorPoints : tournament.championshipPoints;
             return (
               <li key={tournament.id}>
                 <Link className={`${styles.activityRow} ${styles.tournamentRow}`} href={`/tournaments/${tournament.id}`} prefetch={false}>
-                  <SpriteStrip className={styles.tournamentSprites} size="md" sprites={tournament.deckSprites.slice(0, 2)} />
+                  <div className={styles.tournamentMarks}>
+                    {isJudge ? <PlayPokemonJudgeMark className={styles.tournamentMark} /> : null}
+                    <TournamentCompetitionBadge
+                      category={tournament.category}
+                      className={styles.tournamentMark}
+                    />
+                  </div>
                   <div className={styles.activityIdentity}>
                     <ItemTitle as="h3" size="sm">{tournament.name}</ItemTitle>
                     <p>{formatDayDate(tournament.dateFrom)} · {category}</p>
+                    {tournament.location || tournament.tournamentIdentifier ? (
+                      <p className={styles.tournamentDetails}>
+                        {tournament.location ? (
+                          <span>
+                            <MapPinIcon className={styles.tournamentDetailIcon} />
+                            {tournament.location}
+                          </span>
+                        ) : null}
+                        {tournament.location && tournament.tournamentIdentifier ? (
+                          <span aria-hidden="true">·</span>
+                        ) : null}
+                        {tournament.tournamentIdentifier ? (
+                          <span>ID {tournament.tournamentIdentifier}</span>
+                        ) : null}
+                      </p>
+                    ) : null}
                   </div>
                   <div className={styles.tournamentRecord}>
-                    <span>{placement}</span>
-                    <span>{getTournamentRecord(tournament.rounds)}</span>
+                    <span>{isJudge ? getTournamentJudgeRoleLabel(tournament.judgeRole) : placement}</span>
+                    <span>
+                      {isJudge ? null : `${getTournamentRecord(tournament.rounds)} · `}
+                      {points ?? "—"} {isJudge ? "PP" : "CP"}
+                    </span>
                   </div>
                   <ArrowUpRight aria-hidden="true" className={styles.rowArrow} size={17} />
                 </Link>
@@ -211,36 +284,9 @@ async function DashboardTournaments({
   );
 }
 
-function ExploreWorkspace() {
-  const destinations = [
-    { href: "/decks", label: "Deck Strategy", detail: "Plans, matchups, and notes for the decks you play." },
-    { href: "/deck-lists", label: "Deck Lists", detail: "Your saved lists and the records connected to them." },
-    { href: "/calculator", label: "Probability Calculator", detail: "Check setup and prize probabilities before your next game." }
-  ];
-
-  return (
-    <section aria-labelledby="dashboard-workspace-title" className={styles.workspace}>
-      <div>
-        <p className={styles.eyebrow}>Keep preparing</p>
-        <SectionTitle id="dashboard-workspace-title">Your workspace</SectionTitle>
-      </div>
-      <div className={styles.workspaceLinks}>
-        {destinations.map((destination) => (
-          <Link className={styles.workspaceLink} href={destination.href} key={destination.href} prefetch={false}>
-            <span>
-              <ItemTitle as="h3" size="sm">{destination.label}</ItemTitle>
-              <span>{destination.detail}</span>
-            </span>
-            <ArrowUpRight aria-hidden="true" size={17} />
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export const DashboardOverview = Object.assign(DashboardOverviewRoot, {
   BattleLogs: DashboardBattleLogs,
+  PointTotals: DashboardPointTotals,
   Stats: DashboardStats,
   Tournaments: DashboardTournaments
 });

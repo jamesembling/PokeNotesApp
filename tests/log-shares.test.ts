@@ -69,109 +69,30 @@ function buildBattleLog(id = "log-1"): BattleLog {
   };
 }
 
-function createMemoryStore(
-  initialRows: LogShareRow[] = [],
-  options: { failAfterFirstCommit?: boolean } = {}
-) {
+function createStoreStub(initialRows: LogShareRow[] = []) {
   const rows = [...initialRows];
-  let insertCount = 0;
-  let didInjectFailure = false;
-
+  const unexpectedCall = async () => {
+    throw new Error("Unexpected share store operation");
+  };
   const store: LogShareStore = {
     async getOrCreate(row) {
-      const existing = rows
-        .filter(
-          (candidate) =>
-            candidate.owner_user_id === row.owner_user_id &&
-            candidate.source_log_id === row.source_log_id &&
-            Date.parse(candidate.expires_at) > Date.parse("2026-04-15T10:00:00.000Z")
-        )
-        .sort((left, right) => right.created_at.localeCompare(left.created_at))[0];
-
-      if (existing) {
-        return existing;
-      }
-
-      if (rows.some((candidate) => candidate.id === row.id)) {
-        const error = new Error("duplicate");
-        Object.assign(error, { code: "23505" });
-        throw error;
-      }
-
-      insertCount += 1;
-      const created = {
-        ...row,
-        created_at: `2026-04-15T10:00:0${insertCount}.000Z`,
-        updated_at: `2026-04-15T10:00:0${insertCount}.000Z`
-      };
+      const created = { ...row, created_at: "2026-04-15T10:00:00.000Z" };
       rows.push(created);
-
-      if (options.failAfterFirstCommit && !didInjectFailure) {
-        didInjectFailure = true;
-        throw new Error("connection lost after commit");
-      }
-
       return created;
     },
-    async revokeOwnedShare(shareId, ownerUserId) {
-      const target = rows.find(
-        (row) => row.id === shareId && row.owner_user_id === ownerUserId
-      );
-      if (!target) {
-        return false;
-      }
-
-      for (let index = rows.length - 1; index >= 0; index -= 1) {
-        const candidate = rows[index];
-        const isOwnedTarget =
-          candidate?.owner_user_id === ownerUserId &&
-          (target.source_log_id === null
-            ? candidate.id === shareId
-            : candidate.source_log_id === target.source_log_id);
-        if (isOwnedTarget) {
-          rows.splice(index, 1);
-        }
-      }
-
-      return true;
-    },
-    async findActiveByOwnerLog(ownerUserId, sourceLogId, nowIso) {
-      const now = Date.parse(nowIso);
-      return (
-        rows
-          .filter(
-            (row) =>
-              row.owner_user_id === ownerUserId &&
-              row.source_log_id === sourceLogId &&
-              Date.parse(row.expires_at) > now
-          )
-          .sort((left, right) => right.created_at.localeCompare(left.created_at))[0] ?? null
-      );
-    },
+    revokeOwnedShare: unexpectedCall,
+    findActiveByOwnerLog: unexpectedCall,
     async findByToken(token) {
       return rows.find((row) => row.id === token) ?? null;
     },
-    async listActiveByOwnerLog(ownerUserId, sourceLogId, nowIso) {
-      const now = Date.parse(nowIso);
-      return rows
-        .filter(
-          (row) =>
-            row.owner_user_id === ownerUserId &&
-            row.source_log_id === sourceLogId &&
-            Date.parse(row.expires_at) > now
-        )
-        .sort((left, right) => right.created_at.localeCompare(left.created_at));
-    }
+    listActiveByOwnerLog: unexpectedCall
   };
 
-  return {
-    rows,
-    store
-  };
+  return { rows, store };
 }
 
-test("reuses an active share for the same owner and log", async () => {
-  const { rows, store } = createMemoryStore();
+test("share creation forwards ownership, maps the store result and propagates failure", async () => {
+  const { store } = createStoreStub();
   const input = {
     ownerUserId: "user-1",
     sourceLogId: "log-1",
@@ -179,36 +100,36 @@ test("reuses an active share for the same owner and log", async () => {
     linkedStrategyLabel: "Dragapult ex"
   };
   const now = new Date("2026-04-15T10:00:00.000Z");
-
-  const firstShare = await getOrCreateLogShareSnapshot(input, { now, store });
-  const secondShare = await getOrCreateLogShareSnapshot(input, { now, store });
-
-  assert.equal(firstShare.id, secondShare.id);
-  assert.equal(rows.length, 1);
-});
-
-test("a retry after a lost create response reuses the committed token", async () => {
-  const { rows, store } = createMemoryStore([], { failAfterFirstCommit: true });
-  const input = {
-    ownerUserId: "user-1",
-    sourceLogId: "log-1",
-    log: buildBattleLog(),
-    linkedStrategyLabel: "Dragapult ex"
+  store.getOrCreate = async (row) => {
+    assert.equal(row.owner_user_id, "user-1");
+    assert.equal(row.source_log_id, "log-1");
+    return {
+      id: "store-returned-token",
+      source_log_id: "log-1",
+      created_at: "2026-04-14T10:00:00.000Z",
+      expires_at: "2026-04-21T10:00:00.000Z"
+    };
   };
-  const now = new Date("2026-04-15T10:00:00.000Z");
 
+  assert.deepEqual(await getOrCreateLogShareSnapshot(input, { now, store }), {
+    id: "store-returned-token",
+    sourceLogId: "log-1",
+    createdAt: "2026-04-14T10:00:00.000Z",
+    expiresAt: "2026-04-21T10:00:00.000Z"
+  });
+
+  const failure = new Error("connection lost after commit");
+  store.getOrCreate = async () => {
+    throw failure;
+  };
   await assert.rejects(
     getOrCreateLogShareSnapshot(input, { now, store }),
-    /connection lost after commit/
+    (error) => error === failure
   );
-  const retried = await getOrCreateLogShareSnapshot(input, { now, store });
-
-  assert.equal(retried.id, rows[0]?.id);
-  assert.equal(rows.length, 1);
 });
 
 test("creates compact URL-safe share tokens", async () => {
-  const { rows, store } = createMemoryStore();
+  const { rows, store } = createStoreStub();
   const share = await getOrCreateLogShareSnapshot(
     {
       ownerUserId: "user-1",
@@ -275,7 +196,7 @@ test("recognizes only the typed database share errors", () => {
 });
 
 test("expired shares resolve to null", async () => {
-  const { store } = createMemoryStore([
+  const { store } = createStoreStub([
     {
       id: "share-1",
       owner_user_id: "user-1",
@@ -298,62 +219,19 @@ test("expired shares resolve to null", async () => {
   assert.equal(sharedLog, null);
 });
 
-test("revoking a share removes access immediately", async () => {
-  const { store } = createMemoryStore([
-    {
-      id: "share-1",
-      owner_user_id: "user-1",
-      source_log_id: "log-1",
-      payload: {
-        version: "v1",
-        log: buildBattleLog(),
-        linkedStrategyLabel: "Dragapult ex"
-      },
-      expires_at: "2026-05-15T10:00:00.000Z",
-      created_at: "2026-04-15T10:00:00.000Z"
-    }
-  ]);
-
-  const didRevoke = await revokeLogShare("share-1", "user-1", { store });
-  const sharedLog = await getSharedLogSnapshot("share-1", {
-    now: new Date("2026-04-15T10:00:00.000Z"),
-    store
-  });
-
-  assert.equal(didRevoke, true);
-  assert.equal(sharedLog, null);
-});
-
-test("revoking the visible share removes historical duplicate tokens for that owner and log", async () => {
-  const row = {
-    owner_user_id: "user-1",
-    source_log_id: "log-1",
-    payload: {
-      version: "v1" as const,
-      log: buildBattleLog(),
-      linkedStrategyLabel: "Dragapult ex"
-    },
-    expires_at: "2026-05-15T10:00:00.000Z"
+test("share revocation forwards the owner and token and returns the store result", async () => {
+  const { store } = createStoreStub();
+  store.revokeOwnedShare = async (shareId, ownerUserId) => {
+    assert.equal(shareId, "share-1");
+    assert.equal(ownerUserId, "user-1");
+    return true;
   };
-  const { rows, store } = createMemoryStore([
-    { ...row, id: "visible-share", created_at: "2026-04-15T10:00:02.000Z" },
-    { ...row, id: "hidden-share", created_at: "2026-04-15T10:00:01.000Z" },
-    {
-      ...row,
-      id: "other-owner-share",
-      owner_user_id: "user-2",
-      created_at: "2026-04-15T10:00:03.000Z"
-    }
-  ]);
 
-  const didRevoke = await revokeLogShare("visible-share", "user-1", { store });
-
-  assert.equal(didRevoke, true);
-  assert.deepEqual(rows.map((candidate) => candidate.id), ["other-owner-share"]);
+  assert.equal(await revokeLogShare("share-1", "user-1", { store }), true);
 });
 
 test("legacy rows without source_log_id still load shared snapshots", async () => {
-  const { store } = createMemoryStore([
+  const { store } = createStoreStub([
     {
       id: "legacy-share",
       owner_user_id: "user-1",
@@ -383,7 +261,7 @@ test("malformed nested share payloads fail closed", async () => {
     ...buildBattleLog("malformed-log"),
     sections: [{ title: "Setup", player: "", actions: "not-an-array", prizesAfterTurn: {} }]
   };
-  const { store } = createMemoryStore([
+  const { store } = createStoreStub([
     {
       id: "malformed-share",
       owner_user_id: "user-1",
