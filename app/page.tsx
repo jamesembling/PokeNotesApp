@@ -10,5 +10,5 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const user = await getCurrentUser();
 
-  redirect(user ? "/logs" : "/login");
+  redirect(user ? "/dashboard" : "/login");
 }

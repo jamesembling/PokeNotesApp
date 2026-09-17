@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
-  const response = NextResponse.redirect(new URL("/logs", appOrigin), {
+  const response = NextResponse.redirect(new URL("/dashboard", appOrigin), {
     headers: PRIVATE_NO_STORE_HEADERS
   });
   let authResponseHeaders: Record<string, string> = {};

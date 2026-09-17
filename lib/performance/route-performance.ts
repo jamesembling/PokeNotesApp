@@ -6,6 +6,7 @@ export const APP_ROUTE_MAX_OBSERVATION_MS = 1500;
 const TRACKED_ROUTE_ROOTS = [
   "/admin",
   "/calculator",
+  "/dashboard",
   "/deck-lists",
   "/decks",
   "/logs",

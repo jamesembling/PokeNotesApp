@@ -33,7 +33,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         : null;
 
   if (user) {
-    redirect("/logs");
+    redirect("/dashboard");
   }
 
   return (
