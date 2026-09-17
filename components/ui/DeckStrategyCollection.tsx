@@ -52,7 +52,7 @@ function SortHeaderButton({
       className={[
         styles.sortButton,
         align === "center"
-          ? "justify-self-center text-center"
+          ? styles.sortButtonCenter
           : align === "right"
             ? "justify-self-end text-right"
             : "justify-self-start text-left",

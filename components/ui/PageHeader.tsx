@@ -108,7 +108,7 @@ export function PageHeader({
         </div>
       ) : null}
 
-      {variant === "default" ? <div className="border-b border-border" /> : null}
+      {variant === "default" ? <div className="border-b border-foreground" /> : null}
     </header>
   );
 }
