@@ -71,7 +71,8 @@ import type { ParsedLogReview } from "@/types/index";
 import { compactMap } from "@/lib/array";
 import {
   evaluateBattleLogImportDraftSave,
-  parseBattleLogImportSaveRequest
+  parseBattleLogImportSaveRequest,
+  shouldCommitBattleLogImportDraft
 } from "@/lib/log-import/import-draft";
 
 type ImportContext = {
@@ -390,12 +391,7 @@ export async function importLogAction(
       request,
       now: new Date().toISOString()
     });
-    // Persisted drafts store the database's SHA-256 fingerprint, so only the
-    // locked RPC can decide whether a consumed draft is a replay or conflict.
-    const databaseOwnsConsumedDraftDecision =
-      decision.status === "rejected" &&
-      (decision.code === "IDEMPOTENCY_CONFLICT" || decision.code === "DRAFT_CONSUMED");
-    if (decision.status === "rejected" && !databaseOwnsConsumedDraftDecision) {
+    if (decision.status === "rejected" && !shouldCommitBattleLogImportDraft(decision)) {
       throw userFacingActionError(decision.message);
     }
 
