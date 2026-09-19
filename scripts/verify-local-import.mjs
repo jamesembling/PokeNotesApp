@@ -1,0 +1,236 @@
+#!/usr/bin/env node
+
+import assert from "node:assert/strict";
+import { execFileSync, spawn } from "node:child_process";
+import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
+import { createClient } from "@supabase/supabase-js";
+import { chromium } from "playwright";
+import { parse as parseEnv } from "dotenv";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const baseUrl = "http://localhost:3010";
+const notes = "Synthetic browser import verification";
+let stage = "preflight";
+let server;
+let browser;
+let page;
+let artifacts;
+let environment = {};
+
+if (process.argv.includes("--help")) {
+  console.log("npm run e2e:local:import\nResets the synthetic local database, starts port 3010, signs in, and checks paste, review, save, reload and catalogue learning. Closes its browser and app afterward; leaves the local database available for inspection. Port 3010 must be free. No hosted target or credentials are accepted.");
+  process.exit(0);
+}
+assert.equal(process.argv.length, 2, "This local-only command accepts no target overrides.");
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.once(signal, async () => {
+    await cleanup();
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  });
+}
+
+try {
+  assert.ok(existsSync(chromium.executablePath()), "Install the pinned browser first: npx playwright install chromium");
+  await requireFreePort();
+  checkpoint("reset synthetic fixtures");
+  execFileSync(process.execPath, ["scripts/local-e2e.mjs", "reset"], {
+    cwd: root, stdio: "inherit", timeout: 180000
+  });
+  environment = parseEnv(readFileSync(resolve(root, ".env.e2e.local")));
+  const api = new URL(environment.NEXT_PUBLIC_SUPABASE_URL);
+  assert.equal(environment.POKENOTES_E2E_LOCAL, "1", "Missing local-only marker.");
+  assert.ok(["http://localhost:54321", "http://127.0.0.1:54321"].includes(api.origin), "Refusing a hosted database.");
+  assert.equal(environment.POKE_NOTES_TEST_LOGIN_EMAIL, "e2e@pokenotes.local");
+  assert.ok(environment.POKE_NOTES_LOCAL_LOGIN_CODE, "Missing synthetic pairing code.");
+  const db = createClient(api.origin, environment.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(10000) }) }
+  });
+  const { user_id: userId } = await query(db.from("decks").select("user_id").eq("id", "e2e-deck-dragapult").single());
+  const logs = () => query(db.from("logs").select("id,match_notes,self_deck_sprites,raw_log,coin_toss_won").eq("user_id", userId));
+  const learned = () => query(db.from("archetype_catalog").select("id,sprites").eq("user_id", userId).eq("source", "learned").eq("canonical_id", "dragapult+munkidori"));
+  assert.equal((await logs()).length, 3, "Reset must contain exactly three synthetic logs.");
+  assert.equal((await learned()).length, 0, "Learning must start absent.");
+
+  checkpoint("start isolated app");
+  artifacts = mkdtempSync(resolve(tmpdir(), "pokenotes-import-"));
+  const output = openSync(resolve(artifacts, "server.log"), "w", 0o600);
+  server = spawn(process.execPath, ["scripts/local-e2e.mjs", "dev"], {
+    cwd: root, detached: true, stdio: ["ignore", output, output]
+  });
+  closeSync(output);
+  server.on("error", () => { process.exitCode = 1; });
+  await until(async () => {
+    if (server.exitCode !== null) throw new Error("The isolated app exited during startup.");
+    try {
+      const response = await fetch(`${baseUrl}/login`, { signal: AbortSignal.timeout(2000), redirect: "manual" });
+      await response.body?.cancel();
+      return response.status === 200;
+    } catch { return false; }
+  }, 45000);
+
+  checkpoint("authenticate synthetic account");
+  browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 577 } });
+  context.setDefaultTimeout(20000);
+  await context.route("**/*", route => {
+    const url = new URL(route.request().url());
+    return ["localhost", "127.0.0.1"].includes(url.hostname) ? route.continue() : route.abort();
+  });
+  page = await context.newPage();
+  let saveRequests = 0;
+  page.on("request", request => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/api/log-import/save") saveRequests++;
+  });
+  await page.goto(`${baseUrl}/login`);
+  await page.locator('form[action="/auth/dev-login"] input[name="pairingCode"]').fill(environment.POKE_NOTES_LOCAL_LOGIN_CODE);
+  await Promise.all([
+    page.waitForURL(`${baseUrl}/dashboard`),
+    page.locator('form[action="/auth/dev-login"] button[type="submit"]').click()
+  ]);
+  await page.goto(`${baseUrl}/logs`);
+  await page.getByRole("button", { name: "E2E Trainer e2e@pokenotes.local", exact: true }).waitFor();
+  assert.equal(new URL(page.url()).pathname, "/logs", "Login must reach the authenticated app.");
+
+  // Create the learning example through the UI using the existing synthetic log.
+  const fixture = readFileSync(resolve(root, "tests/e2e/fixtures/battle-log-valid.txt"), "utf8");
+  const bench = "E2ETrainer played Dreepy to the Bench.";
+  assert.ok(fixture.includes(bench), "The synthetic fixture no longer has its expected starting state.");
+  const rawLog = fixture.replace(bench, `${bench}\nE2ETrainer played Munkidori to the Bench.`).trim();
+  const journeyStarted = performance.now();
+  checkpoint("paste and review");
+  await openReview(rawLog);
+  assert.deepEqual(await selfSprites(), ["dreepy", "munkidori"], "First review must precede catalogue learning.");
+
+  checkpoint("correct the deck");
+  await page.getByRole("button", { name: /^Dreepy(?: Dreepy)?$/ }).click();
+  const search = page.getByPlaceholder("Search to replace Pokemon");
+  await search.fill("Dragapult");
+  await page.getByRole("button", { name: /^Dragapult(?: Dragapult)?$/ }).click();
+  await search.waitFor({ state: "hidden" });
+  assert.deepEqual(await selfSprites(), ["dragapult", "munkidori"]);
+  await page.getByRole("textbox", { name: "Match notes", exact: true }).fill(notes);
+  checkpoint("save exactly one Battle Log");
+  const [response] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/log-import/save"),
+    page.getByRole("button", { name: "Save Log", exact: true }).click()
+  ]);
+  assert.equal(response.status(), 200, "The browser save request must succeed.");
+  const result = await response.json();
+  assert.equal(result.ok, true);
+  assert.match(result.redirectTo, /^\/logs\/[^/]+$/);
+  await page.waitForURL(`${baseUrl}${result.redirectTo}`);
+  await page.getByRole("heading", { name: "Review Battle Log", exact: true }).waitFor({ state: "hidden" });
+  assert.equal(saveRequests, 1, "Save must send exactly one request.");
+  const savedPath = new URL(page.url()).pathname;
+
+  const savedLogs = await logs();
+  assert.equal(savedLogs.length, 4, "Save must add exactly one Battle Log.");
+  const saved = savedLogs.find(row => `/logs/${row.id}` === savedPath);
+  assert.ok(saved, "The browser must navigate to the committed Battle Log.");
+  assert.equal(saved.match_notes, notes);
+  assert.equal(saved.raw_log.trim(), rawLog);
+  assert.equal(saved.self_deck_sprites, "dragapult,munkidori");
+  assert.equal(saved.coin_toss_won, true);
+
+  checkpoint("reload the committed Battle Log");
+  await page.reload();
+  assert.equal(new URL(page.url()).pathname, savedPath);
+  await page.getByRole("heading", { name: "Battle Log versus Charmander", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Edit match notes", exact: true }).click();
+  assert.equal(await page.getByRole("textbox", { name: "Match notes", exact: true }).inputValue(), notes);
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+
+  checkpoint("verify catalogue learning and the next review");
+  await until(async () => {
+    const rows = await learned();
+    if (rows.length === 0) return false;
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].id, `learned:${userId}:dragapult+munkidori`);
+    assert.deepEqual(rows[0].sprites, ["dragapult", "munkidori"]);
+    return true;
+  });
+  await openReview(rawLog);
+  assert.deepEqual(await selfSprites(), ["dragapult", "munkidori"], "The next review must consume the learned catalogue.");
+  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  assert.equal((await logs()).length, 4, "Abandoning the second review must not create another log.");
+  assert.equal(saveRequests, 1, "The second review must not send a save request.");
+  console.log(`PASS: authenticated paste → review → save → reload → learned review (${Math.round(performance.now() - journeyStarted)} ms, local diagnostic only).`);
+} catch (error) {
+  console.error(`FAIL at ${stage}: ${redact(error.message)}`);
+  if (artifacts) {
+    if (page) {
+      try { writeFileSync(resolve(artifacts, "browser.txt"), redact(await page.locator("body").ariaSnapshot({ timeout: 3000 })), { mode: 0o600 }); } catch { /* The browser may itself be the failure. */ }
+    }
+    console.error(`Local diagnostics: ${artifacts}`);
+  }
+  process.exitCode = 1;
+} finally {
+  await cleanup();
+  if (artifacts && !process.exitCode) rmSync(artifacts, { recursive: true, force: true });
+}
+
+function checkpoint(value) {
+  stage = value;
+  console.log(`[import-check] ${value}`);
+}
+
+async function selfSprites() {
+  return page.locator('input[name="selfSprites"]').evaluateAll(inputs => inputs.map(input => input.value));
+}
+
+async function openReview(rawLog) {
+  await page.getByRole("button", { name: "Import PTCGL Log", exact: true }).click();
+  const [response] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/log-import/review"),
+    page.getByRole("textbox", { name: "Battle log", exact: true }).fill(rawLog)
+  ]);
+  assert.equal(response.status(), 200, "The browser review request must succeed.");
+  await page.getByRole("textbox", { name: "Match notes", exact: true }).waitFor();
+}
+
+async function until(predicate, timeout = 20000) {
+  const deadline = Date.now() + timeout;
+  do {
+    if (await predicate()) return;
+    await delay(200);
+  } while (Date.now() < deadline);
+  throw new Error(`Expected checkpoint was not reached within ${timeout / 1000} seconds.`);
+}
+
+async function query(promise) {
+  const { data, error } = await promise;
+  if (error) throw new Error(`Local database verification failed: ${error.message}`);
+  return data;
+}
+
+async function requireFreePort() {
+  for (const host of ["127.0.0.1", "::1"]) {
+    await new Promise((accept, reject) => {
+      const probe = createServer();
+      probe.once("error", error => error.code === "EAFNOSUPPORT" ? accept() : reject(new Error("Port 3010 is occupied. Stop dev:e2e before running the self-contained import check.")));
+      probe.listen(3010, host, () => probe.close(accept));
+    });
+  }
+}
+
+function redact(message) {
+  return Object.entries(environment).filter(([key]) => /KEY|PASSWORD|CODE/.test(key)).reduce((text, [, value]) => value ? text.replaceAll(value, "<redacted>") : text, String(message));
+}
+
+async function cleanup() {
+  const ownedBrowser = browser;
+  browser = undefined;
+  try { await ownedBrowser?.close(); } finally {
+    if (server?.pid) {
+      try { process.kill(-server.pid, "SIGTERM"); } catch (error) { if (error.code !== "ESRCH") throw error; }
+      server = undefined;
+    }
+  }
+}

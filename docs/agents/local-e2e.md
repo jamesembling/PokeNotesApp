@@ -33,6 +33,18 @@ The setup command writes ignored, mode-`0600` credentials to `.env.e2e.local`. D
 
 ## Routine use
 
+For the complete Battle Log import check, run:
+
+```bash
+npm run e2e:local:import
+```
+
+This command owns port `3010`, so stop `dev:e2e` first. It resets the synthetic database, starts the isolated app, signs in through the local pairing form, and checks paste, review, deck correction, Save, reload, persisted match notes, catalogue learning, and recognition in the next review. It requires exactly one save request and one new Battle Log. The second review is abandoned and must not create another log.
+
+On a new machine, install the pinned Playwright browser once after `npm ci` with `npx playwright install chromium`. The runner uses a fresh browser session each time, so expired saved auth does not require manual repair. Playwright resolves the current controls and waits for visibility, position and navigation; no snapshot references, forced clicks, fixed click delays or application-state injection are used. Each checkpoint has a bounded wait and the command exits nonzero on failure. Do not run builds or type generation against the same checkout while the browser journey is active.
+
+The runner closes its browser and app afterward. It leaves the synthetic database available for inspection and prints a local server-log path on failure; the next run resets it again. It accepts no hosted target or credentials, changes no production application code, and adds no wait to user imports. Timings printed by the runner are local workflow diagnostics, not production performance evidence.
+
 Reset before a full browser run or whenever a previous run mutated fixture state:
 
 ```bash
