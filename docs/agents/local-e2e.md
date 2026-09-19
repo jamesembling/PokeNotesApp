@@ -2,7 +2,7 @@
 
 Use the dedicated local Supabase stack for authenticated, state-changing browser journeys. It is resettable, isolated from every hosted Supabase project, and populated only with synthetic records.
 
-This is the default environment for the Battle Logs, Deck Strategies, Tournaments, Stats, Probability Calculator, and Profile browser flows. It is workflow evidence, not a replacement for focused module tests or the migration rehearsal in `docs/migration-release.md`.
+This is the default environment for the Battle Logs, Deck Strategies, Tournaments, Stats, Probability Calculator, and Profile browser flows. It can also host the synthetic migration rehearsal in `docs/migration-release.md`. Browser journeys and resets from the final schema do not replace applying the actual migration to the pre-change schema or running focused module tests.
 
 ## Safety boundary
 

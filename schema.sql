@@ -400,6 +400,12 @@ begin
     return;
   end if;
 
+  -- A fresh snapshot after the lock sees the preceding committed log mutation.
+  -- Without serialization, a waiting upsert can overwrite totals it read earlier.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('user_log_stats:' || target_user_id::text, 0)
+  );
+
   insert into public.user_log_stats (
     user_id,
     games_played,
@@ -421,22 +427,8 @@ begin
     count(*) filter (where result = 'Loss')::bigint as games_lost,
     coalesce(sum(self_attack_damage), 0)::bigint as attack_damage,
     coalesce(sum(opponent_attack_damage), 0)::bigint as opponent_attack_damage,
-    count(*) filter (
-      where nullif(self_player_name, '') is not null
-        and position(self_player_name || ' won the coin toss' in raw_log) > 0
-        and (
-          nullif(opponent_player_name, '') is null
-          or position(opponent_player_name || ' won the coin toss' in raw_log) = 0
-        )
-    )::bigint as coin_flips_won,
-    count(*) filter (
-      where nullif(opponent_player_name, '') is not null
-        and position(opponent_player_name || ' won the coin toss' in raw_log) > 0
-        and (
-          nullif(self_player_name, '') is null
-          or position(self_player_name || ' won the coin toss' in raw_log) = 0
-        )
-    )::bigint as coin_flips_lost,
+    count(*) filter (where coin_toss_won is true)::bigint as coin_flips_won,
+    count(*) filter (where coin_toss_won is false)::bigint as coin_flips_lost,
     coalesce(sum(self_mulligans), 0)::bigint as mulligans_taken,
     coalesce(sum(self_prizes_taken), 0)::bigint as prizes_taken,
     coalesce(sum(self_attack_damage + opponent_attack_damage), 0)::bigint as tracked_damage,
@@ -1751,7 +1743,7 @@ create trigger refresh_user_log_stats_after_delete
   for each row execute function public.sync_user_log_stats_from_log_row();
 
 create trigger refresh_user_log_stats_after_stats_update
-  after update of user_id, result, raw_log, self_player_name, opponent_player_name,
+  after update of user_id, result, coin_toss_won,
     self_prizes_taken, opponent_prizes_taken, self_attack_damage,
     opponent_attack_damage, self_mulligans
   on public.logs

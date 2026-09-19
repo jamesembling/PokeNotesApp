@@ -30,7 +30,9 @@ supabase db advisors --local --type security --fail-on error
 
 When local Supabase is unavailable, record that gate as unavailable rather than substituting the linked production database.
 
-For risky data, concurrency, privilege, or rollback behavior, rehearse the reviewed commit against an isolated Supabase branch containing synthetic data. The branch creator records its target, cost, lifetime, migration list, focused verification, and confirmed cleanup. Isolated rehearsal is evidence; it does not authorize production.
+For risky data, concurrency, privilege, or rollback behavior, rehearse the reviewed migration against a disposable local Supabase/PostgreSQL database containing synthetic data. Apply the actual migration to the pre-change schema; resetting from the final `schema.sql` alone does not verify the migration. Record the local target, migration list, focused verification, and cleanup. Use the fixed local environment in `docs/agents/local-e2e.md` where applicable. Isolated rehearsal is evidence; it does not authorize production.
+
+**Standing decision — 19 September 2026:** James reaffirmed the [Keep Free decision in the migration specification](https://app.notion.com/p/3b3aee33e56181c59a97c43a9ed23dc2). Keep the Supabase organization on Free. Do not create paid hosted rehearsal branches, upgrade the plan, add billing, incur branch costs, or ask for this approval again unless James explicitly reopens the decision. This supersedes the former hosted-branch rehearsal requirement. If local verification is unavailable, report the evidence gap and continue independent work; do not substitute production or a paid hosted branch.
 
 ## 3. Review and merge
 

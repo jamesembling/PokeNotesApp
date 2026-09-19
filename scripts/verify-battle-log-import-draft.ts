@@ -40,7 +40,7 @@ const immutableFacts = {
   goOrder: "First",
   coinTossWon: true,
   language: "en",
-  rawLog: `draft-verifier-${runId}`,
+  rawLog: `FormerTrainer won the coin toss.\ndraft-verifier-${runId}`,
   sections: [],
   totalTurns: 2,
   selfPrizesTaken: 1,
@@ -94,6 +94,16 @@ async function requireFixtureUserId() {
   return user.id;
 }
 
+async function readStatistics(userId: string) {
+  const { data, error } = await admin
+    .from("user_log_stats")
+    .select("games_played,games_won,games_lost,attack_damage,opponent_attack_damage,coin_flips_won,coin_flips_lost,mulligans_taken,prizes_taken,tracked_damage,tracked_prizes")
+    .eq("user_id", userId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 async function insertDraft(userId: string, options: { expired?: boolean } = {}) {
   const id = crypto.randomUUID();
   const now = Date.now();
@@ -138,6 +148,7 @@ async function expectRpcFailure(
 
 async function main() {
   const ownerUserId = await requireFixtureUserId();
+  const baselineStatistics = await readStatistics(ownerUserId);
   const secondaryEmail = `draft-verifier-${runId}@pokenotes.local`;
   const { data: secondaryUser, error: secondaryUserError } =
     await admin.auth.admin.createUser({ email: secondaryEmail, email_confirm: true });
@@ -220,7 +231,7 @@ async function main() {
 
   const { data: savedLogs, error: savedLogsError } = await admin
     .from("logs")
-    .select("id,result,total_turns,raw_log")
+    .select("id,result,total_turns,raw_log,coin_toss_won,self_player_name")
     .in("id", logIds);
   if (savedLogsError) throw savedLogsError;
   assert.equal(savedLogs.length, 2);
@@ -228,10 +239,30 @@ async function main() {
     assert.equal(log.result, "Win");
     assert.equal(log.total_turns, 2);
     assert.equal(log.raw_log, immutableFacts.rawLog);
+    assert.equal(log.self_player_name, "E2ETrainer");
+    assert.equal(log.coin_toss_won, true);
   }
 
+  // The raw alternate username differs from the canonical stored player name.
+  // A successful replay must not count twice, and the stored toss fact must win.
+  assert.deepEqual(await readStatistics(ownerUserId), {
+    ...baselineStatistics,
+    games_played: baselineStatistics.games_played + 2,
+    games_won: baselineStatistics.games_won + 2,
+    attack_damage: baselineStatistics.attack_damage + 120,
+    coin_flips_won: baselineStatistics.coin_flips_won + 2,
+    prizes_taken: baselineStatistics.prizes_taken + 2,
+    tracked_damage: baselineStatistics.tracked_damage + 120,
+    tracked_prizes: baselineStatistics.tracked_prizes + 2
+  });
+
+  const { error: deletionError } = await admin.from("logs").delete().in("id", logIds);
+  if (deletionError) throw deletionError;
+  logIds.length = 0;
+  assert.deepEqual(await readStatistics(ownerUserId), baselineStatistics);
+
   console.log(
-    "Battle Log import draft verification passed: privacy, ownership, expiry, rollback/retry, atomic concurrency, replay, conflict rejection, and immutable persistence."
+    "Battle Log import draft verification passed: privacy, ownership, expiry, rollback/retry, atomic concurrency, replay, conflict rejection, immutable persistence, alternate-username statistics, and deletion reconciliation."
   );
 }
 
