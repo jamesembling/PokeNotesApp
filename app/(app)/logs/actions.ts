@@ -30,7 +30,7 @@ import { validateDeckListReference } from "@/lib/db/deck-lists";
 import {
   commitPersistedBattleLogImportDraft,
   getPersistedBattleLogImportDraft,
-  startPersistedBattleLogImportDraft,
+  persistBattleLogImportDraft,
   type PersistedBattleLogImportReview
 } from "@/lib/db/battle-log-import-drafts";
 import { hydrateLogWindowDeckListNames } from "@/lib/db/log-linked-deck-list-names";
@@ -305,28 +305,14 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
     const format = String(formData.get("format") || "").trim();
     const parsedResult = await buildParsedLogReview(rawLog, getImportContext(user.id));
     const draftStartedAt = performance.now();
-    const draft = startPersistedBattleLogImportDraft({
+    const review = await persistBattleLogImportDraft({
       format,
       review: parsedResult.review,
       userId: user.id
     });
-    const draftScheduleMs = performance.now() - draftStartedAt;
-    after(async () => {
-      const persistStartedAt = performance.now();
-      try {
-        await draft.persist;
-        reportServerPerformance("logs.import.draftPersist", {
-          persistMs: performance.now() - persistStartedAt
-        });
-      } catch (error) {
-        reportError(error, {
-          action: "persistBattleLogImportDraft",
-          area: "logs",
-          boundary: "battle-log-import-draft-after",
-          route: "/logs",
-          userId: user.id
-        });
-      }
+    const draftPersistMs = performance.now() - draftStartedAt;
+    reportServerPerformance("logs.import.draftPersist", {
+      persistMs: draftPersistMs
     });
     reportServerPerformance("logs.import.review", {
       actionMs: performance.now() - actionStartedAt,
@@ -334,12 +320,12 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
       catalogMs: parsedResult.timings.catalogMs,
       contextCacheMiss: parsedResult.timings.contextCacheMiss,
       contextMs: parsedResult.timings.contextMs,
-      draftScheduleMs,
+      draftPersistMs,
       identificationMs: parsedResult.timings.identificationMs,
       inputMs: parsedResult.timings.inputMs,
       parseMs: parsedResult.timings.parseMs
     });
-    return draft.review;
+    return review;
   } catch (error) {
     if (error instanceof ImportLogValidationError) {
       return {
@@ -350,7 +336,7 @@ export async function parseLogAction(formData: FormData): Promise<ParseLogAction
     const actionError = resolveActionFailure(error, {
       action: "parseLog",
       area: "logs",
-      fallbackMessage: "We couldn't parse that battle log.",
+      fallbackMessage: "We couldn't prepare that battle log for review.",
       route: "/logs"
     });
 
