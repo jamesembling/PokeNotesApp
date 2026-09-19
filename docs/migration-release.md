@@ -32,6 +32,17 @@ When local Supabase is unavailable, record that gate as unavailable rather than 
 
 For risky data, concurrency, privilege, or rollback behavior, rehearse the reviewed migration against a disposable local Supabase/PostgreSQL database containing synthetic data. Apply the actual migration to the pre-change schema; resetting from the final `schema.sql` alone does not verify the migration. Record the local target, migration list, focused verification, and cleanup. Use the fixed local environment in `docs/agents/local-e2e.md` where applicable. Isolated rehearsal is evidence; it does not authorize production.
 
+Use the fixed local rehearsal command with a Git ref whose `schema.sql` represents the pre-change state and the final migration version to apply. A focused SQL file is loaded after the actual migration and should raise an exception when any required behavior, ownership, privilege, concurrency, or rollback check fails.
+
+```sh
+npm run migration:rehearse:local -- \
+  --from <pre-change-git-ref> \
+  --through <14-digit-migration-version> \
+  --verify <repository-relative-focused-check.sql>
+```
+
+The command resolves the baseline and `HEAD` to immutable commits, reads the baseline schema, selected migrations, and focused verification SQL from those commits rather than the working tree, starts an isolated local Supabase stack, resets through those files, runs the focused SQL, prints the local migration list, runs security advisors, and removes the containers, volumes, and temporary workdir in a `finally` cleanup. Commit the migration and verification SQL before running it. The command refuses a target migration that was not added in the selected Git range and never accepts a hosted database URL.
+
 **Standing decision — 19 September 2026:** James reaffirmed the [Keep Free decision in the migration specification](https://app.notion.com/p/3b3aee33e56181c59a97c43a9ed23dc2). Keep the Supabase organization on Free. Do not create paid hosted rehearsal branches, upgrade the plan, add billing, incur branch costs, or ask for this approval again unless James explicitly reopens the decision. This supersedes the former hosted-branch rehearsal requirement. If local verification is unavailable, report the evidence gap and continue independent work; do not substitute production or a paid hosted branch.
 
 ## 3. Review and merge
