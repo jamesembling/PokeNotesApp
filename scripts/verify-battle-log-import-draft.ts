@@ -256,13 +256,39 @@ async function main() {
     tracked_prizes: baselineStatistics.tracked_prizes + 2
   });
 
+  // Exercise persisted corrections as one bulk change and check every total.
+  const correction = {
+    result: "Loss",
+    coin_toss_won: null,
+    self_attack_damage: 30,
+    opponent_attack_damage: 90,
+    self_prizes_taken: 0,
+    opponent_prizes_taken: 2,
+    self_mulligans: 1
+  };
+  const { error: correctionError } = await admin.from("logs").update(correction).in("id", logIds);
+  if (correctionError) throw correctionError;
+  const correctedStatistics = await readStatistics(ownerUserId);
+  assert.deepEqual(correctedStatistics, {
+    ...baselineStatistics,
+    games_played: baselineStatistics.games_played + 2,
+    games_lost: baselineStatistics.games_lost + 2,
+    attack_damage: baselineStatistics.attack_damage + 60,
+    opponent_attack_damage: baselineStatistics.opponent_attack_damage + 180,
+    mulligans_taken: baselineStatistics.mulligans_taken + 2,
+    tracked_damage: baselineStatistics.tracked_damage + 240,
+    tracked_prizes: baselineStatistics.tracked_prizes + 4
+  });
+  const { error: repeatedCorrectionError } = await admin.from("logs").update(correction).in("id", logIds);
+  if (repeatedCorrectionError) throw repeatedCorrectionError;
+  assert.deepEqual(await readStatistics(ownerUserId), correctedStatistics);
   const { error: deletionError } = await admin.from("logs").delete().in("id", logIds);
   if (deletionError) throw deletionError;
   logIds.length = 0;
   assert.deepEqual(await readStatistics(ownerUserId), baselineStatistics);
 
   console.log(
-    "Battle Log import draft verification passed: privacy, ownership, expiry, rollback/retry, atomic concurrency, replay, conflict rejection, immutable persistence, alternate-username statistics, and deletion reconciliation."
+    "Battle Log import draft verification passed: privacy, ownership, expiry, rollback/retry, atomic concurrency, replay, conflict rejection, immutable persistence, alternate-username statistics, bulk corrections, and deletion reconciliation."
   );
 }
 
