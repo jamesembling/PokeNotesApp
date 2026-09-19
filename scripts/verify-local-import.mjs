@@ -105,7 +105,12 @@ try {
   const rawLog = fixture.replace(bench, `${bench}\nE2ETrainer played Munkidori to the Bench.`).trim();
   const journeyStarted = performance.now();
   checkpoint("paste and review");
-  await openReview(rawLog);
+  const firstReview = await openReview(rawLog);
+  assert.ok(firstReview.draftId, "A ready review must identify its persisted draft.");
+  const persistedDraft = await query(
+    db.from("battle_log_import_drafts").select("id").eq("id", firstReview.draftId).eq("user_id", userId).maybeSingle()
+  );
+  assert.equal(persistedDraft?.id, firstReview.draftId, "Review readiness must imply durable draft storage.");
   assert.deepEqual(await selfSprites(), ["dreepy", "munkidori"], "First review must precede catalogue learning.");
 
   checkpoint("correct the deck");
@@ -237,7 +242,9 @@ async function openReview(rawLog) {
     page.getByRole("textbox", { name: "Battle log", exact: true }).fill(rawLog)
   ]);
   assert.equal(response.status(), 200, "The browser review request must succeed.");
+  const review = await response.json();
   await page.getByRole("textbox", { name: "Match notes", exact: true }).waitFor();
+  return review;
 }
 
 async function until(predicate, timeout = 20000) {
