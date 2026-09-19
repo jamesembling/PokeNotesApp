@@ -257,10 +257,9 @@ function SpriteSearchSlot({
           onFocus={() => setIsOpen(true)}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
-              if (commitQuerySelection(filteredOptions[0]?.slug)) {
-                event.preventDefault();
-                return;
-              }
+              event.preventDefault();
+              commitQuerySelection(filteredOptions[0]?.slug);
+              return;
             }
 
             if (event.key === "Escape") {
