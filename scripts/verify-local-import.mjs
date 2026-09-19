@@ -122,6 +122,10 @@ try {
     page.getByRole("button", { name: "Save Log", exact: true }).click()
   ]);
   assert.equal(response.status(), 200, "The browser save request must succeed.");
+  const originalSaveRequest = response.request();
+  const originalSaveHeaders = await originalSaveRequest.allHeaders();
+  const originalSaveBody = originalSaveRequest.postDataBuffer();
+  assert.ok(originalSaveBody, "The browser save request must include its multipart body.");
   const result = await response.json();
   assert.equal(result.ok, true);
   assert.match(result.redirectTo, /^\/logs\/[^/]+$/);
@@ -138,6 +142,47 @@ try {
   assert.equal(saved.raw_log.trim(), rawLog);
   assert.equal(saved.self_deck_sprites, "dragapult,munkidori");
   assert.equal(saved.coin_toss_won, true);
+
+  checkpoint("replay the identical save request");
+  const replayResponse = await context.request.fetch(originalSaveRequest.url(), {
+    data: originalSaveBody,
+    failOnStatusCode: false,
+    headers: {
+      "content-type": originalSaveHeaders["content-type"],
+      origin: baseUrl,
+      referer: `${baseUrl}/logs`
+    },
+    method: "POST"
+  });
+  assert.equal(replayResponse.status(), 200, "An identical save retry must succeed.");
+  const replayResult = await replayResponse.json();
+  assert.deepEqual(replayResult, result, "An identical save retry must return the original Battle Log.");
+  assert.equal((await logs()).length, 4, "An identical save retry must not create another Battle Log.");
+
+  checkpoint("reject changed values with the same save identity");
+  const changedSaveBody = Buffer.from(
+    originalSaveBody.toString("utf8").replace(notes, `${notes} changed`),
+    "utf8"
+  );
+  assert.notDeepEqual(changedSaveBody, originalSaveBody, "The conflicting retry must change a permitted value.");
+  const conflictResponse = await context.request.fetch(originalSaveRequest.url(), {
+    data: changedSaveBody,
+    failOnStatusCode: false,
+    headers: {
+      "content-type": originalSaveHeaders["content-type"],
+      origin: baseUrl,
+      referer: `${baseUrl}/logs`
+    },
+    method: "POST"
+  });
+  assert.ok(conflictResponse.status() >= 400, "Changed values with the same save identity must fail.");
+  const logsAfterConflict = await logs();
+  assert.equal(logsAfterConflict.length, 4, "A conflicting retry must not duplicate the saved log.");
+  assert.equal(
+    logsAfterConflict.find(row => row.id === saved.id)?.match_notes,
+    notes,
+    "A conflicting retry must not modify the saved log."
+  );
 
   checkpoint("reload the committed Battle Log");
   await page.reload();

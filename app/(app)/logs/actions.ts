@@ -390,7 +390,12 @@ export async function importLogAction(
       request,
       now: new Date().toISOString()
     });
-    if (decision.status === "rejected") {
+    // Persisted drafts store the database's SHA-256 fingerprint, so only the
+    // locked RPC can decide whether a consumed draft is a replay or conflict.
+    const databaseOwnsConsumedDraftDecision =
+      decision.status === "rejected" &&
+      (decision.code === "IDEMPOTENCY_CONFLICT" || decision.code === "DRAFT_CONSUMED");
+    if (decision.status === "rejected" && !databaseOwnsConsumedDraftDecision) {
       throw userFacingActionError(decision.message);
     }
 
