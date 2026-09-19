@@ -61,7 +61,6 @@ import {
 import { invalidateInitialLogsCache } from "@/lib/server/logs-initial-cache";
 import { reportError } from "@/lib/server/report-error";
 import {
-  invalidateBattleLogImportContext,
   loadCachedBattleLogImportContext,
   revalidateBattleLogImportContext
 } from "@/lib/server/battle-log-import-context-cache";
@@ -427,19 +426,32 @@ export async function importLogAction(
     const selfSelectionChanged = Boolean(
       draft && joinSprites(draft.editable.selfDeckSprites) !== joinSprites(selectedSelfSprites)
     );
-    await promoteLearnedSelfArchetype({
-      supabase,
-      userId: user.id,
-      sprites: resolvedSelfSprites,
-      catalog,
-      minimumExistingMatches: selfSelectionChanged ? 1 : LEARNED_SELF_ARCHETYPE_THRESHOLD
+    // Learning follows a committed save and must not delay or overturn its response.
+    after(async () => {
+      try {
+        await promoteLearnedSelfArchetype({
+          supabase,
+          userId: user.id,
+          sprites: resolvedSelfSprites,
+          catalog,
+          minimumExistingMatches: selfSelectionChanged ? 1 : LEARNED_SELF_ARCHETYPE_THRESHOLD
+        });
+      } catch (error) {
+        reportError(error, {
+          action: "learnSelfArchetype",
+          area: "logs",
+          boundary: "import-learning-after",
+          logId: result.battleLogId,
+          route: "/logs",
+          userId: user.id
+        });
+      } finally {
+        // Invalidate once, after learning: Next deduplicates a repeated tag
+        // invalidation within the same request, including its after callbacks.
+        revalidateBattleLogImportContext(user.id);
+      }
     });
 
-    if (invalidationContext === "route-handler") {
-      revalidateBattleLogImportContext(user.id);
-    } else {
-      invalidateBattleLogImportContext(user.id);
-    }
     invalidateInitialLogsCache(user.id, invalidationContext);
     after(() => {
       revalidateDeckAndLogWorkspace();
