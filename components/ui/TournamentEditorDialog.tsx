@@ -429,6 +429,7 @@ export function TournamentEditorDialog({
               ref={formRef}
             >
               {isEditing && tournament ? <input name="tournamentId" type="hidden" value={tournament.id} /> : null}
+              {isEditing && tournament ? <input name="expectedUpdatedAt" type="hidden" value={tournament.updatedAt} /> : null}
               <input name="redirectTo" type="hidden" value={pathname} />
               <input name="linkedDeckId" type="hidden" value={tournament?.linkedDeckId ?? ""} />
               <input name="linkedDeckListId" type="hidden" value={tournament?.linkedDeckListId ?? ""} />

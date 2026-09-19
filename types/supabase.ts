@@ -967,6 +967,66 @@ export type Database = {
           },
         ]
       }
+      tournament_deck_list_snapshots: {
+        Row: {
+          created_at: string
+          created_by: string
+          date: string
+          format: string
+          id: string
+          name: string
+          notes: string
+          parsed_cards: Json
+          payload_hash: string
+          raw_list: string
+          request_id: string
+          sorted_cards: Json
+          sorted_cards_version: number
+          source_deck_id: string | null
+          source_deck_list_id: string | null
+          tournament_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          date?: string
+          format?: string
+          id: string
+          name?: string
+          notes?: string
+          parsed_cards?: Json
+          payload_hash: string
+          raw_list?: string
+          request_id: string
+          sorted_cards?: Json
+          sorted_cards_version: number
+          source_deck_id?: string | null
+          source_deck_list_id?: string | null
+          tournament_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          date?: string
+          format?: string
+          id?: string
+          name?: string
+          notes?: string
+          parsed_cards?: Json
+          payload_hash?: string
+          raw_list?: string
+          request_id?: string
+          sorted_cards?: Json
+          sorted_cards_version?: number
+          source_deck_id?: string | null
+          source_deck_list_id?: string | null
+          tournament_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tournaments: {
         Row: {
           category: string
@@ -1185,6 +1245,28 @@ export type Database = {
         }
         Returns: Json
       }
+      commit_tournament_deck_list: {
+        Args: {
+          p_allow_replace?: boolean
+          p_create_deck_list?: boolean
+          p_deck_name: string
+          p_deck_sprites: Json
+          p_expected_tournament_updated_at: string
+          p_payload: Json
+          p_request_id: string
+          p_source_deck_id?: string | null
+          p_source_deck_list_id?: string | null
+          p_tournament_id: string
+        }
+        Returns: Json
+      }
+      remove_tournament_deck_list: {
+        Args: {
+          p_expected_tournament_updated_at: string
+          p_tournament_id: string
+        }
+        Returns: Json
+      }
       delete_first_class_deck_list: {
         Args: {
           p_deck_list_id: string
@@ -1208,6 +1290,18 @@ export type Database = {
           p_tournament_id: string
         }
         Returns: number
+      }
+      create_tournament_round_idempotent: {
+        Args: {
+          p_creation_key: string
+          p_notes: string
+          p_opponent_deck_name: string
+          p_opponent_deck_sprites: Json
+          p_result: string
+          p_round_id: string
+          p_tournament_id: string
+        }
+        Returns: Json
       }
       create_log_share: {
         Args: { p_payload: Json; p_source_log_id: string; p_token: string }

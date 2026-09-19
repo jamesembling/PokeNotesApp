@@ -15,6 +15,7 @@ import { PlayPokemonJudgeMark } from "@/components/ui/PlayPokemonJudgeMark";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { TournamentRoundRow } from "@/components/ui/TournamentRoundRow";
+import { TournamentDeckListRemoveButton } from "@/components/ui/TournamentDeckListRemoveButton";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
@@ -169,11 +170,17 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
   const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
   const resolvedTournamentDeckList = isJudge
     ? null
-    : await resolveTournamentDeckListForDisplay({
-        loadDeckList: getDeckListById,
-        tournament,
-        userId: user.id
-      });
+    : tournament.deckListSnapshot
+      ? {
+          name: tournament.deckListSnapshot.name,
+          rawList: tournament.deckListSnapshot.rawList,
+          sortedCards: tournament.deckListSnapshot.sortedCards
+        }
+      : await resolveTournamentDeckListForDisplay({
+          loadDeckList: getDeckListById,
+          tournament,
+          userId: user.id
+        });
 
   return (
     <PageWidth size="standard">
@@ -254,21 +261,44 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
               </div>
               <div className="flex shrink-0">
                 {isJudge ? null : resolvedTournamentDeckList ? (
-                  <DeckListViewDialog
-                    deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
-                    rawList={resolvedTournamentDeckList?.rawList}
-                    sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
-                    triggerChildren={
-                      <>
-                        <EyeIcon className="size-4" />
-                        <span>Deck List</span>
-                      </>
-                    }
-                    triggerClassName="px-3"
-                    triggerLabel="Deck List"
-                    triggerSize="sm"
-                    triggerVariant="outline"
-                  />
+                  <div className="flex items-center gap-1">
+                    <DeckListViewDialog
+                      deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
+                      rawList={resolvedTournamentDeckList?.rawList}
+                      sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
+                      triggerChildren={
+                        <>
+                          <EyeIcon className="size-4" />
+                          <span>Deck List</span>
+                        </>
+                      }
+                      triggerClassName="px-3"
+                      triggerLabel="Deck List"
+                      triggerSize="sm"
+                      triggerVariant="outline"
+                    />
+                    <LazyDeckListEditorButton
+                      deckId=""
+                      defaultCreatedBy={defaultCreatedBy}
+                      defaultFormat={tournament.format}
+                      defaultListName={resolvedTournamentDeckList.name}
+                      extraHiddenFields={
+                        <>
+                          <input name="tournamentId" type="hidden" value={tournament.id} />
+                          <input name="replaceDeckList" type="hidden" value="true" />
+                        </>
+                      }
+                      saveAction={saveTournamentDeckListAction}
+                      simplePasteMode
+                      triggerLabel="Replace"
+                      triggerSize="sm"
+                      triggerVariant="ghost"
+                    />
+                    <TournamentDeckListRemoveButton
+                      expectedUpdatedAt={tournament.updatedAt}
+                      tournamentId={tournament.id}
+                    />
+                  </div>
                 ) : (
                   <LazyDeckListEditorButton
                     deckId={tournament.linkedDeckId ?? ""}
