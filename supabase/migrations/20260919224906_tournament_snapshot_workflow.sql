@@ -29,12 +29,26 @@ create table public.tournament_deck_list_snapshots (
     unique (user_id, request_id)
 );
 
+create table public.tournament_deck_list_commands (
+  id             text primary key,
+  tournament_id  text not null references public.tournaments(id) on delete cascade,
+  user_id        uuid not null references auth.users(id) on delete cascade,
+  operation      text not null check (operation in ('capture', 'remove')),
+  request_id     text not null,
+  payload_hash   text not null,
+  result         jsonb not null,
+  created_at     timestamptz not null default now(),
+  constraint tournament_deck_list_commands_request_unique
+    unique (user_id, operation, request_id)
+);
+
 comment on table public.tournament_deck_list_snapshots is
   'Immutable account-owned evidence of the Deck List used for a Tournament. The source row is optional and never required for display.';
 comment on column public.tournament_deck_list_snapshots.payload_hash is
   'Canonical request fingerprint used to make a retried request idempotent and reject conflicting request-id reuse.';
 
 alter table public.tournament_deck_list_snapshots enable row level security;
+alter table public.tournament_deck_list_commands enable row level security;
 
 create policy "Users can view own Tournament Deck List snapshots"
   on public.tournament_deck_list_snapshots
@@ -45,6 +59,8 @@ create policy "Users can view own Tournament Deck List snapshots"
 revoke all on public.tournament_deck_list_snapshots from anon, authenticated;
 grant select on public.tournament_deck_list_snapshots to authenticated;
 grant all on public.tournament_deck_list_snapshots to service_role;
+revoke all on public.tournament_deck_list_commands from anon, authenticated;
+grant all on public.tournament_deck_list_commands to service_role;
 
 -- Keep this API explicitly write-only through the reviewed transaction below;
 -- authenticated clients receive no direct INSERT/UPDATE/DELETE privileges.
@@ -69,6 +85,7 @@ declare
   v_user_id uuid := auth.uid();
   v_tournament public.tournaments%rowtype;
   v_snapshot public.tournament_deck_list_snapshots%rowtype;
+  v_command public.tournament_deck_list_commands%rowtype;
   v_source_list public.deck_lists%rowtype;
   v_list public.deck_lists%rowtype;
   v_list_id text;
@@ -80,6 +97,7 @@ declare
   v_position integer;
   v_requested_fingerprint jsonb;
   v_existing_fingerprint jsonb;
+  v_result jsonb;
 begin
   if v_user_id is null then
     raise exception using errcode = '42501', message = 'Authentication is required.';
@@ -104,13 +122,24 @@ begin
 
   v_payload_hash := md5(jsonb_build_object(
     'tournamentId', p_tournament_id,
-    'payload', p_payload,
+    'payload', p_payload - 'createdAt' - 'created_at' - 'updatedAt' - 'updated_at',
     'deckName', coalesce(p_deck_name, ''),
     'deckSprites', p_deck_sprites,
     'sourceDeckId', v_source_deck_id,
     'sourceDeckListId', v_source_deck_list_id,
     'createDeckList', p_create_deck_list
   )::text);
+
+  select * into v_command
+  from public.tournament_deck_list_commands
+  where user_id = v_user_id and operation = 'capture' and request_id = v_request_id
+  for update;
+  if found then
+    if v_command.payload_hash <> v_payload_hash then
+      raise exception using errcode = '23505', message = 'That Tournament request id was already used with different values.';
+    end if;
+    return jsonb_set(v_command.result, '{status}', '"idempotent"'::jsonb);
+  end if;
 
   select * into v_snapshot
   from public.tournament_deck_list_snapshots
@@ -142,7 +171,13 @@ begin
   then
     raise exception using errcode = 'P0001', message = 'Tournament changed; refresh-and-retry before saving its Deck List.';
   end if;
-  if nullif(btrim(v_tournament.linked_deck_list_id), '') is not null and not p_allow_replace then
+  if nullif(btrim(v_tournament.linked_deck_list_id), '') is not null
+    and not p_allow_replace
+    and not (
+      not p_create_deck_list
+      and v_source_deck_list_id = nullif(btrim(v_tournament.linked_deck_list_id), '')
+    )
+  then
     raise exception using errcode = 'P0001', message = 'This Tournament already has a Deck List; use replace or remove first.';
   end if;
   if p_allow_replace then
@@ -253,7 +288,7 @@ begin
       updated_at = v_now
   where id = p_tournament_id and user_id = v_user_id;
 
-  return jsonb_build_object(
+  v_result := jsonb_build_object(
     'status', 'committed',
     'tournamentId', p_tournament_id,
     'deckListId', v_source_deck_list_id,
@@ -261,6 +296,12 @@ begin
     'requestId', v_request_id,
     'payloadHash', v_payload_hash
   );
+  insert into public.tournament_deck_list_commands (
+    id, tournament_id, user_id, operation, request_id, payload_hash, result
+  ) values (
+    gen_random_uuid()::text, p_tournament_id, v_user_id, 'capture', v_request_id, v_payload_hash, v_result
+  );
+  return v_result;
 end;
 $function$;
 
@@ -273,7 +314,8 @@ grant execute on function public.commit_tournament_deck_list(
 
 create or replace function public.remove_tournament_deck_list(
   p_tournament_id text,
-  p_expected_tournament_updated_at timestamptz
+  p_expected_tournament_updated_at timestamptz,
+  p_request_id text default null
 )
 returns jsonb
 language plpgsql
@@ -283,10 +325,30 @@ as $function$
 declare
   v_user_id uuid := auth.uid();
   v_tournament public.tournaments%rowtype;
+  v_command public.tournament_deck_list_commands%rowtype;
+  v_request_id text := nullif(btrim(p_request_id), '');
+  v_payload_hash text;
+  v_result jsonb;
   v_now timestamptz := clock_timestamp();
 begin
   if v_user_id is null then
     raise exception using errcode = '42501', message = 'Authentication is required.';
+  end if;
+  if v_request_id is null then
+    raise exception using errcode = '22023', message = 'A Tournament removal request id is required.';
+  end if;
+  perform pg_advisory_xact_lock(
+    hashtextextended(v_user_id::text || ':tournament-deck-list-remove:' || v_request_id, 0)
+  );
+  v_payload_hash := md5(jsonb_build_object('tournamentId', p_tournament_id, 'operation', 'remove')::text);
+  select * into v_command from public.tournament_deck_list_commands
+  where user_id = v_user_id and operation = 'remove' and request_id = v_request_id
+  for update;
+  if found then
+    if v_command.payload_hash <> v_payload_hash then
+      raise exception using errcode = '23505', message = 'That Tournament removal request id was already used with different values.';
+    end if;
+    return jsonb_set(v_command.result, '{status}', '"idempotent"'::jsonb);
   end if;
   select * into v_tournament from public.tournaments
   where id = p_tournament_id and user_id = v_user_id for update;
@@ -303,7 +365,36 @@ begin
   update public.tournaments
   set linked_deck_list_id = null, updated_at = v_now
   where id = p_tournament_id and user_id = v_user_id;
-  return jsonb_build_object('status', 'committed', 'tournamentId', p_tournament_id);
+  v_result := jsonb_build_object('status', 'committed', 'tournamentId', p_tournament_id);
+  insert into public.tournament_deck_list_commands (
+    id, tournament_id, user_id, operation, request_id, payload_hash, result
+  ) values (
+    gen_random_uuid()::text, p_tournament_id, v_user_id, 'remove', v_request_id, v_payload_hash, v_result
+  );
+  return v_result;
+end;
+$function$;
+revoke all on function public.remove_tournament_deck_list(text, timestamptz, text) from public, anon;
+grant execute on function public.remove_tournament_deck_list(text, timestamptz, text) to authenticated;
+
+-- Keep the previous application compatible during the migration/application
+-- rollout. The old overload receives a fresh command identity because the
+-- previous client had no request-id field.
+create or replace function public.remove_tournament_deck_list(
+  p_tournament_id text,
+  p_expected_tournament_updated_at timestamptz
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $function$
+begin
+  return public.remove_tournament_deck_list(
+    p_tournament_id,
+    p_expected_tournament_updated_at,
+    gen_random_uuid()::text
+  );
 end;
 $function$;
 revoke all on function public.remove_tournament_deck_list(text, timestamptz) from public, anon;
@@ -364,7 +455,6 @@ begin
 
   v_fingerprint := md5(jsonb_build_object(
     'tournamentId', p_tournament_id,
-    'roundId', p_round_id,
     'opponentDeckName', coalesce(p_opponent_deck_name, ''),
     'opponentDeckSprites', p_opponent_deck_sprites,
     'result', p_result,
@@ -375,10 +465,8 @@ begin
   where user_id = v_user_id and creation_key = p_creation_key
   for update;
   if found then
-    if v_existing.id <> p_round_id
-      or md5(jsonb_build_object(
+    if md5(jsonb_build_object(
         'tournamentId', v_existing.tournament_id,
-        'roundId', v_existing.id,
         'opponentDeckName', v_existing.opponent_deck_name,
         'opponentDeckSprites', v_existing.opponent_deck_sprites,
         'result', v_existing.result,

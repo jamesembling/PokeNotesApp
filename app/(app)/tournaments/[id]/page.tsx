@@ -16,6 +16,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { TournamentRoundRow } from "@/components/ui/TournamentRoundRow";
 import { TournamentDeckListRemoveButton } from "@/components/ui/TournamentDeckListRemoveButton";
+import { TournamentDeckListCaptureButton } from "@/components/ui/TournamentDeckListCaptureButton";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
@@ -168,6 +169,13 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
     user.email?.split("@")[0] ||
     "Trainer";
   const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
+  const currentSourceDeckList = !isJudge && tournament.deckListSnapshot?.sourceDeckListId
+    ? await getDeckListById(
+        user.id,
+        tournament.deckListSnapshot.sourceDeckListId,
+        null
+      )
+    : null;
   const resolvedTournamentDeckList = isJudge
     ? null
     : tournament.deckListSnapshot
@@ -269,14 +277,21 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
                       triggerChildren={
                         <>
                           <EyeIcon className="size-4" />
-                          <span>Deck List</span>
+                        <span>{tournament.deckListSnapshot ? "Tournament snapshot" : "Current source"}</span>
                         </>
                       }
                       triggerClassName="px-3"
-                      triggerLabel="Deck List"
+                      triggerLabel={tournament.deckListSnapshot ? "Tournament snapshot" : "Current source"}
                       triggerSize="sm"
                       triggerVariant="outline"
                     />
+                    {!tournament.deckListSnapshot && tournament.linkedDeckListId ? (
+                      <TournamentDeckListCaptureButton
+                        sourceDeckId={tournament.linkedDeckId ?? null}
+                        sourceDeckListId={tournament.linkedDeckListId}
+                        tournamentId={tournament.id}
+                      />
+                    ) : null}
                     <LazyDeckListEditorButton
                       deckId=""
                       defaultCreatedBy={defaultCreatedBy}
@@ -320,6 +335,35 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
             </div>
           </div>
         </div>
+
+        {!isJudge && tournament.deckListSnapshot ? (
+          <div className="rounded-2xl border border-border bg-muted p-4">
+            <p className="ui-eyebrow">Deck List relationships</p>
+            <p className="mt-2 text-sm leading-6 text-foreground">
+              <span className="font-semibold">Authoritative Tournament snapshot:</span>{" "}
+              {tournament.deckListSnapshot.name}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              <span className="font-semibold text-foreground">Current source Deck List:</span>{" "}
+              {currentSourceDeckList
+                ? `${currentSourceDeckList.name} is available for ongoing edits.`
+                : "Missing. The Tournament snapshot remains available as the event record."}
+            </p>
+            {currentSourceDeckList ? (
+              <div className="mt-3">
+                <DeckListViewDialog
+                  deckListName={currentSourceDeckList.name}
+                  rawList={currentSourceDeckList.rawList}
+                  sortedCards={currentSourceDeckList.sortedCards}
+                  triggerChildren={<span>View current source</span>}
+                  triggerLabel="View current source Deck List"
+                  triggerSize="sm"
+                  triggerVariant="ghost"
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {tournament.notes ? (
           <div className="rounded-2xl border border-border bg-muted p-4">

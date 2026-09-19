@@ -359,6 +359,7 @@ export function TournamentRoundEditorDialog({
               <input name="tournamentId" type="hidden" value={tournamentId} />
               <input name="redirectTo" type="hidden" value={pathname} />
               {isEditing && round ? <input name="roundId" type="hidden" value={round.id} /> : null}
+              {isEditing && round ? <input name="expectedUpdatedAt" type="hidden" value={round.updatedAt} /> : null}
               {!isEditing ? <input name="creationKey" type="hidden" value={creationKey} /> : null}
               {selectedSprites.map((slug, index) => (
                 <input

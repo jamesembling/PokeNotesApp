@@ -43,6 +43,9 @@ export type TournamentDeckListAtomicAdapter = {
     deckName: string;
     deckSprites: string[];
     payload: Record<string, unknown>;
+    sourceDeckId: string | null;
+    sourceDeckListId: string | null;
+    createDeckList: boolean;
     allowReplace: boolean;
   }): Promise<{ deckListId: string; status: "committed" | "idempotent" }>;
 };
@@ -63,9 +66,6 @@ export async function saveTournamentDeckListAtomically(input: {
     throw userFacingActionError("Tournament could not be found.");
   }
   const allowReplace = String(input.formData.get("replaceDeckList") || "").trim() === "true";
-  if (String(tournament.linkedDeckListId || "").trim() && !allowReplace) {
-    throw userFacingActionError("This Tournament already has a Deck List; use replace or remove first.");
-  }
 
   const deckSprites = Array.from(
     new Set(tournament.deckSprites.map((sprite) => String(sprite || "").trim()).filter(Boolean))
@@ -76,6 +76,23 @@ export async function saveTournamentDeckListAtomically(input: {
   }
 
   const requestId = String(input.formData.get("creationKey") || "").trim() || crypto.randomUUID();
+  const sourceDeckListId = String(input.formData.get("sourceDeckListId") || "").trim() || null;
+  const sourceDeckId = String(input.formData.get("sourceDeckId") || "").trim() || null;
+  if (sourceDeckListId) {
+    return input.adapter.commit({
+      tournamentId,
+      requestId,
+      expectedTournamentUpdatedAt: tournament.updatedAt,
+      deckName,
+      deckSprites,
+      payload: { sourceDeckId, sourceDeckListId },
+      sourceDeckId,
+      sourceDeckListId,
+      createDeckList: false,
+      allowReplace
+    });
+  }
+
   const rawList = String(input.formData.get("rawList") || "").trim();
   const name = String(input.formData.get("name") || "").trim() || deckName;
   if (!name) {
@@ -120,6 +137,9 @@ export async function saveTournamentDeckListAtomically(input: {
     deckName,
     deckSprites,
     payload,
+    sourceDeckId: null,
+    sourceDeckListId: null,
+    createDeckList: true,
     allowReplace
   });
 }

@@ -922,6 +922,7 @@ export type Database = {
       }
       tournament_rounds: {
         Row: {
+          creation_key: string | null
           created_at: string
           id: string
           notes: string
@@ -934,6 +935,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          creation_key?: string | null
           created_at?: string
           id: string
           notes?: string
@@ -946,6 +948,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          creation_key?: string | null
           created_at?: string
           id?: string
           notes?: string
@@ -1022,6 +1025,39 @@ export type Database = {
           sorted_cards_version?: number
           source_deck_id?: string | null
           source_deck_list_id?: string | null
+          tournament_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tournament_deck_list_commands: {
+        Row: {
+          created_at: string
+          id: string
+          operation: string
+          payload_hash: string
+          request_id: string
+          result: Json
+          tournament_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          operation: string
+          payload_hash: string
+          request_id: string
+          result: Json
+          tournament_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          operation?: string
+          payload_hash?: string
+          request_id?: string
+          result?: Json
           tournament_id?: string
           user_id?: string
         }
@@ -1263,6 +1299,7 @@ export type Database = {
       remove_tournament_deck_list: {
         Args: {
           p_expected_tournament_updated_at: string
+          p_request_id?: string
           p_tournament_id: string
         }
         Returns: Json
