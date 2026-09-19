@@ -25,6 +25,7 @@
     "hooks:pre-push": "node scripts/git-hooks.mjs pre-push",
     "lint": "eslint . --quiet",
     "migration:rehearse": "node scripts/rehearse-migrations.mjs",
+    "migration:rehearse:local": "node scripts/rehearse-local-migration.mjs",
     "perf:probe": "node scripts/perf-probe.mjs",
     "perf:prod": "node scripts/perf-prod.mjs",
     "perf:prod:auth": "node scripts/perf-prod.mjs --save-auth",
