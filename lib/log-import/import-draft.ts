@@ -436,6 +436,16 @@ export function buildBattleLogImportSaveFingerprint(request: BattleLogImportSave
   });
 }
 
+export function shouldCommitBattleLogImportDraft(
+  decision: BattleLogImportDraftSaveDecision
+) {
+  if (decision.status !== "rejected") {
+    return true;
+  }
+
+  return decision.code === "IDEMPOTENCY_CONFLICT" || decision.code === "DRAFT_CONSUMED";
+}
+
 /**
  * Internal transition helper. Callers must pass a draft resolved from
  * server-owned state. A later server wrapper must resolve the opaque draftId

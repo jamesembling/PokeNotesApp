@@ -8,6 +8,7 @@ import {
   createBattleLogImportDraft,
   evaluateBattleLogImportDraftSave,
   parseBattleLogImportSaveRequest,
+  shouldCommitBattleLogImportDraft,
   type BattleLogImportDraft,
   type BattleLogImportImmutableFacts,
   type BattleLogImportSaveRequest
@@ -366,6 +367,7 @@ test("a successful save replays identically and rejects identity reuse with diff
     now: "2026-08-21T12:33:00.000Z"
   });
   assert.deepEqual(replay, { status: "replay", battleLogId: "log-1" });
+  assert.equal(shouldCommitBattleLogImportDraft(replay), true);
 
   const changedRequest = buildRequest({
     editable: {
@@ -384,6 +386,20 @@ test("a successful save replays identically and rejects identity reuse with diff
     code: "IDEMPOTENCY_CONFLICT",
     message: "That save identity was already used with different review values."
   });
+  assert.equal(
+    shouldCommitBattleLogImportDraft(conflict),
+    true,
+    "The locked database commit must own consumed-draft conflict decisions."
+  );
+
+  const consumedWithAnotherIdentity = evaluateBattleLogImportDraftSave({
+    draft: consumed,
+    userId: USER_ID,
+    request: buildRequest({ idempotencyKey: "save-key-2" }),
+    now: "2026-08-21T10:35:00.000Z"
+  });
+  assert.equal(consumedWithAnotherIdentity.status, "rejected");
+  assert.equal(shouldCommitBattleLogImportDraft(consumedWithAnotherIdentity), true);
   assert.equal(consumed.consumed?.battleLogId, "log-1");
 });
 

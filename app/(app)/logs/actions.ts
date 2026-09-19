@@ -71,7 +71,8 @@ import type { ParsedLogReview } from "@/types/index";
 import { compactMap } from "@/lib/array";
 import {
   evaluateBattleLogImportDraftSave,
-  parseBattleLogImportSaveRequest
+  parseBattleLogImportSaveRequest,
+  shouldCommitBattleLogImportDraft
 } from "@/lib/log-import/import-draft";
 
 type ImportContext = {
@@ -390,7 +391,7 @@ export async function importLogAction(
       request,
       now: new Date().toISOString()
     });
-    if (decision.status === "rejected") {
+    if (decision.status === "rejected" && !shouldCommitBattleLogImportDraft(decision)) {
       throw userFacingActionError(decision.message);
     }
 
