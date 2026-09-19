@@ -104,6 +104,7 @@ try {
   assert.ok(fixture.includes(bench), "The synthetic fixture no longer has its expected starting state.");
   const rawLog = fixture.replace(bench, `${bench}\nE2ETrainer played Munkidori to the Bench.`).trim();
   const journeyStarted = performance.now();
+  await page.setViewportSize({ width: 390, height: 844 });
   checkpoint("paste and review");
   const firstReview = await openReview(rawLog);
   assert.ok(firstReview.draftId, "A ready review must identify its persisted draft.");
@@ -113,13 +114,40 @@ try {
   assert.equal(persistedDraft?.id, firstReview.draftId, "Review readiness must imply durable draft storage.");
   assert.deepEqual(await selfSprites(), ["dreepy", "munkidori"], "First review must precede catalogue learning.");
 
-  checkpoint("correct the deck");
+  checkpoint("keep mobile sprite search Enter inside the review form");
+  let releasePokemonOptions;
+  const pokemonOptionsGate = new Promise(resolve => { releasePokemonOptions = resolve; });
+  await page.route("**/api/pokemon-options", async route => {
+    await pokemonOptionsGate;
+    await route.continue();
+  });
+  const pokemonOptionsRequest = page.waitForRequest(
+    request => new URL(request.url()).pathname === "/api/pokemon-options"
+  );
   await page.getByRole("button", { name: /^Dreepy(?: Dreepy)?$/ }).click();
   const search = page.getByPlaceholder("Search to replace Pokemon");
+  await pokemonOptionsRequest;
+  await search.press("Enter");
+  assert.equal(saveRequests, 0, "Enter in an empty loading search must not save the Battle Log.");
+  await search.fill("not-a-pokemon");
+  await search.press("Enter");
+  assert.equal(saveRequests, 0, "Enter in an unmatched loading search must not save the Battle Log.");
+  releasePokemonOptions();
+  await page.getByText('No Pokemon found for "not-a-pokemon"', { exact: true }).waitFor();
+  await search.press("Enter");
+  assert.equal(saveRequests, 0, "Enter in an unmatched loaded search must not save the Battle Log.");
+  await page.getByRole("button", { name: "Close Pokemon search", exact: true }).click();
+  await page.unroute("**/api/pokemon-options");
+
+  checkpoint("select a sprite with Enter in the desktop popover");
+  await page.setViewportSize({ width: 1280, height: 577 });
+  await page.getByRole("button", { name: /^Dreepy(?: Dreepy)?$/ }).click();
   await search.fill("Dragapult");
-  await page.getByRole("button", { name: /^Dragapult(?: Dragapult)?$/ }).click();
+  await page.getByRole("button", { name: /^Dragapult(?: Dragapult)?$/ }).waitFor();
+  await search.press("Enter");
   await search.waitFor({ state: "hidden" });
   assert.deepEqual(await selfSprites(), ["dragapult", "munkidori"]);
+  assert.equal(saveRequests, 0, "Selecting a matched sprite with Enter must not save the Battle Log.");
   await page.getByRole("textbox", { name: "Match notes", exact: true }).fill(notes);
   checkpoint("save exactly one Battle Log");
   const [response] = await Promise.all([
