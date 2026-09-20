@@ -26,6 +26,7 @@ export function TournamentDeckListCaptureButton({
     formData.set("tournamentId", tournamentId);
     formData.set("sourceDeckId", sourceDeckId ?? "");
     formData.set("sourceDeckListId", sourceDeckListId);
+    formData.set("associateStrategy", "false");
     formData.set("creationKey", creationKey);
     formData.set("redirectTo", window.location.pathname);
     const result = await saveTournamentDeckListAction(formData);

@@ -14,6 +14,7 @@ export function TournamentDeckListRemoveButton({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [creationKey] = useState(() => crypto.randomUUID());
 
   async function handleRemove() {
@@ -21,6 +22,7 @@ export function TournamentDeckListRemoveButton({
       return;
     }
     setBusy(true);
+    setError("");
     const formData = new FormData();
     formData.set("tournamentId", tournamentId);
     formData.set("expectedUpdatedAt", expectedUpdatedAt);
@@ -30,12 +32,17 @@ export function TournamentDeckListRemoveButton({
     setBusy(false);
     if (result.ok) {
       router.refresh();
+    } else {
+      setError(result.message);
     }
   }
 
   return (
-    <Button disabled={busy} onClick={handleRemove} size="sm" type="button" variant="ghost">
-      {busy ? "Removing..." : "Remove"}
-    </Button>
+    <span className="inline-flex flex-col items-end gap-1">
+      <Button disabled={busy} onClick={handleRemove} size="sm" type="button" variant="ghost">
+        {busy ? "Removing..." : "Remove"}
+      </Button>
+      {error ? <span className="max-w-48 text-right text-xs text-loss-strong" role="status">{error}</span> : null}
+    </span>
   );
 }

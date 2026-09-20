@@ -231,6 +231,7 @@ export function TournamentRoundEditorDialog({
     const formData = new FormData();
     formData.set("tournamentId", tournamentId);
     formData.set("roundId", round.id);
+    formData.set("expectedUpdatedAt", round.updatedAt);
     const result = await deleteTournamentRoundAction(formData);
 
     if (!result.ok) {

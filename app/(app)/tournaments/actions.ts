@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
+import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { getDefaultSyncedSiteFormat, isKnownSyncedSiteFormat } from "@/lib/formats/catalog";
 import {
   toActionFailureResult,
@@ -11,9 +12,16 @@ import {
 import { getFormRedirectPath, withRefreshToken } from "@/lib/server/action-redirect";
 import type { FailedActionResult } from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
-import { validateDeckListReference } from "@/lib/db/deck-lists";
+import { getDeckListById, validateDeckListReference } from "@/lib/db/deck-lists";
 import { normalizeTournamentDateRange } from "@/lib/tournaments/date-range";
+import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
 import { saveTournamentDeckListAtomically } from "@/lib/tournaments/deck-list-workflow";
+import {
+  getTournamentMetadataRequestId,
+  parseTournamentCommandResult,
+  toTournamentCommandError,
+  type TournamentCommandStatus
+} from "@/lib/tournaments/metadata-workflow";
 import { getTournamentRoundCreationIdentity } from "@/lib/tournaments/round-workflow";
 import {
   TOURNAMENT_CATEGORY_OPTIONS,
@@ -37,6 +45,7 @@ import type { Json } from "@/types/supabase";
 type SaveActionResult = {
   ok: true;
   redirectTo: string;
+  status?: TournamentCommandStatus;
 } | FailedActionResult;
 
 type PostgrestLikeError = {
@@ -45,10 +54,6 @@ type PostgrestLikeError = {
   hint?: string | null;
   message?: string | null;
 };
-
-function isMissingTournamentDeckListColumns(error: PostgrestLikeError | null) {
-  return error?.code === "42703";
-}
 
 function isMissingTournamentRoundRpc(error: PostgrestLikeError | null) {
   if (!error || !["42883", "PGRST202"].includes(String(error.code || ""))) {
@@ -94,6 +99,11 @@ function revalidateTournamentWorkspace(tournamentId?: string) {
 }
 
 function toUserFacingDatabaseError(error: PostgrestLikeError) {
+  const metadataError = toTournamentCommandError(error);
+  if (metadataError) {
+    return metadataError;
+  }
+
   if (error.code === "P0001" && /Tournament changed/i.test(String(error.message || ""))) {
     return userFacingActionError(
       "This Tournament changed in another tab. Refresh the page and try again."
@@ -345,7 +355,7 @@ async function resolveTournamentRoundNumber(params: {
 }
 
 export async function createTournamentAction(formData: FormData): Promise<SaveActionResult> {
-  const tournamentId = crypto.randomUUID();
+  const tournamentId = getTournamentMetadataRequestId(formData, "create");
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
@@ -408,41 +418,28 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
       notes: String(formData.get("notes") || "").trim()
     };
 
-    let { error } = await supabase.from("tournaments").insert(nextTournament);
-
-    if (isMissingTournamentDeckListColumns(error)) {
-      ({ error } = await supabase.from("tournaments").insert({
-        id: tournamentId,
-        user_id: user.id,
-        name,
-        tournament_identifier: tournamentIdentifier,
-        location,
-        championship_points: championshipPoints,
-        professor_points: professorPoints,
-        date_from: dateFrom,
-        date_to: dateTo,
-        linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-        deck_name: resolvedDeck?.deckName ?? "",
-        deck_sprites:
-          selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
-        category: parseCategory(formData.get("category")),
-        placement: participation === "judge" ? "" : parsePlacement(formData.get("placement")),
-        participation,
-        judge_role: judgeRole,
-        format,
-        notes: String(formData.get("notes") || "").trim()
-      }));
-    }
-
+    const { data, error } = await supabase.rpc("commit_tournament_metadata", {
+      p_operation: "create",
+      p_tournament_id: tournamentId,
+      p_request_id: tournamentId,
+      p_payload: nextTournament as unknown as Json
+    });
     if (error) {
       throw toUserFacingDatabaseError(error);
     }
 
-    revalidateTournamentWorkspace(tournamentId);
+    const result = parseTournamentCommandResult(data, tournamentId, tournamentId);
+
+    revalidateDeckAndLogWorkspace({
+      deckId: result.tournamentId === tournamentId ? resolvedDeck?.linkedDeckId : undefined,
+      deckListId: validatedReference.deckListId,
+      tournamentIds: [result.tournamentId]
+    });
 
     return {
       ok: true,
-      redirectTo: `/tournaments/${tournamentId}`
+      redirectTo: `/tournaments/${tournamentId}`,
+      status: result.status
     };
   } catch (error) {
     return toActionFailureResult(error, {
@@ -518,67 +515,53 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
       participation,
       judge_role: judgeRole,
       format,
-      notes: String(formData.get("notes") || "").trim(),
-      updated_at: new Date().toISOString()
+      notes: String(formData.get("notes") || "").trim()
     };
     const expectedUpdatedAt = String(formData.get("expectedUpdatedAt") || "").trim();
     if (!expectedUpdatedAt) {
       throw userFacingActionError("Tournament version is required; refresh before saving.");
     }
 
-    let { data: updatedTournament, error } = await supabase
+    const commandKey = getTournamentMetadataRequestId(formData, "update", tournamentId);
+    const { data: previousTournament, error: previousTournamentError } = await supabase
       .from("tournaments")
-      .update(nextTournament)
+      .select("linked_deck_id,linked_deck_list_id")
       .eq("id", tournamentId)
       .eq("user_id", user.id)
-      .eq("updated_at", expectedUpdatedAt)
-      .select("id")
       .maybeSingle();
-
-    if (isMissingTournamentDeckListColumns(error)) {
-      ({ data: updatedTournament, error } = await supabase
-        .from("tournaments")
-        .update({
-          name,
-          tournament_identifier: tournamentIdentifier,
-          location,
-          championship_points: championshipPoints,
-          professor_points: professorPoints,
-          date_from: dateFrom,
-          date_to: dateTo,
-          linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-          deck_name: resolvedDeck?.deckName ?? "",
-          deck_sprites:
-            selectedDeckSprites.length > 0
-              ? selectedDeckSprites
-              : (resolvedDeck?.deckSprites ?? []),
-          category: parseCategory(formData.get("category")),
-          placement: participation === "judge" ? "" : parsePlacement(formData.get("placement")),
-          participation,
-          judge_role: judgeRole,
-          format,
-          notes: String(formData.get("notes") || "").trim()
-        })
-        .eq("id", tournamentId)
-        .eq("user_id", user.id)
-        .eq("updated_at", expectedUpdatedAt)
-        .select("id")
-        .maybeSingle());
+    if (previousTournamentError) {
+      throw toUserFacingDatabaseError(previousTournamentError);
     }
 
+    const { data, error } = await supabase.rpc("commit_tournament_metadata", {
+      p_operation: "update",
+      p_tournament_id: tournamentId,
+      p_request_id: commandKey,
+      p_payload: nextTournament as unknown as Json,
+      p_expected_tournament_updated_at: expectedUpdatedAt
+    });
     if (error) {
       throw toUserFacingDatabaseError(error);
     }
 
-    if (!updatedTournament) {
-      throw userFacingActionError("This Tournament changed or was removed. Refresh the page and try again.");
-    }
+    const result = parseTournamentCommandResult(data, commandKey, tournamentId);
 
-    revalidateTournamentWorkspace(tournamentId);
+    revalidateDeckAndLogWorkspace({
+      deckIds: [
+        String(previousTournament?.linked_deck_id || "").trim(),
+        resolvedDeck?.linkedDeckId || ""
+      ],
+      deckListIds: [
+        String(previousTournament?.linked_deck_list_id || "").trim(),
+        validatedReference.deckListId || ""
+      ],
+      tournamentIds: [result.tournamentId]
+    });
 
     return {
       ok: true,
-      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`))
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`)),
+      status: result.status
     };
   } catch (error) {
     return toActionFailureResult(error, {
@@ -607,7 +590,7 @@ export async function saveTournamentDeckListAction(formData: FormData): Promise<
       "Trainer"
     );
 
-    await saveTournamentDeckListAtomically({
+    const deckListResult = await saveTournamentDeckListAtomically({
       adapter: {
         async loadTournament(userId, targetTournamentId) {
           const { data, error } = await supabase
@@ -635,6 +618,9 @@ export async function saveTournamentDeckListAction(formData: FormData): Promise<
             linkedDeckListId: String(data.linked_deck_list_id || "").trim() || null,
             updatedAt: String(data.updated_at || "")
           };
+        },
+        async loadSourceDeckList(userId, deckListId, deckId) {
+          return getDeckListById(userId, deckListId, deckId);
         },
         async commit(input) {
           const { data, error } = await supabase.rpc("commit_tournament_deck_list", {
@@ -666,18 +652,94 @@ export async function saveTournamentDeckListAction(formData: FormData): Promise<
       defaultCreatedBy
     });
 
-    revalidateTournamentWorkspace(tournamentId);
-    revalidatePath("/deck-lists", "layout");
+    revalidateDeckAndLogWorkspace({
+      deckId: String(formData.get("sourceDeckId") || "").trim() || undefined,
+      deckListId: deckListResult.deckListId,
+      tournamentIds: [tournamentId]
+    });
 
     return {
       ok: true,
-      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`))
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`)),
+      status: deckListResult.status
     };
   } catch (error) {
     return toActionFailureResult(error, {
       action: "saveTournamentDeckList",
       area: "tournaments",
       fallbackMessage: "We couldn't save that tournament deck list right now.",
+      route: "/tournaments",
+      tournamentId
+    });
+  }
+}
+
+export async function createDeckStrategyFromTournamentListAction(
+  formData: FormData
+): Promise<SaveActionResult> {
+  const tournamentId = String(formData.get("tournamentId") || "").trim();
+  const deckListId = String(formData.get("deckListId") || "").trim();
+  const creationKey = String(formData.get("creationKey") || "").trim() || crypto.randomUUID();
+  const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
+
+  try {
+    if (!tournamentId || !deckListId) {
+      throw userFacingActionError("Tournament and Deck List are required.");
+    }
+    const deckPokemon = parseSpriteArray(formData.getAll("deckPokemon"));
+    const deckName = String(formData.get("deckName") || "").trim();
+    const format = String(formData.get("format") || "").trim();
+    const expectedDeckListUpdatedAt = String(formData.get("expectedDeckListUpdatedAt") || "").trim();
+    const expectedTournamentUpdatedAt = String(formData.get("expectedTournamentUpdatedAt") || "").trim();
+    if (!expectedDeckListUpdatedAt || !expectedTournamentUpdatedAt) {
+      throw userFacingActionError("The Tournament or Deck List version is missing; refresh and try again.");
+    }
+    if (!deckName || !format) {
+      throw userFacingActionError("The Strategy name and format are required.");
+    }
+
+    const { data, error } = await supabase.rpc("create_deck_strategy_from_list", {
+      p_deck_id: creationKey,
+      p_request_id: creationKey,
+      p_deck_list_id: deckListId,
+      p_payload: {
+        deckName,
+        format,
+        archetypeId: buildDeckArchetypeId(deckPokemon),
+        deckPokemon,
+        goPreference: "",
+        coreStrategy: "",
+        generalNotes: "",
+        setupGoals: [],
+        resourcePlan: "",
+        matchups: []
+      } as unknown as Json,
+      p_expected_deck_list_updated_at: expectedDeckListUpdatedAt,
+      p_tournament_id: tournamentId,
+      p_expected_tournament_updated_at: expectedTournamentUpdatedAt
+    });
+    if (error) {
+      throw toUserFacingDatabaseError(error);
+    }
+    const result = data as { status?: TournamentCommandStatus; deckId?: string } | null;
+    if (result?.status !== "committed" && result?.status !== "idempotent") {
+      throw new Error("Strategy creation returned an unexpected result.");
+    }
+    revalidateDeckAndLogWorkspace({
+      deckId: result.deckId,
+      deckListId,
+      tournamentIds: [tournamentId]
+    });
+    return {
+      ok: true,
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`)),
+      status: result.status
+    };
+  } catch (error) {
+    return toActionFailureResult(error, {
+      action: "createDeckStrategyFromTournamentList",
+      area: "tournaments",
+      fallbackMessage: "We couldn't create a Strategy from that Deck List right now.",
       route: "/tournaments",
       tournamentId
     });
@@ -694,21 +756,33 @@ export async function removeTournamentDeckListAction(formData: FormData): Promis
     if (!tournamentId || !expectedUpdatedAt) {
       throw userFacingActionError("Tournament version is required; refresh before removing its Deck List.");
     }
+    const { data: previousTournament, error: previousTournamentError } = await supabase
+      .from("tournaments")
+      .select("linked_deck_id,linked_deck_list_id")
+      .eq("id", tournamentId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (previousTournamentError) throw toUserFacingDatabaseError(previousTournamentError);
+    if (!previousTournament) throw userFacingActionError("Tournament could not be found.");
     const { data, error } = await supabase.rpc("remove_tournament_deck_list", {
       p_tournament_id: tournamentId,
       p_expected_tournament_updated_at: expectedUpdatedAt,
       p_request_id: requestId
     });
     if (error) throw toUserFacingDatabaseError(error);
-    const removalStatus = (data as { status?: string } | null)?.status;
+    const removalStatus = (data as { status?: TournamentCommandStatus } | null)?.status;
     if (removalStatus !== "committed" && removalStatus !== "idempotent") {
       throw new Error("Tournament Deck List removal returned an unexpected result.");
     }
-    revalidateTournamentWorkspace(tournamentId);
-    revalidatePath("/deck-lists", "layout");
+    revalidateDeckAndLogWorkspace({
+      deckId: String(previousTournament.linked_deck_id || "").trim() || undefined,
+      deckListId: String(previousTournament.linked_deck_list_id || "").trim() || undefined,
+      tournamentIds: [tournamentId]
+    });
     return {
       ok: true,
-      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`))
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`)),
+      status: removalStatus
     };
   } catch (error) {
     return toActionFailureResult(error, {
@@ -723,11 +797,25 @@ export async function removeTournamentDeckListAction(formData: FormData): Promis
 
 export async function deleteTournamentAction(formData: FormData): Promise<SaveActionResult> {
   const tournamentId = String(formData.get("tournamentId") || "").trim();
+  const expectedUpdatedAt = String(formData.get("expectedUpdatedAt") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    if (!tournamentId) {
-      throw userFacingActionError("Tournament id is required.");
+    if (!tournamentId || !expectedUpdatedAt) {
+      throw userFacingActionError("Tournament version is required; refresh before deleting.");
+    }
+
+    const { data: existingTournament, error: existingError } = await supabase
+      .from("tournaments")
+      .select("id,linked_deck_id,linked_deck_list_id")
+      .eq("id", tournamentId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (existingError) {
+      throw toUserFacingDatabaseError(existingError);
+    }
+    if (!existingTournament) {
+      throw userFacingActionError("Tournament could not be found.");
     }
 
     const { data: deletedTournament, error } = await supabase
@@ -735,6 +823,7 @@ export async function deleteTournamentAction(formData: FormData): Promise<SaveAc
       .delete()
       .eq("id", tournamentId)
       .eq("user_id", user.id)
+      .eq("updated_at", expectedUpdatedAt)
       .select("id")
       .maybeSingle();
 
@@ -743,10 +832,13 @@ export async function deleteTournamentAction(formData: FormData): Promise<SaveAc
     }
 
     if (!deletedTournament) {
-      throw userFacingActionError("Tournament could not be found.");
+      throw userFacingActionError("This Tournament changed in another tab. Refresh the page and try again.", { code: "stale" });
     }
 
-    revalidateTournamentWorkspace();
+    revalidateDeckAndLogWorkspace({
+      deckId: String(existingTournament.linked_deck_id || "").trim() || undefined,
+      deckListId: String(existingTournament.linked_deck_list_id || "").trim() || undefined
+    });
 
     return {
       ok: true,
@@ -766,6 +858,7 @@ export async function deleteTournamentAction(formData: FormData): Promise<SaveAc
 export async function saveTournamentRoundAction(formData: FormData): Promise<SaveActionResult> {
   const tournamentId = String(formData.get("tournamentId") || "").trim();
   const roundId = String(formData.get("roundId") || "").trim();
+  let roundStatus: TournamentCommandStatus = "committed";
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
@@ -847,6 +940,7 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
         if (result?.status !== "committed" && result?.status !== "idempotent") {
           throw new Error("Tournament round commit returned an unexpected result.");
         }
+        roundStatus = result.status;
       }
 
       const rpcError = idempotentError;
@@ -884,7 +978,8 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
 
     return {
       ok: true,
-      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`))
+      redirectTo: withRefreshToken(getFormRedirectPath(formData, `/tournaments/${tournamentId}`)),
+      status: roundStatus
     };
   } catch (error) {
     return toActionFailureResult(error, {
@@ -900,11 +995,12 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
 export async function deleteTournamentRoundAction(formData: FormData): Promise<SaveActionResult> {
   const tournamentId = String(formData.get("tournamentId") || "").trim();
   const roundId = String(formData.get("roundId") || "").trim();
+  const expectedUpdatedAt = String(formData.get("expectedUpdatedAt") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
   try {
-    if (!tournamentId || !roundId) {
-      throw userFacingActionError("Round id is required.");
+    if (!tournamentId || !roundId || !expectedUpdatedAt) {
+      throw userFacingActionError("Round version is required; refresh before deleting this round.");
     }
 
     const { data: deletedRound, error } = await supabase
@@ -913,6 +1009,7 @@ export async function deleteTournamentRoundAction(formData: FormData): Promise<S
       .eq("id", roundId)
       .eq("tournament_id", tournamentId)
       .eq("user_id", user.id)
+      .eq("updated_at", expectedUpdatedAt)
       .select("id")
       .maybeSingle();
 

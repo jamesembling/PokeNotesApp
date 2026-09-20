@@ -1241,6 +1241,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      commit_tournament_metadata: {
+        Args: {
+          p_expected_tournament_updated_at?: string | null
+          p_operation: string
+          p_payload: Json
+          p_request_id: string
+          p_tournament_id: string
+        }
+        Returns: Json
+      }
+      create_deck_strategy_from_list: {
+        Args: {
+          p_deck_id: string
+          p_deck_list_id: string
+          p_expected_deck_list_updated_at: string
+          p_expected_tournament_updated_at?: string | null
+          p_payload: Json
+          p_request_id: string
+          p_tournament_id?: string | null
+        }
+        Returns: Json
+      }
       commit_battle_log_import_draft: {
         Args: {
           p_draft_id: string

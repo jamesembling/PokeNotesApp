@@ -75,6 +75,8 @@ const other = await makeUser("other");
 const tournamentId = await makeTournament(primary.id, "P1 workflow rehearsal");
 const sourceTournamentId = await makeTournament(primary.id, "Existing source capture");
 const staleTournamentId = await makeTournament(primary.id, "Stale rollback");
+const metadataTournamentId = crypto.randomUUID();
+tournaments.push(metadataTournamentId);
 
 try {
   const requestId = crypto.randomUUID();
@@ -157,7 +159,7 @@ try {
     rawList: "4 Mew ex",
     parsedCards: [{ name: "Mew ex", count: 4, category: "Pokemon" }],
     sortedCards: [{ name: "Mew ex", count: 4, category: "Pokemon" }],
-    sortedCardsVersion: 2
+    sortedCardsVersion: 1
   };
   const sourceCreate = await primary.client.rpc("commit_first_class_deck_list", {
     p_deck_id: null,
@@ -168,19 +170,50 @@ try {
     p_updated_at: new Date().toISOString()
   });
   if (sourceCreate.error) throw sourceCreate.error;
+  const sourceListBeforeStrategy = await assertOne(service.from("deck_lists").select("updated_at").eq("id", sourceListId), "Source list was not created.");
+  const strategyArgs = {
+    p_deck_id: crypto.randomUUID(),
+    p_request_id: "strategy-from-list-rehearsal",
+    p_deck_list_id: sourceListId,
+    p_payload: {
+      deckName: "Mew Strategy",
+      format: "Standard",
+      archetypeId: "mew-ex",
+      deckPokemon: ["mew-ex"]
+    },
+    p_expected_deck_list_updated_at: sourceListBeforeStrategy.updated_at
+  };
+  strategyArgs.p_deck_id = strategyArgs.p_request_id;
+  const strategyCreate = await primary.client.rpc("create_deck_strategy_from_list", strategyArgs);
+  if (strategyCreate.error || strategyCreate.data.status !== "committed") throw strategyCreate.error || new Error("Strategy-from-list did not commit.");
+  const strategyReplay = await primary.client.rpc("create_deck_strategy_from_list", strategyArgs);
+  if (strategyReplay.error || strategyReplay.data.status !== "idempotent") throw strategyReplay.error || new Error("Strategy-from-list replay was not idempotent.");
+  const linkedSource = await assertOne(service.from("deck_lists").select("deck_id,updated_at").eq("id", sourceListId), "Strategy did not claim source list.");
+  if (linkedSource.deck_id !== strategyArgs.p_deck_id) throw new Error("Strategy-from-list did not associate the existing list.");
   const sourceCapture = await primary.client.rpc("commit_tournament_deck_list", {
     p_tournament_id: sourceTournamentId,
     p_request_id: crypto.randomUUID(),
-    p_payload: { sourceDeckListId: sourceListId },
+    p_payload: {
+      sourceDeckListId: sourceListId,
+      parsedCards: [{ name: "Mew ex", count: 4, category: "Pokemon" }],
+      sortedCards: [{ name: "Mew ex", count: 4, category: "Pokemon" }],
+      sortedCardsVersion: 2,
+      associateStrategy: false
+    },
     p_expected_tournament_updated_at: await tournamentVersion(sourceTournamentId),
     p_deck_name: "Mew / Dragapult",
     p_deck_sprites: ["mew-ex", "dragapult-ex"],
     p_source_deck_list_id: sourceListId,
+    p_source_deck_id: strategyArgs.p_deck_id,
     p_create_deck_list: false
   });
   if (sourceCapture.error) throw sourceCapture.error;
   const sourceSnapshot = await assertOne(service.from("tournament_deck_list_snapshots").select("source_deck_list_id,raw_list").eq("tournament_id", sourceTournamentId), "Existing source snapshot was not captured.");
   if (sourceSnapshot.source_deck_list_id !== sourceListId || sourceSnapshot.raw_list !== sourcePayload.rawList) throw new Error("Existing source capture was incomplete.");
+  const sourceTournament = await assertOne(service.from("tournaments").select("linked_deck_id,linked_deck_list_id").eq("id", sourceTournamentId), "Source Tournament was not retained.");
+  if (sourceTournament.linked_deck_id !== null || sourceTournament.linked_deck_list_id !== sourceListId) throw new Error("Existing source capture overwrote the independent Tournament Strategy link.");
+  const sourceSnapshotCards = await assertOne(service.from("tournament_deck_list_snapshots").select("sorted_cards,sorted_cards_version").eq("tournament_id", sourceTournamentId), "Source ordering snapshot was not persisted.");
+  if (sourceSnapshotCards.sorted_cards_version !== 2 || sourceSnapshotCards.sorted_cards[0]?.name !== "Mew ex") throw new Error("Existing source capture did not persist rebuilt canonical ordering.");
   const sourceRemove = await primary.client.rpc("remove_tournament_deck_list", {
     p_tournament_id: sourceTournamentId,
     p_expected_tournament_updated_at: await tournamentVersion(sourceTournamentId),
@@ -231,6 +264,24 @@ try {
   if (staleRoundError) throw staleRoundError;
   if (staleRound.length !== 0) throw new Error("Stale round update was not rejected by compare-and-set.");
 
+  const concurrentRounds = await Promise.all([
+    primary.client.rpc("create_tournament_round_idempotent", {
+      ...roundArgs,
+      p_creation_key: crypto.randomUUID(),
+      p_round_id: crypto.randomUUID(),
+      p_notes: "concurrent-a"
+    }),
+    primary.client.rpc("create_tournament_round_idempotent", {
+      ...roundArgs,
+      p_creation_key: crypto.randomUUID(),
+      p_round_id: crypto.randomUUID(),
+      p_notes: "concurrent-b"
+    })
+  ]);
+  for (const result of concurrentRounds) if (result.error) throw result.error;
+  const concurrentNumbers = concurrentRounds.map((result) => Number(result.data.roundNumber)).sort((a, b) => a - b);
+  if (concurrentNumbers[1] !== concurrentNumbers[0] + 1) throw new Error(`Concurrent round allocation was not atomic: ${concurrentNumbers.join(",")}`);
+
   const { data: hiddenSnapshots, error: hiddenError } = await other.client.from("tournament_deck_list_snapshots").select("id").eq("tournament_id", tournamentId);
   if (hiddenError) throw hiddenError;
   if (hiddenSnapshots.length !== 0) throw new Error("Cross-tenant snapshot read was not denied.");
@@ -254,9 +305,52 @@ try {
   if (cascadeError) throw cascadeError;
   const { data: commandAfterCascade, error: commandCascadeError } = await service.from("tournament_deck_list_commands").select("id").eq("tournament_id", tournamentId);
   if (commandCascadeError) throw commandCascadeError;
-  if (removedAfterCascade.length !== 0 || commandAfterCascade.length !== 0) throw new Error("Tournament deletion did not cascade snapshot and command history.");
+  if (removedAfterCascade.length !== 0 || commandAfterCascade.length === 0) throw new Error("Tournament deletion did not cascade snapshots while retaining command history.");
 
-  console.log("Tournament Deck List rehearsal passed: standalone replay/conflict, replace/remove history, existing source capture, stale rollback, round replay/CAS, RLS isolation, and cascade.");
+  const metadataPayload = {
+    name: "Metadata identity rehearsal",
+    tournament_identifier: "metadata-1",
+    location: "Local",
+    championship_points: 0,
+    professor_points: null,
+    date_from: "2026-09-20",
+    date_to: "2026-09-20",
+    linked_deck_id: null,
+    linked_deck_list_id: null,
+    deck_name: "",
+    deck_sprites: [],
+    category: "",
+    placement: "",
+    participation: "player",
+    judge_role: null,
+    format: "Standard",
+    notes: "metadata"
+  };
+  const metadata = await primary.client.rpc("commit_tournament_metadata", {
+    p_operation: "create",
+    p_tournament_id: metadataTournamentId,
+    p_request_id: metadataTournamentId,
+    p_payload: metadataPayload
+  });
+  if (metadata.error || metadata.data.status !== "committed") throw metadata.error || new Error("Metadata create did not commit.");
+  const metadataReplay = await primary.client.rpc("commit_tournament_metadata", {
+    p_operation: "create",
+    p_tournament_id: metadataTournamentId,
+    p_request_id: metadataTournamentId,
+    p_payload: metadataPayload
+  });
+  if (metadataReplay.error || metadataReplay.data.status !== "idempotent") throw metadataReplay.error || new Error("Metadata create replay was not idempotent.");
+  const { error: metadataDeleteError } = await service.from("tournaments").delete().eq("id", metadataTournamentId).eq("user_id", primary.id);
+  if (metadataDeleteError) throw metadataDeleteError;
+  const metadataAfterDeleteReplay = await primary.client.rpc("commit_tournament_metadata", {
+    p_operation: "create",
+    p_tournament_id: metadataTournamentId,
+    p_request_id: metadataTournamentId,
+    p_payload: metadataPayload
+  });
+  if (metadataAfterDeleteReplay.error || metadataAfterDeleteReplay.data.status !== "idempotent") throw metadataAfterDeleteReplay.error || new Error("Metadata identity was lost after Tournament deletion.");
+
+  console.log("Tournament Deck List rehearsal passed: standalone replay/conflict, replace/remove history, existing source capture and Strategy independence, stale rollback, round replay/CAS/concurrency, metadata delete-replay, RLS isolation, and cascade.");
 } finally {
   for (const id of tournaments) await service.from("tournaments").delete().eq("id", id);
   for (const id of users) await service.auth.admin.deleteUser(id);

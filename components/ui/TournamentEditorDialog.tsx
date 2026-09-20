@@ -171,6 +171,8 @@ export function TournamentEditorDialog({
   const [deleteState, setDeleteState] = useState<DeleteState>("idle");
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [creationKey] = useState(() => crypto.randomUUID());
+  const [commandKey] = useState(() => crypto.randomUUID());
 
   const placementOptions = useMemo(() => getPlacementOptionsForCategory(category), [category]);
   const formatOptions = useMemo(() => {
@@ -306,6 +308,7 @@ export function TournamentEditorDialog({
 
     const formData = new FormData();
     formData.set("tournamentId", tournament.id);
+    formData.set("expectedUpdatedAt", tournament.updatedAt);
     const result = await deleteTournamentAction(formData);
 
     if (!result.ok) {
@@ -430,6 +433,7 @@ export function TournamentEditorDialog({
             >
               {isEditing && tournament ? <input name="tournamentId" type="hidden" value={tournament.id} /> : null}
               {isEditing && tournament ? <input name="expectedUpdatedAt" type="hidden" value={tournament.updatedAt} /> : null}
+              <input name={isEditing ? "commandKey" : "creationKey"} type="hidden" value={isEditing ? commandKey : creationKey} />
               <input name="redirectTo" type="hidden" value={pathname} />
               <input name="linkedDeckId" type="hidden" value={tournament?.linkedDeckId ?? ""} />
               <input name="linkedDeckListId" type="hidden" value={tournament?.linkedDeckListId ?? ""} />

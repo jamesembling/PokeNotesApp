@@ -29,6 +29,7 @@ type ActionErrorContext = {
 export type FailedActionResult = {
   ok: false;
   message: string;
+  code?: string;
 };
 
 export function userFacingActionError(
@@ -68,8 +69,8 @@ export function toActionFailureResult(
 ): FailedActionResult {
   unstable_rethrow(error);
 
-  return {
-    ok: false,
-    message: resolveActionFailure(error, context).message
-  };
+  const resolved = resolveActionFailure(error, context);
+  return resolved.code
+    ? { ok: false, message: resolved.message, code: resolved.code }
+    : { ok: false, message: resolved.message };
 }

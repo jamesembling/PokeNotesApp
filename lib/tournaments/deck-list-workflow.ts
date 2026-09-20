@@ -36,6 +36,25 @@ export type TournamentDeckListAtomicAdapter = {
   loadTournament(userId: string, tournamentId: string): Promise<TournamentDeckListSource & {
     updatedAt: string;
   } | null>;
+  loadSourceDeckList?(
+    userId: string,
+    deckListId: string,
+    deckId: string | null
+  ): Promise<{
+    id: string;
+    storage?: "legacy" | "relational";
+    deckId?: string | null;
+    name: string;
+    format: string;
+    date: string;
+    createdBy: string;
+    notes: string;
+    rawList: string;
+    parsedCards: unknown[];
+    sortedCards: unknown[];
+    sortedCardsVersion?: number;
+    updatedAt: string;
+  } | null>;
   commit(input: {
     tournamentId: string;
     requestId: string;
@@ -79,13 +98,31 @@ export async function saveTournamentDeckListAtomically(input: {
   const sourceDeckListId = String(input.formData.get("sourceDeckListId") || "").trim() || null;
   const sourceDeckId = String(input.formData.get("sourceDeckId") || "").trim() || null;
   if (sourceDeckListId) {
+    if (!input.adapter.loadSourceDeckList) {
+      throw userFacingActionError("The source Deck List could not be loaded safely.");
+    }
+    const source = await input.adapter.loadSourceDeckList(
+      input.userId,
+      sourceDeckListId,
+      sourceDeckId
+    );
+    if (!source || source.storage === "legacy") {
+      throw userFacingActionError("Only a first-class Deck List can be captured into a Tournament.");
+    }
     return input.adapter.commit({
       tournamentId,
       requestId,
       expectedTournamentUpdatedAt: tournament.updatedAt,
       deckName,
       deckSprites,
-      payload: { sourceDeckId, sourceDeckListId },
+      payload: {
+        sourceDeckId,
+        sourceDeckListId,
+        associateStrategy: String(input.formData.get("associateStrategy") || "") === "true",
+        parsedCards: source.parsedCards,
+        sortedCards: source.sortedCards,
+        sortedCardsVersion: source.sortedCardsVersion
+      },
       sourceDeckId,
       sourceDeckListId,
       createDeckList: false,
@@ -127,7 +164,8 @@ export async function saveTournamentDeckListAtomically(input: {
     sortedCards,
     sortedCardsVersion: CANONICAL_DECK_LIST_SORT_VERSION,
     createdAt: timestamp,
-    updatedAt: timestamp
+    updatedAt: timestamp,
+    associateStrategy: false
   };
 
   return input.adapter.commit({

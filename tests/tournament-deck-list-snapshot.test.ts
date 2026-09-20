@@ -9,6 +9,10 @@ const migration = readFileSync(
   "utf8"
 );
 const schema = readFileSync(join(repositoryRoot, "schema.sql"), "utf8");
+const hardening = readFileSync(
+  join(repositoryRoot, "supabase/migrations/20260920120000_tournament_workflow_hardening.sql"),
+  "utf8"
+);
 
 test("Tournament Deck List workflow keeps the migration and fresh schema contract aligned", () => {
   for (const source of [migration, schema]) {
@@ -33,4 +37,18 @@ test("Tournament Deck List workflow keeps the migration and fresh schema contrac
     migration,
     /grant (?:insert|update|delete|all)[^;]*tournament_deck_list_snapshots[^;]*authenticated/i
   );
+});
+
+test("Tournament metadata and Strategy-from-list commands are present in the forward contract", () => {
+  for (const source of [hardening, schema]) {
+    assert.match(source, /create table(?: if not exists)? public\.tournament_metadata_commands/i);
+    assert.match(source, /create or replace function public\.commit_tournament_metadata/i);
+    assert.match(source, /create or replace function public\.create_deck_strategy_from_list/i);
+    assert.match(source, /p_expected_tournament_updated_at/i);
+    assert.match(source, /associateStrategy/i);
+    assert.match(source, /drop constraint if exists tournament_deck_list_commands_tournament_id_fkey/i);
+  }
+  assert.match(hardening, /p_operation = 'create' and p_tournament_id <> v_request_id/i);
+  assert.match(hardening, /status', 'idempotent'/i);
+  assert.match(hardening, /not owned by this account/i);
 });
