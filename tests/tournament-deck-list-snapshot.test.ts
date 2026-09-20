@@ -51,4 +51,7 @@ test("Tournament metadata and Strategy-from-list commands are present in the for
   assert.match(hardening, /p_operation = 'create' and p_tournament_id <> v_request_id/i);
   assert.match(hardening, /status', 'idempotent'/i);
   assert.match(hardening, /not owned by this account/i);
+  assert.match(hardening, /'allowReplace', p_allow_replace/i);
+  assert.match(hardening, /Tournament format is not an allowed site format/i);
+  assert.match(hardening, /Tournament placement is invalid/i);
 });

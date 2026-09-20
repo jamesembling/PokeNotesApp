@@ -8,6 +8,22 @@ export type DeckWorkspaceInvalidation = {
   tournamentIds?: string[];
 };
 
+export function getTournamentDeckListInvalidation(input: {
+  previous?: {
+    linkedDeckId?: string | null;
+    linkedDeckListId?: string | null;
+  } | null;
+  sourceDeckId?: string | null;
+  deckListId: string;
+  tournamentId: string;
+}): DeckWorkspaceInvalidation {
+  return {
+    deckIds: [input.previous?.linkedDeckId ?? "", input.sourceDeckId ?? ""],
+    deckListIds: [input.previous?.linkedDeckListId ?? "", input.deckListId],
+    tournamentIds: [input.tournamentId]
+  };
+}
+
 export function getDeckWorkspaceInvalidationPaths(input: DeckWorkspaceInvalidation = {}) {
   const paths = new Set([
     "/decks",

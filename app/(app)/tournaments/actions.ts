@@ -13,7 +13,10 @@ import { getFormRedirectPath, withRefreshToken } from "@/lib/server/action-redir
 import type { FailedActionResult } from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { getDeckListById, validateDeckListReference } from "@/lib/db/deck-lists";
-import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
+import {
+  getTournamentDeckListInvalidation,
+  revalidateDeckAndLogWorkspace
+} from "@/lib/server/revalidation";
 import { requireCasMutationResult } from "@/lib/server/cas-mutation";
 import { saveTournamentDeckListAtomically } from "@/lib/tournaments/deck-list-workflow";
 import {
@@ -445,6 +448,10 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
 export async function saveTournamentDeckListAction(formData: FormData): Promise<SaveActionResult> {
   const tournamentId = String(formData.get("tournamentId") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
+  let previousTournamentLinks: {
+    linkedDeckId: string | null;
+    linkedDeckListId: string | null;
+  } | null = null;
 
   try {
     if (!tournamentId) {
@@ -474,6 +481,11 @@ export async function saveTournamentDeckListAction(formData: FormData): Promise<
           if (!data) {
             return null;
           }
+
+          previousTournamentLinks = {
+            linkedDeckId: String(data.linked_deck_id || "").trim() || null,
+            linkedDeckListId: String(data.linked_deck_list_id || "").trim() || null
+          };
 
           return {
             deckSprites: parseSpriteArray(
@@ -520,11 +532,12 @@ export async function saveTournamentDeckListAction(formData: FormData): Promise<
       defaultCreatedBy
     });
 
-    revalidateDeckAndLogWorkspace({
-      deckId: String(formData.get("sourceDeckId") || "").trim() || undefined,
+    revalidateDeckAndLogWorkspace(getTournamentDeckListInvalidation({
+      previous: previousTournamentLinks,
+      sourceDeckId: String(formData.get("sourceDeckId") || "").trim() || null,
       deckListId: deckListResult.deckListId,
-      tournamentIds: [tournamentId]
-    });
+      tournamentId
+    }));
 
     return {
       ok: true,

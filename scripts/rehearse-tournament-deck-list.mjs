@@ -107,6 +107,8 @@ try {
   if (first.error) throw first.error;
   const replay = await primary.client.rpc("commit_tournament_deck_list", args);
   if (replay.error || replay.data.status !== "idempotent") throw replay.error || new Error("Standalone replay was not idempotent.");
+  const replaceModeConflict = await primary.client.rpc("commit_tournament_deck_list", { ...args, p_allow_replace: true });
+  if (!replaceModeConflict.error || replaceModeConflict.error.code !== "23505") throw new Error("Replace mode was omitted from capture replay identity.");
   const conflict = await primary.client.rpc("commit_tournament_deck_list", { ...args, p_deck_name: "Conflict" });
   if (!conflict.error || conflict.error.code !== "23505") throw new Error(`Expected list conflict rejection, got ${JSON.stringify(conflict)}`);
 
@@ -349,7 +351,7 @@ try {
     placement: "",
     participation: "player",
     judge_role: null,
-    format: "Standard",
+    format: "TEF-PBL",
     notes: "metadata"
   };
   const invalidMetadataId = crypto.randomUUID();
@@ -363,6 +365,17 @@ try {
   const { data: invalidMetadataRows, error: invalidMetadataRowsError } = await service.from("tournaments").select("id").eq("id", invalidMetadataId);
   if (invalidMetadataRowsError) throw invalidMetadataRowsError;
   if (invalidMetadataRows.length !== 0) throw new Error("Invalid metadata create left a row.");
+  const invalidFormatId = crypto.randomUUID();
+  const invalidFormat = await primary.client.rpc("commit_tournament_metadata", {
+    p_operation: "create",
+    p_tournament_id: invalidFormatId,
+    p_request_id: invalidFormatId,
+    p_payload: { ...metadataPayload, format: "ZZZ-ZZZ" }
+  });
+  if (!invalidFormat.error || invalidFormat.error.code !== "22023") throw new Error("Unknown metadata format was not rejected.");
+  const { data: invalidFormatRows, error: invalidFormatRowsError } = await service.from("tournaments").select("id").eq("id", invalidFormatId);
+  if (invalidFormatRowsError) throw invalidFormatRowsError;
+  if (invalidFormatRows.length !== 0) throw new Error("Unknown metadata format left a row.");
   const sourceMetadataVersion = await tournamentVersion(sourceTournamentId);
   const invalidMetadataUpdate = await primary.client.rpc("commit_tournament_metadata", {
     p_operation: "update",
@@ -374,6 +387,16 @@ try {
   if (!invalidMetadataUpdate.error || invalidMetadataUpdate.error.code !== "22023") throw new Error("Invalid metadata update was not rejected.");
   const unchangedSource = await assertOne(service.from("tournaments").select("name,updated_at").eq("id", sourceTournamentId), "Source Tournament disappeared during metadata validation.");
   if (unchangedSource.name !== "Existing source capture" || unchangedSource.updated_at !== sourceMetadataVersion) throw new Error("Invalid metadata update changed the Tournament.");
+  const invalidPlacementUpdate = await primary.client.rpc("commit_tournament_metadata", {
+    p_operation: "update",
+    p_tournament_id: sourceTournamentId,
+    p_request_id: crypto.randomUUID(),
+    p_expected_tournament_updated_at: sourceMetadataVersion,
+    p_payload: { ...metadataPayload, name: "Mutated", placement: "arbitrary" }
+  });
+  if (!invalidPlacementUpdate.error || invalidPlacementUpdate.error.code !== "22023") throw new Error("Arbitrary metadata placement was not rejected.");
+  const unchangedAfterPlacement = await assertOne(service.from("tournaments").select("name,updated_at").eq("id", sourceTournamentId), "Source Tournament disappeared during placement validation.");
+  if (unchangedAfterPlacement.name !== "Existing source capture" || unchangedAfterPlacement.updated_at !== sourceMetadataVersion) throw new Error("Arbitrary metadata placement changed the Tournament.");
   const metadata = await primary.client.rpc("commit_tournament_metadata", {
     p_operation: "create",
     p_tournament_id: metadataTournamentId,
@@ -397,6 +420,26 @@ try {
     p_payload: metadataPayload
   });
   if (metadataAfterDeleteReplay.error || metadataAfterDeleteReplay.data.status !== "idempotent") throw metadataAfterDeleteReplay.error || new Error("Metadata identity was lost after Tournament deletion.");
+
+  const linkedMetadataId = crypto.randomUUID();
+  tournaments.push(linkedMetadataId);
+  const linkedMetadataPayload = { ...metadataPayload, name: "Linked replay", linked_deck_id: strategyArgs.p_deck_id, linked_deck_list_id: sourceListId };
+  const linkedMetadata = await primary.client.rpc("commit_tournament_metadata", {
+    p_operation: "create",
+    p_tournament_id: linkedMetadataId,
+    p_request_id: linkedMetadataId,
+    p_payload: linkedMetadataPayload
+  });
+  if (linkedMetadata.error || linkedMetadata.data.status !== "committed") throw linkedMetadata.error || new Error("Linked metadata create did not commit.");
+  const { error: linkedDeleteError } = await service.from("decks").delete().eq("id", strategyArgs.p_deck_id).eq("user_id", primary.id);
+  if (linkedDeleteError) throw linkedDeleteError;
+  const linkedMetadataReplay = await primary.client.rpc("commit_tournament_metadata", {
+    p_operation: "create",
+    p_tournament_id: linkedMetadataId,
+    p_request_id: linkedMetadataId,
+    p_payload: linkedMetadataPayload
+  });
+  if (linkedMetadataReplay.error || linkedMetadataReplay.data.status !== "idempotent") throw linkedMetadataReplay.error || new Error("Linked metadata replay was blocked after linked-record deletion.");
 
   console.log("Tournament Deck List rehearsal passed: standalone replay/conflict, replace/remove history, existing source capture and Strategy independence, stale rollback, round replay/CAS/concurrency, metadata delete-replay, RLS isolation, and cascade.");
 } finally {

@@ -96,6 +96,8 @@ declare
   v_date_from date;
   v_date_to date;
   v_participation text;
+  v_format text;
+  v_placement text;
   v_category text;
   v_points bigint;
 begin
@@ -128,6 +130,14 @@ begin
   then
     raise exception using errcode = '22023', message = 'Tournament format is required and must be trimmed.';
   end if;
+  v_format := p_payload ->> 'format';
+  if v_format not in (
+    'TEF-PBL', 'TEF-CRI', 'TEF-POR', 'SVI-ASC', 'SVI-PFL', 'SVI-MEG',
+    'SVI-WHT/BLK', 'SVI-DRI', 'SVI-JTG', 'BRS-PRE', 'BRS-SSP', 'BRS-SCR',
+    'Expanded', 'GLC', 'PTCG Pocket'
+  ) then
+    raise exception using errcode = '22023', message = 'Tournament format is not an allowed site format.';
+  end if;
   begin
     v_date_from := nullif(btrim(coalesce(p_payload ->> 'date_from', '')), '')::date;
     v_date_to := nullif(btrim(coalesce(p_payload ->> 'date_to', '')), '')::date;
@@ -142,6 +152,14 @@ begin
   end if;
 
   v_participation := coalesce(p_payload ->> 'participation', 'player');
+  v_placement := coalesce(p_payload ->> 'placement', '');
+  if v_placement not in (
+    '', 'no placement', 'dropped', 'second', 'third', 'fourth', 'fifth',
+    'sixth', 'seventh', 'eighth', 't1024', 't512', 't256', 't128', 't64',
+    't32', 't16', 't8', 't4', 'finalist', 'champion'
+  ) then
+    raise exception using errcode = '22023', message = 'Tournament placement is invalid.';
+  end if;
   if v_participation not in ('player', 'judge') then
     raise exception using errcode = '22023', message = 'Tournament participation must be player or judge.';
   end if;
@@ -192,25 +210,6 @@ begin
     raise exception using errcode = '22023', message = 'Tournament category is invalid.';
   end if;
 
-  if nullif(p_payload ->> 'linked_deck_id', '') is not null
-    and not exists (
-      select 1 from public.decks
-      where id = nullif(p_payload ->> 'linked_deck_id', '')
-        and user_id = v_user_id
-    )
-  then
-    raise exception using errcode = '42501', message = 'The linked Deck Strategy is not owned by this account.';
-  end if;
-  if nullif(p_payload ->> 'linked_deck_list_id', '') is not null
-    and not public.can_use_deck_list_reference(
-      v_user_id,
-      nullif(p_payload ->> 'linked_deck_id', ''),
-      nullif(p_payload ->> 'linked_deck_list_id', '')
-    )
-  then
-    raise exception using errcode = '42501', message = 'The linked Deck List is not owned by this account.';
-  end if;
-
   perform pg_advisory_xact_lock(
     hashtextextended(v_user_id::text || ':tournament-metadata:' || v_request_id, 0)
   );
@@ -229,6 +228,25 @@ begin
       raise exception using errcode = '23505', message = 'That Tournament metadata request id was already used with different values.';
     end if;
     return jsonb_set(v_command.result, '{status}', '"idempotent"'::jsonb);
+  end if;
+
+  if nullif(p_payload ->> 'linked_deck_id', '') is not null
+    and not exists (
+      select 1 from public.decks
+      where id = nullif(p_payload ->> 'linked_deck_id', '')
+        and user_id = v_user_id
+    )
+  then
+    raise exception using errcode = '42501', message = 'The linked Deck Strategy is not owned by this account.';
+  end if;
+  if nullif(p_payload ->> 'linked_deck_list_id', '') is not null
+    and not public.can_use_deck_list_reference(
+      v_user_id,
+      nullif(p_payload ->> 'linked_deck_id', ''),
+      nullif(p_payload ->> 'linked_deck_list_id', '')
+    )
+  then
+    raise exception using errcode = '42501', message = 'The linked Deck List is not owned by this account.';
   end if;
 
   if p_operation = 'create' then
@@ -468,6 +486,7 @@ begin
     'sourceDeckId', v_source_deck_id,
     'sourceDeckListId', v_source_deck_list_id,
     'createDeckList', p_create_deck_list,
+    'allowReplace', p_allow_replace,
     'updateDeckAssociation', v_update_deck_association
   )::text);
 

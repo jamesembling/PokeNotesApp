@@ -23,6 +23,7 @@ declare
   v_replay jsonb;
   v_expected timestamptz;
   v_list jsonb;
+  v_linked_payload jsonb;
   v_list_id text := 'hardening-list';
   v_strategy_id text := 'hardening-strategy';
 begin
@@ -46,6 +47,26 @@ begin
     raise exception 'invalid metadata create left a Tournament row';
   end if;
 
+  begin
+    perform public.commit_tournament_metadata(
+      'create', 'hardening-invalid-format', 'hardening-invalid-format',
+      jsonb_build_object(
+        'name', 'Invalid format', 'tournament_identifier', '', 'location', '',
+        'championship_points', 0, 'professor_points', null,
+        'date_from', current_date::text, 'date_to', current_date::text,
+        'linked_deck_id', null, 'linked_deck_list_id', null, 'deck_name', '',
+        'deck_sprites', '[]'::jsonb, 'category', '', 'placement', '',
+        'participation', 'player', 'judge_role', null, 'format', 'ZZZ-ZZZ', 'notes', ''
+      )
+    );
+    raise exception 'unknown metadata format unexpectedly committed';
+  exception when sqlstate '22023' then
+    null;
+  end;
+  if (select count(*) from public.tournaments where id = 'hardening-invalid-format') <> 0 then
+    raise exception 'unknown metadata format left a Tournament row';
+  end if;
+
   select updated_at into strict v_expected from public.tournaments where id = 'hardening-source';
   begin
     perform public.commit_tournament_metadata(
@@ -56,7 +77,7 @@ begin
         'date_from', current_date::text, 'date_to', (current_date - 1)::text,
         'linked_deck_id', null, 'linked_deck_list_id', null, 'deck_name', '',
         'deck_sprites', '[]'::jsonb, 'category', '', 'placement', '',
-        'participation', 'player', 'judge_role', null, 'format', 'Standard', 'notes', ''
+        'participation', 'player', 'judge_role', null, 'format', 'TEF-PBL', 'notes', ''
       ), v_expected
     );
     raise exception 'invalid metadata update unexpectedly committed';
@@ -67,6 +88,26 @@ begin
     or (select updated_at from public.tournaments where id = 'hardening-source') is distinct from v_expected then
     raise exception 'invalid metadata update changed the Tournament';
   end if;
+  begin
+    perform public.commit_tournament_metadata(
+      'update', 'hardening-source', 'hardening-invalid-placement',
+      jsonb_build_object(
+        'name', 'Mutated', 'tournament_identifier', '', 'location', '',
+        'championship_points', 0, 'professor_points', null,
+        'date_from', current_date::text, 'date_to', current_date::text,
+        'linked_deck_id', null, 'linked_deck_list_id', null, 'deck_name', '',
+        'deck_sprites', '[]'::jsonb, 'category', '', 'placement', 'arbitrary',
+        'participation', 'player', 'judge_role', null, 'format', 'TEF-PBL', 'notes', ''
+      ), v_expected
+    );
+    raise exception 'arbitrary metadata placement unexpectedly committed';
+  exception when sqlstate '22023' then
+    null;
+  end;
+  if (select name from public.tournaments where id = 'hardening-source') <> 'Source'
+    or (select updated_at from public.tournaments where id = 'hardening-source') is distinct from v_expected then
+    raise exception 'arbitrary metadata placement changed the Tournament';
+  end if;
 
   v_result := public.commit_tournament_metadata(
     'create', 'hardening-delete', 'hardening-delete',
@@ -76,7 +117,7 @@ begin
       'date_from', current_date::text, 'date_to', current_date::text,
       'linked_deck_id', null, 'linked_deck_list_id', null, 'deck_name', '',
       'deck_sprites', '[]'::jsonb, 'category', '', 'placement', '',
-      'participation', 'player', 'judge_role', null, 'format', 'Standard', 'notes', ''
+      'participation', 'player', 'judge_role', null, 'format', 'TEF-PBL', 'notes', ''
     )
   );
   if v_result ->> 'status' <> 'committed' then
@@ -88,7 +129,7 @@ begin
     null, 'create',
     jsonb_build_object(
       'id', v_list_id, 'creationKey', v_list_id, 'name', 'Hardening list',
-      'format', 'Standard', 'date', current_date::text, 'createdBy', 'Fixture',
+      'format', 'TEF-PBL', 'date', current_date::text, 'createdBy', 'Fixture',
       'notes', '', 'rawList', '4 Mew ex',
       'parsedCards', jsonb_build_array(
         jsonb_build_object('name', 'Basic Fire Energy', 'count', 8, 'category', 'Energy'),
@@ -106,7 +147,7 @@ begin
   select updated_at into strict v_expected from public.deck_lists where id = v_list_id;
   v_result := public.create_deck_strategy_from_list(
     v_strategy_id, v_strategy_id, v_list_id,
-    jsonb_build_object('deckName', 'Mew Strategy', 'format', 'Standard', 'archetypeId', 'mew-ex', 'deckPokemon', jsonb_build_array('mew-ex')),
+    jsonb_build_object('deckName', 'Mew Strategy', 'format', 'TEF-PBL', 'archetypeId', 'mew-ex', 'deckPokemon', jsonb_build_array('mew-ex')),
     v_expected
   );
   if v_result ->> 'status' <> 'committed' then
@@ -118,7 +159,7 @@ begin
   end if;
   v_replay := public.create_deck_strategy_from_list(
     v_strategy_id, v_strategy_id, v_list_id,
-    jsonb_build_object('deckName', 'Mew Strategy', 'format', 'Standard', 'archetypeId', 'mew-ex', 'deckPokemon', jsonb_build_array('mew-ex')),
+    jsonb_build_object('deckName', 'Mew Strategy', 'format', 'TEF-PBL', 'archetypeId', 'mew-ex', 'deckPokemon', jsonb_build_array('mew-ex')),
     v_expected
   );
   if v_replay ->> 'status' <> 'idempotent' then
@@ -164,7 +205,7 @@ begin
       'date_from', current_date::text, 'date_to', current_date::text,
       'linked_deck_id', null, 'linked_deck_list_id', null, 'deck_name', '',
       'deck_sprites', '[]'::jsonb, 'category', '', 'placement', '',
-      'participation', 'player', 'judge_role', null, 'format', 'Standard', 'notes', ''
+      'participation', 'player', 'judge_role', null, 'format', 'TEF-PBL', 'notes', ''
     )
   );
   if v_replay ->> 'status' <> 'idempotent' or (select count(*) from public.tournaments where id = 'hardening-delete') <> 0 then
@@ -193,6 +234,31 @@ begin
   );
   if v_replay ->> 'status' <> 'idempotent' then
     raise exception 'capture command history was not retained after Tournament deletion';
+  end if;
+
+  v_linked_payload := jsonb_build_object(
+    'name', 'Linked replay', 'tournament_identifier', '', 'location', '',
+    'championship_points', 0, 'professor_points', null,
+    'date_from', current_date::text, 'date_to', current_date::text,
+    'linked_deck_id', v_strategy_id, 'linked_deck_list_id', v_list_id, 'deck_name', 'Mew Strategy',
+    'deck_sprites', '[]'::jsonb, 'category', '', 'placement', '',
+    'participation', 'player', 'judge_role', null, 'format', 'TEF-PBL', 'notes', ''
+  );
+  v_result := public.commit_tournament_metadata(
+    'create', 'hardening-linked', 'hardening-linked', v_linked_payload
+  );
+  if v_result ->> 'status' <> 'committed' then
+    raise exception 'linked metadata create did not commit';
+  end if;
+  delete from public.decks where id = v_strategy_id;
+  if (select count(*) from public.decks where id = v_strategy_id) <> 0 then
+    raise exception 'linked metadata Strategy fixture was not deleted';
+  end if;
+  v_replay := public.commit_tournament_metadata(
+    'create', 'hardening-linked', 'hardening-linked', v_linked_payload
+  );
+  if v_replay ->> 'status' <> 'idempotent' then
+    raise exception 'linked metadata replay was blocked by deleted ownership records';
   end if;
 end;
 $verify$;
