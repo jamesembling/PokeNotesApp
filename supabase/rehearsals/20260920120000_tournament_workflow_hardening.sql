@@ -105,8 +105,21 @@ begin
   if v_replay ->> 'status' <> 'idempotent' or (select count(*) from public.tournaments where id = 'hardening-delete') <> 0 then
     raise exception 'metadata identity was lost after Tournament deletion';
   end if;
-  if (select count(*) from public.tournament_deck_list_commands where tournament_id = 'hardening-source') <> 1 then
-    raise exception 'capture command history was not retained';
+  delete from public.tournaments where id = 'hardening-source';
+  if (select count(*) from public.tournament_deck_list_snapshots where tournament_id = 'hardening-source') <> 0 then
+    raise exception 'Tournament deletion did not cascade its snapshot';
+  end if;
+  v_replay := public.commit_tournament_deck_list(
+    'hardening-source', 'hardening-capture',
+    jsonb_build_object(
+      'sourceDeckListId', v_list_id,
+      'parsedCards', jsonb_build_array(jsonb_build_object('name', 'Mew ex', 'count', 4)),
+      'sortedCards', jsonb_build_array(jsonb_build_object('name', 'Mew ex', 'count', 4)),
+      'sortedCardsVersion', 2, 'associateStrategy', false
+    ), v_expected, 'Mew', jsonb_build_array('mew-ex'), v_strategy_id, v_list_id, false, false
+  );
+  if v_replay ->> 'status' <> 'idempotent' then
+    raise exception 'capture command history was not retained after Tournament deletion';
   end if;
 end;
 $verify$;
