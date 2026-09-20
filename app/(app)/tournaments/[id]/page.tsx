@@ -15,11 +15,15 @@ import { PlayPokemonJudgeMark } from "@/components/ui/PlayPokemonJudgeMark";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import { TournamentRoundRow } from "@/components/ui/TournamentRoundRow";
+import { TournamentDeckListRemoveButton } from "@/components/ui/TournamentDeckListRemoveButton";
+import { TournamentDeckListCaptureButton } from "@/components/ui/TournamentDeckListCaptureButton";
+import { TournamentDeckListSourcePicker } from "@/components/ui/TournamentDeckListSourcePicker";
+import { CreateDeckStrategyFromListButton } from "@/components/ui/CreateDeckStrategyFromListButton";
 import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
-import { getDeckListById } from "@/lib/db/deck-lists";
+import { getDeckListById, getDeckLists } from "@/lib/db/deck-lists";
 import {
   getTournamentById,
   getTournamentRounds,
@@ -167,13 +171,36 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
     user.email?.split("@")[0] ||
     "Trainer";
   const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
+  const currentSourceDeckList = !isJudge && tournament.deckListSnapshot?.sourceDeckListId
+    ? await getDeckListById(
+        user.id,
+        tournament.deckListSnapshot.sourceDeckListId,
+        null
+      )
+    : null;
+  const availableDeckLists = !isJudge
+    ? (await getDeckLists(user.id))
+        .filter((deckList) => deckList.storage === "relational")
+        .map((deckList) => ({
+          id: deckList.id,
+          name: deckList.name,
+          deckId: deckList.deckId ?? null,
+          updatedAt: deckList.updatedAt
+        }))
+    : [];
   const resolvedTournamentDeckList = isJudge
     ? null
-    : await resolveTournamentDeckListForDisplay({
-        loadDeckList: getDeckListById,
-        tournament,
-        userId: user.id
-      });
+    : tournament.deckListSnapshot
+      ? {
+          name: tournament.deckListSnapshot.name,
+          rawList: tournament.deckListSnapshot.rawList,
+          sortedCards: tournament.deckListSnapshot.sortedCards
+        }
+      : await resolveTournamentDeckListForDisplay({
+          loadDeckList: getDeckListById,
+          tournament,
+          userId: user.id
+        });
 
   return (
     <PageWidth size="standard">
@@ -254,42 +281,129 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
               </div>
               <div className="flex shrink-0">
                 {isJudge ? null : resolvedTournamentDeckList ? (
-                  <DeckListViewDialog
-                    deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
-                    rawList={resolvedTournamentDeckList?.rawList}
-                    sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
-                    triggerChildren={
-                      <>
-                        <EyeIcon className="size-4" />
-                        <span>Deck List</span>
-                      </>
-                    }
-                    triggerClassName="px-3"
-                    triggerLabel="Deck List"
-                    triggerSize="sm"
-                    triggerVariant="outline"
-                  />
+                  <div className="flex items-center gap-1">
+                    <DeckListViewDialog
+                      deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
+                      rawList={resolvedTournamentDeckList?.rawList}
+                      sortedCards={resolvedTournamentDeckList?.sortedCards ?? []}
+                      triggerChildren={
+                        <>
+                          <EyeIcon className="size-4" />
+                        <span>{tournament.deckListSnapshot ? "Tournament snapshot" : "Current source"}</span>
+                        </>
+                      }
+                      triggerClassName="px-3"
+                      triggerLabel={tournament.deckListSnapshot ? "Tournament snapshot" : "Current source"}
+                      triggerSize="sm"
+                      triggerVariant="outline"
+                    />
+                    {!tournament.deckListSnapshot && tournament.linkedDeckListId && resolvedTournamentDeckList && "storage" in resolvedTournamentDeckList && resolvedTournamentDeckList.storage === "relational" ? (
+                      <TournamentDeckListCaptureButton
+                        sourceDeckId={tournament.linkedDeckId ?? null}
+                        sourceDeckListId={tournament.linkedDeckListId}
+                        tournamentId={tournament.id}
+                      />
+                    ) : null}
+                    {tournament.deckListSnapshot ? (
+                      <TournamentDeckListSourcePicker
+                        expectedUpdatedAt={tournament.updatedAt}
+                        options={availableDeckLists}
+                        replace
+                        tournamentId={tournament.id}
+                      />
+                    ) : null}
+                    <LazyDeckListEditorButton
+                      deckId=""
+                      defaultCreatedBy={defaultCreatedBy}
+                      defaultFormat={tournament.format}
+                      defaultListName={resolvedTournamentDeckList.name}
+                      extraHiddenFields={
+                        <>
+                          <input name="tournamentId" type="hidden" value={tournament.id} />
+                          <input name="replaceDeckList" type="hidden" value="true" />
+                        </>
+                      }
+                      saveAction={saveTournamentDeckListAction}
+                      simplePasteMode
+                      triggerLabel="Replace"
+                      triggerSize="sm"
+                      triggerVariant="ghost"
+                    />
+                    <TournamentDeckListRemoveButton
+                      expectedUpdatedAt={tournament.updatedAt}
+                      tournamentId={tournament.id}
+                    />
+                  </div>
                 ) : (
-                  <LazyDeckListEditorButton
-                    deckId={tournament.linkedDeckId ?? ""}
-                    defaultCreatedBy={defaultCreatedBy}
-                    defaultFormat={tournament.format}
-                    defaultListName={tournamentDeckName}
-                    extraHiddenFields={
-                      <input name="tournamentId" type="hidden" value={tournament.id} />
-                    }
-                    saveAction={saveTournamentDeckListAction}
-                    simplePasteMode
-                    triggerClassName="px-3"
-                    triggerLabel="+ ADD"
-                    triggerSize="sm"
-                    triggerVariant="outline"
-                  />
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <LazyDeckListEditorButton
+                      deckId={tournament.linkedDeckId ?? ""}
+                      defaultCreatedBy={defaultCreatedBy}
+                      defaultFormat={tournament.format}
+                      defaultListName={tournamentDeckName}
+                      extraHiddenFields={
+                        <input name="tournamentId" type="hidden" value={tournament.id} />
+                      }
+                      saveAction={saveTournamentDeckListAction}
+                      simplePasteMode
+                      triggerClassName="px-3"
+                      triggerLabel="+ ADD"
+                      triggerSize="sm"
+                      triggerVariant="outline"
+                    />
+                    <TournamentDeckListSourcePicker
+                      expectedUpdatedAt={tournament.updatedAt}
+                      options={availableDeckLists}
+                      tournamentId={tournament.id}
+                    />
+                  </div>
                 )}
               </div>
             </div>
           </div>
         </div>
+
+        {!isJudge && tournament.deckListSnapshot ? (
+          <div className="rounded-2xl border border-border bg-muted p-4">
+            <p className="ui-eyebrow">Deck List relationships</p>
+            <p className="mt-2 text-sm leading-6 text-foreground">
+              <span className="font-semibold">Authoritative Tournament snapshot:</span>{" "}
+              {tournament.deckListSnapshot.name}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              <span className="font-semibold text-foreground">Current source Deck List:</span>{" "}
+              {currentSourceDeckList
+                ? `${currentSourceDeckList.name} is available for ongoing edits.`
+                : "Missing. The Tournament snapshot remains available as the event record."}
+            </p>
+            {currentSourceDeckList ? (
+              <div className="mt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <DeckListViewDialog
+                    deckListName={currentSourceDeckList.name}
+                    rawList={currentSourceDeckList.rawList}
+                    sortedCards={currentSourceDeckList.sortedCards}
+                    triggerChildren={<span>View current source</span>}
+                    triggerLabel="View current source Deck List"
+                    triggerSize="sm"
+                    triggerVariant="ghost"
+                  />
+                  {currentSourceDeckList.storage === "relational" && !currentSourceDeckList.deckId ? (
+                    <CreateDeckStrategyFromListButton
+                      deckListId={currentSourceDeckList.id}
+                      deckListUpdatedAt={currentSourceDeckList.updatedAt}
+                      deckName={currentSourceDeckList.name}
+                      deckPokemon={tournament.deckSprites}
+                      format={tournament.format}
+                      tournamentId={tournament.id}
+                      tournamentUpdatedAt={tournament.updatedAt}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {tournament.notes ? (
           <div className="rounded-2xl border border-border bg-muted p-4">

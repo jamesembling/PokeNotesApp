@@ -353,6 +353,26 @@ export type TournamentRound = {
   updatedAt: string
 }
 
+export type TournamentDeckListSnapshot = {
+  id: string
+  tournamentId: string
+  userId: string
+  sourceDeckId: string | null
+  sourceDeckListId: string | null
+  requestId: string
+  payloadHash: string
+  name: string
+  format: string
+  date: string
+  createdBy: string
+  notes: string
+  rawList: string
+  parsedCards: DeckCard[]
+  sortedCards: DeckCard[]
+  sortedCardsVersion: number
+  createdAt: string
+}
+
 export type Tournament = {
   id: string
   userId: string
@@ -375,6 +395,7 @@ export type Tournament = {
   notes: string
   createdAt: string
   updatedAt: string
+  deckListSnapshot?: TournamentDeckListSnapshot
 }
 
 export type TournamentSummary = Tournament & {

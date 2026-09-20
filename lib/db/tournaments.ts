@@ -1,7 +1,12 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
-import type { Tournament, TournamentRound, TournamentSummary } from "@/types/index";
+import type {
+  Tournament,
+  TournamentDeckListSnapshot,
+  TournamentRound,
+  TournamentSummary
+} from "@/types/index";
 
 type PostgrestLikeError = {
   code?: string | null;
@@ -129,6 +134,26 @@ type TournamentRoundRow = {
   updated_at: string;
 };
 
+type TournamentDeckListSnapshotRow = {
+  id: string;
+  tournament_id: string;
+  user_id: string;
+  source_deck_id: string | null;
+  source_deck_list_id: string | null;
+  request_id: string;
+  payload_hash: string;
+  name: string;
+  format: string;
+  date: string;
+  created_by: string;
+  notes: string;
+  raw_list: string;
+  parsed_cards: unknown;
+  sorted_cards: unknown;
+  sorted_cards_version: number;
+  created_at: string;
+};
+
 function parseSpriteArray(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
@@ -195,6 +220,30 @@ function mapTournamentRoundRow(row: TournamentRoundRow): TournamentRound {
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  };
+}
+
+function mapTournamentDeckListSnapshotRow(
+  row: TournamentDeckListSnapshotRow
+): TournamentDeckListSnapshot {
+  return {
+    id: row.id,
+    tournamentId: row.tournament_id,
+    userId: row.user_id,
+    sourceDeckId: row.source_deck_id,
+    sourceDeckListId: row.source_deck_list_id,
+    requestId: row.request_id,
+    payloadHash: row.payload_hash,
+    name: row.name,
+    format: row.format,
+    date: row.date,
+    createdBy: row.created_by,
+    notes: row.notes,
+    rawList: row.raw_list,
+    parsedCards: (Array.isArray(row.parsed_cards) ? row.parsed_cards : []) as TournamentDeckListSnapshot["parsedCards"],
+    sortedCards: (Array.isArray(row.sorted_cards) ? row.sorted_cards : []) as TournamentDeckListSnapshot["sortedCards"],
+    sortedCardsVersion: row.sorted_cards_version,
+    createdAt: row.created_at
   };
 }
 
@@ -375,7 +424,27 @@ export const getTournamentById = cache(
       return null;
     }
 
-    return mapTournamentRow((data as unknown) as TournamentRow);
+    const tournament = mapTournamentRow((data as unknown) as TournamentRow);
+    const { data: snapshotData, error: snapshotError } = await measureServerCall(
+      "db.tournaments.detail.snapshot",
+      async () => await supabase
+        .from("tournament_deck_list_snapshots")
+        .select("id,tournament_id,user_id,source_deck_id,source_deck_list_id,request_id,payload_hash,name,format,date,created_by,notes,raw_list,parsed_cards,sorted_cards,sorted_cards_version,created_at")
+        .eq("user_id", userId)
+        .eq("tournament_id", tournamentId)
+        .maybeSingle()
+    );
+
+    if (snapshotError && !["PGRST205", "42703", "PGRST202"].includes(String(snapshotError.code || ""))) {
+      throw snapshotError;
+    }
+    if (snapshotData) {
+      tournament.deckListSnapshot = mapTournamentDeckListSnapshotRow(
+        snapshotData as unknown as TournamentDeckListSnapshotRow
+      );
+    }
+
+    return tournament;
   }
 );
 

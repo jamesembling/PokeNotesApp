@@ -45,6 +45,7 @@
     "verify:deck-list-release": "node scripts/verify-deck-list-release.mjs",
     "verify:log-share-atomicity": "node scripts/rehearse-log-share-atomicity.mjs",
     "verify:battle-log-import-draft": "tsx scripts/verify-battle-log-import-draft.ts",
+    "verify:tournament-deck-list": "node scripts/rehearse-tournament-deck-list.mjs",
     "types:supabase": "supabase --agent=no gen types typescript --linked --schema public > types/supabase.ts",
     "sync:card-effect-catalog": "node sync-card-effect-catalog.mjs",
     "sync:pokemon-catalog": "node seed-pokemon.mjs",

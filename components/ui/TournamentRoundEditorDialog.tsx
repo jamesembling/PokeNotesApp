@@ -126,6 +126,7 @@ export function TournamentRoundEditorDialog({
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const isEditing = Boolean(round?.id);
+  const [creationKey] = useState(() => crypto.randomUUID());
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [selectedSprites, setSelectedSprites] = useState<string[]>(round?.opponentDeckSprites.slice(0, 2) ?? []);
   const [specialResult, setSpecialResult] = useState<TournamentRoundSpecialResult | "">(roundSpecialResult ?? "");
@@ -230,6 +231,7 @@ export function TournamentRoundEditorDialog({
     const formData = new FormData();
     formData.set("tournamentId", tournamentId);
     formData.set("roundId", round.id);
+    formData.set("expectedUpdatedAt", round.updatedAt);
     const result = await deleteTournamentRoundAction(formData);
 
     if (!result.ok) {
@@ -358,6 +360,8 @@ export function TournamentRoundEditorDialog({
               <input name="tournamentId" type="hidden" value={tournamentId} />
               <input name="redirectTo" type="hidden" value={pathname} />
               {isEditing && round ? <input name="roundId" type="hidden" value={round.id} /> : null}
+              {isEditing && round ? <input name="expectedUpdatedAt" type="hidden" value={round.updatedAt} /> : null}
+              {!isEditing ? <input name="creationKey" type="hidden" value={creationKey} /> : null}
               {selectedSprites.map((slug, index) => (
                 <input
                   key={`round-sprite-${slug}-${index}`}
