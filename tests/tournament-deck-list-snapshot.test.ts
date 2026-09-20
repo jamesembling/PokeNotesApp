@@ -13,6 +13,10 @@ const hardening = readFileSync(
   join(repositoryRoot, "supabase/migrations/20260920120000_tournament_workflow_hardening.sql"),
   "utf8"
 );
+const strategyIdentityMigration = readFileSync(
+  join(repositoryRoot, "supabase/migrations/20260920130207_tournament_strategy_command_identity.sql"),
+  "utf8"
+);
 
 test("Tournament Deck List workflow keeps the migration and fresh schema contract aligned", () => {
   for (const source of [migration, schema]) {
@@ -54,4 +58,9 @@ test("Tournament metadata and Strategy-from-list commands are present in the for
   assert.match(hardening, /'allowReplace', p_allow_replace/i);
   assert.match(hardening, /Tournament format is not an allowed site format/i);
   assert.match(hardening, /Tournament placement is invalid/i);
+  for (const source of [strategyIdentityMigration, schema]) {
+    assert.match(source, /create table(?: if not exists)? public\.deck_strategy_commands/i);
+    assert.match(source, /That Strategy creation identity was already used with different values/i);
+    assert.match(source, /deck_strategy_commands[\s\S]*request_unique/i);
+  }
 });

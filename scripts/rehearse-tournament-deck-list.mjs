@@ -198,6 +198,17 @@ try {
   if (strategyCreate.error || strategyCreate.data.status !== "committed") throw strategyCreate.error || new Error("Strategy-from-list did not commit.");
   const strategyReplay = await primary.client.rpc("create_deck_strategy_from_list", strategyArgs);
   if (strategyReplay.error || strategyReplay.data.status !== "idempotent") throw strategyReplay.error || new Error("Strategy-from-list replay was not idempotent.");
+  const strategyConflict = await primary.client.rpc("create_deck_strategy_from_list", {
+    ...strategyArgs,
+    p_payload: {
+      ...strategyArgs.p_payload,
+      deckName: "Changed Strategy",
+      format: "TEF-CRI",
+      deckPokemon: ["mew-ex", "raging-bolt"],
+      coreStrategy: "Changed strategy"
+    }
+  });
+  if (!strategyConflict.error || strategyConflict.error.code !== "23505") throw strategyConflict.error || new Error("Strategy creation identity accepted a conflicting payload.");
   const strategyMirror = await assertOne(service.from("decks").select("deck_lists").eq("id", strategyArgs.p_deck_id), "Strategy mirror was not persisted.");
   if (
     strategyMirror.deck_lists?.[0]?.sortedCardsVersion !== 2
@@ -205,6 +216,8 @@ try {
   ) throw new Error("Strategy legacy mirror did not persist rebuilt canonical ordering.");
   const linkedSource = await assertOne(service.from("deck_lists").select("deck_id,updated_at").eq("id", sourceListId), "Strategy did not claim source list.");
   if (linkedSource.deck_id !== strategyArgs.p_deck_id) throw new Error("Strategy-from-list did not associate the existing list.");
+  const strategyCountAfterConflict = await service.from("decks").select("id", { count: "exact", head: true }).eq("id", strategyArgs.p_deck_id).eq("user_id", primary.id);
+  if (strategyCountAfterConflict.error || strategyCountAfterConflict.count !== 1) throw strategyCountAfterConflict.error || new Error("Conflicting Strategy replay changed the existing Strategy count.");
   const sourceCapture = await primary.client.rpc("commit_tournament_deck_list", {
     p_tournament_id: sourceTournamentId,
     p_request_id: crypto.randomUUID(),

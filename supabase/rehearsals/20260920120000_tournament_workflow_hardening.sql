@@ -26,7 +26,24 @@ declare
   v_linked_payload jsonb;
   v_list_id text := 'hardening-list';
   v_strategy_id text := 'hardening-strategy';
+  v_legacy_list_id text := 'hardening-legacy-list';
+  v_legacy_strategy_id text := 'hardening-legacy-strategy';
+  v_legacy_tournament_id text := 'hardening-legacy-tournament';
+  v_legacy_list_updated_at timestamptz;
+  v_legacy_tournament_updated_at timestamptz;
 begin
+  begin
+    perform public.create_deck_strategy_from_list(
+      'hardening-missing-request', null, v_list_id, '{}'::jsonb, null
+    );
+    raise exception 'missing Strategy request id unexpectedly committed';
+  exception when sqlstate '22023' then
+    null;
+  end;
+  if (select count(*) from public.decks where id = 'hardening-missing-request') <> 0 then
+    raise exception 'missing Strategy request id left a Strategy row';
+  end if;
+
   begin
     perform public.commit_tournament_metadata(
       'create', 'hardening-invalid', 'hardening-invalid',
@@ -165,6 +182,67 @@ begin
   if v_replay ->> 'status' <> 'idempotent' then
     raise exception 'Strategy-from-list replay did not remain idempotent';
   end if;
+  begin
+    perform public.create_deck_strategy_from_list(
+      v_strategy_id, v_strategy_id, v_list_id,
+      jsonb_build_object('deckName', 'Changed Strategy', 'format', 'TEF-CRI', 'archetypeId', 'raging-bolt', 'deckPokemon', jsonb_build_array('raging-bolt'), 'coreStrategy', 'Changed strategy'),
+      v_expected
+    );
+    raise exception 'conflicting Strategy creation replay unexpectedly committed';
+  exception when sqlstate '23505' then
+    null;
+  end;
+  if (select count(*) from public.decks where id = v_strategy_id) <> 1
+    or (select deck_id from public.deck_lists where id = v_list_id) <> v_strategy_id then
+    raise exception 'conflicting Strategy replay changed the existing Strategy or list association';
+  end if;
+
+  insert into public.decks (
+    id, user_id, deck_name, archetype_id, format, go_preference, deck_pokemon,
+    core_strategy, general_notes, setup_goals, resource_plan, matchups, deck_lists
+  ) values (
+    v_legacy_strategy_id, '66666666-6666-4666-8666-666666666666', 'Legacy Strategy', 'mew-ex', 'TEF-PBL', '',
+    '["mew-ex"]'::jsonb, '', '', '[]'::jsonb, '', '[]'::jsonb, '[]'::jsonb
+  );
+  perform public.commit_first_class_deck_list(
+    v_legacy_strategy_id, 'create',
+    jsonb_build_object(
+      'id', v_legacy_list_id, 'creationKey', v_legacy_list_id, 'name', 'Legacy list',
+      'format', 'TEF-PBL', 'date', current_date::text, 'createdBy', 'Fixture',
+      'notes', '', 'rawList', '4 Mew ex',
+      'parsedCards', jsonb_build_array(jsonb_build_object('name', 'Mew ex', 'count', 4, 'category', 'Pokemon')),
+      'sortedCards', jsonb_build_array(jsonb_build_object('name', 'Mew ex', 'count', 4, 'category', 'Pokemon')),
+      'sortedCardsVersion', 2
+    ),
+    v_legacy_list_id, null, clock_timestamp()
+  );
+  insert into public.tournaments (
+    id, user_id, name, date_from, date_to, deck_name, deck_sprites,
+    format, participation, category, placement, notes
+  ) values (
+    v_legacy_tournament_id, '66666666-6666-4666-8666-666666666666', 'Legacy tournament', current_date, current_date,
+    '', '[]'::jsonb, 'TEF-PBL', 'player', '', '', ''
+  );
+  select updated_at into strict v_legacy_list_updated_at from public.deck_lists where id = v_legacy_list_id;
+  select updated_at into strict v_legacy_tournament_updated_at from public.tournaments where id = v_legacy_tournament_id;
+  v_replay := public.create_deck_strategy_from_list(
+    v_legacy_strategy_id, v_legacy_strategy_id, v_legacy_list_id,
+    jsonb_build_object('deckName', 'Legacy Strategy', 'format', 'TEF-PBL', 'archetypeId', 'mew-ex', 'deckPokemon', jsonb_build_array('mew-ex')),
+    v_legacy_list_updated_at, v_legacy_tournament_id, v_legacy_tournament_updated_at
+  );
+  if v_replay ->> 'status' <> 'committed'
+    or (select linked_deck_id from public.tournaments where id = v_legacy_tournament_id) <> v_legacy_strategy_id
+    or (select linked_deck_list_id from public.tournaments where id = v_legacy_tournament_id) <> v_legacy_list_id then
+    raise exception 'legacy Strategy adoption did not associate the supplied Tournament';
+  end if;
+  v_replay := public.create_deck_strategy_from_list(
+    v_legacy_strategy_id, v_legacy_strategy_id, v_legacy_list_id,
+    jsonb_build_object('deckName', 'Legacy Strategy', 'format', 'TEF-PBL', 'archetypeId', 'mew-ex', 'deckPokemon', jsonb_build_array('mew-ex')),
+    v_legacy_list_updated_at, v_legacy_tournament_id, v_legacy_tournament_updated_at
+  );
+  if v_replay ->> 'status' <> 'idempotent' then
+    raise exception 'legacy Strategy adoption replay was not idempotent';
+  end if;
 
   v_result := public.commit_tournament_deck_list(
     'hardening-source', 'hardening-capture',
@@ -253,6 +331,14 @@ begin
   delete from public.decks where id = v_strategy_id;
   if (select count(*) from public.decks where id = v_strategy_id) <> 0 then
     raise exception 'linked metadata Strategy fixture was not deleted';
+  end if;
+  v_replay := public.create_deck_strategy_from_list(
+    v_strategy_id, v_strategy_id, v_list_id,
+    jsonb_build_object('deckName', 'Mew Strategy', 'format', 'TEF-PBL', 'archetypeId', 'mew-ex', 'deckPokemon', jsonb_build_array('mew-ex')),
+    v_expected
+  );
+  if v_replay ->> 'status' <> 'idempotent' then
+    raise exception 'Strategy command history did not survive Strategy deletion';
   end if;
   v_replay := public.commit_tournament_metadata(
     'create', 'hardening-linked', 'hardening-linked', v_linked_payload
