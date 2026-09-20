@@ -8,6 +8,52 @@ set local statement_timeout = '60s';
 alter table public.tournament_deck_list_commands
   drop constraint if exists tournament_deck_list_commands_tournament_id_fkey;
 
+-- The read model's canonical fallback is category, trainer subtype, count,
+-- then stable card identity. Snapshot capture derives this from the
+-- authoritative parsed source row so authenticated callers cannot smuggle a
+-- misordered or stale sorted_cards array into immutable evidence.
+create or replace function public.canonicalize_deck_list_cards(p_cards jsonb)
+returns jsonb
+language sql
+immutable
+set search_path = pg_catalog, public
+as $function$
+  select coalesce(
+    jsonb_agg(item.value order by
+      case lower(coalesce(item.value ->> 'category', ''))
+        when 'pokemon' then 0
+        when 'trainer' then 1
+        when 'energy' then 2
+        else 3
+      end,
+      case
+        when lower(coalesce(item.value ->> 'category', '')) = 'trainer' then
+          case lower(coalesce(item.value ->> 'trainerType', item.value ->> 'trainer_type', ''))
+            when 'supporter' then 0
+            when 'item' then 1
+            when 'tool' then 2
+            when 'stadium' then 3
+            else 4
+          end
+        else 0
+      end,
+      case when coalesce(item.value ->> 'count', '') ~ '^[0-9]+$'
+        then (item.value ->> 'count')::integer else 0 end desc,
+      lower(coalesce(item.value ->> 'name', '')),
+      coalesce(item.value ->> 'name', ''),
+      coalesce(item.value ->> 'set', ''),
+      coalesce(item.value ->> 'number', ''),
+      item.ordinality
+    ),
+    '[]'::jsonb
+  )
+  from jsonb_array_elements(
+    case when jsonb_typeof(p_cards) = 'array' then p_cards else '[]'::jsonb end
+  ) with ordinality as item(value, ordinality);
+$function$;
+revoke all on function public.canonicalize_deck_list_cards(jsonb) from public, anon;
+grant execute on function public.canonicalize_deck_list_cards(jsonb) to authenticated;
+
 create table if not exists public.tournament_metadata_commands (
   id             text primary key,
   user_id        uuid not null references auth.users(id) on delete cascade,
@@ -47,6 +93,11 @@ declare
   v_now timestamptz := clock_timestamp();
   v_payload_hash text;
   v_result jsonb;
+  v_date_from date;
+  v_date_to date;
+  v_participation text;
+  v_category text;
+  v_points bigint;
 begin
   if v_user_id is null then
     raise exception using errcode = '42501', message = 'Authentication is required.';
@@ -65,6 +116,80 @@ begin
   end if;
   if p_operation = 'create' and p_tournament_id <> v_request_id then
     raise exception using errcode = '22023', message = 'Tournament id must equal its creation key.';
+  end if;
+
+  if nullif(btrim(coalesce(p_payload ->> 'name', '')), '') is null
+    or p_payload ->> 'name' <> btrim(p_payload ->> 'name')
+  then
+    raise exception using errcode = '22023', message = 'Tournament name is required and must be trimmed.';
+  end if;
+  if nullif(btrim(coalesce(p_payload ->> 'format', '')), '') is null
+    or p_payload ->> 'format' <> btrim(p_payload ->> 'format')
+  then
+    raise exception using errcode = '22023', message = 'Tournament format is required and must be trimmed.';
+  end if;
+  begin
+    v_date_from := nullif(btrim(coalesce(p_payload ->> 'date_from', '')), '')::date;
+    v_date_to := nullif(btrim(coalesce(p_payload ->> 'date_to', '')), '')::date;
+  exception when invalid_datetime_format or datetime_field_overflow then
+    raise exception using errcode = '22023', message = 'Tournament dates must be valid calendar dates.';
+  end;
+  if v_date_from is null or v_date_to is null then
+    raise exception using errcode = '22023', message = 'Tournament dates are required.';
+  end if;
+  if v_date_to < v_date_from then
+    raise exception using errcode = '22023', message = 'Tournament end date cannot be before its start date.';
+  end if;
+
+  v_participation := coalesce(p_payload ->> 'participation', 'player');
+  if v_participation not in ('player', 'judge') then
+    raise exception using errcode = '22023', message = 'Tournament participation must be player or judge.';
+  end if;
+  if v_participation = 'judge' then
+    if p_payload ->> 'judge_role' not in ('judge', 'head judge') then
+      raise exception using errcode = '22023', message = 'A valid judge role is required for judge participation.';
+    end if;
+    if nullif(p_payload ->> 'placement', '') is not null then
+      raise exception using errcode = '22023', message = 'Judges cannot have a player placement.';
+    end if;
+  elsif nullif(p_payload ->> 'judge_role', '') is not null then
+    raise exception using errcode = '22023', message = 'Player tournaments cannot have a judge role.';
+  end if;
+  if v_participation = 'player' and p_payload ->> 'professor_points' is not null then
+    raise exception using errcode = '22023', message = 'Professor Points are only valid for judge participation.';
+  end if;
+  if v_participation = 'judge' and p_payload ->> 'championship_points' is not null then
+    raise exception using errcode = '22023', message = 'Championship Points are only valid for player participation.';
+  end if;
+  if v_participation = 'player' and p_payload ->> 'championship_points' is not null then
+    if p_payload ->> 'championship_points' !~ '^[0-9]+$' then
+      raise exception using errcode = '22023', message = 'Championship Points must be a whole number of 0 or more.';
+    end if;
+    begin
+      v_points := (p_payload ->> 'championship_points')::bigint;
+    exception when invalid_text_representation or numeric_value_out_of_range then
+      raise exception using errcode = '22023', message = 'Championship Points must be a whole number of 0 or more.';
+    end;
+    if v_points > 2147483647 then
+      raise exception using errcode = '22023', message = 'Championship Points are too large to save.';
+    end if;
+  end if;
+  if v_participation = 'judge' and p_payload ->> 'professor_points' is not null then
+    if p_payload ->> 'professor_points' !~ '^[0-9]+$' then
+      raise exception using errcode = '22023', message = 'Professor Points must be a whole number of 0 or more.';
+    end if;
+    begin
+      v_points := (p_payload ->> 'professor_points')::bigint;
+    exception when invalid_text_representation or numeric_value_out_of_range then
+      raise exception using errcode = '22023', message = 'Professor Points must be a whole number of 0 or more.';
+    end;
+    if v_points > 2147483647 then
+      raise exception using errcode = '22023', message = 'Professor Points are too large to save.';
+    end if;
+  end if;
+  v_category := coalesce(p_payload ->> 'category', '');
+  if v_category not in ('', 'online', 'local', 'challenge', 'cup', 'prerelease', 'regional', 'international', 'world') then
+    raise exception using errcode = '22023', message = 'Tournament category is invalid.';
   end if;
 
   if nullif(p_payload ->> 'linked_deck_id', '') is not null
@@ -200,6 +325,7 @@ declare
   v_tournament public.tournaments%rowtype;
   v_now timestamptz := clock_timestamp();
   v_legacy_list jsonb;
+  v_canonical_sorted jsonb;
 begin
   if v_user_id is null then
     raise exception using errcode = '42501', message = 'Authentication is required.';
@@ -224,6 +350,7 @@ begin
   if p_expected_deck_list_updated_at is null or v_list.updated_at is distinct from p_expected_deck_list_updated_at then
     raise exception using errcode = 'P0001', message = 'Deck List changed; refresh-and-retry before creating its Strategy.';
   end if;
+  v_canonical_sorted := public.canonicalize_deck_list_cards(v_list.parsed_cards);
   if exists (select 1 from public.decks where id = p_deck_id) then
     raise exception using errcode = '23505', message = 'That Strategy creation identity is already in use.';
   end if;
@@ -242,8 +369,8 @@ begin
   v_legacy_list := jsonb_build_object(
     'id', v_list.id, 'name', v_list.name, 'format', v_list.format, 'date', v_list.date,
     'createdBy', v_list.created_by, 'notes', v_list.notes, 'rawList', v_list.raw_list,
-    'parsedCards', v_list.parsed_cards, 'sortedCards', v_list.sorted_cards,
-    'sortedCardsVersion', v_list.sorted_cards_version, 'createdAt', v_list.created_at, 'updatedAt', v_list.updated_at
+    'parsedCards', v_list.parsed_cards, 'sortedCards', v_canonical_sorted,
+    'sortedCardsVersion', 2, 'createdAt', v_list.created_at, 'updatedAt', v_list.updated_at
   );
   insert into public.decks (
     id, user_id, deck_name, archetype_id, format, go_preference, deck_pokemon,
@@ -307,6 +434,7 @@ declare
   v_existing_fingerprint jsonb;
   v_result jsonb;
   v_update_deck_association boolean := (p_payload ->> 'associateStrategy') = 'true';
+  v_canonical_sorted jsonb;
 begin
   if v_user_id is null then
     raise exception using errcode = '42501', message = 'Authentication is required.';
@@ -323,6 +451,9 @@ begin
   if p_deck_sprites is null or jsonb_typeof(p_deck_sprites) is distinct from 'array' then
     raise exception using errcode = '22023', message = 'Tournament deck sprites are invalid.';
   end if;
+  v_canonical_sorted := public.canonicalize_deck_list_cards(
+    coalesce(p_payload -> 'parsedCards', p_payload -> 'parsed_cards')
+  );
 
   -- Serialize request identity before the first-writer row exists.
   perform pg_advisory_xact_lock(
@@ -428,8 +559,8 @@ begin
         'notes', coalesce(p_payload ->> 'notes', ''),
         'rawList', coalesce(p_payload ->> 'rawList', p_payload ->> 'raw_list', ''),
         'parsedCards', coalesce(p_payload -> 'parsedCards', p_payload -> 'parsed_cards'),
-        'sortedCards', coalesce(p_payload -> 'sortedCards', p_payload -> 'sorted_cards'),
-        'sortedCardsVersion', coalesce(p_payload -> 'sortedCardsVersion', p_payload -> 'sorted_cards_version')
+        'sortedCards', v_canonical_sorted,
+        'sortedCardsVersion', 2
       );
       v_existing_fingerprint := jsonb_build_object(
         'name', v_list.name, 'format', v_list.format, 'date', v_list.date,
@@ -455,8 +586,7 @@ begin
         coalesce(p_payload ->> 'createdBy', p_payload ->> 'created_by', ''),
         coalesce(p_payload ->> 'notes', ''), coalesce(p_payload ->> 'rawList', p_payload ->> 'raw_list', ''),
         coalesce(p_payload -> 'parsedCards', p_payload -> 'parsed_cards'),
-        coalesce(p_payload -> 'sortedCards', p_payload -> 'sorted_cards'),
-        coalesce((p_payload ->> 'sortedCardsVersion')::integer, (p_payload ->> 'sorted_cards_version')::integer),
+        v_canonical_sorted, 2,
         v_position, coalesce(nullif(p_payload ->> 'createdAt', '')::timestamptz, v_now), v_now
       ) returning * into v_list;
     end if;
@@ -477,15 +607,8 @@ begin
     end if;
     v_source_deck_id := v_source_list.deck_id;
     v_list := v_source_list;
-    if jsonb_typeof(p_payload -> 'parsedCards') = 'array' then
-      v_list.parsed_cards := p_payload -> 'parsedCards';
-    end if;
-    if jsonb_typeof(p_payload -> 'sortedCards') = 'array' then
-      v_list.sorted_cards := p_payload -> 'sortedCards';
-    end if;
-    if jsonb_typeof(p_payload -> 'sortedCardsVersion') = 'number' then
-      v_list.sorted_cards_version := (p_payload ->> 'sortedCardsVersion')::integer;
-    end if;
+    v_list.sorted_cards := public.canonicalize_deck_list_cards(v_source_list.parsed_cards);
+    v_list.sorted_cards_version := 2;
   end if;
 
   insert into public.tournament_deck_list_snapshots (

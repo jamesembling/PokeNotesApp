@@ -13,8 +13,8 @@ import { getFormRedirectPath, withRefreshToken } from "@/lib/server/action-redir
 import type { FailedActionResult } from "@/lib/server/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { getDeckListById, validateDeckListReference } from "@/lib/db/deck-lists";
-import { normalizeTournamentDateRange } from "@/lib/tournaments/date-range";
 import { revalidateDeckAndLogWorkspace } from "@/lib/server/revalidation";
+import { requireCasMutationResult } from "@/lib/server/cas-mutation";
 import { saveTournamentDeckListAtomically } from "@/lib/tournaments/deck-list-workflow";
 import {
   getTournamentMetadataRequestId,
@@ -23,18 +23,12 @@ import {
   type TournamentCommandStatus
 } from "@/lib/tournaments/metadata-workflow";
 import { getTournamentRoundCreationIdentity } from "@/lib/tournaments/round-workflow";
+import { parseTournamentMetadataCommand } from "@/lib/tournaments/metadata-command";
 import {
-  TOURNAMENT_CATEGORY_OPTIONS,
-  parseTournamentJudgeRole,
-  parseTournamentParticipation,
-  TOURNAMENT_PLACEMENT_OPTIONS,
   TOURNAMENT_ROUND_GAME_RESULT_OPTIONS,
   TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS
 } from "@/lib/tournaments/options";
 import type {
-  TournamentCategory,
-  TournamentJudgeRole,
-  TournamentPlacement,
   TournamentRoundGameResult,
   TournamentRoundSpecialResult,
   TournamentRoundResult
@@ -45,7 +39,7 @@ import type { Json } from "@/types/supabase";
 type SaveActionResult = {
   ok: true;
   redirectTo: string;
-  status?: TournamentCommandStatus;
+  status: TournamentCommandStatus;
 } | FailedActionResult;
 
 type PostgrestLikeError = {
@@ -152,65 +146,6 @@ function toUserFacingDatabaseError(error: PostgrestLikeError) {
   return userFacingActionError("We couldn't save that tournament update right now.");
 }
 
-function parseCategory(value: FormDataEntryValue | null): TournamentCategory {
-  const normalized = String(value || "").trim();
-  return TOURNAMENT_CATEGORY_OPTIONS.some((option) => option.value === normalized)
-    ? (normalized as TournamentCategory)
-    : "";
-}
-
-function parsePlacement(value: FormDataEntryValue | null): TournamentPlacement {
-  const normalized = String(value || "").trim();
-  return TOURNAMENT_PLACEMENT_OPTIONS.some((option) => option.value === normalized)
-    ? (normalized as TournamentPlacement)
-    : "";
-}
-
-function parseOptionalEventDetail(
-  value: FormDataEntryValue | null,
-  label: string,
-  maxLength: number
-) {
-  const normalized = String(value || "").trim();
-
-  if (normalized.length > maxLength) {
-    throw userFacingActionError(`${label} must be ${maxLength} characters or fewer.`);
-  }
-
-  return normalized;
-}
-
-function parseOptionalPoints(value: FormDataEntryValue | null, label: string) {
-  const normalized = String(value || "").trim();
-
-  if (!normalized) {
-    return null;
-  }
-
-  if (!/^\d+$/.test(normalized)) {
-    throw userFacingActionError(
-      `Enter ${label} as a whole number of 0 or more.`
-    );
-  }
-
-  const points = Number(normalized);
-  if (!Number.isSafeInteger(points) || points > 2_147_483_647) {
-    throw userFacingActionError(`${label} are too large to save.`);
-  }
-
-  return points;
-}
-
-function requireJudgeRole(value: FormDataEntryValue | null): Exclude<TournamentJudgeRole, ""> {
-  const role = parseTournamentJudgeRole(value);
-
-  if (!role) {
-    throw userFacingActionError("Choose a judge role before saving.");
-  }
-
-  return role;
-}
-
 function parseRoundGameResult(value: FormDataEntryValue | null): "" | TournamentRoundGameResult {
   const normalized = String(value || "").trim();
   return TOURNAMENT_ROUND_GAME_RESULT_OPTIONS.includes(normalized as TournamentRoundGameResult)
@@ -260,11 +195,6 @@ function parseRoundResult(formData: FormData): TournamentRoundResult {
   }
 
   throw userFacingActionError("Choose at least one game result or mark the round as BYE, ID, or NO SHOW.");
-}
-
-function parseFormat(value: FormDataEntryValue | null) {
-  const normalized = String(value || "").trim();
-  return normalized;
 }
 
 function parseSpriteArray(values: FormDataEntryValue[]) {
@@ -362,24 +292,7 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
     const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
     const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
     const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
-    const name = String(formData.get("name") || "").trim();
-    const tournamentIdentifier = parseOptionalEventDetail(
-      formData.get("tournamentIdentifier"),
-      "Tournament ID",
-      100
-    );
-    const location = parseOptionalEventDetail(formData.get("location"), "Location", 160);
-    const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
-    const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
-    const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
-    const participation = parseTournamentParticipation(formData.get("participation"));
-    const judgeRole = participation === "judge" ? requireJudgeRole(formData.get("judgeRole")) : null;
-    const championshipPoints = participation === "player"
-      ? parseOptionalPoints(formData.get("championshipPoints"), "Championship Points")
-      : null;
-    const professorPoints = participation === "judge"
-      ? parseOptionalPoints(formData.get("professorPoints"), "Professor Points")
-      : null;
+    const format = String(formData.get("format") || "").trim() || (await getDefaultSyncedSiteFormat());
     const validatedReference = await validateDeckListReference({
       linkedDeckId: linkedDeckId || null,
       linkedDeckListId: linkedDeckListId || null,
@@ -387,35 +300,21 @@ export async function createTournamentAction(formData: FormData): Promise<SaveAc
       userId: user.id
     });
 
-    if (!name) {
-      throw userFacingActionError("Enter a tournament name before saving.");
-    }
-
     if (!(await isKnownSyncedSiteFormat(format))) {
       throw userFacingActionError("Choose a valid tournament format.");
     }
 
+    const metadata = parseTournamentMetadataCommand({
+      formData,
+      format,
+      linkedDeckListId: validatedReference.deckListId,
+      resolvedDeck
+    });
+
     const nextTournament = {
       id: tournamentId,
       user_id: user.id,
-      name,
-      tournament_identifier: tournamentIdentifier,
-      location,
-      championship_points: championshipPoints,
-      professor_points: professorPoints,
-      date_from: dateFrom,
-      date_to: dateTo,
-      linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-      linked_deck_list_id: validatedReference.deckListId,
-      deck_name: resolvedDeck?.deckName ?? "",
-      deck_sprites:
-        selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
-      category: parseCategory(formData.get("category")),
-      placement: participation === "judge" ? "" : parsePlacement(formData.get("placement")),
-      participation,
-      judge_role: judgeRole,
-      format,
-      notes: String(formData.get("notes") || "").trim()
+      ...metadata
     };
 
     const { data, error } = await supabase.rpc("commit_tournament_metadata", {
@@ -460,62 +359,31 @@ export async function updateTournamentAction(formData: FormData): Promise<SaveAc
     const linkedDeckId = String(formData.get("linkedDeckId") || "").trim();
     const linkedDeckListId = String(formData.get("linkedDeckListId") || "").trim();
     const resolvedDeck = await resolveDeckSnapshot(user.id, linkedDeckId);
-    const name = String(formData.get("name") || "").trim();
-    const tournamentIdentifier = parseOptionalEventDetail(
-      formData.get("tournamentIdentifier"),
-      "Tournament ID",
-      100
-    );
-    const location = parseOptionalEventDetail(formData.get("location"), "Location", 160);
-    const format = parseFormat(formData.get("format")) || (await getDefaultSyncedSiteFormat());
-    const selectedDeckSprites = parseSpriteArray(formData.getAll("deckSprites"));
-    const participation = parseTournamentParticipation(formData.get("participation"));
-    const judgeRole = participation === "judge" ? requireJudgeRole(formData.get("judgeRole")) : null;
-    const championshipPoints = participation === "player"
-      ? parseOptionalPoints(formData.get("championshipPoints"), "Championship Points")
-      : null;
-    const professorPoints = participation === "judge"
-      ? parseOptionalPoints(formData.get("professorPoints"), "Professor Points")
-      : null;
+    const format = String(formData.get("format") || "").trim() || (await getDefaultSyncedSiteFormat());
     const validatedReference = await validateDeckListReference({
       linkedDeckId: linkedDeckId || null,
       linkedDeckListId: linkedDeckListId || null,
       supabase,
       userId: user.id
     });
-    const { dateFrom, dateTo } = normalizeTournamentDateRange(formData);
 
     if (!tournamentId) {
       throw userFacingActionError("Tournament id is required.");
-    }
-
-    if (!name) {
-      throw userFacingActionError("Enter a tournament name before saving.");
     }
 
     if (!(await isKnownSyncedSiteFormat(format))) {
       throw userFacingActionError("Choose a valid tournament format.");
     }
 
-    const nextTournament = {
-      name,
-      tournament_identifier: tournamentIdentifier,
-      location,
-      championship_points: championshipPoints,
-      professor_points: professorPoints,
-      date_from: dateFrom,
-      date_to: dateTo,
-      linked_deck_id: resolvedDeck?.linkedDeckId ?? null,
-      linked_deck_list_id: validatedReference.deckListId,
-      deck_name: resolvedDeck?.deckName ?? "",
-      deck_sprites:
-        selectedDeckSprites.length > 0 ? selectedDeckSprites : (resolvedDeck?.deckSprites ?? []),
-      category: parseCategory(formData.get("category")),
-      placement: participation === "judge" ? "" : parsePlacement(formData.get("placement")),
-      participation,
-      judge_role: judgeRole,
+    const metadata = parseTournamentMetadataCommand({
+      formData,
       format,
-      notes: String(formData.get("notes") || "").trim()
+      linkedDeckListId: validatedReference.deckListId,
+      resolvedDeck
+    });
+
+    const nextTournament = {
+      ...metadata
     };
     const expectedUpdatedAt = String(formData.get("expectedUpdatedAt") || "").trim();
     if (!expectedUpdatedAt) {
@@ -842,7 +710,8 @@ export async function deleteTournamentAction(formData: FormData): Promise<SaveAc
 
     return {
       ok: true,
-      redirectTo: withRefreshToken("/tournaments")
+      redirectTo: withRefreshToken("/tournaments"),
+      status: "committed"
     };
   } catch (error) {
     return toActionFailureResult(error, {
@@ -918,7 +787,10 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
       }
 
       if (!updatedRound) {
-        throw userFacingActionError("This round changed in another tab. Refresh the page and try again.");
+        requireCasMutationResult(
+          updatedRound,
+          "This round changed in another tab. Refresh the page and try again."
+        );
       }
     } else {
       const { creationKey, roundId: newRoundId } = getTournamentRoundCreationIdentity(formData);
@@ -1017,15 +889,17 @@ export async function deleteTournamentRoundAction(formData: FormData): Promise<S
       throw toUserFacingDatabaseError(error);
     }
 
-    if (!deletedRound) {
-      throw userFacingActionError("Could not find that round.");
-    }
+    requireCasMutationResult(
+      deletedRound,
+      "This round changed in another tab or was already removed. Refresh the page and try again."
+    );
 
     revalidateTournamentWorkspace(tournamentId);
 
     return {
       ok: true,
-      redirectTo: withRefreshToken(`/tournaments/${tournamentId}`)
+      redirectTo: withRefreshToken(`/tournaments/${tournamentId}`),
+      status: "committed"
     };
   } catch (error) {
     return toActionFailureResult(error, {

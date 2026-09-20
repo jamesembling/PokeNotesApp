@@ -32,20 +32,20 @@ export function getDeckWorkspaceInvalidationPaths(input: DeckWorkspaceInvalidati
 export function revalidateDeckAndLogWorkspace(
   input: DeckWorkspaceInvalidation = {}
 ) {
-  revalidatePath("/decks", "layout");
-  revalidatePath("/logs", "layout");
-  revalidatePath("/deck-lists", "layout");
-  revalidatePath("/tournaments", "layout");
+  applyDeckWorkspaceInvalidation(input, revalidatePath);
+}
 
+export function applyDeckWorkspaceInvalidation(
+  input: DeckWorkspaceInvalidation,
+  invalidate: (path: string, type: "layout" | "page") => void
+) {
+  invalidate("/decks", "layout");
+  invalidate("/logs", "layout");
+  invalidate("/deck-lists", "layout");
+  invalidate("/tournaments", "layout");
   new Set([input.deckId, ...(input.deckIds ?? [])].filter((value): value is string => Boolean(value)))
-    .forEach((deckId) => revalidatePath(`/decks/${deckId}`, "page"));
-  const deckListIds = new Set(
-    [input.deckListId, ...(input.deckListIds ?? [])].filter(
-      (value): value is string => Boolean(value)
-    )
-  );
-  deckListIds.forEach((deckListId) => revalidatePath(`/deck-lists/${deckListId}`, "page"));
-  for (const tournamentId of input.tournamentIds ?? []) {
-    revalidatePath(`/tournaments/${tournamentId}`, "page");
-  }
+    .forEach((deckId) => invalidate(`/decks/${deckId}`, "page"));
+  new Set([input.deckListId, ...(input.deckListIds ?? [])].filter((value): value is string => Boolean(value)))
+    .forEach((deckListId) => invalidate(`/deck-lists/${deckListId}`, "page"));
+  for (const tournamentId of input.tournamentIds ?? []) invalidate(`/tournaments/${tournamentId}`, "page");
 }

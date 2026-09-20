@@ -156,9 +156,17 @@ try {
     date: "2026-09-19",
     createdBy: "Fixture",
     notes: "source",
-    rawList: "4 Mew ex",
-    parsedCards: [{ name: "Mew ex", count: 4, category: "Pokemon" }],
-    sortedCards: [{ name: "Mew ex", count: 4, category: "Pokemon" }],
+    rawList: "4 Mew ex\n4 Boss's Orders\n8 Basic Fire Energy",
+    parsedCards: [
+      { name: "Basic Fire Energy", count: 8, category: "Energy" },
+      { name: "Boss's Orders", count: 4, category: "Trainer", trainerType: "Supporter" },
+      { name: "Mew ex", count: 4, category: "Pokemon" }
+    ],
+    sortedCards: [
+      { name: "Basic Fire Energy", count: 8, category: "Energy" },
+      { name: "Boss's Orders", count: 4, category: "Trainer", trainerType: "Supporter" },
+      { name: "Mew ex", count: 4, category: "Pokemon" }
+    ],
     sortedCardsVersion: 1
   };
   const sourceCreate = await primary.client.rpc("commit_first_class_deck_list", {
@@ -188,6 +196,11 @@ try {
   if (strategyCreate.error || strategyCreate.data.status !== "committed") throw strategyCreate.error || new Error("Strategy-from-list did not commit.");
   const strategyReplay = await primary.client.rpc("create_deck_strategy_from_list", strategyArgs);
   if (strategyReplay.error || strategyReplay.data.status !== "idempotent") throw strategyReplay.error || new Error("Strategy-from-list replay was not idempotent.");
+  const strategyMirror = await assertOne(service.from("decks").select("deck_lists").eq("id", strategyArgs.p_deck_id), "Strategy mirror was not persisted.");
+  if (
+    strategyMirror.deck_lists?.[0]?.sortedCardsVersion !== 2
+    || strategyMirror.deck_lists?.[0]?.sortedCards?.[0]?.name !== "Mew ex"
+  ) throw new Error("Strategy legacy mirror did not persist rebuilt canonical ordering.");
   const linkedSource = await assertOne(service.from("deck_lists").select("deck_id,updated_at").eq("id", sourceListId), "Strategy did not claim source list.");
   if (linkedSource.deck_id !== strategyArgs.p_deck_id) throw new Error("Strategy-from-list did not associate the existing list.");
   const sourceCapture = await primary.client.rpc("commit_tournament_deck_list", {
@@ -195,9 +208,17 @@ try {
     p_request_id: crypto.randomUUID(),
     p_payload: {
       sourceDeckListId: sourceListId,
-      parsedCards: [{ name: "Mew ex", count: 4, category: "Pokemon" }],
-      sortedCards: [{ name: "Mew ex", count: 4, category: "Pokemon" }],
-      sortedCardsVersion: 2,
+      parsedCards: [
+        { name: "Energy", count: 8, category: "Energy" },
+        { name: "Boss's Orders", count: 4, category: "Trainer", trainerType: "Supporter" },
+        { name: "Mew ex", count: 4, category: "Pokemon" }
+      ],
+      sortedCards: [
+        { name: "Energy", count: 8, category: "Energy" },
+        { name: "Boss's Orders", count: 4, category: "Trainer", trainerType: "Supporter" },
+        { name: "Mew ex", count: 4, category: "Pokemon" }
+      ],
+      sortedCardsVersion: 1,
       associateStrategy: false
     },
     p_expected_tournament_updated_at: await tournamentVersion(sourceTournamentId),
@@ -213,7 +234,12 @@ try {
   const sourceTournament = await assertOne(service.from("tournaments").select("linked_deck_id,linked_deck_list_id").eq("id", sourceTournamentId), "Source Tournament was not retained.");
   if (sourceTournament.linked_deck_id !== null || sourceTournament.linked_deck_list_id !== sourceListId) throw new Error("Existing source capture overwrote the independent Tournament Strategy link.");
   const sourceSnapshotCards = await assertOne(service.from("tournament_deck_list_snapshots").select("sorted_cards,sorted_cards_version").eq("tournament_id", sourceTournamentId), "Source ordering snapshot was not persisted.");
-  if (sourceSnapshotCards.sorted_cards_version !== 2 || sourceSnapshotCards.sorted_cards[0]?.name !== "Mew ex") throw new Error("Existing source capture did not persist rebuilt canonical ordering.");
+  if (
+    sourceSnapshotCards.sorted_cards_version !== 2
+    || sourceSnapshotCards.sorted_cards[0]?.name !== "Mew ex"
+    || sourceSnapshotCards.sorted_cards[1]?.name !== "Boss's Orders"
+    || sourceSnapshotCards.sorted_cards[2]?.category !== "Energy"
+  ) throw new Error("Existing source capture did not persist rebuilt canonical ordering.");
   const sourceRemove = await primary.client.rpc("remove_tournament_deck_list", {
     p_tournament_id: sourceTournamentId,
     p_expected_tournament_updated_at: await tournamentVersion(sourceTournamentId),
@@ -326,6 +352,28 @@ try {
     format: "Standard",
     notes: "metadata"
   };
+  const invalidMetadataId = crypto.randomUUID();
+  const invalidMetadata = await primary.client.rpc("commit_tournament_metadata", {
+    p_operation: "create",
+    p_tournament_id: invalidMetadataId,
+    p_request_id: invalidMetadataId,
+    p_payload: { ...metadataPayload, format: " Standard" }
+  });
+  if (!invalidMetadata.error || invalidMetadata.error.code !== "22023") throw new Error("Invalid metadata create was not rejected.");
+  const { data: invalidMetadataRows, error: invalidMetadataRowsError } = await service.from("tournaments").select("id").eq("id", invalidMetadataId);
+  if (invalidMetadataRowsError) throw invalidMetadataRowsError;
+  if (invalidMetadataRows.length !== 0) throw new Error("Invalid metadata create left a row.");
+  const sourceMetadataVersion = await tournamentVersion(sourceTournamentId);
+  const invalidMetadataUpdate = await primary.client.rpc("commit_tournament_metadata", {
+    p_operation: "update",
+    p_tournament_id: sourceTournamentId,
+    p_request_id: crypto.randomUUID(),
+    p_expected_tournament_updated_at: sourceMetadataVersion,
+    p_payload: { ...metadataPayload, name: "Mutated", date_to: "2026-09-19", date_from: "2026-09-20" }
+  });
+  if (!invalidMetadataUpdate.error || invalidMetadataUpdate.error.code !== "22023") throw new Error("Invalid metadata update was not rejected.");
+  const unchangedSource = await assertOne(service.from("tournaments").select("name,updated_at").eq("id", sourceTournamentId), "Source Tournament disappeared during metadata validation.");
+  if (unchangedSource.name !== "Existing source capture" || unchangedSource.updated_at !== sourceMetadataVersion) throw new Error("Invalid metadata update changed the Tournament.");
   const metadata = await primary.client.rpc("commit_tournament_metadata", {
     p_operation: "create",
     p_tournament_id: metadataTournamentId,

@@ -49,7 +49,7 @@ export function toTournamentCommandError(
   error: { code?: string | null; message?: string | null }
 ) {
   const message = String(error.message || "");
-  if (error.code === "P0001" && /Tournament (?:changed|could not|request)|associating its Strategy|metadata/i.test(message)) {
+  if (error.code === "P0001" && /changed|stale|refresh-and-retry|associating its Strategy|metadata/i.test(message)) {
     return userFacingActionError(
       "This Tournament changed in another tab. Refresh the page and try again.",
       { code: "stale" satisfies TournamentCommandFailureCode }
