@@ -51,7 +51,7 @@ begin
       'parsedCards', jsonb_build_array(jsonb_build_object('name', 'Mew ex', 'count', 4)),
       'sortedCards', jsonb_build_array(jsonb_build_object('name', 'Mew ex', 'count', 4)),
       'sortedCardsVersion', 1
-    ), null, now()
+    ), v_list_id, null, now()
   );
   select updated_at into strict v_expected from public.deck_lists where id = v_list_id;
   v_result := public.create_deck_strategy_from_list(
