@@ -6,6 +6,10 @@
     {
       "path": "/api/cron/sync-pokemon-catalog",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/sync-limitless-events",
+      "schedule": "0 6 * * *"
     }
   ]
 }

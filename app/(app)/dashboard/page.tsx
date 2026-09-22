@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { DashboardOverview } from "@/components/ui/dashboard/DashboardOverview";
+import { UpcomingEvents } from "@/components/ui/dashboard/UpcomingEvents";
 import {
   DashboardActivityLoading,
   DashboardPointTotalsLoading,
@@ -12,6 +13,10 @@ import { ProxyAuthTimingMarker } from "@/components/ui/RouteTimingMarker";
 import { requireUser } from "@/lib/auth";
 import { getLogDamageTimeline, getLogsWindow, getLogStatsOverview } from "@/lib/db/logs";
 import { getTournamentSummaries } from "@/lib/db/tournaments";
+import { getUserEventState, type UserEventState } from "@/lib/db/upcoming-events";
+import { defaultEventFilters } from "@/lib/tournaments/limitless-events";
+import { getUpcomingLimitlessEvents } from "@/lib/tournaments/limitless-upcoming";
+import type { UpcomingLimitlessEvent } from "@/lib/tournaments/limitless-events";
 import { measureServerCall } from "@/lib/server/perf";
 import styles from "@/components/ui/dashboard/dashboard.module.css";
 
@@ -31,6 +36,8 @@ export default async function DashboardPage() {
   const tournamentsPromise = measureServerCall("page.dashboard.latestTournaments", () =>
     getTournamentSummaries(user.id)
   );
+  const upcomingEventsPromise = getUpcomingLimitlessEvents();
+  const eventStatePromise = getUserEventState(user.id);
 
   return (
     <div className={styles.page}>
@@ -61,7 +68,29 @@ export default async function DashboardPage() {
             <DashboardOverview.Tournaments dataPromise={tournamentsPromise} />
           </Suspense>
         }
+        events={
+          <Suspense fallback={<p aria-label="Loading upcoming events" role="status">Loading upcoming events…</p>}>
+            <DashboardUpcomingEvents dataPromise={upcomingEventsPromise} statePromise={eventStatePromise} userId={user.id} />
+          </Suspense>
+        }
       />
     </div>
   );
+}
+
+async function DashboardUpcomingEvents({
+  dataPromise,
+  statePromise,
+  userId
+}: {
+  dataPromise: ReturnType<typeof getUpcomingLimitlessEvents>;
+  statePromise: ReturnType<typeof getUserEventState>;
+  userId: string;
+}) {
+  const [source, state] = await Promise.allSettled([dataPromise, statePromise]);
+  const events: UpcomingLimitlessEvent[] = source.status === "fulfilled" ? source.value.events : [];
+  const initialState: UserEventState = state.status === "fulfilled"
+    ? state.value
+    : { filters: defaultEventFilters, pins: [] };
+  return <UpcomingEvents events={events} initialState={initialState} persistenceAvailable={state.status === "fulfilled"} stale={source.status === "fulfilled" && source.value.stale} unavailable={source.status === "rejected"} userId={userId} />;
 }

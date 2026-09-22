@@ -32,9 +32,10 @@ type DashboardOverviewProps = {
   battleLogs: ReactNode;
   stats: ReactNode;
   tournaments: ReactNode;
+  events: ReactNode;
 };
 
-function DashboardOverviewRoot({ battleLogs, stats, tournaments }: DashboardOverviewProps) {
+function DashboardOverviewRoot({ battleLogs, stats, tournaments, events }: DashboardOverviewProps) {
   return (
     <div className={styles.overview}>
       {stats}
@@ -42,6 +43,7 @@ function DashboardOverviewRoot({ battleLogs, stats, tournaments }: DashboardOver
         {battleLogs}
         {tournaments}
       </div>
+      {events}
     </div>
   );
 }

@@ -61,6 +61,7 @@ export function DashboardPageLoadingState() {
           <DashboardActivityLoading />
           <DashboardTournamentsLoading />
         </div>
+        <DashboardSectionLoading label="Loading upcoming events" rows={4} />
       </div>
     </div>
   );
