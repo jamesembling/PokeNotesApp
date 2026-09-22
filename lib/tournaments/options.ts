@@ -41,6 +41,10 @@ const TOURNAMENT_COMPETITION_BADGES: Partial<
     darkSrc: "/tournament-badges/prerelease-dark.png",
     src: "/tournament-badges/prerelease.png"
   },
+  online: {
+    alt: "Limitless logo",
+    src: "/tournament-badges/limitless.png"
+  },
   regional: {
     alt: "Pokémon Regional Championships badge",
     src: "/tournament-badges/regional-championships.png"
