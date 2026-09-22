@@ -1236,6 +1236,69 @@ export type Database = {
         }
         Relationships: []
       }
+      limitless_event_feed: {
+        Row: {
+          events: Json
+          feed_key: string
+          refreshed_at: string
+        }
+        Insert: {
+          events?: Json
+          feed_key: string
+          refreshed_at?: string
+        }
+        Update: {
+          events?: Json
+          feed_key?: string
+          refreshed_at?: string
+        }
+        Relationships: []
+      }
+      user_event_preferences: {
+        Row: {
+          search_query: string
+          starts_after: string
+          starts_before: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          search_query?: string
+          starts_after?: string
+          starts_before?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          search_query?: string
+          starts_after?: string
+          starts_before?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_event_pins: {
+        Row: {
+          event_id: string
+          event_snapshot: Json
+          pinned_at: string
+          user_id: string
+        }
+        Insert: {
+          event_id: string
+          event_snapshot: Json
+          pinned_at?: string
+          user_id: string
+        }
+        Update: {
+          event_id?: string
+          event_snapshot?: Json
+          pinned_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
