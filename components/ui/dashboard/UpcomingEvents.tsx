@@ -10,6 +10,19 @@ import styles from "./upcoming-events.module.css";
 const dateFormatter = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
 const timeFormatter = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 const numberFormatter = new Intl.NumberFormat("en-GB");
+const timeChoices = [
+  { label: "Any time", hours: "All hours", from: "", to: "" },
+  { label: "Morning", hours: "6 am–noon", from: "06:00", to: "11:59" },
+  { label: "Afternoon", hours: "Noon–6 pm", from: "12:00", to: "17:59" },
+  { label: "Evening", hours: "6 pm–midnight", from: "18:00", to: "23:59" },
+  { label: "Overnight", hours: "Midnight–6 am", from: "00:00", to: "05:59" }
+] as const;
+
+function savedTimeLabel(filters: EventFilters) {
+  if (filters.from && filters.to) return `${filters.from}–${filters.to}`;
+  if (filters.from) return `After ${filters.from}`;
+  return `Before ${filters.to}`;
+}
 
 function eventLocalMinutes(event: UpcomingLimitlessEvent) {
   const date = new Date(event.startsAt);
@@ -131,6 +144,7 @@ export function UpcomingEvents({
   const normalizedQuery = filters.query.trim().toLocaleLowerCase();
   const from = timeMinutes(filters.from);
   const to = timeMinutes(filters.to);
+  const selectedTimeChoice = timeChoices.find((choice) => choice.from === filters.from && choice.to === filters.to);
   const filtered = events.filter((event) => {
     if (normalizedQuery && !`${event.name} ${event.organizer}`.toLocaleLowerCase().includes(normalizedQuery)) return false;
     const minutes = eventLocalMinutes(event);
@@ -183,18 +197,39 @@ export function UpcomingEvents({
               <Search aria-hidden="true" size={16} />
               <input disabled={!ready} onChange={(event) => updateFilter("query", event.target.value)} placeholder="Search event or organizer" type="search" value={filters.query} />
             </label>
-            <label>Starts after
-              <input disabled={!ready} onChange={(event) => updateFilter("from", event.target.value)} type="time" value={filters.from} />
-            </label>
-            <label>Starts before
-              <input disabled={!ready} onChange={(event) => updateFilter("to", event.target.value)} type="time" value={filters.to} />
-            </label>
+            <div className={styles.timeFilter}>
+              <span className={styles.timeFilterLabel}>Start time <span>· your local time</span></span>
+              <div aria-label="Filter by start time" className={styles.timeChoices} role="group">
+                {timeChoices.map((choice) => (
+                  <button
+                    aria-pressed={selectedTimeChoice?.label === choice.label}
+                    className={styles.timeChoice}
+                    disabled={!ready}
+                    key={choice.label}
+                    onClick={() => {
+                      setFilters((current) => ({ ...current, from: choice.from, to: choice.to }));
+                      setShowAll(false);
+                    }}
+                    type="button"
+                  >
+                    <strong>{choice.label}</strong>
+                    <span>{choice.hours}</span>
+                  </button>
+                ))}
+                {!selectedTimeChoice ? (
+                  <span className={styles.savedTimeChoice}>
+                    <strong>Saved window</strong>
+                    <span>{savedTimeLabel(filters)}</span>
+                  </span>
+                ) : null}
+              </div>
+            </div>
           </div>
           {stale ? <p className={styles.notice}>Showing the last saved Limitless listing while the live page is unavailable.</p> : null}
           {!persistenceAvailable ? <p className={styles.notice}>Pins and filters are saved on this device until account sync is available.</p> : null}
           {saveError ? <p className={styles.error} role="alert">{saveError}</p> : null}
           {unavailable ? <p className={styles.message}>Limitless events could not be loaded. Try refreshing the dashboard.</p> : null}
-          {!unavailable && filtered.length === 0 ? <p className={styles.message}>No events match these filters. Try another start time or search.</p> : null}
+          {!unavailable && filtered.length === 0 ? <p className={styles.message}>No events match. Choose another time of day or change your search.</p> : null}
           <ul className={styles.eventList}>{visible.map((event) => <EventRow disabled={!ready || pendingPins.includes(event.id)} event={event} key={event.id} onPin={togglePin} pinned={pinnedIds.has(event.id)} />)}</ul>
           {!showAll && filtered.length > visible.length ? (
             <button className={styles.moreButton} onClick={() => setShowAll(true)} type="button">Show all {filtered.length} events</button>
