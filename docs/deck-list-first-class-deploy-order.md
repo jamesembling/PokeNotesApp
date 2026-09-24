@@ -44,9 +44,10 @@ Do not deploy production from this task.
 ## Application-second and disposable-DB gate
 
 After all database gates pass, deploy the application second and verify the
-first-class reads, writes, references, and legacy fallback together. The
-application may use only the narrowly classified migration-required RPC fallback;
-it must not silently discard a list or legacy source.
+first-class reads, writes, references, and legacy-source adoption together. A
+missing first-class write RPC is a schema/deployment mismatch and must fail the
+save visibly; it must not route writes through the older aggregate RPC. The
+first-class RPC remains responsible for adopting an exact legacy-only source.
 
 Executable SQL behavior rehearsal belongs in CI or a disposable local
 Supabase/Postgres instance. Do not claim that regex/schema checks replace that
