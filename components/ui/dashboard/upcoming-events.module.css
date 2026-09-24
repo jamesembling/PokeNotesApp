@@ -22,14 +22,25 @@
 .pinnedPanel { border-left: 1px solid var(--border); padding-left: 2rem; }
 .panelHeading { margin-bottom: 0.9rem; }
 .panelHeading h3 { font-size: 1rem; font-weight: 700; }
-.filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem; margin-bottom: 1rem; }
+.filters { display: grid; gap: 0.85rem; margin-bottom: 1rem; }
 .filters label { display: flex; min-width: 0; flex-direction: column; gap: 0.3rem; color: var(--muted-foreground); font-size: 0.7rem; font-weight: 650; }
-.filters .search { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 0.5rem; }
-.filters input, .filters select { width: 100%; min-width: 0; min-height: 2.35rem; border: 1px solid var(--border); border-radius: 0.35rem; background: var(--control-bg); color: var(--foreground); padding: 0.45rem 0.55rem; font: inherit; font-size: 0.78rem; }
+.filters .search { flex-direction: row; align-items: center; gap: 0.5rem; }
+.filters input { width: 100%; min-width: 0; min-height: 2.35rem; border: 1px solid var(--border); border-radius: 0.35rem; background: var(--control-bg); color: var(--foreground); padding: 0.45rem 0.55rem; font: inherit; font-size: 0.78rem; }
 .filters .search { position: relative; }
 .filters .search svg { position: absolute; left: 0.7rem; color: var(--muted-foreground); }
 .filters .search input { padding-left: 2rem; }
 .filters input::placeholder { color: var(--muted-foreground); opacity: 1; }
+.timeFilter { display: grid; gap: 0.45rem; }
+.timeFilterLabel { color: var(--muted-foreground); font-size: 0.7rem; font-weight: 650; }
+.timeFilterLabel span { font-weight: 400; }
+.timeChoices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.4rem; }
+.timeChoice, .savedTimeChoice { display: flex; min-width: 0; min-height: 3rem; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.15rem; border: 1px solid var(--border); border-radius: 0.35rem; padding: 0.45rem 0.55rem; text-align: left; }
+.timeChoice { background: var(--control-bg); color: var(--foreground); }
+.timeChoice:hover:not(:disabled) { border-color: var(--foreground); }
+.timeChoice[aria-pressed="true"], .savedTimeChoice { border-color: var(--foreground); background: var(--choice-active-bg); }
+.timeChoice:disabled { cursor: not-allowed; opacity: 0.55; }
+.timeChoice strong, .savedTimeChoice strong { font-size: 0.76rem; font-weight: 650; }
+.timeChoice span, .savedTimeChoice span { color: var(--muted-foreground); font-size: 0.66rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .eventList { border-bottom: 1px solid var(--border); }
 .eventRow { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) 2.2rem; align-items: center; gap: 0.8rem; min-height: 4.7rem; border-top: 1px solid var(--border); }
@@ -53,6 +64,7 @@
 @media (max-width: 70rem) {
   .columns { gap: 1.25rem; }
   .pinnedPanel { padding-left: 1.25rem; }
+  .timeChoices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 48rem) {
@@ -64,6 +76,8 @@
   .columns { display: block; }
   .pinnedPanel { border-left: 0; padding-left: 0; }
   .mobileHidden { display: none; }
+  .timeChoices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .timeChoice:first-child { grid-column: 1 / -1; }
 }
 
 @media (max-width: 35rem) {
