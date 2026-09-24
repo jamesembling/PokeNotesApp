@@ -33,21 +33,24 @@ async function fetchUpcomingEvents() {
 export async function getUpcomingLimitlessEvents(): Promise<{
   events: UpcomingLimitlessEvent[];
   stale: boolean;
+  refreshedAt: string;
 }> {
-  try {
-    return { events: await fetchUpcomingEvents(), stale: false };
-  } catch (sourceError) {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("limitless_event_feed")
-      .select("events")
-      .eq("feed_key", FEED_KEY)
-      .maybeSingle();
-    if (error || !Array.isArray(data?.events)) throw sourceError;
-    const events = data.events.filter(isUpcomingLimitlessEvent).filter((event) => withinUpcomingWindow(event));
-    if (events.length === 0) throw sourceError;
-    return { events, stale: true };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("limitless_event_feed")
+    .select("events, refreshed_at")
+    .eq("feed_key", FEED_KEY)
+    .maybeSingle();
+  if (error) throw error;
+  if (!Array.isArray(data?.events) || !data.refreshed_at || !Number.isFinite(Date.parse(data.refreshed_at))) {
+    throw new Error("Limitless event snapshot is unavailable");
   }
+  const events = data.events.filter(isUpcomingLimitlessEvent).filter((event) => withinUpcomingWindow(event));
+  return {
+    events,
+    refreshedAt: data.refreshed_at,
+    stale: Date.now() - Date.parse(data.refreshed_at) > 26 * 60 * 60 * 1000
+  };
 }
 
 export async function refreshUpcomingLimitlessSnapshot() {

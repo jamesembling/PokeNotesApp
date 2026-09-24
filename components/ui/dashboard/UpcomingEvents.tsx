@@ -10,7 +10,8 @@ import styles from "./upcoming-events.module.css";
 const dateFormatter = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
 const timeFormatter = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 const numberFormatter = new Intl.NumberFormat("en-GB");
-const EVENT_REFRESH_MS = 5 * 60 * 1000;
+const snapshotFormatter = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
+const EVENT_REFRESH_MS = 15 * 60 * 1000;
 const timeChoices = [
   { label: "Any time", hours: "All hours", from: "", to: "" },
   { label: "Morning", hours: "6 am–noon", from: "06:00", to: "11:59" },
@@ -83,6 +84,7 @@ export function UpcomingEvents({
   userId,
   unavailable = false,
   stale = false,
+  refreshedAt,
   persistenceAvailable,
   initialState
 }: {
@@ -90,6 +92,7 @@ export function UpcomingEvents({
   userId: string;
   unavailable?: boolean;
   stale?: boolean;
+  refreshedAt: string | null;
   persistenceAvailable: boolean;
   initialState: UserEventState;
 }) {
@@ -97,6 +100,8 @@ export function UpcomingEvents({
   const [currentFeed, setCurrentFeed] = useState(events);
   const [feedStale, setFeedStale] = useState(stale);
   const [feedUnavailable, setFeedUnavailable] = useState(unavailable);
+  const [feedRefreshedAt, setFeedRefreshedAt] = useState(refreshedAt);
+  const [feedCheckFailed, setFeedCheckFailed] = useState(false);
   const hasEvents = useRef(events.length > 0);
   const [pins, setPins] = useState<UpcomingLimitlessEvent[]>(initialState.pins);
   const [ready, setReady] = useState(persistenceAvailable);
@@ -111,7 +116,7 @@ export function UpcomingEvents({
   useEffect(() => {
     let active = true;
     let loading = false;
-    let lastChecked = 0;
+    let lastChecked = Date.now();
 
     async function refreshEvents() {
       if (!active || loading || document.visibilityState !== "visible") return;
@@ -123,17 +128,21 @@ export function UpcomingEvents({
         const result: unknown = await response.json();
         if (!result || typeof result !== "object" || !("events" in result) ||
           !Array.isArray(result.events) || !result.events.every(isUpcomingLimitlessEvent) ||
-          !("stale" in result) || typeof result.stale !== "boolean") {
+          !("stale" in result) || typeof result.stale !== "boolean" ||
+          !("refreshedAt" in result) || typeof result.refreshedAt !== "string" ||
+          !Number.isFinite(Date.parse(result.refreshedAt))) {
           throw new Error("Upcoming events response was invalid");
         }
         if (!active) return;
         hasEvents.current = result.events.length > 0;
         setCurrentFeed(result.events);
         setFeedStale(result.stale);
+        setFeedRefreshedAt(result.refreshedAt);
         setFeedUnavailable(false);
+        setFeedCheckFailed(false);
       } catch {
         if (!active) return;
-        setFeedStale(true);
+        setFeedCheckFailed(true);
         setFeedUnavailable(!hasEvents.current);
       } finally {
         loading = false;
@@ -144,7 +153,6 @@ export function UpcomingEvents({
       if (Date.now() - lastChecked >= EVENT_REFRESH_MS) void refreshEvents();
     }
 
-    void refreshEvents();
     const timer = window.setInterval(refreshIfDue, EVENT_REFRESH_MS);
     document.addEventListener("visibilitychange", refreshIfDue);
     return () => {
@@ -241,7 +249,7 @@ export function UpcomingEvents({
       </div>
       <div className={styles.columns}>
         <div className={`${styles.allPanel} ${mobilePanel === "pinned" ? styles.mobileHidden : ""}`}>
-          <div className={styles.panelHeading}><h3>All events</h3><span>{filtered.length} found</span></div>
+          <div className={styles.panelHeading}><h3>All events</h3><span>{filtered.length} found{feedRefreshedAt ? ` · Synced ${snapshotFormatter.format(new Date(feedRefreshedAt))}` : ""}</span></div>
           <div className={styles.filters}>
             <label className={styles.search}>
               <span className="sr-only">Search event or organizer</span>
@@ -276,7 +284,8 @@ export function UpcomingEvents({
               </div>
             </div>
           </div>
-          {feedStale ? <p className={styles.notice}>Showing the last available Limitless listing while the live page is unavailable.</p> : null}
+          {feedStale ? <p className={styles.notice}>The scheduled Limitless update is overdue. Showing the last saved listing.</p> : null}
+          {feedCheckFailed ? <p className={styles.notice}>Could not check for a newer saved listing.</p> : null}
           {!persistenceAvailable ? <p className={styles.notice}>Pins and filters are saved on this device until account sync is available.</p> : null}
           {saveError ? <p className={styles.error} role="alert">{saveError}</p> : null}
           {feedUnavailable ? <p className={styles.message}>Limitless events could not be loaded. Try refreshing the dashboard.</p> : null}

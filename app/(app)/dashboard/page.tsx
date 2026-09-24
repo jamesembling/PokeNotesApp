@@ -92,5 +92,5 @@ async function DashboardUpcomingEvents({
   const initialState: UserEventState = state.status === "fulfilled"
     ? state.value
     : { filters: defaultEventFilters, pins: [] };
-  return <UpcomingEvents events={events} initialState={initialState} persistenceAvailable={state.status === "fulfilled"} stale={source.status === "fulfilled" && source.value.stale} unavailable={source.status === "rejected"} userId={userId} />;
+  return <UpcomingEvents events={events} initialState={initialState} persistenceAvailable={state.status === "fulfilled"} refreshedAt={source.status === "fulfilled" ? source.value.refreshedAt : null} stale={source.status === "fulfilled" && source.value.stale} unavailable={source.status === "rejected"} userId={userId} />;
 }
