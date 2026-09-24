@@ -105,8 +105,28 @@ try {
   const rawLog = fixture.replace(bench, `${bench}\nE2ETrainer played Munkidori to the Bench.`).trim();
   const journeyStarted = performance.now();
   await page.setViewportSize({ width: 390, height: 844 });
+  checkpoint("recover deck options after a failed request");
+  let deckOptionsRequests = 0;
+  await page.route("**/api/deck-selection-options", route => {
+    deckOptionsRequests++;
+    return deckOptionsRequests === 1
+      ? route.fulfill({ status: 500, contentType: "application/json", body: '{"error":"Unavailable"}' })
+      : route.continue();
+  });
   checkpoint("paste and review");
   const firstReview = await openReview(rawLog);
+  const deckOptionsAlert = page.getByRole("alert").filter({ hasText: "Could not load deck options" });
+  await deckOptionsAlert.waitFor();
+  const [deckOptionsRetry] = await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname === "/api/deck-selection-options" && response.status() === 200),
+    page.getByRole("button", { name: "Retry", exact: true }).click()
+  ]);
+  assert.equal(deckOptionsRetry.status(), 200);
+  await deckOptionsAlert.waitFor({ state: "hidden" });
+  assert.equal(deckOptionsRequests, 2, "Retry must issue a fresh deck options request.");
+  await page.getByText("More details", { exact: true }).click();
+  await until(() => page.locator("#import-deck-list-mobile").isEnabled());
+  await page.unroute("**/api/deck-selection-options");
   assert.ok(firstReview.draftId, "A ready review must identify its persisted draft.");
   const persistedDraft = await query(
     db.from("battle_log_import_drafts").select("id").eq("id", firstReview.draftId).eq("user_id", userId).maybeSingle()

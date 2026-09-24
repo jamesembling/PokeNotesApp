@@ -77,6 +77,15 @@ export async function proxy(request: NextRequest) {
           request.cookies.set(name, value);
         });
 
+        // NextResponse.next forwards this copy, not request.headers. Keep its
+        // cookie header in sync after Supabase refreshes the request cookies.
+        const refreshedCookieHeader = request.headers.get("cookie");
+        if (refreshedCookieHeader) {
+          forwardedHeaders.set("cookie", refreshedCookieHeader);
+        } else {
+          forwardedHeaders.delete("cookie");
+        }
+
         responseCookiesToSet = cookiesToSet.map(({ name, value, options }) => ({
           name,
           value,

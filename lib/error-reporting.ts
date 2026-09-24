@@ -21,6 +21,7 @@ export type ErrorReport = {
   deckId?: string;
   digest?: string;
   error: {
+    code?: string;
     message: string;
     name: string;
     type: string;
@@ -51,9 +52,17 @@ function summarizeText(value: string, maxLength: number, sensitiveValues: string
   return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength - 1)}…` : trimmed;
 }
 
+function summarizeErrorCode(value: unknown, sensitiveValues: string[]) {
+  return typeof value === "string" || typeof value === "number"
+    ? summarizeText(String(value), MAX_CONTEXT_VALUE_LENGTH, sensitiveValues)
+    : undefined;
+}
+
 function describeError(error: unknown, sensitiveValues: string[] = []) {
   if (error instanceof Error) {
+    const code = summarizeErrorCode((error as Error & { code?: unknown }).code, sensitiveValues);
     return {
+      ...(code ? { code } : {}),
       message: summarizeText(error.message || "Unknown error", MAX_MESSAGE_LENGTH, sensitiveValues),
       name: error.name || "Error",
       type: error.constructor?.name || "Error"
@@ -69,9 +78,17 @@ function describeError(error: unknown, sensitiveValues: string[] = []) {
   }
 
   if (typeof error === "object" && error !== null) {
+    const value = error as Record<string, unknown>;
+    const message = typeof value.message === "string" && value.message.trim()
+      ? summarizeText(value.message, MAX_MESSAGE_LENGTH, sensitiveValues)
+      : "[non-error thrown value]";
+    const code = summarizeErrorCode(value.code, sensitiveValues);
     return {
-      message: "[non-error thrown value]",
-      name: "Error",
+      ...(code ? { code } : {}),
+      message,
+      name: typeof value.name === "string" && value.name
+        ? summarizeText(value.name, MAX_CONTEXT_VALUE_LENGTH, sensitiveValues)
+        : "Error",
       type: error.constructor?.name || "Object"
     };
   }

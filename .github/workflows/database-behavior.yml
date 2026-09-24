@@ -54,6 +54,7 @@ jobs:
                       'scripts/local-e2e.mjs', 'scripts/seed-local-e2e.ts',
                       'scripts/rehearse-tournament-deck-list.mjs',
                       'scripts/verify-battle-log-import-draft.ts',
+                      'proxy.ts', 'tests/proxy-auth.test.ts',
                       '.github/workflows/database-behavior.yml',
                       'package.json', 'package-lock.json',
                   }
@@ -91,6 +92,10 @@ jobs:
       - name: Reset and seed synthetic database
         if: steps.changes.outputs.relevant == 'true'
         run: timeout 5m npm run e2e:local:reset
+
+      - name: Verify refreshed session forwarding
+        if: steps.changes.outputs.relevant == 'true'
+        run: node --env-file=.env.e2e.local node_modules/tsx/dist/cli.mjs --test tests/proxy-auth.test.ts
 
       - name: Test database behavior with pgTAP
         if: steps.changes.outputs.relevant == 'true'
