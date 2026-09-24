@@ -8,6 +8,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Merging
+
+- Merge a PR only when every CI check has passed, including Database behavior. A check skipped because no relevant files changed counts as passed; a pending or failed check does not.
+- Explain why a check failed before rerunning it. Never bypass a failure by rerunning until green without that explanation.
+- If a check fails for a reason unrelated to the PR, stop and tell James instead of merging.
+
 ## Repository routing
 
 - **Domain language:** Before naming or changing a product concept, read `CONTEXT.md`. Deck Aggregate compatibility work also requires `docs/adr/0001-preserve-deck-aggregate-during-relational-cutover.md`; Deck List ownership, Deck Strategy association, or Tournament snapshot work also requires `docs/adr/0002-first-class-deck-lists-and-tournament-snapshots.md`.
