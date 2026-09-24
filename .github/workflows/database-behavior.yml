@@ -1,0 +1,109 @@
+name: Database behavior
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "23 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  database-behavior:
+    name: Database behavior
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Keep this job present on every PR so it can be a required check.
+      - name: Find database-relevant changes
+        id: changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as event_file:
+              event = json.load(event_file)
+          event_name = os.environ['GITHUB_EVENT_NAME']
+          if event_name == 'schedule':
+              relevant = ['weekly main run']
+          else:
+              base = event['pull_request']['base']['sha'] if event_name == 'pull_request' else event['before']
+              if set(base) == {'0'}:
+                  relevant = ['new branch baseline']
+              else:
+                  changed = subprocess.check_output(
+                      ['git', 'diff', '--name-only', '-z', base, 'HEAD'],
+                  ).decode().split('\0')
+                  prefixes = (
+                      'supabase/migrations/', 'lib/db/', 'lib/decks/', 'lib/tournaments/',
+                      'tests/e2e/supabase/tests/', 'tests/e2e/fixtures/',
+                  )
+                  exact = {
+                      'schema.sql', 'tests/e2e/supabase/config.toml',
+                      'scripts/local-e2e.mjs', 'scripts/seed-local-e2e.ts',
+                      'scripts/rehearse-tournament-deck-list.mjs',
+                      'scripts/verify-battle-log-import-draft.ts',
+                      '.github/workflows/database-behavior.yml',
+                      'package.json', 'package-lock.json',
+                  }
+                  relevant = [path for path in changed if path in exact or path.startswith(prefixes)]
+          print('Database-relevant changes:', relevant or 'none')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f"relevant={'true' if relevant else 'false'}\n")
+          PY
+
+      - name: No database changes
+        if: steps.changes.outputs.relevant != 'true'
+        run: echo 'Database behavior check is not needed for these changes.'
+
+      - name: Setup Node
+        if: steps.changes.outputs.relevant == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install pinned dependencies
+        if: steps.changes.outputs.relevant == 'true'
+        run: |
+          npm ci
+          test "$(node_modules/.bin/supabase --version)" = '2.115.0'
+
+      - name: Start disposable local Supabase
+        if: steps.changes.outputs.relevant == 'true'
+        run: timeout 10m npm run e2e:local:start
+
+      - name: Wait for local Supabase readiness
+        if: steps.changes.outputs.relevant == 'true'
+        run: timeout 90s bash -c 'until npm run e2e:local:status >/dev/null 2>&1; do sleep 3; done'
+
+      - name: Reset and seed synthetic database
+        if: steps.changes.outputs.relevant == 'true'
+        run: timeout 5m npm run e2e:local:reset
+
+      - name: Test database behavior with pgTAP
+        if: steps.changes.outputs.relevant == 'true'
+        run: node_modules/.bin/supabase --agent=no --workdir tests/e2e test db --local
+
+      - name: Verify Tournament Deck List behavior
+        if: steps.changes.outputs.relevant == 'true'
+        run: npm run verify:tournament-deck-list
+
+      - name: Verify Battle Log import drafts
+        if: steps.changes.outputs.relevant == 'true'
+        run: npm run verify:battle-log-import-draft
+
+      - name: Stop disposable Supabase
+        if: always() && steps.changes.outputs.relevant == 'true'
+        run: node_modules/.bin/supabase --agent=no --workdir tests/e2e stop --no-backup
