@@ -27,10 +27,6 @@ function getSupabaseEnv() {
 }
 
 export async function proxy(request: NextRequest) {
-  const requestStartedAt = Date.now();
-  const requestCorrelationId = crypto.randomUUID();
-  const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
-
   const requestPath = request.nextUrl.pathname;
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.delete(AUTH_CLAIMS_HEADER);
@@ -41,6 +37,22 @@ export async function proxy(request: NextRequest) {
   forwardedHeaders.delete(PROXY_AUTH_STARTED_HEADER);
   forwardedHeaders.delete(REQUEST_CORRELATION_HEADER);
   forwardedHeaders.delete(REQUEST_STARTED_HEADER);
+
+  // Cron endpoints authenticate with their own bearer secrets and do not need
+  // Supabase session refresh. Keep their authorization independent of Supabase
+  // availability while still stripping any forged internal auth headers.
+  if (requestPath.startsWith("/api/cron/")) {
+    return NextResponse.next({
+      request: {
+        headers: forwardedHeaders
+      }
+    });
+  }
+
+  const requestStartedAt = Date.now();
+  const requestCorrelationId = crypto.randomUUID();
+  const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
+
   forwardedHeaders.set(REQUEST_CORRELATION_HEADER, requestCorrelationId);
   forwardedHeaders.set(REQUEST_STARTED_HEADER, String(requestStartedAt));
   let responseCookiesToSet: Array<{
@@ -176,15 +188,20 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Keep the matcher intentionally narrow so auth refresh only runs on
-  // protected app surfaces, not public or static routes.
+  // Refresh app sessions and sanitize API ingress; public page shells and
+  // static asset requests do not need the user's Supabase session.
   matcher: [
+    "/",
+    "/login",
+    "/dashboard/:path*",
+    "/deck-lists/:path*",
     "/logs/:path+",
     "/decks/:path*",
     "/tournaments/:path*",
     "/profile/:path*",
     "/stats/:path*",
     "/calculator/:path*",
-    "/admin/:path*"
+    "/admin/:path*",
+    "/api/:path*"
   ]
 };

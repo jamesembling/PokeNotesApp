@@ -1,6 +1,10 @@
 import type { User } from "@supabase/supabase-js";
 
 export const AUTH_CLAIMS_HEADER = "x-pokenotes-auth-claims";
+const AUTH_CLAIMS_HEADER_MAX_LENGTH = 16_384;
+const AUTH_CLAIMS_TTL_MS = 5 * 60 * 1_000;
+const AUTH_CLAIMS_CLOCK_SKEW_MS = 30 * 1_000;
+const AUTH_CLAIMS_SIGNATURE_LENGTH = 64;
 
 type HeaderUser = Pick<
   User,
@@ -8,7 +12,12 @@ type HeaderUser = Pick<
 >;
 
 function getSigningSecret() {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEW_SUPABASE_SERVICE_KEY || "";
+  return (
+    process.env.POKENOTES_AUTH_CLAIMS_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEW_SUPABASE_SERVICE_KEY ||
+    ""
+  );
 }
 
 async function signPayload(payload: string, secret: string) {
@@ -43,20 +52,43 @@ function parseHeaderUser(value: unknown): HeaderUser | null {
   };
 }
 
+function isValidSignature(signature: string, expectedSignature: string) {
+  if (
+    signature.length !== AUTH_CLAIMS_SIGNATURE_LENGTH ||
+    expectedSignature.length !== AUTH_CLAIMS_SIGNATURE_LENGTH ||
+    !/^[0-9a-f]{64}$/.test(signature)
+  ) {
+    return false;
+  }
+
+  let difference = 0;
+  for (let index = 0; index < AUTH_CLAIMS_SIGNATURE_LENGTH; index += 1) {
+    difference |= signature.charCodeAt(index) ^ expectedSignature.charCodeAt(index);
+  }
+
+  return difference === 0;
+}
+
 export async function createAuthClaimsHeader(user: HeaderUser | null) {
   const secret = getSigningSecret();
   if (!secret || !user) {
     return null;
   }
 
-  const payload = encodeURIComponent(JSON.stringify(user));
+  const payload = encodeURIComponent(
+    JSON.stringify({ version: 1, issuedAt: Date.now(), user })
+  );
+  if (payload.length + AUTH_CLAIMS_SIGNATURE_LENGTH + 1 > AUTH_CLAIMS_HEADER_MAX_LENGTH) {
+    return null;
+  }
+
   const signature = await signPayload(payload, secret);
   return `${payload}.${signature}`;
 }
 
 export async function readAuthClaimsHeader(value: string | null) {
   const secret = getSigningSecret();
-  if (!secret || !value) {
+  if (!secret || !value || value.length > AUTH_CLAIMS_HEADER_MAX_LENGTH) {
     return null;
   }
 
@@ -69,12 +101,27 @@ export async function readAuthClaimsHeader(value: string | null) {
   const signature = value.slice(separatorIndex + 1);
   const expectedSignature = await signPayload(payload, secret);
 
-  if (signature !== expectedSignature) {
+  if (!isValidSignature(signature, expectedSignature)) {
     return null;
   }
 
   try {
-    return parseHeaderUser(JSON.parse(decodeURIComponent(payload)));
+    const decoded: unknown = JSON.parse(decodeURIComponent(payload));
+    if (
+      !isRecord(decoded) ||
+      decoded.version !== 1 ||
+      typeof decoded.issuedAt !== "number" ||
+      !Number.isSafeInteger(decoded.issuedAt)
+    ) {
+      return null;
+    }
+
+    const ageMs = Date.now() - decoded.issuedAt;
+    if (ageMs > AUTH_CLAIMS_TTL_MS || ageMs < -AUTH_CLAIMS_CLOCK_SKEW_MS) {
+      return null;
+    }
+
+    return parseHeaderUser(decoded.user);
   } catch {
     return null;
   }

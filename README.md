@@ -131,6 +131,7 @@ Migration and seed utilities also use:
 
 Optional variables:
 
+- `POKENOTES_AUTH_CLAIMS_SECRET` (dedicated HMAC key for forwarded auth claims; falls back to the Supabase service key)
 - `OLD_SUPABASE_URL`
 - `OLD_SUPABASE_SERVICE_KEY`
 - `CRON_SECRET`
