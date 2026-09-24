@@ -14,9 +14,9 @@ const UPCOMING_URL =
   "https://play.limitlesstcg.com/tournaments/upcoming?game=PTCG&type=online&platform=PTCGL&format=STANDARD";
 const FEED_KEY = "ptcg-standard-ptcgl";
 
-async function fetchUpcomingEvents(fresh = false) {
+async function fetchUpcomingEvents() {
   const response = await fetch(UPCOMING_URL, {
-    ...(fresh ? { cache: "no-store" as const } : { next: { revalidate: 30 * 60 } }),
+    cache: "no-store",
     headers: { Accept: "text/html" },
     signal: AbortSignal.timeout(10_000)
   });
@@ -51,7 +51,7 @@ export async function getUpcomingLimitlessEvents(): Promise<{
 }
 
 export async function refreshUpcomingLimitlessSnapshot() {
-  const events = await fetchUpcomingEvents(true);
+  const events = await fetchUpcomingEvents();
   const supabase = createAdminClient();
   const { error } = await supabase.from("limitless_event_feed").upsert({
     feed_key: FEED_KEY,
