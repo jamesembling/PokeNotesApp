@@ -89,8 +89,22 @@ function matchingFixture() {
   };
 }
 
-test("matching legacy and relational deck records are safe to cut over", () => {
-  const counts = aggregateDeckCompatibility(matchingFixture());
+test("compatibility parity follows content and order, including standalone lists", () => {
+  const fixture = matchingFixture();
+  fixture.deckLists[0].position = 7;
+  fixture.deckLists[0].updated_at = "2026-07-11T12:01:00.000Z";
+  fixture.deckMatchups[0].position = 9;
+  fixture.deckMatchups[0].updated_at = "2026-07-11T12:01:00.000Z";
+  const standaloneList = {
+    ...fixture.deckLists[0],
+    id: "standalone-private-list-id",
+    deck_id: null,
+    name: "Standalone private list",
+    position: 0
+  };
+  fixture.deckLists.push(standaloneList);
+
+  const counts = aggregateDeckCompatibility(fixture);
   const report = buildDeckCompatibilityReport(counts);
 
   assert.equal(report.safeToCutOver, true);
@@ -99,7 +113,89 @@ test("matching legacy and relational deck records are safe to cut over", () => {
   assert.equal(report.counts.overlappingListCompositeCount, 1);
   assert.equal(report.counts.overlappingMatchupCompositeCount, 1);
   assert.equal(report.counts.overlappingListScalarMismatchCount, 0);
+  assert.equal(report.counts.overlappingListOrderMismatchCount, 0);
+  assert.equal(report.counts.overlappingMatchupOrderMismatchCount, 0);
+  assert.equal(report.counts.standaloneListRecordCount, 1);
+  assert.equal(report.counts.standaloneListInvalidIdentityCount, 0);
+  assert.equal(report.counts.standaloneListDuplicateIdentityCount, 0);
+  assert.equal(report.counts.standaloneListLegacyCopyCount, 0);
   assert.equal(report.counts.overlappingListSortedCardsMismatchCount, 0);
+
+  const secondListId = "second-private-list-id";
+  const secondMatchupId = "second-private-matchup-id";
+  fixture.decks[0].deck_lists.push({
+    ...fixture.decks[0].deck_lists[0],
+    id: secondListId,
+    name: "Second private list",
+    createdAt: "2026-07-11T12:01:00.000Z"
+  });
+  fixture.deckLists.push({
+    ...fixture.deckLists[0],
+    id: secondListId,
+    name: "Second private list",
+    position: 8,
+    created_at: "2026-07-11T12:01:00.000Z"
+  });
+  fixture.deckLists[0].position = 1;
+  fixture.decks[0].matchups.push({
+    ...fixture.decks[0].matchups[0],
+    id: secondMatchupId,
+    deckName: "Second private matchup",
+    createdAt: "2026-07-11T12:01:00.000Z"
+  });
+  fixture.deckMatchups.push({
+    ...fixture.deckMatchups[0],
+    id: secondMatchupId,
+    deck_name: "Second private matchup",
+    position: 10,
+    created_at: "2026-07-11T12:01:00.000Z"
+  });
+  fixture.deckMatchups[0].position = 1;
+
+  const sameOrderReport = buildDeckCompatibilityReport(aggregateDeckCompatibility(fixture));
+  assert.equal(sameOrderReport.safeToCutOver, true);
+  assert.equal(sameOrderReport.counts.overlappingListOrderMismatchCount, 0);
+  assert.equal(sameOrderReport.counts.overlappingMatchupOrderMismatchCount, 0);
+
+  fixture.deckLists[0].position = 8;
+  fixture.deckLists[2].position = 7;
+  fixture.deckMatchups[0].position = 10;
+  fixture.deckMatchups[1].position = 9;
+  const reversedOrderReport = buildDeckCompatibilityReport(aggregateDeckCompatibility(fixture));
+
+  assert.equal(reversedOrderReport.safeToCutOver, false);
+  assert.equal(reversedOrderReport.counts.overlappingListOrderMismatchCount, 1);
+  assert.equal(reversedOrderReport.counts.overlappingMatchupOrderMismatchCount, 1);
+  assert(reversedOrderReport.reasons.some((reason) => reason.includes("Deck List ordering")));
+  assert(reversedOrderReport.reasons.some((reason) => reason.includes("Deck Matchup ordering")));
+
+  fixture.deckLists[0].position = fixture.deckLists[2].position;
+  fixture.deckLists[0].created_at = fixture.deckLists[2].created_at;
+  fixture.deckMatchups[0].position = fixture.deckMatchups[1].position;
+  fixture.deckMatchups[0].created_at = fixture.deckMatchups[1].created_at;
+  const ambiguousOrderReport = buildDeckCompatibilityReport(aggregateDeckCompatibility(fixture));
+  assert.equal(ambiguousOrderReport.safeToCutOver, false);
+  assert.equal(ambiguousOrderReport.counts.overlappingListOrderMismatchCount, 1);
+  assert.equal(ambiguousOrderReport.counts.overlappingMatchupOrderMismatchCount, 1);
+
+  fixture.decks[0].deck_lists.push({
+    ...standaloneList,
+    createdAt: standaloneList.created_at,
+    updatedAt: standaloneList.updated_at
+  });
+  const standaloneLegacyCopyReport = buildDeckCompatibilityReport(aggregateDeckCompatibility(fixture));
+  assert.equal(standaloneLegacyCopyReport.safeToCutOver, false);
+  assert.equal(standaloneLegacyCopyReport.counts.standaloneListLegacyCopyCount, 1);
+
+  fixture.deckLists.push({ ...standaloneList });
+  const duplicateStandaloneReport = buildDeckCompatibilityReport(aggregateDeckCompatibility(fixture));
+  assert.equal(duplicateStandaloneReport.safeToCutOver, false);
+  assert.equal(duplicateStandaloneReport.counts.standaloneListDuplicateIdentityCount, 1);
+
+  fixture.deckLists.push({ ...standaloneList, id: "" });
+  const invalidStandaloneReport = buildDeckCompatibilityReport(aggregateDeckCompatibility(fixture));
+  assert.equal(invalidStandaloneReport.safeToCutOver, false);
+  assert.equal(invalidStandaloneReport.counts.standaloneListInvalidIdentityCount, 1);
 });
 
 test("missing IDs and overlapping scalar/card differences block cut-over by category", () => {

@@ -15,6 +15,10 @@ export const DECK_COMPATIBILITY_COUNT_KEYS = [
   "invalidLegacyListContainerDeckCount",
   "legacyListRecordCount",
   "relationalListRecordCount",
+  "standaloneListRecordCount",
+  "standaloneListInvalidIdentityCount",
+  "standaloneListDuplicateIdentityCount",
+  "standaloneListLegacyCopyCount",
   "decksWithListCountMismatch",
   "legacyListInvalidIdCount",
   "legacyListDuplicateCompositeCount",
@@ -32,6 +36,7 @@ export const DECK_COMPATIBILITY_COUNT_KEYS = [
   "relationalOnlyListGlobalIdAbsentCount",
   "overlappingListCompositeCount",
   "overlappingListScalarMismatchCount",
+  "overlappingListOrderMismatchCount",
   "overlappingListParsedCardsMismatchCount",
   "overlappingListSortedCardsMismatchCount",
   "invalidLegacyMatchupContainerDeckCount",
@@ -54,10 +59,14 @@ export const DECK_COMPATIBILITY_COUNT_KEYS = [
   "relationalOnlyMatchupGlobalIdAbsentCount",
   "overlappingMatchupCompositeCount",
   "overlappingMatchupScalarMismatchCount",
+  "overlappingMatchupOrderMismatchCount",
   "overlappingMatchupPokemonMismatchCount"
 ];
 
 const LIST_ISSUE_COUNT_KEYS = [
+  "standaloneListInvalidIdentityCount",
+  "standaloneListDuplicateIdentityCount",
+  "standaloneListLegacyCopyCount",
   "invalidLegacyListContainerDeckCount",
   "decksWithListCountMismatch",
   "legacyListInvalidIdCount",
@@ -71,6 +80,7 @@ const LIST_ISSUE_COUNT_KEYS = [
   "legacyOnlyListCompositeCount",
   "relationalOnlyListCompositeCount",
   "overlappingListScalarMismatchCount",
+  "overlappingListOrderMismatchCount",
   "overlappingListParsedCardsMismatchCount",
   "overlappingListSortedCardsMismatchCount"
 ];
@@ -89,6 +99,7 @@ const MATCHUP_ISSUE_COUNT_KEYS = [
   "legacyOnlyMatchupCompositeCount",
   "relationalOnlyMatchupCompositeCount",
   "overlappingMatchupScalarMismatchCount",
+  "overlappingMatchupOrderMismatchCount",
   "overlappingMatchupPokemonMismatchCount"
 ];
 
@@ -365,6 +376,64 @@ function compareRecordIndexes({
   }
 }
 
+function scalarFieldsMatchIgnoringVersionAndOrdinal(left, right) {
+  // updatedAt is a version token rather than content: set_updated_at assigns
+  // the relational row its own timestamp while the RPC updates both stores.
+  // position is a storage ordinal, so compare the visible order separately.
+  const comparable = (scalars) => Object.fromEntries(
+    Object.entries(scalars).filter(([key]) => key !== "updatedAt" && key !== "position")
+  );
+  return jsonValuesMatch(comparable(left), comparable(right));
+}
+
+function countOrderingMismatches(legacyRecords, relationalRecords, createdAtDirection) {
+  const legacyByDeck = new Map();
+  const relationalByDeck = new Map();
+  for (const record of legacyRecords) {
+    const records = legacyByDeck.get(record.deckId) ?? [];
+    records.push(record);
+    legacyByDeck.set(record.deckId, records);
+  }
+  for (const record of relationalRecords) {
+    const records = relationalByDeck.get(record.deckId) ?? [];
+    records.push(record);
+    relationalByDeck.set(record.deckId, records);
+  }
+
+  let mismatchCount = 0;
+  for (const deckId of new Set([...legacyByDeck.keys(), ...relationalByDeck.keys()])) {
+    const legacy = legacyByDeck.get(deckId) ?? [];
+    const relational = relationalByDeck.get(deckId) ?? [];
+    if (legacy.length !== relational.length) {
+      continue; // Missing and extra records already have dedicated blocking counts.
+    }
+
+    const legacyKeys = new Set(legacy.map((record) => record.key));
+    if (relational.some((record) => !legacyKeys.has(record.key))) {
+      continue; // Identity gaps are already reported by the compatibility comparison.
+    }
+
+    const orderedLegacy = [...legacy].sort((left, right) => left.scalars.position - right.scalars.position);
+    const orderedRelational = [...relational].sort((left, right) => {
+      const position = left.scalars.position - right.scalars.position;
+      if (position !== 0) {
+        return position;
+      }
+      const createdAt = left.scalars.createdAt.localeCompare(right.scalars.createdAt) * createdAtDirection;
+      return createdAt || left.id.localeCompare(right.id);
+    });
+    const hasAmbiguousOrder = orderedRelational.some((record, index) => {
+      const previous = orderedRelational[index - 1];
+      return previous && previous.scalars.position === record.scalars.position &&
+        previous.scalars.createdAt === record.scalars.createdAt;
+    });
+    if (hasAmbiguousOrder || orderedLegacy.some((record, index) => record.key !== orderedRelational[index].key)) {
+      mismatchCount += 1;
+    }
+  }
+  return mismatchCount;
+}
+
 export function aggregateDeckCompatibility({ decks = [], deckLists = [], deckMatchups = [] }) {
   const counts = emptyCounts();
   const deckById = new Map();
@@ -372,6 +441,8 @@ export function aggregateDeckCompatibility({ decks = [], deckLists = [], deckMat
   const legacyMatchups = [];
   const legacyListCountByDeck = new Map();
   const legacyMatchupCountByDeck = new Map();
+  const standaloneListIdentities = new Set();
+  const standaloneListDuplicateIdentities = new Set();
 
   counts.decksAudited = decks.length;
   counts.relationalListRecordCount = deckLists.length;
@@ -430,6 +501,22 @@ export function aggregateDeckCompatibility({ decks = [], deckLists = [], deckMat
   const relationalLists = [];
   const relationalListCountByDeck = new Map();
   for (const row of deckLists) {
+    if (!asIdentifier(asRecord(row)?.deck_id)) {
+      counts.standaloneListRecordCount += 1;
+      const userId = asIdentifier(asRecord(row)?.user_id);
+      const id = asIdentifier(asRecord(row)?.id);
+      if (!userId || !id) {
+        counts.standaloneListInvalidIdentityCount += 1;
+        continue;
+      }
+      const identity = JSON.stringify([userId, id]);
+      if (standaloneListIdentities.has(identity) && !standaloneListDuplicateIdentities.has(identity)) {
+        standaloneListDuplicateIdentities.add(identity);
+        counts.standaloneListDuplicateIdentityCount += 1;
+      }
+      standaloneListIdentities.add(identity);
+      continue;
+    }
     const parsed = relationalDeckList(row);
     if (!parsed) {
       counts.relationalListInvalidIdCount += 1;
@@ -445,6 +532,13 @@ export function aggregateDeckCompatibility({ decks = [], deckLists = [], deckMat
       counts.relationalListOrphanCount += 1;
     } else if (parent.userId !== parsed.userId) {
       counts.relationalListOwnerMismatchCount += 1;
+    }
+  }
+
+  for (const record of legacyLists) {
+    const ownerId = deckById.get(record.deckId)?.userId;
+    if (ownerId && standaloneListIdentities.has(JSON.stringify([ownerId, record.id]))) {
+      counts.standaloneListLegacyCopyCount += 1;
     }
   }
 
@@ -507,7 +601,7 @@ export function aggregateDeckCompatibility({ decks = [], deckLists = [], deckMat
     relationalIdAtDifferentParentCountKey: "relationalOnlyListIdAtDifferentParentCount",
     relationalGlobalIdAbsentCountKey: "relationalOnlyListGlobalIdAbsentCount",
     compareOverlap(legacyRecord, relationalRecord) {
-      if (!jsonValuesMatch(legacyRecord.scalars, relationalRecord.scalars)) {
+      if (!scalarFieldsMatchIgnoringVersionAndOrdinal(legacyRecord.scalars, relationalRecord.scalars)) {
         counts.overlappingListScalarMismatchCount += 1;
       }
       if (!jsonValuesMatch(legacyRecord.parsedCards, relationalRecord.parsedCards)) {
@@ -518,6 +612,11 @@ export function aggregateDeckCompatibility({ decks = [], deckLists = [], deckMat
       }
     }
   });
+  counts.overlappingListOrderMismatchCount = countOrderingMismatches(
+    legacyLists,
+    relationalLists,
+    -1
+  );
 
   const legacyMatchupsByKey = indexUniqueRecords(
     legacyMatchups,
@@ -547,7 +646,7 @@ export function aggregateDeckCompatibility({ decks = [], deckLists = [], deckMat
     relationalIdAtDifferentParentCountKey: "relationalOnlyMatchupIdAtDifferentParentCount",
     relationalGlobalIdAbsentCountKey: "relationalOnlyMatchupGlobalIdAbsentCount",
     compareOverlap(legacyRecord, relationalRecord) {
-      if (!jsonValuesMatch(legacyRecord.scalars, relationalRecord.scalars)) {
+      if (!scalarFieldsMatchIgnoringVersionAndOrdinal(legacyRecord.scalars, relationalRecord.scalars)) {
         counts.overlappingMatchupScalarMismatchCount += 1;
       }
       if (!jsonValuesMatch(legacyRecord.deckPokemon, relationalRecord.deckPokemon)) {
@@ -555,6 +654,11 @@ export function aggregateDeckCompatibility({ decks = [], deckLists = [], deckMat
       }
     }
   });
+  counts.overlappingMatchupOrderMismatchCount = countOrderingMismatches(
+    legacyMatchups,
+    relationalMatchups,
+    1
+  );
 
   return counts;
 }
@@ -592,6 +696,15 @@ export function buildDeckCompatibilityReport(countsInput) {
   }
   if (counts.invalidLegacyListContainerDeckCount) {
     reasons.push(reasonWithCount(counts.invalidLegacyListContainerDeckCount, "deck has a malformed legacy list container", "decks have malformed legacy list containers"));
+  }
+  if (counts.standaloneListInvalidIdentityCount) {
+    reasons.push(reasonWithCount(counts.standaloneListInvalidIdentityCount, "standalone Deck List has an invalid owner or ID", "standalone Deck Lists have an invalid owner or ID"));
+  }
+  if (counts.standaloneListDuplicateIdentityCount) {
+    reasons.push(reasonWithCount(counts.standaloneListDuplicateIdentityCount, "standalone Deck List repeats an account-scoped identity", "standalone Deck Lists repeat account-scoped identities"));
+  }
+  if (counts.standaloneListLegacyCopyCount) {
+    reasons.push(reasonWithCount(counts.standaloneListLegacyCopyCount, "standalone Deck List also appears in a legacy Deck Aggregate", "standalone Deck Lists also appear in legacy Deck Aggregates"));
   }
   if (counts.decksWithListCountMismatch) {
     reasons.push(reasonWithCount(counts.decksWithListCountMismatch, "deck has different legacy and relational list totals", "decks have different legacy and relational list totals"));
@@ -694,6 +807,9 @@ export function buildDeckCompatibilityReport(countsInput) {
   }
   if (counts.overlappingListScalarMismatchCount) {
     reasons.push(reasonWithCount(counts.overlappingListScalarMismatchCount, "overlapping list record has different scalar fields", "overlapping list records have different scalar fields"));
+  }
+  if (counts.overlappingListOrderMismatchCount) {
+    reasons.push(reasonWithCount(counts.overlappingListOrderMismatchCount, "deck has different Deck List ordering across compatibility stores", "decks have different Deck List ordering across compatibility stores"));
   }
   if (counts.overlappingListParsedCardsMismatchCount) {
     reasons.push(reasonWithCount(counts.overlappingListParsedCardsMismatchCount, "overlapping list record has different parsed-card data", "overlapping list records have different parsed-card data"));
@@ -806,6 +922,9 @@ export function buildDeckCompatibilityReport(countsInput) {
   }
   if (counts.overlappingMatchupScalarMismatchCount) {
     reasons.push(reasonWithCount(counts.overlappingMatchupScalarMismatchCount, "overlapping matchup record has different scalar fields", "overlapping matchup records have different scalar fields"));
+  }
+  if (counts.overlappingMatchupOrderMismatchCount) {
+    reasons.push(reasonWithCount(counts.overlappingMatchupOrderMismatchCount, "deck has different Deck Matchup ordering across compatibility stores", "decks have different Deck Matchup ordering across compatibility stores"));
   }
   if (counts.overlappingMatchupPokemonMismatchCount) {
     reasons.push(reasonWithCount(counts.overlappingMatchupPokemonMismatchCount, "overlapping matchup record has different Pokemon data", "overlapping matchup records have different Pokemon data"));
