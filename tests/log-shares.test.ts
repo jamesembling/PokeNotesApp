@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
 import {
   getOrCreateLogShareSnapshot,
   getSharedLogSnapshot,
   isLogShare24HourLimitError,
-  isMissingLogShareRevokerError,
   isLogSharePayloadTooLargeError,
   isLogShareSourceNotFoundError,
   revokeLogShare,
@@ -15,22 +16,11 @@ import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
 import { projectPublicBattleLogDetail } from "@/lib/battle-log/detail-projection";
 import type { BattleLog } from "@/types/index";
 
-test("revocation fallback is limited to a missing revoke RPC", () => {
-  assert.equal(
-    isMissingLogShareRevokerError({
-      code: "PGRST202",
-      message: "Could not find the function public.revoke_log_share(text)"
-    }),
-    true
-  );
-  assert.equal(
-    isMissingLogShareRevokerError({ code: "42501", message: "permission denied" }),
-    false
-  );
-  assert.equal(
-    isMissingLogShareRevokerError({ code: "PGRST202", message: "Could not find another function" }),
-    false
-  );
+const logSharesSource = readFileSync(join(import.meta.dirname, "../lib/db/log-shares.ts"), "utf8");
+
+test("share revocation requires the atomic RPC and has no direct-delete fallback", () => {
+  assert.match(logSharesSource, /supabase\.rpc\("revoke_log_share"/i);
+  assert.doesNotMatch(logSharesSource, /from\("log_shares"\)\s*\.delete\(/i);
 });
 
 function buildBattleLog(id = "log-1"): BattleLog {
