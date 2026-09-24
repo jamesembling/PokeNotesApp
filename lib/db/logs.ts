@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { measureServerCall } from "@/lib/server/perf";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   buildDeckLinkCandidateIndex,
   resolveLinkedDeckFromIndex
@@ -924,44 +925,46 @@ async function getLogsIndexedByDeck(
     "linked_deck_list_id",
     "imported_at"
   ].join(",");
-  const explicitResult = await measureServerCall("db.logs.forDecks.explicit", async () =>
-    await supabase
-      .from("logs")
-      .select(logSummarySelect)
-      .eq("user_id", userId)
-      .in("linked_deck_id", targetDeckIds)
+  const explicitRows = await measureServerCall("db.logs.forDecks.explicit", () =>
+    fetchAllRows<LogsTableRow>((from, to) =>
+      supabase
+        .from("logs")
+        .select(logSummarySelect)
+        .eq("user_id", userId)
+        .in("linked_deck_id", targetDeckIds)
+        .order("id", { ascending: true })
+        .range(from, to) as PromiseLike<{ data: LogsTableRow[] | null; error: unknown }>,
+      500
+    )
   );
-
-  if (explicitResult.error) {
-    throw explicitResult.error;
-  }
 
   if (!options.includeUnlinkedFallback) {
     return groupLogsByDeck({
       decks,
-      explicitRows: (((explicitResult.data ?? []) as unknown) as LogsTableRow[]),
+      explicitRows,
       targetDeckIds,
       unlinkedRows: []
     });
   }
 
-  const unlinkedResult = await measureServerCall("db.logs.forDecks.unlinked", async () =>
-    await supabase
-      .from("logs")
-      .select(logSummarySelect)
-      .eq("user_id", userId)
-      .is("linked_deck_id", null)
+  const unlinkedRows = await measureServerCall("db.logs.forDecks.unlinked", () =>
+    fetchAllRows<LogsTableRow>((from, to) =>
+      supabase
+        .from("logs")
+        .select(logSummarySelect)
+        .eq("user_id", userId)
+        .is("linked_deck_id", null)
+        .order("id", { ascending: true })
+        .range(from, to) as PromiseLike<{ data: LogsTableRow[] | null; error: unknown }>,
+      500
+    )
   );
-
-  if (unlinkedResult.error) {
-    throw unlinkedResult.error;
-  }
 
   return groupLogsByDeck({
     decks,
-    explicitRows: (((explicitResult.data ?? []) as unknown) as LogsTableRow[]),
+    explicitRows,
     targetDeckIds,
-    unlinkedRows: (((unlinkedResult.data ?? []) as unknown) as LogsTableRow[])
+    unlinkedRows
   });
 }
 

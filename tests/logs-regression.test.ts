@@ -47,6 +47,7 @@ type QueryChain = {
   lt(...args: unknown[]): QueryChain;
   or(...args: unknown[]): QueryChain;
   order(...args: unknown[]): QueryChain;
+  range(...args: unknown[]): QueryChain;
   limit(...args: unknown[]): QueryChain;
   maybeSingle(): Promise<QueryResult>;
   then(
@@ -95,6 +96,10 @@ function createFakeSupabaseClient(
       },
       order(...args: unknown[]) {
         ctx.operations.push({ method: "order", args });
+        return chain;
+      },
+      range(...args: unknown[]) {
+        ctx.operations.push({ method: "range", args });
         return chain;
       },
       limit(...args: unknown[]) {
@@ -697,9 +702,20 @@ test("getArchetypeMatchupStats maps opponent matchup rows", async (t) => {
   ]);
 });
 
-test("getAllLogsByDeck groups explicit and legacy-unlinked logs by deck", async (t) => {
+test("getAllLogsByDeck pages and groups explicit and legacy-unlinked logs", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
+  const explicitRows = Array.from({ length: 501 }, (_, index) =>
+    buildLogRow({ id: `explicit-${index}`, linked_deck_id: "deck-b" })
+  );
+  const unlinkedRows = Array.from({ length: 501 }, (_, index) =>
+    buildLogRow({
+      id: `unlinked-${index}`,
+      linked_deck_id: null,
+      self_deck_name: "Deck deck-b",
+      self_deck_sprites: ""
+    })
+  );
   const { client } = createFakeSupabaseClient((ctx) => {
     const hasExplicitDeckFilter = ctx.operations.some(
       (op) => op.method === "in" && op.args[0] === "linked_deck_id"
@@ -708,16 +724,20 @@ test("getAllLogsByDeck groups explicit and legacy-unlinked logs by deck", async 
       (op) => op.method === "is" && op.args[0] === "linked_deck_id"
     );
 
+    const range = ctx.operations.find((op) => op.method === "range")?.args;
+    assert.ok(range, "deck-log queries must request bounded pages");
+    const [from, to] = range as number[];
+
     if (hasExplicitDeckFilter) {
       return {
-        data: [buildLogRow({ id: "deck-b-log", linked_deck_id: "deck-b" })],
+        data: explicitRows.slice(from, to + 1),
         error: null
       };
     }
 
     if (hasUnlinkedFilter) {
       return {
-        data: [],
+        data: unlinkedRows.slice(from, to + 1),
         error: null
       };
     }
@@ -732,10 +752,10 @@ test("getAllLogsByDeck groups explicit and legacy-unlinked logs by deck", async 
 
   const logsByDeck = await getAllLogsByDeck("user-1", decks);
 
-  assert.deepEqual(
-    (logsByDeck.get("deck-b") ?? []).map((log) => log.id),
-    ["deck-b-log"]
-  );
+  const deckBLogIds = new Set((logsByDeck.get("deck-b") ?? []).map((log) => log.id));
+  assert.equal(deckBLogIds.size, 1002);
+  assert.ok(deckBLogIds.has("explicit-500"));
+  assert.ok(deckBLogIds.has("unlinked-500"));
 });
 
 test("getDeckLogSnapshots preserves grouped stats parity for explicit and legacy-unlinked logs", async (t) => {
