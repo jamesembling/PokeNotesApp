@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createDeckAggregateWriter,
+  createSupabaseDeckAggregateWriteAdapter,
   isDeckListStaleVersionError,
-  isMissingFirstClassDeckListRpc,
   type DeckListCommitPlan,
   type DeckListCommitResult,
   type SaveDeckListCommand
@@ -229,34 +229,35 @@ test("standalone updates carry the observed version for stale-write rejection", 
   assert.equal(harness.plans[0].deckId, null);
 });
 
-test("rollout fallback recognizes only the intended missing first-class RPC", () => {
-  assert.equal(
-    isMissingFirstClassDeckListRpc({
-      code: "42883",
-      message:
-        "function public.commit_first_class_deck_list(text, text, jsonb, text, timestamp with time zone, timestamp with time zone) does not exist"
+test("missing first-class Deck List RPC errors fail without a legacy write", async () => {
+  const missingRpcError = {
+    code: "42883",
+    message: "function public.commit_first_class_deck_list(...) does not exist"
+  };
+  const rpcCalls: string[] = [];
+  const adapter = createSupabaseDeckAggregateWriteAdapter({
+    supabase: {
+      rpc: async (name: string) => {
+        rpcCalls.push(name);
+        return { data: null, error: missingRpcError };
+      }
+    } as never,
+    userId: "user-1"
+  });
+  assert.ok(adapter.commitDeckList);
+
+  await assert.rejects(
+    adapter.commitDeckList({
+      child: { id: "list-1" },
+      creationKey: "list-1",
+      deckId: "strategy-1",
+      expectedChildUpdatedAt: EXISTING_UPDATED_AT,
+      operation: "update",
+      updatedAt: NOW
     }),
-    true
+    (error) => error === missingRpcError
   );
-  assert.equal(
-    isMissingFirstClassDeckListRpc({
-      code: "PGRST202",
-      details:
-        "Searched for the function public.commit_first_class_deck_list with parameters p_deck_id, p_operation, p_payload, p_creation_key, p_expected_updated_at, p_updated_at"
-    }),
-    true
-  );
-  assert.equal(
-    isMissingFirstClassDeckListRpc({
-      code: "42883",
-      message: "function public.commit_first_class_deck_list_internal(text) does not exist"
-    }),
-    false
-  );
-  assert.equal(
-    isMissingFirstClassDeckListRpc({ code: "42883", message: "operator does not exist" }),
-    false
-  );
+  assert.deepEqual(rpcCalls, ["commit_first_class_deck_list"]);
 });
 
 test("stale RPC errors are narrowly classified for refresh-and-retry guidance", () => {

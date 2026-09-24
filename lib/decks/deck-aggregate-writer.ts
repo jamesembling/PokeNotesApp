@@ -133,37 +133,6 @@ export type DeckAggregateWriteAdapter = {
 
 export { isDeckListStaleVersionError } from "@/lib/decks/deck-list-errors";
 
-export function isMissingFirstClassDeckListRpc(error: unknown) {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const candidate = error as {
-    code?: unknown;
-    details?: unknown;
-    hint?: unknown;
-    message?: unknown;
-  };
-  const code = String(candidate.code || "");
-  if (code !== "42883" && code !== "PGRST202") {
-    return false;
-  }
-
-  const text = [candidate.message, candidate.details, candidate.hint]
-    .filter((value): value is string => typeof value === "string")
-    .join(" ");
-  const identifiesFunction = /(?:public\.)?commit_first_class_deck_list\b/i.test(text);
-  const identifiesSignature =
-    /p_(?:creation_key|deck_id|operation|payload|expected_updated_at|updated_at)/i.test(text) ||
-    (/jsonb/i.test(text) && /timestamp with time zone/i.test(text));
-  const identifiesMissingFunction =
-    /function .* does not exist|searched for the function|schema cache|function .* not found/i.test(
-      text
-    );
-
-  return identifiesFunction && identifiesSignature && identifiesMissingFunction;
-}
-
 export type DeckAggregateWriter = {
   createMatchup(
     command: CreateDeckMatchupCommand
@@ -590,7 +559,7 @@ export function createDeckAggregateWriter(
   };
 }
 
-function createSupabaseDeckAggregateWriteAdapter(input: {
+export function createSupabaseDeckAggregateWriteAdapter(input: {
   supabase: SupabaseClient;
   userId: string;
 }): DeckAggregateWriteAdapter {
@@ -652,34 +621,7 @@ function createSupabaseDeckAggregateWriteAdapter(input: {
           });
         }
 
-        if (!isMissingFirstClassDeckListRpc(error)) {
-          throw error;
-        }
-
-        if (!plan.deckId) {
-          throw userFacingActionError(
-            "Deck Lists are not ready on this server yet. Try again after the database migration is applied."
-          );
-        }
-
-        const legacyResult = await commitLegacy(plan);
-        if (legacyResult === "deck-not-found") {
-          throw userFacingActionError("Deck could not be found.");
-        }
-        if (legacyResult === "child-not-found") {
-          throw userFacingActionError("Deck list could not be found.");
-        }
-        if (legacyResult === "conflict") {
-          throw userFacingActionError(
-            "This deck list changed in another tab. Refresh the page and try again."
-          );
-        }
-
-        return {
-          deckId: plan.deckId,
-          deckListId: String(plan.child.id),
-          status: "committed"
-        } satisfies DeckListCommitResult;
+        throw error;
       }
 
       const result = data as {
