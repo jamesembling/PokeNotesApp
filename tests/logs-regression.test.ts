@@ -552,34 +552,33 @@ test("getLogStatsOverview prefers the RPC rollup path when it succeeds", async (
   });
 });
 
-test("getLogStatsOverview counts explicit toss losses while the live RPC is on the old shape", async (t) => {
+test("getLogStatsOverview uses the read model when the live RPC has the old shape", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
   const { client } = createFakeSupabaseClient(
     (ctx) => {
-      assert.equal(ctx.table, "logs");
-      if (ctx.operations.some((operation) => operation.method === "is")) {
-        return {
-          data: [
-            {
-              opponent_player_name: "OpponentOne",
-              raw_log: "Me won the coin toss.\nMe decided to go second.",
-              self_player_name: "Me"
-            },
-            {
-              opponent_player_name: "OpponentTwo",
-              raw_log: "OpponentTwo won the coin toss.\nOpponentTwo decided to go first.",
-              self_player_name: "Me"
-            },
-            {
-              opponent_player_name: "OpponentThree",
-              raw_log: "Setup without a toss result.",
-              self_player_name: "Me"
-            }
-          ],
-          error: null
-        };
-      }
-      return { count: 4, data: null, error: null };
+      assert.equal(ctx.table, "user_log_stats");
+      const select = ctx.operations.find((operation) => operation.method === "select");
+      assert.equal(typeof select?.args[0], "string");
+      assert.equal(String(select?.args[0]).includes("raw_log"), false);
+      assert.ok(ctx.operations.some((operation) =>
+        operation.method === "eq" && operation.args[0] === "user_id" && operation.args[1] === "user-1"
+      ));
+      return {
+        data: {
+          games_played: 12,
+          games_won: 7,
+          games_lost: 5,
+          attack_damage: 1820,
+          opponent_attack_damage: 1660,
+          coin_flips_lost: 4,
+          coin_flips_won: 8,
+          mulligans_taken: 3,
+          prizes_taken: 29,
+          tracked_damage: 3480,
+          tracked_prizes: 54
+        },
+        error: null
+      };
     },
     () => ({
       data: [
@@ -607,8 +606,8 @@ test("getLogStatsOverview counts explicit toss losses while the live RPC is on t
 
   const overview = await getLogStatsOverview("user-1");
 
-  assert.equal(overview.coinFlipsWon, 9);
-  assert.equal(overview.coinFlipsLost, 5);
+  assert.equal(overview.coinFlipsWon, 8);
+  assert.equal(overview.coinFlipsLost, 4);
 });
 
 test("getLogStatsOverview falls back to the user_log_stats read model if the RPC errors", async (t) => {
