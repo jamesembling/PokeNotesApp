@@ -1,5 +1,6 @@
 import { privateJson } from "@/lib/server/api-response";
 import { reportError } from "@/lib/server/report-error";
+import { isAuthorizedLimitlessSync } from "@/lib/tournaments/limitless-sync-auth";
 import { refreshUpcomingLimitlessSnapshot } from "@/lib/tournaments/limitless-upcoming";
 
 export const runtime = "nodejs";
@@ -8,8 +9,11 @@ export const revalidate = 0;
 
 export async function GET(request: Request) {
   try {
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret || request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+    if (!isAuthorizedLimitlessSync(
+      request.headers.get("authorization"),
+      process.env.CRON_SECRET,
+      process.env.LIMITLESS_SYNC_SECRET
+    )) {
       return privateJson({ error: "Unauthorized" }, { status: 401 });
     }
 

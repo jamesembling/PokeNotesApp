@@ -1,0 +1,38 @@
+name: Refresh Limitless events
+
+on:
+  schedule:
+    - cron: "17 0-5,7-23 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: refresh-limitless-events
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    environment: Production
+    env:
+      LIMITLESS_SYNC_SECRET: ${{ secrets.LIMITLESS_SYNC_SECRET }}
+    steps:
+      - name: Require scheduled sync secret
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Production event syncs must run from main."
+            exit 1
+          fi
+          if [ -z "$LIMITLESS_SYNC_SECRET" ]; then
+            echo "Production environment secret LIMITLESS_SYNC_SECRET is required."
+            exit 1
+          fi
+
+      - name: Refresh saved events
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 35 \
+            --retry 2 --retry-delay 5 \
+            --header "Authorization: Bearer ${LIMITLESS_SYNC_SECRET}" \
+            https://poke-notes-app.vercel.app/api/cron/sync-limitless-events

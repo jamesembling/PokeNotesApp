@@ -20,7 +20,7 @@
 .columns { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr); gap: 2rem; }
 .allPanel, .pinnedPanel { min-width: 0; }
 .pinnedPanel { border-left: 1px solid var(--border); padding-left: 2rem; }
-.panelHeading { margin-bottom: 0.9rem; }
+.panelHeading { flex-wrap: wrap; margin-bottom: 0.9rem; }
 .panelHeading h3 { font-size: 1rem; font-weight: 700; }
 .filters { display: grid; gap: 0.85rem; margin-bottom: 1rem; }
 .filters label { display: flex; min-width: 0; flex-direction: column; gap: 0.3rem; color: var(--muted-foreground); font-size: 0.7rem; font-weight: 650; }

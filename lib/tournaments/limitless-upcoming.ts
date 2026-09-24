@@ -14,9 +14,9 @@ const UPCOMING_URL =
   "https://play.limitlesstcg.com/tournaments/upcoming?game=PTCG&type=online&platform=PTCGL&format=STANDARD";
 const FEED_KEY = "ptcg-standard-ptcgl";
 
-async function fetchUpcomingEvents(fresh = false) {
+async function fetchUpcomingEvents() {
   const response = await fetch(UPCOMING_URL, {
-    ...(fresh ? { cache: "no-store" as const } : { next: { revalidate: 30 * 60 } }),
+    cache: "no-store",
     headers: { Accept: "text/html" },
     signal: AbortSignal.timeout(10_000)
   });
@@ -33,25 +33,28 @@ async function fetchUpcomingEvents(fresh = false) {
 export async function getUpcomingLimitlessEvents(): Promise<{
   events: UpcomingLimitlessEvent[];
   stale: boolean;
+  refreshedAt: string;
 }> {
-  try {
-    return { events: await fetchUpcomingEvents(), stale: false };
-  } catch (sourceError) {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("limitless_event_feed")
-      .select("events")
-      .eq("feed_key", FEED_KEY)
-      .maybeSingle();
-    if (error || !Array.isArray(data?.events)) throw sourceError;
-    const events = data.events.filter(isUpcomingLimitlessEvent).filter((event) => withinUpcomingWindow(event));
-    if (events.length === 0) throw sourceError;
-    return { events, stale: true };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("limitless_event_feed")
+    .select("events, refreshed_at")
+    .eq("feed_key", FEED_KEY)
+    .maybeSingle();
+  if (error) throw error;
+  if (!Array.isArray(data?.events) || !data.refreshed_at || !Number.isFinite(Date.parse(data.refreshed_at))) {
+    throw new Error("Limitless event snapshot is unavailable");
   }
+  const events = data.events.filter(isUpcomingLimitlessEvent).filter((event) => withinUpcomingWindow(event));
+  return {
+    events,
+    refreshedAt: data.refreshed_at,
+    stale: Date.now() - Date.parse(data.refreshed_at) > 3 * 60 * 60 * 1000
+  };
 }
 
 export async function refreshUpcomingLimitlessSnapshot() {
-  const events = await fetchUpcomingEvents(true);
+  const events = await fetchUpcomingEvents();
   const supabase = createAdminClient();
   const { error } = await supabase.from("limitless_event_feed").upsert({
     feed_key: FEED_KEY,

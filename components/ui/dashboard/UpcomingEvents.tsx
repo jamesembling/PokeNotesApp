@@ -10,6 +10,8 @@ import styles from "./upcoming-events.module.css";
 const dateFormatter = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
 const timeFormatter = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 const numberFormatter = new Intl.NumberFormat("en-GB");
+const snapshotFormatter = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
+const EVENT_REFRESH_MS = 15 * 60 * 1000;
 const timeChoices = [
   { label: "Any time", hours: "All hours", from: "", to: "" },
   { label: "Morning", hours: "6 am–noon", from: "06:00", to: "11:59" },
@@ -82,6 +84,7 @@ export function UpcomingEvents({
   userId,
   unavailable = false,
   stale = false,
+  refreshedAt,
   persistenceAvailable,
   initialState
 }: {
@@ -89,10 +92,17 @@ export function UpcomingEvents({
   userId: string;
   unavailable?: boolean;
   stale?: boolean;
+  refreshedAt: string | null;
   persistenceAvailable: boolean;
   initialState: UserEventState;
 }) {
   const [filters, setFilters] = useState<EventFilters>(initialState.filters);
+  const [currentFeed, setCurrentFeed] = useState(events);
+  const [feedStale, setFeedStale] = useState(stale);
+  const [feedUnavailable, setFeedUnavailable] = useState(unavailable);
+  const [feedRefreshedAt, setFeedRefreshedAt] = useState(refreshedAt);
+  const [feedCheckFailed, setFeedCheckFailed] = useState(false);
+  const hasEvents = useRef(events.length > 0);
   const [pins, setPins] = useState<UpcomingLimitlessEvent[]>(initialState.pins);
   const [ready, setReady] = useState(persistenceAvailable);
   const [pendingPins, setPendingPins] = useState<string[]>([]);
@@ -102,6 +112,55 @@ export function UpcomingEvents({
   const [showAll, setShowAll] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<"all" | "pinned">("all");
   const storageKey = `pokenotes:upcoming-events:${userId}`;
+
+  useEffect(() => {
+    let active = true;
+    let loading = false;
+    let lastChecked = Date.now();
+
+    async function refreshEvents() {
+      if (!active || loading || document.visibilityState !== "visible") return;
+      loading = true;
+      lastChecked = Date.now();
+      try {
+        const response = await fetch("/api/upcoming-events", { cache: "no-store" });
+        if (!response.ok) throw new Error("Upcoming events request failed");
+        const result: unknown = await response.json();
+        if (!result || typeof result !== "object" || !("events" in result) ||
+          !Array.isArray(result.events) || !result.events.every(isUpcomingLimitlessEvent) ||
+          !("stale" in result) || typeof result.stale !== "boolean" ||
+          !("refreshedAt" in result) || typeof result.refreshedAt !== "string" ||
+          !Number.isFinite(Date.parse(result.refreshedAt))) {
+          throw new Error("Upcoming events response was invalid");
+        }
+        if (!active) return;
+        hasEvents.current = result.events.length > 0;
+        setCurrentFeed(result.events);
+        setFeedStale(result.stale);
+        setFeedRefreshedAt(result.refreshedAt);
+        setFeedUnavailable(false);
+        setFeedCheckFailed(false);
+      } catch {
+        if (!active) return;
+        setFeedCheckFailed(true);
+        setFeedUnavailable(!hasEvents.current);
+      } finally {
+        loading = false;
+      }
+    }
+
+    function refreshIfDue() {
+      if (Date.now() - lastChecked >= EVENT_REFRESH_MS) void refreshEvents();
+    }
+
+    const timer = window.setInterval(refreshIfDue, EVENT_REFRESH_MS);
+    document.addEventListener("visibilitychange", refreshIfDue);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshIfDue);
+    };
+  }, []);
 
   useEffect(() => {
     if (persistenceAvailable) return;
@@ -137,7 +196,7 @@ export function UpcomingEvents({
     return () => window.clearTimeout(timer);
   }, [filters, persistenceAvailable]);
 
-  const currentEvents = useMemo(() => new Map(events.map((event) => [event.id, event])), [events]);
+  const currentEvents = useMemo(() => new Map(currentFeed.map((event) => [event.id, event])), [currentFeed]);
   const pinnedEvents = pins.map((pin) => currentEvents.get(pin.id) ?? pin)
     .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
   const pinnedIds = new Set(pins.map((pin) => pin.id));
@@ -145,7 +204,7 @@ export function UpcomingEvents({
   const from = timeMinutes(filters.from);
   const to = timeMinutes(filters.to);
   const selectedTimeChoice = timeChoices.find((choice) => choice.from === filters.from && choice.to === filters.to);
-  const filtered = events.filter((event) => {
+  const filtered = currentFeed.filter((event) => {
     if (normalizedQuery && !`${event.name} ${event.organizer}`.toLocaleLowerCase().includes(normalizedQuery)) return false;
     const minutes = eventLocalMinutes(event);
     if (from !== null && to !== null && from > to) return minutes >= from || minutes <= to;
@@ -190,7 +249,7 @@ export function UpcomingEvents({
       </div>
       <div className={styles.columns}>
         <div className={`${styles.allPanel} ${mobilePanel === "pinned" ? styles.mobileHidden : ""}`}>
-          <div className={styles.panelHeading}><h3>All events</h3><span>{filtered.length} found</span></div>
+          <div className={styles.panelHeading}><h3>All events</h3><span>{filtered.length} found{feedRefreshedAt ? ` · Synced ${snapshotFormatter.format(new Date(feedRefreshedAt))}` : ""}</span></div>
           <div className={styles.filters}>
             <label className={styles.search}>
               <span className="sr-only">Search event or organizer</span>
@@ -225,11 +284,12 @@ export function UpcomingEvents({
               </div>
             </div>
           </div>
-          {stale ? <p className={styles.notice}>Showing the last saved Limitless listing while the live page is unavailable.</p> : null}
+          {feedStale ? <p className={styles.notice}>The scheduled Limitless update is overdue. Showing the last saved listing.</p> : null}
+          {feedCheckFailed ? <p className={styles.notice}>Could not check for a newer saved listing.</p> : null}
           {!persistenceAvailable ? <p className={styles.notice}>Pins and filters are saved on this device until account sync is available.</p> : null}
           {saveError ? <p className={styles.error} role="alert">{saveError}</p> : null}
-          {unavailable ? <p className={styles.message}>Limitless events could not be loaded. Try refreshing the dashboard.</p> : null}
-          {!unavailable && filtered.length === 0 ? <p className={styles.message}>No events match. Choose another time of day or change your search.</p> : null}
+          {feedUnavailable ? <p className={styles.message}>Limitless events could not be loaded. Try refreshing the dashboard.</p> : null}
+          {!feedUnavailable && filtered.length === 0 ? <p className={styles.message}>No events match. Choose another time of day or change your search.</p> : null}
           <ul className={styles.eventList}>{visible.map((event) => <EventRow disabled={!ready || pendingPins.includes(event.id)} event={event} key={event.id} onPin={togglePin} pinned={pinnedIds.has(event.id)} />)}</ul>
           {!showAll && filtered.length > visible.length ? (
             <button className={styles.moreButton} onClick={() => setShowAll(true)} type="button">Show all {filtered.length} events</button>
