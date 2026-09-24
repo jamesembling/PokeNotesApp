@@ -52,16 +52,6 @@ type PostgrestLikeError = {
   message?: string | null;
 };
 
-function isMissingTournamentRoundRpc(error: PostgrestLikeError | null) {
-  if (!error || !["42883", "PGRST202"].includes(String(error.code || ""))) {
-    return false;
-  }
-
-  return [error.message, error.details, error.hint]
-    .filter(Boolean)
-    .some((value) => /create_tournament_round(?:_idempotent)?/i.test(String(value)));
-}
-
 function isOutdatedTournamentRoundResultConstraint(error: PostgrestLikeError) {
   if (error.code !== "23514") {
     return false;
@@ -820,43 +810,15 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
         }
       );
 
-      if (!idempotentError) {
-        const result = idempotentResult as { status?: string } | null;
-        if (result?.status !== "committed" && result?.status !== "idempotent") {
-          throw new Error("Tournament round commit returned an unexpected result.");
-        }
-        roundStatus = result.status;
+      if (idempotentError) {
+        throw toUserFacingDatabaseError(idempotentError);
       }
 
-      const rpcError = idempotentError;
-      if (rpcError && !isMissingTournamentRoundRpc(rpcError)) {
-        throw toUserFacingDatabaseError(rpcError);
+      const result = idempotentResult as { status?: string } | null;
+      if (result?.status !== "committed" && result?.status !== "idempotent") {
+        throw new Error("Tournament round commit returned an unexpected result.");
       }
-
-      if (rpcError) {
-        const { error: legacyRpcError } = await supabase.rpc("create_tournament_round", {
-        p_notes: payload.notes,
-        p_opponent_deck_name: payload.opponent_deck_name,
-        p_opponent_deck_sprites: payload.opponent_deck_sprites,
-        p_result: payload.result,
-        p_round_id: newRoundId,
-        p_tournament_id: tournamentId
-      });
-        if (legacyRpcError && !isMissingTournamentRoundRpc(legacyRpcError)) {
-          throw toUserFacingDatabaseError(legacyRpcError);
-        }
-
-        if (legacyRpcError) {
-        const { error } = await supabase.from("tournament_rounds").insert({
-          id: newRoundId,
-          ...payload
-        });
-
-        if (error) {
-          throw toUserFacingDatabaseError(error);
-        }
-        }
-      }
+      roundStatus = result.status;
     }
 
     revalidateTournamentWorkspace(tournamentId);

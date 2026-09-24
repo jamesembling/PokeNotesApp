@@ -17,6 +17,10 @@ const strategyIdentityMigration = readFileSync(
   join(repositoryRoot, "supabase/migrations/20260920130207_tournament_strategy_command_identity.sql"),
   "utf8"
 );
+const tournamentActions = readFileSync(
+  join(repositoryRoot, "app/(app)/tournaments/actions.ts"),
+  "utf8"
+);
 
 test("Tournament Deck List workflow keeps the migration and fresh schema contract aligned", () => {
   for (const source of [migration, schema]) {
@@ -41,6 +45,10 @@ test("Tournament Deck List workflow keeps the migration and fresh schema contrac
     migration,
     /grant (?:insert|update|delete|all)[^;]*tournament_deck_list_snapshots[^;]*authenticated/i
   );
+
+  assert.match(tournamentActions, /supabase\.rpc\(\s*"create_tournament_round_idempotent"/i);
+  assert.doesNotMatch(tournamentActions, /supabase\.rpc\(\s*"create_tournament_round"/i);
+  assert.doesNotMatch(tournamentActions, /from\("tournament_rounds"\)\s*\.insert\(/i);
 });
 
 test("Tournament metadata and Strategy-from-list commands are present in the forward contract", () => {
