@@ -134,6 +134,7 @@ Optional variables:
 - `OLD_SUPABASE_URL`
 - `OLD_SUPABASE_SERVICE_KEY`
 - `CRON_SECRET`
+- `LIMITLESS_SYNC_SECRET` (production hourly Limitless sync)
 - `POKEMON_TCG_API_KEY` (optional upstream rate-limit allowance for card-effect sync)
 - `POKE_NOTES_DEBUG_AUTH`
 - `POKE_NOTES_DEBUG_PERF`
@@ -203,6 +204,8 @@ Migration alignment, schema health, and application behavior are release evidenc
 repository facts. Capture them from the intended production target for each database deployment.
 
 `vercel.json` schedules `/api/cron/sync-pokemon-catalog` to run daily at `05:00` UTC. The job refreshes `pokemon_catalog` from the upstream sources, then invalidates the cached Pokemon options and identification catalog so UI menus and lookup paths see the new rows without a manual reseed.
+
+The upcoming-events dashboard reads the saved `limitless_event_feed` snapshot and shows its UTC sync time. It never fetches Limitless during a dashboard request. Vercel runs a daily backup sync during the `06:00` UTC hour. On Vercel Hobby, GitHub Actions runs the same protected endpoint at `:17` in the other hours; its `Production` environment secret `LIMITLESS_SYNC_SECRET` must match the Vercel Production environment variable of that name. The Production environment allows deployments from `main` only. The endpoint accepts this dedicated secret only for Limitless events. Scheduled GitHub runs can be delayed, so the displayed sync time is the freshness source of truth.
 
 Before shipping a change, the recommended checks are:
 

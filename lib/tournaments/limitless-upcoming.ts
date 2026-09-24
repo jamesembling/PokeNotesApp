@@ -49,7 +49,7 @@ export async function getUpcomingLimitlessEvents(): Promise<{
   return {
     events,
     refreshedAt: data.refreshed_at,
-    stale: Date.now() - Date.parse(data.refreshed_at) > 26 * 60 * 60 * 1000
+    stale: Date.now() - Date.parse(data.refreshed_at) > 3 * 60 * 60 * 1000
   };
 }
 
