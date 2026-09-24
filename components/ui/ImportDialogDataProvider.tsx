@@ -72,7 +72,7 @@ export function ImportDialogDataProvider({ children }: { children: ReactNode }) 
         return nextUserDecks;
       })
       .catch((error) => {
-        setUserDecksError(error instanceof Error ? error.message : "Could not load deck options.");
+        setUserDecksError("Could not load deck options. Check your connection and retry.");
         throw error;
       })
       .finally(() => {

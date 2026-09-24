@@ -137,6 +137,13 @@ export function ImportLogDialog({
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   const availableDeckLists = userDeckLists;
+  const deckListPlaceholder = isLoadingUserDecks
+    ? "Loading deck lists..."
+    : userDecksError
+      ? "Deck lists unavailable"
+      : availableDeckLists.length > 0
+        ? "No linked deck list"
+        : "No deck lists available";
   const selectedDeckListId =
     parseDeckListSelectionKey(selectedDeckListSelectionKey)?.deckListId ?? "";
 
@@ -600,6 +607,23 @@ export function ImportLogDialog({
                     </Alert>
                   ) : null}
 
+                  {userDecksError ? (
+                    <Alert variant="loss" role="alert">
+                      <AlertDescription className="flex items-center justify-between gap-3">
+                        <span>{userDecksError}</span>
+                        <Button
+                          disabled={isLoadingUserDecks}
+                          onClick={() => void ensureUserDecks().catch(() => undefined)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          Retry
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+
                   <BattleLogSpritePicker
                     isLoadingOptions={isLoadingPokemonOptions}
                     onChange={setSelectedSelfSprites}
@@ -678,12 +702,7 @@ export function ImportLogDialog({
                             onChange={handleDeckListChange}
                             options={[
                               {
-                                label:
-                                  isLoadingUserDecks
-                                    ? "Loading deck lists..."
-                                    : availableDeckLists.length > 0
-                                      ? "No linked deck list"
-                                      : "Select a deck strategy first",
+                                label: deckListPlaceholder,
                                 value: ""
                               },
                               ...availableDeckLists.map((deckList: DeckListSelectionOption) => ({
@@ -699,11 +718,6 @@ export function ImportLogDialog({
                             value={selectedDeckListSelectionKey}
                           />
                         </Field>
-                        {userDecksError ? (
-                          <p className="text-sm text-loss-strong" role="status">
-                            {userDecksError}
-                          </p>
-                        ) : null}
                       </div>
                     </details>
                   </FieldGroup>
@@ -761,12 +775,7 @@ export function ImportLogDialog({
                         onChange={handleDeckListChange}
                         options={[
                           {
-                            label:
-                              isLoadingUserDecks
-                                ? "Loading deck lists..."
-                                : availableDeckLists.length > 0
-                                  ? "No linked deck list"
-                                  : "Select a deck strategy first",
+                            label: deckListPlaceholder,
                             value: ""
                           },
                           ...availableDeckLists.map((deckList: DeckListSelectionOption) => ({
