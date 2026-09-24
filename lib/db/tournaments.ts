@@ -260,6 +260,17 @@ function rethrowIfSchemaMissing(error: PostgrestLikeError | null) {
   }
 }
 
+export function unwrapTournamentSnapshotQueryResult<T>(result: {
+  data: T | null;
+  error: PostgrestLikeError | null;
+}): T | null {
+  rethrowIfSchemaMissing(result.error);
+  if (result.error) {
+    throw result.error;
+  }
+  return result.data;
+}
+
 export const getTournaments = cache(async (userId: string): Promise<Tournament[]> => {
   const supabase = await createClient();
   let { data, error } = await measureServerCall("db.tournaments.list", async () =>
@@ -425,7 +436,7 @@ export const getTournamentById = cache(
     }
 
     const tournament = mapTournamentRow((data as unknown) as TournamentRow);
-    const { data: snapshotData, error: snapshotError } = await measureServerCall(
+    const snapshotResult = await measureServerCall(
       "db.tournaments.detail.snapshot",
       async () => await supabase
         .from("tournament_deck_list_snapshots")
@@ -435,9 +446,7 @@ export const getTournamentById = cache(
         .maybeSingle()
     );
 
-    if (snapshotError && !["PGRST205", "42703", "PGRST202"].includes(String(snapshotError.code || ""))) {
-      throw snapshotError;
-    }
+    const snapshotData = unwrapTournamentSnapshotQueryResult(snapshotResult);
     if (snapshotData) {
       tournament.deckListSnapshot = mapTournamentDeckListSnapshotRow(
         snapshotData as unknown as TournamentDeckListSnapshotRow

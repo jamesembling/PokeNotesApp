@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import {
+  TournamentSchemaMissingError,
+  unwrapTournamentSnapshotQueryResult
+} from "@/lib/db/tournaments";
 
 const repositoryRoot = join(import.meta.dirname, "..");
 const migration = readFileSync(
@@ -49,6 +53,17 @@ test("Tournament Deck List workflow keeps the migration and fresh schema contrac
   assert.match(tournamentActions, /supabase\.rpc\(\s*"create_tournament_round_idempotent"/i);
   assert.doesNotMatch(tournamentActions, /supabase\.rpc\(\s*"create_tournament_round"/i);
   assert.doesNotMatch(tournamentActions, /from\("tournament_rounds"\)\s*\.insert\(/i);
+
+  assert.throws(
+    () => unwrapTournamentSnapshotQueryResult({ data: null, error: { code: "PGRST205" } }),
+    TournamentSchemaMissingError
+  );
+  const missingColumn = { code: "42703", message: "column is missing" };
+  assert.throws(
+    () => unwrapTournamentSnapshotQueryResult({ data: null, error: missingColumn }),
+    (error) => error === missingColumn
+  );
+  assert.equal(unwrapTournamentSnapshotQueryResult({ data: null, error: null }), null);
 });
 
 test("Tournament metadata and Strategy-from-list commands are present in the forward contract", () => {
