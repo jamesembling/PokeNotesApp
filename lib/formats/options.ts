@@ -1,4 +1,5 @@
 export const SITE_FORMAT_OPTIONS = [
+  "TEF-30C",
   "TEF-PBL",
   "TEF-CRI",
   "TEF-POR",
@@ -26,6 +27,13 @@ export function isKnownSiteFormat(value: string) {
   return SITE_FORMAT_OPTIONS.includes(value as (typeof SITE_FORMAT_OPTIONS)[number]);
 }
 
-export function getDefaultSiteFormat() {
-  return SITE_FORMAT_OPTIONS.find((format) => !NON_STANDARD_SITE_FORMATS.has(format)) ?? SITE_FORMAT_OPTIONS[0];
+export function getDefaultSiteFormat(discoveredFormats: readonly string[] = []) {
+  const fallback = SITE_FORMAT_OPTIONS.find((format) => !NON_STANDARD_SITE_FORMATS.has(format)) ?? SITE_FORMAT_OPTIONS[0];
+  const discovered = discoveredFormats[0];
+  if (!discovered) {
+    return fallback;
+  }
+
+  const discoveredIndex = SITE_FORMAT_OPTIONS.indexOf(discovered as (typeof SITE_FORMAT_OPTIONS)[number]);
+  return discoveredIndex > 0 ? fallback : discovered;
 }

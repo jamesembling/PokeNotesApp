@@ -6,7 +6,7 @@ const LIMITLESS_STANDARD_TOURNAMENTS_URL =
   "https://play.limitlesstcg.com/api/tournaments?game=PTCG&format=STANDARD";
 const FORMAT_CODE_PATTERN = /\b([A-Z]{3}-[A-Z]{3}(?:\/[A-Z]{3})?)\b/g;
 const SAMPLE_TOURNAMENT_COUNT = 20;
-const SITE_FORMATS_CACHE_VERSION = "v4";
+const SITE_FORMATS_CACHE_VERSION = "v5";
 const SITE_FORMATS_REVALIDATE_SECONDS = 60 * 60 * 6;
 
 type LimitlessTournamentSummary = {
@@ -107,13 +107,14 @@ const getSiteFormatsCached = unstable_cache(
   async (): Promise<SiteFormatsCatalog> => {
     try {
       const limitlessFormats = await fetchRecentFormatCodesFromLimitless();
-      const defaultFormat = limitlessFormats[0];
+      const discoveredDefault = limitlessFormats[0];
 
-      if (defaultFormat) {
+      if (discoveredDefault) {
+        const defaultFormat = getFallbackSiteFormat(limitlessFormats);
         return {
           defaultFormat,
-          options: dedupeFormats([...limitlessFormats, ...SITE_FORMAT_OPTIONS]),
-          source: "limitless"
+          options: dedupeFormats([defaultFormat, ...limitlessFormats, ...SITE_FORMAT_OPTIONS]),
+          source: defaultFormat === discoveredDefault ? "limitless" : "fallback"
         };
       }
     } catch {}
