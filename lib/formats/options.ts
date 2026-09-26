@@ -1,3 +1,5 @@
+const FORMAT_CODE_PATTERN = /\b([A-Z0-9]{3}-[A-Z0-9]{3}(?:\/[A-Z0-9]{3})?)\b/g;
+
 export const SITE_FORMAT_OPTIONS = [
   "TEF-30C",
   "TEF-PBL",
@@ -25,6 +27,10 @@ const NON_STANDARD_SITE_FORMATS = new Set<(typeof SITE_FORMAT_OPTIONS)[number]>(
 
 export function isKnownSiteFormat(value: string) {
   return SITE_FORMAT_OPTIONS.includes(value as (typeof SITE_FORMAT_OPTIONS)[number]);
+}
+
+export function extractSiteFormatCodes(html: string) {
+  return [...html.matchAll(FORMAT_CODE_PATTERN)].map((match) => match[1]);
 }
 
 export function getDefaultSiteFormat(discoveredFormats: readonly string[] = []) {
