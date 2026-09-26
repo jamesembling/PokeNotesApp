@@ -30,7 +30,8 @@ export function isKnownSiteFormat(value: string) {
 }
 
 export function extractSiteFormatCodes(html: string) {
-  return [...html.matchAll(FORMAT_CODE_PATTERN)].map((match) => match[1]);
+  // Set codes may contain digits (TEF-30C), but a purely numeric span is a count or range, not a format.
+  return [...html.matchAll(FORMAT_CODE_PATTERN)].map((match) => match[1]).filter((code) => /[A-Z]/.test(code));
 }
 
 export function getDefaultSiteFormat(discoveredFormats: readonly string[] = []) {
