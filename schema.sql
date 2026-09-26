@@ -6160,7 +6160,7 @@ begin
   end if;
   v_format := p_payload ->> 'format';
   if v_format not in (
-    'TEF-PBL', 'TEF-CRI', 'TEF-POR', 'SVI-ASC', 'SVI-PFL', 'SVI-MEG',
+    'TEF-30C', 'TEF-PBL', 'TEF-CRI', 'TEF-POR', 'SVI-ASC', 'SVI-PFL', 'SVI-MEG',
     'SVI-WHT/BLK', 'SVI-DRI', 'SVI-JTG', 'BRS-PRE', 'BRS-SSP', 'BRS-SCR',
     'Expanded', 'GLC', 'PTCG Pocket'
   ) then
