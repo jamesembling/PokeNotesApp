@@ -8,11 +8,19 @@ import {
   withinUpcomingWindow,
   type UpcomingLimitlessEvent
 } from "@/lib/tournaments/limitless-events";
+import type { UpcomingRefreshMode } from "@/lib/tournaments/limitless-sync-auth";
 import type { Json } from "@/types/supabase";
 
 const UPCOMING_URL =
   "https://play.limitlesstcg.com/tournaments/upcoming?game=PTCG&type=online&platform=PTCGL&format=STANDARD";
 const FEED_KEY = "ptcg-standard-ptcgl";
+const REFRESH_LEASE_MS = 60_000;
+
+const MINIMUM_AGE_MS: Record<UpcomingRefreshMode, number> = {
+  manual: 0,
+  primary: 55 * 60_000,
+  fallback: 75 * 60_000
+};
 
 async function fetchUpcomingEvents() {
   const response = await fetch(UPCOMING_URL, {
@@ -53,14 +61,47 @@ export async function getUpcomingLimitlessEvents(): Promise<{
   };
 }
 
-export async function refreshUpcomingLimitlessSnapshot() {
-  const events = await fetchUpcomingEvents();
+export async function refreshUpcomingLimitlessSnapshot(mode: UpcomingRefreshMode = "manual") {
   const supabase = createAdminClient();
-  const { error } = await supabase.from("limitless_event_feed").upsert({
-    feed_key: FEED_KEY,
-    events: events as unknown as Json,
-    refreshed_at: new Date().toISOString()
-  });
-  if (error) throw error;
-  return { eventCount: events.length };
+  const now = Date.now();
+  const claimToken = crypto.randomUUID();
+  const { data: claim, error: claimError } = await supabase
+    .from("limitless_event_feed")
+    .update({
+      refresh_claim_token: claimToken,
+      refresh_lease_until: new Date(now + REFRESH_LEASE_MS).toISOString()
+    })
+    .eq("feed_key", FEED_KEY)
+    .lt("refreshed_at", new Date(now - MINIMUM_AGE_MS[mode]).toISOString())
+    .or(`refresh_lease_until.is.null,refresh_lease_until.lt.${new Date(now).toISOString()}`)
+    .select("feed_key")
+    .maybeSingle();
+  if (claimError) throw claimError;
+  if (!claim) return { skipped: true, eventCount: null };
+
+  try {
+    const events = await fetchUpcomingEvents();
+    const { data: saved, error: saveError } = await supabase
+      .from("limitless_event_feed")
+      .update({
+        events: events as unknown as Json,
+        refreshed_at: new Date().toISOString(),
+        refresh_claim_token: null,
+        refresh_lease_until: null
+      })
+      .eq("feed_key", FEED_KEY)
+      .eq("refresh_claim_token", claimToken)
+      .select("refreshed_at")
+      .maybeSingle();
+    if (saveError) throw saveError;
+    if (!saved) throw new Error("Limitless refresh lease was superseded");
+    return { skipped: false, eventCount: events.length };
+  } catch (error) {
+    await supabase
+      .from("limitless_event_feed")
+      .update({ refresh_claim_token: null, refresh_lease_until: null })
+      .eq("feed_key", FEED_KEY)
+      .eq("refresh_claim_token", claimToken);
+    throw error;
+  }
 }
