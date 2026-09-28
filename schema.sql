@@ -10,6 +10,9 @@
 -- ============================================================
 
 create extension if not exists "pgcrypto";  -- for gen_random_uuid()
+create extension if not exists pg_cron;
+create schema if not exists extensions;
+create extension if not exists pg_net with schema extensions;
 
 
 -- ============================================================
@@ -2178,8 +2181,15 @@ create table public.limitless_event_feed (
   feed_key text primary key check (feed_key = 'ptcg-standard-ptcgl'),
   events jsonb not null default '[]'::jsonb
     check (jsonb_typeof(events) = 'array' and jsonb_array_length(events) <= 500),
-  refreshed_at timestamptz not null default now()
+  refreshed_at timestamptz not null default now(),
+  refresh_claim_token uuid,
+  refresh_lease_until timestamptz,
+  constraint limitless_event_feed_refresh_lease_pair
+    check ((refresh_claim_token is null) = (refresh_lease_until is null))
 );
+
+insert into public.limitless_event_feed (feed_key, events, refreshed_at)
+values ('ptcg-standard-ptcgl', '[]'::jsonb, '1970-01-01 00:00:00+00');
 
 create table public.user_event_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -2242,6 +2252,7 @@ create policy "Users can remove own event pins"
   using ((select auth.uid()) = user_id);
 
 notify pgrst, 'reload schema';
+
 alter table public.deck_lists
   add column if not exists creation_key text;
 alter table public.deck_lists
@@ -6445,6 +6456,41 @@ revoke all on function public.create_deck_strategy_from_list(text, text, text, j
 grant execute on function public.create_deck_strategy_from_list(text, text, text, jsonb, timestamptz, text, timestamptz) to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- The hourly job is inert until Production provisions its credential in Vault.
+create or replace function private.invoke_limitless_event_refresh()
+returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $function$
+declare
+  v_sync_secret text;
+begin
+  select decrypted_secret into v_sync_secret
+  from vault.decrypted_secrets
+  where name = 'limitless_sync_secret';
+
+  if nullif(v_sync_secret, '') is null then
+    return;
+  end if;
+
+  perform net.http_get(
+    url := 'https://poke-notes-app.vercel.app/api/cron/sync-limitless-events',
+    params := jsonb_build_object('mode', 'primary'),
+    headers := jsonb_build_object('Authorization', 'Bearer ' || v_sync_secret),
+    timeout_milliseconds := 35000
+  );
+end;
+$function$;
+
+revoke all on function private.invoke_limitless_event_refresh() from public, anon, authenticated;
+
+select cron.schedule(
+  'refresh-limitless-events-primary',
+  '5 * * * *',
+  'select private.invoke_limitless_event_refresh();'
+);
 create or replace function public.commit_tournament_deck_list(
   p_tournament_id text,
   p_request_id text,

@@ -1,6 +1,6 @@
 import { privateJson } from "@/lib/server/api-response";
 import { reportError } from "@/lib/server/report-error";
-import { isAuthorizedLimitlessSync } from "@/lib/tournaments/limitless-sync-auth";
+import { isAuthorizedLimitlessSync, parseLimitlessRefreshMode } from "@/lib/tournaments/limitless-sync-auth";
 import { refreshUpcomingLimitlessSnapshot } from "@/lib/tournaments/limitless-upcoming";
 
 export const runtime = "nodejs";
@@ -17,7 +17,11 @@ export async function GET(request: Request) {
       return privateJson({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const summary = await refreshUpcomingLimitlessSnapshot();
+    const mode = parseLimitlessRefreshMode(request.url);
+    if (!mode) {
+      return privateJson({ error: "Invalid refresh mode" }, { status: 400 });
+    }
+    const summary = await refreshUpcomingLimitlessSnapshot(mode);
     return privateJson({ ok: true, summary });
   } catch (error) {
     reportError(error, {

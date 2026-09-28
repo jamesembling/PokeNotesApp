@@ -58,6 +58,28 @@ jobs:
       - name: Apply pending migrations
         run: supabase db push --db-url "$SUPABASE_PRODUCTION_DB_URL"
 
+      - name: Provision Limitless Cron credential in Vault
+        env:
+          LIMITLESS_SYNC_SECRET: ${{ secrets.LIMITLESS_SYNC_SECRET }}
+        run: |
+          if [ -z "$LIMITLESS_SYNC_SECRET" ]; then
+            echo "The Production environment secret LIMITLESS_SYNC_SECRET is required."
+            exit 1
+          fi
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql "$SUPABASE_PRODUCTION_DB_URL" -X -q -v ON_ERROR_STOP=1 -o /dev/null <<'SQL'
+          \getenv sync_secret LIMITLESS_SYNC_SECRET
+          select vault.create_secret(:'sync_secret', 'limitless_sync_secret')
+          where not exists (
+            select 1 from vault.secrets where name = 'limitless_sync_secret'
+          );
+          select vault.update_secret(id, :'sync_secret')
+          from vault.secrets where name = 'limitless_sync_secret';
+          SQL
+
       - name: Verify migration history
         run: supabase migration list --db-url "$SUPABASE_PRODUCTION_DB_URL"
 

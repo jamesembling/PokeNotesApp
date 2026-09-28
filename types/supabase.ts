@@ -1240,16 +1240,22 @@ export type Database = {
         Row: {
           events: Json
           feed_key: string
+          refresh_claim_token: string | null
+          refresh_lease_until: string | null
           refreshed_at: string
         }
         Insert: {
           events?: Json
           feed_key: string
+          refresh_claim_token?: string | null
+          refresh_lease_until?: string | null
           refreshed_at?: string
         }
         Update: {
           events?: Json
           feed_key?: string
+          refresh_claim_token?: string | null
+          refresh_lease_until?: string | null
           refreshed_at?: string
         }
         Relationships: []
