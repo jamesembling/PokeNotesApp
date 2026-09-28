@@ -76,6 +76,18 @@ export async function refreshUpcomingLimitlessSnapshot(mode: UpcomingRefreshMode
     .or(`refresh_lease_until.is.null,refresh_lease_until.lt.${new Date(now).toISOString()}`)
     .select("feed_key")
     .maybeSingle();
+  if (claimError && ["42703", "PGRST204"].includes(claimError.code) &&
+    /refresh_claim_token|refresh_lease_until/.test(claimError.message)) {
+    // A production app deployment can precede the controlled database migration.
+    const events = await fetchUpcomingEvents();
+    const { error } = await supabase.from("limitless_event_feed").upsert({
+      feed_key: FEED_KEY,
+      events: events as unknown as Json,
+      refreshed_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    return { skipped: false, eventCount: events.length, compatibilityMode: true };
+  }
   if (claimError) throw claimError;
   if (!claim) return { skipped: true, eventCount: null };
 
