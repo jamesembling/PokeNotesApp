@@ -29,6 +29,7 @@ type BootstrapDiagnostics = {
   mappingMs: number | null;
   requestCorrelationId: string;
   requestId: string | null;
+  requestTimeline: Record<string, boolean | number | string | null>;
   resultBytes: number | null;
   resultRows: number | null;
   runtimeBootAgeMs: number;
@@ -189,6 +190,7 @@ function BootstrapTimingMarkers({
         data-route-auth-method={diagnostics.authMethod}
         data-route-auth-refreshed={String(diagnostics.authRefreshed)}
         data-route-auth-started-ms={diagnostics.authStartedMs}
+        data-route-bootstrap-timeline={JSON.stringify(diagnostics.requestTimeline)}
         data-route-request-correlation-id={diagnostics.requestCorrelationId}
         data-route-request-id={diagnostics.requestId ?? undefined}
         data-route-runtime-boot-age-ms={diagnostics.runtimeBootAgeMs}
