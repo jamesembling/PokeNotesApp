@@ -194,8 +194,17 @@ test("Authenticated requests refresh sessions before reading account data", {
     cwd: process.cwd(), detached: true, stdio: ["ignore", "pipe", "pipe"]
   });
   let startupOutput = "";
+  let outputLimitReached = false;
   const captureOutput = (chunk: Buffer) => {
-    let output = chunk.toString();
+    if (outputLimitReached) return;
+    startupOutput += chunk.toString();
+    if (startupOutput.length > 64_000) {
+      startupOutput = "Startup output exceeded the capture limit.";
+      outputLimitReached = true;
+    }
+  };
+  const startupDiagnostics = () => {
+    let output = startupOutput;
     for (const value of [
       key, process.env.SUPABASE_SERVICE_ROLE_KEY,
       process.env.POKENOTES_AUTH_CLAIMS_SECRET,
@@ -203,7 +212,7 @@ test("Authenticated requests refresh sessions before reading account data", {
     ]) {
       if (value) output = output.replaceAll(value, "<redacted>");
     }
-    startupOutput = `${startupOutput}${output}`.slice(-2_000);
+    return output.slice(-2_000);
   };
   server.stdout.on("data", captureOutput);
   server.stderr.on("data", captureOutput);
@@ -230,8 +239,8 @@ test("Authenticated requests refresh sessions before reading account data", {
   let ready = false;
   const readyDeadline = Date.now() + 45_000;
   while (Date.now() < readyDeadline) {
-    assert.equal(server.exitCode, null, `The isolated local app exited during startup.\n${startupOutput}`);
-    assert.equal(server.signalCode, null, `The isolated local app was interrupted during startup.\n${startupOutput}`);
+    assert.equal(server.exitCode, null, `The isolated local app exited during startup.\n${startupDiagnostics()}`);
+    assert.equal(server.signalCode, null, `The isolated local app was interrupted during startup.\n${startupDiagnostics()}`);
     try {
       const readiness = await fetch(baseUrl, { signal: AbortSignal.timeout(1_000) });
       await readiness.body?.cancel();
@@ -240,7 +249,7 @@ test("Authenticated requests refresh sessions before reading account data", {
     } catch { /* Wait for the committed local app command to start. */ }
     await delay(100);
   }
-  assert.ok(ready, `The isolated local bootstrap route was not ready within 45 seconds.\n${startupOutput}`);
+  assert.ok(ready, `The isolated local bootstrap route was not ready within 45 seconds.\n${startupDiagnostics()}`);
   assert.equal(server.exitCode, null);
   assert.equal(server.signalCode, null);
 
