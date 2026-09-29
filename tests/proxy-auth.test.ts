@@ -40,6 +40,8 @@ test("Proxy refreshes authenticated routes but skips public and cron work", asyn
   assert.equal(matches("/dashboard/events"), true);
   assert.equal(matches("/deck-lists"), true);
   assert.equal(matches("/deck-lists/list-id"), true);
+  assert.equal(matches("/api"), true);
+  assert.equal(matches("/api/"), true);
   assert.equal(matches("/api/site-formats"), true);
   assert.equal(matches("/api/logs/bootstrap"), false);
   assert.equal(matches("/api/logs/bootstrap/"), false);

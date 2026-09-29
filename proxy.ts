@@ -217,6 +217,6 @@ export const config = {
     "/stats/:path*",
     "/calculator/:path*",
     "/admin/:path*",
-    "/api/((?!logs/bootstrap/?$).*)"
+    "/api/:path((?!logs/bootstrap/?$).*)?"
   ]
 };
