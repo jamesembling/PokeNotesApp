@@ -72,6 +72,7 @@ type AdminUsersOverviewRpcRow = ProfileRow & {
   deck_list_count: number | null;
   tournament_count: number | null;
   log_count: number | null;
+  saved_event_count: number | null;
 };
 
 function sortUsers(users: AdminUser[]) {
@@ -212,7 +213,8 @@ function mapAdminUsersOverviewRow(row: AdminUsersOverviewRpcRow): AdminUser {
     deckCount: Math.max(0, Number(row.deck_count ?? 0)),
     deckListCount: Math.max(0, Number(row.deck_list_count ?? 0)),
     tournamentCount: Math.max(0, Number(row.tournament_count ?? 0)),
-    logCount: Math.max(0, Number(row.log_count ?? 0))
+    logCount: Math.max(0, Number(row.log_count ?? 0)),
+    savedEventCount: Math.max(0, Number(row.saved_event_count ?? 0))
   };
 }
 
@@ -222,6 +224,7 @@ function mapAdminUser(
   deckListCounts: Map<string, number>,
   tournamentCounts: Map<string, number>,
   logCounts: Map<string, number>,
+  savedEventCounts: Map<string, number>,
   activityByUser = new Map<string, string>()
 ): AdminUser {
   return {
@@ -244,7 +247,8 @@ function mapAdminUser(
     deckCount: deckCounts.get(row.id) ?? 0,
     deckListCount: deckListCounts.get(row.id) ?? 0,
     tournamentCount: tournamentCounts.get(row.id) ?? 0,
-    logCount: logCounts.get(row.id) ?? 0
+    logCount: logCounts.get(row.id) ?? 0,
+    savedEventCount: savedEventCounts.get(row.id) ?? 0
   };
 }
 
@@ -393,7 +397,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
         "login_count",
         "created_at"
       ].join(",");
-      const [profiles, decks, deckLists, tournaments, logStats] = await Promise.all([
+      const [profiles, decks, deckLists, tournaments, logStats, savedEvents] = await Promise.all([
         fetchAllRows<ProfileRow>(async (from, to) => {
           const { data, error } = await supabase
             .from("profiles")
@@ -433,6 +437,14 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
             .range(from, to);
 
           return { data: data as UserLogStatsCountRow[] | null, error };
+        }),
+        fetchAllRows<UserCountRow>(async (from, to) => {
+          const { data, error } = await supabase
+            .from("user_event_pins")
+            .select("user_id")
+            .range(from, to);
+
+          return { data: data as UserCountRow[] | null, error };
         })
       ]);
 
@@ -440,6 +452,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
       const tournamentCounts = mapCountRows(tournaments);
       const tournamentActivity = mapLatestActivity(tournaments);
       const { counts: logCounts, logActivity } = mapLogStatsCounts(logStats);
+      const savedEventCounts = mapCountRows(savedEvents);
       const activityByUser = new Map<string, string>();
 
       for (const activityMap of [deckActivity, tournamentActivity, logActivity]) {
@@ -453,7 +466,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
       }
 
       const users = profiles.map((row) =>
-        mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts, activityByUser)
+        mapAdminUser(row, deckCounts, deckListCounts, tournamentCounts, logCounts, savedEventCounts, activityByUser)
       );
 
       return {
@@ -491,6 +504,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
     const users = data.map((row) =>
       mapAdminUser(
         row,
+        new Map<string, number>(),
         new Map<string, number>(),
         new Map<string, number>(),
         new Map<string, number>(),
@@ -622,6 +636,7 @@ export async function updateAdminUserRole(userId: string, role: Role) {
 
   return mapAdminUser(
     data as unknown as ProfileRow,
+    new Map<string, number>(),
     new Map<string, number>(),
     new Map<string, number>(),
     new Map<string, number>(),

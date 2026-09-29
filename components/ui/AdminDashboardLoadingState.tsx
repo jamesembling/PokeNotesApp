@@ -48,7 +48,7 @@ export function AdminUsersSectionFallback() {
             <div><Skeleton className="h-5 w-36" /><Skeleton className="mt-2 h-4 w-48 max-w-full" /></div>
             <Skeleton className="h-4 w-28" />
             <div><Skeleton className="h-4 w-28" /><Skeleton className="mt-3 h-4 w-36 max-w-full" /></div>
-            {Array.from({ length: 4 }).map((_, countIndex) => (
+            {Array.from({ length: 5 }).map((_, countIndex) => (
               <Skeleton className="h-4 w-8 justify-self-end" key={countIndex} />
             ))}
             <Skeleton className="h-6 w-20" />

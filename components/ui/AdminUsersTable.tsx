@@ -44,7 +44,7 @@ export function AdminUsersTable({
             <col className={styles.userColumn} />
             <col className={styles.ptcglColumn} />
             <col className={styles.activityColumn} />
-            <col className={styles.countColumn} span={4} />
+            <col className={styles.countColumn} span={5} />
             <col className={styles.roleColumn} />
           </colgroup>
           <thead role="rowgroup">
@@ -56,6 +56,7 @@ export function AdminUsersTable({
               <th className={styles.countHeading} role="columnheader" scope="col">Deck Lists</th>
               <th className={styles.countHeading} role="columnheader" scope="col">Tournaments</th>
               <th className={styles.countHeading} role="columnheader" scope="col">Battle Logs</th>
+              <th className={styles.countHeading} role="columnheader" scope="col">Saved Events</th>
               <th role="columnheader" scope="col">Access</th>
             </tr>
           </thead>
@@ -87,6 +88,7 @@ export function AdminUsersTable({
                 <CountCell count={user.deckListCount} label="Deck Lists" />
                 <CountCell count={user.tournamentCount} label="Tournaments" />
                 <CountCell count={user.logCount} label="Battle Logs" />
+                <CountCell count={user.savedEventCount} label="Saved Events" />
                 <td className={styles.roleCell} role="cell">
                   <span aria-hidden="true" className={styles.mobileLabel}>Access</span>
                   <AdminRoleControls

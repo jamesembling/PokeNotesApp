@@ -91,10 +91,10 @@
   line-height: 1.6;
 }
 
-.userColumn { width: 23%; }
-.ptcglColumn { width: 12%; }
-.activityColumn { width: 20%; }
-.countColumn { width: 8.5%; }
+.userColumn { width: 21%; }
+.ptcglColumn { width: 11%; }
+.activityColumn { width: 19%; }
+.countColumn { width: 7.6%; }
 .roleColumn { width: 11%; }
 
 .table th {
@@ -216,7 +216,7 @@
 
 .loadingRow {
   display: grid;
-  grid-template-columns: 23fr 12fr 20fr repeat(4, 8.5fr) 11fr;
+  grid-template-columns: 21fr 11fr 19fr repeat(5, 7.6fr) 11fr;
   gap: 0.75rem;
   padding-block: 1.5rem;
   border-bottom: 1px solid var(--border);
@@ -250,7 +250,7 @@
 
   .table tbody tr {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 1.25rem;
     padding-block: 1.5rem;
     border-bottom: 1px solid var(--border);
@@ -288,7 +288,7 @@
   }
 
   .loadingRow {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 1.25rem;
   }
 

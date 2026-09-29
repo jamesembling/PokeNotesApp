@@ -1481,6 +1481,7 @@ export type Database = {
           last_login_at: string
           log_count: number
           login_count: number
+          saved_event_count: number
           ptcgl_username: string
           role: string
           tournament_count: number
