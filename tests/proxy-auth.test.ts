@@ -114,6 +114,7 @@ test("Authenticated requests refresh sessions before reading account data", {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   assert.equal(new URL(url!).origin, "http://127.0.0.1:54321");
   assert.ok(key);
+  assert.ok(process.env.POKENOTES_AUTH_CLAIMS_SECRET, "Reset the local fixtures to create their signing secret.");
 
   const previousRegion = process.env.VERCEL_REGION;
   process.env.VERCEL_REGION = "lhr1";
@@ -187,25 +188,50 @@ test("Authenticated requests refresh sessions before reading account data", {
   const portCheck = createServer();
   await new Promise<void>((resolve, reject) => {
     portCheck.once("error", () => reject(new Error("Port 3010 is occupied. Stop dev:e2e before running the local auth test.")));
-    portCheck.listen(3010, "127.0.0.1", () => portCheck.close(() => resolve()));
+    portCheck.listen(3010, "0.0.0.0", () => portCheck.close(() => resolve()));
   });
   const server = spawn(process.execPath, ["scripts/local-e2e.mjs", "dev"], {
-    cwd: process.cwd(), detached: true, stdio: "ignore"
+    cwd: process.cwd(), detached: true, stdio: ["ignore", "pipe", "pipe"]
   });
-  t.after(async () => {
-    if (!server.pid || server.exitCode !== null) return;
-    const exited = new Promise<void>((resolve) => server.once("exit", () => resolve()));
-    process.kill(-server.pid, "SIGTERM");
-    await Promise.race([exited, delay(5_000, undefined, { ref: false })]);
-    if (server.exitCode === null && server.signalCode === null) {
-      process.kill(-server.pid, "SIGKILL");
-      await exited;
+  let startupOutput = "";
+  const captureOutput = (chunk: Buffer) => {
+    let output = chunk.toString();
+    for (const value of [
+      key, process.env.SUPABASE_SERVICE_ROLE_KEY,
+      process.env.POKENOTES_AUTH_CLAIMS_SECRET,
+      process.env.POKE_NOTES_TEST_LOGIN_PASSWORD
+    ]) {
+      if (value) output = output.replaceAll(value, "<redacted>");
     }
+    startupOutput = `${startupOutput}${output}`.slice(-2_000);
+  };
+  server.stdout.on("data", captureOutput);
+  server.stderr.on("data", captureOutput);
+  t.after(async () => {
+    if (!server.pid) return;
+    const signalGroup = (signal: NodeJS.Signals | 0) => {
+      try {
+        process.kill(-server.pid!, signal);
+        return true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+        throw error;
+      }
+    };
+    signalGroup("SIGTERM");
+    const deadline = Date.now() + 5_000;
+    while (signalGroup(0) && Date.now() < deadline) {
+      await delay(100);
+    }
+    // The launcher can exit before its Next child. Clean up the whole owned
+    // process group even when its leader has already exited.
+    signalGroup("SIGKILL");
   });
   let ready = false;
   const readyDeadline = Date.now() + 45_000;
   while (Date.now() < readyDeadline) {
-    assert.equal(server.exitCode, null, "The isolated local app exited during startup.");
+    assert.equal(server.exitCode, null, `The isolated local app exited during startup.\n${startupOutput}`);
+    assert.equal(server.signalCode, null, `The isolated local app was interrupted during startup.\n${startupOutput}`);
     try {
       const readiness = await fetch(baseUrl, { signal: AbortSignal.timeout(1_000) });
       await readiness.body?.cancel();
@@ -214,7 +240,9 @@ test("Authenticated requests refresh sessions before reading account data", {
     } catch { /* Wait for the committed local app command to start. */ }
     await delay(100);
   }
-  assert.ok(ready, "The isolated local bootstrap route was not ready within 45 seconds.");
+  assert.ok(ready, `The isolated local bootstrap route was not ready within 45 seconds.\n${startupOutput}`);
+  assert.equal(server.exitCode, null);
+  assert.equal(server.signalCode, null);
 
   const signedOtherIdentity = await createAuthClaimsHeader({
     id: "11111111-1111-4111-8111-111111111111",
