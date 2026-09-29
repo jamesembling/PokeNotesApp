@@ -10,6 +10,7 @@ import {
   PROXY_AUTH_METHOD_HEADER,
   PROXY_AUTH_REFRESHED_HEADER,
   PROXY_AUTH_STARTED_HEADER,
+  PROXY_REGION_HEADER,
   REQUEST_CORRELATION_HEADER,
   REQUEST_STARTED_HEADER
 } from "@/lib/server/perf";
@@ -51,6 +52,7 @@ test("Proxy refreshes authenticated routes but skips public and cron work", asyn
     PROXY_AUTH_METHOD_HEADER,
     PROXY_AUTH_REFRESHED_HEADER,
     PROXY_AUTH_STARTED_HEADER,
+    PROXY_REGION_HEADER,
     REQUEST_CORRELATION_HEADER,
     REQUEST_STARTED_HEADER
   ];
@@ -96,11 +98,18 @@ test("Proxy refreshes authenticated routes but skips public and cron work", asyn
 
 test("Proxy forwards refreshed session cookies to the downstream request", {
   skip: process.env.POKENOTES_E2E_LOCAL !== "1"
-}, async () => {
+}, async (t) => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   assert.equal(new URL(url!).origin, "http://127.0.0.1:54321");
   assert.ok(key);
+
+  const previousRegion = process.env.VERCEL_REGION;
+  process.env.VERCEL_REGION = "lhr1";
+  t.after(() => {
+    if (previousRegion === undefined) delete process.env.VERCEL_REGION;
+    else process.env.VERCEL_REGION = previousRegion;
+  });
 
   const cookieJar = new Map<string, string>();
   const signInClient = createServerClient(url!, key, {
@@ -127,7 +136,12 @@ test("Proxy forwards refreshed session cookies to the downstream request", {
   session.expires_at = claims.exp;
   const expiredCookie = `${name}=base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`;
   const request = new NextRequest("http://localhost:3010/api/deck-selection-options", {
-    headers: { cookie: expiredCookie, [AUTH_CLAIMS_HEADER]: "forged-claims" }
+    headers: {
+      cookie: expiredCookie,
+      [AUTH_CLAIMS_HEADER]: "forged-claims",
+      [PROXY_REGION_HEADER]: "forged-region",
+      [REQUEST_STARTED_HEADER]: "1"
+    }
   });
 
   const response = await proxy(request);
@@ -136,6 +150,8 @@ test("Proxy forwards refreshed session cookies to the downstream request", {
   assert.ok(forwardedCookie !== expiredCookie, "The route must not receive the expired access token.");
   assert.ok(forwardedCookie === request.headers.get("cookie"));
   assert.ok(response.headers.get(`x-middleware-request-${AUTH_CLAIMS_HEADER}`) !== "forged-claims");
+  assert.equal(response.headers.get(`x-middleware-request-${PROXY_REGION_HEADER}`), "lhr1");
+  assert.ok(Number(response.headers.get(`x-middleware-request-${REQUEST_STARTED_HEADER}`)) > 1);
   assert.ok(response.headers.get("set-cookie"), "The browser must receive the refreshed cookie.");
 
   const routeCookies = new NextRequest("http://localhost:3010/api/deck-selection-options", {

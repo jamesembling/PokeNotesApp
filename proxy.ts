@@ -11,6 +11,7 @@ import {
   PROXY_AUTH_METHOD_HEADER,
   PROXY_AUTH_REFRESHED_HEADER,
   PROXY_AUTH_STARTED_HEADER,
+  PROXY_REGION_HEADER,
   REQUEST_CORRELATION_HEADER,
   REQUEST_STARTED_HEADER
 } from "@/lib/server/perf";
@@ -35,6 +36,7 @@ export async function proxy(request: NextRequest) {
   forwardedHeaders.delete(PROXY_AUTH_METHOD_HEADER);
   forwardedHeaders.delete(PROXY_AUTH_REFRESHED_HEADER);
   forwardedHeaders.delete(PROXY_AUTH_STARTED_HEADER);
+  forwardedHeaders.delete(PROXY_REGION_HEADER);
   forwardedHeaders.delete(REQUEST_CORRELATION_HEADER);
   forwardedHeaders.delete(REQUEST_STARTED_HEADER);
 
@@ -55,6 +57,10 @@ export async function proxy(request: NextRequest) {
 
   forwardedHeaders.set(REQUEST_CORRELATION_HEADER, requestCorrelationId);
   forwardedHeaders.set(REQUEST_STARTED_HEADER, String(requestStartedAt));
+  forwardedHeaders.set(
+    PROXY_REGION_HEADER,
+    process.env.VERCEL_REGION || process.env.VERCEL_FUNCTION_REGION || ""
+  );
   let responseCookiesToSet: Array<{
     name: string;
     value: string;

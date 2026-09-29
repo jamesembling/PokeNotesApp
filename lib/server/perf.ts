@@ -8,6 +8,7 @@ export const PROXY_AUTH_ENDED_HEADER = "x-pokenotes-proxy-auth-ended-ms";
 export const PROXY_AUTH_METHOD_HEADER = "x-pokenotes-proxy-auth-method";
 export const PROXY_AUTH_REFRESHED_HEADER = "x-pokenotes-proxy-auth-refreshed";
 export const PROXY_AUTH_STARTED_HEADER = "x-pokenotes-proxy-auth-started-ms";
+export const PROXY_REGION_HEADER = "x-pokenotes-proxy-region";
 export const REQUEST_CORRELATION_HEADER = "x-pokenotes-request-correlation-id";
 export const REQUEST_STARTED_HEADER = "x-pokenotes-request-started-at";
 

@@ -12,6 +12,7 @@ import {
   PROXY_AUTH_METHOD_HEADER,
   PROXY_AUTH_REFRESHED_HEADER,
   PROXY_AUTH_STARTED_HEADER,
+  PROXY_REGION_HEADER,
   REQUEST_CORRELATION_HEADER,
   REQUEST_STARTED_HEADER,
   takeServerRuntimeSnapshot
@@ -132,6 +133,7 @@ export async function GET() {
         proxyAuthRefreshed === "1" ? true : proxyAuthRefreshed === "0" ? false : null,
       proxyAuthStartedMs: readTimingHeader(requestHeaders, PROXY_AUTH_STARTED_HEADER),
       proxyRequestCorrelationId: requestHeaders.get(REQUEST_CORRELATION_HEADER),
+      proxyRegion: requestHeaders.get(PROXY_REGION_HEADER) || null,
       proxyRequestStartedAtEpochMs,
       proxyToRouteMs,
       routeHandlerMs,
