@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import test from "node:test";
+import { spawn } from "node:child_process";
+import { createServer } from "node:net";
+import { setTimeout as delay } from "node:timers/promises";
 import { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { AUTH_CLAIMS_HEADER } from "@/lib/server/auth-claim-header";
+import { AUTH_CLAIMS_HEADER, createAuthClaimsHeader } from "@/lib/server/auth-claim-header";
 import {
   PROXY_AUTH_DURATION_HEADER,
   PROXY_AUTH_ENDED_HEADER,
@@ -38,7 +41,12 @@ test("Proxy refreshes authenticated routes but skips public and cron work", asyn
   assert.equal(matches("/deck-lists"), true);
   assert.equal(matches("/deck-lists/list-id"), true);
   assert.equal(matches("/api/site-formats"), true);
-  assert.equal(matches("/api/logs/bootstrap"), true);
+  assert.equal(matches("/api/logs/bootstrap"), false);
+  assert.equal(matches("/api/logs/bootstrap/"), false);
+  assert.equal(matches("/api/logs/bootstrap-other"), true);
+  assert.equal(matches("/api/logs/bootstrap/nested"), true);
+  assert.equal(matches("/api/logs/update"), true);
+  assert.equal(matches("/api/sidebar-profile"), true);
   assert.equal(matches("/api/cron/sync-limitless-events"), true);
   assert.equal(matches("/logs"), false);
   assert.equal(matches("/logs/log-id"), true);
@@ -96,8 +104,9 @@ test("Proxy refreshes authenticated routes but skips public and cron work", asyn
   }
 });
 
-test("Proxy forwards refreshed session cookies to the downstream request", {
-  skip: process.env.POKENOTES_E2E_LOCAL !== "1"
+test("Authenticated requests refresh sessions before reading account data", {
+  skip: process.env.POKENOTES_E2E_LOCAL !== "1",
+  timeout: 90_000
 }, async (t) => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -169,4 +178,114 @@ test("Proxy forwards refreshed session cookies to the downstream request", {
     .eq("id", "e2e-deck-dragapult");
   assert.ifError(queryError);
   assert.equal(decks?.length, 1);
+
+  // Exercise the actual bootstrap request: its downstream clients must see a
+  // session refreshed inside the route, and Next must return it to the browser.
+  const baseUrl = "http://localhost:3010/api/logs/bootstrap";
+  const portCheck = createServer();
+  await new Promise<void>((resolve, reject) => {
+    portCheck.once("error", () => reject(new Error("Port 3010 is occupied. Stop dev:e2e before running the local auth test.")));
+    portCheck.listen(3010, "127.0.0.1", () => portCheck.close(() => resolve()));
+  });
+  const server = spawn(process.execPath, ["scripts/local-e2e.mjs", "dev"], {
+    cwd: process.cwd(), detached: true, stdio: "ignore"
+  });
+  t.after(async () => {
+    if (!server.pid || server.exitCode !== null) return;
+    const exited = new Promise<void>((resolve) => server.once("exit", () => resolve()));
+    process.kill(-server.pid, "SIGTERM");
+    await Promise.race([exited, delay(5_000, undefined, { ref: false })]);
+    if (server.exitCode === null && server.signalCode === null) {
+      process.kill(-server.pid, "SIGKILL");
+      await exited;
+    }
+  });
+  let ready = false;
+  const readyDeadline = Date.now() + 45_000;
+  while (Date.now() < readyDeadline) {
+    assert.equal(server.exitCode, null, "The isolated local app exited during startup.");
+    try {
+      const readiness = await fetch(baseUrl, { signal: AbortSignal.timeout(1_000) });
+      await readiness.body?.cancel();
+      ready = readiness.status === 401;
+      if (ready) break;
+    } catch { /* Wait for the committed local app command to start. */ }
+    await delay(100);
+  }
+  assert.ok(ready, "The isolated local bootstrap route was not ready within 45 seconds.");
+
+  const signedOtherIdentity = await createAuthClaimsHeader({
+    id: "11111111-1111-4111-8111-111111111111",
+    app_metadata: {}, user_metadata: {}, role: "authenticated"
+  });
+  assert.ok(signedOtherIdentity);
+  const forgedHeaders = {
+    [AUTH_CLAIMS_HEADER]: signedOtherIdentity,
+    [PROXY_AUTH_DURATION_HEADER]: "123",
+    [PROXY_AUTH_ENDED_HEADER]: "456",
+    [PROXY_AUTH_METHOD_HEADER]: "forged-method",
+    [PROXY_AUTH_REFRESHED_HEADER]: "1",
+    [PROXY_AUTH_STARTED_HEADER]: "100",
+    [PROXY_REGION_HEADER]: "forged-region",
+    [REQUEST_CORRELATION_HEADER]: "forged-correlation",
+    [REQUEST_STARTED_HEADER]: "1"
+  };
+  const readBootstrap = async (cookie = "") => {
+    const result = await fetch(baseUrl, {
+      headers: { ...forgedHeaders, ...(cookie ? { cookie } : {}) },
+      signal: AbortSignal.timeout(10_000)
+    });
+    assert.match(result.headers.get("cache-control") ?? "", /private.*no-store/);
+    return { response: result, body: await result.json() };
+  };
+  const assertOwnData = (body: {
+    stats: { total: number };
+    window: { logs: Array<{ id: string }> };
+    diagnostics: { requestTimeline: Record<string, unknown> };
+  }) => {
+    assert.equal(body.stats.total, 3);
+    assert.equal(body.window.logs.length, 3);
+    assert.ok(body.window.logs.every((log) => log.id.startsWith("e2e-log-")));
+    for (const [field, value] of Object.entries(body.diagnostics.requestTimeline)) {
+      if (field.startsWith("proxy")) assert.equal(value, null, field);
+    }
+  };
+  const { error: secondSignInError } = await signInClient.auth.signInWithPassword({
+    email: process.env.POKE_NOTES_TEST_LOGIN_EMAIL!,
+    password: process.env.POKE_NOTES_TEST_LOGIN_PASSWORD!
+  });
+  assert.ifError(secondSignInError);
+  const [[sessionName, freshEncoded]] = [...cookieJar];
+  const fresh = await readBootstrap(`${sessionName}=${freshEncoded}`);
+  assert.equal(fresh.response.status, 200);
+  assertOwnData(fresh.body);
+  assert.equal(fresh.body.diagnostics.authRefreshed, false);
+
+  const staleSession = JSON.parse(Buffer.from(freshEncoded.slice(7), "base64url").toString("utf8"));
+  const staleParts = staleSession.access_token.split(".");
+  const staleClaims = JSON.parse(Buffer.from(staleParts[1], "base64url").toString("utf8"));
+  staleClaims.exp = Math.floor(Date.now() / 1000) - 60;
+  staleSession.access_token = `${staleParts[0]}.${Buffer.from(JSON.stringify(staleClaims)).toString("base64url")}.${staleParts[2]}`;
+  staleSession.expires_at = staleClaims.exp;
+  const encodeSession = () => `base64-${Buffer.from(JSON.stringify(staleSession)).toString("base64url")}`;
+  const expired = await readBootstrap(`${sessionName}=${encodeSession()}; ${sessionName}.1=obsolete-chunk`);
+  assert.equal(expired.response.status, 200);
+  assertOwnData(expired.body);
+  assert.equal(expired.body.diagnostics.authRefreshed, true);
+  const cookieWrites = expired.response.headers.getSetCookie();
+  assert.equal(cookieWrites.filter((value) => value.startsWith(`${sessionName}=`)).length, 1);
+  assert.ok(cookieWrites.some((value) => value.startsWith(`${sessionName}.1=;`)), "The stale cookie chunk must be cleared.");
+  const reloaded = await readBootstrap(cookieWrites.map((value) => value.split(";")[0]).join("; "));
+  assert.equal(reloaded.response.status, 200);
+  assertOwnData(reloaded.body);
+  assert.equal(reloaded.body.diagnostics.authRefreshed, false);
+  assert.equal(reloaded.response.headers.getSetCookie().length, 0);
+
+  const anonymous = await readBootstrap();
+  assert.equal(anonymous.response.status, 401);
+  assert.deepEqual(anonymous.body, { error: "Authentication required." });
+  staleSession.refresh_token = "invalid-refresh-token-for-local-test";
+  const invalid = await readBootstrap(`${sessionName}=${encodeSession()}`);
+  assert.equal(invalid.response.status, 401);
+  assert.deepEqual(invalid.body, { error: "Authentication required." });
 });

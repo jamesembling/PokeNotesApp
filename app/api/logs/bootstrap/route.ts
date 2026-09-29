@@ -60,7 +60,22 @@ export async function GET() {
   let authRefreshed = false;
 
   try {
-    const [cookieStore, requestHeaders] = await Promise.all([cookies(), headers()]);
+    const [cookieStore, incomingHeaders] = await Promise.all([cookies(), headers()]);
+    // This route verifies and refreshes its own session without the proxy.
+    // Client-supplied proxy diagnostics are not trusted measurements.
+    const requestHeaders = new Headers(incomingHeaders);
+    for (const name of [
+      PROXY_AUTH_DURATION_HEADER,
+      PROXY_AUTH_ENDED_HEADER,
+      PROXY_AUTH_METHOD_HEADER,
+      PROXY_AUTH_REFRESHED_HEADER,
+      PROXY_AUTH_STARTED_HEADER,
+      PROXY_REGION_HEADER,
+      REQUEST_CORRELATION_HEADER,
+      REQUEST_STARTED_HEADER
+    ]) {
+      requestHeaders.delete(name);
+    }
     const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
     const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
       cookies: {
