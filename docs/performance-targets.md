@@ -40,6 +40,18 @@ The 11 July health-review snapshot remains valid for that narrower sample—67 `
 - Separate RUM, production journey-runner results, and localhost diagnostics. They answer different questions and must not be merged into one timing claim.
 - Treat small samples as directional. Do not declare a regression fixed from one manual navigation or a low-volume percentile alone.
 
+### Battle Logs bootstrap timeline
+
+Successful `/api/logs/bootstrap` responses include `diagnostics.requestTimeline`, also available as JSON in the loaded page's `[data-route-bootstrap-timeline]` attribute. Capture it and the bootstrap Resource Timing entry after a natural slow visit, before reloading or making another bootstrap request. These additional fields are available in the response and page only; they are not stored in `route_performance_events`.
+
+- `proxyRequestStartedAtEpochMs` and `routeStartedAtEpochMs` identify proxy and handler entry. The proxy timestamp follows ingress header sanitization and excludes platform work before proxy execution.
+- `proxyAuthStartedMs`, `proxyAuthEndedMs`, `proxyAuthMs`, and `proxyAuthRefreshed` describe the proxy session check, relative to proxy entry. `proxyRequestCorrelationId` joins the forwarded request; the existing route correlation ID remains unchanged.
+- `proxyToRouteMs` covers proxy entry through route entry. `proxyAuthEndToRouteMs` starts at the end of the proxy session check, so it includes remaining proxy work, dispatch, module loading, and any route startup. Neither value isolates a platform cold start. Both compare clocks in separate functions: negative values remain visible in JSON to expose clock skew.
+- `routePreAuthMs` covers handler entry through the start of route authentication. `routeHandlerMs` ends at `routeResponsePreparedAtEpochMs`, before JSON serialization and response delivery.
+- `processUptimeMs` is sampled at handler entry. Compare it with the existing `runtimeBootAgeMs`, which measures the age of the performance module rather than the server process. Neither alone proves the platform's cold-start classification.
+
+`Server-Timing` exposes `bootstrap-pre-auth`, `bootstrap-handler`, `bootstrap-proxy-to-route`, and `bootstrap-proxy-auth-end-to-route` alongside existing auth/data metrics. Negative or unavailable cross-function intervals are omitted from the header. These intervals overlap; do not sum them. Browser waiting time can still include network and platform work outside all reported intervals.
+
 For a repeatable authenticated production journey:
 
 ```sh
