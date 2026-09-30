@@ -46,6 +46,22 @@ On a new machine, install the pinned Playwright browser once after `npm ci` with
 
 The runner closes its browser and app afterward. It leaves the synthetic database available for inspection and prints a local server-log path on failure; the next run resets it again. It accepts no hosted target or credentials, changes no production application code, and adds no wait to user imports. Timings printed by the runner are local workflow diagnostics, not production performance evidence.
 
+In GitHub Actions, **Database behavior** runs both import journeys for application,
+shared UI, library, schema, fixture, and runtime configuration changes. The check
+remains present on every PR; documentation-only changes can skip its expensive
+steps. The weekly schedule and manual workflow dispatch run the full synthetic
+gate without path filtering. Its read-only GitHub token and disposable local
+database do not require production secrets. Each journey resets its fixtures.
+
+On browser failure, the runner writes the failed checkpoint and sanitized server
+log/ARIA snapshot to ignored `.agent-browser/import-check/<variant>/`. CI uploads
+only those three diagnostic files for three days, including failures during
+preflight when a browser cannot launch. Environment keys, pairing codes,
+passwords, signing secrets, JWTs, and credential lines are redacted. Cookies,
+storage-state files, raw traces, and network archives are not uploaded. Treat the
+check as passed only when both journey commands and database checks complete;
+an uploaded artifact or a skipped browser step is not browser execution evidence.
+
 Reset before a full browser run or whenever a previous run mutated fixture state:
 
 ```bash

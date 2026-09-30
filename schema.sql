@@ -10,6 +10,9 @@
 -- ============================================================
 
 create extension if not exists "pgcrypto";  -- for gen_random_uuid()
+create extension if not exists pg_cron;
+create schema if not exists extensions;
+create extension if not exists pg_net with schema extensions;
 
 
 -- ============================================================
@@ -802,149 +805,6 @@ begin
     (select max(last_synced_at) from public.pokemon_catalog) as pokemon_last_synced_at,
     (select max(last_synced_at) from public.archetype_catalog) as archetype_last_synced_at;
 end;
-$$;
-
-create or replace function public.get_admin_users_overview()
-returns table (
-  id uuid,
-  email text,
-  display_name text,
-  ptcgl_username text,
-  role text,
-  auth_account_created_at timestamptz,
-  last_login_at timestamptz,
-  last_active_at timestamptz,
-  last_activity_at timestamptz,
-  login_count integer,
-  created_at timestamptz,
-  deck_count integer,
-  deck_list_count integer,
-  tournament_count integer,
-  log_count integer
-)
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  with current_profile as (
-    select role
-    from public.profiles
-    where id = auth.uid()
-    limit 1
-  ),
-  deck_counts as (
-    select
-      user_id,
-      count(*)::integer as deck_count,
-      coalesce(
-        sum(
-          case
-            when jsonb_typeof(deck_lists) = 'array' then jsonb_array_length(deck_lists)
-            else 0
-          end
-        ),
-        0
-      )::integer as deck_list_count,
-      max(updated_at) as latest_deck_activity_at
-    from public.decks
-    group by user_id
-  ),
-  deck_list_counts as (
-    select
-      user_id,
-      count(*)::integer as relational_deck_list_count,
-      max(updated_at) as latest_deck_list_activity_at
-    from public.deck_lists
-    group by user_id
-  ),
-  tournament_counts as (
-    select
-      user_id,
-      count(*)::integer as tournament_count,
-      max(updated_at) as latest_tournament_activity_at
-    from public.tournaments
-    group by user_id
-  ),
-  log_activity as (
-    select
-      user_id,
-      max(imported_at) as latest_log_activity_at
-    from public.logs
-    group by user_id
-  ),
-  activity_events as (
-    select id as user_id, last_active_at as activity_at
-    from public.profiles
-    where last_active_at is not null
-
-    union all
-
-    select id as user_id, last_login_at as activity_at
-    from public.profiles
-    where last_login_at is not null
-
-    union all
-
-    select id as user_id, auth_account_created_at as activity_at
-    from public.profiles
-    where auth_account_created_at is not null
-
-    union all
-
-    select user_id, latest_deck_activity_at as activity_at
-    from deck_counts
-    where latest_deck_activity_at is not null
-
-    union all
-
-    select user_id, latest_deck_list_activity_at as activity_at
-    from deck_list_counts
-    where latest_deck_list_activity_at is not null
-
-    union all
-
-    select user_id, latest_tournament_activity_at as activity_at
-    from tournament_counts
-    where latest_tournament_activity_at is not null
-
-    union all
-
-    select user_id, latest_log_activity_at as activity_at
-    from log_activity
-    where latest_log_activity_at is not null
-  ),
-  user_activity as (
-    select user_id, max(activity_at) as last_activity_at
-    from activity_events
-    group by user_id
-  )
-  select
-    p.id,
-    p.email,
-    p.display_name,
-    p.ptcgl_username,
-    p.role,
-    p.auth_account_created_at,
-    p.last_login_at,
-    p.last_active_at,
-    coalesce(ua.last_activity_at, p.created_at) as last_activity_at,
-    p.login_count,
-    p.created_at,
-    coalesce(dc.deck_count, 0) as deck_count,
-    greatest(coalesce(dc.deck_list_count, 0), coalesce(dlc.relational_deck_list_count, 0)) as deck_list_count,
-    coalesce(tc.tournament_count, 0) as tournament_count,
-    coalesce(uls.games_played, 0)::integer as log_count
-  from public.profiles p
-  left join deck_counts dc on dc.user_id = p.id
-  left join deck_list_counts dlc on dlc.user_id = p.id
-  left join tournament_counts tc on tc.user_id = p.id
-  left join public.user_log_stats uls on uls.user_id = p.id
-  left join user_activity ua on ua.user_id = p.id
-  where exists (select 1 from current_profile where role = 'admin')
-  order by
-    case when p.role = 'admin' then 0 else 1 end,
-    coalesce(ua.last_activity_at, p.last_active_at, p.last_login_at, p.auth_account_created_at, p.created_at) desc;
 $$;
 
 create or replace function public.get_deck_index()
@@ -2178,8 +2038,15 @@ create table public.limitless_event_feed (
   feed_key text primary key check (feed_key = 'ptcg-standard-ptcgl'),
   events jsonb not null default '[]'::jsonb
     check (jsonb_typeof(events) = 'array' and jsonb_array_length(events) <= 500),
-  refreshed_at timestamptz not null default now()
+  refreshed_at timestamptz not null default now(),
+  refresh_claim_token uuid,
+  refresh_lease_until timestamptz,
+  constraint limitless_event_feed_refresh_lease_pair
+    check ((refresh_claim_token is null) = (refresh_lease_until is null))
 );
+
+insert into public.limitless_event_feed (feed_key, events, refreshed_at)
+values ('ptcg-standard-ptcgl', '[]'::jsonb, '1970-01-01 00:00:00+00');
 
 create table public.user_event_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -2241,7 +2108,160 @@ create policy "Users can remove own event pins"
   on public.user_event_pins for delete to authenticated
   using ((select auth.uid()) = user_id);
 
+create or replace function public.get_admin_users_overview()
+returns table (
+  id uuid,
+  email text,
+  display_name text,
+  ptcgl_username text,
+  role text,
+  auth_account_created_at timestamptz,
+  last_login_at timestamptz,
+  last_active_at timestamptz,
+  last_activity_at timestamptz,
+  login_count integer,
+  created_at timestamptz,
+  deck_count integer,
+  deck_list_count integer,
+  tournament_count integer,
+  log_count integer,
+  saved_event_count integer
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with current_profile as (
+    select role
+    from public.profiles
+    where id = auth.uid()
+    limit 1
+  ),
+  deck_counts as (
+    select
+      user_id,
+      count(*)::integer as deck_count,
+      coalesce(
+        sum(
+          case
+            when jsonb_typeof(deck_lists) = 'array' then jsonb_array_length(deck_lists)
+            else 0
+          end
+        ),
+        0
+      )::integer as deck_list_count,
+      max(updated_at) as latest_deck_activity_at
+    from public.decks
+    group by user_id
+  ),
+  deck_list_counts as (
+    select
+      user_id,
+      count(*)::integer as relational_deck_list_count,
+      max(updated_at) as latest_deck_list_activity_at
+    from public.deck_lists
+    group by user_id
+  ),
+  tournament_counts as (
+    select
+      user_id,
+      count(*)::integer as tournament_count,
+      max(updated_at) as latest_tournament_activity_at
+    from public.tournaments
+    group by user_id
+  ),
+  saved_event_counts as (
+    select user_id, count(*)::integer as saved_event_count
+    from public.user_event_pins
+    group by user_id
+  ),
+  log_activity as (
+    select
+      user_id,
+      max(imported_at) as latest_log_activity_at
+    from public.logs
+    group by user_id
+  ),
+  activity_events as (
+    select id as user_id, last_active_at as activity_at
+    from public.profiles
+    where last_active_at is not null
+
+    union all
+
+    select id as user_id, last_login_at as activity_at
+    from public.profiles
+    where last_login_at is not null
+
+    union all
+
+    select id as user_id, auth_account_created_at as activity_at
+    from public.profiles
+    where auth_account_created_at is not null
+
+    union all
+
+    select user_id, latest_deck_activity_at as activity_at
+    from deck_counts
+    where latest_deck_activity_at is not null
+
+    union all
+
+    select user_id, latest_deck_list_activity_at as activity_at
+    from deck_list_counts
+    where latest_deck_list_activity_at is not null
+
+    union all
+
+    select user_id, latest_tournament_activity_at as activity_at
+    from tournament_counts
+    where latest_tournament_activity_at is not null
+
+    union all
+
+    select user_id, latest_log_activity_at as activity_at
+    from log_activity
+    where latest_log_activity_at is not null
+  ),
+  user_activity as (
+    select user_id, max(activity_at) as last_activity_at
+    from activity_events
+    group by user_id
+  )
+  select
+    p.id,
+    p.email,
+    p.display_name,
+    p.ptcgl_username,
+    p.role,
+    p.auth_account_created_at,
+    p.last_login_at,
+    p.last_active_at,
+    coalesce(ua.last_activity_at, p.created_at) as last_activity_at,
+    p.login_count,
+    p.created_at,
+    coalesce(dc.deck_count, 0) as deck_count,
+    greatest(coalesce(dc.deck_list_count, 0), coalesce(dlc.relational_deck_list_count, 0)) as deck_list_count,
+    coalesce(tc.tournament_count, 0) as tournament_count,
+    coalesce(uls.games_played, 0)::integer as log_count,
+    coalesce(sec.saved_event_count, 0) as saved_event_count
+  from public.profiles p
+  left join deck_counts dc on dc.user_id = p.id
+  left join deck_list_counts dlc on dlc.user_id = p.id
+  left join tournament_counts tc on tc.user_id = p.id
+  left join public.user_log_stats uls on uls.user_id = p.id
+  left join saved_event_counts sec on sec.user_id = p.id
+  left join user_activity ua on ua.user_id = p.id
+  where exists (select 1 from current_profile where role = 'admin')
+  order by
+    case when p.role = 'admin' then 0 else 1 end,
+    coalesce(ua.last_activity_at, p.last_active_at, p.last_login_at, p.auth_account_created_at, p.created_at) desc;
+$$;
+
+
 notify pgrst, 'reload schema';
+
 alter table public.deck_lists
   add column if not exists creation_key text;
 alter table public.deck_lists
@@ -6160,7 +6180,7 @@ begin
   end if;
   v_format := p_payload ->> 'format';
   if v_format not in (
-    'TEF-PBL', 'TEF-CRI', 'TEF-POR', 'SVI-ASC', 'SVI-PFL', 'SVI-MEG',
+    'TEF-30C', 'TEF-PBL', 'TEF-CRI', 'TEF-POR', 'SVI-ASC', 'SVI-PFL', 'SVI-MEG',
     'SVI-WHT/BLK', 'SVI-DRI', 'SVI-JTG', 'BRS-PRE', 'BRS-SSP', 'BRS-SCR',
     'Expanded', 'GLC', 'PTCG Pocket'
   ) then
@@ -6445,6 +6465,41 @@ revoke all on function public.create_deck_strategy_from_list(text, text, text, j
 grant execute on function public.create_deck_strategy_from_list(text, text, text, jsonb, timestamptz, text, timestamptz) to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- The hourly job is inert until Production provisions its credential in Vault.
+create or replace function private.invoke_limitless_event_refresh()
+returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $function$
+declare
+  v_sync_secret text;
+begin
+  select decrypted_secret into v_sync_secret
+  from vault.decrypted_secrets
+  where name = 'limitless_sync_secret';
+
+  if nullif(v_sync_secret, '') is null then
+    return;
+  end if;
+
+  perform net.http_get(
+    url := 'https://poke-notes-app.vercel.app/api/cron/sync-limitless-events',
+    params := jsonb_build_object('mode', 'primary'),
+    headers := jsonb_build_object('Authorization', 'Bearer ' || v_sync_secret),
+    timeout_milliseconds := 35000
+  );
+end;
+$function$;
+
+revoke all on function private.invoke_limitless_event_refresh() from public, anon, authenticated;
+
+select cron.schedule(
+  'refresh-limitless-events-primary',
+  '5 * * * *',
+  'select private.invoke_limitless_event_refresh();'
+);
 create or replace function public.commit_tournament_deck_list(
   p_tournament_id text,
   p_request_id text,

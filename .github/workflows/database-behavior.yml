@@ -7,6 +7,7 @@ on:
       - main
   schedule:
     - cron: "23 4 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,7 +16,7 @@ jobs:
   database-behavior:
     name: Database behavior
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,8 +36,8 @@ jobs:
           with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as event_file:
               event = json.load(event_file)
           event_name = os.environ['GITHUB_EVENT_NAME']
-          if event_name == 'schedule':
-              relevant = ['weekly main run']
+          if event_name in ('schedule', 'workflow_dispatch'):
+              relevant = ['full synthetic behavior run']
           else:
               base = event['pull_request']['base']['sha'] if event_name == 'pull_request' else event['before']
               if set(base) == {'0'}:
@@ -47,10 +48,8 @@ jobs:
                   ).decode().split('\0')
                   prefixes = (
                       'supabase/migrations/', 'lib/db/', 'lib/decks/', 'lib/tournaments/',
-                      'lib/log-import/', 'lib/supabase/',
-                      'app/(app)/logs/', 'app/api/log-import/',
-                      'app/api/deck-selection-options/', 'app/auth/dev-login/',
-                      'components/ui/Import',
+                      'lib/', 'app/', 'components/', 'types/',
+                      'public/',
                       'tests/e2e/supabase/tests/', 'tests/e2e/fixtures/',
                   )
                   exact = {
@@ -66,7 +65,9 @@ jobs:
                       'components/ui/LazyImportLogButton.tsx',
                       'components/ui/LogsManager.tsx', 'app/layout.tsx',
                       '.github/workflows/database-behavior.yml',
-                      'package.json', 'package-lock.json',
+                      'package.json', 'package-lock.json', 'next.config.js',
+                      'tailwind.config.ts', 'postcss.config.js', 'tsconfig.json',
+                      'tests/ci-workflow-contract.test.ts',
                   }
                   relevant = [path for path in changed if path in exact or path.startswith(prefixes)]
           print('Database or import-relevant changes:', relevant or 'none')
@@ -130,6 +131,19 @@ jobs:
       - name: Verify import after session refresh
         if: steps.changes.outputs.relevant == 'true'
         run: timeout 10m npm run e2e:local:import -- --expired-session
+
+      - name: Upload redacted browser failure diagnostics
+        if: failure() && steps.changes.outputs.relevant == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: synthetic-import-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .agent-browser/import-check/*/summary.json
+            .agent-browser/import-check/*/server.log
+            .agent-browser/import-check/*/browser.txt
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Stop disposable Supabase
         if: always() && steps.changes.outputs.relevant == 'true'

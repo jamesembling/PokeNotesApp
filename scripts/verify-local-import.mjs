@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -16,12 +16,15 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const baseUrl = "http://localhost:3010";
 const notes = "Synthetic browser import verification";
 const expiredSession = process.argv[2] === "--expired-session";
+const variant = expiredSession ? "expired-session" : "authenticated";
+const startedAt = new Date().toISOString();
 let stage = "preflight";
 let server;
 let browser;
 let page;
 let artifacts;
 let environment = {};
+let failureMessage;
 
 if (process.argv.includes("--help")) {
   console.log("npm run e2e:local:import [-- --expired-session]\nResets the synthetic local database, starts port 3010, signs in, and checks paste, review, save, reload and catalogue learning. The expired-session variant verifies refresh during deck-options loading before saving. Closes its browser and app afterward; leaves the local database available for inspection. Port 3010 must be free. No hosted target or credentials are accepted.");
@@ -38,6 +41,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 }
 
 try {
+  artifacts = mkdtempSync(resolve(tmpdir(), "pokenotes-import-"));
   assert.ok(existsSync(chromium.executablePath()), "Install the pinned browser first: npx playwright install chromium");
   await requireFreePort();
   checkpoint("reset synthetic fixtures");
@@ -61,7 +65,6 @@ try {
   assert.equal((await learned()).length, 0, "Learning must start absent.");
 
   checkpoint("start isolated app");
-  artifacts = mkdtempSync(resolve(tmpdir(), "pokenotes-import-"));
   const output = openSync(resolve(artifacts, "server.log"), "w", 0o600);
   server = spawn(process.execPath, ["scripts/local-e2e.mjs", "dev"], {
     cwd: root, detached: true, stdio: ["ignore", output, output]
@@ -96,7 +99,7 @@ try {
     page.waitForURL(`${baseUrl}/dashboard`),
     page.locator('form[action="/auth/dev-login"] button[type="submit"]').click()
   ]);
-  await page.goto(`${baseUrl}/logs`);
+  await verifyLogsBootstrap();
   await page.getByRole("button", { name: "E2E Trainer e2e@pokenotes.local", exact: true }).waitFor();
   assert.equal(new URL(page.url()).pathname, "/logs", "Login must reach the authenticated app.");
 
@@ -297,7 +300,8 @@ try {
   assert.equal(saveRequests, 1, "The second review must not send a save request.");
   console.log(`PASS: ${expiredSession ? "expired-session" : "authenticated"} paste → review → save → reload → learned review (${Math.round(performance.now() - journeyStarted)} ms, local diagnostic only).`);
 } catch (error) {
-  console.error(`FAIL at ${stage}: ${redact(error.message)}`);
+  failureMessage = redact(error.message);
+  console.error(`FAIL at ${stage}: ${failureMessage}`);
   if (artifacts) {
     if (page) {
       try { writeFileSync(resolve(artifacts, "browser.txt"), redact(await page.locator("body").ariaSnapshot({ timeout: 3000 })), { mode: 0o600 }); } catch { /* The browser may itself be the failure. */ }
@@ -306,8 +310,26 @@ try {
   }
   process.exitCode = 1;
 } finally {
-  await cleanup();
-  if (artifacts && !process.exitCode) rmSync(artifacts, { recursive: true, force: true });
+  try {
+    await cleanup();
+  } finally {
+    if (artifacts && process.exitCode && process.env.CI) {
+      const diagnostics = resolve(root, ".agent-browser/import-check", variant);
+      mkdirSync(diagnostics, { recursive: true });
+      writeFileSync(resolve(diagnostics, "summary.json"), JSON.stringify({
+        variant, startedAt, failedAt: new Date().toISOString(), stage,
+        error: failureMessage || "Interrupted before the journey completed."
+      }, null, 2) + "\n", { mode: 0o600 });
+      for (const name of ["server.log", "browser.txt"]) {
+        const source = resolve(artifacts, name);
+        if (existsSync(source)) {
+          writeFileSync(resolve(diagnostics, name), redact(readFileSync(source, "utf8")), { mode: 0o600 });
+        }
+      }
+      console.error(`Redacted CI diagnostics: ${diagnostics}`);
+    }
+    if (artifacts && !process.exitCode) rmSync(artifacts, { recursive: true, force: true });
+  }
 }
 
 function checkpoint(value) {
@@ -336,6 +358,62 @@ async function expireBrowserAccessToken(context) {
     current.name === cookie.name && current.value === value
   ), "The next browser request must use the expired session cookie.");
   return { name: cookie.name, value };
+}
+
+async function verifyLogsBootstrap() {
+  checkpoint("load logs before workspace JavaScript and recover failed loads");
+  let bootstrapRequests = 0;
+  const countRequest = request => {
+    if (new URL(request.url()).pathname === "/api/logs/bootstrap") bootstrapRequests++;
+  };
+  page.on("request", countRequest);
+  let releaseScripts;
+  const scriptsReleased = new Promise(resolve => { releaseScripts = resolve; });
+  const holdScript = async route => {
+    await scriptsReleased;
+    await route.continue();
+  };
+  await page.route("**/_next/static/chunks/*.js", holdScript);
+  try {
+    const bootstrap = page.waitForResponse(response => new URL(response.url()).pathname === "/api/logs/bootstrap", { timeout: 10000 });
+    await page.goto(`${baseUrl}/logs`, { waitUntil: "commit" });
+    const response = await bootstrap;
+    assert.equal(response.status(), 200, "Logs must load while hydration scripts are held.");
+    assert.equal((await response.json()).stats.total, 3);
+    assert.equal(bootstrapRequests, 1, "The HTML parser must start exactly one bootstrap request.");
+    assert.equal(await page.locator('[data-route-client-timing="route-data-visible"]').count(), 0, "The request must finish before hydration.");
+  } finally {
+    releaseScripts();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+  await page.locator('[data-route-client-timing="route-data-visible"][data-route-client-paint-ms]').waitFor({ state: "attached" });
+  assert.equal(bootstrapRequests, 1, "Hydration must consume the early result without a duplicate request.");
+
+  await page.route("**/api/logs/bootstrap", route => route.fulfill({ status: 503, contentType: "application/json", body: '{"error":"Synthetic unavailable response"}' }), { times: 1 });
+  await page.reload();
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await page.locator('[data-route-client-timing="route-data-visible"]').waitFor({ state: "attached" });
+  assert.equal(bootstrapRequests, 3, "Retry must make a fresh request after the failed early result.");
+
+  await page.getByRole("link", { name: "Dashboard", exact: true }).click();
+  await page.getByRole("heading", { name: "Dashboard", exact: true }).waitFor();
+  await page.getByRole("link", { name: "Battle Logs", exact: true }).click();
+  await page.locator('[data-route-client-timing="route-data-visible"]').waitFor({ state: "attached" });
+  assert.equal(bootstrapRequests, 4, "Returning through client navigation must fetch fresh logs.");
+
+  await page.context().clearCookies();
+  await page.reload();
+  await page.waitForURL(`${baseUrl}/login`);
+  assert.equal(bootstrapRequests, 5, "An unauthorized early response must redirect without another bootstrap.");
+  await page.locator('form[action="/auth/dev-login"] input[name="pairingCode"]').fill(environment.POKE_NOTES_LOCAL_LOGIN_CODE);
+  await Promise.all([
+    page.waitForURL(`${baseUrl}/dashboard`),
+    page.locator('form[action="/auth/dev-login"] button[type="submit"]').click()
+  ]);
+  await page.goto(`${baseUrl}/logs`);
+  await page.locator('[data-route-client-timing="route-data-visible"]').waitFor({ state: "attached" });
+  assert.equal(bootstrapRequests, 6, "A new document must use a new authenticated result.");
+  page.off("request", countRequest);
 }
 
 async function selfSprites() {
@@ -370,7 +448,7 @@ async function query(promise) {
 }
 
 async function requireFreePort() {
-  for (const host of ["127.0.0.1", "::1"]) {
+  for (const host of ["0.0.0.0", "::"]) {
     await new Promise((accept, reject) => {
       const probe = createServer();
       probe.once("error", error => error.code === "EAFNOSUPPORT" ? accept() : reject(new Error("Port 3010 is occupied. Stop dev:e2e before running the self-contained import check.")));
@@ -380,7 +458,14 @@ async function requireFreePort() {
 }
 
 function redact(message) {
-  return Object.entries(environment).filter(([key]) => /KEY|PASSWORD|CODE/.test(key)).reduce((text, [, value]) => value ? text.replaceAll(value, "<redacted>") : text, String(message));
+  const text = Object.entries(environment)
+    .filter(([key]) => /KEY|PASSWORD|CODE|SECRET|TOKEN/.test(key))
+    .reduce((text, [, value]) => value ? text.replaceAll(value, "<redacted>") : text, String(message));
+  return text.replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "<redacted JWT>")
+    .split("\n")
+    .map(line => /(?:authorization|set-cookie|cookie|access_token|refresh_token)\s*[:=]/i.test(line)
+      ? "<redacted credential line>" : line)
+    .join("\n");
 }
 
 async function cleanup() {

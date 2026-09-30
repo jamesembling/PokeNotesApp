@@ -13,6 +13,7 @@ import {
   LogsWorkspaceSkeleton
 } from "@/components/ui/LogsWorkspaceSkeleton";
 import type { BattleLogSummary } from "@/types/index";
+import { loadLogsBootstrap } from "@/lib/client/logs-bootstrap";
 
 type BootstrapDiagnostics = {
   authEndedMs: number;
@@ -29,6 +30,7 @@ type BootstrapDiagnostics = {
   mappingMs: number | null;
   requestCorrelationId: string;
   requestId: string | null;
+  requestTimeline: Record<string, boolean | number | string | null>;
   resultBytes: number | null;
   resultRows: number | null;
   runtimeBootAgeMs: number;
@@ -80,16 +82,10 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
     startedAttemptRef.current = attempt;
     setState({ status: "loading" });
 
-    void fetch("/api/logs/bootstrap", {
-      cache: "no-store",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json"
-      }
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          const unauthorized = response.status === 401;
+    void loadLogsBootstrap(attempt === 0)
+      .then((result) => {
+        if (!result.ok) {
+          const unauthorized = result.status === 401;
           throw Object.assign(
             new Error(
               unauthorized
@@ -100,10 +96,9 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
           );
         }
 
-        const payload = (await response.json()) as BootstrapPayload;
         return {
-          parsedAtMs: Math.max(0, Math.round(performance.now())),
-          payload
+          parsedAtMs: result.parsedAtMs,
+          payload: result.payload as BootstrapPayload
         };
       })
       .then(({ parsedAtMs, payload }) => {
@@ -189,6 +184,7 @@ function BootstrapTimingMarkers({
         data-route-auth-method={diagnostics.authMethod}
         data-route-auth-refreshed={String(diagnostics.authRefreshed)}
         data-route-auth-started-ms={diagnostics.authStartedMs}
+        data-route-bootstrap-timeline={JSON.stringify(diagnostics.requestTimeline)}
         data-route-request-correlation-id={diagnostics.requestCorrelationId}
         data-route-request-id={diagnostics.requestId ?? undefined}
         data-route-runtime-boot-age-ms={diagnostics.runtimeBootAgeMs}

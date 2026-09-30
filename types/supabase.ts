@@ -1240,16 +1240,22 @@ export type Database = {
         Row: {
           events: Json
           feed_key: string
+          refresh_claim_token: string | null
+          refresh_lease_until: string | null
           refreshed_at: string
         }
         Insert: {
           events?: Json
           feed_key: string
+          refresh_claim_token?: string | null
+          refresh_lease_until?: string | null
           refreshed_at?: string
         }
         Update: {
           events?: Json
           feed_key?: string
+          refresh_claim_token?: string | null
+          refresh_lease_until?: string | null
           refreshed_at?: string
         }
         Relationships: []
@@ -1475,6 +1481,7 @@ export type Database = {
           last_login_at: string
           log_count: number
           login_count: number
+          saved_event_count: number
           ptcgl_username: string
           role: string
           tournament_count: number

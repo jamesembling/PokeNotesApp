@@ -2,7 +2,7 @@ name: Refresh Limitless events
 
 on:
   schedule:
-    - cron: "17 0-5,7-23 * * *"
+    - cron: "35 * * * *"
   workflow_dispatch:
 
 permissions: {}
@@ -32,7 +32,12 @@ jobs:
 
       - name: Refresh saved events
         run: |
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            REFRESH_URL="https://poke-notes-app.vercel.app/api/cron/sync-limitless-events?mode=fallback"
+          else
+            REFRESH_URL="https://poke-notes-app.vercel.app/api/cron/sync-limitless-events"
+          fi
           curl --fail-with-body --silent --show-error --max-time 35 \
             --retry 2 --retry-delay 5 \
             --header "Authorization: Bearer ${LIMITLESS_SYNC_SECRET}" \
-            https://poke-notes-app.vercel.app/api/cron/sync-limitless-events
+            "$REFRESH_URL"

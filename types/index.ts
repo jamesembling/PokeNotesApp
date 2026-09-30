@@ -433,6 +433,7 @@ export type AdminUser = {
   deckListCount: number
   tournamentCount: number
   logCount: number
+  savedEventCount: number
 }
 
 // Catalog health status for admin dashboard

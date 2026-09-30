@@ -77,7 +77,7 @@ export function TournamentDeckListSourcePicker({
         ))}
       </select>
       <Button disabled={busy || !selected} onClick={handleCapture} size="sm" type="button" variant="outline">
-        {busy ? "Capturing..." : replace ? "Replace with existing" : "Capture existing"}
+        {busy ? (replace ? "Replacing..." : "Adding...") : replace ? "Replace with existing" : "Add existing list"}
       </Button>
       {error ? <span className="basis-full text-xs text-loss-strong" role="status">{error}</span> : null}
     </span>
