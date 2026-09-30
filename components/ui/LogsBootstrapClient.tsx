@@ -13,6 +13,7 @@ import {
   LogsWorkspaceSkeleton
 } from "@/components/ui/LogsWorkspaceSkeleton";
 import type { BattleLogSummary } from "@/types/index";
+import { loadLogsBootstrap } from "@/lib/client/logs-bootstrap";
 
 type BootstrapDiagnostics = {
   authEndedMs: number;
@@ -81,16 +82,10 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
     startedAttemptRef.current = attempt;
     setState({ status: "loading" });
 
-    void fetch("/api/logs/bootstrap", {
-      cache: "no-store",
-      credentials: "same-origin",
-      headers: {
-        Accept: "application/json"
-      }
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          const unauthorized = response.status === 401;
+    void loadLogsBootstrap(attempt === 0)
+      .then((result) => {
+        if (!result.ok) {
+          const unauthorized = result.status === 401;
           throw Object.assign(
             new Error(
               unauthorized
@@ -101,10 +96,9 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
           );
         }
 
-        const payload = (await response.json()) as BootstrapPayload;
         return {
-          parsedAtMs: Math.max(0, Math.round(performance.now())),
-          payload
+          parsedAtMs: result.parsedAtMs,
+          payload: result.payload as BootstrapPayload
         };
       })
       .then(({ parsedAtMs, payload }) => {
