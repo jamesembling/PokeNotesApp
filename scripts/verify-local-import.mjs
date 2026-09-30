@@ -94,7 +94,7 @@ try {
     page.waitForURL(`${baseUrl}/dashboard`),
     page.locator('form[action="/auth/dev-login"] button[type="submit"]').click()
   ]);
-  await page.goto(`${baseUrl}/logs`);
+  await verifyLogsBootstrap();
   await page.getByRole("button", { name: "E2E Trainer e2e@pokenotes.local", exact: true }).waitFor();
   assert.equal(new URL(page.url()).pathname, "/logs", "Login must reach the authenticated app.");
 
@@ -279,6 +279,62 @@ function checkpoint(value) {
   console.log(`[import-check] ${value}`);
 }
 
+async function verifyLogsBootstrap() {
+  checkpoint("load logs before workspace JavaScript and recover failed loads");
+  let bootstrapRequests = 0;
+  const countRequest = request => {
+    if (new URL(request.url()).pathname === "/api/logs/bootstrap") bootstrapRequests++;
+  };
+  page.on("request", countRequest);
+  let releaseScripts;
+  const scriptsReleased = new Promise(resolve => { releaseScripts = resolve; });
+  const holdScript = async route => {
+    await scriptsReleased;
+    await route.continue();
+  };
+  await page.route("**/_next/static/chunks/*.js", holdScript);
+  try {
+    const bootstrap = page.waitForResponse(response => new URL(response.url()).pathname === "/api/logs/bootstrap", { timeout: 10000 });
+    await page.goto(`${baseUrl}/logs`, { waitUntil: "commit" });
+    const response = await bootstrap;
+    assert.equal(response.status(), 200, "Logs must load while hydration scripts are held.");
+    assert.equal((await response.json()).stats.total, 3);
+    assert.equal(bootstrapRequests, 1, "The HTML parser must start exactly one bootstrap request.");
+    assert.equal(await page.locator('[data-route-client-timing="route-data-visible"]').count(), 0, "The request must finish before hydration.");
+  } finally {
+    releaseScripts();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+  await page.locator('[data-route-client-timing="route-data-visible"][data-route-client-paint-ms]').waitFor({ state: "attached" });
+  assert.equal(bootstrapRequests, 1, "Hydration must consume the early result without a duplicate request.");
+
+  await page.route("**/api/logs/bootstrap", route => route.fulfill({ status: 503, contentType: "application/json", body: '{"error":"Synthetic unavailable response"}' }), { times: 1 });
+  await page.reload();
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await page.locator('[data-route-client-timing="route-data-visible"]').waitFor({ state: "attached" });
+  assert.equal(bootstrapRequests, 3, "Retry must make a fresh request after the failed early result.");
+
+  await page.getByRole("link", { name: "Dashboard", exact: true }).click();
+  await page.getByRole("heading", { name: "Dashboard", exact: true }).waitFor();
+  await page.getByRole("link", { name: "Battle Logs", exact: true }).click();
+  await page.locator('[data-route-client-timing="route-data-visible"]').waitFor({ state: "attached" });
+  assert.equal(bootstrapRequests, 4, "Returning through client navigation must fetch fresh logs.");
+
+  await page.context().clearCookies();
+  await page.reload();
+  await page.waitForURL(`${baseUrl}/login`);
+  assert.equal(bootstrapRequests, 5, "An unauthorized early response must redirect without another bootstrap.");
+  await page.locator('form[action="/auth/dev-login"] input[name="pairingCode"]').fill(environment.POKE_NOTES_LOCAL_LOGIN_CODE);
+  await Promise.all([
+    page.waitForURL(`${baseUrl}/dashboard`),
+    page.locator('form[action="/auth/dev-login"] button[type="submit"]').click()
+  ]);
+  await page.goto(`${baseUrl}/logs`);
+  await page.locator('[data-route-client-timing="route-data-visible"]').waitFor({ state: "attached" });
+  assert.equal(bootstrapRequests, 6, "A new document must use a new authenticated result.");
+  page.off("request", countRequest);
+}
+
 async function selfSprites() {
   return page.locator('input[name="selfSprites"]').evaluateAll(inputs => inputs.map(input => input.value));
 }
@@ -311,7 +367,7 @@ async function query(promise) {
 }
 
 async function requireFreePort() {
-  for (const host of ["127.0.0.1", "::1"]) {
+  for (const host of ["0.0.0.0", "::"]) {
     await new Promise((accept, reject) => {
       const probe = createServer();
       probe.once("error", error => error.code === "EAFNOSUPPORT" ? accept() : reject(new Error("Port 3010 is occupied. Stop dev:e2e before running the self-contained import check.")));
