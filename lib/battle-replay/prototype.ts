@@ -1,0 +1,1994 @@
+import { applyReplayConditions, type ReplayCondition } from "./conditions";
+import { buildDeckListCardImageUrl } from "@/lib/deck-lists/render";
+import {
+  formatBattleLogActionTitle,
+  getBattleLogActionTagLabel,
+} from "@/lib/battle-log/display";
+import { extractBattleLogActionCardCandidate } from "@/lib/battle-log/action-tags";
+import { prototypeBattleLogSections } from "@/lib/battle-replay/prototype-log";
+import {
+  flattenReplaySourceActions,
+  getDamageCounterPlacements,
+  type ReplaySourceAction,
+} from "@/lib/battle-replay/source";
+
+export type ReplayActor = "self" | "opponent";
+type HandCard = { id: string; name: string; imageUrl: string };
+
+export type ReplayZoneCard = {
+  id: string;
+  name: string;
+  imageUrl: string;
+};
+
+export type ReplayCard = {
+  id: string;
+  name: string;
+  imageUrl: string;
+  hp: number;
+  damage: number;
+  abilityUsed?: boolean;
+  conditions?: ReplayCondition[];
+  energy: string[];
+  underlying: ReplayZoneCard[];
+  tool?: string;
+};
+
+export type ReplaySide = {
+  name: string;
+  active: ReplayCard | null;
+  bench: ReplayCard[];
+  deckCount: number;
+  handCount: number;
+  knownHand: HandCard[];
+  discard: ReplayZoneCard[];
+  prizesRemaining: number;
+  itemLocked?: boolean;
+};
+
+export type ReplayState = {
+  self: ReplaySide;
+  opponent: ReplaySide;
+  stadium: { name: string; imageUrl: string; actor: ReplayActor } | null;
+  playedCard: {
+    actor: ReplayActor;
+    card: ReplayZoneCard;
+  } | null;
+};
+
+export type ReplayTransactionStage = {
+  kind: "play" | "ability" | "attack" | "before" | "damage" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
+  label: string;
+  cards: ReplayZoneCard[];
+  hiddenCount?: number;
+  detail?: string;
+  damageModifier?: {
+    kind: "weakness";
+    type: string;
+    baseDamage: number;
+    bonusDamage: number;
+    multiplier?: number;
+  };
+  scope?: "both";
+  actorCounts?: Partial<Record<ReplayActor, number>>;
+  actorCards?: Partial<Record<ReplayActor, ReplayZoneCard[]>>;
+  targetResolved?: boolean;
+  actor?: ReplayActor;
+};
+
+export type ReplayTransaction = {
+  actor: ReplayActor;
+  title: string;
+  stages: ReplayTransactionStage[];
+};
+
+export type ReplayEvent = {
+  actor: ReplayActor;
+  label: string;
+  sourceTitle: string;
+  sourceDetails: string[];
+  summary: string;
+  turn: number;
+  transaction?: ReplayTransaction;
+  apply: (state: ReplayState) => ReplayState;
+};
+
+export const replaySource = {
+  logId: "6ddfba49-7d8d-45b4-8230-cdbf84886275",
+  playedOn: "3 September 2026",
+  format: "TEF-PBL",
+  result: "Win",
+  selfDeck: "Dragapult / Blaziken",
+  opponentDeck: "Mega Lucario / Hariyama",
+  selfPrizesTaken: 6,
+  opponentPrizesTaken: 3,
+  turns: 6,
+} as const;
+
+const image = (set: string, number: string) =>
+  buildDeckListCardImageUrl(set, number, "LG");
+const images = {
+  munkidori: image("TWM", "95"),
+  dreepy: image("TWM", "128"),
+  drakloak: image("TWM", "129"),
+  dragapult: image("TWM", "130"),
+  torchic: image("JTG", "22"),
+  blaziken: image("JTG", "24"),
+  meowth: image("POR", "62"),
+  solrock: image("MEG", "75"),
+  lunatone: image("MEG", "74"),
+  riolu: image("MEG", "76"),
+  lucario: image("MEG", "77"),
+  makuhita: image("MEG", "72"),
+  hariyama: image("MEG", "73"),
+  gravityMountain: image("SSP", "177"),
+  poffin: image("MEG", "167"),
+  darkness: image("SVE", "7"),
+  psychic: image("SVE", "5"),
+  fire: image("SVE", "2"),
+  fighting: image("SVE", "6"),
+  crispin: image("SCR", "133"),
+  ultraBall: image("ASC", "213"),
+  boss: image("ASC", "183"),
+  primeCatcher: image("PRE", "119"),
+  premiumPowerPro: image("ASC", "199"),
+  fightingGong: image("ASC", "187"),
+  pokePad: image("POR", "81"),
+  lillie: image("ASC", "192"),
+  specialRedCard: image("CRI", "82"),
+  switch: image("MEG", "130"),
+  wally: image("MEG", "132"),
+  nightStretcher: image("ASC", "196"),
+  carmine: image("PRE", "103"),
+  rareCandy: image("MEG", "125"),
+  judge: image("POR", "76"),
+  areaZero: image("PRE", "94"),
+  fezandipiti: image("ASC", "142"),
+  dawn: image("PFL", "87"),
+  unfairStamp: image("TWM", "165"),
+  combusken: image("JTG", "23"),
+  moltres: image("PFL", "14"),
+  kieran: image("TWM", "154"),
+};
+
+export const replayEnergyImages: Record<string, string> = {
+  Darkness: images.darkness,
+  Fighting: images.fighting,
+  Fire: images.fire,
+  Psychic: images.psychic,
+};
+
+const card = (
+  id: string,
+  name: string,
+  imageUrl: string,
+  hp: number,
+): ReplayCard => ({
+  id,
+  name,
+  imageUrl,
+  hp,
+  damage: 0,
+  energy: [],
+  underlying: [],
+});
+const hand = (id: string, name: string, imageUrl: string): HandCard => ({
+  id,
+  name,
+  imageUrl,
+});
+const zoneCard = (
+  id: string,
+  name: string,
+  imageUrl: string,
+): ReplayZoneCard => ({ id, name, imageUrl });
+const clone = (state: ReplayState): ReplayState => structuredClone(state);
+const event = (
+  actor: ReplayActor,
+  turn: number,
+  label: string,
+  summary: string,
+  mutate: (state: ReplayState) => void,
+): ReplayEvent => ({
+  actor,
+  turn,
+  label,
+  sourceTitle: summary,
+  sourceDetails: [],
+  summary,
+  apply: (state) => {
+    const next = clone(state);
+    if (next.playedCard) {
+      const { actor, card } = next.playedCard;
+      discardCards(next[actor], card);
+      next.playedCard = null;
+    }
+    mutate(next);
+    return next;
+  },
+});
+const removeHand = (side: ReplaySide, name: string) => {
+  const index = side.knownHand.findIndex((item) => item.name === name);
+  if (index >= 0) side.knownHand.splice(index, 1);
+  side.handCount = Math.max(0, side.handCount - 1);
+};
+const drawKnown = (side: ReplaySide, ...cards: HandCard[]) => {
+  side.knownHand.push(...cards);
+  side.handCount += cards.length;
+  side.deckCount = Math.max(0, side.deckCount - cards.length);
+};
+const drawHidden = (side: ReplaySide, count = 1) => {
+  side.handCount += count;
+  side.deckCount = Math.max(0, side.deckCount - count);
+};
+const removeHiddenHand = (side: ReplaySide, count = 1) => {
+  side.handCount = Math.max(0, side.handCount - count);
+};
+const setHand = (side: ReplaySide, cards: HandCard[]) => {
+  side.knownHand = cards;
+  side.handCount = cards.length;
+};
+const find = (side: ReplaySide, name: string) =>
+  side.bench.find((item) => item.name === name);
+const evolve = (
+  base: ReplayCard,
+  name: string,
+  imageUrl: string,
+  hp: number,
+): ReplayCard => ({
+  ...card(base.id, name, imageUrl, hp),
+  damage: base.damage,
+  energy: base.energy,
+  underlying: [
+    ...base.underlying,
+    zoneCard(`${base.id}-${base.name}`, base.name, base.imageUrl),
+  ],
+});
+const discardCards = (side: ReplaySide, ...cards: ReplayZoneCard[]) => {
+  side.discard.unshift(...[...cards].reverse());
+};
+const showPlayedCard = (
+  state: ReplayState,
+  actor: ReplayActor,
+  card: ReplayZoneCard,
+) => {
+  state.playedCard = { actor, card };
+};
+const stage = (
+  kind: ReplayTransactionStage["kind"],
+  label: string,
+  cards: ReplayZoneCard[] = [],
+  detail?: string,
+  hiddenCount?: number,
+): ReplayTransactionStage => ({ kind, label, cards, detail, hiddenCount });
+const bothPlayers = (value: ReplayTransactionStage): ReplayTransactionStage => ({
+  ...value,
+  scope: "both",
+});
+const transaction = (
+  actor: ReplayActor,
+  title: string,
+  ...stages: ReplayTransactionStage[]
+): ReplayTransaction => ({ actor, title, stages });
+const playedCardEvent = (
+  actor: ReplayActor,
+  turn: number,
+  card: ReplayZoneCard,
+  afterPlay?: (state: ReplayState) => void,
+) => ({
+  ...event(
+    actor,
+    turn,
+    card.name,
+    `${actor === "self" ? "You" : "The opponent"} played ${card.name}.`,
+    (state) => {
+      if (actor === "self") removeHand(state.self, card.name);
+      else state.opponent.handCount = Math.max(0, state.opponent.handCount - 1);
+      showPlayedCard(state, actor, card);
+      afterPlay?.(state);
+    },
+  ),
+  transaction: transaction(actor, card.name, stage("play", "Play", [card])),
+});
+const removeDiscard = (side: ReplaySide, name: string) => {
+  const index = side.discard.findIndex((item) => item.name === name);
+  if (index >= 0) side.discard.splice(index, 1);
+};
+const discardActive = (side: ReplaySide) => {
+  if (!side.active) return;
+  const active = side.active;
+  discardCards(
+    side,
+    ...active.underlying,
+    ...active.energy.map((energy, index) =>
+      zoneCard(
+        `${active.id}-energy-${energy}-${index}`,
+        `Basic ${energy} Energy`,
+        replayEnergyImages[energy],
+      ),
+    ),
+    zoneCard(`${active.id}-top`, active.name, active.imageUrl),
+  );
+  side.active = null;
+};
+const promote = (side: ReplaySide, name: string) => {
+  const index = side.bench.findIndex((item) => item.name === name);
+  if (index < 0) return;
+  const [promoted] = side.bench.splice(index, 1);
+  side.active = promoted;
+};
+
+export const initialReplayState: ReplayState = {
+  self: {
+    name: replaySource.selfDeck,
+    active: null,
+    bench: [],
+    deckCount: 47,
+    handCount: 7,
+    knownHand: [
+      hand("open-crispin", "Crispin", images.crispin),
+      hand("open-poffin", "Buddy-Buddy Poffin", images.poffin),
+      hand("open-munkidori", "Munkidori", images.munkidori),
+      hand("open-area-zero", "Area Zero Underdepths", images.areaZero),
+      hand("open-blaziken", "Blaziken ex", images.blaziken),
+      hand("open-fezandipiti", "Fezandipiti ex", images.fezandipiti),
+      hand("open-drakloak", "Drakloak", images.drakloak),
+    ],
+    discard: [],
+    prizesRemaining: 6,
+  },
+  opponent: {
+    name: replaySource.opponentDeck,
+    active: null,
+    bench: [],
+    deckCount: 47,
+    handCount: 7,
+    knownHand: [],
+    discard: [],
+    prizesRemaining: 6,
+  },
+  stadium: null,
+  playedCard: null,
+};
+
+const legacyReplayEvents: ReplayEvent[] = [
+  event("self", 0, "Setup", "You placed Munkidori in the Active Spot.", (s) => {
+    s.self.active = card("self-munkidori", "Munkidori", images.munkidori, 110);
+    removeHand(s.self, "Munkidori");
+  }),
+  event(
+    "opponent",
+    0,
+    "Setup",
+    "The opponent placed Solrock Active and two Riolu on the Bench.",
+    (s) => {
+      s.opponent.active = card("opp-solrock-a", "Solrock", images.solrock, 90);
+      s.opponent.handCount = Math.max(0, s.opponent.handCount - 1);
+    },
+  ),
+  event(
+    "opponent",
+    1,
+    "Ultra Ball",
+    "The opponent played Ultra Ball.",
+    (s) => {
+      showPlayedCard(
+        s,
+        "opponent",
+        zoneCard("opp-t1-ultra", "Ultra Ball", images.ultraBall),
+      );
+      s.opponent.deckCount = 45;
+      discardCards(
+        s.opponent,
+        zoneCard("opp-t1-boss", "Boss's Orders", images.boss),
+        zoneCard("opp-t1-prime", "Prime Catcher", images.primeCatcher),
+      );
+    },
+  ),
+  event(
+    "opponent",
+    1,
+    "Bench",
+    "The opponent played Lunatone to the Bench after searching with Ultra Ball.",
+    (s) => {
+      s.opponent.bench.push(
+        card("opp-lunatone", "Lunatone", images.lunatone, 90),
+      );
+      s.opponent.handCount = 2;
+    },
+  ),
+  event("self", 1, "Draw", "You drew Basic Psychic Energy.", (s) => {
+    s.self.knownHand.push(
+      hand("turn-one-psychic", "Basic Psychic Energy", images.psychic),
+    );
+    s.self.handCount += 1;
+    s.self.deckCount = 46;
+  }),
+  event(
+    "self",
+    1,
+    "Buddy-Buddy Poffin",
+    "Buddy-Buddy Poffin put two Dreepy onto your Bench.",
+    (s) => {
+      s.self.bench.push(
+        card("self-dreepy-a", "Dreepy", images.dreepy, 70),
+        card("self-dreepy-b", "Dreepy", images.dreepy, 70),
+      );
+      removeHand(s.self, "Buddy-Buddy Poffin");
+      s.self.deckCount = 44;
+      showPlayedCard(
+        s,
+        "self",
+        zoneCard("self-t1-poffin", "Buddy-Buddy Poffin", images.poffin),
+      );
+    },
+  ),
+  event(
+    "self",
+    1,
+    "Crispin",
+    "Crispin attached Fire Energy to Dreepy, then Darkness Energy was attached to Munkidori.",
+    (s) => {
+      find(s.self, "Dreepy")?.energy.push("Fire");
+      removeHand(s.self, "Crispin");
+      s.self.deckCount = 42;
+      showPlayedCard(
+        s,
+        "self",
+        zoneCard("self-t1-crispin", "Crispin", images.crispin),
+      );
+    },
+  ),
+  event(
+    "opponent",
+    2,
+    "Evolve",
+    "The opponent evolved a Benched Riolu into Mega Lucario ex.",
+    (s) => {
+      const index = s.opponent.bench.findIndex((item) => item.name === "Riolu");
+      if (index >= 0)
+        s.opponent.bench[index] = evolve(
+          s.opponent.bench[index],
+          "Mega Lucario ex",
+          images.lucario,
+          340,
+        );
+    },
+  ),
+  event(
+    "opponent",
+    2,
+    "Judge",
+    "Judge shuffled your 5-card hand into the deck and gave you 4 new cards.",
+    (s) => {
+      setHand(s.self, [
+        hand("judge-drakloak", "Drakloak", images.drakloak),
+        hand("judge-poke-pad", "Poké Pad", images.pokePad),
+        hand("judge-meowth", "Meowth ex", images.meowth),
+        hand("judge-torchic", "Torchic", images.torchic),
+      ]);
+      s.self.deckCount = 43;
+      s.opponent.deckCount = 41;
+      s.opponent.handCount = 4;
+      showPlayedCard(
+        s,
+        "opponent",
+        zoneCard("opp-t2-judge", "Judge", images.judge),
+      );
+    },
+  ),
+  playedCardEvent(
+    "opponent",
+    2,
+    zoneCard("opp-t2-premium", "Premium Power Pro", images.premiumPowerPro),
+  ),
+  playedCardEvent(
+    "opponent",
+    2,
+    zoneCard("opp-t2-gong", "Fighting Gong", images.fightingGong),
+  ),
+  playedCardEvent(
+    "opponent",
+    2,
+    zoneCard("opp-t2-poke-pad", "Poké Pad", images.pokePad),
+  ),
+  event(
+    "opponent",
+    2,
+    "Attack",
+    "Solrock used Cosmic Beam for 100 damage on Munkidori.",
+    (s) => {
+      if (s.self.active) s.self.active.damage += 100;
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Draw",
+    "You drew Moltres.",
+    (s) => drawKnown(s.self, hand("self-t2-moltres", "Moltres", images.moltres)),
+  ),
+  event(
+    "self",
+    2,
+    "Bench",
+    "You played Torchic to the Bench.",
+    (s) => {
+      removeHand(s.self, "Torchic");
+      s.self.bench.push(card("self-torchic", "Torchic", images.torchic, 60));
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Evolve",
+    "You evolved Dreepy to Drakloak on the Bench.",
+    (s) => {
+      removeHand(s.self, "Drakloak");
+      const dreepy = find(s.self, "Dreepy");
+      if (dreepy) Object.assign(dreepy, evolve(dreepy, "Drakloak", images.drakloak, 90));
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Ability",
+    "Your Drakloak used Recon Directive and drew Basic Psychic Energy.",
+    (s) => drawKnown(s.self, hand("self-t2-recon-psychic", "Basic Psychic Energy", images.psychic)),
+  ),
+  playedCardEvent(
+    "self",
+    2,
+    zoneCard("self-t2-poke-pad", "Poké Pad", images.pokePad),
+    (s) => drawKnown(s.self, hand("self-t2-pad-drakloak", "Drakloak", images.drakloak)),
+  ),
+  event(
+    "self",
+    2,
+    "Evolve",
+    "You evolved Dreepy to Drakloak on the Bench.",
+    (s) => {
+      removeHand(s.self, "Drakloak");
+      const dreepy = find(s.self, "Dreepy");
+      if (dreepy) Object.assign(dreepy, evolve(dreepy, "Drakloak", images.drakloak, 90));
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Ability",
+    "Your Munkidori used Adrena-Brain and moved 3 damage counters to Mega Lucario ex.",
+    (s) => {
+      if (s.self.active) s.self.active.damage -= 30;
+      const megaLucario = find(s.opponent, "Mega Lucario ex");
+      if (megaLucario) megaLucario.damage += 30;
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Energy",
+    "You attached Basic Psychic Energy to Munkidori in the Active Spot.",
+    (s) => {
+      removeHand(s.self, "Basic Psychic Energy");
+      s.self.active?.energy.push("Psychic");
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Bench",
+    "You played Meowth ex to the Bench.",
+    (s) => {
+      removeHand(s.self, "Meowth ex");
+      s.self.bench.push(card("self-meowth", "Meowth ex", images.meowth, 170));
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Ability",
+    "Your Meowth ex used Last-Ditch Catch and drew Lillie's Determination.",
+    (s) => drawKnown(s.self, hand("self-t2-lillie", "Lillie's Determination", images.lillie)),
+  ),
+  playedCardEvent(
+    "self",
+    2,
+    zoneCard("self-t2-lillie", "Lillie's Determination", images.lillie),
+    (s) => {
+      removeHand(s.self, "Moltres");
+      setHand(s.self, [
+        hand("turn-two-stretcher", "Night Stretcher", images.nightStretcher),
+        hand("turn-two-dragapult", "Dragapult ex", images.dragapult),
+        hand("turn-two-special-red", "Special Red Card", images.specialRedCard),
+        hand("turn-two-candy", "Rare Candy", images.rareCandy),
+        hand("turn-two-ultra", "Ultra Ball", images.ultraBall),
+        hand("turn-two-boss", "Boss's Orders", images.boss),
+        hand("turn-two-dawn", "Dawn", images.dawn),
+        hand("turn-two-dreepy", "Dreepy", images.dreepy),
+      ]);
+      s.self.deckCount = 32;
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Bench",
+    "You played Dreepy to the Bench.",
+    (s) => {
+      removeHand(s.self, "Dreepy");
+      s.self.bench.push(card("self-dreepy-c", "Dreepy", images.dreepy, 70));
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Ability",
+    "Your Drakloak used Recon Directive and drew Basic Psychic Energy.",
+    (s) => drawKnown(s.self, hand("self-t2-second-psychic", "Basic Psychic Energy", images.psychic)),
+  ),
+  playedCardEvent(
+    "self",
+    2,
+    zoneCard("self-t2-ultra", "Ultra Ball", images.ultraBall),
+    (s) => {
+      removeHand(s.self, "Basic Psychic Energy");
+      removeHand(s.self, "Special Red Card");
+      discardCards(
+        s.self,
+        zoneCard("self-t2-psychic", "Basic Psychic Energy", images.psychic),
+        zoneCard("self-t2-special-red", "Special Red Card", images.specialRedCard),
+      );
+      drawKnown(s.self, hand("self-t2-blaziken", "Blaziken ex", images.blaziken));
+    },
+  ),
+  event(
+    "self",
+    2,
+    "Attack",
+    "Munkidori used Mind Bend on Solrock for 60 damage.",
+    (s) => {
+      if (s.opponent.active) s.opponent.active.damage += 60;
+    },
+  ),
+  playedCardEvent(
+    "opponent",
+    3,
+    zoneCard("opp-t3-poke-pad", "Poké Pad", images.pokePad),
+  ),
+  playedCardEvent(
+    "opponent",
+    3,
+    zoneCard(
+      "opp-t3-lillie",
+      "Lillie's Determination",
+      images.lillie,
+    ),
+    (s) => {
+      // The log exposes the draw count, but not the cards in the opponent's hand.
+      s.opponent.handCount = 8;
+      s.opponent.deckCount = 28;
+    },
+  ),
+  event(
+    "opponent",
+    3,
+    "Stadium",
+    "The opponent played Gravity Mountain beside their Active Pokémon.",
+    (s) => {
+      s.opponent.deckCount = 28;
+      s.stadium = {
+        name: "Gravity Mountain",
+        imageUrl: images.gravityMountain,
+        actor: "opponent",
+      };
+    },
+  ),
+  event(
+    "opponent",
+    3,
+    "Switch",
+    "The opponent switched to a fresh Solrock and attached Fighting Energy.",
+    (s) => {
+      const oldActive = s.opponent.active;
+      promote(s.opponent, "Solrock");
+      if (oldActive) s.opponent.bench.push(oldActive);
+      showPlayedCard(
+        s,
+        "opponent",
+        zoneCard("opp-t3-switch", "Switch", images.switch),
+      );
+    },
+  ),
+  event(
+    "opponent",
+    3,
+    "Knock Out",
+    "Solrock used Cosmic Beam for 70 damage. Munkidori was Knocked Out and the opponent took a Prize.",
+    (s) => {
+      discardActive(s.self);
+    },
+  ),
+  playedCardEvent(
+    "self",
+    3,
+    zoneCard("self-t3-rare-candy", "Rare Candy", images.rareCandy),
+  ),
+  playedCardEvent(
+    "self",
+    3,
+    zoneCard("self-t3-poke-pad", "Poké Pad", images.pokePad),
+  ),
+  playedCardEvent(
+    "self",
+    3,
+    zoneCard("self-t3-poffin", "Buddy-Buddy Poffin", images.poffin),
+  ),
+  event(
+    "self",
+    3,
+    "Evolve",
+    "Rare Candy evolved Torchic into Blaziken ex. Seething Spirit attached Psychic Energy to your Active Drakloak, and your board developed another Drakloak.",
+    (s) => {
+      s.self.bench = s.self.bench.map((item) =>
+        item.name === "Torchic"
+          ? evolve(item, "Blaziken ex", images.blaziken, 320)
+          : item,
+      );
+      const dreepy = find(s.self, "Dreepy");
+      if (dreepy)
+        Object.assign(dreepy, evolve(dreepy, "Drakloak", images.drakloak, 90));
+      s.self.active?.energy.push("Psychic");
+      removeDiscard(s.self, "Basic Psychic Energy");
+      s.self.deckCount = 24;
+    },
+  ),
+  event(
+    "self",
+    3,
+    "Evolve",
+    "You evolved the Active Drakloak into Dragapult ex.",
+    (s) => {
+      if (s.self.active)
+        s.self.active = evolve(
+          s.self.active,
+          "Dragapult ex",
+          images.dragapult,
+          320,
+        );
+      removeHand(s.self, "Dragapult ex");
+    },
+  ),
+  event(
+    "self",
+    3,
+    "Boss's Orders",
+    "Boss's Orders brought Mega Lucario ex into the Active Spot.",
+    (s) => {
+      const oldActive = s.opponent.active;
+      promote(s.opponent, "Mega Lucario ex");
+      if (oldActive) s.opponent.bench.push(oldActive);
+      setHand(s.self, [
+        hand("turn-three-stretcher", "Night Stretcher", images.nightStretcher),
+        hand("turn-three-dawn", "Dawn", images.dawn),
+        hand("turn-three-darkness", "Basic Darkness Energy", images.darkness),
+        hand("turn-three-ultra-ball", "Ultra Ball", images.ultraBall),
+      ]);
+      showPlayedCard(
+        s,
+        "self",
+        zoneCard("self-t3-boss", "Boss's Orders", images.boss),
+      );
+    },
+  ),
+  event(
+    "self",
+    3,
+    "Attack",
+    "Dragapult ex used Phantom Dive for 200 damage and placed 60 damage on a Benched Riolu.",
+    (s) => {
+      if (s.opponent.active) s.opponent.active.damage += 200;
+    },
+  ),
+  playedCardEvent(
+    "opponent",
+    4,
+    zoneCard(
+      "opp-t4-premium",
+      "Premium Power Pro",
+      images.premiumPowerPro,
+    ),
+  ),
+  playedCardEvent(
+    "opponent",
+    4,
+    zoneCard("opp-t4-judge", "Judge", images.judge),
+  ),
+  event(
+    "opponent",
+    4,
+    "Counterattack",
+    "Hariyama pulled Meowth ex Active. Mega Lucario ex used Aura Jab for 320 damage.",
+    (s) => {
+      setHand(s.self, [
+        hand("judge-two-fire", "Basic Fire Energy", images.fire),
+        hand("judge-two-stretcher", "Night Stretcher", images.nightStretcher),
+        hand("judge-two-darkness", "Basic Darkness Energy", images.darkness),
+        hand("judge-two-torchic", "Torchic", images.torchic),
+      ]);
+      const rioluIndex = s.opponent.bench.findIndex(
+        (item) => item.name === "Riolu",
+      );
+      if (rioluIndex >= 0)
+        s.opponent.bench[rioluIndex] = evolve(
+          s.opponent.bench[rioluIndex],
+          "Mega Lucario ex",
+          images.lucario,
+          340,
+        );
+      const makuhita =
+        find(s.opponent, "Makuhita") ??
+        card("opp-hariyama", "Hariyama", images.hariyama, 140);
+      if (!find(s.opponent, "Hariyama"))
+        s.opponent.bench.push(
+          evolve(makuhita, "Hariyama", images.hariyama, 140),
+        );
+      const benchedLucario = s.opponent.bench.find(
+        (item) => item.name === "Mega Lucario ex",
+      );
+      if (benchedLucario) benchedLucario.energy.push("Fighting", "Fighting");
+      find(s.opponent, "Hariyama")?.energy.push("Fighting");
+      s.opponent.active?.energy.push("Fighting");
+      s.opponent.deckCount = 19;
+      s.opponent.handCount = 4;
+      s.self.deckCount = 24;
+      discardCards(
+        s.opponent,
+        zoneCard(
+          "opp-t4-fighting",
+          "Basic Fighting Energy",
+          images.fighting,
+        ),
+      );
+      if (s.self.active) s.self.bench.push(s.self.active);
+      promote(s.self, "Meowth ex");
+      if (s.self.active) s.self.active.damage += 320;
+    },
+  ),
+  event(
+    "opponent",
+    4,
+    "Knock Out",
+    "Meowth ex was Knocked Out. The opponent took 2 Prize cards and Dragapult ex returned Active.",
+    (s) => {
+      discardActive(s.self);
+    },
+  ),
+  event(
+    "self",
+    4,
+    "Knock Out",
+    "Dragapult ex used Phantom Dive for 200 damage. Mega Lucario ex was Knocked Out and you took 3 Prizes.",
+    (s) => {
+      if (s.opponent.active) s.opponent.active.damage += 200;
+      discardActive(s.opponent);
+      promote(s.opponent, "Solrock");
+      s.self.prizesRemaining -= 3;
+      s.self.deckCount = 21;
+      setHand(s.self, [
+        hand("turn-four-stretcher", "Night Stretcher", images.nightStretcher),
+        hand("turn-four-darkness", "Basic Darkness Energy", images.darkness),
+        hand("turn-four-torchic", "Torchic", images.torchic),
+        hand("turn-four-dragapult", "Dragapult ex", images.dragapult),
+        hand("turn-four-ultra-ball", "Ultra Ball", images.ultraBall),
+        hand("turn-four-poffin", "Buddy-Buddy Poffin", images.poffin),
+        hand("prize-unfair-stamp", "Unfair Stamp", images.unfairStamp),
+        hand("prize-crispin", "Crispin", images.crispin),
+        hand("prize-fire", "Basic Fire Energy", images.fire),
+      ]);
+    },
+  ),
+  playedCardEvent(
+    "opponent",
+    5,
+    zoneCard("opp-t5-wally", "Wally's Compassion", images.wally),
+  ),
+  playedCardEvent(
+    "opponent",
+    5,
+    zoneCard(
+      "opp-t5-premium",
+      "Premium Power Pro",
+      images.premiumPowerPro,
+    ),
+  ),
+  event(
+    "opponent",
+    5,
+    "Attack",
+    "Solrock used Cosmic Beam for 100 damage on Dragapult ex.",
+    (s) => {
+      if (s.self.active) s.self.active.damage += 100;
+    },
+  ),
+  playedCardEvent(
+    "self",
+    5,
+    zoneCard("self-t5-ultra", "Ultra Ball", images.ultraBall),
+  ),
+  playedCardEvent(
+    "self",
+    5,
+    zoneCard("self-t5-stretcher", "Night Stretcher", images.nightStretcher),
+  ),
+  event(
+    "self",
+    5,
+    "Ability",
+    "Munkidori returned from the discard and moved 30 damage from Dragapult ex to Riolu.",
+    (s) => {
+      if (s.self.active) s.self.active.damage -= 30;
+      const riolu = find(s.opponent, "Riolu");
+      if (riolu) riolu.damage += 30;
+    },
+  ),
+  event(
+    "self",
+    5,
+    "Boss's Orders",
+    "Boss's Orders brought Hariyama into the Active Spot.",
+    (s) => {
+      removeHand(s.self, "Boss's Orders");
+      const oldActive = s.opponent.active;
+      promote(s.opponent, "Hariyama");
+      if (oldActive) s.opponent.bench.push(oldActive);
+      showPlayedCard(
+        s,
+        "self",
+        zoneCard("self-t5-boss", "Boss's Orders", images.boss),
+      );
+    },
+  ),
+  event(
+    "self",
+    5,
+    "Double Knock Out",
+    "Phantom Dive Knocked Out Hariyama and the damaged Riolu. You took 2 Prize cards.",
+    () => {},
+  ),
+  playedCardEvent(
+    "opponent",
+    6,
+    zoneCard("opp-t6-carmine", "Carmine", images.carmine),
+  ),
+  playedCardEvent(
+    "opponent",
+    6,
+    zoneCard("opp-t6-gong-a", "Fighting Gong", images.fightingGong),
+  ),
+  playedCardEvent(
+    "opponent",
+    6,
+    zoneCard("opp-t6-gong-b", "Fighting Gong", images.fightingGong),
+  ),
+  event(
+    "opponent",
+    6,
+    "Attack",
+    "Mega Lucario ex used Aura Jab for 130 damage on Dragapult ex.",
+    (s) => {
+      const solrock = find(s.opponent, "Solrock");
+      if (solrock) solrock.energy.push("Fighting");
+      const lunatone = find(s.opponent, "Lunatone");
+      if (lunatone) lunatone.energy.push("Fighting", "Fighting");
+      if (s.self.active) s.self.active.damage += 130;
+    },
+  ),
+  event(
+    "self",
+    6,
+    "Boss's Orders",
+    "Boss's Orders brought Meowth ex into the Active Spot.",
+    (s) => {
+      removeHand(s.self, "Boss's Orders");
+      const oldActive = s.opponent.active;
+      promote(s.opponent, "Meowth ex");
+      if (oldActive) s.opponent.bench.push(oldActive);
+      showPlayedCard(
+        s,
+        "self",
+        zoneCard("self-t6-boss", "Boss's Orders", images.boss),
+      );
+    },
+  ),
+  event(
+    "self",
+    6,
+    "Final attack",
+    "Boss's Orders brought Meowth ex Active. Phantom Dive Knocked it Out and also Knocked Out Solrock on the Bench.",
+    () => {},
+  ),
+  event("self", 6, "Result", "All Prize cards taken. You won.", () => {}),
+];
+
+type ReplaySourceActionShell = {
+  actor: ReplayActor;
+  turn: number;
+  sourceTitle: string;
+  legacyIndex: number | null;
+};
+
+const sourceActions = (
+  actor: ReplayActor,
+  turn: number,
+  labels: string[],
+  legacyIndices: Array<number | null>,
+): ReplaySourceActionShell[] =>
+  labels.map((sourceTitle, index) => ({
+    actor,
+    turn,
+    sourceTitle,
+    legacyIndex: legacyIndices[index] ?? null,
+  }));
+
+const anonymiseReplayTitle = (title: string) =>
+  title
+    .replaceAll("JammerUK1993's", "Your")
+    .replaceAll("JammerUK1993’s", "Your")
+    .replaceAll("JammerUK1993", "You")
+    .replaceAll("VoltRunner90's", "The opponent's")
+    .replaceAll("VoltRunner90’s", "The opponent's")
+    .replaceAll("VoltRunner90", "The opponent")
+    .replaceAll("You wins", "You win");
+
+const formatReplaySourceDetail = (detail: string) => {
+  const placement = getDamageCounterPlacements([detail])[0];
+  if (placement) {
+    return `${placement.counters} damage ${placement.counters === 1 ? "counter" : "counters"} on ${placement.targetName}`;
+  }
+  return detail.trim().replace(/^[-•]\s*/, "");
+};
+
+const getReplaySourceLabel = (sourceTitle: string) => {
+  const cardName = extractBattleLogActionCardCandidate(sourceTitle);
+  if (cardName) return cardName;
+
+  const tagLabel = getBattleLogActionTagLabel(sourceTitle);
+  if (tagLabel !== "Action") return tagLabel;
+  if (/\bdrew\b/i.test(sourceTitle)) return "Draw";
+  if (/\btook\b.+\bPrize cards?\b/i.test(sourceTitle)) return "Prize";
+  if (/\bended (?:their|the) turn\b/i.test(sourceTitle)) return "End turn";
+  if (/\bcoin (?:flip|toss)\b/i.test(sourceTitle)) return "Coin flip";
+  if (/\bwins?\b/i.test(sourceTitle)) return "Result";
+  return tagLabel;
+};
+
+// Compatibility mapping from each exact fixture action to the prototype's
+// existing visual mutation. Runtime titles and details come from the stored
+// LogSection fixture below; matching the duplicated titles fails closed if the
+// legacy adapter drifts from that source.
+const replaySourceActionShells: ReplaySourceActionShell[] = [
+  ...sourceActions("self", 0, [
+    "JammerUK1993 chose tails for the opening coin flip.",
+  ], [null]),
+  ...sourceActions("opponent", 0, [
+    "VoltRunner90 decided to go first.",
+  ], [null]),
+  ...sourceActions("self", 0, [
+    "JammerUK1993 played Munkidori to the Active Spot.",
+  ], [0]),
+  ...sourceActions("opponent", 0, [
+    "VoltRunner90 played Solrock to the Active Spot.",
+    "VoltRunner90 played Riolu to the Bench.",
+    "VoltRunner90 played Riolu to the Bench.",
+  ], [1, null, null]),
+  ...sourceActions("opponent", 1, [
+    "VoltRunner90 drew a card.",
+    "VoltRunner90 played Ultra Ball.",
+    "VoltRunner90 played Lunatone to the Bench.",
+    "VoltRunner90 ended their turn.",
+  ], [null, 2, 3, null]),
+  ...sourceActions("self", 1, [
+    "JammerUK1993 drew Basic Psychic Energy.",
+    "JammerUK1993 played Buddy-Buddy Poffin.",
+    "JammerUK1993 played Crispin.",
+    "JammerUK1993 attached Basic Darkness Energy to Munkidori in the Active Spot.",
+    "JammerUK1993 ended their turn.",
+  ], [4, 5, 6, null, null]),
+  ...sourceActions("opponent", 2, [
+    "VoltRunner90 drew a card.",
+    "VoltRunner90 evolved Riolu to Mega Lucario ex on the Bench.",
+    "VoltRunner90 played Judge.",
+    "VoltRunner90 attached Basic Fighting Energy to Solrock in the Active Spot.",
+    "VoltRunner90 played Premium Power Pro.",
+    "VoltRunner90 played Fighting Gong.",
+    "VoltRunner90's Lunatone used Lunar Cycle.",
+    "VoltRunner90 played Poké Pad.",
+    "VoltRunner90 played Makuhita to the Bench.",
+    "VoltRunner90's Solrock used Cosmic Beam on JammerUK1993’s Munkidori for 100 damage.",
+  ], [null, 7, 8, null, 9, 10, null, 11, null, 12]),
+  ...sourceActions("self", 2, [
+    "JammerUK1993 drew Moltres.",
+    "JammerUK1993 played Torchic to the Bench.",
+    "JammerUK1993 evolved Dreepy to Drakloak on the Bench.",
+    "JammerUK1993's Drakloak used Recon Directive.",
+    "JammerUK1993 played Poké Pad.",
+    "JammerUK1993 evolved Dreepy to Drakloak on the Bench.",
+    "JammerUK1993's Munkidori used Adrena-Brain.",
+    "JammerUK1993 attached Basic Psychic Energy to Munkidori in the Active Spot.",
+    "JammerUK1993 played Meowth ex to the Bench.",
+    "JammerUK1993's Meowth ex used Last-Ditch Catch.",
+    "JammerUK1993 played Lillie's Determination.",
+    "JammerUK1993 played Dreepy to the Bench.",
+    "JammerUK1993's Drakloak used Recon Directive.",
+    "JammerUK1993 played Ultra Ball.",
+    "JammerUK1993's Munkidori used Mind Bend on VoltRunner90’s Solrock for 60 damage.",
+  ], [13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]),
+  ...sourceActions("opponent", 3, [
+    "VoltRunner90 drew a card.",
+    "VoltRunner90 played Poké Pad.",
+    "VoltRunner90 played Solrock to the Bench.",
+    "VoltRunner90 played Lillie's Determination.",
+    "VoltRunner90 played Gravity Mountain to the Stadium spot.",
+    "VoltRunner90's Lunatone used Lunar Cycle.",
+    "VoltRunner90 played Switch.",
+    "VoltRunner90 attached Basic Fighting Energy to Solrock in the Active Spot.",
+    "VoltRunner90's Solrock used Cosmic Beam on JammerUK1993’s Munkidori for 70 damage.",
+    "JammerUK1993's Munkidori was Knocked Out!",
+    "VoltRunner90 took a Prize card.",
+  ], [null, 28, null, 29, 30, null, 31, null, null, 32, null]),
+  ...sourceActions("self", 3, [
+    "JammerUK1993 drew Poké Pad.",
+    "JammerUK1993 played Rare Candy.",
+    "JammerUK1993's Drakloak used Recon Directive.",
+    "JammerUK1993's Drakloak used Recon Directive.",
+    "JammerUK1993's Blaziken ex used Seething Spirit.",
+    "JammerUK1993 played Poké Pad.",
+    "JammerUK1993 evolved Dreepy to Drakloak on the Bench.",
+    "JammerUK1993's Drakloak used Recon Directive.",
+    "JammerUK1993 played Buddy-Buddy Poffin.",
+    "JammerUK1993 evolved Drakloak to Dragapult ex in the Active Spot.",
+    "JammerUK1993 played Boss's Orders.",
+    "JammerUK1993's Dragapult ex used Phantom Dive on VoltRunner90’s Mega Lucario ex for 200 damage.",
+  ], [null, 33, null, null, null, 34, null, null, 35, 37, 38, 39]),
+  ...sourceActions("opponent", 4, [
+    "VoltRunner90 drew a card.",
+    "VoltRunner90 evolved Riolu to Mega Lucario ex on the Bench.",
+    "VoltRunner90's Lunatone used Lunar Cycle.",
+    "VoltRunner90 evolved Makuhita to Hariyama on the Bench.",
+    "VoltRunner90's Hariyama used Heave-Ho Catcher.",
+    "VoltRunner90 played Premium Power Pro.",
+    "VoltRunner90 attached Basic Fighting Energy to Mega Lucario ex in the Active Spot.",
+    "VoltRunner90 played Judge.",
+    "VoltRunner90's Mega Lucario ex used Aura Jab on JammerUK1993’s Meowth ex for 320 damage. JammerUK1993's Meowth ex took 160 more damage because of Fighting Weakness.",
+    "JammerUK1993's Meowth ex was Knocked Out!",
+    "VoltRunner90 took 2 Prize cards.",
+  ], [null, null, null, null, null, 40, null, null, null, 43, null]),
+  ...sourceActions("self", 4, [
+    "JammerUK1993 drew Dragapult ex.",
+    "JammerUK1993's Drakloak used Recon Directive.",
+    "JammerUK1993's Drakloak used Recon Directive.",
+    "JammerUK1993 attached Basic Fire Energy to Drakloak on the Bench.",
+    "JammerUK1993's Blaziken ex used Seething Spirit.",
+    "JammerUK1993's Dragapult ex used Phantom Dive on VoltRunner90’s Mega Lucario ex for 200 damage.",
+    "VoltRunner90's Mega Lucario ex was Knocked Out!",
+    "JammerUK1993 took 3 Prize cards.",
+  ], [null, null, null, null, null, null, null, null]),
+  ...sourceActions("opponent", 5, [
+    "VoltRunner90 drew a card.",
+    "VoltRunner90's Lunatone used Lunar Cycle.",
+    "VoltRunner90 played Wally's Compassion.",
+    "VoltRunner90 played Premium Power Pro.",
+    "VoltRunner90 attached Basic Fighting Energy to Hariyama on the Bench.",
+    "VoltRunner90 played Riolu to the Bench.",
+    "VoltRunner90's Solrock used Cosmic Beam on JammerUK1993’s Dragapult ex for 100 damage.",
+  ], [null, null, 45, 46, null, null, 47]),
+  ...sourceActions("self", 5, [
+    "JammerUK1993 drew Blaziken ex.",
+    "JammerUK1993 played Ultra Ball.",
+    "JammerUK1993's Drakloak used Recon Directive.",
+    "JammerUK1993's Drakloak used Recon Directive.",
+    "JammerUK1993 played Night Stretcher.",
+    "JammerUK1993 played Munkidori to the Bench.",
+    "JammerUK1993 attached Basic Darkness Energy to Munkidori on the Bench.",
+    "JammerUK1993's Blaziken ex used Seething Spirit.",
+    "JammerUK1993's Munkidori used Adrena-Brain.",
+    "JammerUK1993 played Boss's Orders.",
+    "JammerUK1993's Dragapult ex used Phantom Dive on VoltRunner90’s Hariyama for 200 damage.",
+    "VoltRunner90's Hariyama was Knocked Out!",
+    "VoltRunner90's Riolu was Knocked Out!",
+    "JammerUK1993 took 2 Prize cards.",
+  ], [null, 48, null, null, 49, null, null, null, 50, 51, null, null, null, null]),
+  ...sourceActions("opponent", 6, [
+    "VoltRunner90 drew a card.",
+    "VoltRunner90 attached Basic Fighting Energy to Mega Lucario ex in the Active Spot.",
+    "VoltRunner90 played Carmine.",
+    "VoltRunner90 played Fighting Gong.",
+    "VoltRunner90's Lunatone used Lunar Cycle.",
+    "VoltRunner90 played Fighting Gong.",
+    "VoltRunner90 played Meowth ex to the Bench.",
+    "VoltRunner90's Meowth ex used Last-Ditch Catch.",
+    "VoltRunner90's Mega Lucario ex used Aura Jab on JammerUK1993’s Dragapult ex for 130 damage.",
+  ], [null, null, 53, 54, null, 55, null, null, 56]),
+  ...sourceActions("self", 6, [
+    "JammerUK1993 drew Dawn.",
+    "JammerUK1993 played Boss's Orders.",
+    "JammerUK1993's Dragapult ex used Phantom Dive on VoltRunner90’s Meowth ex for 200 damage.",
+    "VoltRunner90's Meowth ex was Knocked Out!",
+    "VoltRunner90's Solrock was Knocked Out!",
+    "JammerUK1993 took a Prize card.",
+    "All Prize cards taken. JammerUK1993 wins.",
+  ], [null, 57, null, null, null, null, 59]),
+];
+
+const replaySourceActions = flattenReplaySourceActions(
+  prototypeBattleLogSections,
+  "JammerUK1993",
+  replaySourceActionShells.map((action) => action.legacyIndex),
+);
+
+if (
+  replaySourceActions.length !== replaySourceActionShells.length ||
+  replaySourceActions.some((action, index) => action.sourceTitle !== replaySourceActionShells[index]?.sourceTitle)
+) {
+  throw new Error("The replay fixture no longer matches its legacy visual adapter.");
+}
+
+// Only source-evidenced card movement is shown. Unknown opponent cards stay
+// hidden rather than receiving a guessed identity.
+const z = (id: string, name: string, imageUrl: string) => zoneCard(`tx-${id}`, name, imageUrl);
+// The source log names placement targets but does not identify a physical copy
+// when duplicate Pokemon share that name. These hints bind only those ambiguous
+// names to the stable board identities tracked by this prototype fixture.
+const counterPlacementTargetIds = new Map<number, string[]>([
+  [79, ["opp-riolu-b"]],
+  [99, ["opp-solrock-a", "opp-riolu-c"]],
+  [114, ["opp-solrock-a"]],
+]);
+const sourceTransactions = new Map<number, ReplayTransaction>([
+  [7, transaction("opponent", "Ultra Ball",
+    stage("play", "Play", [z("8-ultra", "Ultra Ball", images.ultraBall)]),
+    stage("discard", "Discard", [z("8-boss", "Boss's Orders", images.boss), z("8-prime", "Prime Catcher", images.primeCatcher)]),
+    stage("find", "Find", [z("8-lunatone", "Lunatone", images.lunatone)]))],
+  [11, transaction("self", "Buddy-Buddy Poffin",
+    stage("play", "Play", [z("12-poffin", "Buddy-Buddy Poffin", images.poffin)]),
+    stage("bench", "Bench", [z("12-dreepy-a", "Dreepy", images.dreepy), z("12-dreepy-b", "Dreepy", images.dreepy)]))],
+  [12, transaction("self", "Crispin",
+    stage("play", "Play", [z("13-crispin", "Crispin", images.crispin)]),
+    stage("attach", "Attach", [z("13-fire", "Basic Fire Energy", images.fire)], "to Dreepy"),
+    stage("find", "Find", [z("13-darkness", "Basic Darkness Energy", images.darkness)], "add to hand"))],
+  [17, transaction("opponent", "Judge",
+    stage("play", "Play", [z("18-judge", "Judge", images.judge)]),
+    bothPlayers(stage("shuffle", "Shuffle", [], "both players shuffle their hand into their deck")),
+    bothPlayers(stage("draw", "Draw", [], "each player draws 4 cards", 4)))],
+  [20, transaction("opponent", "Fighting Gong",
+    stage("play", "Play", [z("21-gong", "Fighting Gong", images.fightingGong)]),
+    stage("find", "Find", [z("21-fighting", "Basic Fighting Energy", images.fighting)]))],
+  [22, transaction("opponent", "Poké Pad",
+    stage("play", "Play", [z("23-pad", "Poké Pad", images.pokePad)]),
+    stage("find", "Find", [z("23-makuhita", "Makuhita", images.makuhita)]))],
+  [29, transaction("self", "Poké Pad",
+    stage("play", "Play", [z("30-pad", "Poké Pad", images.pokePad)]),
+    stage("find", "Find", [z("30-drakloak", "Drakloak", images.drakloak)]))],
+  [35, transaction("self", "Lillie's Determination",
+    stage("play", "Play", [z("36-lillie", "Lillie's Determination", images.lillie)]),
+    stage("shuffle", "Shuffle", [z("36-moltres", "Moltres", images.moltres)], "into deck"),
+    stage("draw", "Draw", [
+      z("36-stretcher", "Night Stretcher", images.nightStretcher), z("36-dragapult", "Dragapult ex", images.dragapult),
+      z("36-red", "Special Red Card", images.specialRedCard), z("36-candy", "Rare Candy", images.rareCandy),
+      z("36-ultra", "Ultra Ball", images.ultraBall), z("36-boss", "Boss's Orders", images.boss),
+      z("36-dawn", "Dawn", images.dawn), z("36-dreepy", "Dreepy", images.dreepy)]))],
+  [38, transaction("self", "Ultra Ball",
+    stage("play", "Play", [z("39-ultra", "Ultra Ball", images.ultraBall)]),
+    stage("discard", "Discard", [z("39-psychic", "Basic Psychic Energy", images.psychic), z("39-red", "Special Red Card", images.specialRedCard)]),
+    stage("find", "Find", [z("39-blaziken", "Blaziken ex", images.blaziken)]))],
+  [41, transaction("opponent", "Poké Pad",
+    stage("play", "Play", [z("42-pad", "Poké Pad", images.pokePad)]),
+    stage("find", "Find", [z("42-solrock", "Solrock", images.solrock)]))],
+  [43, transaction("opponent", "Lillie's Determination",
+    stage("play", "Play", [z("44-lillie", "Lillie's Determination", images.lillie)]),
+    stage("shuffle", "Shuffle", [], "into deck", 2),
+    stage("draw", "Draw", [], undefined, 8))],
+  [44, transaction("opponent", "Gravity Mountain",
+    stage("play", "Play", [z("45-mountain", "Gravity Mountain", images.gravityMountain)]),
+    stage("stadium", "Stadium", [z("45-stadium", "Gravity Mountain", images.gravityMountain)]))],
+  [46, transaction("opponent", "Switch",
+    stage("play", "Play", [z("47-switch", "Switch", images.switch)]),
+    stage("move", "Out", [zoneCard("opp-solrock-a", "Solrock", images.solrock)], "to Bench"),
+    stage("move", "In", [zoneCard("opp-solrock-b", "Solrock", images.solrock)], "to Active"))],
+  [52, transaction("self", "Rare Candy",
+    stage("play", "Play", [z("53-candy", "Rare Candy", images.rareCandy)]),
+    stage("before", "From", [z("53-torchic", "Torchic", images.torchic)], "Bench"),
+    stage("evolve", "Evolve into", [z("53-blaziken", "Blaziken ex", images.blaziken)], "Bench"))],
+  [56, transaction("self", "Poké Pad",
+    stage("play", "Play", [z("57-pad", "Poké Pad", images.pokePad)]),
+    stage("find", "Find", [z("57-drakloak", "Drakloak", images.drakloak)], "add to hand"))],
+  [59, transaction("self", "Buddy-Buddy Poffin",
+    stage("play", "Play", [z("60-poffin", "Buddy-Buddy Poffin", images.poffin)]),
+    stage("bench", "Bench", [z("60-dreepy", "Dreepy", images.dreepy)]))],
+  [61, transaction("self", "Boss's Orders",
+    stage("play", "Play", [z("62-boss", "Boss's Orders", images.boss)]),
+    stage("move", "Active", [z("62-lucario", "Mega Lucario ex", images.lucario)]))],
+  [70, transaction("opponent", "Judge",
+    stage("play", "Play", [z("71-judge", "Judge", images.judge)]),
+    bothPlayers(stage("shuffle", "Shuffle", [], "both players shuffle their hand into their deck")),
+    bothPlayers(stage("draw", "Draw", [], "each player draws 4 cards", 4)))],
+  [84, transaction("opponent", "Wally's Compassion",
+    stage("play", "Play", [z("85-wally", "Wally's Compassion", images.wally)]),
+    stage("return", "Return", [z("85-fighting-a", "Basic Fighting Energy", images.fighting), z("85-fighting-b", "Basic Fighting Energy", images.fighting)], "to hand"),
+    stage("heal", "Heal", [z("85-lucario", "Mega Lucario ex", images.lucario)], "120 damage"))],
+  [90, transaction("self", "Ultra Ball",
+    stage("play", "Play", [z("91-ultra", "Ultra Ball", images.ultraBall)]),
+    stage("discard", "Discard", [z("91-poffin", "Buddy-Buddy Poffin", images.poffin), z("91-torchic", "Torchic", images.torchic)]),
+    stage("find", "Find", [z("91-combusken", "Combusken", images.combusken)]))],
+  [93, transaction("self", "Night Stretcher",
+    stage("play", "Play", [z("94-stretcher", "Night Stretcher", images.nightStretcher)]),
+    stage("return", "Return", [z("94-munkidori", "Munkidori", images.munkidori)], "to hand"))],
+  [98, transaction("self", "Boss's Orders",
+    stage("play", "Play", [z("99-boss", "Boss's Orders", images.boss)]),
+    stage("move", "Active", [z("99-hariyama", "Hariyama", images.hariyama)]))],
+  [105, transaction("opponent", "Carmine",
+    stage("play", "Play", [z("106-carmine", "Carmine", images.carmine)]),
+    stage("discard", "Discard", [z("106-boss", "Boss's Orders", images.boss), z("106-makuhita", "Makuhita", images.makuhita), z("106-lillie", "Lillie's Determination", images.lillie), z("106-ultra", "Ultra Ball", images.ultraBall), z("106-lucario", "Mega Lucario ex", images.lucario), z("106-judge", "Judge", images.judge)]),
+    stage("draw", "Draw", [], undefined, 5))],
+  [106, transaction("opponent", "Fighting Gong", stage("play", "Play", [z("107-gong", "Fighting Gong", images.fightingGong)]), stage("find", "Find", [z("107-energy", "Basic Fighting Energy", images.fighting)]))],
+  [108, transaction("opponent", "Fighting Gong", stage("play", "Play", [z("109-gong", "Fighting Gong", images.fightingGong)]), stage("find", "Find", [z("109-solrock", "Solrock", images.solrock)]))],
+  [113, transaction("self", "Boss's Orders", stage("play", "Play", [z("114-boss", "Boss's Orders", images.boss)]), stage("move", "Active", [z("114-meowth", "Meowth ex", images.meowth)]))],
+]);
+
+const pokemonImages: Record<string, string> = {
+  "Dreepy": images.dreepy,
+  "Dragapult ex": images.dragapult,
+  "Hariyama": images.hariyama,
+  "Lunatone": images.lunatone,
+  "Makuhita": images.makuhita,
+  "Mega Lucario ex": images.lucario,
+  "Drakloak": images.drakloak,
+  "Munkidori": images.munkidori,
+  "Meowth ex": images.meowth,
+  "Riolu": images.riolu,
+  "Solrock": images.solrock,
+  "Blaziken ex": images.blaziken,
+};
+
+const reconDirectiveDraws: Record<number, ReplayZoneCard> = {
+  28: z("29-recon-psychic", "Basic Psychic Energy", images.psychic),
+  37: z("38-recon-psychic", "Basic Psychic Energy", images.psychic),
+  53: z("54-recon-darkness", "Basic Darkness Energy", images.darkness),
+  54: z("55-recon-ultra", "Ultra Ball", images.ultraBall),
+  58: z("59-recon-poffin", "Buddy-Buddy Poffin", images.poffin),
+  75: z("76-recon-ultra", "Ultra Ball", images.ultraBall),
+  76: z("77-recon-poffin", "Buddy-Buddy Poffin", images.poffin),
+  91: z("92-recon-moltres", "Moltres", images.moltres),
+  92: z("93-recon-boss", "Boss's Orders", images.boss),
+};
+
+const seethingSpiritResults: Record<number, { energy: ReplayZoneCard; target: ReplayZoneCard; detail: string }> = {
+  55: {
+    energy: z("56-seething-psychic", "Basic Psychic Energy", images.psychic),
+    target: z("56-seething-drakloak", "Drakloak", images.drakloak),
+    detail: "Active",
+  },
+  78: {
+    energy: z("79-seething-psychic", "Basic Psychic Energy", images.psychic),
+    target: z("79-seething-drakloak", "Drakloak", images.drakloak),
+    detail: "Bench",
+  },
+  96: {
+    energy: z("97-seething-darkness", "Basic Darkness Energy", images.darkness),
+    target: z("97-seething-blaziken", "Blaziken ex", images.blaziken),
+    detail: "Bench",
+  },
+};
+
+const abilityTransaction = (sourceAction: ReplaySourceAction, index: number) => {
+  if (getReplaySourceLabel(sourceAction.sourceTitle) !== "Ability") return undefined;
+  const match = sourceAction.sourceTitle.match(/(?:'s|’s) (.+?) used (.+?)\.$/);
+  if (!match || !pokemonImages[match[1]]) return undefined;
+  const [pokemonName, abilityName] = [match[1], match[2]];
+  const abilityCard = z(`${index + 1}-ability`, pokemonName, pokemonImages[pokemonName]);
+  const opening = stage("ability", "Ability", [abilityCard], abilityName);
+  const reconDraw = reconDirectiveDraws[index];
+  if (abilityName === "Recon Directive" && reconDraw) return transaction(sourceAction.actor, abilityName, opening,
+    stage("draw", "Draw", [reconDraw]));
+  if (abilityName === "Lunar Cycle") return transaction(sourceAction.actor, abilityName, opening,
+    stage("discard", "Discard", [z(`${index + 1}-fighting`, "Basic Fighting Energy", images.fighting)]),
+    stage("draw", "Draw", [], undefined, 3));
+  if (abilityName === "Heave-Ho Catcher") return transaction(sourceAction.actor, abilityName, opening,
+    stage("move", "Move Meowth ex", [z(`${index + 1}-meowth`, "Meowth ex", images.meowth)], "to Active"));
+  if (abilityName === "Last-Ditch Catch") {
+    const foundCard = index === 34
+      ? z("35-lillie", "Lillie's Determination", images.lillie)
+      : index === 110
+        ? z("111-kieran", "Kieran", images.kieran)
+        : null;
+    if (foundCard) return transaction(sourceAction.actor, abilityName, opening,
+      stage("find", "Draw", [foundCard]));
+  }
+  if (abilityName === "Adrena-Brain") {
+    const result = index === 31
+      ? {
+          from: z("32-adrena-from", "Munkidori", images.munkidori),
+          to: z("32-adrena-to", "Mega Lucario ex", images.lucario),
+        }
+      : index === 97
+        ? {
+            from: z("98-adrena-from", "Dragapult ex", images.dragapult),
+            to: z("98-adrena-to", "Riolu", images.riolu),
+          }
+        : null;
+    if (!result) return transaction(sourceAction.actor, abilityName, opening);
+    return transaction(sourceAction.actor, abilityName, opening,
+      stage("heal", `From ${result.from.name}`, [result.from], "3 damage counters"),
+      stage("move", `To ${result.to.name}`, [result.to], "3 damage counters"));
+  }
+  const seethingResult = seethingSpiritResults[index];
+  if (abilityName === "Seething Spirit" && seethingResult) return transaction(sourceAction.actor, abilityName, opening,
+    stage("attach", "Attach", [seethingResult.energy]),
+    stage("move", `To ${seethingResult.target.name}`, [seethingResult.target], seethingResult.detail));
+  return transaction(sourceAction.actor, abilityName, opening);
+};
+
+const energyAttachmentTransaction = (sourceAction: ReplaySourceAction, index: number) => {
+  const match = sourceAction.sourceTitle.match(/attached Basic (.+?) Energy to (.+?) (?:in|on) the (Active Spot|Bench)\.$/);
+  if (!match) return undefined;
+  const [, energyType, pokemonName, location] = match;
+  const energyImage = replayEnergyImages[energyType];
+  const pokemonImage = pokemonImages[pokemonName];
+  if (!energyImage || !pokemonImage) return undefined;
+  return transaction(sourceAction.actor, "Attach Energy",
+    stage("attach", "Attach", [z(`${index + 1}-energy`, `Basic ${energyType} Energy`, energyImage)]),
+    stage("move", `To ${pokemonName}`, [z(`${index + 1}-target`, pokemonName, pokemonImage)], location === "Active Spot" ? "Active" : "Bench"));
+};
+
+const evolutionTransaction = (sourceAction: ReplaySourceAction, index: number) => {
+  const match = sourceAction.sourceTitle.match(/evolved (.+?) to (.+?) (?:in|on) the (Active Spot|Bench)\.$/);
+  if (!match) return undefined;
+  const [, fromName, toName, location] = match;
+  const fromImage = pokemonImages[fromName];
+  const toImage = pokemonImages[toName];
+  if (!fromImage || !toImage) return undefined;
+  return transaction(sourceAction.actor, "Evolution",
+    stage("before", "From", [z(`${index + 1}-from`, fromName, fromImage)], location === "Active Spot" ? "Active" : "Bench"),
+    stage("evolve", "Evolve into", [z(`${index + 1}-to`, toName, toImage)], location === "Active Spot" ? "Active" : "Bench"));
+};
+
+const attackTransaction = (sourceAction: ReplaySourceAction, index: number) => {
+  const match = sourceAction.sourceTitle.match(
+    /^.+?['’]s (.+?) used (.+?) on .+?['’]s (.+?) for (\d+)\+? damage\./,
+  );
+  if (!match) return undefined;
+  const [, attackerName, attackName, targetName, damage] = match;
+  const attackerImage = pokemonImages[attackerName];
+  const targetImage = pokemonImages[targetName];
+  if (!attackerImage || !targetImage) return undefined;
+
+  const totalDamage = Number(damage);
+  const weaknessMatch = sourceAction.sourceTitle.match(
+    /took (\d+) more damage because of (.+?) Weakness\./,
+  );
+  const weaknessBonus = weaknessMatch ? Number(weaknessMatch[1]) : 0;
+  const weaknessBase = totalDamage - weaknessBonus;
+  const weaknessMultiplier = weaknessBase > 0 && totalDamage % weaknessBase === 0
+    ? totalDamage / weaknessBase
+    : undefined;
+  const damageModifier = weaknessMatch && weaknessBase > 0
+    ? {
+        kind: "weakness" as const,
+        type: weaknessMatch[2],
+        baseDamage: weaknessBase,
+        bonusDamage: weaknessBonus,
+        multiplier: weaknessMultiplier,
+      }
+    : undefined;
+  const damageDetail = damageModifier ? undefined : "Active";
+
+  const placementStages = getDamageCounterPlacements(sourceAction.details).flatMap(({ targetName, counters }, placementIndex) => {
+    const targetImage = pokemonImages[targetName];
+    if (!targetImage) return [];
+    const targetId = counterPlacementTargetIds.get(index)?.[placementIndex]
+      ?? `${index + 1}-counter-target-${placementIndex + 1}`;
+    return [stage(
+      "damage",
+      "Place counters",
+      [zoneCard(targetId, targetName, targetImage)],
+      `${counters} damage ${counters === 1 ? "counter" : "counters"}`,
+    )];
+  });
+
+  return transaction(sourceAction.actor, attackName,
+    stage("attack", "Attack", [z(`${index + 1}-attacker`, attackerName, attackerImage)], attackName),
+    {
+      ...stage("damage", `${damage} damage`, [z(`${index + 1}-target`, targetName, targetImage)], damageDetail),
+      damageModifier,
+    },
+    ...placementStages);
+};
+
+const sourceVisualMutations = new Map<number, (state: ReplayState) => void>([
+  [4, (s) => {
+    s.opponent.bench.push(card("opp-riolu-a", "Riolu", images.riolu, 70));
+    removeHiddenHand(s.opponent);
+  }],
+  [5, (s) => {
+    s.opponent.bench.push(card("opp-riolu-b", "Riolu", images.riolu, 70));
+    removeHiddenHand(s.opponent);
+  }],
+  [6, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [7, (s) => {
+    s.opponent.handCount = 3;
+  }],
+  [12, (s) => {
+    s.self.knownHand.push(
+      hand("turn-one-darkness", "Basic Darkness Energy", images.darkness),
+    );
+    s.self.handCount += 1;
+  }],
+  [13, (s) => {
+    removeHand(s.self, "Basic Darkness Energy");
+    s.self.active?.energy.push("Darkness");
+  }],
+  [15, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [16, (s) => {
+    removeHiddenHand(s.opponent);
+  }],
+  [18, (s) => {
+    removeHiddenHand(s.opponent);
+    s.opponent.active?.energy.push("Fighting");
+  }],
+  [20, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [21, (s) => {
+    removeHiddenHand(s.opponent);
+    discardCards(
+      s.opponent,
+      zoneCard("opp-t2-fighting", "Basic Fighting Energy", images.fighting),
+    );
+    drawHidden(s.opponent, 3);
+  }],
+  [22, (s) => {
+    drawKnown(s.opponent, hand("opp-t2-makuhita", "Makuhita", images.makuhita));
+  }],
+  [23, (s) => {
+    removeHiddenHand(s.opponent);
+    s.opponent.bench.push(card("opp-makuhita", "Makuhita", images.makuhita, 80));
+  }],
+  [40, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [41, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [42, (s) => {
+    removeHiddenHand(s.opponent);
+    s.opponent.bench.push(card("opp-solrock-b", "Solrock", images.solrock, 90));
+  }],
+  [44, (s) => {
+    removeHiddenHand(s.opponent);
+  }],
+  [45, (s) => {
+    removeHiddenHand(s.opponent);
+    discardCards(
+      s.opponent,
+      zoneCard("opp-t3-fighting", "Basic Fighting Energy", images.fighting),
+    );
+    drawHidden(s.opponent, 3);
+  }],
+  [46, (s) => {
+    removeHiddenHand(s.opponent);
+  }],
+  [47, (s) => {
+    removeHiddenHand(s.opponent);
+    s.opponent.active?.energy.push("Fighting");
+  }],
+  [48, (s) => {
+    if (s.self.active) s.self.active.damage += 70;
+  }],
+  [50, (s) => {
+    promote(s.self, "Drakloak");
+    s.opponent.prizesRemaining -= 1;
+    s.opponent.handCount = 8;
+  }],
+  [51, (s) => {
+    drawKnown(s.self, hand("turn-three-poke-pad", "Poké Pad", images.pokePad));
+  }],
+  [52, (s) => {
+    const torchic = find(s.self, "Torchic");
+    if (torchic)
+      Object.assign(
+        torchic,
+        evolve(torchic, "Blaziken ex", images.blaziken, 320),
+      );
+    removeHand(s.self, "Blaziken ex");
+  }],
+  [55, (s) => {
+    s.self.active?.energy.push("Psychic");
+    removeDiscard(s.self, "Basic Psychic Energy");
+  }],
+  [56, (s) => {
+    drawKnown(s.self, hand("self-t3-pad-drakloak", "Drakloak", images.drakloak));
+  }],
+  [57, (s) => {
+    removeHand(s.self, "Drakloak");
+    const dreepy = find(s.self, "Dreepy");
+    if (dreepy)
+      Object.assign(
+        dreepy,
+        evolve(dreepy, "Drakloak", images.drakloak, 90),
+      );
+  }],
+  [58, (s) => {
+    drawKnown(
+      s.self,
+      hand("self-t3-poffin", "Buddy-Buddy Poffin", images.poffin),
+    );
+  }],
+  [59, (s) => {
+    s.self.bench.push(card("self-t3-dreepy", "Dreepy", images.dreepy, 70));
+  }],
+  [63, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [64, (s) => {
+    const rioluIndex = s.opponent.bench.findIndex((item) => item.name === "Riolu");
+    if (rioluIndex >= 0)
+      s.opponent.bench[rioluIndex] = evolve(s.opponent.bench[rioluIndex], "Mega Lucario ex", images.lucario, 340);
+    removeHiddenHand(s.opponent);
+  }],
+  [65, (s) => {
+    removeHiddenHand(s.opponent);
+    discardCards(
+      s.opponent,
+      zoneCard("opp-t4-fighting", "Basic Fighting Energy", images.fighting),
+    );
+    drawHidden(s.opponent, 3);
+  }],
+  [66, (s) => {
+    const makuhita = find(s.opponent, "Makuhita");
+    if (makuhita) Object.assign(makuhita, evolve(makuhita, "Hariyama", images.hariyama, 140));
+    removeHiddenHand(s.opponent);
+  }],
+  [67, (s) => {
+    if (s.self.active) s.self.bench.push(s.self.active);
+    promote(s.self, "Meowth ex");
+  }],
+  [69, (s) => {
+    removeHiddenHand(s.opponent);
+    s.opponent.active?.energy.push("Fighting");
+  }],
+  [70, (s) => {
+    setHand(s.self, [
+      hand("judge-two-fire", "Basic Fire Energy", images.fire),
+      hand("judge-two-stretcher", "Night Stretcher", images.nightStretcher),
+      hand("judge-two-darkness", "Basic Darkness Energy", images.darkness),
+      hand("judge-two-torchic", "Torchic", images.torchic),
+    ]);
+    s.self.deckCount = 24;
+    s.opponent.handCount = 4;
+    s.opponent.deckCount = 23;
+    showPlayedCard(
+      s,
+      "opponent",
+      zoneCard("opp-t4-judge", "Judge", images.judge),
+    );
+  }],
+  [71, (s) => {
+    if (s.self.active) s.self.active.damage += 320;
+    const benchedLucario = s.opponent.bench.find((item) => item.name === "Mega Lucario ex");
+    if (benchedLucario) benchedLucario.energy.push("Fighting", "Fighting");
+    find(s.opponent, "Hariyama")?.energy.push("Fighting");
+    s.opponent.deckCount = Math.max(0, s.opponent.deckCount - 3);
+  }],
+  [73, (s) => {
+    promote(s.self, "Dragapult ex");
+    s.opponent.prizesRemaining -= 2;
+    s.opponent.handCount += 2;
+  }],
+  [74, (s) => {
+    drawKnown(s.self, hand("turn-four-dragapult-draw", "Dragapult ex", images.dragapult));
+  }],
+  [75, (s) => {
+    drawKnown(s.self, hand("turn-four-ultra-draw", "Ultra Ball", images.ultraBall));
+  }],
+  [76, (s) => {
+    drawKnown(s.self, hand("turn-four-poffin-draw", "Buddy-Buddy Poffin", images.poffin));
+  }],
+  [77, (s) => {
+    removeHand(s.self, "Basic Fire Energy");
+    find(s.self, "Drakloak")?.energy.push("Fire");
+  }],
+  [78, (s) => {
+    find(s.self, "Drakloak")?.energy.push("Psychic");
+    removeDiscard(s.self, "Basic Psychic Energy");
+  }],
+  [79, (s) => {
+    if (s.opponent.active) s.opponent.active.damage += 200;
+  }],
+  [80, (s) => {
+    discardActive(s.opponent);
+  }],
+  [81, (s) => {
+    promote(s.opponent, "Solrock");
+    s.self.prizesRemaining -= 3;
+    s.self.deckCount = 21;
+    setHand(s.self, [
+      hand("turn-four-stretcher", "Night Stretcher", images.nightStretcher),
+      hand("turn-four-darkness", "Basic Darkness Energy", images.darkness),
+      hand("turn-four-torchic", "Torchic", images.torchic),
+      hand("turn-four-dragapult", "Dragapult ex", images.dragapult),
+      hand("turn-four-ultra-ball", "Ultra Ball", images.ultraBall),
+      hand("turn-four-poffin", "Buddy-Buddy Poffin", images.poffin),
+      hand("prize-unfair-stamp", "Unfair Stamp", images.unfairStamp),
+      hand("prize-crispin", "Crispin", images.crispin),
+      hand("prize-fire", "Basic Fire Energy", images.fire),
+    ]);
+  }],
+  [82, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [83, (s) => {
+    removeHiddenHand(s.opponent);
+    discardCards(
+      s.opponent,
+      zoneCard("opp-t5-fighting", "Basic Fighting Energy", images.fighting),
+    );
+    drawHidden(s.opponent, 3);
+  }],
+  [84, (s) => {
+    const lucario = find(s.opponent, "Mega Lucario ex");
+    if (lucario) {
+      lucario.damage = Math.max(0, lucario.damage - 120);
+      const returnedEnergy = Math.min(2, lucario.energy.length);
+      lucario.energy.splice(0, returnedEnergy);
+      s.opponent.handCount += returnedEnergy;
+    }
+  }],
+  [86, (s) => {
+    removeHiddenHand(s.opponent);
+    find(s.opponent, "Hariyama")?.energy.push("Fighting");
+  }],
+  [87, (s) => {
+    removeHiddenHand(s.opponent);
+    s.opponent.bench.push(card("opp-riolu-c", "Riolu", images.riolu, 70));
+  }],
+  [89, (s) => {
+    drawKnown(s.self, hand("turn-five-blaziken-draw", "Blaziken ex", images.blaziken));
+  }],
+  [90, (s) => {
+    removeHand(s.self, "Buddy-Buddy Poffin");
+    removeHand(s.self, "Torchic");
+    discardCards(
+      s.self,
+      zoneCard("self-t5-poffin", "Buddy-Buddy Poffin", images.poffin),
+      zoneCard("self-t5-torchic", "Torchic", images.torchic),
+    );
+    drawKnown(
+      s.self,
+      hand("turn-five-combusken", "Combusken", images.combusken),
+    );
+  }],
+  [91, (s) => {
+    drawKnown(s.self, hand("turn-five-moltres", "Moltres", images.moltres));
+  }],
+  [92, (s) => {
+    drawKnown(s.self, hand("turn-five-boss", "Boss's Orders", images.boss));
+  }],
+  [93, (s) => {
+    removeDiscard(s.self, "Munkidori");
+    s.self.knownHand.push(
+      hand("turn-five-munkidori", "Munkidori", images.munkidori),
+    );
+    s.self.handCount += 1;
+  }],
+  [94, (s) => {
+    removeHand(s.self, "Munkidori");
+    s.self.bench.push(card("self-munkidori-returned", "Munkidori", images.munkidori, 110));
+  }],
+  [95, (s) => {
+    removeHand(s.self, "Basic Darkness Energy");
+    find(s.self, "Munkidori")?.energy.push("Darkness");
+  }],
+  [96, (s) => {
+    removeDiscard(s.self, "Basic Darkness Energy");
+    find(s.self, "Blaziken ex")?.energy.push("Darkness");
+  }],
+  [99, (s) => {
+    if (s.opponent.active) s.opponent.active.damage += 200;
+  }],
+  [100, (s) => {
+    discardActive(s.opponent);
+  }],
+  [101, (s) => {
+    const rioluIndex = s.opponent.bench.findIndex((item) => item.name === "Riolu");
+    if (rioluIndex >= 0) {
+      const [riolu] = s.opponent.bench.splice(rioluIndex, 1);
+      discardCards(s.opponent, zoneCard("opp-t5-riolu", "Riolu", riolu.imageUrl));
+    }
+  }],
+  [102, (s) => {
+    promote(s.opponent, "Mega Lucario ex");
+    s.self.prizesRemaining -= 2;
+    s.self.knownHand.push(
+      hand("prize-boss", "Boss's Orders", images.boss),
+      hand("prize-drakloak", "Drakloak", images.drakloak),
+    );
+    s.self.handCount += 2;
+  }],
+  [103, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [104, (s) => {
+    removeHiddenHand(s.opponent);
+    s.opponent.active?.energy.push("Fighting");
+  }],
+  [105, (s) => {
+    discardCards(
+      s.opponent,
+      zoneCard("opp-t6-boss", "Boss's Orders", images.boss),
+      zoneCard("opp-t6-makuhita", "Makuhita", images.makuhita),
+      zoneCard("opp-t6-lillie", "Lillie's Determination", images.lillie),
+      zoneCard("opp-t6-ultra", "Ultra Ball", images.ultraBall),
+      zoneCard("opp-t6-lucario", "Mega Lucario ex", images.lucario),
+      zoneCard("opp-t6-judge", "Judge", images.judge),
+    );
+    s.opponent.handCount = 5;
+    s.opponent.deckCount = 10;
+  }],
+  [106, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [107, (s) => {
+    removeHiddenHand(s.opponent);
+    discardCards(
+      s.opponent,
+      zoneCard("opp-t6-fighting", "Basic Fighting Energy", images.fighting),
+    );
+    drawHidden(s.opponent, 3);
+  }],
+  [108, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [109, (s) => {
+    removeHiddenHand(s.opponent);
+    s.opponent.bench.push(card("opp-meowth", "Meowth ex", images.meowth, 170));
+  }],
+  [110, (s) => {
+    drawHidden(s.opponent);
+  }],
+  [111, (s) => {
+    s.opponent.deckCount = Math.max(0, s.opponent.deckCount - 3);
+  }],
+  [112, (s) => {
+    drawKnown(s.self, hand("turn-six-dawn", "Dawn", images.dawn));
+  }],
+  [114, (s) => {
+    if (s.opponent.active) s.opponent.active.damage += 200;
+  }],
+  [115, (s) => {
+    discardActive(s.opponent);
+  }],
+  [116, (s) => {
+    const solrock = s.opponent.bench.find((item) => item.id === "opp-solrock-a");
+    if (solrock) {
+      s.opponent.bench = s.opponent.bench.filter((item) => item.id !== solrock.id);
+      discardCards(s.opponent, zoneCard("opp-t6-solrock", "Solrock", solrock.imageUrl));
+    }
+  }],
+  [117, (s) => {
+    s.self.prizesRemaining -= 1;
+    s.self.knownHand.push(
+      hand("final-prize-munkidori", "Munkidori", images.munkidori),
+    );
+    s.self.handCount += 1;
+  }],
+]);
+
+const applyDamageCounterPlacements = (
+  state: ReplayState,
+  sourceAction: ReplaySourceAction,
+  actionIndex: number,
+) => {
+  const boardCards = [
+    state.self.active,
+    ...state.self.bench,
+    state.opponent.active,
+    ...state.opponent.bench,
+  ].filter((candidate): candidate is ReplayCard => candidate !== null);
+  const targetIds = counterPlacementTargetIds.get(actionIndex) ?? [];
+
+  getDamageCounterPlacements(sourceAction.details).forEach((placement, placementIndex) => {
+    const targetId = targetIds[placementIndex];
+    const matchingCards = boardCards.filter((card) => card.name === placement.targetName);
+    const target = targetId
+      ? matchingCards.find((card) => card.id === targetId)
+      : matchingCards.length === 1
+        ? matchingCards[0]
+        : undefined;
+
+    if (target) target.damage += placement.counters * 10;
+  });
+};
+
+const clearTurnAbilityUsage = (state: ReplayState) => {
+  [state.self, state.opponent].forEach((side) => {
+    [side.active, ...side.bench].forEach((card) => {
+      if (card) card.abilityUsed = undefined;
+    });
+  });
+};
+
+const markLoggedAbilityUsage = (
+  state: ReplayState,
+  sourceAction: ReplaySourceAction,
+) => {
+  if (getReplaySourceLabel(sourceAction.sourceTitle) !== "Ability") return;
+  const match = sourceAction.sourceTitle.match(/(?:'s|’s) (.+?) used .+?\.$/);
+  if (!match) return;
+
+  const side = state[sourceAction.actor];
+  const candidates = [side.active, ...side.bench].filter(
+    (card): card is ReplayCard => card?.name === match[1],
+  );
+  const usedCard = candidates.find((card) => !card.abilityUsed) ?? candidates[0];
+  if (usedCard) usedCard.abilityUsed = true;
+};
+
+export const replayEvents: ReplayEvent[] = replaySourceActions.map((sourceAction, index) => {
+  const displayDetails = sourceAction.details.map(formatReplaySourceDetail);
+  const fallback = event(
+    sourceAction.actor,
+    sourceAction.turn,
+    getReplaySourceLabel(sourceAction.sourceTitle),
+    anonymiseReplayTitle([
+      formatBattleLogActionTitle(sourceAction.sourceTitle),
+      ...displayDetails,
+    ].filter(Boolean).join(" · ")),
+    () => {},
+  );
+  fallback.sourceTitle = sourceAction.sourceTitle;
+  fallback.sourceDetails = [...sourceAction.details];
+  const legacy = sourceAction.legacyIndex === null
+    ? null
+    : legacyReplayEvents[sourceAction.legacyIndex];
+  const visualMutation = sourceVisualMutations.get(index);
+  return {
+    ...fallback,
+    transaction: sourceTransactions.get(index)
+      ?? abilityTransaction(sourceAction, index)
+      ?? energyAttachmentTransaction(sourceAction, index)
+      ?? evolutionTransaction(sourceAction, index)
+      ?? attackTransaction(sourceAction, index)
+      ?? legacy?.transaction,
+    apply: (state) => {
+      const next = legacy?.apply(state) ?? fallback.apply(state);
+      const previousAction = replaySourceActions[index - 1];
+      if (
+        index === 0
+        || previousAction?.turn !== sourceAction.turn
+        || previousAction?.actor !== sourceAction.actor
+      ) {
+        clearTurnAbilityUsage(next);
+      }
+      visualMutation?.(next);
+      applyDamageCounterPlacements(next, sourceAction, index);
+      markLoggedAbilityUsage(next, sourceAction);
+      return next;
+    },
+  };
+});
+
+export const replayFrames = replayEvents.reduce<ReplayState[]>(
+  (frames, action) => {
+    const previous = frames[frames.length - 1];
+    frames.push(applyReplayConditions(previous, action.apply(previous), action, "JammerUK1993"));
+    return frames;
+  },
+  [initialReplayState],
+);
+
+export const representativeCardImages = images;

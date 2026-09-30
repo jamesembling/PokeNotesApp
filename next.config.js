@@ -20,7 +20,7 @@ const baselineSecurityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: process.env.POKENOTES_E2E_LOCAL === "1" ? ".next-e2e" : ".next",
-  allowedDevOrigins: ["192.168.1.195", "Jamess-MacBook-Pro-2.local"],
+  allowedDevOrigins: ["127.0.0.1", "192.168.1.195", "Jamess-MacBook-Pro-2.local"],
   async headers() {
     return [
       {

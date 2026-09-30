@@ -116,6 +116,7 @@ const componentScopedTokens = new Set([
   "cell-radius",
   "cell-size",
   "radius-md",
+  "replay-pile-card-width",
   "sidebar-width",
   "sidebar-width-icon",
   "skeleton-width"

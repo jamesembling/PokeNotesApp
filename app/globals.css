@@ -132,6 +132,13 @@
   --share-notice-border: rgba(43, 109, 246, 0.14);
   --share-notice-bg: linear-gradient(180deg, var(--bg-surface), rgba(43, 109, 246, 0.08));
   --prize-marker-empty-bg: color-mix(in oklab, var(--muted-foreground) 40%, transparent);
+  --replay-player-tint: var(--color-loss);
+  --replay-card-back-ink: #18243d;
+  --replay-card-back-mid: #31517e;
+  --replay-card-back-accent: #f2b233;
+  --replay-card-overlay: rgb(8 12 20 / 88%);
+  --replay-card-edge: #ffffff;
+  --replay-energy: #6a3fa0;
   --placement-champion-bg: #fef3c7;
   --placement-champion-border: #fcd34d;
   --placement-champion-text: #78350f;
