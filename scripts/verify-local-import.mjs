@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -15,18 +15,23 @@ import { parse as parseEnv } from "dotenv";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const baseUrl = "http://localhost:3010";
 const notes = "Synthetic browser import verification";
+const expiredSession = process.argv[2] === "--expired-session";
+const variant = expiredSession ? "expired-session" : "authenticated";
+const startedAt = new Date().toISOString();
 let stage = "preflight";
 let server;
 let browser;
 let page;
 let artifacts;
 let environment = {};
+let failureMessage;
 
 if (process.argv.includes("--help")) {
-  console.log("npm run e2e:local:import\nResets the synthetic local database, starts port 3010, signs in, and checks paste, review, save, reload and catalogue learning. Closes its browser and app afterward; leaves the local database available for inspection. Port 3010 must be free. No hosted target or credentials are accepted.");
+  console.log("npm run e2e:local:import [-- --expired-session]\nResets the synthetic local database, starts port 3010, signs in, and checks paste, review, save, reload and catalogue learning. The expired-session variant verifies refresh during deck-options loading before saving. Closes its browser and app afterward; leaves the local database available for inspection. Port 3010 must be free. No hosted target or credentials are accepted.");
   process.exit(0);
 }
-assert.equal(process.argv.length, 2, "This local-only command accepts no target overrides.");
+assert.ok(process.argv.length === 2 || (process.argv.length === 3 && expiredSession),
+  "This local-only command accepts only --expired-session, not target overrides.");
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, async () => {
@@ -36,6 +41,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 }
 
 try {
+  artifacts = mkdtempSync(resolve(tmpdir(), "pokenotes-import-"));
   assert.ok(existsSync(chromium.executablePath()), "Install the pinned browser first: npx playwright install chromium");
   await requireFreePort();
   checkpoint("reset synthetic fixtures");
@@ -53,13 +59,12 @@ try {
     global: { fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(10000) }) }
   });
   const { user_id: userId } = await query(db.from("decks").select("user_id").eq("id", "e2e-deck-dragapult").single());
-  const logs = () => query(db.from("logs").select("id,match_notes,self_deck_sprites,raw_log,coin_toss_won").eq("user_id", userId));
+  const logs = () => query(db.from("logs").select("id,linked_deck_list_id,match_notes,self_deck_sprites,raw_log,coin_toss_won").eq("user_id", userId));
   const learned = () => query(db.from("archetype_catalog").select("id,sprites").eq("user_id", userId).eq("source", "learned").eq("canonical_id", "dragapult+munkidori"));
   assert.equal((await logs()).length, 3, "Reset must contain exactly three synthetic logs.");
   assert.equal((await learned()).length, 0, "Learning must start absent.");
 
   checkpoint("start isolated app");
-  artifacts = mkdtempSync(resolve(tmpdir(), "pokenotes-import-"));
   const output = openSync(resolve(artifacts, "server.log"), "w", 0o600);
   server = spawn(process.execPath, ["scripts/local-e2e.mjs", "dev"], {
     cwd: root, detached: true, stdio: ["ignore", output, output]
@@ -105,28 +110,58 @@ try {
   const rawLog = fixture.replace(bench, `${bench}\nE2ETrainer played Munkidori to the Bench.`).trim();
   const journeyStarted = performance.now();
   await page.setViewportSize({ width: 390, height: 844 });
-  checkpoint("recover deck options after a failed request");
+  let expiredCookie;
   let deckOptionsRequests = 0;
-  await page.route("**/api/deck-selection-options", route => {
-    deckOptionsRequests++;
-    return deckOptionsRequests === 1
-      ? route.fulfill({ status: 500, contentType: "application/json", body: '{"error":"Unavailable"}' })
-      : route.continue();
-  });
+  if (expiredSession) {
+    checkpoint("start import with an expired access token and valid refresh token");
+    const [bootstrap] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === "/api/log-import/bootstrap"),
+      page.getByRole("button", { name: "Import PTCGL Log", exact: true }).focus()
+    ]);
+    assert.equal(bootstrap.status(), 200, "Prewarming must finish before expiring the browser session.");
+    expiredCookie = await expireBrowserAccessToken(context);
+  } else {
+    checkpoint("recover deck options after a failed request");
+    await page.route("**/api/deck-selection-options", route => {
+      deckOptionsRequests++;
+      return deckOptionsRequests === 1
+        ? route.fulfill({ status: 500, contentType: "application/json", body: '{"error":"Unavailable"}' })
+        : route.continue();
+    });
+  }
   checkpoint("paste and review");
+  const deckOptionsResponse = expiredSession
+    ? page.waitForResponse(response => new URL(response.url()).pathname === "/api/deck-selection-options")
+    : null;
   const firstReview = await openReview(rawLog);
-  const deckOptionsAlert = page.getByRole("alert").filter({ hasText: "Could not load deck options" });
-  await deckOptionsAlert.waitFor();
-  const [deckOptionsRetry] = await Promise.all([
-    page.waitForResponse(response => new URL(response.url()).pathname === "/api/deck-selection-options" && response.status() === 200),
-    page.getByRole("button", { name: "Retry", exact: true }).click()
-  ]);
-  assert.equal(deckOptionsRetry.status(), 200);
-  await deckOptionsAlert.waitFor({ state: "hidden" });
-  assert.equal(deckOptionsRequests, 2, "Retry must issue a fresh deck options request.");
-  await page.getByText("More details", { exact: true }).click();
-  await until(() => page.locator("#import-deck-list-mobile").isEnabled());
-  await page.unroute("**/api/deck-selection-options");
+  if (expiredSession) {
+    const response = await deckOptionsResponse;
+    const cookieHeader = await response.request().headerValue("cookie");
+    assert.ok(cookieHeader?.includes(`${expiredCookie.name}=${expiredCookie.value}`),
+      "The deck-options request must begin with the expired access token.");
+    assert.equal(response.status(), 200, "Deck options must load after the proxy refreshes the session.");
+    const options = await response.json();
+    assert.ok(options.deckLists?.some(deckList => deckList.id === "e2e-list-attached"),
+      "The refreshed request must return the synthetic Deck List.");
+    await until(async () => (await context.cookies(baseUrl))
+      .some(cookie => cookie.name === expiredCookie.name && cookie.value !== expiredCookie.value));
+    await page.getByText("More details", { exact: true }).click();
+    await page.locator("#import-deck-list-mobile").click();
+    await page.getByRole("option", { name: "League Cup List", exact: true }).click();
+  } else {
+    const deckOptionsAlert = page.getByRole("alert").filter({ hasText: "Could not load deck options" });
+    await deckOptionsAlert.waitFor();
+    const [deckOptionsRetry] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === "/api/deck-selection-options" && response.status() === 200),
+      page.getByRole("button", { name: "Retry", exact: true }).click()
+    ]);
+    assert.equal(deckOptionsRetry.status(), 200);
+    await deckOptionsAlert.waitFor({ state: "hidden" });
+    assert.equal(deckOptionsRequests, 2, "Retry must issue a fresh deck options request.");
+    await page.getByText("More details", { exact: true }).click();
+    await until(() => page.locator("#import-deck-list-mobile").isEnabled());
+    await page.unroute("**/api/deck-selection-options");
+  }
   assert.ok(firstReview.draftId, "A ready review must identify its persisted draft.");
   const persistedDraft = await query(
     db.from("battle_log_import_drafts").select("id").eq("id", firstReview.draftId).eq("user_id", userId).maybeSingle()
@@ -195,6 +230,10 @@ try {
   assert.equal(saved.raw_log.trim(), rawLog);
   assert.equal(saved.self_deck_sprites, "dragapult,munkidori");
   assert.equal(saved.coin_toss_won, true);
+  if (expiredSession) {
+    assert.equal(saved.linked_deck_list_id, "e2e-list-attached",
+      "The imported Battle Log must retain the Deck List selected after refresh.");
+  }
 
   checkpoint("replay the identical save request");
   const replayResponse = await context.request.fetch(originalSaveRequest.url(), {
@@ -259,9 +298,10 @@ try {
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   assert.equal((await logs()).length, 4, "Abandoning the second review must not create another log.");
   assert.equal(saveRequests, 1, "The second review must not send a save request.");
-  console.log(`PASS: authenticated paste → review → save → reload → learned review (${Math.round(performance.now() - journeyStarted)} ms, local diagnostic only).`);
+  console.log(`PASS: ${expiredSession ? "expired-session" : "authenticated"} paste → review → save → reload → learned review (${Math.round(performance.now() - journeyStarted)} ms, local diagnostic only).`);
 } catch (error) {
-  console.error(`FAIL at ${stage}: ${redact(error.message)}`);
+  failureMessage = redact(error.message);
+  console.error(`FAIL at ${stage}: ${failureMessage}`);
   if (artifacts) {
     if (page) {
       try { writeFileSync(resolve(artifacts, "browser.txt"), redact(await page.locator("body").ariaSnapshot({ timeout: 3000 })), { mode: 0o600 }); } catch { /* The browser may itself be the failure. */ }
@@ -270,13 +310,54 @@ try {
   }
   process.exitCode = 1;
 } finally {
-  await cleanup();
-  if (artifacts && !process.exitCode) rmSync(artifacts, { recursive: true, force: true });
+  try {
+    await cleanup();
+  } finally {
+    if (artifacts && process.exitCode && process.env.CI) {
+      const diagnostics = resolve(root, ".agent-browser/import-check", variant);
+      mkdirSync(diagnostics, { recursive: true });
+      writeFileSync(resolve(diagnostics, "summary.json"), JSON.stringify({
+        variant, startedAt, failedAt: new Date().toISOString(), stage,
+        error: failureMessage || "Interrupted before the journey completed."
+      }, null, 2) + "\n", { mode: 0o600 });
+      for (const name of ["server.log", "browser.txt"]) {
+        const source = resolve(artifacts, name);
+        if (existsSync(source)) {
+          writeFileSync(resolve(diagnostics, name), redact(readFileSync(source, "utf8")), { mode: 0o600 });
+        }
+      }
+      console.error(`Redacted CI diagnostics: ${diagnostics}`);
+    }
+    if (artifacts && !process.exitCode) rmSync(artifacts, { recursive: true, force: true });
+  }
 }
 
 function checkpoint(value) {
   stage = value;
   console.log(`[import-check] ${value}`);
+}
+
+async function expireBrowserAccessToken(context) {
+  const authCookies = (await context.cookies(baseUrl)).filter(cookie =>
+    cookie.name.startsWith("sb-") && cookie.name.endsWith("-auth-token")
+  );
+  assert.equal(authCookies.length, 1, "The synthetic login must have one session cookie.");
+  const [cookie] = authCookies;
+  assert.ok(cookie.value.startsWith("base64-"));
+  const session = JSON.parse(Buffer.from(cookie.value.slice(7), "base64url").toString("utf8"));
+  assert.ok(session.refresh_token, "The browser session must retain a valid refresh token.");
+  const parts = session.access_token.split(".");
+  assert.equal(parts.length, 3);
+  const claims = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+  claims.exp = Math.floor(Date.now() / 1000) - 60;
+  session.access_token = `${parts[0]}.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.${parts[2]}`;
+  session.expires_at = claims.exp;
+  const value = `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`;
+  await context.addCookies([{ ...cookie, value }]);
+  assert.ok((await context.cookies(baseUrl)).some(current =>
+    current.name === cookie.name && current.value === value
+  ), "The next browser request must use the expired session cookie.");
+  return { name: cookie.name, value };
 }
 
 async function verifyLogsBootstrap() {
@@ -377,7 +458,14 @@ async function requireFreePort() {
 }
 
 function redact(message) {
-  return Object.entries(environment).filter(([key]) => /KEY|PASSWORD|CODE/.test(key)).reduce((text, [, value]) => value ? text.replaceAll(value, "<redacted>") : text, String(message));
+  const text = Object.entries(environment)
+    .filter(([key]) => /KEY|PASSWORD|CODE|SECRET|TOKEN/.test(key))
+    .reduce((text, [, value]) => value ? text.replaceAll(value, "<redacted>") : text, String(message));
+  return text.replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "<redacted JWT>")
+    .split("\n")
+    .map(line => /(?:authorization|set-cookie|cookie|access_token|refresh_token)\s*[:=]/i.test(line)
+      ? "<redacted credential line>" : line)
+    .join("\n");
 }
 
 async function cleanup() {

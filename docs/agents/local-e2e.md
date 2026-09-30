@@ -37,19 +37,41 @@ For the complete Battle Log import check, run:
 
 ```bash
 npm run e2e:local:import
+npm run e2e:local:import -- --expired-session
 ```
 
-This command owns port `3010`, so stop `dev:e2e` first. It resets the synthetic database, starts the isolated app, signs in through the local pairing form, and checks paste, review, deck correction, Save, reload, persisted match notes, catalogue learning, and recognition in the next review. It requires exactly one save request and one new Battle Log. The second review is abandoned and must not create another log.
+Each command owns port `3010`, so stop `dev:e2e` first. Each resets the synthetic database, starts the isolated app, signs in through the local pairing form, and checks paste, review, deck correction, Save, reload, persisted match notes, catalogue learning, and recognition in the next review. It requires exactly one save request and one new Battle Log. The second review is abandoned and must not create another log. The expired-session variant keeps a valid refresh token, expires the browser's access token before opening the import dialog, proves the deck-options request refreshes the session and loads the synthetic Deck List, and saves a Battle Log linked to that list. The Database behavior CI job runs both variants after its local Supabase reset and database checks.
 
-On a new machine, install the pinned Playwright browser once after `npm ci` with `npx playwright install chromium`. The runner uses a fresh browser session each time, so expired saved auth does not require manual repair. Playwright resolves the current controls and waits for visibility, position and navigation; no snapshot references, forced clicks, fixed click delays or application-state injection are used. Each checkpoint has a bounded wait and the command exits nonzero on failure. Do not run builds or type generation against the same checkout while the browser journey is active.
+On a new machine, install the pinned Playwright browser once after `npm ci` with `npx playwright install chromium`. The runner uses a fresh browser session each time, so expired saved auth does not require manual repair. Playwright resolves the current controls and waits for visibility, position and navigation; no snapshot references, forced clicks or fixed click delays are used. The expired-session variant changes only the synthetic auth cookie, not application data. Each checkpoint has a bounded wait and the command exits nonzero on failure. Do not run builds or type generation against the same checkout while the browser journey is active.
 
 The runner closes its browser and app afterward. It leaves the synthetic database available for inspection and prints a local server-log path on failure; the next run resets it again. It accepts no hosted target or credentials, changes no production application code, and adds no wait to user imports. Timings printed by the runner are local workflow diagnostics, not production performance evidence.
+
+In GitHub Actions, **Database behavior** runs both import journeys for application,
+shared UI, library, schema, fixture, and runtime configuration changes. The check
+remains present on every PR; documentation-only changes can skip its expensive
+steps. The weekly schedule and manual workflow dispatch run the full synthetic
+gate without path filtering. Its read-only GitHub token and disposable local
+database do not require production secrets. Each journey resets its fixtures.
+
+On browser failure, the runner writes the failed checkpoint and sanitized server
+log/ARIA snapshot to ignored `.agent-browser/import-check/<variant>/`. CI uploads
+only those three diagnostic files for three days, including failures during
+preflight when a browser cannot launch. Environment keys, pairing codes,
+passwords, signing secrets, JWTs, and credential lines are redacted. Cookies,
+storage-state files, raw traces, and network archives are not uploaded. Treat the
+check as passed only when both journey commands and database checks complete;
+an uploaded artifact or a skipped browser step is not browser execution evidence.
 
 Reset before a full browser run or whenever a previous run mutated fixture state:
 
 ```bash
 npm run e2e:local:reset
 ```
+
+After the CLI reset completes, the local runner waits up to 45 seconds for a
+read-only `profiles` request to confirm PostgREST has reloaded the schema before
+seeding. Missing-schema/cache and temporary gateway failures are polled; permission
+errors fail immediately. Fixture writes are never retried after a partial seed.
 
 A reset replaces the auth user and invalidates the previous browser session, but preserves the local password and pairing code so a running E2E app remains usable. Run `npm run auth:e2e:save` again after every reset.
 
