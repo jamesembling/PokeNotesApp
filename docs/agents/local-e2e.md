@@ -68,6 +68,11 @@ Reset before a full browser run or whenever a previous run mutated fixture state
 npm run e2e:local:reset
 ```
 
+After the CLI reset completes, the local runner waits up to 45 seconds for a
+read-only `profiles` request to confirm PostgREST has reloaded the schema before
+seeding. Missing-schema/cache and temporary gateway failures are polled; permission
+errors fail immediately. Fixture writes are never retried after a partial seed.
+
 A reset replaces the auth user and invalidates the previous browser session, but preserves the local password and pairing code so a running E2E app remains usable. Run `npm run auth:e2e:save` again after every reset.
 
 Other lifecycle commands are:

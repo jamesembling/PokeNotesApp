@@ -14,6 +14,7 @@ import {
 import { delimiter, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadDotenv, parse as parseDotenv } from "dotenv";
+import { waitForLocalSchema } from "./local-e2e-readiness.mjs";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const e2eDir = resolve(rootDir, "tests/e2e");
@@ -177,6 +178,8 @@ async function reset() {
     POKE_NOTES_TEST_LOGIN_PASSWORD: password
   });
 
+  console.log("Waiting for the recreated local schema to become readable through PostgREST.");
+  await waitForLocalSchema(apiUrl, serviceRoleKey);
   run(tsxBin, ["scripts/seed-local-e2e.ts"], { env: seedEnvironment });
 
   const contents = [

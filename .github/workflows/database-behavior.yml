@@ -54,7 +54,8 @@ jobs:
                   )
                   exact = {
                       'schema.sql', 'tests/e2e/supabase/config.toml',
-                      'scripts/local-e2e.mjs', 'scripts/seed-local-e2e.ts',
+                      'scripts/local-e2e.mjs', 'scripts/local-e2e-readiness.mjs',
+                      'scripts/seed-local-e2e.ts',
                       'scripts/verify-local-import.mjs',
                       'scripts/rehearse-tournament-deck-list.mjs',
                       'scripts/verify-battle-log-import-draft.ts',
