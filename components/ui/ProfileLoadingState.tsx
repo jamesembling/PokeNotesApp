@@ -35,6 +35,17 @@ export function ProfileLoadingState() {
               ))}
             </div>
           </div>
+          <div className={styles.avatarSection}>
+            <Skeleton className="h-6 w-36" />
+            <Skeleton className="mt-3 h-4 w-full max-w-md" />
+            <div className="mt-6 space-y-6">
+              <Skeleton className="h-5 w-52" />
+              <Skeleton className="h-11 w-full max-w-md" />
+              <Skeleton className="h-5 w-60 max-w-full" />
+              <Skeleton className="h-11 w-full max-w-md" />
+              <Skeleton className="h-11 w-full max-w-md" />
+            </div>
+          </div>
         </div>
         <div className={styles.account}>
           {["account", "activity"].map((section) => (

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 function databaseTarget(args = process.argv.slice(2), env = process.env) {
   if (args.length === 0) {
@@ -84,7 +86,16 @@ try {
   process.exit(2);
 }
 
+const supabaseCli = fileURLToPath(new URL("../node_modules/.bin/supabase", import.meta.url));
+if (!existsSync(supabaseCli)) {
+  console.error("The project-pinned Supabase CLI is missing. Run npm ci in this repository before checking schema health.");
+  process.exit(2);
+}
+
 const REQUIRED_COLUMNS = {
+  trainer_profiles: ["user_id", "enabled", "trainer_name", "favourite_pokemon", "favourite_cards", "share_last_login", "updated_at"],
+  friend_connections: ["user_low", "user_high", "requester_id", "status", "created_at"],
+  player_blocks: ["blocker_id", "blocked_id", "created_at"],
   deck_log_stats: [
     "user_id",
     "deck_id",
@@ -213,6 +224,11 @@ const REQUIRED_COLUMNS = {
 };
 
 const REQUIRED_FUNCTIONS = [
+  "get_player_profile",
+  "search_players",
+  "get_friend_connections",
+  "update_player_showcase",
+  "manage_friend_connection",
   "commit_deck_aggregate_child",
   "commit_first_class_deck_list",
   "create_log_share",
@@ -324,7 +340,7 @@ const REQUIRED_TRIGGERS = [
 
 function runSupabaseJson(sql) {
   const result = spawnSync(
-    "supabase",
+    supabaseCli,
     ["--agent=no", "db", "query", ...target.args, "-o", "json", sql],
     {
       cwd: process.cwd(),
@@ -412,6 +428,27 @@ const triggerRows = runSupabaseJson(`
 `);
 const [securityContract = {}] = runSupabaseJson(`
   select
+    (
+      select count(*) = 3
+      from pg_catalog.pg_class relation
+      join pg_catalog.pg_namespace namespace on namespace.oid = relation.relnamespace
+      where namespace.nspname = 'public'
+        and relation.relname in ('trainer_profiles', 'friend_connections', 'player_blocks')
+        and relation.relrowsecurity
+        and not pg_catalog.has_table_privilege('anon', relation.oid, 'SELECT,INSERT,UPDATE,DELETE')
+        and not pg_catalog.has_table_privilege('authenticated', relation.oid, 'SELECT,INSERT,UPDATE,DELETE')
+    ) as social_tables_require_checked_projection,
+    (
+      select count(*) = 5
+      from pg_catalog.pg_proc procedure
+      join pg_catalog.pg_namespace namespace on namespace.oid = procedure.pronamespace
+      where namespace.nspname = 'public'
+        and procedure.proname in ('get_player_profile', 'search_players', 'get_friend_connections', 'update_player_showcase', 'manage_friend_connection')
+        and procedure.prosecdef
+        and procedure.proconfig = array['search_path=""']::text[]
+        and not pg_catalog.has_function_privilege('anon', procedure.oid, 'EXECUTE')
+        and pg_catalog.has_function_privilege('authenticated', procedure.oid, 'EXECUTE')
+    ) as social_rpcs_have_member_only_fixed_privileges,
     not has_table_privilege('anon', 'public.log_shares', 'SELECT')
       as anon_cannot_select_log_shares,
     not has_table_privilege('authenticated', 'public.log_shares', 'INSERT')

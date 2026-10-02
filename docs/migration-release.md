@@ -30,6 +30,12 @@ supabase db advisors --local --type security --fail-on error
 
 When local Supabase is unavailable, record that gate as unavailable rather than substituting the linked production database.
 
+Schema-health checks resolve `node_modules/.bin/supabase` from this repository,
+including direct `node scripts/schema-health.mjs` invocation. Run `npm ci` first;
+missing project dependencies fail clearly rather than falling back to a global
+CLI. The production workflow installs the pinned dependencies before checking
+schema contracts.
+
 For risky data, concurrency, privilege, or rollback behavior, rehearse the reviewed migration against a disposable local Supabase/PostgreSQL database containing synthetic data. Apply the actual migration to the pre-change schema; resetting from the final `schema.sql` alone does not verify the migration. Record the local target, migration list, focused verification, and cleanup. Use the fixed local environment in `docs/agents/local-e2e.md` where applicable. Isolated rehearsal is evidence; it does not authorize production.
 
 Use the fixed local rehearsal command with a Git ref whose `schema.sql` represents the pre-change state and the final migration version to apply. A focused SQL file is loaded after the actual migration and should raise an exception when any required behavior, ownership, privilege, concurrency, or rollback check fails.
