@@ -78,7 +78,7 @@ A reset replaces the auth user and invalidates the previous browser session, but
 For the two-player profile and friendship journey, run `npm run e2e:local:social`.
 It owns port `3010`, resets the synthetic database, and checks automatic profile discovery,
 preset/custom avatar persistence and upload retry, three ordered favourite artworks,
-requests, acceptance, shared Battle Log totals,
+requests, incoming request notifications, acceptance, shared Battle Log totals,
 optional last login, and removal. It creates a second synthetic account and
 deletes that account in cleanup. Artwork search and image checks use the public
 Limitless provider, so that provider must be available. Desktop and mobile
