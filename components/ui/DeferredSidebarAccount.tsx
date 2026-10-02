@@ -60,6 +60,24 @@ export function DeferredSidebarAccount({
     return () => window.removeEventListener("pokenotes:logs-bootstrap-settled", loadProfile);
   }, [openMobile, waitForBootstrap]);
 
+  useEffect(() => {
+    let active = true;
+    const refreshAvatar = () => {
+      void fetch("/api/sidebar-profile", { cache: "no-store", credentials: "same-origin" })
+        .then(async response => {
+          if (!response.ok) throw new Error("Unable to refresh sidebar profile.");
+          return await response.json() as AppShellProfileResult;
+        })
+        .then(next => { if (active) setResult(next); })
+        .catch(() => { /* Keep the last usable profile until the next refresh. */ });
+    };
+    window.addEventListener("pokenotes:profile-avatar-updated", refreshAvatar);
+    return () => {
+      active = false;
+      window.removeEventListener("pokenotes:profile-avatar-updated", refreshAvatar);
+    };
+  }, []);
+
   if (!result) {
     return <SidebarAccountFallback />;
   }

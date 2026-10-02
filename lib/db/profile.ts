@@ -3,8 +3,10 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
-import { normalizeAvatarColor } from "@/lib/profile-avatar";
+import { getProfileAvatarUrl, normalizeAvatarColor } from "@/lib/profile-avatar";
 import { measureServerCall } from "@/lib/server/perf";
+import { withProfileAvatarColumn, profileAvatarColumns } from "./profile-avatar-compatibility";
+import { removePreviousProfileAvatar } from "@/lib/server/profile-avatar-storage";
 import type { UserProfile } from "@/types/index";
 
 type ProfileRow = {
@@ -17,6 +19,7 @@ type ProfileRow = {
   ptcgl_username_aliases: string[];
   role: "user" | "admin";
   avatar_color: string;
+  avatar_path: string | null;
   auth_account_created_at: string | null;
   last_login_at: string | null;
   last_active_at: string | null;
@@ -31,12 +34,11 @@ type UpdateProfileInput = {
   lastName: string;
   ptcglUsername: string;
   ptcglUsernameAliases: string[];
-  avatarColor: string;
 };
 
 type SidebarProfileRow = Pick<
   ProfileRow,
-  "display_name" | "email" | "role" | "avatar_color" | "last_active_at"
+  "display_name" | "email" | "role" | "avatar_color" | "avatar_path" | "last_active_at"
 >;
 
 type CurrentSidebarProfile = {
@@ -44,6 +46,7 @@ type CurrentSidebarProfile = {
   email: string;
   role: "user" | "admin";
   avatarColor: UserProfile["avatarColor"];
+  avatarUrl: string | null;
 };
 
 const PROFILE_ACTIVITY_TOUCH_INTERVAL_MS = 15 * 60 * 1000;
@@ -89,6 +92,8 @@ function mapProfileRowToUserProfile(
     ptcglUsername: String(row?.ptcgl_username || "").trim(),
     ptcglUsernameAliases: row?.ptcgl_username_aliases ?? [],
     role: row?.role === "admin" ? "admin" : "user",
+    avatarPath: row?.avatar_path ?? null,
+    avatarUrl: getProfileAvatarUrl(row?.avatar_path),
     avatarColor: normalizeAvatarColor(String(row?.avatar_color || "")),
     authAccountCreatedAt: row?.auth_account_created_at ?? undefined,
     lastLoginAt: row?.last_login_at ?? undefined,
@@ -131,6 +136,7 @@ function mapSidebarProfile(
     displayName: String(row?.display_name || "").trim() || getFallbackDisplayName(user),
     email: String(row?.email || user.email || "").trim(),
     role: row?.role === "admin" ? "admin" : "user",
+    avatarUrl: getProfileAvatarUrl(row?.avatar_path),
     avatarColor: normalizeAvatarColor(String(row?.avatar_color || user.user_metadata?.avatar_color || ""))
   };
 }
@@ -138,11 +144,11 @@ function mapSidebarProfile(
 export const getCurrentSidebarProfile = cache(async (): Promise<CurrentSidebarProfile> => {
   const [user, supabase] = await Promise.all([requireUser(), createClient()]);
   const loadSidebarProfile = async () =>
-    await supabase
+    await withProfileAvatarColumn(includeAvatar => supabase
       .from("profiles")
-      .select(["display_name", "email", "role", "avatar_color", "last_active_at"].join(","))
+      .select(profileAvatarColumns("display_name,email,role,avatar_color,avatar_path,last_active_at", includeAvatar))
       .eq("id", user.id)
-      .maybeSingle();
+      .maybeSingle());
 
   const { data, error } = await measureServerCall("db.profile.sidebar", loadSidebarProfile);
 
@@ -194,9 +200,9 @@ export const getCurrentSidebarProfile = cache(async (): Promise<CurrentSidebarPr
 export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
   const [user, supabase] = await Promise.all([requireUser(), createClient()]);
   const { data, error } = await measureServerCall("db.profile.current", async () =>
-    await supabase
+    await withProfileAvatarColumn(includeAvatar => supabase
       .from("profiles")
-      .select(
+      .select(profileAvatarColumns(
         [
           "id",
           "display_name",
@@ -207,16 +213,17 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
           "ptcgl_username_aliases",
           "role",
           "avatar_color",
+          "avatar_path",
           "auth_account_created_at",
           "last_login_at",
           "last_active_at",
           "login_count",
           "created_at",
           "updated_at"
-        ].join(",")
+        ].join(","), includeAvatar)
       )
       .eq("id", user.id)
-      .maybeSingle()
+      .maybeSingle())
   );
 
   if (error) {
@@ -241,9 +248,9 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
       );
 
       const refreshed = await measureServerCall("db.profile.authRepair.reload", async () =>
-        await supabase
+        await withProfileAvatarColumn(includeAvatar => supabase
           .from("profiles")
-          .select(
+          .select(profileAvatarColumns(
             [
               "id",
               "display_name",
@@ -254,16 +261,17 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
               "ptcgl_username_aliases",
               "role",
               "avatar_color",
+              "avatar_path",
               "auth_account_created_at",
               "last_login_at",
               "last_active_at",
               "login_count",
               "created_at",
               "updated_at"
-            ].join(",")
+            ].join(","), includeAvatar)
           )
           .eq("id", user.id)
-          .maybeSingle()
+          .maybeSingle())
       );
 
       if (refreshed.error) {
@@ -296,32 +304,19 @@ export async function updateCurrentProfile(input: UpdateProfileInput): Promise<U
   const explicitDisplayName = input.displayName.trim();
   const combinedName = [firstName, lastName].filter(Boolean).join(" ").trim();
   const displayName = explicitDisplayName || combinedName || getFallbackDisplayName(user);
-  const avatarColor = normalizeAvatarColor(input.avatarColor);
-
-  const { error: authUpdateError } = await supabase.auth.updateUser({
-    data: {
-      avatar_color: avatarColor
-    }
-  });
-
-  if (authUpdateError) {
-    throw authUpdateError;
-  }
-
   const payload = {
     display_name: displayName,
     first_name: firstName,
     last_name: lastName,
     ptcgl_username: input.ptcglUsername.trim(),
-    ptcgl_username_aliases: input.ptcglUsernameAliases,
-    avatar_color: avatarColor
+    ptcgl_username_aliases: input.ptcglUsernameAliases
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await withProfileAvatarColumn(includeAvatar => supabase
     .from("profiles")
     .update(payload)
     .eq("id", user.id)
-    .select(
+    .select(profileAvatarColumns(
       [
         "id",
         "display_name",
@@ -332,15 +327,16 @@ export async function updateCurrentProfile(input: UpdateProfileInput): Promise<U
         "ptcgl_username_aliases",
         "role",
         "avatar_color",
+        "avatar_path",
         "auth_account_created_at",
         "last_login_at",
         "last_active_at",
         "login_count",
         "created_at",
         "updated_at"
-      ].join(",")
+      ].join(","), includeAvatar)
     )
-    .single();
+    .single());
 
   if (error) {
     throw error;
@@ -352,6 +348,10 @@ export async function updateCurrentProfile(input: UpdateProfileInput): Promise<U
 export async function updateCurrentProfileAvatar(avatarColorInput: string): Promise<UserProfile> {
   const [user, supabase] = await Promise.all([requireUser(), createClient()]);
   const avatarColor = normalizeAvatarColor(avatarColorInput);
+  const previous = await withProfileAvatarColumn(includeAvatar => supabase.from("profiles")
+    .select(profileAvatarColumns("id,avatar_path", includeAvatar)).eq("id", user.id).single());
+  if (previous.error) throw previous.error;
+  const previousPath = (previous.data as unknown as { avatar_path?: string | null })?.avatar_path;
 
   const { error: authUpdateError } = await supabase.auth.updateUser({
     data: {
@@ -363,13 +363,14 @@ export async function updateCurrentProfileAvatar(avatarColorInput: string): Prom
     throw authUpdateError;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await withProfileAvatarColumn(includeAvatar => supabase
     .from("profiles")
     .update({
-      avatar_color: avatarColor
+      avatar_color: avatarColor,
+      ...(includeAvatar ? { avatar_path: null } : {})
     })
     .eq("id", user.id)
-    .select(
+    .select(profileAvatarColumns(
       [
         "id",
         "display_name",
@@ -380,19 +381,21 @@ export async function updateCurrentProfileAvatar(avatarColorInput: string): Prom
         "ptcgl_username_aliases",
         "role",
         "avatar_color",
+        "avatar_path",
         "auth_account_created_at",
         "last_login_at",
         "last_active_at",
         "login_count",
         "created_at",
         "updated_at"
-      ].join(",")
+      ].join(","), includeAvatar)
     )
-    .single();
+    .single());
 
   if (error) {
     throw error;
   }
 
+  await removePreviousProfileAvatar(supabase, user.id, previousPath);
   return mapProfileRowToUserProfile(user, data as unknown as ProfileRow);
 }

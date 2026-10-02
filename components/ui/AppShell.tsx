@@ -9,6 +9,7 @@ import type { AvatarColor } from "@/types/index";
 
 export type AppShellProfile = {
   avatarColor: AvatarColor;
+  avatarUrl?: string | null;
   displayName: string;
   email: string;
   isAdmin?: boolean;

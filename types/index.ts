@@ -50,6 +50,8 @@ export type UserProfile = {
   ptcglUsernameAliases: string[]  // Alternate identities accepted during log import
   role: Role
   avatarColor: AvatarColor
+  avatarPath?: string | null
+  avatarUrl?: string | null
   authAccountCreatedAt: string | undefined
   lastLoginAt: string | undefined
   lastActiveAt: string | undefined

@@ -1,13 +1,13 @@
 import { cache } from "react";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { normalizeAvatarColor } from "@/lib/profile-avatar";
+import { getProfileAvatarUrl, normalizeAvatarColor } from "@/lib/profile-avatar";
 import { getCurrentSidebarProfile } from "@/lib/db/profile";
 import { buildPokemonSpriteUrlFromSlug } from "@/lib/pokemon/sprites";
 import { isSocialSchemaUnavailable } from "@/lib/social/availability";
 import type { FavouriteCardArt, FriendConnections, FriendshipOperation, ShowcaseInput, SocialProfile } from "@/lib/social/types";
 
-type ProfileProjection = Omit<SocialProfile, "favouritePokemon"> & { favouritePokemon: string | null };
+type ProfileProjection = Omit<SocialProfile, "favouritePokemon" | "avatarUrl"> & { favouritePokemon: string | null; avatarPath?: string | null };
 
 async function mapProfiles(rows: ProfileProjection[]): Promise<SocialProfile[]> {
   const slugs = [...new Set(rows.map((row) => row.favouritePokemon).filter((slug): slug is string => !!slug))];
@@ -22,6 +22,7 @@ async function mapProfiles(rows: ProfileProjection[]): Promise<SocialProfile[]> 
     id: row.id,
     trainerName: row.trainerName,
     avatarColor: normalizeAvatarColor(row.avatarColor),
+    avatarUrl: getProfileAvatarUrl(row.avatarPath),
     enabled: row.enabled,
     favouritePokemon: row.favouritePokemon ? pokemon.get(row.favouritePokemon) ?? null : null,
     favouriteCards: row.favouriteCards,

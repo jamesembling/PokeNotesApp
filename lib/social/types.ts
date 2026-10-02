@@ -6,6 +6,7 @@ export type SocialProfile = {
   id: string;
   trainerName: string;
   avatarColor: AvatarColor;
+  avatarUrl?: string | null;
   enabled: boolean;
   favouritePokemon: { slug: string; name: string; spriteUrl: string } | null;
   favouriteCards: FavouriteCardArt[];

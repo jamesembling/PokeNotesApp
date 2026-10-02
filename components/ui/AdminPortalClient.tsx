@@ -41,6 +41,7 @@ type AdminDashboardBootstrap = {
   };
   profile: {
     avatarColor: AvatarColor;
+    avatarUrl?: string | null;
     displayName: string;
     email: string;
     isAdmin: true;

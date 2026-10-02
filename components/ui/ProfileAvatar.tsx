@@ -5,19 +5,20 @@ import type { AvatarColor } from "@/types/index";
 
 type ProfileAvatarProps = {
   avatarColor: AvatarColor | string | null | undefined;
+  avatarUrl?: string | null;
   className?: string;
   fallback: string;
 };
 
-export function ProfileAvatar({ avatarColor, className, fallback }: ProfileAvatarProps) {
+export function ProfileAvatar({ avatarColor, avatarUrl, className, fallback }: ProfileAvatarProps) {
   const normalizedAvatarColor = normalizeAvatarColor(avatarColor);
 
   return (
     <Avatar className={cn("rounded-full bg-background", className)}>
       <AvatarImage
         alt=""
-        className="rounded-full"
-        src={getAvatarIconSrc(normalizedAvatarColor)}
+        className="rounded-full object-cover"
+        src={avatarUrl || getAvatarIconSrc(normalizedAvatarColor)}
       />
       <AvatarFallback className="rounded-full text-xs font-semibold">{fallback}</AvatarFallback>
     </Avatar>

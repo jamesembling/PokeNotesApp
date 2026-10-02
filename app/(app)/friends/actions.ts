@@ -18,9 +18,8 @@ export async function saveShowcaseAction(_previous: SocialActionState, form: For
   await requireAuth();
   try {
     const input = parseShowcaseForm(form);
-    // Revoking profile visibility must remain possible during an artwork-provider outage.
-    const saved = input.enabled ? await getCurrentShowcase() : null;
-    const cards = input.enabled ? await validateCardArtPrints(input.favouriteCards, saved?.favouriteCards) : input.favouriteCards;
+    const saved = await getCurrentShowcase();
+    const cards = await validateCardArtPrints(input.favouriteCards, saved.favouriteCards);
     await updateShowcase(input, cards);
     refreshSocialPages();
     return { success: "Player profile saved." };

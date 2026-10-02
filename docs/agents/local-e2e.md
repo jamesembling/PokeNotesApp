@@ -27,7 +27,7 @@ In another terminal, save an authenticated agent-browser state:
 npm run auth:e2e:save
 ```
 
-The isolated app runs at `http://localhost:3010`, alongside the normal watchdog-managed app on port `3000`. It uses the ignored `.next-e2e` build directory so the two development servers do not share a Next.js lock or cache. Supabase Studio is available at `http://127.0.0.1:54323`. The browser state is saved to `.agent-browser/pokenotes-e2e-auth.json` and is valid only for localhost port `3010`.
+The isolated app runs at `http://localhost:3010`, alongside the normal watchdog-managed app on port `3000`. It uses the ignored `.next-e2e` build directory so the two development servers do not share a Next.js lock or cache. Supabase Studio is available at `http://127.0.0.1:54323`. Local Storage is enabled for avatar upload verification; image transformation remains disabled. The browser state is saved to `.agent-browser/pokenotes-e2e-auth.json` and is valid only for localhost port `3010`.
 
 The setup command writes ignored, mode-`0600` credentials to `.env.e2e.local`. Do not print, copy into documentation, or commit that file.
 
@@ -76,8 +76,9 @@ errors fail immediately. Fixture writes are never retried after a partial seed.
 A reset replaces the auth user and invalidates the previous browser session, but preserves the local password and pairing code so a running E2E app remains usable. Run `npm run auth:e2e:save` again after every reset.
 
 For the two-player profile and friendship journey, run `npm run e2e:local:social`.
-It owns port `3010`, resets the synthetic database, and checks profile opt-in,
-three ordered favourite artworks, requests, acceptance, shared Battle Log totals,
+It owns port `3010`, resets the synthetic database, and checks automatic profile discovery,
+preset/custom avatar persistence and upload retry, three ordered favourite artworks,
+requests, acceptance, shared Battle Log totals,
 optional last login, and removal. It creates a second synthetic account and
 deletes that account in cleanup. Artwork search and image checks use the public
 Limitless provider, so that provider must be available. Desktop and mobile

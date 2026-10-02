@@ -51,6 +51,7 @@ type SidebarProfile = {
   displayName: string;
   email: string;
   avatarColor: AvatarColor;
+  avatarUrl?: string | null;
   isAdmin?: boolean;
 };
 
@@ -219,7 +220,7 @@ export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:rounded-none group-data-[collapsible=icon]:p-0"
                 size="lg"
               >
-                <ProfileAvatar avatarColor={profile.avatarColor} fallback={initials} />
+                <ProfileAvatar avatarUrl={profile.avatarUrl} avatarColor={profile.avatarColor} fallback={initials} />
                 <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate font-medium">{profile.displayName}</span>
                   <span className="truncate text-xs text-muted-foreground">{profile.email}</span>
@@ -235,7 +236,7 @@ export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
             >
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <ProfileAvatar avatarColor={profile.avatarColor} fallback={initials} />
+                  <ProfileAvatar avatarUrl={profile.avatarUrl} avatarColor={profile.avatarColor} fallback={initials} />
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{profile.displayName}</span>
                     <span className="truncate text-xs text-muted-foreground">{profile.email}</span>

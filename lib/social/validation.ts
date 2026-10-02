@@ -29,9 +29,8 @@ export function parseFavouriteCards(value: unknown): FavouriteCardArt[] {
 
 export function parseShowcaseForm(form: FormData): ShowcaseInput {
   const trainerName = String(form.get("trainerName") ?? "").trim();
-  const enabled = form.get("enabled") === "on";
-  if (trainerName.length > 40 || (enabled && trainerName.length < 2) || /[\u0000-\u001f\u007f]/.test(trainerName)) {
-    throw new SocialValidationError("Choose a trainer name between 2 and 40 characters before enabling your profile.");
+  if (trainerName.length > 40 || trainerName.length < 2 || /[\u0000-\u001f\u007f]/.test(trainerName)) {
+    throw new SocialValidationError("Choose a trainer name between 2 and 40 characters.");
   }
   const favouritePokemonSlug = String(form.get("favouritePokemonSlug") ?? "").trim() || null;
   if (favouritePokemonSlug && !/^[a-z0-9-]{1,100}$/.test(favouritePokemonSlug)) {
@@ -41,7 +40,7 @@ export function parseShowcaseForm(form: FormData): ShowcaseInput {
   const serializedCards = String(form.get("favouriteCards") ?? "[]");
   if (serializedCards.length > 2000) throw new SocialValidationError("Choose up to three favourite card artworks.");
   try { cards = JSON.parse(serializedCards); } catch { throw new SocialValidationError("Choose your favourite card artworks again."); }
-  return { enabled, trainerName, favouritePokemonSlug, favouriteCards: parseFavouriteCards(cards), shareLastLogin: form.get("shareLastLogin") === "on" };
+  return { enabled: true, trainerName, favouritePokemonSlug, favouriteCards: parseFavouriteCards(cards), shareLastLogin: form.get("shareLastLogin") === "on" };
 }
 
 export function parseFriendshipForm(form: FormData): { targetUserId: string; operation: FriendshipOperation } {
