@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { requireApiUser } from "@/lib/server/api-auth";
 import { privateError, privateJson, reportApiError } from "@/lib/server/api-response";
-import { AvatarValidationError, prepareProfileAvatar } from "@/lib/server/profile-avatar";
+import { AvatarValidationError, isProfileAvatarUploadSameOrigin, prepareProfileAvatar } from "@/lib/server/profile-avatar";
 import { removePreviousProfileAvatar } from "@/lib/server/profile-avatar-storage";
 import { createClient } from "@/lib/supabase/server";
 import { getProfileAvatarUrl, MAX_AVATAR_BYTES, PROFILE_AVATAR_BUCKET } from "@/lib/profile-avatar";
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const user = await requireApiUser();
-    if (request.headers.get("origin") !== new URL(request.url).origin) {
+    if (!isProfileAvatarUploadSameOrigin(request)) {
       return privateError("Upload your photo from your Profile page.", 403);
     }
     // Bound the streamed multipart body too: Content-Length is optional and untrusted.

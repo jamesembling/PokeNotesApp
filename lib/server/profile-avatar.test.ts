@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import sharp from "sharp";
-import { AvatarValidationError, prepareProfileAvatar } from "./profile-avatar";
+import { AvatarValidationError, isProfileAvatarUploadSameOrigin, prepareProfileAvatar } from "./profile-avatar";
 import { MAX_AVATAR_BYTES } from "../profile-avatar";
 
 test("profile photos decode into bounded square WebP with private metadata removed", async () => {
@@ -18,7 +18,24 @@ test("profile photos decode into bounded square WebP with private metadata remov
   assert.ok(pixel[0] > 200 && pixel[1] < 100, "Re-encoding retains the supplied photo content");
 });
 
-test("profile upload validation rejects oversized, forged and undecodable file bytes", async () => {
+test("profile upload validates the browser origin and rejects oversized or forged image bytes", async () => {
+  const request = (headers: Record<string, string>, url = "http://0.0.0.0:3010/api/profile/avatar") => new Request(url, { headers });
+  assert.equal(isProfileAvatarUploadSameOrigin(request({ host: "localhost:3010", origin: "http://localhost:3010", "sec-fetch-site": "same-origin" })), true);
+  assert.equal(isProfileAvatarUploadSameOrigin(request({ host: "app.example.com", origin: "https://app.example.com" }, "https://internal.example.com/api/profile/avatar")), true);
+  for (const headers of [
+    { host: "localhost:3010" },
+    { origin: "http://localhost:3010" },
+    { host: "localhost:3010", origin: "null" },
+    { host: "localhost:3010", origin: "not a URL" },
+    { host: "localhost:3010", origin: "http://localhost:3011" },
+    { host: "localhost:3010", origin: "https://localhost:3010" },
+    { host: "localhost:3010", origin: "http://localhost:3010/path" },
+    { host: "localhost:3010", origin: "http://user@localhost:3010" },
+    { host: "localhost:3010", origin: "http://localhost:3010", "sec-fetch-site": "cross-site" },
+    { host: "localhost:3010", origin: "https://attacker.example", "x-forwarded-host": "attacker.example", "x-forwarded-proto": "https" },
+    { host: "localhost:3010/path", origin: "http://localhost:3010" }
+  ] as Record<string, string>[]) assert.equal(isProfileAvatarUploadSameOrigin(request(headers)), false);
+
   const png = await sharp({ create: { width: 20, height: 10, channels: 3, background: "red" } }).png().toBuffer();
   for (const file of [
     new File([new Uint8Array(MAX_AVATAR_BYTES + 1)], "large.png", { type: "image/png" }),

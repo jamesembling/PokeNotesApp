@@ -32,6 +32,7 @@ Do not add raw page-level colors for common states. If a new repeated state is n
 - Secondary and outline buttons use a white light-mode surface through the shared `Button` variants.
 - Light-mode navigation uses an off-black sidebar/menu surface, not pure black.
 - Desktop sidebar navigation collapses to an icon rail through the shared sidebar primitive; collapsed menu labels use tooltips.
+- The Friends sidebar link shows an 8px dot using the red `--primary` token when incoming friend requests are pending. Preserve the dot in expanded, mobile, and collapsed navigation. Keep the link's accessible name Friends and describe the count separately as “1 pending friend request” or its plural form. Outgoing requests do not show the dot.
 - Admin routes use the same authenticated app shell and token contract as the app routes. There is no separate admin palette unless a future requirement adds one explicitly.
 - Shared-log notices may use `--share-notice-*` tokens. The gradient is an allowed tokenized notice treatment, not a general-purpose decorative background.
 - Page headers show the shared 1px foreground bottom divider by default, matching the strong collection rule used by Deck Lists and Tournaments. The shared `collection` header variant delegates the separator to the collection's top rule; `/deck-lists` and `/tournaments`, including their loading states, use this intent. Do not add local divider flags or recreate page-header dividers in page code.

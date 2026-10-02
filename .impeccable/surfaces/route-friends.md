@@ -2,7 +2,7 @@
 version: 1
 slug: "route-friends"
 primary_target: "route:/friends"
-related_targets: ["app/(app)/friends/page.tsx", "app/(app)/friends/loading.tsx", "app/(app)/friends/error.tsx", "components/ui/social/FriendsView.tsx", "components/ui/social/FriendActions.tsx", "components/ui/social/social.module.css"]
+related_targets: ["app/(app)/friends/page.tsx", "app/(app)/friends/loading.tsx", "app/(app)/friends/error.tsx", "components/ui/social/FriendsView.tsx", "components/ui/social/FriendActions.tsx", "components/ui/social/social.module.css", "components/ui/Sidebar.tsx", "lib/social/use-friend-request-count.ts", "app/api/friend-requests/count/route.ts"]
 ---
 
 # Friends
@@ -17,6 +17,8 @@ Extend the incumbent flat competitive workspace with IBM Plex typography, neutra
 
 The header offers Edit player profile and View my profile. Discovery and relationship actions need no enable-profile step. Empty lists and searches retain explicit guidance.
 
+The shared Friends sidebar link carries an 8px red dot when incoming friend requests are pending. It remains visible beside the label in expanded and mobile navigation and beside the icon in the collapsed rail. The link keeps the accessible name Friends, with a separate count description such as “1 pending friend request” or “2 pending friend requests”. Outgoing requests do not trigger it.
+
 ## Responsive layout
 
 Measure the available social-page container, including the space left by the app sidebar. The labelled Trainer name input and Search players button share the same 44px height and baseline. At 36rem or less, row actions follow identity in a vertical layout. At 23rem or less, the search field takes a full row and Search players wraps below it. Names and metadata wrap; action groups can wrap without clipping. Header actions use shared `PageActions`.
@@ -27,6 +29,7 @@ Measure the available social-page container, including the space left by the app
 - An account remains discoverable without a saved showcase row. Search and display use the trainer name when saved, otherwise a trimmed display name of at least two characters limited to 40 characters, otherwise a stable Player label derived from the account ID.
 - Incoming requests offer Accept request and Decline; outgoing requests offer Cancel request; accepted friends offer Remove friend. An unconnected player offers Add friend. More exposes Block player; blocked rows offer Unblock and have no profile link. Requesting and accepting do not depend on an enable-profile setting.
 - Mutations show Updating… and disable controls while pending. Success uses a status announcement; failures use alert semantics and semantic loss text. Saved changes revalidate Profile, Friends, and Player Profile routes.
+- The indicator reads only the authenticated incoming pending-request count through the private `GET /api/friend-requests/count` endpoint and narrow `get_incoming_friend_request_count` RPC. It refreshes on route changes, window focus, becoming visible, and every 60 seconds while visible. Successful relationship actions dispatch `pokenotes:friend-requests-updated` for an immediate refresh. Failed or invalid responses preserve the last confirmed count; initial state has no dot until a positive count is confirmed.
 - Friends' rows display permitted wins, losses, and all saved Battle Log totals. Last login appears only when returned by the privacy projection and is explicitly formatted in Europe/London. A nonfriend receives no record or last-login metadata.
 
 ## Preserved boundaries and states
@@ -37,4 +40,4 @@ Loading announces its state in the same open row language. Route errors offer Re
 
 ## Source
 
-`app/(app)/friends/page.tsx`, `loading.tsx`, `error.tsx`, and `actions.ts`; `components/ui/social/FriendsView.tsx`, `FriendActions.tsx`, `SocialLoadingState.tsx`, `SocialErrorState.tsx`, and `social.module.css`; reads and mutations in `lib/db/social.ts`, validation in `lib/social/validation.ts`, and authenticated projection/relationship rules in `supabase/migrations/20261002224116_add_trainer_profiles_and_friendships.sql` and `20261002232410_discoverable_players_and_avatar_uploads.sql`.
+`app/(app)/friends/page.tsx`, `loading.tsx`, `error.tsx`, and `actions.ts`; `components/ui/social/FriendsView.tsx`, `FriendActions.tsx`, `SocialLoadingState.tsx`, `SocialErrorState.tsx`, and `social.module.css`; reads and mutations in `lib/db/social.ts`, validation in `lib/social/validation.ts`, and authenticated projection/relationship rules in `supabase/migrations/20261002224116_add_trainer_profiles_and_friendships.sql` and `20261002232410_discoverable_players_and_avatar_uploads.sql`. The sidebar indicator uses `components/ui/Sidebar.tsx`, `lib/social/use-friend-request-count.ts`, `app/api/friend-requests/count/route.ts`, and `supabase/migrations/20261002233805_incoming_friend_request_count.sql`.
