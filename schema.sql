@@ -32,6 +32,9 @@ create table public.profiles (
   role                    text not null default 'user'
                             check (role in ('user', 'admin')),
   avatar_color            text not null default 'red',
+  avatar_path             text constraint profiles_avatar_path_owned check (
+    avatar_path is null or avatar_path ~ ('^' || id::text || '/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$')
+  ),
   auth_account_created_at timestamptz,
   last_login_at           timestamptz,
   last_active_at          timestamptz,
@@ -4216,7 +4219,7 @@ create policy "Users can update own profile"
 
 revoke insert, update on table public.profiles from authenticated;
 grant select on table public.profiles to authenticated;
-grant update (display_name, first_name, last_name, ptcgl_username, ptcgl_username_aliases, avatar_color)
+grant update (display_name, first_name, last_name, ptcgl_username, ptcgl_username_aliases, avatar_color, avatar_path)
   on table public.profiles to authenticated;
 grant all privileges on table public.profiles to service_role;
 
@@ -6965,7 +6968,7 @@ revoke all on function public.create_deck_strategy_from_list(text, text, text, j
 grant execute on function public.create_deck_strategy_from_list(text, text, text, jsonb, timestamptz, text, timestamptz) to authenticated;
 
 notify pgrst, 'reload schema';
--- Opt-in member profiles. Private account profiles retain their existing RLS.
+-- Discoverable member profiles. Private account profiles retain their existing RLS.
 create or replace function private.valid_favourite_cards(p_cards jsonb)
 returns boolean language plpgsql immutable set search_path = '' as $$
 begin
@@ -6994,13 +6997,12 @@ grant execute on function private.valid_favourite_cards(jsonb) to service_role;
 
 create table public.trainer_profiles (
   user_id uuid primary key references public.profiles(id) on delete cascade,
-  enabled boolean not null default false,
+  enabled boolean not null default true,
   trainer_name text not null default '' check (length(trainer_name) <= 40 and trainer_name !~ '[[:cntrl:]]'),
   favourite_pokemon text references public.pokemon_catalog(slug) on delete set null,
   favourite_cards jsonb not null default '[]' check (private.valid_favourite_cards(favourite_cards)),
   share_last_login boolean not null default false,
-  updated_at timestamptz not null default now(),
-  check (not enabled or length(btrim(trainer_name)) between 2 and 40)
+  updated_at timestamptz not null default now()
 );
 create index trainer_profiles_directory on public.trainer_profiles (lower(trainer_name), user_id) where enabled;
 
@@ -7030,6 +7032,24 @@ alter table public.player_blocks enable row level security;
 revoke all on public.trainer_profiles, public.friend_connections, public.player_blocks from public, anon, authenticated;
 grant all on public.trainer_profiles, public.friend_connections, public.player_blocks to service_role;
 
+-- Only immutable, owner-scoped object names. Replacements use a new UUID.
+insert into storage.buckets(id, name, public, file_size_limit, allowed_mime_types)
+values ('profile-avatars', 'profile-avatars', true, 2097152, array['image/jpeg','image/png','image/webp'])
+on conflict(id) do update set public = excluded.public, file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+create policy profile_avatar_insert on storage.objects for insert to authenticated with check (
+  bucket_id = 'profile-avatars' and owner_id = (select auth.uid())::text
+  and name ~ ('^' || (select auth.uid())::text || '/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.webp$')
+);
+create policy profile_avatar_select on storage.objects for select to authenticated using (
+  bucket_id = 'profile-avatars' and owner_id = (select auth.uid())::text
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+create policy profile_avatar_delete on storage.objects for delete to authenticated using (
+  bucket_id = 'profile-avatars' and owner_id = (select auth.uid())::text
+  and (storage.foldername(name))[1] = (select auth.uid())::text
+);
+
 create or replace function public.get_player_profile(p_user_id uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -7039,17 +7059,19 @@ declare
   v_connection public.friend_connections;
   v_stats jsonb := null;
   v_avatar text;
+  v_avatar_path text;
+  v_display_name text;
   v_last_login timestamptz;
 begin
   if v_actor is null then raise exception using errcode = '42501', message = 'Authentication required.'; end if;
   select * into v_profile from public.trainer_profiles where user_id = p_user_id;
   if v_actor <> p_user_id and (
-    not coalesce(v_profile.enabled, false) or exists (
+    exists (
       select 1 from public.player_blocks where
         (blocker_id = v_actor and blocked_id = p_user_id) or (blocker_id = p_user_id and blocked_id = v_actor)
     )
   ) then return null; end if;
-  select avatar_color, last_login_at into v_avatar, v_last_login from public.profiles where id = p_user_id;
+  select avatar_color, avatar_path, display_name, last_login_at into v_avatar, v_avatar_path, v_display_name, v_last_login from public.profiles where id = p_user_id;
   if not found then return null; end if;
   if v_actor = p_user_id then v_relation := 'self';
   else
@@ -7066,8 +7088,8 @@ begin
       from (select 1) placeholder left join public.user_log_stats s on s.user_id = p_user_id;
   end if;
   return jsonb_build_object(
-    'id', p_user_id, 'trainerName', coalesce(v_profile.trainer_name, ''), 'avatarColor', v_avatar,
-    'enabled', coalesce(v_profile.enabled, false), 'favouritePokemon', v_profile.favourite_pokemon,
+    'id', p_user_id, 'trainerName', coalesce(nullif(btrim(v_profile.trainer_name), ''), case when length(btrim(v_display_name)) >= 2 then left(btrim(v_display_name), 40) end, 'Player ' || left(p_user_id::text, 8)), 'avatarColor', v_avatar, 'avatarPath', v_avatar_path,
+    'enabled', true, 'favouritePokemon', v_profile.favourite_pokemon,
     'favouriteCards', coalesce(v_profile.favourite_cards, '[]'::jsonb),
     'shareLastLogin', v_actor = p_user_id and coalesce(v_profile.share_last_login, false),
     'stats', v_stats, 'lastLoginAt', case when v_actor = p_user_id or
@@ -7085,11 +7107,13 @@ begin
   if length(v_query) not between 2 and 80 then return '[]'::jsonb; end if;
   select coalesce(jsonb_agg(public.get_player_profile(matches.user_id) order by matches.name, matches.user_id), '[]'::jsonb)
     into v_result from (
-      select t.user_id, lower(t.trainer_name) name from public.trainer_profiles t
-      where t.enabled and t.user_id <> v_actor and strpos(lower(t.trainer_name), v_query) > 0
+      select p.id user_id, lower(coalesce(nullif(btrim(t.trainer_name), ''), case when length(btrim(p.display_name)) >= 2 then left(btrim(p.display_name), 40) end, 'Player ' || left(p.id::text, 8))) name
+      from public.profiles p left join public.trainer_profiles t on t.user_id = p.id
+      where p.id <> v_actor
+        and strpos(lower(coalesce(nullif(btrim(t.trainer_name), ''), case when length(btrim(p.display_name)) >= 2 then left(btrim(p.display_name), 40) end, 'Player ' || left(p.id::text, 8))), v_query) > 0
         and not exists (select 1 from public.player_blocks b where
-          (b.blocker_id = v_actor and b.blocked_id = t.user_id) or (b.blocker_id = t.user_id and b.blocked_id = v_actor))
-      order by lower(t.trainer_name), t.user_id limit 20
+          (b.blocker_id = v_actor and b.blocked_id = p.id) or (b.blocker_id = p.id and b.blocked_id = v_actor))
+      order by name, p.id limit 20
     ) matches;
   return v_result;
 end;
@@ -7130,14 +7154,14 @@ declare v_actor uuid := auth.uid(); v_name text := btrim(coalesce(p_trainer_name
 begin
   if v_actor is null then raise exception using errcode = '42501', message = 'Authentication required.'; end if;
   if p_enabled is null or p_share_last_login is null or length(v_name) > 40
-    or v_name ~ '[[:cntrl:]]' or (p_enabled and length(v_name) < 2) or not private.valid_favourite_cards(p_favourite_cards) then
+    or v_name ~ '[[:cntrl:]]' or (length(v_name) = 1) or not private.valid_favourite_cards(p_favourite_cards) then
     raise exception using errcode = '22023', message = 'Choose a trainer name and up to three distinct favourite cards.';
   end if;
   if nullif(p_favourite_pokemon, '') is not null and not exists (
     select 1 from public.pokemon_catalog where slug = p_favourite_pokemon
   ) then raise exception using errcode = '22023', message = 'Choose a Pokemon from the catalogue.'; end if;
   insert into public.trainer_profiles(user_id, enabled, trainer_name, favourite_pokemon, favourite_cards, share_last_login)
-    values(v_actor, p_enabled, v_name, nullif(p_favourite_pokemon, ''), p_favourite_cards, p_share_last_login)
+    values(v_actor, true, v_name, nullif(p_favourite_pokemon, ''), p_favourite_cards, p_share_last_login)
     on conflict(user_id) do update set enabled = excluded.enabled, trainer_name = excluded.trainer_name,
       favourite_pokemon = excluded.favourite_pokemon, favourite_cards = excluded.favourite_cards,
       share_last_login = excluded.share_last_login, updated_at = statement_timestamp();
@@ -7170,8 +7194,8 @@ begin
   end if;
   select * into v_connection from public.friend_connections where user_low = v_low and user_high = v_high;
   if p_action in ('request','accept') then
-    perform 1 from public.trainer_profiles where user_id in (v_actor, p_target_user_id) order by user_id for update;
-    if (select count(*) from public.trainer_profiles where user_id in (v_actor, p_target_user_id) and enabled) <> 2
+    perform 1 from public.profiles where id in (v_actor, p_target_user_id) order by id for update;
+    if (select count(*) from public.profiles where id in (v_actor, p_target_user_id)) <> 2
       or exists (select 1 from public.player_blocks where
         (blocker_id = v_actor and blocked_id = p_target_user_id) or (blocker_id = p_target_user_id and blocked_id = v_actor)) then
       raise exception using errcode = '42501', message = 'Both trainers must have an available player profile.';

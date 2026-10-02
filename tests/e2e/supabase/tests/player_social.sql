@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(35);
+select plan(40);
 
 insert into auth.users(id, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values
@@ -19,11 +19,12 @@ set local role anon;
 select throws_ok($$select public.get_player_profile('22222222-2222-4222-8222-222222222222')$$,'42501',null,'Anonymous readers cannot execute member projection');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
-select is(public.get_player_profile('11111111-1111-4111-8111-111111111111')->>'trainerName','','Owner starts with explicit empty social name');
-select is(public.get_player_profile('22222222-2222-4222-8222-222222222222'),null::jsonb,'Accounts without opt-in are invisible');
+select is(public.get_player_profile('11111111-1111-4111-8111-111111111111')->>'trainerName','Private A Name','Owner starts with account display name before any showcase row');
+select ok(public.get_player_profile('22222222-2222-4222-8222-222222222222')->>'trainerName' = 'Private B Name' and jsonb_array_length(public.search_players('Private B Name')) = 1,'Accounts without showcase rows are visible and searchable by display name');
 select throws_ok($$select * from public.trainer_profiles$$,'42501',null,'Direct social table reads cannot bypass projection');
-select throws_ok($$select public.manage_friend_connection('22222222-2222-4222-8222-222222222222','request')$$,'42501',null,'Friend requests require both profiles to opt in');
-select throws_ok($$select public.update_player_showcase(true,'A','social-pikachu','[]',false)$$,'22023',null,'Enabled profiles require a deliberate trainer name');
+select lives_ok($$select public.manage_friend_connection('22222222-2222-4222-8222-222222222222','request')$$,'Friend requests work before either account creates a showcase');
+select public.manage_friend_connection('22222222-2222-4222-8222-222222222222','cancel');
+select throws_ok($$select public.update_player_showcase(true,'A','social-pikachu','[]',false)$$,'22023',null,'Explicit trainer names reject a one-character identity');
 select throws_ok($$select public.update_player_showcase(true,'Social TAP Trainer A','missing-pokemon','[]',false)$$,'22023',null,'Favourite Pokemon must exist in catalogue');
 select throws_ok($$select public.update_player_showcase(true,'Social TAP Trainer A',null,'[{"set":"SVI","number":"1","name":"Art","url":"https://example.com"}]',false)$$,'22023',null,'Card payloads reject arbitrary fields and URLs');
 select throws_ok($$select public.update_player_showcase(true,'Social TAP Trainer A',null,'[{"set":"SVI","number":"1","name":"Art"},{"set":"SVI","number":"1","name":"Same Art"}]',false)$$,'22023',null,'Favourite card print identity cannot repeat');
@@ -32,7 +33,7 @@ select public.update_player_showcase(true,'Social TAP Trainer A','social-pikachu
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
 select public.update_player_showcase(true,'Social TAP Trainer B',null,'[]',false);
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
-select is(jsonb_array_length(public.search_players('Social TAP Trainer')),1,'Search finds only other opted-in trainers');
+select is(jsonb_array_length(public.search_players('Social TAP Trainer')),1,'Search prefers chosen trainer names over display names');
 select is(jsonb_array_length(public.search_players('social-b@')),0,'Search does not use email addresses');
 select ok(not (public.get_player_profile('22222222-2222-4222-8222-222222222222') ?| array['email','firstName','lastName','ptcglUsername','role']),'Projection excludes private account fields');
 select is(public.get_player_profile('22222222-2222-4222-8222-222222222222')->'stats','null'::jsonb,'Strangers cannot read Battle Log statistics');
@@ -55,8 +56,8 @@ select is((public.get_player_profile('22222222-2222-4222-8222-222222222222')->>'
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
 select public.update_player_showcase(false,'Social TAP Trainer B',null,'[]',true);
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
-select is(public.get_player_profile('22222222-2222-4222-8222-222222222222'),null::jsonb,'Disabling profile revokes accepted-friend projection');
-select is(public.get_friend_connections()->'friends'->0->>'trainerName','Trainer','Disabled relationship remains manageable with generic identity');
+select is(public.get_player_profile('22222222-2222-4222-8222-222222222222')->>'enabled','true','Legacy disable writes cannot hide a player profile');
+select is(public.get_friend_connections()->'friends'->0->>'trainerName','Social TAP Trainer B','Legacy disable writes preserve accepted-friend identity');
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
 select public.update_player_showcase(true,'Social TAP Trainer B',null,'[]',true);
 select public.manage_friend_connection('11111111-1111-4111-8111-111111111111','block');
@@ -84,6 +85,27 @@ select public.manage_friend_connection('11111111-1111-4111-8111-111111111111','a
 select public.manage_friend_connection('11111111-1111-4111-8111-111111111111','remove');
 select is(public.get_player_profile('11111111-1111-4111-8111-111111111111')->'stats','null'::jsonb,'Removing friendship immediately revokes shared statistics');
 select is((select count(*) from public.profiles where id='11111111-1111-4111-8111-111111111111'),0::bigint,'Social feature preserves private profile row isolation');
+
+-- Avatar storage rules run under real authenticated roles and synthetic identities.
+insert into storage.objects(bucket_id,name,owner_id) values (
+ 'profile-avatars','22222222-2222-4222-8222-222222222222/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp','22222222-2222-4222-8222-222222222222');
+update public.profiles set avatar_path='22222222-2222-4222-8222-222222222222/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp'
+where id='22222222-2222-4222-8222-222222222222';
+select is(public.get_player_profile('22222222-2222-4222-8222-222222222222')->>'avatarPath',
+ '22222222-2222-4222-8222-222222222222/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp','Owner upload path reaches curated player projection');
+select throws_ok($$insert into storage.objects(bucket_id,name,owner_id) values (
+ 'profile-avatars','11111111-1111-4111-8111-111111111111/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp','22222222-2222-4222-8222-222222222222')$$,
+ '42501',null,'Cross-account upload path is rejected by storage RLS');
+select throws_ok($$update public.profiles set avatar_path='11111111-1111-4111-8111-111111111111/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp'
+ where id='22222222-2222-4222-8222-222222222222'$$,'23514',null,'A player cannot attach another owner avatar path');
+with changed as (update storage.objects set name='22222222-2222-4222-8222-222222222222/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.webp'
+ where bucket_id='profile-avatars' returning id)
+select is((select count(*) from changed),0::bigint,'Published avatar objects cannot be overwritten or renamed');
+set local role anon;
+select throws_ok($$insert into storage.objects(bucket_id,name,owner_id) values (
+ 'profile-avatars','22222222-2222-4222-8222-222222222222/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.webp','22222222-2222-4222-8222-222222222222')$$,
+ '42501',null,'Anonymous callers cannot upload profile images');
+set local role authenticated;
 
 -- Raise on any failed TAP assertion so the same file is also safe for migration rehearsal.
 do $$ declare summary text; begin
