@@ -179,4 +179,11 @@ end;
 $$;
 
 
+-- The public-routine hardening event trigger revokes grants on replacement too.
+revoke all on function public.get_player_profile(uuid), public.search_players(text),
+  public.update_player_showcase(boolean,text,text,jsonb,boolean), public.manage_friend_connection(uuid,text)
+  from public, anon, authenticated;
+grant execute on function public.get_player_profile(uuid), public.search_players(text),
+  public.update_player_showcase(boolean,text,text,jsonb,boolean), public.manage_friend_connection(uuid,text)
+  to authenticated;
 notify pgrst, 'reload schema';
