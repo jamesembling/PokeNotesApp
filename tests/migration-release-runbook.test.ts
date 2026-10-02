@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -48,10 +50,17 @@ function testEnvironment(extraEnv: Record<string, string | undefined>) {
 
 function runWithFakeSupabase(
   args: string[],
-  extraEnv: Record<string, string | undefined> = {}
+  extraEnv: Record<string, string | undefined> = {},
+  installed = true
 ) {
   const directory = mkdtempSync(join(tmpdir(), "pokenotes-schema-health-"));
-  const executable = join(directory, "supabase");
+  const scriptDirectory = join(directory, "scripts");
+  const binDirectory = join(directory, "node_modules/.bin");
+  mkdirSync(scriptDirectory, { recursive: true });
+  mkdirSync(binDirectory, { recursive: true });
+  const scriptPath = join(scriptDirectory, "schema-health.mjs");
+  copyFileSync(schemaHealthPath, scriptPath);
+  const executable = join(binDirectory, "supabase");
   const argumentLog = join(directory, "arguments.jsonl");
 
   writeFileSync(
@@ -76,9 +85,13 @@ if (process.env.POKENOTES_TEST_CHILD_EXIT) {
 `
   );
   chmodSync(executable, 0o700);
+  if (!installed) rmSync(executable);
+  const globalExecutable = join(directory, "supabase");
+  writeFileSync(globalExecutable, "#!/usr/bin/env node\nprocess.stderr.write('Unexpected global Supabase CLI invocation');\nprocess.exit(99);\n");
+  chmodSync(globalExecutable, 0o700);
 
   try {
-    const result = spawnSync(process.execPath, [schemaHealthPath, ...args], {
+    const result = spawnSync(process.execPath, [scriptPath, ...args], {
       cwd: repositoryRoot,
       encoding: "utf8",
       env: testEnvironment({
@@ -199,6 +212,7 @@ test("production workflow is manual, serialized, main-only, and verifies the liv
   assert.match(productionWorkflow, /refs\/heads\/main/);
   assert.match(productionWorkflow, /CONFIRMATION" != "DEPLOY"/);
   assert.match(productionWorkflow, /version: 2\.115\.0/);
+  assert.match(productionWorkflow, /name: Install pinned project dependencies\n\s+env:\n\s+SUPABASE_PRODUCTION_DB_URL: ""\n\s+run: npm ci/);
   const releaseContract = productionWorkflow.indexOf("npm run verify:deck-list-release");
   const dryRun = productionWorkflow.indexOf("supabase db push", releaseContract);
   assert.ok(releaseContract >= 0);
@@ -331,7 +345,7 @@ test("disposable rehearsal does not expose database credentials on branch parse 
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /postgresql:\/\//);
 });
 
-test("schema health selects linked or explicitly named database targets", () => {
+test("schema health uses the project CLI for linked or explicitly named database targets", () => {
   const defaultTarget = runWithFakeSupabase([]);
   assert.equal(defaultTarget.result.status, 1);
   assert.ok(defaultTarget.calls.length > 0);
@@ -369,6 +383,11 @@ test("schema health fails closed before invoking Supabase for invalid target con
     assert.equal(result.status, 2);
     assert.deepEqual(calls, []);
   }
+  const missingCli = runWithFakeSupabase([], {}, false);
+  assert.equal(missingCli.result.status, 2);
+  assert.deepEqual(missingCli.calls, []);
+  assert.match(missingCli.result.stderr, /project-pinned Supabase CLI is missing.*npm ci/);
+  assert.doesNotMatch(missingCli.result.stderr, /Unexpected global/);
 });
 
 test("schema health redacts credentials from child, parse, and query output", () => {

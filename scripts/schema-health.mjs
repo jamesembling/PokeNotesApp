@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 function databaseTarget(args = process.argv.slice(2), env = process.env) {
   if (args.length === 0) {
@@ -81,6 +83,12 @@ try {
   target = databaseTarget();
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
+  process.exit(2);
+}
+
+const supabaseCli = fileURLToPath(new URL("../node_modules/.bin/supabase", import.meta.url));
+if (!existsSync(supabaseCli)) {
+  console.error("The project-pinned Supabase CLI is missing. Run npm ci in this repository before checking schema health.");
   process.exit(2);
 }
 
@@ -332,7 +340,7 @@ const REQUIRED_TRIGGERS = [
 
 function runSupabaseJson(sql) {
   const result = spawnSync(
-    "supabase",
+    supabaseCli,
     ["--agent=no", "db", "query", ...target.args, "-o", "json", sql],
     {
       cwd: process.cwd(),
