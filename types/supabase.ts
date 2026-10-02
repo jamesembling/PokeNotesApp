@@ -1445,6 +1445,10 @@ export type Database = {
         Args: { p_query: string }
         Returns: Json
       }
+      get_incoming_friend_request_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       get_friend_connections: {
         Args: Record<PropertyKey, never>
         Returns: Json

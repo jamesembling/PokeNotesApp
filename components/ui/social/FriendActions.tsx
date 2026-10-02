@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { FRIEND_REQUESTS_UPDATED_EVENT } from "@/lib/social/use-friend-request-count";
 import { friendshipAction } from "@/app/(app)/friends/actions";
 import { Button } from "@/components/shadcn/button";
 import type { SocialProfile } from "@/lib/social/types";
@@ -8,6 +9,9 @@ import styles from "./social.module.css";
 
 export function FriendActions({ profile }: { profile: SocialProfile }) {
   const [state, action, pending] = useActionState(friendshipAction, {});
+  useEffect(() => {
+    if (state.success) window.dispatchEvent(new Event(FRIEND_REQUESTS_UPDATED_EVENT));
+  }, [state]);
   if (profile.relationship === "self") return null;
 
   const actions = profile.relationship === "friends"

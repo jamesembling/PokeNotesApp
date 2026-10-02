@@ -16,7 +16,7 @@ insert into public.logs(id,user_id,date,result) values
 ('social-loss','22222222-2222-4222-8222-222222222222','2026-10-01','Loss');
 
 set local role anon;
-select throws_ok($$select public.get_player_profile('22222222-2222-4222-8222-222222222222')$$,'42501',null,'Anonymous readers cannot execute member projection');
+select ok(not has_function_privilege('anon', 'public.get_player_profile(uuid)', 'EXECUTE') and not has_function_privilege('anon', 'public.get_incoming_friend_request_count()', 'EXECUTE'),'Anonymous readers cannot execute member projections or request counts');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
 select is(public.get_player_profile('11111111-1111-4111-8111-111111111111')->>'trainerName','Private A Name','Owner starts with account display name before any showcase row');
@@ -40,14 +40,15 @@ select is(public.get_player_profile('22222222-2222-4222-8222-222222222222')->'st
 select throws_ok($$select public.manage_friend_connection('11111111-1111-4111-8111-111111111111','request')$$,'22023',null,'Users cannot request themselves');
 select public.manage_friend_connection('22222222-2222-4222-8222-222222222222','request');
 select public.manage_friend_connection('22222222-2222-4222-8222-222222222222','request');
-select is(jsonb_array_length(public.get_friend_connections()->'outgoing'),1,'Repeated outgoing request remains a single relationship');
+select ok(jsonb_array_length(public.get_friend_connections()->'outgoing') = 1 and public.get_incoming_friend_request_count() = 0,'Repeated outgoing request stays singular and never counts as incoming');
 select throws_ok($$select public.manage_friend_connection('22222222-2222-4222-8222-222222222222','accept')$$,'42501',null,'Requester cannot accept their own invitation');
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
-select is(jsonb_array_length(public.get_friend_connections()->'incoming'),1,'Recipient sees incoming request');
+select ok(jsonb_array_length(public.get_friend_connections()->'incoming') = 1 and public.get_incoming_friend_request_count() = 1,'Recipient sees the pending request in their incoming count');
 select throws_ok($$select public.manage_friend_connection('11111111-1111-4111-8111-111111111111','cancel')$$,'42501',null,'Recipient cannot impersonate requester cancellation');
 select public.manage_friend_connection('11111111-1111-4111-8111-111111111111','accept');
+select set_config('test.accepted_incoming_count',public.get_incoming_friend_request_count()::text,true);
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
-select is(public.get_player_profile('22222222-2222-4222-8222-222222222222')->'stats','{"wins":1,"losses":1,"draws":0,"total":2}'::jsonb,'Accepted friend sees maintained Battle Log totals');
+select ok(public.get_player_profile('22222222-2222-4222-8222-222222222222')->'stats' = '{"wins":1,"losses":1,"draws":0,"total":2}'::jsonb and current_setting('test.accepted_incoming_count') = '0','Acceptance shares Battle Log totals and clears the recipient incoming count');
 select is(public.get_player_profile('22222222-2222-4222-8222-222222222222')->'lastLoginAt','null'::jsonb,'Last login stays hidden by default even from friends');
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
 select public.update_player_showcase(true,'Social TAP Trainer B',null,'[]',true);
@@ -78,7 +79,7 @@ select is(jsonb_array_length(public.get_friend_connections()->'outgoing'),0,'Req
 select public.manage_friend_connection('11111111-1111-4111-8111-111111111111','request');
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
 select public.manage_friend_connection('22222222-2222-4222-8222-222222222222','decline');
-select is(jsonb_array_length(public.get_friend_connections()->'incoming'),0,'Recipient can decline pending request');
+select ok(jsonb_array_length(public.get_friend_connections()->'incoming') = 0 and public.get_incoming_friend_request_count() = 0,'Declining removes the pending request and incoming count');
 select public.manage_friend_connection('22222222-2222-4222-8222-222222222222','request');
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
 select public.manage_friend_connection('11111111-1111-4111-8111-111111111111','accept');
