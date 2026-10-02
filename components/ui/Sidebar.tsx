@@ -12,6 +12,7 @@ import {
   HouseIcon,
   ListBulletsIcon,
   TrophyIcon,
+  UsersIcon,
   type Icon
 } from "@phosphor-icons/react";
 import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon, MenuIcon, ShieldIcon } from "lucide-react";
@@ -65,6 +66,7 @@ const navItems: Array<{ label: string; href: string; icon: Icon }> = [
   { label: "Deck Lists", href: "/deck-lists", icon: ListBulletsIcon },
   { label: "Tournaments", href: "/tournaments", icon: TrophyIcon },
   { label: "Stats", href: "/stats", icon: ChartLineIcon },
+  { label: "Friends", href: "/friends", icon: UsersIcon },
   { label: "Probability Calculator", href: "/calculator", icon: CalculatorIcon }
 ];
 

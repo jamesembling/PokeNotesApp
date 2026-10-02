@@ -75,6 +75,15 @@ errors fail immediately. Fixture writes are never retried after a partial seed.
 
 A reset replaces the auth user and invalidates the previous browser session, but preserves the local password and pairing code so a running E2E app remains usable. Run `npm run auth:e2e:save` again after every reset.
 
+For the two-player profile and friendship journey, run `npm run e2e:local:social`.
+It owns port `3010`, resets the synthetic database, and checks profile opt-in,
+three ordered favourite artworks, requests, acceptance, shared Battle Log totals,
+optional last login, and removal. It creates a second synthetic account and
+deletes that account in cleanup. Artwork search and image checks use the public
+Limitless provider, so that provider must be available. Desktop and mobile
+review captures are written to the ignored `.impeccable/review/` directory.
+Stop `dev:e2e` before running it; the runner closes its browser and app afterward.
+
 Other lifecycle commands are:
 
 ```bash

@@ -40,6 +40,7 @@
     "e2e:local:stop": "node scripts/local-e2e.mjs stop",
     "e2e:local:status": "node scripts/local-e2e.mjs status",
     "e2e:local:import": "node scripts/verify-local-import.mjs",
+    "e2e:local:social": "node scripts/verify-local-social.mjs",
     "seed:archetypes": "node seed-archetypes.mjs",
     "schema:health": "node scripts/schema-health.mjs",
     "verify:deck-list-release": "node scripts/verify-deck-list-release.mjs",

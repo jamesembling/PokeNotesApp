@@ -3,6 +3,11 @@ import { ProfileForm } from "@/components/ui/ProfileForm";
 import { SectionTitle } from "@/components/ui/Typography";
 import styles from "@/components/ui/account/profile.module.css";
 import { getCurrentProfile } from "@/lib/db/profile";
+import Link from "next/link";
+import { Button } from "@/components/shadcn/button";
+import { PageActions } from "@/components/ui/PageActions";
+import { ShowcaseForm } from "@/components/ui/social/ShowcaseForm";
+import { getCurrentShowcaseIfAvailable } from "@/lib/db/social";
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
@@ -22,17 +27,21 @@ function formatDateTime(value: string | undefined) {
 }
 
 export default async function ProfilePage() {
-  const profile = await getCurrentProfile();
+  const [profile, showcase] = await Promise.all([getCurrentProfile(), getCurrentShowcaseIfAvailable()]);
 
   return (
     <div className={styles.page}>
       <PageHeader
+        action={showcase ? <PageActions><Button asChild variant="outline"><Link href={`/players/${profile.id}`} prefetch={false}>View my profile</Link></Button></PageActions> : undefined}
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Profile" }]}
         title="Profile"
       />
 
       <div className={styles.layout}>
-        <ProfileForm profile={profile} />
+        <div>
+          <ProfileForm profile={profile} />
+          {showcase ? <ShowcaseForm profile={showcase} /> : <p className="mt-8 text-sm text-muted-foreground">Player profiles are temporarily unavailable. Reload this page to try again.</p>}
+        </div>
 
         <aside aria-label="Account information" className={styles.account}>
           <section>

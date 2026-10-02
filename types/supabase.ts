@@ -14,6 +14,130 @@ export type Database = {
   }
   public: {
     Tables: {
+      friend_connections: {
+        Row: {
+          created_at: string
+          requester_id: string
+          status: string
+          user_high: string
+          user_low: string
+        }
+        Insert: {
+          created_at?: string
+          requester_id: string
+          status: string
+          user_high: string
+          user_low: string
+        }
+        Update: {
+          created_at?: string
+          requester_id?: string
+          status?: string
+          user_high?: string
+          user_low?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friend_connections_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "friend_connections_user_high_fkey"
+            columns: ["user_high"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "friend_connections_user_low_fkey"
+            columns: ["user_low"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trainer_profiles: {
+        Row: {
+          enabled: boolean
+          favourite_cards: Json
+          favourite_pokemon: string | null
+          share_last_login: boolean
+          trainer_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          favourite_cards?: Json
+          favourite_pokemon?: string | null
+          share_last_login?: boolean
+          trainer_name?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          enabled?: boolean
+          favourite_cards?: Json
+          favourite_pokemon?: string | null
+          share_last_login?: boolean
+          trainer_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trainer_profiles_favourite_pokemon_fkey"
+            columns: ["favourite_pokemon"]
+            isOneToOne: false
+            referencedRelation: "pokemon_catalog"
+            referencedColumns: ["slug"]
+          },
+          {
+            foreignKeyName: "trainer_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       archetype_catalog: {
         Row: {
           canonical_id: string | null
@@ -1310,6 +1434,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_player_profile: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      search_players: {
+        Args: { p_query: string }
+        Returns: Json
+      }
+      get_friend_connections: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      update_player_showcase: {
+        Args: {
+          p_enabled: boolean
+          p_trainer_name: string
+          p_favourite_pokemon: string | null
+          p_favourite_cards: Json
+          p_share_last_login: boolean
+        }
+        Returns: undefined
+      }
+      manage_friend_connection: {
+        Args: { p_target_user_id: string; p_action: string }
+        Returns: undefined
+      }
       commit_tournament_metadata: {
         Args: {
           p_expected_tournament_updated_at?: string | null

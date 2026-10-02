@@ -33,6 +33,8 @@ The product's durable domain language and record relationships are defined in `C
 - Deck Lists are first-class account-owned records. Their association with a Deck Strategy is optional, and their visual order is a shared product contract across saved lists, Battle Logs, Tournaments, and shared views.
 - Tournaments preserve the Deck List used at the event as an immutable snapshot, independently of later changes to the source Deck List.
 - Strategy work connects working notes and matchup plans to a Deck Strategy and its battle evidence.
+- Player Profiles are opt-in member showcases with a separate trainer name, an optional favourite Pokémon, and up to three ordered favourite card printings. Players edit their own showcase in Profile and discover enabled profiles through Friends.
+- Friendships require an accepted request. Accepted friends can see aggregate Battle Log wins, losses, and total games; last-login sharing is optional and off by default. Account details, individual Battle Logs, Deck Lists, and notes remain private. Hiding a Player Profile withholds its shared profile and record while keeping friendships; blocking removes the connection and prevents mutual discovery and profile access.
 - Responsive behavior is a product requirement: mobile workflows must be intentionally usable, not reduced desktop layouts.
 - Record integrity, account isolation, and preservation through storage transitions take priority over implementation convenience.
 
