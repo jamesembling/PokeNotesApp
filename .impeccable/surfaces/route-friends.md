@@ -17,7 +17,7 @@ Extend the incumbent flat competitive workspace with IBM Plex typography, neutra
 
 The header offers Edit player profile and View my profile. Discovery and relationship actions need no enable-profile step. Empty lists and searches retain explicit guidance.
 
-The shared Friends sidebar link carries an 8px red dot when incoming friend requests are pending. It remains visible beside the label in expanded and mobile navigation and beside the icon in the collapsed rail. The link keeps the accessible name Friends, with a separate count description such as “1 pending friend request” or “2 pending friend requests”. Outgoing requests do not trigger it.
+The shared Friends sidebar link carries an 8px red dot with a 2px background-token ring when incoming friend requests are pending, keeping it distinct on the active row. It remains visible beside the label in expanded and mobile navigation and beside the icon in the collapsed rail. The link keeps the accessible name Friends, with a separate count description such as “1 pending friend request” or “2 pending friend requests”. Outgoing requests do not trigger it.
 
 ## Responsive layout
 

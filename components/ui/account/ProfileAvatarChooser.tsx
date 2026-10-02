@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { CameraIcon, UploadIcon, XIcon } from "lucide-react";
 import { saveProfileAvatarAction } from "@/app/(app)/profile/actions";
 import { Button } from "@/components/shadcn/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/shadcn/dialog";
+import { Dialog, DialogClose, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/shadcn/dialog";
+import { AppDialogContent } from "@/components/ui/AppDialog";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { AVATAR_COLORS } from "@/lib/profile-avatar";
 import type { AvatarColor, UserProfile } from "@/types/index";
@@ -110,7 +111,7 @@ export function ProfileAvatarChooser({ profile, disabled, onBusyChange }: { prof
           <span className={styles.camera}><CameraIcon aria-hidden="true" size={18} /></span>
         </button>
       </DialogTrigger>
-      <DialogContent className={styles.avatarDialog} onEscapeKeyDown={(event) => { if (pending) event.preventDefault(); }} onPointerDownOutside={(event) => { if (pending) event.preventDefault(); }} showCloseButton={false}>
+      <AppDialogContent className={styles.avatarDialog} onEscapeKeyDown={(event) => { if (pending) event.preventDefault(); }} onPointerDownOutside={(event) => { if (pending) event.preventDefault(); }} showCloseButton={false}>
         <DialogClose asChild><Button aria-label="Close picture chooser" className={styles.dialogClose} disabled={pending} size="icon-sm" type="button" variant="ghost"><XIcon aria-hidden="true" /></Button></DialogClose>
         <DialogHeader><DialogTitle>Profile picture</DialogTitle><DialogDescription>Choose a Poké Ball or upload your own image.</DialogDescription></DialogHeader>
         <div aria-busy={pending} className={styles.picturePreview}>
@@ -138,7 +139,7 @@ export function ProfileAvatarChooser({ profile, disabled, onBusyChange }: { prof
           </div>
         </section>
         <div className={styles.dialogStatus}>{error ? <p className={styles.error} role="alert">{error}</p> : null}<p role="status">{pending ? "Saving picture…" : status}</p></div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

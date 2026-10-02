@@ -5,7 +5,7 @@ import { AvatarValidationError, isProfileAvatarUploadSameOrigin, prepareProfileA
 import { MAX_AVATAR_BYTES } from "../profile-avatar";
 
 test("profile photos decode into bounded square WebP with private metadata removed", async () => {
-  const original = await sharp({ create: { width: 900, height: 600, channels: 3, background: "#ea455d" } })
+  const original = await sharp({ create: { width: 900, height: 600, channels: 3, background: { r: 234, g: 69, b: 93 } } })
     .jpeg().withExif({ IFD0: { Artist: "Private photo owner" } }).toBuffer();
   const output = await prepareProfileAvatar(new File([new Uint8Array(original)], "photo.jpg", { type: "image/jpeg" }));
   const decoded = await sharp(output).metadata();

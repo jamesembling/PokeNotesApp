@@ -298,6 +298,18 @@ async function verifyAvatarJourney(currentPage) {
   const reviewDirectory = resolve(root, ".impeccable/review");
   mkdirSync(reviewDirectory, { recursive: true });
   await dialog.screenshot({ path: resolve(reviewDirectory, "profiles-v2-avatar-keyboard-desktop.png"), animations: "disabled" });
+  await currentPage.setViewportSize({ width: 390, height: 844 });
+  const mobileDialog = await dialog.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight, clientHeight: element.clientHeight, scrollHeight: element.scrollHeight, overflowY: style.overflowY };
+  });
+  assert.ok(mobileDialog.left >= 0 && mobileDialog.right <= mobileDialog.viewportWidth && mobileDialog.top >= 0 && mobileDialog.bottom <= mobileDialog.viewportHeight, "The avatar chooser must fit within the mobile viewport.");
+  assert.ok(mobileDialog.scrollHeight <= mobileDialog.clientHeight || ["auto", "scroll"].includes(mobileDialog.overflowY), "Overflowing avatar chooser content must remain scrollable.");
+  await currentPage.keyboard.press("Tab");
+  assert.equal(await dialog.evaluate(element => element.contains(document.activeElement)), true, "The mobile avatar chooser must retain keyboard focus.");
+  console.log(`Avatar mobile dialog inspection: ${JSON.stringify(mobileDialog)}`);
+  await currentPage.setViewportSize({ width: 1280, height: 900 });
   await currentPage.keyboard.press("Escape");
   await dialog.waitFor({ state: "hidden" });
   assert.equal(await open.evaluate(element => element === document.activeElement), true, "Closing the dialog must restore focus to the hero avatar.");
@@ -414,6 +426,8 @@ async function captureResponsive(currentPage, name) {
       }).map(caption => caption.textContent)) : [];
       assert.deepEqual(visibleCaptions, [], "Favourite artworks must not display card-name captions.");
       const focus = await inspectKeyboardFocus(currentPage);
+      assert.equal(focus.missing, undefined, "Keyboard inspection must reach a visible social control.");
+      assert.equal(focus.focusVisible && focus.visibleIndicator, true, "Keyboard focus must have a visible indicator in both themes.");
       const contrast = await inspectContrast(currentPage);
       const unavailableArtworks = await currentPage.getByText("Artwork unavailable", { exact: true }).count();
       console.log(`Review inspection: ${JSON.stringify({ surface: name, theme, viewport, overflow: false, controls, visibleCaptions, focus, contrast, unavailableArtworks })}`);
@@ -440,11 +454,12 @@ async function assertFriendBadge(currentPage, expected) {
     const dot = await link.locator("[data-friend-request-indicator]").evaluate(element => {
       const style = getComputedStyle(element);
       const box = element.getBoundingClientRect();
-      return { width: box.width, height: box.height, background: style.backgroundColor, radius: style.borderRadius, display: style.display };
+      return { width: box.width, height: box.height, background: style.backgroundColor, radius: style.borderRadius, display: style.display, shadow: style.boxShadow, rowBackground: getComputedStyle(element.closest("a")).backgroundColor };
     });
     assert.equal(dot.display === "none", false, "The notification circle must remain visible.");
     assert.equal(dot.width, 8);
     assert.equal(dot.height, 8);
+    assert.ok(dot.background !== dot.rowBackground || (dot.shadow !== "none" && !dot.shadow.includes(dot.background)), "The red notification circle must remain distinguishable from the active Friends row.");
     console.log(`Incoming request indicator: ${JSON.stringify(dot)}`);
   } else assert.equal(description, null, "No incoming request must leave no badge description.");
 }
@@ -455,17 +470,17 @@ async function captureIncomingBadge(currentPage) {
   const light = currentPage.locator("main").getByRole("button", { name: "Switch to light mode", exact: true });
   if (await light.count()) await light.click();
   await readyImages(currentPage);
-  await currentPage.screenshot({ path: resolve(directory, "profiles-v2-friends-incoming-desktop.png"), fullPage: true, animations: "disabled" });
+  await currentPage.screenshot({ path: resolve(directory, "profiles-v2-friends-incoming-desktop.png"), fullPage: true, animations: "disabled", style: "nextjs-portal { display: none !important; }" });
   await currentPage.locator("main").getByRole("button", { name: "Toggle Sidebar", exact: true }).click();
   await settleFiniteAnimations(currentPage);
   await assertFriendBadge(currentPage, 1);
-  await currentPage.screenshot({ path: resolve(directory, "profiles-v2-friends-incoming-collapsed.png"), fullPage: true, animations: "disabled" });
+  await currentPage.screenshot({ path: resolve(directory, "profiles-v2-friends-incoming-collapsed.png"), fullPage: true, animations: "disabled", style: "nextjs-portal { display: none !important; }" });
   await currentPage.locator("main").getByRole("button", { name: "Toggle Sidebar", exact: true }).click();
   await currentPage.setViewportSize({ width: 390, height: 844 });
   await currentPage.getByRole("button", { name: "Open navigation menu", exact: true }).click();
   await settleFiniteAnimations(currentPage);
   await assertFriendBadge(currentPage, 1);
-  await currentPage.screenshot({ path: resolve(directory, "profiles-v2-friends-incoming-mobile.png"), fullPage: true, animations: "disabled" });
+  await currentPage.screenshot({ path: resolve(directory, "profiles-v2-friends-incoming-mobile.png"), fullPage: true, animations: "disabled", style: "nextjs-portal { display: none !important; }" });
   await currentPage.getByRole("button", { name: "Close navigation menu", exact: true }).click();
   await currentPage.setViewportSize({ width: 1280, height: 900 });
   await settleFiniteAnimations(currentPage);

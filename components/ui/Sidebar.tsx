@@ -111,7 +111,7 @@ function AppSidebarLink({ href, icon: Icon, label, incomingRequests = 0 }: { hre
             weight={active ? "fill" : "regular"}
           />
           <span>{label}</span>
-          {incomingRequests > 0 ? <span aria-hidden="true" className="ml-auto size-2 shrink-0 rounded-full bg-primary group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-2 group-data-[collapsible=icon]:top-2 group-data-[collapsible=icon]:!block" data-friend-request-indicator="" /> : null}
+          {incomingRequests > 0 ? <span aria-hidden="true" className="ml-auto size-2 shrink-0 rounded-full bg-primary ring-2 ring-background group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-2 group-data-[collapsible=icon]:top-2 group-data-[collapsible=icon]:!block" data-friend-request-indicator="" /> : null}
         </Link>
       </SidebarMenuButton>
       {incomingRequests > 0 ? <span className="sr-only" id={requestDescriptionId}>{incomingRequests} pending friend {incomingRequests === 1 ? "request" : "requests"}</span> : null}
