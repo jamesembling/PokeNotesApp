@@ -417,7 +417,8 @@ async function verifyBattleReplay(db, userId, logId) {
   await until(async () => selectedAction.evaluate(element => {
     const row = element.getBoundingClientRect();
     const list = element.closest("ol").getBoundingClientRect();
-    return row.top >= list.top && row.bottom <= list.bottom;
+    // Scroll offsets are integer-rounded while DOM bounds retain fractional pixels.
+    return row.top >= list.top - 1 && row.bottom <= list.bottom + 1;
   }));
   assert.equal(await selectedAction.count(), 1, "Seeking must expose exactly one current timeline action.");
   await page.getByRole("button", { name: "Restart replay", exact: true }).click();
@@ -461,11 +462,22 @@ async function verifyReplayLayouts(scrubber) {
     await scrubber.waitFor();
     checkpoint(`keep the selected timeline action visible after resizing to ${width}px`);
     const currentTimelineAction = page.getByRole("list", { name: "Match actions", exact: true }).locator('[aria-current="step"]');
-    await until(async () => currentTimelineAction.evaluate(element => {
-      const row = element.getBoundingClientRect();
-      const list = element.closest("ol").getBoundingClientRect();
-      return row.top >= list.top && row.bottom <= list.bottom;
-    }), 5000);
+    try {
+      await until(async () => currentTimelineAction.evaluate(element => {
+        const row = element.getBoundingClientRect();
+        const list = element.closest("ol").getBoundingClientRect();
+        // Scroll offsets are integer-rounded while DOM bounds retain fractional pixels.
+        return row.top >= list.top - 1 && row.bottom <= list.bottom + 1;
+      }), 5000);
+    } catch (error) {
+      console.error("[import-check] timeline resize geometry", await currentTimelineAction.evaluate(element => {
+        const list = element.closest("ol");
+        const rect = node => { const box = node.getBoundingClientRect(); return { top: box.top, bottom: box.bottom, width: box.width, height: box.height }; };
+        return { row: rect(element), list: rect(list), scrollTop: list.scrollTop, scrollHeight: list.scrollHeight, clientHeight: list.clientHeight, scrollY, position: new URL(location.href).searchParams.get("position") };
+      }));
+      await captureReplay("battle-replay-timeline-resize-failure");
+      throw error;
+    }
     if (width < 860) {
       await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
       const betaLink = page.getByRole("link", { name: "Battle Replay (Beta)", exact: true });
