@@ -540,7 +540,7 @@ async function captureReplay(name, fullPage = true) {
 }
 
 async function verifyPreviewLabel(dialog, name) {
-  const label = dialog.getByText("HP unknown", { exact: true });
+  const label = dialog.getByText("HP ?", { exact: true });
   await label.waitFor();
   await captureReplay(name, false);
   const pixels = await label.screenshot({ animations: "disabled" });
@@ -640,7 +640,7 @@ async function verifyReplayCollection(db, userId, original) {
     await preview.click();
     const cardDialog = page.getByRole("dialog", { name: "Dreepy", exact: true });
     await cardDialog.waitFor();
-    await page.getByText("HP unknown", { exact: true }).last().waitFor();
+    await page.getByText("HP ?", { exact: true }).last().waitFor();
     for (let tab = 0; tab < 8; tab++) {
       await page.keyboard.press("Tab");
       assert.ok(await cardDialog.evaluate(element => element.contains(document.activeElement)),
