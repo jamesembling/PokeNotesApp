@@ -1,9 +1,10 @@
 import { resolveCardDefinition, selectCardDefinitionPrinting } from "@/lib/card-definition-catalog/resolve";
 import { normalizeText } from "@/lib/log-import/normalization";
 import type { CardDefinition, CardDefinitionEvidence, CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
-import type { ReplayCard, ReplayCardResolution, ReplayEffectKind, ReplayState, ReplayZoneCard } from "./types";
+import type { ReplayActor, ReplayCard, ReplayCardResolution, ReplayEffectKind, ReplayState, ReplayZoneCard } from "./types";
 import { resolveReplayEffectConstraint, resolveReplayTrainerDisposition, type ReplayEffectOperation } from "./effect-targets";
 import type { ReplayLinkedCardDefinitions } from "./linked-deck-list";
+import { applyReplayPrintingProofs, applyReplayPrintingProofToCard, type ReplayPrintingProof } from "./printing-proofs";
 
 const hasHp = (text: string) => /\bHP\b/i.test(text);
 
@@ -434,7 +435,11 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
     // replaces the Pokémon executing that text or receiving "this Pokémon" effects.
     return { status: "copied", observedEffect: copyAbilities[0][0].name, definitionCard: donors[0].card };
   };
-  return { resolve, update, abilityTexts, effectConstraints, trainerDisposition, attackPrintingEvidence, hasAttachmentHpModifier, decorateCard, decorateState, collectResolutions: () => cardResolutions };
+  const applyPrintingProofs = (state: ReplayState, frameIndex: number, plan: readonly ReplayPrintingProof[]) =>
+    applyReplayPrintingProofs(plan, state, frameIndex, resolve);
+  const applyPrintingProofToCard = (card: ReplayZoneCard, actor: ReplayActor, frameIndex: number, plan: readonly ReplayPrintingProof[]) =>
+    applyReplayPrintingProofToCard(plan, card, actor, frameIndex, resolve);
+  return { resolve, update, abilityTexts, effectConstraints, trainerDisposition, attackPrintingEvidence, hasAttachmentHpModifier, decorateCard, decorateState, applyPrintingProofs, applyPrintingProofToCard, collectResolutions: () => cardResolutions };
 }
 
 export function replayCardDefinitionEvidence(card: ReplayCard, evidence: CardDefinitionEvidenceByName | undefined) {

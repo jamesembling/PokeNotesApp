@@ -219,8 +219,11 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
     action("PlayerOne attached HP Tool to Sprout in the Active Spot."),
   ])]), cardDefinitions, effectTags: { "PlayerOne attached HP Tool to Sprout in the Active Spot.": "tool" as const } };
   const hpReplay = compileBattleReplay(hpInput);
-  assert.equal(hpReplay.frames[2].self.active?.baseHp, 70, "the latest compatible printing supplies explicitly probable HP before identifying evidence");
-  assert.equal(hpReplay.frames[2].self.active?.hpBasis, "probable");
+  assert.equal(hpReplay.frames[2].self.active?.baseHp, 70, "later native attack evidence identifies the same physical printing from its entry");
+  assert.equal(hpReplay.frames[2].self.active?.hpBasis, "known");
+  const beforePrintingWitness = compileBattleReplay({ ...hpInput, sections: hpInput.sections.map((entry) => ({ ...entry, actions: entry.actions.slice(0, 2) })) });
+  assert.equal(beforePrintingWitness.frames[2].self.active?.baseHp, 70);
+  assert.equal(beforePrintingWitness.frames[2].self.active?.hpBasis, "probable", "a representative choice never becomes proof without a later witness");
   assert.equal(hpReplay.frames[3].self.active?.baseHp, 70);
   const sourceCoverage = { scope: "tcgdex-listed-en-physical" as const, listedPrintings: 2, unlistedSets: [] };
   const narrowed = replayCardDefinitionEvidence(hpReplay.frames[3].self.active!, { seedling: { ...cardDefinitions.seedling, sourceCoverage } });
@@ -236,6 +239,40 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.equal(hpReplay.frames[7].self.active?.maxHp, 250);
   assert.equal(hpReplay.frames[7].self.active?.remainingHp, 230);
   assert.deepEqual(hpReplay.diagnostics.unresolvedActions, []);
+  // Real PTCGL wording with anonymized players; public card metadata isolates
+  // immutable top-printing evidence from the evolving physical stack.
+  const festivalPrint = syntheticCardDefinition({ name: "Dipplin", sourceCardId: "sv06-018", setId: "sv06", localId: "018", hp: 80, stage: "Stage1", setReleaseDate: "2024-05-24",
+    abilities: [{ name: "Festival Lead", type: "Ability", text: "If Festival Grounds is in play, this Pokémon may use an attack it has twice. If the first attack Knocks Out your opponent's Active Pokémon, you may attack again after your opponent chooses a new Active Pokémon." }],
+    attacks: [{ name: "Do the Wave", text: "This attack does 20 damage for each of your Benched Pokémon.", damage: "20×", cost: ["Grass"] }] });
+  const dipplinPrints = [festivalPrint, { ...festivalPrint, sourceCardId: "sv06-170", localId: "170" },
+    { ...festivalPrint, sourceCardId: "sv10-017", setId: "sv10", localId: "017", hp: 90, setReleaseDate: "2025-05-30", abilities: [], attacks: [{ name: "Energy Loop", text: "Put an Energy attached to this Pokémon into your hand.", damage: "50", cost: ["Grass"] }] }];
+  const dipplinSource = { ...source([
+    section("", [action("PlayerTwo played Applin to the Active Spot."), action("PlayerTwo played Applin to the Bench."), action("PlayerOne played Budew to the Active Spot.")]),
+    section("PlayerTwo", [action("PlayerTwo evolved Applin to Dipplin in the Active Spot."), action("PlayerTwo evolved Applin to Dipplin on the Bench.")]),
+    section("PlayerOne", [action("PlayerOne drew a card.")]),
+    section("PlayerTwo", [action("PlayerTwo's Dipplin used Do the Wave on PlayerOne’s Budew for 100 damage.", ["- Damage breakdown:", "• 5 Benched Pokémon: 100 damage"])]),
+  ]), cardDefinitions: {
+    applin: resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Applin", hp: 40, abilities: [], attacks: [] })]), { name: "Applin" }),
+    dipplin: resolveCardDefinition(buildCardDefinitionIndex(dipplinPrints), { name: "Dipplin" }),
+  } };
+  const dipplinReplay = compileBattleReplay(dipplinSource);
+  assert.equal(dipplinReplay.frames[3].opponent.active?.baseHp, 40, "later evolution evidence cannot rewrite the earlier Basic top");
+  for (const frame of dipplinReplay.frames.slice(4)) {
+    assert.equal(frame.opponent.active?.baseHp, 80, "native Do the Wave proves Festival Lead HP throughout this top epoch");
+    assert.equal(frame.opponent.active?.hpBasis, "known");
+    const resolution = dipplinReplay.cardResolutions?.[frame.opponent.active!.definitionKey!];
+    assert.equal(resolution?.displayBasis, "representative", "functional agreement does not establish the exact artwork printing");
+    assert.equal(resolution?.candidatePrintingIds?.length, 2);
+  }
+  assert.equal(dipplinReplay.frames[5].opponent.bench[0].hpBasis, "probable", "the other physical Dipplin has no native witness");
+  const evolvedPreview = dipplinReplay.events[3].transaction?.stages.find((entry) => entry.kind === "evolve")?.cards[0];
+  const evolvedPreviewResolution = dipplinReplay.cardResolutions?.[evolvedPreview?.definitionKey ?? ""];
+  assert.equal(evolvedPreviewResolution?.printedHp, 80, "the original evolution preview uses the same later-proven top printing as the board");
+  assert.equal(evolvedPreviewResolution?.hpBasis, "known");
+  const noDipplinWitness = compileBattleReplay({ ...dipplinSource, sections: dipplinSource.sections.slice(0, -1) });
+  assert.equal(noDipplinWitness.frames.at(-1)!.opponent.active?.baseHp, 90);
+  assert.equal(noDipplinWitness.frames.at(-1)!.opponent.active?.hpBasis, "probable");
+
   const absentRival = { ...cardDefinitions };
   delete absentRival.rival;
   const absentBoardDefinition = compileBattleReplay({ ...hpInput, cardDefinitions: absentRival });
@@ -550,6 +587,28 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   const repeatedAbility = compileBattleReplay(repeatInput);
   assert.deepEqual(repeatedAbility.diagnostics.unresolvedActions, [], "verified once-per-copy wording selects the remaining unused equivalent copy");
   assert.deepEqual(repeatedAbility.frames[5].self.bench.map((card) => card.abilityUsed), [true, true]);
+  const threeCopyRecon = compileBattleReplay({ ...source([
+    section("", [
+      action("PlayerOne drew 7 cards for the opening hand."), action("PlayerTwo drew 7 cards for the opening hand."),
+      action("PlayerOne played Dreepy to the Active Spot."), action("PlayerOne played Dreepy to the Bench."), action("PlayerOne played Dreepy to the Bench."),
+      action("PlayerTwo played Dreepy to the Active Spot."),
+    ]),
+    section("PlayerOne", [action("PlayerOne drew a card."), action("PlayerOne attached Basic Psychic Energy to Dreepy in the Active Spot.")]),
+    section("PlayerTwo", [action("PlayerTwo drew a card.")]),
+    section("PlayerOne", [
+      action("PlayerOne drew a card."), action("PlayerOne evolved Dreepy to Drakloak in the Active Spot."),
+      action("PlayerOne evolved Dreepy to Drakloak on the Bench."), action("PlayerOne evolved Dreepy to Drakloak on the Bench."),
+      action(reconTitle, ["PlayerOne drew a card."]), action(reconTitle, ["PlayerOne drew a card."]), action(reconTitle, ["PlayerOne drew a card."]),
+    ]),
+  ]), effectTags: { [reconTitle]: "ability" }, cardDefinitions: { drakloak: reconEvidence } });
+  const reconCopies = (index: number) => [threeCopyRecon.frames[index].self.active, ...threeCopyRecon.frames[index].self.bench].filter((card): card is ReplayCard => Boolean(card));
+  assert.equal(reconCopies(15).filter((card) => card.abilityUsed).length < 3, true, "two uses cannot prove three per-copy markers");
+  assert.deepEqual(reconCopies(16).map((card) => card.abilityUsed), [true, true, true], "three once-per-copy uses prove all three despite different attachment state and unknown order");
+  assert.deepEqual(threeCopyRecon.frames[16].self.active?.energy, ["Psychic"], "Ability copy ambiguity cannot relocate an independently recorded attachment");
+  for (const frame of threeCopyRecon.frames) for (const actor of ["self", "opponent"] as const) {
+    const side = frame[actor];
+    assert.equal(side.deckCount! + side.handCount! + side.prizesRemaining! + side.inPlayCount! + side.discardCount!, 60);
+  }
   for (const restriction of ["You can't use more than 1 Recon Directive Ability during your turn.", "You may use only 1 Recon Directive each turn."]) {
     const globallyLimited = { ...reconCard, abilities: [{ ...reconCard.abilities[0], text: `${reconText} ${restriction}` }] };
     const globallyCapped = compileBattleReplay({ ...repeatInput, cardDefinitions: { drakloak: resolveCardDefinition(buildCardDefinitionIndex([globallyLimited]), { name: "Drakloak" }) } });
@@ -677,7 +736,11 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   ])]), cardDefinitions: movementEvidence };
   const costWitness = compileBattleReplay(costInput);
   const holder = costWitness.frames.at(-1)!.self.active!;
-  assert.deepEqual(costWitness.frames.at(-1)!.self.boardPools?.filter((pool) => pool.cards.length).map((pool) => pool.memberIds), [[holder.id], [holder.id]], "a native attack's complete cost and sole Basic providers resolve only the required pooled attachments");
+  const guaranteedHolderEnergy = [
+    ...holder.energy.map((energy) => /Energy$/.test(energy) ? energy : `Basic ${energy} Energy`),
+    ...(costWitness.frames.at(-1)!.self.boardPools ?? []).filter((pool) => pool.memberIds.length === 1 && pool.memberIds[0] === holder.id).flatMap((pool) => pool.cards.filter((card) => /Energy$/.test(card.name)).map((card) => card.name)),
+  ];
+  assert.deepEqual(guaranteedHolderEnergy.sort(), ["Basic Fire Energy", "Basic Psychic Energy"], "a native attack's complete cost proves the required attachments on its attacker");
   const missingCostText = compileBattleReplay({ ...costInput, cardDefinitions: { ...movementEvidence, sprout: { ...movementEvidence.sprout, candidates: movementEvidence.sprout.candidates.map((card) => ({ ...card, attacks: card.attacks.map((attack) => ({ ...attack, text: null })) })) } } });
   assert.ok(missingCostText.frames.at(-1)!.self.boardPools?.some((pool) => pool.cards.length && pool.memberIds.length > 1), "missing native cost-effect text cannot bind an attachment to the attacker");
 
@@ -824,6 +887,26 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(deckDiscard.frames[7].self.discardCount, 2, "the whole discard pile can be counted without knowing its card identities");
   assert.equal(deckDiscard.frames[7].self.discard.length, 0);
   assert.deepEqual(deckDiscard.frames[7].self.uncertainZones, ["discard"]);
+
+  const inspiration = syntheticCardDefinition({ name: "Slowking", hp: 120, abilities: [], attacks: [{ name: "Seek Inspiration", cost: ["Psychic", "Colorless"], damage: null,
+    text: "Discard the top card of your deck, and if that card is a Pokémon that doesn't have a Rule Box, choose 1 of its attacks and use it as this attack. (Pokémon ex, Pokémon V, etc. have Rule Boxes.)" }] });
+  const deckCopyInput = { ...source([
+    section("", [
+      action("PlayerOne drew 7 cards for the opening hand.", ["• Slowking, Basic Psychic Energy, Ultra Ball, Rare Candy, Buddy-Buddy Poffin, Night Stretcher, Iono"]),
+      action("PlayerTwo drew 7 cards for the opening hand."),
+      action("PlayerOne played Slowking to the Active Spot."), action("PlayerTwo played Meowth ex to the Active Spot."),
+    ]),
+    section("PlayerOne", [action("PlayerOne's Slowking used Seek Inspiration on PlayerTwo’s Meowth ex for 300 damage.", [
+      "- Damage breakdown:", "• Base damage: 150 damage", "• Total damage: 300 damage", "- PlayerOne chose Metallic Hammer", "- PlayerOne discarded Metagross.",
+    ])]),
+  ]), cardDefinitions: { slowking: resolveCardDefinition(buildCardDefinitionIndex([inspiration]), { name: "Slowking" }) } };
+  const deckCopy = compileBattleReplay(deckCopyInput);
+  assert.equal(deckCopy.frames[5].self.handCount, 6, "a verified top-deck attack discard never removes the named card from hand");
+  assert.equal(deckCopy.frames[5].self.deckCount, 46);
+  assert.equal(deckCopy.frames[5].self.discardCount, 1);
+  assert.deepEqual(deckCopy.frames[5].self.discard.map((card) => card.name), ["Metagross"]);
+  assert.ok(!deckCopy.events[4].unresolved?.some((message) => /count|hand removal/.test(message)));
+  assert.equal(deckCopy.frames[5].self.deckCount! + deckCopy.frames[5].self.handCount! + deckCopy.frames[5].self.prizesRemaining! + deckCopy.frames[5].self.inPlayCount! + deckCopy.frames[5].self.discardCount!, 60);
 
   const unidentifiedRecovery = compileBattleReplay(source([completeSetup, section("PlayerOne", [
     action("PlayerOne discarded 2 cards from their deck."),
@@ -1010,17 +1093,57 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.ok(benchOnlyCounters.frames[5].opponent.bench.every((card) => card.damageKnown === false));
 
 
+  // Username-substituted source excerpt; unrelated actions are omitted. The
+  // third Dhelmise enters after the attachment and cannot be its carrier.
+  const dhelmiseHistory = compileBattleReplay({ ...source([
+    section("", [action("PlayerTwo played Dunsparce to the Active Spot.")]),
+    section("PlayerTwo", [action("PlayerTwo played Shuppet to the Bench."), action("PlayerTwo attached Telepathic Psychic Energy to Shuppet on the Bench."),
+      action("Telepathic Psychic Energy was activated.", ["- PlayerTwo drew 2 cards and played them to the Bench.", "• Dhelmise, Dhelmise"])]),
+    section("PlayerTwo", [action("PlayerTwo attached Telepathic Psychic Energy to Dhelmise on the Bench."),
+      action("Telepathic Psychic Energy was activated.", ["- PlayerTwo drew Dhelmise and played it to the Bench."]),
+      action("PlayerTwo evolved Dunsparce to Dudunsparce in the Active Spot."),
+      action("PlayerTwo played Dudunsparce.", ["- PlayerTwo drew 3 cards.", "- PlayerTwo shuffled 2 cards into their deck.", "• Dudunsparce, Dunsparce", "PlayerTwo's Shuppet is now in the Active Spot."]),
+      action("PlayerTwo evolved Shuppet to Banette in the Active Spot.")]),
+    section("PlayerOne", [action("PlayerOne played Fezandipiti ex to the Bench.")]),
+    section("PlayerTwo", [action("PlayerTwo retreated Banette to the Bench.", ["- Telepathic Psychic Energy was discarded from PlayerTwo's Banette.", "PlayerTwo's Dhelmise is now in the Active Spot."]),
+      action("PlayerTwo took 2 Prize cards.", ["A card was added to PlayerTwo's hand.", "A card was added to PlayerTwo's hand.", "PlayerOne's Fezandipiti ex is now in the Active Spot."])]),
+    section("PlayerOne", [action("PlayerOne's Fezandipiti ex used Cruel Arrow on PlayerTwo’s Dhelmise for 200 damage. PlayerTwo's Dhelmise took 100 more damage because of Darkness Weakness.", ["- Damage breakdown:", "• Weakness to Darkness: 100 damage"]),
+      action("PlayerTwo's Dhelmise was Knocked Out!", ["Telepathic Psychic Energy was discarded from PlayerTwo's Dhelmise."])]),
+  ]), effectTags: { "PlayerTwo played Dudunsparce.": "ability" }, cardDefinitions: {
+    dudunsparce: resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Dudunsparce", sourceCardId: "sv05-129", setId: "sv05", localId: "129", hp: 140,
+      abilities: [{ name: "Run Away Draw", type: "Ability", text: "Once during your turn, you may draw 3 cards. If you drew any cards in this way, shuffle this Pokémon and all attached cards into your deck." }], attacks: [{ name: "Land Crush", cost: ["Colorless", "Colorless", "Colorless"], damage: "90", text: null }] })]), { name: "Dudunsparce" }),
+    "fezandipiti ex": resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Fezandipiti ex", sourceCardId: "sv06.5-038", setId: "sv06.5", localId: "038", hp: 210,
+      abilities: [{ name: "Flip the Script", type: "Ability", text: "Once during your turn, if any of your Pokémon were Knocked Out during your opponent's last turn, you may draw 3 cards. You can't use more than 1 Flip the Script Ability each turn." }],
+      attacks: [{ name: "Cruel Arrow", cost: ["Colorless", "Colorless", "Colorless"], damage: null, text: "This attack does 100 damage to 1 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)" }] })]), { name: "Fezandipiti ex" }),
+    dhelmise: resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Dhelmise", sourceCardId: "me05-039", setId: "me05", localId: "039", hp: 140, abilities: [],
+      attacks: [{ name: "Vengeful Anchor", cost: ["Psychic"], damage: "30+", text: "If you have 4 or more Pokémon that have the Hide 'n' Sneak Ability in your discard pile, this attack does 140 more damage." }] })]), { name: "Dhelmise" }),
+    banette: resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Banette", sourceCardId: "me05-034", setId: "me05", localId: "034", hp: 80,
+      abilities: [{ name: "Hide 'n' Sneak", type: "Ability", text: "Prevent all effects of your opponent's Pokémon's attacks and Abilities done to this Pokémon. (Damage is not an effect.)" }],
+      attacks: [{ name: "Puppet Pull", cost: ["Psychic"], damage: "80", text: "You may search your deck for a card and put it into your hand. Then, shuffle your deck." }] })]), { name: "Banette" }),
+    "telepathic psychic energy": resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Telepathic Psychic Energy", sourceCardId: "me03-088", setId: "me03", localId: "088", category: "Energy", hp: null, abilities: [], attacks: [],
+      rules: ["As long as this card is attached to a Pokémon, it provides {P} Energy.\nWhen you attach this card from your hand to a {P} Pokémon, search your deck for up to 2 Basic {P} Pokémon and put them onto your Bench. Then, shuffle your deck."] })]), { name: "Telepathic Psychic Energy" }),
+  } });
+  const earlyDhelmiseIds = dhelmiseHistory.frames[5].opponent.bench.filter((card) => card.name === "Dhelmise").map((card) => card.id);
+  const laterCarrier = dhelmiseHistory.frames[13].opponent.active;
+  assert.equal(laterCarrier?.name, "Dhelmise");
+  assert.deepEqual(laterCarrier?.energy, ["Telepathic Psychic Energy"], "the exact KO discard proves the earlier attachment/promotion relation");
+  assert.ok(earlyDhelmiseIds.includes(laterCarrier!.id), "the carrier was already present before the third identical copy entered");
+  const bareSurvivors = dhelmiseHistory.frames[14].opponent.bench.filter((card) => card.name === "Dhelmise");
+  assert.equal(bareSurvivors.length, 2);
+  assert.ok(bareSurvivors.every((card) => card.damage === 0 && card.damageKnown !== false && card.energy.length === 0), "the two untouched surviving copies remain bare and undamaged");
+
   const ambiguousKoPosition = compileBattleReplay(source([section("PlayerOne", [
     action("PlayerOne played Twin to the Active Spot."), action("PlayerOne played Twin to the Bench."),
     action("PlayerOne attached Basic Grass Energy to Twin in the Active Spot."), action("PlayerOne's Twin was Knocked Out!", ["Basic Grass Energy was discarded from PlayerOne's Twin."]),
     action("PlayerOne's Twin is now in the Active Spot."),
   ])]));
-  assert.equal(ambiguousKoPosition.frames[4].self.active, null, "an unresolved Active/Bench copy cannot remain falsely labelled Active after a recorded KO");
-  assert.equal(ambiguousKoPosition.frames[4].self.unplaced?.length, 1);
-  assert.equal(ambiguousKoPosition.frames[4].self.activeUncertain, true);
+  assert.equal(ambiguousKoPosition.frames[4].self.active, null, "the explicit attachment discard identifies the knocked-out Active copy");
+  assert.equal(ambiguousKoPosition.frames[4].self.unplaced?.length ?? 0, 0);
+  assert.equal(ambiguousKoPosition.frames[4].self.bench.length, 1);
+  assert.notEqual(ambiguousKoPosition.frames[4].self.activeUncertain, true);
   assert.equal(ambiguousKoPosition.frames[5].self.active?.name, "Twin", "later recorded promotion re-establishes Active presence");
   assert.equal(ambiguousKoPosition.frames[5].self.unplaced?.length, 0);
-  assert.equal(ambiguousKoPosition.frames[5].self.active?.instanceUncertain, true);
+  assert.notEqual(ambiguousKoPosition.frames[5].self.active?.instanceUncertain, true, "the bare survivor's later promotion preserves its proven lineage");
   assert.equal(displayedInventory(ambiguousKoPosition.frames[3].self), 3);
   assert.equal(displayedInventory(ambiguousKoPosition.frames[4].self), 1, "the explicit KO attachment identity leaves the pool for discard");
   assert.equal(displayedInventory(ambiguousKoPosition.frames[5].self), 1, "promotion preserves the surviving physical inventory");
