@@ -168,6 +168,8 @@ function CardFace({
   const turnActor = useContext(TurnActorContext);
   const abilityUsed = Boolean(card.abilityUsed && turnActor === actor);
   const cardResolutions = useContext(DefinitionContext);
+  const toolName = card.tool;
+  const toolImageUrl = toolName ? Object.values(cardResolutions ?? {}).find((resolution) => resolution.name === toolName && resolution.selectedPrinting?.imageUrl)?.selectedPrinting?.imageUrl ?? "" : "";
   const probableHp = card.hpBasis === "probable" || card.hp === null
     && resolveReplayCardPreviewDefinition(card, { cardResolutions })?.hpBasis === "probable";
   useEffect(() => {
@@ -218,6 +220,11 @@ function CardFace({
       {attackName ? <div key={`attack-${effectKey}`} className={styles.boardAttack} aria-hidden="true"><span className={styles.attackPulse} /></div> : null}
       {damageTaken > 0 ? <span key={`damage-${effectKey}`} className={styles.attackDamage} role="status" aria-label={`${card.name} took ${damageTaken} damage`}>−{damageTaken}</span> : null}
       <div className={styles.cardSurface}>
+      {!faceDown && toolName ? <button type="button" className={`${styles.attachedEnergyCard} ${styles.attachedToolCard}`}
+        aria-label={`Preview attached ${toolName}, representative Tool artwork`}
+        onClick={() => onPreview({ id: `${card.id}-tool`, name: toolName, imageUrl: toolImageUrl })}>
+        <CardArtwork card={{ name: toolName, imageUrl: toolImageUrl }} alt={`${toolName}, representative attached Tool artwork`} sizes={compact ? "80px" : "144px"} />
+      </button> : null}
       {!faceDown && card.energy.length ? <div className={styles.attachedEnergyCards} aria-label="Attached Energy artwork">
         {[...new Set(card.energy)].slice(0, 3).map((energy, index) => {
           const name = /Energy$/.test(energy) ? energy : `Basic ${energy} Energy`;

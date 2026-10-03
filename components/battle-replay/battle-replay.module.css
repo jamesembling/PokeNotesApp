@@ -2070,6 +2070,10 @@ button.pile:disabled {
   box-shadow: 0 1px 4px color-mix(in oklab, var(--foreground) 20%, transparent);
 }
 .attachedEnergyCard:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.attachedToolCard {
+  z-index: 1;
+  transform: translateX(calc(-1 * var(--energy-exposure, 0.45rem)));
+}
 @container replay (min-width: 40.001rem) {
   .cardStack { --energy-exposure: 1.4rem; --energy-layer-gap: 0.4rem; }
   .bench {

@@ -274,6 +274,85 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.equal(noDipplinWitness.frames.at(-1)!.opponent.active?.baseHp, 90);
   assert.equal(noDipplinWitness.frames.at(-1)!.opponent.active?.hpBasis, "probable");
 
+  const unwitnessedCopy = dipplinReplay.frames[5].opponent.bench[0];
+  const probableFamily = resolveReplayCardPreviewDefinition(unwitnessedCopy, dipplinReplay);
+  assert.equal(unwitnessedCopy.baseHp, 80, "same-owner native family guides the unproven copy's probable HP");
+  assert.equal(probableFamily?.probableHpBasis, "same_owner_witnessed_family");
+  assert.equal(probableFamily?.printingPreferenceBasis, "same_owner_witnessed_family");
+  assert.ok(dipplinPrints.slice(0, 2).some((printing) => printing.imageUrl === probableFamily?.selectedPrinting?.imageUrl));
+  assert.equal(probableFamily?.candidatePrintingIds?.length, 3, "a probable representative preference cannot prune physical alternatives");
+  assert.deepEqual(unwitnessedCopy.observedEffects ?? [], [], "another copy's native effect is never inherited as proof");
+  const probableEvolution = dipplinReplay.events[4].transaction?.stages.find((stage) => stage.kind === "evolve")?.cards[0] as ReplayCard;
+  assert.equal(probableEvolution.baseHp, 80);
+  assert.equal(probableEvolution.maxHp, 80, "the new copy's evolution snapshot uses the same probable baseline as its board display");
+  const nativeResolver = createReplayHpContext(dipplinSource.cardDefinitions);
+  assert.equal(nativeResolver.resolve(unwitnessedCopy)?.candidates.length, 3, "semantic definition lookup retains every viable printing");
+  const nativePlan = collectReplayPrintingProofs(dipplinReplay, nativeResolver.resolve);
+  // Pure display-query guards reuse the recorded source and validated native
+  // plan; altered public metadata isolates ambiguity without inventing logs.
+  const isolatedOwner = structuredClone(noDipplinWitness);
+  createReplayHpContext(dipplinSource.cardDefinitions).applySeenPrintingPreferences(isolatedOwner, nativePlan.map((proof) => ({ ...proof, actor: "self" as const })));
+  assert.equal(isolatedOwner.frames.at(-1)!.opponent.bench[0].baseHp, 90, "a different player's witnessed family cannot select this owner's version");
+  const exactTarget = structuredClone(noDipplinWitness);
+  const exactBench = exactTarget.frames.at(-1)!.opponent.bench[0];
+  Object.assign(exactBench, { setId: "sv10", localId: "017" });
+  const exactContext = createReplayHpContext(dipplinSource.cardDefinitions);
+  exactContext.update(exactTarget.frames.at(-1)!); exactContext.decorateState(exactTarget.frames.at(-1)!);
+  exactContext.applySeenPrintingPreferences(exactTarget, nativePlan);
+  const exactResolution = exactContext.collectResolutions()[exactBench.definitionKey!];
+  assert.equal(exactBench.baseHp, 90, "recorded printing identity wins over a sibling's preferred native family");
+  assert.equal(exactResolution.displayBasis, "played_evidence");
+  assert.equal(exactResolution.printingPreferenceBasis, undefined);
+  const swapPlayers = (text: string) => text.replaceAll("PlayerOne", "PlayerTemporary").replaceAll("PlayerTwo", "PlayerOne").replaceAll("PlayerTemporary", "PlayerTwo");
+  const linkedChoice = { dipplin: { ...resolveCardDefinition(buildCardDefinitionIndex([dipplinPrints[2]]), { name: "Dipplin" }), evidenceBasis: "linked_deck_list" as const } };
+  const linkedDisplay = compileBattleReplay({ ...dipplinSource, selfCardDefinitions: linkedChoice,
+    sections: dipplinSource.sections.slice(0, -1).map((entry) => ({ ...entry, player: swapPlayers(entry.player),
+      actions: entry.actions.map((entry) => ({ ...entry, title: swapPlayers(entry.title), details: entry.details.map(swapPlayers) })) })),
+  });
+  const linkedContext = createReplayHpContext(dipplinSource.cardDefinitions, undefined, linkedChoice);
+  linkedContext.applySeenPrintingPreferences(linkedDisplay, nativePlan.map((proof) => ({ ...proof, actor: "self" as const, setId: "sv06", localId: "018" })));
+  const linkedBench = linkedDisplay.frames.at(-1)!.self.bench[0];
+  linkedContext.decorateCard(linkedBench);
+  assert.equal(linkedBench.baseHp, 90, "accepted linked-list printing wins over another copy's witnessed family");
+  assert.equal(linkedContext.collectResolutions()[linkedBench.definitionKey!].probableHpBasis, "linked_deck_list");
+
+  const mixedDefinitions = { ...dipplinSource.cardDefinitions, dipplin: resolveCardDefinition(buildCardDefinitionIndex([
+    ...dipplinPrints.slice(0, 2), { ...dipplinPrints[2], attacks: festivalPrint.attacks },
+  ]), { name: "Dipplin" }) };
+  const mixedPreference = structuredClone(noDipplinWitness);
+  createReplayHpContext(mixedDefinitions).applySeenPrintingPreferences(mixedPreference, nativePlan);
+  assert.equal(mixedPreference.frames.at(-1)!.opponent.bench[0].baseHp, 90, "incompatible native-supported gameplay families refuse a probable preference");
+  const equalHpDefinitions = { ...dipplinSource.cardDefinitions, dipplin: resolveCardDefinition(buildCardDefinitionIndex(dipplinPrints.map((printing) => ({ ...printing, hp: 80 }))), { name: "Dipplin" }) };
+  const equalHpReplay = compileBattleReplay({ ...dipplinSource, cardDefinitions: equalHpDefinitions });
+  const equalHpBench = equalHpReplay.frames[5].opponent.bench[0];
+  const equalHpResolution = resolveReplayCardPreviewDefinition(equalHpBench, equalHpReplay);
+  assert.equal(equalHpBench.hpBasis, "known", "independent HP agreement remains known while printing choice is representative");
+  assert.equal(equalHpResolution?.printingPreferenceBasis, "same_owner_witnessed_family");
+  assert.ok(dipplinPrints.slice(0, 2).some((printing) => printing.imageUrl === equalHpResolution?.selectedPrinting?.imageUrl), "equal HP cannot suppress the preferred gameplay family artwork");
+  assert.equal(equalHpResolution?.candidatePrintingIds?.length, 3);
+
+  const setterDefinitions = { ...dipplinSource.cardDefinitions,
+    dipplin: resolveCardDefinition(buildCardDefinitionIndex(dipplinPrints.map((printing) => ({ ...printing,
+      abilities: [...printing.abilities, { name: "HP Setter", type: "Ability", text: "The maximum HP of each of your Dipplin in play is now 130." }],
+    }))), { name: "Dipplin" }),
+  };
+  const setterProgram = structuredClone(noDipplinWitness);
+  const setterContext = createReplayHpContext(setterDefinitions);
+  const setterFrame = setterProgram.frames.at(-1)!;
+  const setterBench = setterFrame.opponent.bench[0]; setterBench.tool = "Unverified Tool";
+  setterContext.update(setterFrame);
+  assert.equal(setterBench.maxHp, 130);
+  assert.equal(setterBench.hpBasis, "probable", "unverified attachment does not prove that an independently known setter disappeared");
+  const setterSnapshot = structuredClone(setterBench);
+  setterContext.copySnapshotHpProvenance([setterBench], [setterSnapshot]);
+  const lastEvent = setterProgram.events.at(-1)!;
+  lastEvent.transaction = { actor: "opponent", title: "Printing display projection", stages: [{ kind: "evolve", label: "Snapshot", actor: "opponent", cards: [setterSnapshot] }] };
+  setterContext.applySeenPrintingPreferences(setterProgram, nativePlan);
+  assert.equal(setterBench.baseHp, 80);
+  assert.equal(setterBench.maxHp, 130, "probable printed HP preference does not change a known effective-HP setter");
+  assert.equal(setterSnapshot.baseHp, 80);
+  assert.equal(setterSnapshot.maxHp, 130, "transaction snapshots preserve setter provenance even with an unverified attachment");
+
   // Anonymized recorded placements, native attacks, switch and KO wording.
   // Unrelated source actions are omitted; attachment/position uncertainty may
   // not erase an independently proven physical top's printing family.

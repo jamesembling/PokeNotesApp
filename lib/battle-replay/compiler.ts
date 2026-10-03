@@ -455,7 +455,9 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       });
       if (proof.printing) hp.applyPrintingProofs(next, kind === "before" ? actionIndex : actionIndex + 1, proof.printing);
       hp.update(next);
-      stages.push({ kind, label: title, cards: structuredClone(cards), ...(actor ? { actor } : {}), ...(hiddenCount ? { hiddenCount } : {}) });
+      const snapshots = structuredClone(cards);
+      hp.copySnapshotHpProvenance(cards, snapshots);
+      stages.push({ kind, label: title, cards: snapshots, ...(actor ? { actor } : {}), ...(hiddenCount ? { hiddenCount } : {}) });
     };
     const weaknessTargetsActive = (state: ReplayState, attacker: ReplayCard, effect: string) => {
       const attackEvidence = hp.resolve({ ...attacker, observedEffects: [...(attacker.observedEffects ?? []), effect] });
@@ -2143,6 +2145,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       // evidence-pass operation needs a second copy for its rollback fallback.
       const evidenceBefore = before;
       const beforeStages = structuredClone(stages);
+      stages.forEach((stage, index) => hp.copySnapshotHpProvenance(stage.cards, beforeStages[index].cards));
       const beforeContext = { pendingTopDepartures: structuredClone(pendingTopDepartures), retainedTops: structuredClone(retainedTops), selectedCopies: new Map(selectedCopies), counterEliminations: structuredClone(counterEliminations), recordedKnockoutBindings: new Map(recordedKnockoutBindings), boardShuffleActivation: boardShuffleActivation ? { ...boardShuffleActivation } : null, pendingPrizeAnnotations: structuredClone(pendingPrizeAnnotations), earlyPrizeAnnotations: new Map(earlyPrizeAnnotations), pendingBenchTriggers: [...pendingBenchTriggers], bonusDraw: bonusDraw ? { ...bonusDraw } : null, enteredPlay: new Map(enteredPlay), lastEvolution: new Map(lastEvolution), prizeAction, prizeCardsAdded, prizeAmount, attackDamage, expectedBreakdownDamage, devolutionActor, devolutionReturned: [...devolutionReturned], healed: healed ? { ...healed } : null, retreatingId: retreating?.id, knockedOut: knockedOut ? structuredClone(knockedOut) : null, aggregateKnockout: aggregateKnockout ? { ...aggregateKnockout } : null, label, damageBreakdown, lastPromotionActor, cardCounter, physicalCounter, damageApplied: new Map(damageApplied), changedCountZones: { self: new Set(changedCountZones.self), opponent: new Set(changedCountZones.opponent) } };
       const beforeDiscarded = structuredClone(discardedThisAction);
       const beforeCount = mutationCount;
@@ -2300,6 +2303,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
     previousSectionIndex = action.sourceSectionIndex;
     program.events.push(event);
   });
+  if (proof.printing) hp.applySeenPrintingPreferences(program, proof.printing);
   program.cardResolutions = hp.collectResolutions();
   program.diagnostics.evidencedActions = program.events.length;
   if (program.diagnostics.unresolvedActions.length) program.diagnostics.messages.push("Some recorded transitions could not be reconstructed. Affected information is marked unknown; independently recorded transitions remain visible.");

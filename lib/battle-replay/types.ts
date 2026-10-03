@@ -13,7 +13,9 @@ export type ReplayCardResolution = Pick<CardDefinitionEvidence, "coverage" | "ge
   evidenceBasis?: "linked_deck_list";
   printedHp?: number | null;
   hpBasis?: "known" | "probable" | "unknown";
-  probableHpBasis?: "linked_deck_list" | "latest_format_candidate";
+  probableHpBasis?: "linked_deck_list" | "latest_format_candidate" | "same_owner_witnessed_family";
+  /** A probable representative preference; compatible candidates stay unchanged. */
+  printingPreferenceBasis?: "same_owner_witnessed_family";
   artworkSource?: { provider: "limitless"; sourceUrl: string };
 };
 
