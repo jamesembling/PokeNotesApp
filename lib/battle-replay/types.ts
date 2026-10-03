@@ -1,6 +1,7 @@
 import type { ReplayCondition } from "./conditions";
 import type { LogSection } from "@/types/index";
 import type { CardDefinition, CardDefinitionEvidence, CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
+import type { ReplayLinkedCardDefinitions } from "./linked-deck-list";
 
 export type ReplayActor = "self" | "opponent";
 type HandCard = ReplayZoneCard;
@@ -9,6 +10,11 @@ type HandCard = ReplayZoneCard;
 export type ReplayCardResolution = Pick<CardDefinitionEvidence, "coverage" | "generation" | "resolution" | "candidatePrintingIds" | "selectedPrinting" | "displayBasis" | "agreedFacts" | "formatBasis"> & {
   name: string;
   selectedDefinition: CardDefinition | null;
+  evidenceBasis?: "linked_deck_list";
+  printedHp?: number | null;
+  hpBasis?: "known" | "probable" | "unknown";
+  probableHpBasis?: "linked_deck_list" | "latest_format_candidate";
+  artworkSource?: { provider: "limitless"; sourceUrl: string };
 };
 
 export type ReplayZoneCard = {
@@ -20,6 +26,7 @@ export type ReplayZoneCard = {
   setId?: string;
   localId?: string;
   observedEffects?: string[];
+  definitionOwner?: ReplayActor;
 };
 
 export type ReplayCard = {
@@ -31,9 +38,17 @@ export type ReplayCard = {
   baseHp?: number | null;
   maxHp?: number | null;
   remainingHp?: number | null;
+  /** Probable is a catalogue choice, never proof of the played printing. */
+  hpBasis?: "known" | "probable" | "unknown";
   damage: number;
   /** False when the accumulated total is not established by the source. */
   damageKnown?: boolean;
+  /** A recorded top card whose physical copy cannot be assigned safely. */
+  instanceUncertain?: boolean;
+  /** A recorded HP-changing attachment has unresolved assignment to this copy. */
+  hpModifierUncertain?: boolean;
+  /** Independently known physical total, retained across copy-fact uncertainty. */
+  knownStackSize?: number;
   abilityUsed?: boolean;
   /** Effects observed on this physical top card, never shared across namesakes. */
   observedEffects?: string[];
@@ -44,12 +59,18 @@ export type ReplayCard = {
   definitionKey?: string;
   setId?: string;
   localId?: string;
+  definitionOwner?: ReplayActor;
 };
 
 export type ReplaySide = {
   name: string;
   active: ReplayCard | null;
   bench: ReplayCard[];
+  /** Surviving top cards evidenced in play, without a resolved Active/Bench position. */
+  unplaced?: ReplayCard[];
+  activeUncertain?: boolean;
+  /** False only when unseen board/attachment facts can change HP modifiers. */
+  hpModifiersKnown?: boolean;
   deckCount: number | null;
   handCount: number | null;
   /** Physical cards in play, including evolution cards, attachments and owned Stadiums. */
@@ -117,6 +138,8 @@ export type ReplayEffectKind = "ability" | "attack" | "item" | "supporter" | "to
 export type ReplayLogSource = {
   /** Complete printing candidates resolved independently from representative artwork. */
   cardDefinitions?: CardDefinitionEvidenceByName;
+  /** User-selected owner list; it never constrains the opponent's printings. */
+  selfCardDefinitions?: ReplayLinkedCardDefinitions;
   /** Unambiguous catalog evidence keyed by the exact original title/detail. */
   effectTags?: Record<string, ReplayEffectKind>;
   /** Origins established by validated effect text, never inferred from a card name. */

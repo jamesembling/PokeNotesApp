@@ -2023,5 +2023,12 @@ button.pile:disabled {
 .replayDiagnostics li, .sourceEvidence li { margin-block: 0.35rem; }
 .sourceUnresolved { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
 .uncertainZones { max-width: 24ch; font-size: 0.65rem; line-height: 1.35; color: var(--foreground); overflow-wrap: anywhere; }
+.copyUncertain { color: var(--muted-foreground); font-size: 0.65rem; line-height: 1.25; text-align: center; }
+.unknownActive { color: var(--muted-foreground); font-size: 0.75rem; max-width: 10ch; text-align: center; }
+.unplacedCards { border-top: 1px dashed var(--border); padding-top: 0.75rem; }
+.unplacedCards > p { color: var(--muted-foreground); font-size: 0.75rem; margin: 0 0 0.5rem; }
+.unplacedCards > div { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 .energyOrb svg { width: 85%; height: 85%; }
 .conditionMarker svg { width: 80%; height: 80%; color: var(--foreground); }
+
+.probableHp { color: var(--muted-foreground); font-size: 0.65rem; line-height: 1.2; text-align: right; }
