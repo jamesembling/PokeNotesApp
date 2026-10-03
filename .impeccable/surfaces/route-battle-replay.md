@@ -25,6 +25,8 @@ Attack names appear once in the centre announcement, while the attacking Pokémo
 
 Card previews show artwork and HP. Attached Energy icons stay readable, and representative Energy cards match their Pokémon’s size and top/bottom alignment, exposing their right edge behind it. Unassigned attachments remain in the existing evidence pools rather than appearing under a guessed copy.
 
+Desktop Bench slots have wider horizontal gutters and reserve space after the last card for attached Energy. Bench Energy is tucked closer than Active Energy while leaving its colour visible; expanded six-to-eight-slot Benches use the full play-area width to keep cards readable. Narrow layouts retain their existing compact spacing.
+
 The sidebar entry sits beside Battle Logs. Beta remains visible in expanded/mobile navigation and uses the active navigation foreground when selected. The explicit accessible link name and icon-rail tooltip are Battle Replay (Beta). Preserve the existing Friends pending-request dot and its separate count description.
 
 ## Responsive bounds

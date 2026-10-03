@@ -2065,10 +2065,31 @@ button.pile:disabled {
   aspect-ratio: 0.714;
   border-radius: 0.4rem;
   overflow: hidden;
-  transform: translateX(calc(0.45rem + var(--energy-layer) * 0.2rem));
+  transform: translateX(calc(var(--energy-exposure, 0.45rem) + var(--energy-layer) * var(--energy-layer-gap, 0.2rem)));
   box-shadow: 0 1px 4px color-mix(in oklab, var(--foreground) 20%, transparent);
 }
 .attachedEnergyCard:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@container replay (min-width: 40.001rem) {
+  .cardStack { --energy-exposure: 1.4rem; --energy-layer-gap: 0.4rem; }
+  .bench {
+    width: min(100%, 32rem);
+    gap: 1.8rem;
+    padding-inline-end: 1.8rem;
+  }
+  .bench[data-capacity="6"],
+  .bench[data-capacity="7"],
+  .bench[data-capacity="8"] { width: 100%; gap: 1.8rem; }
+  .playArea:has(.bench:is([data-capacity="6"], [data-capacity="7"], [data-capacity="8"])) {
+    grid-template-areas: "prizes field piles" "bench bench bench";
+    row-gap: 0.7rem;
+  }
+  .playerBoard[data-actor="opponent"] .playArea:has(.bench:is([data-capacity="6"], [data-capacity="7"], [data-capacity="8"])) {
+    grid-template-areas: "bench bench bench" "prizes field piles";
+  }
+  .playArea:has(.bench:is([data-capacity="6"], [data-capacity="7"], [data-capacity="8"])) .field { display: contents; }
+  .playArea:has(.bench:is([data-capacity="6"], [data-capacity="7"], [data-capacity="8"])) .activeRow { grid-area: field; }
+  .bench .cardStack { --energy-exposure: 0.85rem; --energy-layer-gap: 0.3rem; }
+}
 .cardStack:not([data-compact]) .boardEnergyOrbs { --energy-orb-size: 1.3rem; --energy-orb-count-size: 0.7rem; }
 .cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.9rem; --energy-orb-count-size: 0.55rem; }
 .cardStack:not([data-compact])[data-has-energy] .healthStatus,
