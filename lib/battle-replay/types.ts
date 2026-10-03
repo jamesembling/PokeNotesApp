@@ -27,6 +27,8 @@ export type ReplayZoneCard = {
   localId?: string;
   observedEffects?: string[];
   definitionOwner?: ReplayActor;
+  /** Recorded in-play component role; used when its catalogue entry is absent. */
+  boardRole?: "tool" | "energy" | "evolution";
 };
 
 export type ReplayCard = {
@@ -41,6 +43,8 @@ export type ReplayCard = {
   /** Probable is a catalogue choice, never proof of the played printing. */
   hpBasis?: "known" | "probable" | "unknown";
   damage: number;
+  /** A visible baseline whose recorded attachment effect is not verified. */
+  hpModifierBasis?: "unverified_attachment";
   /** False when the accumulated total is not established by the source. */
   damageKnown?: boolean;
   /** A recorded top card whose physical copy cannot be assigned safely. */
@@ -62,12 +66,35 @@ export type ReplayCard = {
   definitionOwner?: ReplayActor;
 };
 
+/** Recorded components whose holder or location is unresolved. `cards` remain
+ * in play; conditional groups list alternatives. Member evidence refers to
+ * the original tops and does not add physical cards. */
+export type ReplayBoardPool = {
+  id: string;
+  memberIds: string[];
+  cards: ReplayZoneCard[];
+  memberEvidence?: ReplayZoneCard[];
+  /** Recorded Evolution components that may already be in their owner's hand.
+   * In play is possible only while memberIds remain; later holder departures
+   * may add the destinations below. Excluded from confirmed board and knownHand. */
+  possiblyReturnedCards?: ReplayZoneCard[];
+  /** Additional conditional destinations from eligible holders' recorded
+   * departures. Hand is always possible; board eligibility is derived from
+   * memberIds, so neither belongs in this list. Original component IDs persist. */
+  possibleReturnedDestinations?: Array<"deck" | "discard">;
+  /** Original physical components that may remain with a surviving member or
+   * have moved to one of these explicit destinations. No implicit hand location;
+   * excluded from confirmed board and known-zone inventories until resolved. */
+  uncertainCards?: Array<{ cards: ReplayZoneCard[]; destinations: Array<"hand" | "deck" | "discard"> }>;
+};
+
 export type ReplaySide = {
   name: string;
   active: ReplayCard | null;
   bench: ReplayCard[];
   /** Surviving top cards evidenced in play, without a resolved Active/Bench position. */
   unplaced?: ReplayCard[];
+  boardPools?: ReplayBoardPool[];
   activeUncertain?: boolean;
   /** False only when unseen board/attachment facts can change HP modifiers. */
   hpModifiersKnown?: boolean;
@@ -123,6 +150,7 @@ export type ReplayTransaction = {
 
 export type ReplayEvent = {
   actor: ReplayActor;
+  turnActor?: ReplayActor;
   sourceSectionIndex: number;
   label: string;
   sourceTitle: string;

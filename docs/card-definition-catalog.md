@@ -24,6 +24,29 @@ The `Refresh card definitions` GitHub workflow runs weekly and supports a manual
 
 ## Runtime and uncertainty
 
+Replay pools keep guaranteed in-play components separate from Evolution layers
+that may already have returned to hand. The latter retain their original IDs and
+printing evidence in `possiblyReturnedCards`; they do not count as confirmed
+board cards or known hand cards. Hand remains a possible location. Board remains
+possible only while eligible `memberIds` survive. Recorded holder departures
+can add deck or discard alternatives in `possibleReturnedDestinations`; those
+alternatives persist through later mixed departures. If no eligible holder and
+no additional destination remains, the components resolve to known hand cards.
+Guaranteed pool components accompany a uniquely resolved holder's movement or
+knockout with that movement's counts and transaction, rather than disappearing
+during pool cleanup.
+
+Other uncertain holder departures use `uncertainCards` groups instead: each
+group retains its original physical components and explicitly possible hand,
+deck or discard destinations. There is no implicit hand alternative. Board is
+possible only while an eligible member survives; guaranteed board-only cards
+remain in `cards`. Later departures union their destinations, and a memberless
+group with one remaining destination resolves into that zone. Conditional groups
+are excluded from confirmed board and known-zone totals, but remain named,
+owned physical inventory counted once by original ID. A verified HP modifier
+that may have stayed in play makes effective HP uncertain only for eligible
+surviving holders; missing attachment metadata keeps a local probable baseline.
+
 `loadCardDefinitions` reads only the public database. It batches names, pages in stable printing-ID order, caps each batch at 10,000 rows and caches complete results for five minutes with a 512-name bound. Generations older than 14 days are stale and cannot establish new facts. Missing schema, aborts, invalid records, truncation and failures degrade to explicit unknown coverage. There are no provider calls per frame or per card during playback. Published primary-provider images also supply representative artwork without another lookup; missing images retain the bounded optional artwork fallback. Images never identify the printing used in a game or establish its HP.
 
 Resolution indexes names once, preserves every candidate and optionally narrows with supplied printing IDs or recorded effect names. Printed HP is established independently when every remaining candidate has the same known HP, even if other text differs. Full definition agreement additionally compares supplied functional fields. Conflicting/missing HP and incomplete coverage produce null HP. Neither artwork nor card-name guesses establish HP.
@@ -71,6 +94,29 @@ Historical requests happen only during the scheduled snapshot sync: one pinned
 set manifest and one cached request per set that needs enrichment. Unavailable
 secondary data stops that attempted publication; the previous complete generation
 remains active. Remaining source gaps and conflicting text stay unknown.
+
+Two further reviewed overlays supply only the missing rules for HS Trainer Kit
+Energy Switch `tk-hs-g-21` (Gyarados 21/30) and `tk-hs-r-29` (Raichu 29/30).
+The exact English scans linked from [Border City Games](https://www.bordercitygames.ca/products/energy-switch-gyarados-hgss-trainer-kit-gyarados-raichu)
+and [Gnome Games](https://gnomegames.com/products/energy-switch-raichu-hgss-trainer-kit-gyarados-raichu-85261)
+were inspected on 2026-10-03. Both show the same Basic Energy movement rule and
+the generic printed Trainer label. Their modern subtype remains absent; the
+overlay does not manufacture an Item label. Exact printing ID, set, collector
+number, name, category and missing rules are checked before supplementation.
+Provenance records each scan and its corresponding printing page. The runtime
+can establish an instantaneous discard destination through functional rule
+agreement with verified Item reprints, without changing those printed identities.
+The overlay takes effect for production only after a new full catalogue generation
+is published through the reference-data workflow and read back by the consumer.
+
+The missing effect for Poké Pad `30th-126` is also supplied from its
+[exact TCGdex scan](https://assets.tcgdex.net/en/me/30th/126/high.webp), inspected
+on 2026-10-03. It visibly identifies Poké Pad, Item, regulation J and 126/128;
+its effect searches the deck for a Pokémon without a Rule Box and puts it into
+the hand. The overlay checks the exact source ID, set, collector number, name,
+category, supplied Item subtype and missing rules, retains the primary artwork
+and identity, and records only `rules` as supplemented. It does not borrow text
+from another printing.
 
 ### Published artwork
 

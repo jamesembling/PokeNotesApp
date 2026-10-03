@@ -141,6 +141,32 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   assert.deepEqual(applyReviewedPrintingEffects(reviewedSolrock).attacks.map((attack) => attack.name), ["Solar Generator", "Knock Away"]);
   assert.equal(applyReviewedPrintingEffects(reviewedSolrock).effectProvenance?.provider, "reviewed-printing");
   assert.equal(applyReviewedPrintingEffects({ ...reviewedSolrock, hp: 90 }).effectProvenance, undefined, "reviewed overlays also require their exact verified identity facts");
+  for (const [setId, localId] of [["tk-hs-g", "21"], ["tk-hs-r", "29"]]) {
+    const missingMovement = definition({ sourceCardId: `${setId}-${localId}`, setId, localId, name: "Energy Switch", category: "Trainer", hp: null, stage: null, trainerType: null, rules: null, abilities: [], attacks: [] });
+    const reviewedMovement = applyReviewedPrintingEffects(missingMovement);
+    assert.deepEqual(reviewedMovement.rules, ["Move a basic Energy card attached to 1 of your Pokémon to another of your Pokémon."]);
+    assert.equal(reviewedMovement.trainerType, null, "generic printed Trainer labels cannot manufacture a modern Item subtype");
+    assert.equal(reviewedMovement.sourceCardId, missingMovement.sourceCardId);
+    assert.equal(reviewedMovement.rules === missingMovement.rules, false);
+    assert.equal(missingMovement.rules, null, "supplementation cannot mutate the captured primary record");
+    assert.deepEqual(reviewedMovement.effectProvenance?.fields, ["rules"]);
+    assert.ok(reviewedMovement.effectProvenance?.reviewUrl);
+    assert.equal(isCardDefinition(reviewedMovement), true);
+    for (const mismatch of [{ localId: "20" }, { setId: "different" }, { name: "Different Trainer" }, { category: "Pokemon" }, { hp: 80 }, { rules: ["Existing supplied text."] }] satisfies Partial<ReturnType<typeof definition>>[]) {
+      const conflictingMovement = { ...missingMovement, ...mismatch };
+      assert.equal(applyReviewedPrintingEffects(conflictingMovement), conflictingMovement, "reviewed rules require exact identity and cannot replace supplied text");
+    }
+  }
+  const missingPad = definition({ sourceCardId: "30th-126", setId: "30th", localId: "126", name: "Poké Pad", category: "Trainer", trainerType: "Item", hp: null, stage: null, rules: null, abilities: [], attacks: [] });
+  const reviewedPad = applyReviewedPrintingEffects(missingPad);
+  assert.deepEqual(reviewedPad.rules, ["Search your deck for a Pokémon that doesn’t have a Rule Box, reveal it, and put it into your hand. Then, shuffle your deck. (Pokémon ex, Pokémon V, etc. have Rule Boxes.)"]);
+  assert.deepEqual(reviewedPad.effectProvenance?.fields, ["rules"]);
+  assert.equal(reviewedPad.effectProvenance?.sourceUrl, "https://assets.tcgdex.net/en/me/30th/126/high.webp");
+  assert.equal(missingPad.rules, null);
+  for (const mismatch of [{ localId: "125" }, { name: "Different Trainer" }, { trainerType: "Supporter" }, { rules: ["Existing supplied text."] }] satisfies Partial<ReturnType<typeof definition>>[]) {
+    const conflictingPad = { ...missingPad, ...mismatch };
+    assert.equal(applyReviewedPrintingEffects(conflictingPad), conflictingPad);
+  }
   const projected = definitionEffectRows([normalized]);
   assert.deepEqual(projected.map((row) => row.effect_kind), ["supporter"]);
   assert.equal(projected[0].effect_text, crispin.rules?.[0], "trainer rules must survive the full-definition compatibility boundary");

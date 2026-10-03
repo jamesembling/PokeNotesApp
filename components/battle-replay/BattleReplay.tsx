@@ -57,6 +57,7 @@ function UnavailableArtwork({ name }: { name: string }) {
 }
 
 const ArtworkContext = createContext<Record<string, string>>({});
+const TurnActorContext = createContext<ReplayActor | null>(null);
 const DefinitionContext = createContext<ReplayProgram["cardResolutions"]>({});
 
 function CardArtwork({ card, alt, sizes }: { card: Pick<ReplayZoneCard, "name" | "imageUrl" | "definitionKey">; alt: string; sizes: string }) {
@@ -93,6 +94,7 @@ type PreviewCard = ReplayZoneCard & {
   tool?: string;
   instanceUncertain?: boolean;
   hpBasis?: ReplayCard["hpBasis"];
+  hpModifierBasis?: ReplayCard["hpModifierBasis"];
 };
 
 function AbilityUsedMarker({ className }: { className: string }) {
@@ -101,6 +103,12 @@ function AbilityUsedMarker({ className }: { className: string }) {
       <TriangleIcon aria-hidden="true" />
     </span>
   );
+}
+
+/** Historical member references establish printings, not current board flags. */
+function printingPreview(card: ReplayZoneCard): PreviewCard {
+  const { id, name, imageUrl, definitionKey, setId, localId, observedEffects, definitionOwner } = card;
+  return { id, name, imageUrl, definitionKey, setId, localId, observedEffects, definitionOwner };
 }
 
 const PLAYED_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -133,6 +141,7 @@ function ConditionMarkers({ conditions }: { conditions?: ReplayCard["conditions"
 
 function CardFace({
   card,
+  actor,
   attackName,
   damageTaken = 0,
   knockedOut = false,
@@ -143,6 +152,7 @@ function CardFace({
   onPreview,
 }: {
   card: ReplayCard;
+  actor: ReplayActor;
   attackName?: string;
   damageTaken?: number;
   knockedOut?: boolean;
@@ -153,6 +163,8 @@ function CardFace({
   onPreview: (card: PreviewCard) => void;
 }) {
   const stackRef = useRef<HTMLDivElement>(null);
+  const turnActor = useContext(TurnActorContext);
+  const abilityUsed = Boolean(card.abilityUsed && turnActor === actor);
   const cardResolutions = useContext(DefinitionContext);
   const probableHp = card.hpBasis === "probable" || card.hp === null
     && resolveReplayCardPreviewDefinition(card, { cardResolutions })?.hpBasis === "probable";
@@ -201,10 +213,10 @@ function CardFace({
       {damageTaken > 0 ? <span key={`damage-${effectKey}`} className={styles.attackDamage} role="status" aria-label={`${card.name} took ${damageTaken} damage`}>−{damageTaken}</span> : null}
       <div className={styles.cardSurface}>
       <button
-        aria-label={faceDown ? "Face-down Pokémon" : `Preview ${card.name}${card.abilityUsed ? ", ability used this turn" : ""}`}
+        aria-label={faceDown ? "Face-down Pokémon" : `Preview ${card.name}${abilityUsed ? ", ability used this turn" : ""}`}
         disabled={faceDown}
         className={`${styles.cardFace} ${styles.cardPreviewTrigger}`}
-        onClick={() => onPreview(card)}
+        onClick={() => onPreview({ ...card, abilityUsed })}
         type="button"
       >
         <span className={styles.cardFlipper}>
@@ -218,7 +230,7 @@ function CardFace({
                 {card.damage}
               </span>
             ) : null}
-            {card.abilityUsed ? (
+            {abilityUsed ? (
               <AbilityUsedMarker className={styles.boardAbilityUsedMarker} />
             ) : null}
           </span>
@@ -228,7 +240,7 @@ function CardFace({
       {!faceDown ? <ConditionMarkers conditions={card.conditions} /> : null}
       {card.energy.length > 0 && !faceDown ? <EnergyOrbs energy={card.energy} className={styles.boardEnergyOrbs} /> : null}
       </div>
-      {card.instanceUncertain && !faceDown ? <span className={styles.copyUncertain} title="The log establishes this Pokémon, but does not identify its physical copy or attached cards.">Copy uncertain</span> : null}
+      {card.instanceUncertain && !faceDown ? <span className={styles.copyUncertain} title="The log establishes this Pokémon, but does not identify which same-name physical copy it is.">Copy uncertain</span> : null}
       <div aria-hidden={faceDown} className={styles.healthStatus} data-tone={remainingHp === null ? "unknown" : healthTone}>
         {remainingHp !== null && card.hp !== null ? <div
           aria-label={`${card.name}: ${probableHp ? "probably " : ""}${remainingHp} of ${card.hp} HP remaining`}
@@ -242,6 +254,7 @@ function CardFace({
         </div> : null}
         <strong>{remainingHp !== null ? `${remainingHp} HP` : card.hp !== null ? `${card.hp} max HP · damage ?` : card.baseHp ? `${card.baseHp} printed HP · max ?` : "HP ?"}</strong>
         {probableHp ? <span className={styles.probableHp}>probably</span> : null}
+        {card.hpModifierBasis === "unverified_attachment" ? <span className={styles.probableHp}>Attached effect unverified</span> : null}
       </div>
     </div>
   );
@@ -377,23 +390,25 @@ function StadiumSpot({
 }
 
 function TransactionCards({ actor, onPreview, previousState, stage, state }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; previousState: ReplayState; stage: ReplayTransactionStage; state: ReplayState }) {
+  const turnActor = useContext(TurnActorContext);
   const hiddenCardCount = Math.max(0, Math.floor(stage.hiddenCount ?? 0));
   return <div className={styles.transactionCards} data-many={stage.cards.length > 4 || undefined}>
     {stage.cards.map((card) => {
       const boardCard = resolveBoardCardPreview(card, stage, actor, state, previousState);
       const hasBoardState = boardCard.hp !== undefined;
+      const abilityUsed = Boolean(boardCard.abilityUsed && turnActor === actor);
       return <div className={styles.transactionCardState} data-stateful={hasBoardState || undefined} key={card.id}>
         {shouldShowTransactionEvolutionStack(stage, boardCard) ? <div aria-label={`Evolution stack: ${boardCard.underlying?.map((item) => item.name).join(", ")}`} className={styles.transactionEvolutionStack}>
           {(boardCard.underlying ?? []).map((item) => <span key={item.id}>
             <CardArtwork card={item} alt="" sizes="82px" />
           </span>)}
         </div> : null}
-        <button aria-label={`Preview ${card.name}${boardCard.abilityUsed ? ", ability used this turn" : ""}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview(boardCard)} type="button">
+        <button aria-label={`Preview ${card.name}${abilityUsed ? ", ability used this turn" : ""}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ ...boardCard, abilityUsed })} type="button">
           <CardArtwork card={boardCard} alt={`${card.name}, representative card artwork`} sizes="112px" />
         </button>
         <ConditionMarkers conditions={boardCard.conditions} />
         {boardCard.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.transactionDamageCounter}>?</span> : boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
-        {boardCard.abilityUsed ? <AbilityUsedMarker className={styles.transactionAbilityUsedMarker} /> : null}
+        {abilityUsed ? <AbilityUsedMarker className={styles.transactionAbilityUsedMarker} /> : null}
         {boardCard.energy?.length ? <EnergyOrbs energy={boardCard.energy} className={styles.transactionEnergyOrbs} /> : null}
         {boardCard.tool ? <span className={styles.transactionTool}>Tool · {boardCard.tool}</span> : null}
       </div>;
@@ -464,6 +479,59 @@ function useCoinFlipPhase(event: ReplayEvent | null): CoinFlipPhase {
     };
   }, [event]);
   return step.event === event ? step.phase : initialPhase;
+}
+
+function BoardCardPools({ cards, onPreview, side }: {
+  cards: ReplayCard[];
+  onPreview: (card: PreviewCard) => void;
+  side: ReplaySide;
+}) {
+  const cardResolutions = useContext(DefinitionContext);
+  return side.boardPools?.map((pool) => {
+    const members = pool.memberIds.map((id) => cards.find((card) => card.id === id)?.name ?? "Pokémon");
+    const assignmentKnown = pool.memberIds.length === 1;
+    const locationLabels = { board: "in play", hand: "in hand", discard: "in discard", deck: "in deck" };
+    const locationGroups = [...(pool.possiblyReturnedCards?.length ? [{ cards: pool.possiblyReturnedCards, destinations: ["hand" as const, ...(pool.possibleReturnedDestinations ?? [])] }] : []), ...(pool.uncertainCards ?? [])];
+    const evidence = pool.memberEvidence?.filter((card) => card.observedEffects?.length || card.setId) ?? [];
+    const knownHpEvidence = [...new Set(evidence.flatMap((card) => {
+      const resolution = resolveReplayCardPreviewDefinition(card, { cardResolutions });
+      return resolution?.hpBasis === "known" && resolution.printedHp ? [`${card.name} · ${resolution.printedHp} printed HP`] : [];
+    }))];
+    return <div className={styles.boardPool} key={pool.id} role="group" aria-label={`${side.name} card assignment evidence`}>
+      <strong>{pool.cards.length ? `In play · ${assignmentKnown ? `with ${members[0]}` : "copy assignment unknown"}` : locationGroups.length ? "Card location evidence" : "Recorded printing evidence"}</strong>
+      {pool.cards.length && !assignmentKnown ? <p>On one of: {members.join(", ")}</p> : null}
+      {knownHpEvidence.length ? <p>Known printing evidence: {knownHpEvidence.join("; ")}</p> : null}
+      <ul>{pool.cards.map((card) => <li key={card.id}>
+        <button type="button" className={styles.poolCard}
+          aria-label={`Preview ${card.name}, in play ${assignmentKnown ? `with ${members[0]}` : "with copy assignment unknown"}`}
+          onClick={() => onPreview(card)}>
+          <span><CardArtwork card={card} alt={`${card.name}, representative card artwork`} sizes="48px" /></span>
+          <span>{card.name}<small>{card.boardRole === "evolution" ? "Evolution card" : card.boardRole === "tool" ? "Tool" : card.boardRole === "energy" ? "Energy" : "Card"}</small></span>
+        </button>
+      </li>)}</ul>
+      {locationGroups.map((group, index) => {
+        const locations = [...(pool.memberIds.length ? ["board"] as const : []), ...group.destinations];
+        const locationText = locations.map((location) => locationLabels[location]).join(" or ");
+        const locationStatus = locations.length > 1 ? "Location uncertain" : "Recorded location";
+        return <div key={index}>
+        <p>{locationStatus} · {locationText}</p>
+        <ul>{group.cards.map((card) => <li key={card.id}>
+          <button type="button" className={styles.poolCard} aria-label={`Preview ${card.name}, ${locationStatus.toLowerCase()}: ${locationText}`} onClick={() => onPreview(card)}>
+            <span><CardArtwork card={card} alt={`${card.name}, representative card artwork`} sizes="48px" /></span>
+            <span>{card.name}<small>{locationStatus}</small></span>
+          </button>
+        </li>)}</ul>
+      </div>;
+      })}
+      {evidence.length ? <details>
+        <summary>Known printing evidence{assignmentKnown ? "" : " · assignment unknown"}</summary>
+        <p>Evidence for these Pokémon; no extra cards are counted.</p>
+        <ul>{evidence.map((card, index) => <li key={`${card.id}-${index}`}>
+          <button type="button" onClick={() => onPreview(printingPreview(card))}>{card.name}{card.observedEffects?.length ? ` · ${card.observedEffects.join(", ")}` : " · recorded printing"}</button>
+        </li>)}</ul>
+      </details> : null}
+    </div>;
+  });
 }
 
 function PlayerBoard({
@@ -551,7 +619,7 @@ function PlayerBoard({
               data-populated={displayActive ? true : undefined}
             >
               {displayActive ? (
-                <CardFace attackName={attackName} damageTaken={damageTaken(displayActive, previousActive)} knockedOut={knockedOutIds.has(displayActive.id)} effectKey={currentEvent?.sourceTitle} card={displayActive} faceDown={faceDown} motion={activeMotion} onPreview={onPreview} />
+                <CardFace actor={actor} attackName={attackName} damageTaken={damageTaken(displayActive, previousActive)} knockedOut={knockedOutIds.has(displayActive.id)} effectKey={currentEvent?.sourceTitle} card={displayActive} faceDown={faceDown} motion={activeMotion} onPreview={onPreview} />
               ) : (
                 side.activeUncertain ? <span className={styles.unknownActive}>Active Pokémon unknown</span> : <span aria-hidden="true" className={styles.emptyZone} />
               )}
@@ -576,15 +644,16 @@ function PlayerBoard({
                 key={index}
               >
                 {benchCard ? (
-                  <CardFace knockedOut={knockedOutIds.has(benchCard.id)} damageTaken={damageTaken(benchCard, previousCard)} effectKey={currentEvent?.sourceTitle} card={benchCard} compact faceDown={faceDown} motion={motion} onPreview={onPreview} />
+                  <CardFace actor={actor} knockedOut={knockedOutIds.has(benchCard.id)} damageTaken={damageTaken(benchCard, previousCard)} effectKey={currentEvent?.sourceTitle} card={benchCard} compact faceDown={faceDown} motion={motion} onPreview={onPreview} />
                 ) : null}
               </div>
             );})}
           </div>
           {side.unplaced?.length ? <div className={styles.unplacedCards} aria-label={`${side.name} Pokémon with unknown position`}>
             <p>Position unknown</p>
-            <div>{side.unplaced.map((card) => <CardFace card={card} compact key={card.id} faceDown={faceDown} onPreview={onPreview} />)}</div>
+            <div>{side.unplaced.map((card) => <CardFace actor={actor} card={card} compact key={card.id} faceDown={faceDown} onPreview={onPreview} />)}</div>
           </div> : null}
+          {!faceDown ? <BoardCardPools cards={currentCards} onPreview={onPreview} side={side} /> : null}
         </div>
 
         <div className={styles.zonePiles}>
@@ -753,6 +822,7 @@ export function BattleReplay({
 
   return (
     <DefinitionContext.Provider value={program.cardResolutions}>
+    <TurnActorContext.Provider value={currentEvent?.turnActor ?? null}>
     <ArtworkContext.Provider value={artwork}>
     <div className={styles.replayContainer}>
     <div className={styles.replay}>
@@ -981,7 +1051,8 @@ export function BattleReplay({
             <DialogTitle className="sr-only">{previewedCard?.name}</DialogTitle>
             <DialogDescription className="sr-only">Enlarged card preview</DialogDescription>
             {previewedCard ? <div aria-label="Card preview details" className={styles.cardPreviewStage} role="region" tabIndex={0}>
-              {previewedCard.instanceUncertain ? <p className={styles.previewUnknownHealth}>Physical copy uncertain · attached cards and accumulated damage cannot be assigned to this copy.</p> : null}
+              {previewedCard.hpModifierBasis === "unverified_attachment" ? <p className={styles.previewUnknownHealth}>Attached card effect unverified · {previewedCard.hp === null ? "effective HP is unknown" : "effective HP is probable"}.</p> : null}
+              {previewedCard.instanceUncertain ? <p className={styles.previewUnknownHealth}>Physical copy uncertain · only unresolved copy facts are marked unknown. Shared in-play cards are listed on the board.</p> : null}
               <div className={styles.cardPreviewImage}>
                 <CardArtwork card={previewedCard} alt={`${previewedCard.name}, enlarged representative card artwork`} sizes="340px" />
                 <ConditionMarkers conditions={previewedCard.conditions} />
@@ -999,7 +1070,7 @@ export function BattleReplay({
               {printed ? <div className={styles.printedCardDetails}>
                 <p className="text-muted-foreground">{previewDefinition?.displayBasis === "played_evidence" ? "Recorded printing" : previewDefinition?.hpBasis === "probable" ? "Probable printing" : previewDefinition?.evidenceBasis === "linked_deck_list" ? "Selected Deck List printing" : "Representative printing"} · {printed.setId.toUpperCase()} {printed.localId}{printed.hp ? ` · ${printed.hp} printed HP` : ""}</p>
                 {previewDefinition?.hpBasis === "probable" ? <p className="text-muted-foreground">{previewDefinition.probableHpBasis === "linked_deck_list" ? "This probable printing follows the Deck List selected for this Battle Log." : "This probable printing is the most recent catalogue candidate surviving the saved format filter."} The log does not confirm the printing played.{previewDefinition.formatBasis?.status === "partial" || previewDefinition.formatBasis?.status === "unsupported" ? " Format filtering is incomplete." : ""}</p> : previewDefinition?.evidenceBasis === "linked_deck_list" ? <p className="text-muted-foreground">Card details follow the Deck List selected for this Battle Log.{previewDefinition?.resolution === "ambiguous" ? " More than one listed printing is possible." : ""}</p> : previewDefinition?.displayBasis !== "played_evidence" ? <p className="text-muted-foreground">The log does not identify the exact printing played.{previewDefinition?.resolution === "ambiguous" ? " Printed details can differ between possible printings." : ""}</p> : null}
-                {previewDefinition?.formatBasis?.status === "conflicting" ? <p className="text-muted-foreground">{previewDefinition.displayBasis === "played_evidence" ? "This recorded printing differs from the saved format. The replay follows the recorded card." : "The selected Deck List printing differs from the saved format. The log does not confirm this printing."}</p> : null}
+                {previewDefinition?.formatBasis?.status === "conflicting" ? <p className="text-muted-foreground">{previewDefinition.displayBasis === "played_evidence" ? "This recorded printing differs from the saved format. The replay follows the recorded card." : previewDefinition.evidenceBasis === "linked_deck_list" ? "The selected Deck List printing differs from the saved format. The log does not confirm this printing." : "The catalogue candidates conflict with the saved format. The log does not confirm the exact printing."}</p> : null}
                 {printed.rules?.map((rule, index) => <p key={`rule-${index}`}>{rule}</p>)}
                 {printed.abilities.map((ability, index) => <p key={`ability-${index}`}><strong>{ability.name || "Ability"}</strong>{ability.text ? ` · ${ability.text}` : " · Text unavailable"}</p>)}
                 {printed.attacks.map((attack, index) => <p key={`attack-${index}`}><strong>{attack.name || "Attack"}</strong>{attack.damage ? ` · ${attack.damage}` : ""}{attack.cost?.length ? ` · ${attack.cost.join(", ")}` : ""}{attack.text ? ` · ${attack.text}` : ""}</p>)}
@@ -1012,6 +1083,7 @@ export function BattleReplay({
     </div>
     </div>
     </ArtworkContext.Provider>
+    </TurnActorContext.Provider>
     </DefinitionContext.Provider>
   );
 }

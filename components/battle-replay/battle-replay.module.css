@@ -2032,3 +2032,13 @@ button.pile:disabled {
 .conditionMarker svg { width: 80%; height: 80%; color: var(--foreground); }
 
 .probableHp { color: var(--muted-foreground); font-size: 0.65rem; line-height: 1.2; text-align: right; }
+
+.boardPool { border: 1px dashed var(--border); border-radius: 0.5rem; padding: 0.65rem; margin-top: 0.65rem; }
+.boardPool > strong { font-size: 0.75rem; }
+.boardPool p, .boardPool summary { font-size: 0.75rem; color: var(--muted-foreground); margin: 0.25rem 0 0.5rem; }
+.boardPool ul { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.poolCard { display: flex; align-items: center; gap: 0.4rem; text-align: left; font-size: 0.75rem; }
+.poolCard > span:first-child { position: relative; display: block; width: 3rem; aspect-ratio: 0.716; flex: none; overflow: hidden; border-radius: 0.2rem; }
+.poolCard small { display: block; color: var(--muted-foreground); }
+.boardPool details { margin-top: 0.5rem; }
+.boardPool button:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
