@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -11,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
 import { parse as parseEnv } from "dotenv";
+import sharp from "sharp";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const baseUrl = "http://localhost:3010";
@@ -25,9 +27,11 @@ let page;
 let artifacts;
 let environment = {};
 let failureMessage;
+const replayCaptures = [];
+const blockedNetworkOrigins = new Set();
 
 if (process.argv.includes("--help")) {
-  console.log("npm run e2e:local:import [-- --expired-session]\nResets the synthetic local database, starts port 3010, signs in, and checks paste, review, save, reload and catalogue learning. The expired-session variant verifies refresh during deck-options loading before saving. Closes its browser and app afterward; leaves the local database available for inspection. Port 3010 must be free. No hosted target or credentials are accepted.");
+  console.log("npm run e2e:local:import [-- --expired-session]\nResets the synthetic local database, starts port 3010, signs in, and checks paste, review, save, reload, catalogue learning and saved Battle Replay navigation/playback. The authenticated variant also checks replay layouts, paging and ownership; the expired-session variant verifies refresh during deck-options loading before saving. Closes its browser and app afterward; leaves the local database available for inspection. Port 3010 must be free. No hosted target or credentials are accepted.");
   process.exit(0);
 }
 assert.ok(process.argv.length === 2 || (process.argv.length === 3 && expiredSession),
@@ -86,7 +90,9 @@ try {
   context.setDefaultTimeout(20000);
   await context.route("**/*", route => {
     const url = new URL(route.request().url());
-    return ["localhost", "127.0.0.1"].includes(url.hostname) ? route.continue() : route.abort();
+    if (["localhost", "127.0.0.1"].includes(url.hostname)) return route.continue();
+    blockedNetworkOrigins.add(url.origin);
+    return route.abort();
   });
   page = await context.newPage();
   let saveRequests = 0;
@@ -298,7 +304,10 @@ try {
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   assert.equal((await logs()).length, 4, "Abandoning the second review must not create another log.");
   assert.equal(saveRequests, 1, "The second review must not send a save request.");
-  console.log(`PASS: ${expiredSession ? "expired-session" : "authenticated"} paste → review → save → reload → learned review (${Math.round(performance.now() - journeyStarted)} ms, local diagnostic only).`);
+  await verifyBattleReplay(db, userId, saved.id);
+  assert.equal((await logs()).length, 4, "Replay verification must preserve the four saved logs.");
+  assert.equal(saveRequests, 1, "Replay verification must not send an import save request.");
+  console.log(`PASS: ${expiredSession ? "expired-session" : "authenticated"} paste → review → save → reload → learned review → saved replay (${Math.round(performance.now() - journeyStarted)} ms, local diagnostic only).`);
 } catch (error) {
   failureMessage = redact(error.message);
   console.error(`FAIL at ${stage}: ${failureMessage}`);
@@ -335,6 +344,327 @@ try {
 function checkpoint(value) {
   stage = value;
   console.log(`[import-check] ${value}`);
+}
+
+async function verifyBattleReplay(db, userId, logId) {
+  checkpoint("open the saved Battle Log replay and preserve source actions");
+  const errors = [];
+  const consoleMessages = [];
+  const captureError = error => errors.push(error.message);
+  const captureConsole = message => {
+    if (["warning", "error"].includes(message.type())) consoleMessages.push({ type: message.type(), text: redact(message.text()) });
+  };
+  page.on("pageerror", captureError);
+  page.on("console", captureConsole);
+  const original = await query(db.from("logs").select("*").eq("id", logId).single());
+  const replayPath = `/replays/${logId}`;
+  const scrubber = page.getByRole("slider", { name: "Scrub through battle replay", exact: true });
+  const position = () => scrubber.inputValue();
+  const summaries = original.sections.flatMap(section => section.actions.map(action => action.title
+    .replaceAll(`${original.self_player_name}'s`, "Your")
+    .replaceAll(`${original.opponent_player_name}'s`, "Opponent's")
+    .replaceAll(original.self_player_name, "You")
+    .replaceAll(original.opponent_player_name, "Opponent")));
+  await page.goto(`${baseUrl}/logs/${logId}`);
+  await page.getByRole("link", { name: /^Replay battle(?: Beta| \(Beta\))?$/ }).click();
+  await page.waitForURL(`${baseUrl}${replayPath}`);
+  await scrubber.waitFor();
+  assert.equal(await position(), "0");
+  assert.equal(Number(await scrubber.getAttribute("max")), summaries.length,
+    "Every saved source action must have a separate replay position.");
+  for (const summary of summaries) {
+    assert.equal(await page.getByText(summary, { exact: true }).and(page.locator("ol button p")).count(), 1,
+      "The timeline must preserve each saved source action exactly once.");
+  }
+  await page.getByText("Unrecorded information stays unknown.", { exact: false }).waitFor();
+  assert.ok(await page.getByLabel("Deck count unknown", { exact: true }).count() === 2);
+  assert.ok(await page.getByLabel("Prize cards remaining unknown", { exact: true }).count() === 2);
+  assert.ok(await page.getByRole("status").filter({ hasText: "Partial replay" }).count() === 1,
+    "Unsupported attacks must be disclosed instead of inventing a target.");
+
+  checkpoint("step, seek, play, pause and reload the saved replay");
+  await page.getByRole("button", { name: "Next action", exact: true }).click();
+  assert.equal(await position(), "1");
+  await page.getByRole("button", { name: "Previous action", exact: true }).click();
+  assert.equal(await position(), "0");
+  let actionOffset = 0;
+  const turnStarts = original.sections.flatMap(section => {
+    const start = actionOffset + 1;
+    actionOffset += section.actions.length;
+    return section.actions.length ? [start] : [];
+  });
+  for (const start of turnStarts) {
+    await page.getByRole("button", { name: "Next turn", exact: true }).click();
+    assert.equal(Number(await position()), start,
+      "Turn navigation must reach every saved source section, including both players' same-numbered turns.");
+  }
+  for (const start of turnStarts.slice(0, -1).reverse()) {
+    await page.getByRole("button", { name: "Previous turn", exact: true }).click();
+    assert.equal(Number(await position()), start);
+  }
+  await scrubber.focus();
+  await scrubber.press("End");
+  await until(async () => Number(await position()) === summaries.length);
+  await page.getByRole("button", { name: "Restart replay", exact: true }).click();
+  assert.equal(await position(), "0");
+  await page.getByRole("button", { name: "Play replay", exact: true }).click();
+  await until(async () => Number(await position()) > 0);
+  await page.getByRole("button", { name: "Pause replay", exact: true }).click();
+  const paused = await position();
+  await until(async () => new URL(page.url()).searchParams.get("position") === paused);
+  await page.reload();
+  await scrubber.waitFor();
+  assert.equal(await position(), paused, "Reload must restore the action encoded in the URL.");
+  await page.getByRole("link", { name: "View Battle Log", exact: true }).click();
+  await page.waitForURL(`${baseUrl}/logs/${logId}`);
+  await page.getByRole("link", { name: /^Replay battle(?: Beta| \(Beta\))?$/ }).click();
+  await scrubber.waitFor();
+
+  if (!expiredSession) {
+    await verifyReplayCollection(db, userId, original);
+  }
+  page.off("pageerror", captureError);
+  page.off("console", captureConsole);
+  const groupedConsole = [...consoleMessages.reduce((groups, message) => {
+    const key = `${message.type}:${message.text}`;
+    const group = groups.get(key) ?? { ...message, count: 0 };
+    group.count++;
+    groups.set(key, group);
+    return groups;
+  }, new Map()).values()];
+  console.log(`[import-check] replay console ${JSON.stringify({ messages: groupedConsole,
+    blockedNetworkOrigins: [...blockedNetworkOrigins] })}`);
+  assert.deepEqual(errors, [], "Replay navigation and interaction must not raise browser exceptions.");
+}
+
+async function verifyReplayLayouts(scrubber) {
+  checkpoint("review replay at desktop, available-panel and mobile widths");
+  const reviewDir = resolve(root, ".impeccable/review");
+  mkdirSync(reviewDir, { recursive: true });
+  for (const [label, width, height] of [["desktop", 1440, 1000], ["iab", 1233, 860], ["panel", 980, 850], ["mobile", 390, 844]]) {
+    await page.setViewportSize({ width, height });
+    await scrubber.waitFor();
+    if (width < 860) {
+      await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
+      const betaLink = page.getByRole("link", { name: "Battle Replay (Beta)", exact: true });
+      await betaLink.waitFor();
+      assert.ok(await betaLink.getByText("Beta", { exact: true }).isVisible());
+      await captureReplay("battle-replay-mobile-navigation", false);
+      await page.getByRole("button", { name: "Close navigation menu", exact: true }).click();
+    } else {
+      const betaLink = page.getByRole("link", { name: "Battle Replay (Beta)", exact: true });
+      assert.ok(await betaLink.isVisible());
+      await page.locator('[data-sidebar="rail"]').click();
+      assert.ok(await betaLink.isVisible(), "Collapsed sidebar must retain its accessible beta label.");
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+        `Replay must fit ${label} width with a collapsed sidebar.`);
+      await captureReplay(`battle-replay-${label}-collapsed`);
+      await page.locator('[data-sidebar="rail"]').click();
+    }
+    for (const theme of ["light", "dark"]) {
+      const toggle = page.getByRole("button", { name: `Switch to ${theme} mode`, exact: true });
+      if (await toggle.isVisible()) await toggle.click();
+      await until(() => page.locator("html").evaluate((element, dark) => element.classList.contains("dark") === dark, theme === "dark"));
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+        `Replay must fit ${label} width in ${theme} mode.`);
+      await captureReplay(`battle-replay-${label}-${theme}`);
+    }
+    const geometry = await page.getByRole("button", { name: "Preview Dreepy", exact: true }).boundingBox();
+    console.log(`[import-check] replay ${label} ${width}px: Active card ${Math.round(geometry.width)}×${Math.round(geometry.height)}px`);
+  }
+  await page.setViewportSize({ width: 1280, height: 800 });
+}
+
+async function captureReplay(name, fullPage = true) {
+  const path = resolve(root, ".impeccable/review", `${name}.png`);
+  mkdirSync(resolve(root, ".impeccable/review"), { recursive: true });
+  const pixels = await page.screenshot({ path, fullPage, animations: "disabled" });
+  const capture = { path, viewport: page.viewportSize(),
+    image: { width: pixels.readUInt32BE(16), height: pixels.readUInt32BE(20) }, capturedAt: new Date().toISOString() };
+  replayCaptures.push(capture);
+  writeFileSync(resolve(root, ".impeccable/review/battle-replay-manifest.json"),
+    JSON.stringify({ variant, startedAt, captures: replayCaptures }, null, 2) + "\n");
+  console.log(`[import-check] capture ${JSON.stringify(capture)}`);
+  return pixels;
+}
+
+async function verifyPreviewLabel(dialog, name) {
+  const label = dialog.getByText("HP unknown", { exact: true });
+  await label.waitFor();
+  await captureReplay(name, false);
+  const pixels = await label.screenshot({ animations: "disabled" });
+  const surface = await label.evaluate(element => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const context = document.createElement("canvas").getContext("2d");
+    const rgba = color => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      return [...context.getImageData(0, 0, 1, 1).data];
+    };
+    const probe = document.createElement("span");
+    probe.style.color = "var(--card-foreground)";
+    probe.style.backgroundColor = "var(--card)";
+    element.appendChild(probe);
+    const card = getComputedStyle(probe);
+    const expected = { foreground: rgba(card.color), background: rgba(card.backgroundColor) };
+    probe.remove();
+    return { theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
+      foreground: rgba(style.color), background: rgba(style.backgroundColor), expected,
+      opacity: style.opacity, fontSize: style.fontSize,
+      bounds: { left: rect.left, top: rect.top, width: rect.width, height: rect.height } };
+  });
+  assert.equal(surface.background[3], 255, "The unknown-HP label must have an opaque surface.");
+  assert.equal(surface.opacity, "1");
+  assert.deepEqual(surface.foreground, surface.expected.foreground, "The label must use the card foreground.");
+  assert.deepEqual(surface.background, surface.expected.background, "The label must use the card surface.");
+  const luminance = channels => channels.slice(0, 3).map(value => {
+    const channel = value / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  const foreground = luminance(surface.foreground), background = luminance(surface.background);
+  const contrast = (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+  assert.ok(contrast >= 4.5, "The unknown-HP label must meet normal-text contrast in each theme.");
+  const pixel = [...await sharp(pixels).extract({ left: 8, top: Math.floor(pixels.readUInt32BE(20) / 2), width: 1, height: 1 }).ensureAlpha().raw().toBuffer()];
+  const capturedBackground = luminance(pixel);
+  const capturedContrast = (Math.max(foreground, capturedBackground) + 0.05) / (Math.min(foreground, capturedBackground) + 0.05);
+  console.log(`[import-check] preview label ${JSON.stringify({ ...surface, contrast, pixel, capturedContrast })}`);
+}
+
+async function verifyReplayCollection(db, userId, original) {
+  checkpoint("check replay paging, unavailable logs and account ownership");
+  const rows = Array.from({ length: 31 }, (_, index) => ({ ...original, id: randomUUID(),
+    date: original.date,
+    created_at: new Date(Date.UTC(2025, 0, index + 1)).toISOString(),
+    imported_at: new Date(Date.UTC(2025, 0, index + 1)).toISOString(),
+    linked_deck_id: null, linked_deck_list_id: null, sections: [], raw_log: "Synthetic unsupported replay" }));
+  const ids = rows.map(row => row.id);
+  rows[0].raw_log = "Synthetic source-evidenced replay for card and discard inspection";
+  rows[0].sections = [
+    { title: "Setup", player: "", prizesAfterTurn: {}, actions: [
+      { title: "E2ETrainer drew 7 cards for the opening hand.", details: ["• Dreepy, Munkidori, Torchic, Basic Fire Energy"] },
+      { title: "FixtureOpponent drew 7 cards for the opening hand.", details: [] },
+      { title: "E2ETrainer played Dreepy to the Active Spot.", details: [] },
+      { title: "E2ETrainer played Munkidori to the Bench.", details: [] },
+      { title: "FixtureOpponent played Torchic to the Active Spot.", details: [] }
+    ] },
+    { title: "E2ETrainer's Turn", player: "E2ETrainer", prizesAfterTurn: {}, actions: [
+      { title: "E2ETrainer discarded a card.", details: ["• Basic Fire Energy"] },
+      { title: "E2ETrainer's Dreepy is now Poisoned.", details: [] },
+      { title: "E2ETrainer's Dreepy is now Burned.", details: [] }
+    ] }
+  ];
+  let otherUserId;
+  try {
+    await query(db.from("logs").insert(rows));
+    await page.goto(`${baseUrl}/replays/e2e-log-win-charizard`);
+    const scrubber = page.getByRole("slider", { name: "Scrub through battle replay", exact: true });
+    await scrubber.waitFor();
+    assert.ok(Number(await scrubber.getAttribute("max")) > 0, "Existing text-ID Battle Logs must remain replayable.");
+    await page.goto(`${baseUrl}/replays/${rows[0].id}`);
+    await scrubber.waitFor();
+    await scrubber.focus();
+    await scrubber.press("Home");
+    for (let action = 0; action < 6; action++) await scrubber.press("ArrowRight");
+    await until(async () => await scrubber.inputValue() === "6");
+    await captureReplay("battle-replay-discard-resolution");
+    await scrubber.press("End");
+    await until(async () => await scrubber.inputValue() === "8");
+    assert.equal(await page.getByLabel("Poisoned", { exact: true }).count(), 1,
+      "Only the explicitly poisoned Active Pokémon must receive its marker.");
+    assert.equal(await page.getByLabel("Burned", { exact: true }).count(), 1,
+      "Only the explicitly burned Active Pokémon must receive its marker.");
+    const preview = page.getByRole("button", { name: "Preview Dreepy", exact: true });
+    await preview.click();
+    const cardDialog = page.getByRole("dialog", { name: "Dreepy", exact: true });
+    await cardDialog.waitFor();
+    await page.getByText("HP unknown", { exact: true }).last().waitFor();
+    for (let tab = 0; tab < 8; tab++) {
+      await page.keyboard.press("Tab");
+      assert.ok(await cardDialog.evaluate(element => element.contains(document.activeElement)),
+        "Keyboard focus must remain inside the card preview.");
+    }
+    await verifyPreviewLabel(cardDialog, "battle-replay-card-preview-conditions");
+    checkpoint("restore card preview focus after Escape");
+    await page.keyboard.press("Escape");
+    await requireRestoredFocus(preview, "Preview Dreepy");
+    await page.getByRole("button", { name: "Switch to dark mode", exact: true }).click();
+    await preview.click();
+    await cardDialog.waitFor();
+    await verifyPreviewLabel(cardDialog, "battle-replay-card-preview-conditions-dark");
+    await page.keyboard.press("Escape");
+    await requireRestoredFocus(preview, "Preview Dreepy");
+    await page.getByRole("button", { name: "Switch to light mode", exact: true }).click();
+    const discard = page.getByRole("button", { name: "View discard, 1 card", exact: true });
+    await discard.click();
+    const gallery = page.getByRole("dialog", { name: "Your discard pile", exact: true });
+    await gallery.waitFor();
+    await gallery.getByText("Basic Fire Energy", { exact: true }).waitFor();
+    await captureReplay("battle-replay-discard-gallery", false);
+    const discardedCard = gallery.getByRole("button", { name: "Preview Basic Fire Energy", exact: true });
+    await discardedCard.click();
+    await page.getByRole("dialog", { name: "Basic Fire Energy", exact: true }).waitFor();
+    await captureReplay("battle-replay-discard-card-preview", false);
+    await page.keyboard.press("Escape");
+    await requireRestoredFocus(discardedCard, "Preview Basic Fire Energy in discard gallery");
+    checkpoint("restore discard gallery focus after Escape");
+    await page.keyboard.press("Escape");
+    await requireRestoredFocus(discard, "View discard, 1 card");
+    await verifyReplayLayouts(scrubber);
+    await page.getByRole("link", { name: "Choose another game", exact: true }).click();
+    const collection = page.getByRole("region", { name: "Your Battle Logs", exact: true });
+    await collection.waitFor();
+    assert.equal(await collection.getByRole("link").count(), 30, "The picker must bound its first page.");
+    await Promise.all([
+      page.waitForURL(url => url.pathname === "/replays" && url.searchParams.has("cursor")),
+      page.getByRole("link", { name: "Older games", exact: true }).click()
+    ]);
+    await collection.waitFor();
+    await until(async () => await collection.getByRole("link").count() === 2);
+    assert.equal(await collection.getByRole("link").count(), 2, "The next page must contain the remaining games in this date window.");
+    await page.goto(`${baseUrl}/replays/${rows[1].id}`);
+    await page.getByRole("heading", { name: "This Battle Log cannot be replayed yet", exact: true }).waitFor();
+    assert.equal(await page.getByRole("slider").count(), 0, "Unsupported logs must not render fabricated playback.");
+
+    const otherUser = await db.auth.admin.createUser({ email: `replay-${randomUUID()}@pokenotes.local`, email_confirm: true });
+    if (otherUser.error) throw otherUser.error;
+    otherUserId = otherUser.data.user.id;
+    const privateId = randomUUID();
+    ids.push(privateId);
+    await query(db.from("logs").insert({ ...rows[0], id: privateId, user_id: otherUserId }));
+    await page.goto(`${baseUrl}/replays/${privateId}`);
+    await page.getByRole("heading", { name: "Replay unavailable", exact: true }).waitFor();
+    assert.equal(await page.getByRole("slider").count(), 0, "Another account's replay must not be exposed.");
+    const anonymous = await browser.newContext();
+    try {
+      const anonymousPage = await anonymous.newPage();
+      await anonymousPage.goto(`${baseUrl}/replays/${original.id}`);
+      await anonymousPage.waitForURL(`${baseUrl}/login`);
+    } finally { await anonymous.close(); }
+  } finally {
+    await query(db.from("logs").delete().in("id", ids));
+    if (otherUserId) {
+      const result = await db.auth.admin.deleteUser(otherUserId);
+      if (result.error) throw result.error;
+    }
+  }
+  await page.goto(`${baseUrl}/replays?cursor=${encodeURIComponent("0001-01-01")}`);
+  await page.getByRole("heading", { name: "No Battle Logs to replay", exact: true }).waitFor();
+  await page.goto(`${baseUrl}/replays`);
+  await page.getByRole("region", { name: "Your Battle Logs", exact: true }).waitFor();
+  assert.equal(await page.getByRole("region", { name: "Your Battle Logs", exact: true }).getByRole("link").count(), 1,
+    "The latest date window must contain only the saved import after temporary records are removed.");
+}
+
+async function requireRestoredFocus(trigger, name) {
+  try {
+    await until(() => trigger.evaluate(element => document.activeElement === element), 2000);
+  } catch {
+    const active = await page.evaluate(() => ({ tag: document.activeElement?.tagName,
+      label: document.activeElement?.getAttribute("aria-label"), text: document.activeElement?.textContent?.trim().slice(0, 100) }));
+    assert.fail(`Escape must restore focus to ${name}; focused element: ${JSON.stringify(active)}`);
+  }
 }
 
 async function expireBrowserAccessToken(context) {

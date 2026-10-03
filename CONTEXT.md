@@ -7,6 +7,9 @@ Use these terms in product copy, issues, proposals, tests, and architecture work
 **Battle Log**
 A saved record of one Pokemon TCG Live game, including the parsed sequence of play and its outcome.
 
+**Battle Replay**
+A read-only visual reconstruction of one saved Battle Log, derived from its recorded actions for its account owner. Battle Replay is a Beta view rather than a separate saved record. Unrecorded state remains unknown; partial and unsupported reconstructions are explicit.
+
 **Battle Log Import Draft**
 A server-controlled, unsaved interpretation produced by parsing one complete imported game log once. Its parser-derived facts are immutable; review may change only explicitly permitted fields. It becomes a Battle Log only after a successful save, and abandoning it creates no Battle Log.
 
@@ -36,6 +39,7 @@ A mutual connection between two accounts established when the recipient accepts 
 
 ## Invariants
 
+- Battle Replay reads only the current account owner's saved Battle Log. It never edits the Battle Log, creates a replay record, or grants replay access through shared-log or Player Profile views. It reconstructs recorded actions without inventing hidden cards, HP, counts, or unsupported mutations; available artwork may be a representative printing rather than evidence of the exact card used.
 - A Deck List belongs to one account and may be associated with zero or one Deck Strategy.
 - A Tournament may reference zero or one Deck List independently of its optional Deck Strategy reference. One Deck List may be referenced by multiple Tournaments.
 - Deleting a Tournament or Deck Strategy removes its Deck List relationships but does not delete the account-owned Deck List. Deleting a Tournament removes its owned rounds and snapshot.

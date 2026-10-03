@@ -30,6 +30,7 @@ The product's durable domain language and record relationships are defined in `C
 
 - Poke Notes is an authenticated, account-scoped product for capturing and reviewing Battle Logs, Deck Lists, Deck Strategies, Deck Matchups, Tournaments, and related statistics.
 - Imported game history is parsed into a reviewable Battle Log Import Draft before it becomes a saved Battle Log.
+- Battle Replay (Beta) lets an account owner choose a saved Battle Log and follow its recorded actions on a visual board. It is a read-only derived view: replaying never changes the saved log or creates another record. Hidden or unavailable state stays unknown, partial reconstruction is disclosed, and unsupported logs retain a path to the original Battle Log. Replay is private to the owner and has no public sharing flow.
 - Deck Lists are first-class account-owned records. Their association with a Deck Strategy is optional, and their visual order is a shared product contract across saved lists, Battle Logs, Tournaments, and shared views.
 - Tournaments preserve the Deck List used at the event as an immutable snapshot, independently of later changes to the source Deck List.
 - Strategy work connects working notes and matchup plans to a Deck Strategy and its battle evidence.

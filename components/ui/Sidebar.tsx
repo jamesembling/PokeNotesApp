@@ -11,6 +11,7 @@ import {
   ClipboardTextIcon,
   HouseIcon,
   ListBulletsIcon,
+  PlayCircleIcon,
   TrophyIcon,
   UsersIcon,
   type Icon
@@ -61,9 +62,10 @@ type SidebarProps = {
   userDecks?: DeckSelectionOption[];
 };
 
-const navItems: Array<{ label: string; href: string; icon: Icon }> = [
+const navItems: Array<{ label: string; href: string; icon: Icon; beta?: boolean }> = [
   { label: "Dashboard", href: "/dashboard", icon: HouseIcon },
   { label: "Battle Logs", href: "/logs", icon: ClipboardTextIcon },
+  { label: "Battle Replay", href: "/replays", icon: PlayCircleIcon, beta: true },
   { label: "Deck Strategy", href: "/decks", icon: CardsIcon },
   { label: "Deck Lists", href: "/deck-lists", icon: ListBulletsIcon },
   { label: "Tournaments", href: "/tournaments", icon: TrophyIcon },
@@ -86,7 +88,7 @@ function getInitials(value: string) {
     .join("");
 }
 
-function AppSidebarLink({ href, icon: Icon, label, incomingRequests = 0 }: { href: string; icon: Icon; label: string; incomingRequests?: number }) {
+function AppSidebarLink({ href, icon: Icon, label, beta = false, incomingRequests = 0 }: { href: string; icon: Icon; label: string; beta?: boolean; incomingRequests?: number }) {
   const pathname = usePathname();
   const requestDescriptionId = useId();
   const { setOpenMobile } = useSidebar();
@@ -98,9 +100,9 @@ function AppSidebarLink({ href, icon: Icon, label, incomingRequests = 0 }: { hre
         asChild
         className="relative px-6 data-[active=true]:!rounded-none data-[active=true]:!bg-[var(--sidebar-active-bg)] data-[active=true]:font-semibold data-[active=true]:!text-[var(--sidebar-active-text)] data-[active=true]:hover:!bg-[var(--sidebar-active-bg-hover)] data-[active=true]:hover:!text-[var(--sidebar-active-text)] group-data-[collapsible=icon]:!h-10 group-data-[collapsible=icon]:!w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:[&>span]:hidden group-data-[collapsible=icon]:[&_svg]:!size-6"
         isActive={active}
-        tooltip={label}
+        tooltip={beta ? `${label} (Beta)` : label}
       >
-        <Link aria-describedby={incomingRequests > 0 ? requestDescriptionId : undefined} href={href} onClick={() => setOpenMobile(false)} prefetch={false}>
+        <Link aria-label={beta ? `${label} (Beta)` : undefined} aria-describedby={incomingRequests > 0 ? requestDescriptionId : undefined} href={href} onClick={() => setOpenMobile(false)} prefetch={false}>
           <Icon
             aria-hidden="true"
             className={
@@ -111,6 +113,7 @@ function AppSidebarLink({ href, icon: Icon, label, incomingRequests = 0 }: { hre
             weight={active ? "fill" : "regular"}
           />
           <span>{label}</span>
+          {beta ? <span aria-hidden="true" className={`ml-auto shrink-0 text-xs ${active ? "text-[var(--sidebar-active-text)]" : "text-sidebar-foreground/75"}`}>Beta</span> : null}
           {incomingRequests > 0 ? <span aria-hidden="true" className="ml-auto size-2 shrink-0 rounded-full bg-primary ring-2 ring-background group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-2 group-data-[collapsible=icon]:top-2 group-data-[collapsible=icon]:!block" data-friend-request-indicator="" /> : null}
         </Link>
       </SidebarMenuButton>
@@ -177,6 +180,7 @@ function SidebarNav({ userDecks }: { userDecks?: DeckSelectionOption[] }) {
                 icon={item.icon}
                 key={item.href}
                 label={item.label}
+                beta={item.beta}
                 incomingRequests={item.href === "/friends" ? incomingRequests : 0}
               />
             ))}

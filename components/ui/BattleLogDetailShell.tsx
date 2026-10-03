@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExportIcon } from "@phosphor-icons/react";
+import { PlayIcon } from "lucide-react";
 import type { BattleLogActionTagOverrides } from "@/lib/battle-log/action-tags";
 import { BattleLogDetailView } from "@/components/ui/BattleLogDetailView";
 import { Button } from "@/components/shadcn/button";
@@ -234,6 +235,7 @@ export function BattleLogDetailShell({
       actions={
         <>
           <PageActions className="sm:hidden">
+            <Button asChild aria-label="Replay battle (Beta)" className="size-11 min-h-11 min-w-11 p-0" size="icon-lg" variant="outline"><Link href={`/replays/${encodeURIComponent(log.id)}`} prefetch={false}><PlayIcon aria-hidden="true" className="size-5" /><span className="sr-only">Replay battle (Beta)</span></Link></Button>
             <LazyEditLogButton
               log={log}
               trigger={
@@ -270,6 +272,7 @@ export function BattleLogDetailShell({
           </PageActions>
 
           <PageActions className="hidden sm:flex">
+            <Button asChild variant="outline"><Link href={`/replays/${encodeURIComponent(log.id)}`} prefetch={false}><PlayIcon aria-hidden="true" />Replay battle<span className="text-xs text-muted-foreground">Beta</span></Link></Button>
             <LazyEditLogButton log={log} userDecks={resolvedUserDecks} />
             <LazyMatchNotesButton logId={log.id} notes={log.matchNotes} />
             <CopyShareLinkButton

@@ -1,0 +1,12 @@
+.collection { border-top: 1px solid var(--foreground); min-width: 0; }
+.collection ::selection { background: var(--foreground); color: var(--background); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 1.5rem 0; border-bottom: 1px solid var(--border); text-decoration: none; }
+.row:hover { background: var(--muted); }
+.row:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.identity { min-width: 0; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin-top: .5rem; font-size: .8125rem; line-height: 1.65; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.open { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; font-size: .875rem; font-weight: 500; }
+.pagination { display: flex; flex-wrap: wrap; gap: .75rem; }
+.empty { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; padding: 2rem 0; }
+.empty p { max-width: 65ch; color: var(--muted-foreground); font-size: .875rem; line-height: 1.7; }
+@media (max-width: 600px) { .row { gap: 1rem; } .open { font-size: 0; } }
