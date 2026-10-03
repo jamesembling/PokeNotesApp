@@ -33,6 +33,7 @@ export async function GET() {
           avatarColor: normalizeAvatarColor(
             cookieStore.get(PROFILE_AVATAR_COOKIE)?.value || profile.avatarColor
           ),
+          avatarUrl: profile.avatarUrl,
           displayName: profile.displayName,
           email: profile.email,
           isAdmin: profile.role === "admin"

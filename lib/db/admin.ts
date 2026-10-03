@@ -1,9 +1,10 @@
+import { withProfileAvatarColumn, profileAvatarColumns } from "./profile-avatar-compatibility";
 import { requireUser } from "@/lib/auth";
 import { cache } from "react";
 import { createAdminClient, hasAdminSupabaseAccess } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerCall } from "@/lib/server/perf";
-import { normalizeAvatarColor } from "@/lib/profile-avatar";
+import { getProfileAvatarUrl, normalizeAvatarColor } from "@/lib/profile-avatar";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { AdminUser, CatalogHealth, Role } from "@/types/index";
 
@@ -270,11 +271,12 @@ function mapAdminDashboardOverview(row: AdminDashboardOverviewRpcRow): AdminDash
 
 export const getAdminAccessContext = cache(async () => {
   const [user, supabase] = await Promise.all([requireUser(), createClient()]);
-  const { data, error } = await supabase
+  const { data: row, error } = await withProfileAvatarColumn(includeAvatar => supabase
     .from("profiles")
-    .select("role,display_name,email,avatar_color")
+    .select(profileAvatarColumns("role,display_name,email,avatar_color,avatar_path", includeAvatar))
     .eq("id", user.id)
-    .single();
+    .single());
+  const data = row as unknown as { role: string; display_name: string; email: string; avatar_color: string; avatar_path?: string | null } | null;
 
   if (error) {
     throw error;
@@ -291,6 +293,7 @@ export const getAdminAccessContext = cache(async () => {
         "Trainer",
       email: String(data?.email || user.email || "").trim(),
       role: data?.role === "admin" ? "admin" : "user",
+      avatarUrl: getProfileAvatarUrl(data?.avatar_path),
       avatarColor: normalizeAvatarColor(String(data?.avatar_color || user.user_metadata?.avatar_color || ""))
     },
     role: data?.role === "admin" ? "admin" : "user"

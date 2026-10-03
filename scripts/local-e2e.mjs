@@ -134,7 +134,7 @@ async function start() {
   supabase([
     "start",
     "--exclude",
-    "realtime,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor"
+    "realtime,imgproxy,edge-runtime,logflare,vector,supavisor"
   ], { capture: true });
   console.log("Local Supabase stack is running at http://127.0.0.1:54321 (Studio: http://127.0.0.1:54323)." );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import { useId, useState, useTransition, type ReactNode } from "react";
 import {
   CalculatorIcon,
   CardsIcon,
@@ -31,6 +31,7 @@ import {
 } from "@/components/shadcn/dropdown-menu";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
+import { useFriendRequestCount } from "@/lib/social/use-friend-request-count";
 import { SidebarThemeToggle } from "@/components/ui/SidebarThemeToggle";
 import {
   Sidebar as ShadcnSidebar,
@@ -51,6 +52,7 @@ type SidebarProfile = {
   displayName: string;
   email: string;
   avatarColor: AvatarColor;
+  avatarUrl?: string | null;
   isAdmin?: boolean;
 };
 
@@ -84,8 +86,9 @@ function getInitials(value: string) {
     .join("");
 }
 
-function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon; label: string }) {
+function AppSidebarLink({ href, icon: Icon, label, incomingRequests = 0 }: { href: string; icon: Icon; label: string; incomingRequests?: number }) {
   const pathname = usePathname();
+  const requestDescriptionId = useId();
   const { setOpenMobile } = useSidebar();
   const active = pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
@@ -97,7 +100,7 @@ function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon;
         isActive={active}
         tooltip={label}
       >
-        <Link href={href} onClick={() => setOpenMobile(false)} prefetch={false}>
+        <Link aria-describedby={incomingRequests > 0 ? requestDescriptionId : undefined} href={href} onClick={() => setOpenMobile(false)} prefetch={false}>
           <Icon
             aria-hidden="true"
             className={
@@ -108,8 +111,10 @@ function AppSidebarLink({ href, icon: Icon, label }: { href: string; icon: Icon;
             weight={active ? "fill" : "regular"}
           />
           <span>{label}</span>
+          {incomingRequests > 0 ? <span aria-hidden="true" className="ml-auto size-2 shrink-0 rounded-full bg-primary ring-2 ring-background group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-2 group-data-[collapsible=icon]:top-2 group-data-[collapsible=icon]:!block" data-friend-request-indicator="" /> : null}
         </Link>
       </SidebarMenuButton>
+      {incomingRequests > 0 ? <span className="sr-only" id={requestDescriptionId}>{incomingRequests} pending friend {incomingRequests === 1 ? "request" : "requests"}</span> : null}
     </SidebarMenuItem>
   );
 }
@@ -160,6 +165,7 @@ export function SidebarMobileTopbar() {
 }
 
 function SidebarNav({ userDecks }: { userDecks?: DeckSelectionOption[] }) {
+  const incomingRequests = useFriendRequestCount();
   return (
     <SidebarContent className="px-2 py-3 group-data-[collapsible=icon]:px-0">
       <SidebarGroup className="group-data-[collapsible=icon]:p-0">
@@ -171,6 +177,7 @@ function SidebarNav({ userDecks }: { userDecks?: DeckSelectionOption[] }) {
                 icon={item.icon}
                 key={item.href}
                 label={item.label}
+                incomingRequests={item.href === "/friends" ? incomingRequests : 0}
               />
             ))}
           </SidebarMenu>
@@ -219,7 +226,7 @@ export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!h-12 group-data-[collapsible=icon]:!w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:rounded-none group-data-[collapsible=icon]:p-0"
                 size="lg"
               >
-                <ProfileAvatar avatarColor={profile.avatarColor} fallback={initials} />
+                <ProfileAvatar avatarUrl={profile.avatarUrl} avatarColor={profile.avatarColor} fallback={initials} />
                 <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate font-medium">{profile.displayName}</span>
                   <span className="truncate text-xs text-muted-foreground">{profile.email}</span>
@@ -235,7 +242,7 @@ export function SidebarAccount({ profile }: { profile: SidebarProfile }) {
             >
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <ProfileAvatar avatarColor={profile.avatarColor} fallback={initials} />
+                  <ProfileAvatar avatarUrl={profile.avatarUrl} avatarColor={profile.avatarColor} fallback={initials} />
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{profile.displayName}</span>
                     <span className="truncate text-xs text-muted-foreground">{profile.email}</span>

@@ -16,6 +16,8 @@ export type ProfileActionState = {
 
 function revalidateProfileWorkspace() {
   revalidatePath("/profile");
+  revalidatePath("/friends");
+  revalidatePath("/players", "layout");
   revalidatePath("/logs", "layout");
   revalidatePath("/decks", "layout");
   revalidatePath("/tournaments", "layout");
@@ -54,7 +56,6 @@ export async function saveProfileAction(
           .map((username) => [username.toLowerCase(), username])
       ).values()
     );
-    const avatarColor = String(formData.get("avatarColor") || "").trim();
 
     if (ptcglUsernameAliases.length > 10 || ptcglUsernameAliases.some((username) => username.length > 64)) {
       return {
@@ -75,8 +76,7 @@ export async function saveProfileAction(
       firstName,
       lastName,
       ptcglUsername,
-      ptcglUsernameAliases,
-      avatarColor
+      ptcglUsernameAliases
     });
 
     await setProfileAvatarCookie(profile.avatarColor);
@@ -102,6 +102,7 @@ export async function saveProfileAction(
 
 export type ProfileAvatarActionState = {
   avatarColor: AvatarColor | null;
+  avatarUrl: string | null;
   error: string | null;
 };
 
@@ -116,6 +117,7 @@ export async function saveProfileAvatarAction(avatarColor: string): Promise<Prof
 
     return {
       avatarColor: profile.avatarColor,
+      avatarUrl: null,
       error: null
     };
   } catch (error) {
@@ -126,6 +128,7 @@ export async function saveProfileAvatarAction(avatarColor: string): Promise<Prof
 
     return {
       avatarColor: null,
+      avatarUrl: null,
       error: "Unable to save your profile picture right now."
     };
   }

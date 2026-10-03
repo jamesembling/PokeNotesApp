@@ -681,6 +681,7 @@ export type Database = {
       profiles: {
         Row: {
           auth_account_created_at: string | null
+          avatar_path: string | null
           avatar_color: string
           created_at: string
           display_name: string
@@ -698,6 +699,7 @@ export type Database = {
         }
         Insert: {
           auth_account_created_at?: string | null
+          avatar_path?: string | null
           avatar_color?: string
           created_at?: string
           display_name?: string
@@ -715,6 +717,7 @@ export type Database = {
         }
         Update: {
           auth_account_created_at?: string | null
+          avatar_path?: string | null
           avatar_color?: string
           created_at?: string
           display_name?: string
@@ -1441,6 +1444,10 @@ export type Database = {
       search_players: {
         Args: { p_query: string }
         Returns: Json
+      }
+      get_incoming_friend_request_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       get_friend_connections: {
         Args: Record<PropertyKey, never>

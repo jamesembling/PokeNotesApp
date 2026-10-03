@@ -1,14 +1,20 @@
 "use client";
 
 import { useActionState } from "react";
-import Link from "next/link";
+import { FRIEND_REQUESTS_UPDATED_EVENT } from "@/lib/social/use-friend-request-count";
 import { friendshipAction } from "@/app/(app)/friends/actions";
 import { Button } from "@/components/shadcn/button";
-import type { SocialProfile } from "@/lib/social/types";
+import type { SocialActionState, SocialProfile } from "@/lib/social/types";
 import styles from "./social.module.css";
 
-export function FriendActions({ profile, canConnect }: { profile: SocialProfile; canConnect: boolean }) {
-  const [state, action, pending] = useActionState(friendshipAction, {});
+async function updateFriendshipAndNotify(previous: SocialActionState, form: FormData) {
+  const result = await friendshipAction(previous, form);
+  if (result.success) window.dispatchEvent(new Event(FRIEND_REQUESTS_UPDATED_EVENT));
+  return result;
+}
+
+export function FriendActions({ profile }: { profile: SocialProfile }) {
+  const [state, action, pending] = useActionState(updateFriendshipAndNotify, {});
   if (profile.relationship === "self") return null;
 
   const actions = profile.relationship === "friends"
@@ -26,7 +32,7 @@ export function FriendActions({ profile, canConnect }: { profile: SocialProfile;
       <input name="targetUserId" type="hidden" value={profile.id} />
       <div className={styles.actions}>
         {actions.map(({ operation, label }) => (
-          <Button aria-label={`${label}: ${profile.trainerName}`} disabled={pending || (!canConnect && (operation === "request" || operation === "accept"))} key={operation} name="operation" type="submit" value={operation} variant="outline">
+          <Button aria-label={`${label}: ${profile.trainerName}`} disabled={pending} key={operation} name="operation" type="submit" value={operation} variant="outline">
             {pending ? "Updating…" : label}
           </Button>
         ))}
@@ -37,7 +43,6 @@ export function FriendActions({ profile, canConnect }: { profile: SocialProfile;
           </details>
         ) : null}
       </div>
-      {!canConnect && actions.some(({ operation }) => operation === "request" || operation === "accept") ? <p className={styles.meta}><Link className="underline underline-offset-4" href="/profile" prefetch={false}>Enable your player profile</Link> to connect.</p> : null}
       {state.error ? <p className={`${styles.status} ${styles.error}`} role="alert">{state.error}</p> : null}
       {state.success ? <p className={styles.status} role="status">{state.success}</p> : null}
     </form>

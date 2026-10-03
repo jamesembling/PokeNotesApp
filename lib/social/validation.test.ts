@@ -15,14 +15,15 @@ test("favourite artworks preserve rank while rejecting duplicate prints, malform
   assert.throws(() => parseFavouriteCards([card, card, card, card]), SocialValidationError);
 });
 
-test("showcase opt-in requires a chosen trainer identity and activity remains off unless explicitly selected", () => {
+test("discoverable showcase requires a trainer identity and activity remains off unless explicitly selected", () => {
   const form = new FormData();
-  assert.deepEqual(parseShowcaseForm(form), { enabled: false, trainerName: "", favouritePokemonSlug: null, favouriteCards: [], shareLastLogin: false });
-  form.set("enabled", "on");
   assert.throws(() => parseShowcaseForm(form), SocialValidationError);
   form.set("trainerName", "  Violet Trainer  ");
   form.set("favouritePokemonSlug", "dragapult");
   assert.equal(parseShowcaseForm(form).trainerName, "Violet Trainer");
+  assert.equal(parseShowcaseForm(form).enabled, true);
+  form.set("enabled", "off");
+  assert.equal(parseShowcaseForm(form).enabled, true);
   assert.equal(parseShowcaseForm(form).shareLastLogin, false);
   form.set("shareLastLogin", "on");
   assert.equal(parseShowcaseForm(form).shareLastLogin, true);

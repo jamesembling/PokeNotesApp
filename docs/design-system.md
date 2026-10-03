@@ -32,6 +32,7 @@ Do not add raw page-level colors for common states. If a new repeated state is n
 - Secondary and outline buttons use a white light-mode surface through the shared `Button` variants.
 - Light-mode navigation uses an off-black sidebar/menu surface, not pure black.
 - Desktop sidebar navigation collapses to an icon rail through the shared sidebar primitive; collapsed menu labels use tooltips.
+- The Friends sidebar link shows an 8px dot using the red `--primary` token when incoming friend requests are pending. A 2px ring using `--background` separates it from the active row. Preserve the dot in expanded, mobile, and collapsed navigation. Keep the link's accessible name Friends and describe the count separately as “1 pending friend request” or its plural form. Outgoing requests do not show the dot.
 - Admin routes use the same authenticated app shell and token contract as the app routes. There is no separate admin palette unless a future requirement adds one explicitly.
 - Shared-log notices may use `--share-notice-*` tokens. The gradient is an allowed tokenized notice treatment, not a general-purpose decorative background.
 - Page headers show the shared 1px foreground bottom divider by default, matching the strong collection rule used by Deck Lists and Tournaments. The shared `collection` header variant delegates the separator to the collection's top rule; `/deck-lists` and `/tournaments`, including their loading states, use this intent. Do not add local divider flags or recreate page-header dividers in page code.
@@ -54,7 +55,7 @@ Responsive and theme-specific behavior belongs in shared primitives and tokens:
 
 Use these components for repeated app UI:
 
-- `Button` from `components/shadcn/button` for actions.
+- `Button` from `components/shadcn/button` for actions; keyboard focus includes an opaque 2px outline using `--ring`, offset by 2px, alongside the existing focus ring.
 - `PageActions` for page, detail, and section button groups.
 - `SectionHeader` for repeated section title/action rows.
 - `PageTitle`, `DetailTitle`, `SectionTitle`, and `ItemTitle` from `components/ui/Typography` for heading scale and semantic title styling.
@@ -173,10 +174,10 @@ The responsive layout, route-specific actions, empty states, and record boundari
 
 `/profile` extends the Stats and Deck Strategy language into an open account workspace. Shared typography, page headers, forms, buttons, and avatar artwork retain their existing contracts.
 
-- **Details before reference.** Lead with Account details and its explicit Save Profile action, followed by Profile picture. Keep Account and Activity metadata secondary, with visible labels, wrapping values, neutral semantic colours, IBM Plex typography, and thin rules. Use open sections rather than enclosing cards, pills, or decorative colour bars.
-- **Room before the rail.** Account and Activity occupy a 19rem right rail only from 58rem of available page width; otherwise they follow the form. Form fields use two columns until the form reaches 27rem or less. Avatar choices use eight columns, reducing to four at 34rem or less of form width. The loading layout follows the same structure.
-- **Separate save meanings.** Save Profile persists Display Name, PTCGL Username, First Name, and Last Name through the existing action. Avatar colours are labelled radio choices and save automatically, with explicit selection, pending, and error feedback. Disable avatar choices and Save Profile while the avatar save is pending; retain the previous selection on failure.
-- **Preserve account boundaries.** Keep the current-user read and save paths, validation, avatar cookie, and workspace refresh behavior. Account and Activity lists remain read-only; avatar colour is changed through Profile picture. Errors use semantic loss text; successful save and selection feedback remain neutral.
+- **Identity, then private details.** Lead with a large clickable avatar beside the account display name, optional PTCGL handle, and View my player profile link. Place labelled private Account and Activity information underneath, followed by the Edit account details disclosure and separate Player profile editor. Preserve neutral semantic colours, IBM Plex typography, wrapping values, and thin rules in open sections.
+- **Reflow beneath the identity.** Account and Activity use two columns, stacking at 38rem or less of available page width. The avatar steps from 8.5rem to 6.5rem at 38rem, then 5.5rem at 25rem. Disclosed account sections stack at 38rem of form width; fields and save controls stack at 25rem. The bounded picture dialog uses shared `AppDialogContent`, four preset columns, and wrapping upload actions. Loading follows the same header, metadata, disclosure, and showcase arrangement.
+- **Separate save meanings.** Save Profile persists account and import fields, including Alternate PTCGL usernames. Clicking the avatar opens the picture chooser: existing Poké Ball presets save immediately, while an own-image upload is previewed before Save picture. Preserve labelled radio choices, visible selection and focus, pending feedback, and retryable errors. Coordinate account and avatar pending states so their writes cannot race.
+- **Preserve account boundaries.** Account and Activity remain private read-only metadata; account edits, shared avatar changes, and Player Profile edits have separate actions. Player Profiles are discoverable to other authenticated members except across blocks, with no hide setting. Aggregate Battle Log records remain limited to accepted friends and self; last-login sharing is independently off by default. Keep current-user validation, avatar refresh behavior, semantic loss text for errors, and neutral success feedback.
 
 The responsive layout, form states, and account boundaries are recorded in [the Profile surface brief](../.impeccable/surfaces/route-profile.md).
 

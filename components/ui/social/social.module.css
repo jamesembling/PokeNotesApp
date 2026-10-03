@@ -5,6 +5,7 @@
 .search { display: flex; align-items: end; gap: .75rem; margin-top: 1.25rem; }
 .searchField { flex: 1; max-width: 32rem; min-width: 0; }
 .searchField input { margin-top: .5rem; }
+.search .searchControl { height: 2.75rem; min-height: 2.75rem; padding-block: .5rem; }
 .rows { margin-top: 1rem; border-top: 1px solid var(--border); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 1.25rem 0; border-bottom: 1px solid var(--border); min-width: 0; }
 .identity { display: flex; align-items: center; gap: 1rem; min-width: 0; }
@@ -24,6 +25,12 @@
 .record { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5rem; padding: 1.5rem 0; border-block: 1px solid var(--border); margin-top: 1.25rem; }
 .record dt { color: var(--muted-foreground); font-size: .8125rem; }
 .record dd { margin-top: .4rem; font-size: 1.65rem; line-height: 1.25; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.activitySummary { display: flex; margin-top: 1.25rem; }
+.activitySummary > div { display: grid; gap: .35rem; }
+.activitySummary dt { color: var(--muted-foreground); font-size: .8125rem; }
+.activitySummary dd { font-size: .95rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.activitySummary time { display: grid; gap: .2rem; }
+.activitySummary time span { color: var(--muted-foreground); font-size: .8125rem; font-weight: 400; }
 .artGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin-top: 1.25rem; max-width: 52rem; }
 .art { min-width: 0; }
 .artImage { position: relative; aspect-ratio: .715; width: 100%; }

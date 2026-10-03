@@ -55,6 +55,7 @@ export async function GET() {
         overview: overviewTiming.value,
         profile: {
           avatarColor: profile.avatarColor,
+          avatarUrl: profile.avatarUrl,
           displayName: profile.displayName,
           email: profile.email,
           isAdmin: true

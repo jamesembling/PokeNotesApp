@@ -15,7 +15,6 @@ import styles from "./social.module.css";
 
 export function ShowcaseForm({ profile }: { profile: SocialProfile }) {
   const [state, action, pending] = useActionState(saveShowcaseAction, {});
-  const [enabled, setEnabled] = useState(profile.enabled);
   const [pokemonSlug, setPokemonSlug] = useState(profile.favouritePokemon?.slug ?? "");
   const [pokemonQuery, setPokemonQuery] = useState("");
   const pokemon = usePokemonOptionsResource();
@@ -62,17 +61,13 @@ export function ShowcaseForm({ profile }: { profile: SocialProfile }) {
   return (
     <form action={action} aria-busy={pending} className={styles.form}>
       <SectionTitle size="sm">Player profile</SectionTitle>
-      <p className={styles.description}>Choose the name, favourite Pokémon and card art other Poke Notes members can see. Your account starts with this profile hidden.</p>
+      <p className={styles.description}>Choose the name, favourite Pokémon and card art other Poke Notes members see on your profile.</p>
       <fieldset disabled={pending}>
         <legend className="sr-only">Player profile settings</legend>
         <div className={styles.fields}>
-          <label className={styles.check}>
-            <input checked={enabled} name="enabled" onChange={(event) => setEnabled(event.target.checked)} type="checkbox" />
-            <span>Enable my player profile<small>Appear in player search and allow friend requests. Turning this off hides your profile and shared record; existing friendships are kept.</small></span>
-          </label>
           <Field>
             <FieldLabel htmlFor="trainer-name">Trainer name</FieldLabel>
-            <Input defaultValue={profile.trainerName} id="trainer-name" maxLength={40} name="trainerName" placeholder="Name shown to other players" required={enabled} />
+            <Input defaultValue={profile.trainerName} id="trainer-name" maxLength={40} name="trainerName" placeholder="Name shown to other players" required />
             <p className={styles.description}>This is separate from your account name and PTCGL username.</p>
           </Field>
           <label className={styles.check}>
