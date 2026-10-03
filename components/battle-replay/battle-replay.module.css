@@ -2069,7 +2069,7 @@ button.pile:disabled {
   aspect-ratio: 0.714;
   border-radius: 0.4rem;
   overflow: hidden;
-  transform: translate(calc(var(--energy-layer) * 0.22rem), calc(0.5rem + var(--energy-layer) * 0.18rem));
+  transform: translateX(calc(0.45rem + var(--energy-layer) * 0.2rem));
   box-shadow: 0 1px 4px color-mix(in oklab, var(--foreground) 20%, transparent);
 }
 .attachedEnergyCard:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
