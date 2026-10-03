@@ -1,3 +1,7 @@
+import type { ReplayProgram } from "./types";
+import { buildFavouriteCardArtImageUrl } from "@/lib/social/artwork";
+import type { FavouriteCardArt } from "@/lib/social/types";
+
 // Representative artwork only: these prints do not establish HP, identity, or format legality.
 export const representativePrintings: Record<string, { set: string; number: string }> = {
   "Air Balloon": { set: "MEG", number: "166" },
@@ -43,3 +47,46 @@ export const representativePrintings: Record<string, { set: string; number: stri
   "Ultra Ball": { set: "ASC", number: "213" },
   "Unfair Stamp": { set: "TWM", number: "165" },
 };
+
+/** Only names already reconstructed on a visible surface are sent to the public provider. */
+export function collectMissingReplayArtworkNames(program: ReplayProgram): string[] {
+  const names = new Set<string>();
+  const visit = (value: unknown) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) { for (const entry of value) visit(entry); return; }
+    const record = value as Record<string, unknown>;
+    if (typeof record.name === "string" && record.imageUrl === "" && record.name.length >= 2 && record.name.length <= 120)
+      names.add(record.name);
+    for (const entry of Object.values(record)) visit(entry);
+  };
+  visit(program.frames);
+  visit(program.events.map((event) => event.transaction));
+  return [...names];
+}
+
+/** A representative print is accepted only when its complete card name matches. */
+export function selectReplayArtworkPrinting(name: string, prints: FavouriteCardArt[]): FavouriteCardArt | null {
+  const canonical = (value: string) => value.normalize("NFC").trim().replace(/[’‘]/g, "'").toLocaleLowerCase("en");
+  return prints.find((print) => canonical(print.name) === canonical(name)) ?? null;
+}
+
+export async function resolveReplayArtwork(
+  program: ReplayProgram,
+  search: (name: string, signal?: AbortSignal) => Promise<FavouriteCardArt[]>,
+  signal?: AbortSignal,
+): Promise<Record<string, string>> {
+  // Bound provider work and keep the client payload to a name/URL dictionary.
+  const names = collectMissingReplayArtworkNames(program).slice(0, 40);
+  const artwork: Record<string, string> = {};
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(4, names.length) }, async () => {
+    while (next < names.length && !signal?.aborted) {
+      const name = names[next++];
+      try {
+        const print = selectReplayArtworkPrinting(name, await search(name, signal));
+        if (print) artwork[name] = buildFavouriteCardArtImageUrl(print.set, print.number);
+      } catch { /* Artwork is optional; recorded identity and replay state remain usable. */ }
+    }
+  }));
+  return artwork;
+}

@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { compileBattleReplay, type ReplayLogSource } from "@/lib/battle-replay/compiler";
 import type { LogAction, LogSection } from "@/types/index";
+import type { ReplayCard, ReplaySide } from "@/lib/battle-replay/types";
+import { collectMissingReplayArtworkNames, resolveReplayArtwork, selectReplayArtworkPrinting } from "@/lib/battle-replay/artwork";
+import { resolveEnergyMarkers } from "@/lib/battle-replay/preview";
+import { canonicalReplayGame, expectedGameChanges, type ExpectedSide } from "./fixtures/battle-replay-game";
 
 const action = (title: string, details: string[] = []): LogAction => ({ title, details });
 const section = (player: string, actions: LogAction[]): LogSection => ({
@@ -19,7 +23,94 @@ function source(sections: LogSection[]): ReplayLogSource {
 
 // 9/10: direct production compiler boundary; independent expected frames protect
 // ordering, recorded transitions and the serializable Server Component contract.
-test("saved Battle Log actions compile into deterministic source-faithful frames", () => {
+test("saved Battle Log actions compile into deterministic source-faithful frames", async () => {
+  const complete = compileBattleReplay(canonicalReplayGame);
+  const projectCard = (card: ReplayCard | null) => card && ({
+    name: card.name, damage: card.damage, energy: card.energy,
+    underlying: card.underlying.map((item) => item.name), conditions: card.conditions ?? [], tool: card.tool ?? null,
+  });
+  const projectSide = (side: ReplaySide) => ({
+    active: projectCard(side.active), bench: side.bench.map(projectCard), hand: side.handCount,
+    known: side.knownHand.map((card) => card.name), discard: side.discard.map((card) => card.name),
+  });
+  const blank: ExpectedSide = { active: null, bench: [], hand: null, known: [], discard: [] };
+  let expected = { self: structuredClone(blank), opponent: structuredClone(blank), stadium: null as string | null };
+  const expectedFrames = [structuredClone(expected)];
+  for (const change of expectedGameChanges) {
+    expected = { self: { ...expected.self, ...change.self }, opponent: { ...expected.opponent, ...change.opponent }, stadium: change.stadium === undefined ? expected.stadium : change.stadium };
+    expectedFrames.push(structuredClone(expected));
+  }
+  assert.equal(complete.frames.length, expectedFrames.length);
+  complete.frames.forEach((frame, index) => {
+    assert.deepEqual({ self: projectSide(frame.self), opponent: projectSide(frame.opponent), stadium: frame.stadium?.name ?? null }, expectedFrames[index], `frame ${index}: ${complete.events[index - 1]?.sourceTitle ?? "initial"}`);
+    assert.equal(frame.self.deckCount, null, "a log without a deck count cannot invent one");
+    assert.equal(frame.opponent.deckCount, null);
+    for (const side of [frame.self, frame.opponent]) for (const card of [side.active, ...side.bench]) if (card) assert.equal(card.hp, null);
+  });
+  assert.deepEqual(complete.diagnostics.unresolvedActions, []);
+  assert.deepEqual(complete, compileBattleReplay(canonicalReplayGame));
+  const serialized = JSON.parse(JSON.stringify(complete));
+  for (const position of [34, 0, 22, 7, 26, 34, 1]) assert.deepEqual(serialized.frames[position], complete.frames[position], "seeking never recomputes or changes the immutable recorded frame");
+  assert.equal(complete.frames[7].self.active?.abilityUsed, true);
+  assert.equal(complete.frames[28].self.prizesRemaining, 5);
+  assert.deepEqual(resolveEnergyMarkers(["Grass", "Grass", "Grass", "Grass", "Grass", "Fire"]), [{ type: "Grass", count: 5 }, { type: "Fire", count: 1 }]);
+  assert.deepEqual(resolveEnergyMarkers(Array(6).fill("Grass")), [{ type: "Grass", count: 6 }]);
+  assert.deepEqual(resolveEnergyMarkers(["Grass", "Grass", "Grass", "Double Turbo Energy", "Double Turbo Energy", "Double Turbo Energy"]), [{ type: "Grass", count: 3 }, { type: "Double Turbo Energy", count: 3 }]);
+  assert.deepEqual(resolveEnergyMarkers(["Grass", "Fire"]), [{ type: "Grass" }, { type: "Fire" }]);
+  assert.deepEqual(resolveEnergyMarkers([]), []);
+  const plain = { name: "Seedling", set: "TWM", number: "1" };
+  assert.equal(selectReplayArtworkPrinting("Seedling", [{ ...plain, name: "Seedling ex" }]), null);
+  assert.deepEqual(selectReplayArtworkPrinting("Seedling", [{ ...plain, name: "Seedling ex" }, plain]), plain);
+  const artSource = compileBattleReplay(source([section("", [
+    action("PlayerOne played Seedling to the Active Spot."),
+    action("PlayerOne played Seedling to the Bench."),
+    action("PlayerTwo played Other to the Active Spot."),
+  ])]));
+  assert.deepEqual(collectMissingReplayArtworkNames(artSource), ["Seedling", "Other"]);
+  const lookedUp: string[] = [];
+  const originalArtSource = structuredClone(artSource);
+  const artwork = await resolveReplayArtwork(artSource, async (name) => {
+    lookedUp.push(name);
+    if (name === "Other") throw new Error("Synthetic provider unavailable");
+    return [plain];
+  });
+  assert.deepEqual(lookedUp.sort(), ["Other", "Seedling"], "duplicate frame identities need only one exact-name artwork lookup");
+  assert.deepEqual(Object.keys(artwork), ["Seedling"]);
+  assert.match(artwork.Seedling, /TWM_001_R_EN_LG\.png$/);
+  assert.deepEqual(artSource, originalArtSource, "representative artwork must not rewrite recorded identity or HP");
+
+  const originTitle = "PlayerOne's Seedling used Recover.";
+  const movementSource = source([section("", [
+    action("PlayerOne drew 7 cards for the opening hand.", ["• Seedling, Basic Grass Energy, Supply, Buddy, Sprout, Forest Seal Stone, Double Turbo Energy"]),
+    action("PlayerOne played Seedling to the Active Spot."),
+    action("PlayerOne discarded a card.", ["- Basic Grass Energy"]),
+    action(originTitle, ["PlayerOne attached Basic Grass Energy to Seedling in the Active Spot."]),
+    action("PlayerOne played Buddy to the Bench."),
+    action("PlayerOne's Seedling is now Paralyzed."),
+    action("PlayerOne's Buddy was switched with PlayerOne's Seedling to become the Active Pokémon.", ["PlayerOne's Buddy is now in the Active Spot."]),
+    action("PlayerOne evolved Seedling to Sprout on the Bench."),
+    action("PlayerOne attached Forest Seal Stone to Sprout on the Bench."),
+    action("PlayerOne attached Double Turbo Energy to Sprout on the Bench."),
+    action("PlayerOne's Sprout was Knocked Out!", ["3 cards were discarded from PlayerOne's Sprout.", "• Basic Grass Energy, Double Turbo Energy, Forest Seal Stone"]),
+    action("PlayerOne moved Seedling from their discard pile to their hand."),
+    action("PlayerOne shuffled Double Turbo Energy from their discard pile into their deck."),
+  ])]);
+  const movements = compileBattleReplay({ ...movementSource,
+    effectTags: { [originTitle]: "ability", "PlayerOne attached Forest Seal Stone to Sprout on the Bench.": "tool" },
+    effectOrigins: { [originTitle]: "discard" },
+  });
+  assert.deepEqual(movements.frames[4].self.active?.energy, ["Grass"]);
+  assert.deepEqual(movements.frames[4].self.discard, []);
+  assert.equal(movements.frames[4].self.handCount, 5, "catalog-proven discard attachment must not also debit hand");
+  assert.equal(movements.frames[7].self.active?.name, "Buddy");
+  assert.deepEqual(movements.frames[7].self.bench.map((card) => card.name), ["Seedling"]);
+  assert.deepEqual(movements.frames[7].self.bench[0].conditions, [], "switching clears the outgoing Pokémon's conditions");
+  assert.deepEqual(movements.frames[11].self.discard.map((card) => card.name), ["Sprout", "Seedling", "Basic Grass Energy", "Double Turbo Energy", "Forest Seal Stone"], "KO and its explicit attachment detail must discard each physical card once");
+  assert.deepEqual(movements.frames[12].self.discard.map((card) => card.name), ["Sprout", "Basic Grass Energy", "Double Turbo Energy", "Forest Seal Stone"]);
+  assert.deepEqual(movements.frames[13].self.discard.map((card) => card.name), ["Sprout", "Basic Grass Energy", "Forest Seal Stone"]);
+  assert.equal(movements.frames[13].self.deckCount, null);
+  assert.deepEqual(movements.diagnostics.unresolvedActions, []);
+
   const input = source([
     section("", [
       action("PlayerOne chose heads for the opening coin flip.", ["PlayerOne won the coin toss."]),
@@ -92,57 +183,118 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.equal(replay.status, "partial", "unknown HP and deck count remain explicit limitations");
 });
 
-// 10/10: malformed/unsupported action details and duplicate physical targets must
-// not produce an apparently successful but invented board transition.
-test("unsupported details and ambiguous targets preserve the last evidenced board", () => {
-  const replay = compileBattleReplay(source([
+// 10/10: uncertainty must prevent invented state while independent explicit
+// evidence survives and later exact zone facts can recover useful reconstruction.
+test("unsupported details and ambiguous targets preserve evidence and expose uncertainty", () => {
+  const twins = compileBattleReplay(source([
     section("", [
       action("PlayerOne played Seedling to the Active Spot."),
       action("PlayerOne played Twin to the Bench."),
       action("PlayerOne played Twin to the Bench."),
     ]),
     section("PlayerOne", [
-      action("PlayerOne played Supply.", ["- PlayerOne reordered every future draw."]),
       action("PlayerOne attached Basic Grass Energy to Twin on the Bench."),
-      action("PlayerOne's Seedling used its Ability Gather.", ["- PlayerOne attached Basic Grass Energy to Seedling in the Active Spot."]),
-      action("PlayerOne drew a card."),
-      action("PlayerOne's Seedling used Phantom Dive for 200 damage."),
-      action("PlayerOne's Seedling used Gather."),
-      action("PlayerOne shuffled 2 cards into their deck.", ["• Seedling, Supply"]),
+      action("PlayerOne attached Basic Fire Energy to Twin on the Bench."),
+      action("PlayerOne's Seedling used its Ability Gather.", ["- PlayerOne attached Basic Grass Energy to Seedling in the Active Spot.", "- PlayerOne drew Supply."]),
     ]),
   ]));
-  assert.equal(replay.events.length, 10);
-  assert.deepEqual(replay.diagnostics.unresolvedActions, [3, 4, 5, 7, 8, 9]);
-  assert.equal(replay.diagnostics.unresolvedMutations, 6);
-  assert.match(replay.events[3].unresolved?.[0] ?? "", /Unresolved detail/);
-  assert.match(replay.events[4].unresolved?.[0] ?? "", /which Twin/);
-  assert.match(replay.events[5].unresolved?.[0] ?? "", /origin/);
-  assert.deepEqual(replay.frames[4], { ...replay.frames[3], partial: true });
-  assert.deepEqual(replay.frames[5], replay.frames[4]);
-  assert.deepEqual(replay.frames[6], replay.frames[5]);
-  assert.equal(replay.frames[7].partial, true);
-  assert.deepEqual(replay.frames[7].self.active?.energy, []);
-  assert.equal(replay.frames[7].self.handCount, null);
-  assert.equal(replay.frames[7].self.knownHand.length, 0, "a hidden draw must stay hidden");
-  assert.equal(replay.status, "partial");
-  assert.ok(replay.events[4].transaction === undefined, "unsafe attachment overlays must not imply success");
-  assert.match(replay.events[7].unresolved?.[0] ?? "", /supported attack/);
-  assert.equal(replay.events[7].label, "Action");
-  assert.equal(replay.events[7].transaction, undefined);
-  assert.deepEqual(replay.frames[8], replay.frames[7]);
-  assert.equal(replay.frames[8].self.active?.abilityUsed, false, "an unsupported attack cannot mark an Ability used");
-  assert.deepEqual(replay.frames[9], replay.frames[8], "an unlabelled use cannot assert an Ability either");
-  assert.match(replay.events[9].unresolved?.[0] ?? "", /origin/);
-  assert.deepEqual(replay.frames[10], replay.frames[9], "an unspecified shuffle cannot choose the hand as its origin");
+  assert.equal(twins.events[3].unresolved, undefined, "identical bare copies have equivalent visible outcomes");
+  assert.deepEqual(twins.frames[4].self.bench.map((card) => card.energy), [["Grass"], []]);
+  assert.match(twins.events[4].unresolved?.[0] ?? "", /which Twin/);
+  assert.deepEqual(twins.frames[5].self.bench.map((card) => card.energy), [["Grass"], []], "distinct physical copies must not be guessed");
+  assert.ok(twins.frames[5].self.uncertainZones?.includes("board"));
+  assert.equal(twins.events[4].transaction, undefined, "a rejected attachment cannot animate as successful");
+  assert.match(twins.events[5].unresolved?.[0] ?? "", /origin/);
+  assert.equal(twins.frames[6].self.active?.abilityUsed, true, "the explicit Ability itself remains evidenced");
+  assert.deepEqual(twins.frames[6].self.active?.energy, []);
+  assert.deepEqual(twins.frames[6].self.knownHand.map((card) => card.name), ["Supply"], "a later independent draw survives an unsupported attachment detail");
 
-  const knownHandShuffle = compileBattleReplay(source([section("", [
+  const recovery = compileBattleReplay(source([section("PlayerOne", [
+    action("PlayerOne drew 3 cards for the opening hand.", ["• Seedling, Supply, Supply"]),
+    action("PlayerOne played Seedling to the Active Spot."),
+    action("PlayerOne rearranged unknown cards in their hand."),
+    action("PlayerOne drew Supply."),
+    action("PlayerOne shuffled their hand into their deck."),
+    action("PlayerOne drew 2 cards.", ["- Seedling, Supply"]),
+    action("PlayerOne played Seedling to the Bench."),
+    action("PlayerOne conceded the game."),
+  ])]));
+  assert.equal(recovery.frames[2].self.handCount, 2);
+  assert.equal(recovery.frames[3].self.handCount, null, "an unsupported hand mutation must not leave an exact stale count");
+  assert.deepEqual(recovery.frames[3].self.knownHand, []);
+  assert.equal(recovery.frames[4].self.handCount, null);
+  assert.deepEqual(recovery.frames[4].self.knownHand.map((card) => card.name), ["Supply"]);
+  assert.equal(recovery.frames[5].self.handCount, 0);
+  assert.deepEqual(recovery.frames[5].self.knownHand, []);
+  assert.equal(recovery.frames[6].self.handCount, 2);
+  assert.deepEqual(recovery.frames[6].self.knownHand.map((card) => card.name), ["Seedling", "Supply"]);
+  assert.equal(recovery.frames[7].self.handCount, 1);
+  assert.deepEqual(recovery.frames[7].self.bench.map((card) => card.name), ["Seedling"]);
+  assert.ok(!recovery.frames[7].self.uncertainZones?.includes("hand"), "an entire-hand replacement restores hand certainty");
+  assert.equal(recovery.frames[7].self.deckCount, null);
+  assert.deepEqual(recovery.diagnostics.unresolvedActions, [2]);
+
+  for (const detail of [
+    "PlayerOne healed 10 damage from PlayerOne's Seedling.",
+    "PlayerOne healed 10 damage from PlayerOne's Seedling",
+    "- PlayerOne healed 10 damage from PlayerOne's Seedling.",
+    "• PlayerOne healed 10 damage from PlayerOne's Seedling",
+  ]) {
+    const independentDetails = compileBattleReplay(source([section("PlayerOne", [
+      action("PlayerOne played Seedling to the Active Spot."),
+      action("PlayerOne put 2 damage counters on PlayerOne's Seedling."),
+      action("PlayerOne's Seedling used its Ability Gather.", ["PlayerOne drew 2 cards.", detail]),
+    ])]));
+    assert.deepEqual(independentDetails.frames[3].self.knownHand, [], "a following operation is never a drawn card's identity");
+    assert.equal(independentDetails.frames[3].self.active?.damage, 10, "the independent healing detail must execute after a hidden draw");
+    assert.deepEqual(independentDetails.diagnostics.unresolvedActions, []);
+  }
+
+  const staleHand = compileBattleReplay(source([section("PlayerOne", [
+    action("PlayerOne drew 2 cards for the opening hand.", ["• Seedling, Supply"]),
+    action("PlayerOne played Twin to the Bench."),
+    action("PlayerOne attached Basic Grass Energy to Twin on the Bench."),
+  ])]));
+  assert.deepEqual(staleHand.frames[2].self.bench.map((card) => card.name), ["Twin"], "a stale hand cannot erase an explicitly recorded board placement");
+  assert.equal(staleHand.frames[2].self.handCount, null);
+  assert.deepEqual(staleHand.frames[2].self.knownHand, []);
+  assert.deepEqual(staleHand.frames[3].self.bench[0]?.energy, ["Grass"], "subsequent recorded actions remain usable after count drift");
+
+  const canonicalTitle = "PlayerOne's Seedling used Gather.";
+  const usedSource = source([section("PlayerOne", [
+    action("PlayerOne played Seedling to the Active Spot."),
+    action(canonicalTitle, ["PlayerOne drew Supply."]),
+  ])]);
+  const unavailableMetadata = compileBattleReplay(usedSource);
+  assert.ok(unavailableMetadata.events[1].unresolved?.length);
+  assert.equal(Boolean(unavailableMetadata.frames[2].self.active?.abilityUsed), false);
+  assert.deepEqual(unavailableMetadata.frames[2].self.knownHand.map((card) => card.name), ["Supply"]);
+  const ability = compileBattleReplay({ ...usedSource, effectTags: { [canonicalTitle]: "ability" } });
+  assert.equal(ability.events[1].label, "Ability");
+  assert.equal(ability.frames[2].self.active?.abilityUsed, true);
+  assert.deepEqual(ability.diagnostics.unresolvedActions, []);
+  const attack = compileBattleReplay({ ...usedSource, effectTags: { [canonicalTitle]: "attack" } });
+  assert.equal(attack.events[1].label, "Attack");
+  assert.equal(Boolean(attack.frames[2].self.active?.abilityUsed), false, "catalogued attacks cannot silently become Abilities");
+
+  const unresolvedShuffle = compileBattleReplay(source([section("PlayerOne", [
     action("PlayerOne drew 2 cards for the opening hand.", ["• Supply, Seedling"]),
     action("PlayerOne shuffled 2 cards into their deck.", ["• Supply, Seedling"]),
   ])]));
-  assert.equal(knownHandShuffle.frames[2].self.handCount, 2);
-  assert.deepEqual(knownHandShuffle.frames[2].self.knownHand.map((card) => card.name), ["Supply", "Seedling"]);
-  assert.equal(knownHandShuffle.frames[2].self.deckCount, null);
-  assert.ok(knownHandShuffle.events[1].unresolved?.length);
+  assert.ok(unresolvedShuffle.events[1].unresolved?.length);
+  assert.equal(unresolvedShuffle.frames[2].self.handCount, null, "missing shuffle origin cannot select hand or preserve its old exact count");
+  assert.deepEqual(unresolvedShuffle.frames[2].self.knownHand, []);
+  assert.equal(unresolvedShuffle.frames[2].self.deckCount, null);
+
+  const contradictions = compileBattleReplay(source([section("PlayerOne", [
+    action("PlayerOne played Seedling to the Active Spot."),
+    action("PlayerTwo played Rival to the Active Spot."),
+    action("PlayerOne's Seedling used Tap on PlayerTwo's Rival for 20 damage.", ["Damage breakdown:", "Total damage: 40 damage", "PlayerOne drew Supply."]),
+  ])]));
+  assert.ok(contradictions.events[2].unresolved?.length);
+  assert.equal(contradictions.frames[3].opponent.active?.damageKnown, false, "contradictory attack totals cannot display certain damage");
+  assert.deepEqual(contradictions.frames[3].self.knownHand.map((card) => card.name), ["Supply"]);
+  assert.equal(contradictions.status, "partial");
 });
 
 // 9/10: the compiler's public input seam must reject unusable and over-budget

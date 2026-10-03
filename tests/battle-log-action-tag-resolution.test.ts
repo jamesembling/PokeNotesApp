@@ -4,6 +4,7 @@ import { extractBattleLogActionCardCandidate } from "@/lib/battle-log/action-tag
 import {
   extractUsedEffectCandidate,
   resolveBattleLogEffectCatalogTagFromRows,
+  resolveBattleLogEffectOriginFromRows,
   type CardEffectLookupRow
 } from "@/lib/battle-log/effect-catalog";
 
@@ -102,6 +103,22 @@ test("card effect catalog resolves attacks and abilities only when Pokemon and e
 });
 
 test("card effect catalog refuses ambiguous or partial effect matches", () => {
+  const title = "FixturePlayer's Radiant Greninja used Concealed Cards.";
+  const hand = { ...rows[3], effect_text: "Choose an Energy card from your hand." };
+  const deck = { ...rows[3], effect_text: "Choose an Energy card from your deck." };
+  const discard = { ...rows[3], effect_text: "Choose an Energy card from your discard pile." };
+  assert.equal(resolveBattleLogEffectOriginFromRows(title, [hand]), "hand");
+  assert.equal(resolveBattleLogEffectOriginFromRows(title, [deck]), "deck");
+  assert.equal(resolveBattleLogEffectOriginFromRows(title, [discard, { ...discard }]), "discard");
+  assert.equal(resolveBattleLogEffectOriginFromRows(title, [rows[3]]), null, "absent card text cannot invent an origin");
+  assert.equal(resolveBattleLogEffectOriginFromRows(title, [hand, discard]), null, "all matching printings must agree");
+  assert.equal(resolveBattleLogEffectOriginFromRows(title, [hand, rows[3]]), null, "one missing printing text makes the origin ambiguous");
+  assert.equal(resolveBattleLogEffectOriginFromRows(title, [{ ...hand, effect_text: "Choose a card from your hand or from your discard pile." }]), null);
+  assert.equal(resolveBattleLogEffectOriginFromRows(title, [{ ...hand, effect_kind: "attack" }, hand]), null);
+  assert.equal(resolveBattleLogEffectOriginFromRows("Budew used Concealed Cards.", [hand]), null);
+  assert.equal(resolveBattleLogEffectOriginFromRows("Radiant Greninja used Itchy Pollen.", [hand]), null);
+  assert.equal(resolveBattleLogEffectOriginFromRows("PlayerOne played Boss's Orders.", [{ ...rows[0], effect_text: "Put a card from your discard pile into your hand." }]), "discard");
+
   assert.equal(resolveBattleLogEffectCatalogTagFromRows("Budew used Concealed Cards.", rows), null);
   assert.equal(resolveBattleLogEffectCatalogTagFromRows("Radiant Greninja used Itchy Pollen.", rows), null);
   assert.equal(resolveBattleLogEffectCatalogTagFromRows("Budew used a move.", rows), null);

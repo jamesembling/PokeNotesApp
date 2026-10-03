@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -10,6 +10,8 @@ import {
   RotateCcwIcon,
   TriangleIcon,
   TrophyIcon,
+  CircleHelpIcon,
+  ZapIcon,
 } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { SectionTitle } from "@/components/ui/Typography";
@@ -53,10 +55,33 @@ function UnavailableArtwork({ name }: { name: string }) {
   return <span className={styles.unavailableArtwork}><strong>{name}</strong><span>Artwork unavailable</span></span>;
 }
 
+const ArtworkContext = createContext<Record<string, string>>({});
+
+function CardArtwork({ card, alt, sizes }: { card: Pick<ReplayZoneCard, "name" | "imageUrl">; alt: string; sizes: string }) {
+  const artwork = useContext(ArtworkContext);
+  const src = card.imageUrl || (Object.hasOwn(artwork, card.name) ? artwork[card.name] : undefined);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  return src && failedSrc !== src
+    ? <Image quality={95} alt={alt} fill sizes={sizes} src={src} onError={() => setFailedSrc(src)} />
+    : <UnavailableArtwork name={card.name} />;
+}
+
+const TimelineAction = memo(function TimelineAction({ event, selected, step, onSeek }: {
+  event: ReplayEvent; selected: boolean; step: number; onSeek: (index: number) => void;
+}) {
+  return <li><button aria-current={selected ? "step" : undefined} className={styles.timelineAction}
+    data-actor={event.actor} data-selected={selected || undefined} onClick={() => onSeek(step)} type="button">
+    <span>{event.turn === 0 ? "Setup" : `Turn ${event.turn}`}</span><strong>{event.label}</strong>
+    <p>{event.summary}</p>
+    {event.unresolved?.length ? <small>Unresolved · {event.unresolved.join("; ")}</small> : null}
+  </button></li>;
+});
+
 type PreviewCard = ReplayZoneCard & {
   abilityUsed?: boolean;
   conditions?: ReplayCard["conditions"];
   damage?: number;
+  damageKnown?: boolean;
   energy?: string[];
   hp?: number | null;
   underlying?: ReplayZoneCard[];
@@ -83,8 +108,8 @@ const energySymbolTypes = new Set(["grass", "fire", "water", "lightning", "psych
 function EnergyOrbs({ energy, className }: { energy: string[]; className: string }) {
   const markers = resolveEnergyMarkers(energy);
   return <div aria-label={`${energy.length} Energy attached: ${energy.join(", ")}`} className={`${styles.energyOrbs} ${className}`}>
-    {markers.map(({ count, type }, index) => <span className={styles.energyOrb} key={`${type}-${index}`} title={count ? `${count} Energy attached` : `${type} Energy`}>
-      {energySymbolTypes.has(type.toLowerCase()) ? <Image alt="" width={64} height={64} src={`/images/battle-replay/energy/${type.toLowerCase()}.svg`} /> : <span aria-hidden="true">?</span>}
+    {markers.map(({ count, type }, index) => <span className={styles.energyOrb} key={`${type}-${index}`} aria-label={`${count ?? 1} ${type} Energy attached`} title={`${count ?? 1} ${type} Energy attached`}>
+      {energySymbolTypes.has(type.toLowerCase()) ? <Image alt="" width={64} height={64} src={`/images/battle-replay/energy/${type.toLowerCase()}.svg`} /> : <CircleHelpIcon aria-hidden="true" />}
       {count ? <strong aria-hidden="true" className={styles.energyOrbCount}>{count}</strong> : null}
     </span>)}
   </div>;
@@ -94,7 +119,7 @@ function ConditionMarkers({ conditions }: { conditions?: ReplayCard["conditions"
   if (!conditions?.length) return null;
   return <div className={styles.conditionMarkers}>
     {conditions.map((condition) => <span key={condition} aria-label={condition} title={condition} className={styles.conditionMarker} data-condition={condition}>
-      {condition === "Asleep" ? <span aria-hidden="true">Zzz</span> : <Image alt="" width={41} height={41} src={`/images/battle-replay/conditions/${condition.toLowerCase()}.png`} />}
+      {condition === "Asleep" ? <span aria-hidden="true">Zzz</span> : condition === "Paralyzed" ? <ZapIcon aria-hidden="true" /> : condition === "Confused" ? <CircleHelpIcon aria-hidden="true" /> : <Image alt="" width={41} height={41} src={`/images/battle-replay/conditions/${condition.toLowerCase()}.png`} />}
     </span>)}
   </div>;
 }
@@ -142,7 +167,7 @@ function CardFace({
     ], { delay: 850, duration: reducedMotion ? 250 : 850, easing: "cubic-bezier(0.4, 0, 0.2, 1)", fill: "forwards" });
     return () => animation.cancel();
   }, [knockedOut, effectKey]);
-  const remainingHp = card.hp === null ? null : Math.max(0, card.hp - card.damage);
+  const remainingHp = card.hp === null || card.damageKnown === false ? null : Math.max(0, card.hp - card.damage);
   const healthPercent = card.hp && remainingHp !== null ? Math.round((remainingHp / card.hp) * 100) : 100;
   const healthTone =
     healthPercent <= 24
@@ -174,13 +199,8 @@ function CardFace({
       >
         <span className={styles.cardFlipper}>
           <span aria-hidden={faceDown} className={styles.cardFront}>
-            {card.imageUrl ? <Image quality={95}
-              alt={`${card.name}, representative card artwork`}
-              fill
-              sizes={compact ? "80px" : "144px"}
-              src={card.imageUrl}
-            /> : <UnavailableArtwork name={card.name} />}
-            {card.damage > 0 ? (
+            <CardArtwork card={card} alt={`${card.name}, representative card artwork`} sizes={compact ? "80px" : "144px"} />
+            {card.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.damageBadge}>?</span> : card.damage > 0 ? (
               <span
                 aria-label={`${card.damage} damage`}
                 className={styles.damageBadge}
@@ -209,24 +229,18 @@ function CardFace({
         >
           <span style={{ transform: `scaleX(${healthPercent / 100})` }} />
         </div> : null}
-        <strong>{remainingHp === null ? "HP unknown" : `${remainingHp} HP`}</strong>
+        <strong>{remainingHp === null ? card.damageKnown === false ? "Damage unknown" : "HP unknown" : `${remainingHp} HP`}</strong>
       </div>
     </div>
   );
 }
 
 function PileFace({ card, hidden }: { card?: ReplayZoneCard; hidden?: boolean }) {
-  if (card?.imageUrl) {
-    return <Image quality={95} alt="" fill sizes="72px" src={card.imageUrl} />;
-  }
+  if (card) return <CardArtwork card={card} alt="" sizes="72px" />;
 
   if (hidden) return <div aria-hidden="true" className={styles.cardBack} />;
 
-  return (
-    <div className={styles.emptyPile}>
-      {card ? <UnavailableArtwork name={card.name} /> : null}
-    </div>
-  );
+  return <div className={styles.emptyPile} />;
 }
 
 function Pile({
@@ -262,7 +276,7 @@ function Pile({
 
   return (
     <button
-      aria-label={`View ${label.toLowerCase()}, ${count} ${count === 1 ? "card" : "cards"}`}
+      aria-label={`View ${label.toLowerCase()}, ${count === null ? "total count unknown" : `${count} ${count === 1 ? "card" : "cards"}`}`}
       className={styles.pile}
       disabled={count === 0}
       onClick={onInspect}
@@ -315,7 +329,7 @@ function HandFan({ actor, onPreview, side }: { actor: ReplayActor; onPreview: (c
             >
               {knownCard ? (
                 <button aria-label={`Preview ${knownCard.name}`} className={styles.cardPreviewTrigger} onClick={() => onPreview(knownCard)} type="button">
-                  {knownCard.imageUrl ? <Image quality={95} alt={`${knownCard.name}, card in hand`} fill sizes="80px" src={knownCard.imageUrl} /> : <UnavailableArtwork name={knownCard.name} />}
+                  <CardArtwork card={knownCard} alt={`${knownCard.name}, representative card artwork in hand`} sizes="80px" />
                 </button>
               ) : (
                 <div aria-hidden="true" className={styles.cardBack} />
@@ -343,12 +357,7 @@ function StadiumSpot({
     <div className={styles.stadiumSpot}>
       <span>Stadium</span>
       <button aria-label={`Preview ${stadium.name}`} className={`${styles.stadium} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ id: "stadium", name: stadium.name, imageUrl: stadium.imageUrl })} type="button">
-        {stadium.imageUrl ? <Image quality={95}
-          alt={`${stadium.name}, representative card artwork`}
-          fill
-          sizes="(max-width: 40rem) 56px, 80px"
-          src={stadium.imageUrl}
-        /> : <UnavailableArtwork name={stadium.name} />}
+        <CardArtwork card={stadium} alt={`${stadium.name}, representative card artwork`} sizes="(max-width: 40rem) 56px, 80px" />
       </button>
       <strong className={styles.stadiumName}>{stadium.name}</strong>
     </div>
@@ -364,14 +373,14 @@ function TransactionCards({ actor, onPreview, previousState, stage, state }: { a
       return <div className={styles.transactionCardState} data-stateful={hasBoardState || undefined} key={card.id}>
         {shouldShowTransactionEvolutionStack(stage, boardCard) ? <div aria-label={`Evolution stack: ${boardCard.underlying?.map((item) => item.name).join(", ")}`} className={styles.transactionEvolutionStack}>
           {(boardCard.underlying ?? []).map((item) => <span key={item.id}>
-            {item.imageUrl ? <Image quality={95} alt="" fill sizes="82px" src={item.imageUrl} /> : <UnavailableArtwork name={item.name} />}
+            <CardArtwork card={item} alt="" sizes="82px" />
           </span>)}
         </div> : null}
         <button aria-label={`Preview ${card.name}${boardCard.abilityUsed ? ", ability used this turn" : ""}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview(boardCard)} type="button">
-          {card.imageUrl ? <Image quality={95} alt={`${card.name}, representative card artwork`} fill sizes="112px" src={card.imageUrl} /> : <UnavailableArtwork name={card.name} />}
+          <CardArtwork card={card} alt={`${card.name}, representative card artwork`} sizes="112px" />
         </button>
         <ConditionMarkers conditions={boardCard.conditions} />
-        {boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
+        {boardCard.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.transactionDamageCounter}>?</span> : boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
         {boardCard.abilityUsed ? <AbilityUsedMarker className={styles.transactionAbilityUsedMarker} /> : null}
         {boardCard.energy?.length ? <EnergyOrbs energy={boardCard.energy} className={styles.transactionEnergyOrbs} /> : null}
         {boardCard.tool ? <span className={styles.transactionTool}>Tool · {boardCard.tool}</span> : null}
@@ -492,7 +501,7 @@ function PlayerBoard({
   const attackName = isAttack && isCurrentActor
     ? currentEvent.transaction?.stages.find((stage) => stage.kind === "attack")?.label ?? "Attack"
     : undefined;
-  const damageTaken = (card: ReplayCard, previous?: ReplayCard | null) => isAttack && previous ? Math.max(0, card.damage - previous.damage) : 0;
+  const damageTaken = (card: ReplayCard, previous?: ReplayCard | null) => isAttack && previous && card.damageKnown !== false && previous.damageKnown !== false ? Math.max(0, card.damage - previous.damage) : 0;
   const benchCapacity = Math.min(8, Math.max(5, displayBench.length));
 
   return (
@@ -502,6 +511,7 @@ function PlayerBoard({
           <span>{actor === "self" ? "You" : "Opponent"}</span>
           <strong>{side.name}</strong>
         </div>
+        {side.uncertainZones?.length ? <span className={styles.uncertainZones}>Incomplete: {side.uncertainZones.join(", ")}</span> : null}
         {side.itemLocked ? <span className={styles.itemLockBadge}>Item lock</span> : null}
       </header>
 
@@ -565,7 +575,7 @@ function PlayerBoard({
           <Pile count={side.deckCount} label="Deck" />
           <Pile
             animate={side.discard[0]?.id !== previousSide.discard[0]?.id}
-            count={side.discard.length}
+            count={side.uncertainZones?.includes("discard") ? null : side.discard.length}
             label="Discard"
             onInspect={() => onInspectDiscard(actor)}
             topCard={side.discard[0]}
@@ -580,9 +590,11 @@ function PlayerBoard({
 export function BattleReplay({
   program,
   initialActionIndex = 0,
+  artwork = {},
 }: {
   program: ReplayProgram;
   initialActionIndex?: number;
+  artwork?: Record<string, string>;
 }) {
   const [actionIndex, setActionIndex] = useState(() =>
     Math.max(0, Math.min(program.frames.length - 1, initialActionIndex)),
@@ -591,6 +603,7 @@ export function BattleReplay({
   const [inspectedDiscard, setInspectedDiscard] =
     useState<ReplayActor | null>(null);
   const [playing, setPlaying] = useState(false);
+  const timelineRef = useRef<HTMLOListElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const previewTriggerRef = useRef<HTMLElement | null>(null);
   const discardTriggerRef = useRef<HTMLElement | null>(null);
@@ -614,14 +627,14 @@ export function BattleReplay({
     : previewHealthPercent <= 75
       ? "warning"
       : "healthy";
-  const turnStops = replayEvents.reduce<Array<{ sourceSectionIndex: number; index: number }>>(
+  const turnStops = useMemo(() => replayEvents.reduce<Array<{ sourceSectionIndex: number; index: number }>>(
     (stops, event, index) => {
       if (stops.at(-1)?.sourceSectionIndex !== event.sourceSectionIndex)
         stops.push({ sourceSectionIndex: event.sourceSectionIndex, index: index + 1 });
       return stops;
     },
     [],
-  );
+  ), [replayEvents]);
   const previousTurnIndex = turnStops
     .map((stop) => stop.index)
     .filter((index) => index < actionIndex)
@@ -650,15 +663,54 @@ export function BattleReplay({
     window.history.replaceState(window.history.state, "", url);
   }, [actionIndex]);
 
-  function seek(nextIndex: number, revealBoard = false) {
+  useEffect(() => {
+    const timeline = timelineRef.current;
+    if (!timeline) return;
+    const selected = timeline.querySelector<HTMLElement>('[aria-current="step"]');
+    const alignSelected = () => {
+      if (actionIndex === 0) { timeline.scrollTop = 0; return; }
+      if (!selected) return;
+      const viewport = timeline.getBoundingClientRect();
+      const item = selected.getBoundingClientRect();
+      const inset = 8;
+      const top = item.top - viewport.top;
+      const bottom = item.bottom - viewport.bottom;
+      const delta = top < inset || item.height > timeline.clientHeight - inset * 2
+        ? top - inset : bottom > -inset ? bottom + inset : 0;
+      if (delta) timeline.scrollTo({ top: timeline.scrollTop + delta, behavior: "instant" });
+    };
+    alignSelected();
+    const measure = () => [timeline.clientWidth, timeline.clientHeight, selected?.offsetWidth ?? 0, selected?.offsetHeight ?? 0];
+    let bounds = measure();
+    let pendingFrame: number | undefined;
+    const observer = new ResizeObserver(() => {
+      const nextBounds = measure();
+      // Paused manual reading stays where the user scrolled until layout changes.
+      if (nextBounds.every((value, index) => value === bounds[index])) return;
+      bounds = nextBounds;
+      if (pendingFrame !== undefined) window.cancelAnimationFrame(pendingFrame);
+      pendingFrame = window.requestAnimationFrame(alignSelected);
+    });
+    observer.observe(timeline);
+    if (selected) observer.observe(selected);
+    return () => {
+      observer.disconnect();
+      if (pendingFrame !== undefined) window.cancelAnimationFrame(pendingFrame);
+    };
+  }, [actionIndex, playing]);
+
+  const seek = useCallback((nextIndex: number, revealBoard = false) => {
     setPlaying(false);
     setActionIndex(Math.max(0, Math.min(maxIndex, nextIndex)));
-    if (revealBoard && stageRef.current && window.getComputedStyle(stageRef.current).order === "-1") {
-      window.requestAnimationFrame(() =>
-        stageRef.current?.scrollIntoView({ block: "start" }),
-      );
+    const stage = stageRef.current;
+    if (revealBoard && stage && window.getComputedStyle(stage).order === "-1") {
+      window.requestAnimationFrame(() => stage.scrollIntoView({
+        block: "start",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      }));
     }
-  }
+  }, [maxIndex]);
+  const seekFromTimeline = useCallback((nextIndex: number) => seek(nextIndex, true), [seek]);
 
   function seekTurn(direction: -1 | 1) {
     const next = direction < 0 ? previousTurnIndex : nextTurnIndex;
@@ -678,10 +730,15 @@ export function BattleReplay({
   }
 
   return (
+    <ArtworkContext.Provider value={artwork}>
     <div className={styles.replayContainer}>
     <div className={styles.replay}>
       <p className={styles.artNote}>Reconstructed from the saved Battle Log. Unrecorded information stays unknown. Artwork may show a representative printing.</p>
-      {program.status === "partial" ? <p className={styles.replayNotice} role="status">Partial replay · {program.diagnostics.messages.join(" ") || "Some logged actions could not be reconstructed."}</p> : null}
+      {program.status === "partial" ? <details className={styles.replayDiagnostics}>
+        <summary>Partial replay · {program.diagnostics.unresolvedMutations} unresolved {program.diagnostics.unresolvedMutations === 1 ? "change" : "changes"}</summary>
+        <p>Recorded actions remain available. Unresolved changes are labelled in the timeline and source below the board.</p>
+        <ul>{program.diagnostics.messages.map((message, index) => <li key={index}>{message}</li>)}</ul>
+      </details> : null}
 
       <div className={styles.matchMeta}>
         <div><span>Matchup</span><strong>{replaySource.selfDeck} vs {replaySource.opponentDeck}</strong></div>
@@ -711,30 +768,8 @@ export function BattleReplay({
           </Button>
         </div>
 
-        <ol className={styles.timeline}>
-          {replayEvents.map((event, index) => {
-            const step = index + 1;
-            const selected = step === actionIndex;
-            return (
-              <li key={`${event.turn}-${event.label}-${index}`}>
-                <button
-                  aria-current={selected ? "step" : undefined}
-                  className={styles.timelineAction}
-                  data-actor={event.actor}
-                  data-selected={selected || undefined}
-                  onClick={() => seek(step, true)}
-                  type="button"
-                >
-                  <span>
-                    {event.turn === 0 ? "Setup" : `Turn ${event.turn}`}
-                  </span>
-                  <strong>{event.label}</strong>
-                  <p>{event.summary}</p>
-                  {event.unresolved?.length ? <small>Unresolved · {event.unresolved.join("; ")}</small> : null}
-                </button>
-              </li>
-            );
-          })}
+        <ol aria-label="Match actions" className={styles.timeline} ref={timelineRef}>
+          {replayEvents.map((event, index) => <TimelineAction event={event} key={index} onSeek={seekFromTimeline} selected={index + 1 === actionIndex} step={index + 1} />)}
         </ol>
       </div>
 
@@ -780,6 +815,13 @@ export function BattleReplay({
               : currentEvent?.summary ?? "Ready to replay the imported battle."}
           </strong>
         </div>
+
+        {currentEvent ? <details className={styles.sourceEvidence}>
+          <summary>Recorded source{currentEvent.unresolved?.length ? " · unresolved changes" : ""}</summary>
+          <p>{currentEvent.sourceTitle}</p>
+          {currentEvent.sourceDetails.length ? <ul>{currentEvent.sourceDetails.map((detail, index) => <li key={index}>{detail}</li>)}</ul> : null}
+          {currentEvent.unresolved?.length ? <div className={styles.sourceUnresolved}><strong>Unresolved</strong><ul>{currentEvent.unresolved.map((message, index) => <li key={index}>{message}</li>)}</ul></div> : null}
+        </details> : null}
 
         <div className={styles.scrubber}>
           <label htmlFor="replay-position">
@@ -884,7 +926,7 @@ export function BattleReplay({
               </SheetTitle>
               <SheetDescription>
                 {(inspectedDiscard ? state[inspectedDiscard].discard.length : 0)}{" "}
-                cards · newest first
+                {inspectedDiscard && state[inspectedDiscard].uncertainZones?.includes("discard") ? "known cards · incomplete pile" : "cards"} · newest first
               </SheetDescription>
             </SheetHeader>
             <ol className={styles.discardList}>
@@ -894,16 +936,7 @@ export function BattleReplay({
               ).map((discardedCard, index) => (
                 <li key={discardedCard.id}>
                   <button aria-label={`Preview ${discardedCard.name}`} className={`${styles.discardCardImage} ${styles.cardPreviewTrigger}`} onClick={() => previewCard(discardedCard)} type="button">
-                    {discardedCard.imageUrl ? (
-                      <Image quality={95}
-                        alt={`${discardedCard.name}, representative card artwork`}
-                        fill
-                        sizes="(max-width: 44rem) 76px, 88px"
-                        src={discardedCard.imageUrl}
-                      />
-                    ) : (
-                      <UnavailableArtwork name={discardedCard.name} />
-                    )}
+                    <CardArtwork card={discardedCard} alt={`${discardedCard.name}, representative card artwork`} sizes="(max-width: 44rem) 76px, 88px" />
                   </button>
                   <div>
                     <strong>{discardedCard.name}</strong>
@@ -924,19 +957,19 @@ export function BattleReplay({
             <DialogDescription className="sr-only">Enlarged card preview</DialogDescription>
             {previewedCard ? <div className={styles.cardPreviewStage}>
               <div className={styles.cardPreviewImage}>
-                {previewedCard.imageUrl ? <Image quality={95} alt={`${previewedCard.name}, enlarged card preview`} fill sizes="340px" src={previewedCard.imageUrl} /> : <UnavailableArtwork name={previewedCard.name} />}
+                <CardArtwork card={previewedCard} alt={`${previewedCard.name}, enlarged representative card artwork`} sizes="340px" />
                 <ConditionMarkers conditions={previewedCard.conditions} />
-                {previewedCard.damage ? <span aria-label={`${previewedCard.damage} damage`} className={styles.cardPreviewDamage}>{previewedCard.damage}</span> : null}
+                {previewedCard.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.cardPreviewDamage}>?</span> : previewedCard.damage ? <span aria-label={`${previewedCard.damage} damage`} className={styles.cardPreviewDamage}>{previewedCard.damage}</span> : null}
                 {previewedCard.abilityUsed ? <AbilityUsedMarker className={styles.previewAbilityUsedMarker} /> : null}
                 {previewedCard.tool ? <span className={styles.cardPreviewTool}>Tool · {previewedCard.tool}</span> : null}
                 {previewedCard.energy?.length ? <EnergyOrbs energy={previewedCard.energy} className={styles.previewEnergyOrbs} /> : null}
               </div>
-              {previewedCard.hp ? <div className={styles.cardPreviewHealth} data-tone={previewHealthTone}>
+              {previewedCard.hp && previewedCard.damageKnown !== false ? <div className={styles.cardPreviewHealth} data-tone={previewHealthTone}>
                 <div aria-label={`${Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} of ${previewedCard.hp} HP remaining`} aria-valuemax={previewedCard.hp} aria-valuemin={0} aria-valuenow={Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} role="progressbar">
                   <span style={{ width: `${Math.max(0, ((previewedCard.hp - (previewedCard.damage ?? 0)) / previewedCard.hp) * 100)}%` }} />
                 </div>
                 <strong>{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
-              </div> : previewedCard.hp === null ? <p className={styles.previewUnknownHealth}>HP unknown</p> : null}
+              </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewedCard.damageKnown === false ? "Accumulated damage unknown · remaining HP unknown" : "HP unknown"}</p> : null}
             </div> : null}
           </AppDialogContent>
         </Dialog>
@@ -944,5 +977,6 @@ export function BattleReplay({
       </div>
     </div>
     </div>
+    </ArtworkContext.Provider>
   );
 }
