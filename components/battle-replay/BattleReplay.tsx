@@ -215,7 +215,7 @@ function CardFace({
       data-has-energy={card.energy.length > 0 || undefined}
     >
       {knockedOut ? <span key={`ko-${effectKey}`} className={styles.knockoutStamp} role="status" aria-label={`${card.name} was Knocked Out`}>KO</span> : null}
-      {attackName ? <div key={`attack-${effectKey}`} className={styles.boardAttack} role="status"><span className={styles.attackPulse} aria-hidden="true" /><strong>{attackName}</strong></div> : null}
+      {attackName ? <div key={`attack-${effectKey}`} className={styles.boardAttack} aria-hidden="true"><span className={styles.attackPulse} /></div> : null}
       {damageTaken > 0 ? <span key={`damage-${effectKey}`} className={styles.attackDamage} role="status" aria-label={`${card.name} took ${damageTaken} damage`}>−{damageTaken}</span> : null}
       <div className={styles.cardSurface}>
       {!faceDown && card.energy.length ? <div className={styles.attachedEnergyCards} aria-label="Attached Energy artwork">
@@ -399,7 +399,7 @@ function StadiumSpot({
   return (
     <div className={styles.stadiumSpot}>
       <span>Stadium</span>
-      <button aria-label={`Preview ${stadium.name}`} className={`${styles.stadium} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ ...stadium, id: "stadium" })} type="button">
+      <button aria-label={`Preview ${stadium.name}`} data-board-stadium={actor} className={`${styles.stadium} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ ...stadium, id: "stadium" })} type="button">
         <CardArtwork card={stadium} alt={`${stadium.name}, representative card artwork`} sizes="(max-width: 40rem) 56px, 80px" />
       </button>
       <strong className={styles.stadiumName}>{stadium.name}</strong>
@@ -712,10 +712,31 @@ function boardChanged(previous: ReplayState, current: ReplayState) {
 }
 
 function routineBoardAction(event: ReplayEvent | null, previous: ReplayState, state: ReplayState, previousEvent?: ReplayEvent) {
-  if (!event?.transaction || event.turn === 0) return null;
+  if (!event?.transaction || event.turn === 0 || event.unresolved?.length) return null;
   const stages = event.transaction.stages;
   const actor = event.actor;
   if (actor !== "self" && actor !== "opponent") return null;
+  const stadium = stages.find((stage) => stage.kind === "stadium");
+  const stadiumPlay = event.sourceTitle.match(/^.+? played (.+?)(?: to the Stadium spot)?\.$/i);
+  const handConsumed = previous[actor].handCount !== null && state[actor].handCount === previous[actor].handCount! - 1;
+  const stadiumChanged = previous.stadium?.name !== state.stadium?.name || previous.stadium?.actor !== state.stadium?.actor;
+  const replacementDetail = event.sourceDetails[0]?.match(/^- .+? discarded (.+?)\.$/);
+  if (event.label === "Stadium" && stadiumPlay?.[1] === stadium?.cards[0]?.name
+    && stadium?.cards.length === 1 && stadium.targetResolved !== false
+    && state.stadium?.actor === actor && state.stadium.name === stadium.cards[0].name
+    && (previous[actor].handCount === null || handConsumed)
+    && (/ to the Stadium spot\.$/i.test(event.sourceTitle) || stadiumChanged || handConsumed)
+    && stages.length === (previous.stadium ? 2 : 1)
+    && stages.filter((stage) => stage.kind === "stadium").length === 1
+    && stages.every((stage) => stage.kind === "stadium" || stage.kind === "discard"
+      && Boolean(previous.stadium) && stage.cards.length <= 1
+      && stage.cards.every((card) => card.name === previous.stadium?.name))
+    && stages.every((stage) => !stage.hiddenCount && stage.targetResolved !== false)
+    && (previous.stadium
+      ? event.sourceDetails.length === 1 && replacementDetail?.[1] === previous.stadium.name
+      : event.sourceDetails.length === 0)) {
+    return { kind: "stadium" as const, actor, card: stadium.cards[0] };
+  }
   const draw = stages.find((stage) => stage.kind === "draw");
   if (event.label === "Draw" && stages.length === 1 && draw
     && previousEvent?.sourceSectionIndex !== event.sourceSectionIndex
@@ -886,6 +907,8 @@ export function BattleReplay({
       const targetHand = board.querySelector<HTMLElement>(`[data-replay-hand="${routineAction.actor}"]`);
       const destination = routineAction.kind === "attach"
         ? [...board.querySelectorAll<HTMLElement>("[data-board-card]")].find((card) => card.dataset.boardCard === routineAction.targetId && card.closest<HTMLElement>("[data-actor]")?.dataset.actor === routineAction.actor)?.querySelector<HTMLElement>(`.${styles.cardSurface}`)?.getBoundingClientRect()
+        : routineAction.kind === "stadium"
+          ? board.querySelector<HTMLElement>(`[data-board-stadium="${routineAction.actor}"]`)?.getBoundingClientRect()
         : (routineAction.card ? [...(targetHand?.querySelectorAll<HTMLElement>("[data-hand-card-id]") ?? [])].find((card) => card.dataset.handCardId === routineAction.card?.id) : undefined)?.getBoundingClientRect()
           ?? targetHand?.querySelector<HTMLElement>("[data-hand-index]:last-child")?.getBoundingClientRect();
       const frame = ghost.parentElement?.getBoundingClientRect();

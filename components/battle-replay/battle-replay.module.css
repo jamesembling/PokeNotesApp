@@ -181,6 +181,9 @@
 }
 
 .board {
+  /* FLIP transforms and elevated cards stay below sibling transaction overlays. */
+  position: relative;
+  z-index: 0;
   display: grid;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -390,7 +393,7 @@ button.pile:disabled {
   grid-template-columns: 5rem 6.8rem 5rem;
   align-items: center;
   justify-content: center;
-  column-gap: 0.35rem;
+  column-gap: 0.75rem;
 }
 
 .playedCardSpot {
@@ -745,6 +748,7 @@ button.pile:disabled {
   grid-column: 1;
   grid-row: 1;
   justify-items: center;
+  min-width: 0;
   gap: 0.3rem;
 }
 
@@ -767,7 +771,8 @@ button.pile:disabled {
 }
 
 .stadiumName {
-  width: 6.5rem;
+  width: 100%;
+  overflow-wrap: anywhere;
   color: var(--card-foreground);
   font-size: 0.58rem;
   line-height: 1.2;
@@ -1366,16 +1371,16 @@ button.pile:disabled {
   }
 
   .field {
-    grid-template-rows: 7.2rem 4.7rem;
+    grid-template-rows: minmax(7.2rem, auto) minmax(4.7rem, auto);
     gap: 0.9rem;
   }
 
   .activeRow {
-    grid-template-columns: 3rem 4.9rem 3rem;
+    grid-template-columns: 3.5rem 4.9rem 3.5rem;
   }
 
   .playerBoard[data-actor="opponent"] .field {
-    grid-template-rows: 4.7rem 7.2rem;
+    grid-template-rows: minmax(4.7rem, auto) minmax(7.2rem, auto);
   }
 
   .active {
@@ -1659,7 +1664,7 @@ button.pile:disabled {
   .activeRow {
     grid-area: field;
     grid-template-columns: 5.8rem;
-    grid-template-rows: 8.8rem auto;
+    grid-template-rows: minmax(8.8rem, auto) auto;
     align-content: center;
     row-gap: 0.5rem;
   }
@@ -1684,22 +1689,6 @@ button.pile:disabled {
   z-index: 5;
   pointer-events: none;
 }
-.boardAttack strong {
-  position: absolute;
-  bottom: calc(100% + 0.6rem);
-  left: 50%;
-  width: max-content;
-  max-width: 12rem;
-  transform: translateX(-50%);
-  padding: 0.4rem 0.65rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--card);
-  color: var(--card-foreground);
-  font-size: 0.75rem;
-  text-align: center;
-  animation: attack-label-in 220ms ease-out both;
-}
 .attackPulse {
   position: absolute;
   inset: -0.3rem -0.3rem 1.4rem;
@@ -1723,10 +1712,6 @@ button.pile:disabled {
   animation: attack-damage-in 420ms 180ms ease-out both;
 }
 .cardStack[data-compact] .attackDamage { font-size: 1rem; }
-@keyframes attack-label-in {
-  from { opacity: 0; translate: 0 0.3rem; }
-  to { opacity: 1; translate: 0 0; }
-}
 @keyframes attack-pulse {
   0% { opacity: 0.5; scale: 0.98; }
   40% { opacity: 1; scale: 1.04; }
@@ -1737,7 +1722,7 @@ button.pile:disabled {
   to { opacity: 1; translate: 0 0; scale: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .boardAttack strong, .attackPulse, .attackDamage { animation: none; }
+  .attackPulse, .attackDamage { animation: none; }
 }
 
 
