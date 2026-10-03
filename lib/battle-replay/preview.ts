@@ -22,6 +22,7 @@ export type ReplayCardPreview = ReplayZoneCard & {
   abilityUsed?: boolean;
   conditions?: ReplayCard["conditions"];
   damage?: number;
+  damageKnown?: boolean;
   energy?: string[];
   hp?: number | null;
   underlying?: ReplayZoneCard[];
@@ -33,7 +34,9 @@ export function resolveEnergyMarkers(energy: string[]): Array<{ type: string; co
     return energy.map((type) => ({ type }));
   }
 
-  return [{ type: energy[0] ?? "Colorless", count: energy.length }];
+  const counts = new Map<string, number>();
+  for (const type of energy) counts.set(type, (counts.get(type) ?? 0) + 1);
+  return Array.from(counts, ([type, count]) => ({ type, count }));
 }
 
 export function resolveTransactionStage(

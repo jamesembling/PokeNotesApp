@@ -1,7 +1,6 @@
 .replayContainer { container-type: inline-size; container-name: replay; min-width: 0; }
 .unavailableArtwork { display: flex; width: 100%; height: 100%; flex-direction: column; justify-content: center; gap: 0.25rem; padding: 0.3rem; background: var(--muted); color: var(--foreground); overflow-wrap: anywhere; text-align: center; font-size: 0.65rem; }
 .unavailableArtwork span { font-size: 0.55rem; }
-.replayNotice { margin: 0; color: var(--muted-foreground); font-size: 0.875rem; }
 .healthStatus[data-tone="unknown"] { color: var(--muted-foreground); }
 
 .replay {
@@ -55,6 +54,7 @@
 
 .timelinePane {
   display: flex;
+  min-width: 0;
   min-height: 0;
   flex-direction: column;
   border-right: 1px solid var(--border);
@@ -89,10 +89,13 @@
 
 .timeline {
   display: grid;
-  max-height: 44rem;
+  max-height: min(44rem, 75dvh);
   margin: 0;
   padding: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scroll-behavior: auto;
   list-style: none;
   scrollbar-color: var(--border) transparent;
 }
@@ -101,7 +104,7 @@
   position: relative;
   display: grid;
   width: 100%;
-  grid-template-columns: 4.25rem 4.5rem minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: baseline;
   gap: 0.65rem;
   padding: 0.85rem 1.25rem 0.85rem 1.55rem;
@@ -156,6 +159,8 @@
 }
 
 .timelineAction p {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
   font-size: 0.86rem;
   line-height: 1.45;
 }
@@ -1342,7 +1347,7 @@ button.pile:disabled {
   }
 
   .timeline {
-    max-height: 24rem;
+    max-height: min(24rem, 55dvh);
   }
 }
 
@@ -1490,7 +1495,7 @@ button.pile:disabled {
   }
 
   .timelineAction {
-    grid-template-columns: 3.7rem 4rem minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     padding-inline: 1.35rem 0.75rem;
   }
 }
@@ -1876,6 +1881,7 @@ button.pile:disabled {
 }
 .energyOrb {
   position: relative;
+  pointer-events: auto;
   display: grid;
   flex: 0 0 auto;
   width: var(--energy-orb-size, 2rem);
@@ -1967,8 +1973,29 @@ button.pile:disabled {
 .conditionMarkers { position: absolute; top: 0.4rem; left: -0.4rem; z-index: 32; display: flex; flex-direction: column; gap: 0.25rem; pointer-events: none; }
 .conditionMarker { display: grid; place-items: center; width: 1.8rem; aspect-ratio: 1; filter: drop-shadow(0 0.1rem 0.2rem color-mix(in oklab, black 45%, transparent)); }
 .conditionMarker img { width: 100%; height: 100%; object-fit: contain; }
-.conditionMarker[data-condition="Asleep"] { border: 1px solid var(--border); border-radius: 50%; background: var(--card); color: var(--card-foreground); font-size: 0.75rem; font-weight: 800; }
+.conditionMarker[data-condition="Asleep"], .conditionMarker[data-condition="Paralyzed"], .conditionMarker[data-condition="Confused"] { border: 1px solid var(--border); border-radius: 50%; background: var(--card); color: var(--card-foreground); font-size: 0.75rem; font-weight: 800; }
 .cardStack[data-compact] .conditionMarker { width: 1rem; font-size: 0.5rem; }
 .cardPreviewImage .conditionMarker { width: 2.3rem; font-size: 1rem; }
 
-.timelineAction small { display: block; color: var(--muted-foreground); font-size: 0.72rem; }
+.timelineAction small { display: block; grid-column: 1 / -1; color: var(--muted-foreground); font-size: 0.8rem; line-height: 1.5; overflow-wrap: anywhere; }
+
+.replayDiagnostics, .sourceEvidence {
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  color: var(--card-foreground);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.replayDiagnostics summary, .sourceEvidence summary { cursor: pointer; font-weight: 650; }
+.replayDiagnostics summary:focus-visible, .sourceEvidence summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.replayDiagnostics p, .sourceEvidence p { margin-block: 0.75rem 0; max-width: 75ch; }
+.replayDiagnostics ul, .sourceEvidence ul { margin-block: 0.5rem 0; padding-inline-start: 1.25rem; max-width: 75ch; }
+.replayDiagnostics li, .sourceEvidence li { margin-block: 0.35rem; }
+.sourceUnresolved { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+.uncertainZones { max-width: 24ch; font-size: 0.65rem; line-height: 1.35; color: var(--foreground); overflow-wrap: anywhere; }
+.energyOrb svg { width: 85%; height: 85%; }
+.conditionMarker svg { width: 80%; height: 80%; color: var(--foreground); }

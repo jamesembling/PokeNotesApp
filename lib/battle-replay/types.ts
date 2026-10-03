@@ -17,6 +17,8 @@ export type ReplayCard = {
   imageUrl: string;
   hp: number | null;
   damage: number;
+  /** False when the accumulated total is not established by the source. */
+  damageKnown?: boolean;
   abilityUsed?: boolean;
   conditions?: ReplayCondition[];
   energy: string[];
@@ -34,6 +36,7 @@ export type ReplaySide = {
   discard: ReplayZoneCard[];
   prizesRemaining: number | null;
   itemLocked?: boolean;
+  uncertainZones?: Array<"hand" | "deck" | "board" | "discard" | "prizes">;
 };
 
 export type ReplayState = {
@@ -85,7 +88,13 @@ export type ReplayEvent = {
   unresolved?: string[];
 };
 
+export type ReplayEffectKind = "ability" | "attack" | "item" | "supporter" | "tool" | "stadium";
+
 export type ReplayLogSource = {
+  /** Unambiguous catalog evidence keyed by the exact original title/detail. */
+  effectTags?: Record<string, ReplayEffectKind>;
+  /** Origins established by validated effect text, never inferred from a card name. */
+  effectOrigins?: Record<string, "hand" | "deck" | "discard">;
   id: string;
   date: string;
   result: string;

@@ -4,12 +4,12 @@ import type { FavouriteCardArt } from "./types";
 const CARD_SEARCH_URL = "https://limitlesstcg.com/api/dm/search";
 
 /** Read trusted print identities; image URLs are derived locally from set/number. */
-export async function searchCardArtPrints(query: string): Promise<FavouriteCardArt[]> {
+export async function searchCardArtPrints(query: string, signal?: AbortSignal): Promise<FavouriteCardArt[]> {
   const normalizedQuery = query.trim();
   if (normalizedQuery.length < 2 || normalizedQuery.length > 120) return [];
   const response = await fetch(`${CARD_SEARCH_URL}?${new URLSearchParams({ q: normalizedQuery, lang: "en" })}`, {
     next: { revalidate: 86400 },
-    signal: AbortSignal.timeout(8000)
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(8000)]) : AbortSignal.timeout(8000)
   });
   if (!response.ok) throw new Error("Card artwork search is unavailable.");
   const payload: unknown = await response.json();
@@ -31,7 +31,7 @@ export async function validateCardArtPrints(cards: FavouriteCardArt[], savedCard
   // Saved identities came from the current owner's database row, never a client claim.
   const alreadySaved = (card: FavouriteCardArt) => savedCards.some((saved) => saved.set === card.set && saved.number === card.number && saved.name === card.name);
   const names = [...new Set(validated.filter((card) => !alreadySaved(card)).map((card) => card.name))];
-  const resultSets = await Promise.all(names.map(searchCardArtPrints));
+  const resultSets = await Promise.all(names.map((name) => searchCardArtPrints(name)));
   const byName = new Map(names.map((name, index) => [name, resultSets[index]]));
   return validated.map((card) => {
     if (alreadySaved(card)) return card;

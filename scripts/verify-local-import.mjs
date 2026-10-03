@@ -379,8 +379,15 @@ async function verifyBattleReplay(db, userId, logId) {
   await page.getByText("Unrecorded information stays unknown.", { exact: false }).waitFor();
   assert.ok(await page.getByLabel("Deck count unknown", { exact: true }).count() === 2);
   assert.ok(await page.getByLabel("Prize cards remaining unknown", { exact: true }).count() === 2);
-  assert.ok(await page.getByRole("status").filter({ hasText: "Partial replay" }).count() === 1,
-    "Unsupported attacks must be disclosed instead of inventing a target.");
+  const diagnostics = page.locator("details").filter({ has: page.locator("summary", { hasText: /^Partial replay/ }) });
+  assert.equal(await diagnostics.count(), 1, "Replay limitations must remain available beside the board.");
+  await diagnostics.locator("summary").click();
+  assert.equal(await diagnostics.getAttribute("open"), "");
+  const diagnosticText = diagnostics.getByText("Recorded actions remain available.", { exact: false });
+  await diagnosticText.waitFor();
+  const diagnosticBox = await diagnosticText.boundingBox();
+  assert.ok(diagnosticBox && diagnosticBox.width >= 200, "Expanded diagnostics must have readable line width.");
+  await diagnostics.locator("summary").click();
 
   checkpoint("step, seek, play, pause and reload the saved replay");
   await page.getByRole("button", { name: "Next action", exact: true }).click();
@@ -405,6 +412,14 @@ async function verifyBattleReplay(db, userId, logId) {
   await scrubber.focus();
   await scrubber.press("End");
   await until(async () => Number(await position()) === summaries.length);
+  const timeline = page.getByRole("list", { name: "Match actions", exact: true });
+  const selectedAction = timeline.locator('[aria-current="step"]');
+  await until(async () => selectedAction.evaluate(element => {
+    const row = element.getBoundingClientRect();
+    const list = element.closest("ol").getBoundingClientRect();
+    return row.top >= list.top && row.bottom <= list.bottom;
+  }));
+  assert.equal(await selectedAction.count(), 1, "Seeking must expose exactly one current timeline action.");
   await page.getByRole("button", { name: "Restart replay", exact: true }).click();
   assert.equal(await position(), "0");
   await page.getByRole("button", { name: "Play replay", exact: true }).click();
@@ -444,6 +459,13 @@ async function verifyReplayLayouts(scrubber) {
   for (const [label, width, height] of [["desktop", 1440, 1000], ["iab", 1233, 860], ["panel", 980, 850], ["mobile", 390, 844]]) {
     await page.setViewportSize({ width, height });
     await scrubber.waitFor();
+    checkpoint(`keep the selected timeline action visible after resizing to ${width}px`);
+    const currentTimelineAction = page.getByRole("list", { name: "Match actions", exact: true }).locator('[aria-current="step"]');
+    await until(async () => currentTimelineAction.evaluate(element => {
+      const row = element.getBoundingClientRect();
+      const list = element.closest("ol").getBoundingClientRect();
+      return row.top >= list.top && row.bottom <= list.bottom;
+    }), 5000);
     if (width < 860) {
       await page.getByRole("button", { name: "Open navigation menu", exact: true }).click();
       const betaLink = page.getByRole("link", { name: "Battle Replay (Beta)", exact: true });
@@ -468,6 +490,21 @@ async function verifyReplayLayouts(scrubber) {
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
         `Replay must fit ${label} width in ${theme} mode.`);
       await captureReplay(`battle-replay-${label}-${theme}`);
+    }
+    if (label === "desktop" || label === "mobile") {
+      const diagnostics = page.locator("details").filter({ has: page.locator("summary", { hasText: /^Partial replay/ }) });
+      const source = page.locator("details").filter({ has: page.locator("summary", { hasText: /^Recorded source/ }) });
+      await diagnostics.locator("summary").click();
+      await source.locator("summary").click();
+      await source.getByText("Unresolved", { exact: true }).waitFor();
+      for (const detail of [diagnostics, source]) {
+        const box = await detail.boundingBox();
+        assert.ok(box && box.width >= 200 && box.x >= 0 && box.x + box.width <= width + 1,
+          `Expanded ${label} replay evidence must stay readable within the viewport.`);
+      }
+      await captureReplay(`battle-replay-${label}-diagnostics-expanded`);
+      await source.locator("summary").click();
+      await diagnostics.locator("summary").click();
     }
     const geometry = await page.getByRole("button", { name: "Preview Dreepy", exact: true }).boundingBox();
     console.log(`[import-check] replay ${label} ${width}px: Active card ${Math.round(geometry.width)}×${Math.round(geometry.height)}px`);
@@ -552,7 +589,8 @@ async function verifyReplayCollection(db, userId, original) {
     { title: "E2ETrainer's Turn", player: "E2ETrainer", prizesAfterTurn: {}, actions: [
       { title: "E2ETrainer discarded a card.", details: ["• Basic Fire Energy"] },
       { title: "E2ETrainer's Dreepy is now Poisoned.", details: [] },
-      { title: "E2ETrainer's Dreepy is now Burned.", details: [] }
+      { title: "E2ETrainer's Dreepy is now Burned.", details: [] },
+      { title: "E2ETrainer rearranged unknown cards in their hand.", details: [] }
     ] }
   ];
   let otherUserId;
@@ -570,7 +608,7 @@ async function verifyReplayCollection(db, userId, original) {
     await until(async () => await scrubber.inputValue() === "6");
     await captureReplay("battle-replay-discard-resolution");
     await scrubber.press("End");
-    await until(async () => await scrubber.inputValue() === "8");
+    await until(async () => await scrubber.inputValue() === "9");
     assert.equal(await page.getByLabel("Poisoned", { exact: true }).count(), 1,
       "Only the explicitly poisoned Active Pokémon must receive its marker.");
     assert.equal(await page.getByLabel("Burned", { exact: true }).count(), 1,
