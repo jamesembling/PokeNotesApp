@@ -2060,6 +2060,7 @@ button.pile:disabled {
 .attachedEnergyCards { position: absolute; inset: 0; z-index: 1; }
 .attachedEnergyCard {
   position: absolute;
+  z-index: calc(3 - var(--energy-layer));
   inset: 0;
   width: 100%;
   aspect-ratio: 0.714;
