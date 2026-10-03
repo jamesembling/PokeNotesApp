@@ -36,6 +36,12 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "assets.tcgdex.net",
+        pathname: "/en/**/high.webp",
+        search: ""
+      },
+      {
+        protocol: "https",
         hostname: "r2.limitlesstcg.net"
       },
       {

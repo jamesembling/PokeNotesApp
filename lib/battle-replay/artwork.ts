@@ -1,6 +1,8 @@
 import type { ReplayProgram } from "./types";
 import { buildFavouriteCardArtImageUrl } from "@/lib/social/artwork";
 import type { FavouriteCardArt } from "@/lib/social/types";
+import type { CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
+import { normalizeText } from "@/lib/log-import/normalization";
 
 // Representative artwork only: these prints do not establish HP, identity, or format legality.
 export const representativePrintings: Record<string, { set: string; number: string }> = {
@@ -74,10 +76,21 @@ export async function resolveReplayArtwork(
   program: ReplayProgram,
   search: (name: string, signal?: AbortSignal) => Promise<FavouriteCardArt[]>,
   signal?: AbortSignal,
+  definitions?: CardDefinitionEvidenceByName,
 ): Promise<Record<string, string>> {
   // Bound provider work and keep the client payload to a name/URL dictionary.
-  const names = collectMissingReplayArtworkNames(program).slice(0, 40);
   const artwork: Record<string, string> = {};
+  const names = collectMissingReplayArtworkNames(program).slice(0, 40).filter((name) => {
+    const evidence = definitions?.[normalizeText(name)];
+    const printing = evidence?.coverage === "complete" ? [...evidence.candidates]
+      .filter((card) => normalizeText(card.name) === normalizeText(name)
+        && typeof card.imageUrl === "string" && /^https:\/\/assets\.tcgdex\.net\/en\/.+\/high\.webp$/.test(card.imageUrl))
+      .sort((left, right) => (right.setReleaseDate ?? "").localeCompare(left.setReleaseDate ?? "")
+        || left.sourceCardId.localeCompare(right.sourceCardId))[0] : undefined;
+    if (!printing?.imageUrl) return true;
+    artwork[name] = printing.imageUrl;
+    return false;
+  });
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(4, names.length) }, async () => {
     while (next < names.length && !signal?.aborted) {

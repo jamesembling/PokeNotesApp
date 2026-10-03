@@ -10,13 +10,16 @@ const EFFECT_TAGS = new Set<CardEffectKind>(["ability", "attack"]);
 export type CardEffectLookupRow = Pick<
   CardEffectCatalogRow,
   "card_name" | "normalized_card_name" | "effect_kind" | "effect_name" | "normalized_effect_name"
-> & Partial<Pick<CardEffectCatalogRow, "effect_text">>;
+> & Partial<Pick<CardEffectCatalogRow, "effect_text">> & { effect_candidates_incomplete?: boolean };
 
 type EffectOrigin = "hand" | "deck" | "discard";
 
 type CardEffectCatalogIndex = {
   effectTagsByCardAndEffect: Map<string, Set<BattleLogActionTag>>;
   trainerTagsByCard: Map<string, Set<BattleLogActionTag>>;
+  effectRows: Map<string, CardEffectLookupRow[]>;
+  trainerRows: Map<string, CardEffectLookupRow[]>;
+  incompleteEffectCards: Set<string>;
 };
 
 function normalizeLogText(value: string | null | undefined) {
@@ -44,9 +47,18 @@ function selectUnambiguousTag(tags: Set<BattleLogActionTag> | undefined) {
 function buildCardEffectCatalogIndex(rows: CardEffectLookupRow[]): CardEffectCatalogIndex {
   const effectTagsByCardAndEffect = new Map<string, Set<BattleLogActionTag>>();
   const trainerTagsByCard = new Map<string, Set<BattleLogActionTag>>();
+  const effectRows = new Map<string, CardEffectLookupRow[]>();
+  const trainerRows = new Map<string, CardEffectLookupRow[]>();
+  const incompleteEffectCards = new Set<string>();
+  const addRow = (target: Map<string, CardEffectLookupRow[]>, key: string, row: CardEffectLookupRow) => {
+    const matching = target.get(key) ?? [];
+    matching.push(row);
+    target.set(key, matching);
+  };
 
   rows.forEach((row) => {
     const cardName = normalizeLogText(row.normalized_card_name || row.card_name);
+    if (row.effect_candidates_incomplete) incompleteEffectCards.add(cardName);
     const effectName = normalizeLogText(row.normalized_effect_name || row.effect_name || "");
     const effectKind = row.effect_kind;
 
@@ -56,17 +68,19 @@ function buildCardEffectCatalogIndex(rows: CardEffectLookupRow[]): CardEffectCat
 
     if (TRAINER_TAGS.has(effectKind)) {
       addTag(trainerTagsByCard, cardName, effectKind);
+      addRow(trainerRows, cardName, row);
       return;
     }
 
     if (EFFECT_TAGS.has(effectKind) && effectName) {
       addTag(effectTagsByCardAndEffect, buildEffectKey(cardName, effectName), effectKind);
+      addRow(effectRows, buildEffectKey(cardName, effectName), row);
     }
   });
 
   return {
     effectTagsByCardAndEffect,
-    trainerTagsByCard
+    trainerTagsByCard, effectRows, trainerRows, incompleteEffectCards
   };
 }
 
@@ -76,24 +90,34 @@ function extractPlayedCardName(title: string) {
 }
 
 /** Only an explicit, single source zone establishes an omitted movement origin. */
-export function resolveBattleLogEffectOriginFromRows(title: string, rows: CardEffectLookupRow[]): EffectOrigin | null {
+export function resolveBattleLogEffectOriginFromRows(title: string, rows: CardEffectLookupRow[], detail?: string): EffectOrigin | null {
+  return resolveOriginFromIndex(title, buildCardEffectCatalogIndex(rows), detail);
+}
+
+function resolveOriginFromIndex(title: string, index: CardEffectCatalogIndex, detail?: string): EffectOrigin | null {
   const candidate = extractUsedEffectCandidate(title);
   const trainerName = extractPlayedCardName(title) || extractAttachedCardName(title);
-  const matching = rows.filter((row) => {
-    const name = normalizeLogText(row.normalized_card_name || row.card_name);
-    return candidate
-      ? name === candidate.cardName && normalizeLogText(row.normalized_effect_name || row.effect_name) === candidate.effectName && EFFECT_TAGS.has(row.effect_kind)
-      : Boolean(trainerName) && name === trainerName && TRAINER_TAGS.has(row.effect_kind);
-  });
-  if (!matching.length || !resolveBattleLogEffectCatalogTagFromRows(title, matching)) return null;
+  const matching = (candidate ? index.effectRows.get(buildEffectKey(candidate.cardName, candidate.effectName)) : index.trainerRows.get(trainerName)) ?? [];
+  if (!matching.length || !resolveTagFromIndex(title, index)) return null;
   const origins = matching.map((row) => {
     const text = String(row.effect_text || "");
+    const clauses = text.split(/(?<=[.!?])\s+/);
+    const relevant = detail && /\battached\b/i.test(detail) ? clauses.filter((clause) => /\battach\b/i.test(clause))
+      : detail && /\bshuffled\b/i.test(detail) ? clauses.filter((clause) => /\bshuffles?\b/i.test(clause))
+      : detail && /\b(?:moved|returned|added|put)\b.+\bhand\b/i.test(detail) ? clauses.filter((clause) => /\b(?:put|return|add|move)\b.+\bhand\b/i.test(clause)) : [];
+    const originText = relevant.length ? relevant.join(" ") : text;
     const zones = new Set<EffectOrigin>();
-    for (const match of text.matchAll(/\bfrom your (discard pile|hand|deck)\b/gi)) {
+    for (const match of originText.matchAll(/\bfrom (?:your|their|your opponent['’]s) (discard pile|hand|deck)\b/gi)) {
       zones.add(match[1].toLowerCase() === "discard pile" ? "discard" : match[1].toLowerCase() as EffectOrigin);
     }
-    if (/\bsearch your deck\b/i.test(text)) zones.add("deck");
-    if (/\bshuffle your hand into your deck\b/i.test(text)) zones.add("hand");
+    if (/\bsearch your deck\b/i.test(originText)) zones.add("deck");
+    if (/\bshuffles? (?:your|their|his or her) hand (?:into (?:your|their|his or her) deck|and puts? it on the bottom of (?:your|their|his or her) deck)\b/i.test(originText)) zones.add("hand");
+    if (/\blook at the top \d+ cards of your deck\b/i.test(text)
+      && /\battach\b[^.]*\b(?:cards|Energy)\b[^.]*\byou find there\b/i.test(text)
+      && (!detail || /\battached\b/i.test(detail))) zones.add("deck");
+    // A later attachment/return may refer back to cards just found by a search.
+    if (!zones.size && relevant.length && /\bsearch your deck\b/i.test(text)
+      && !/\bfrom (?:your|their) (?:hand|discard pile)\b/i.test(text)) zones.add("deck");
     return zones.size === 1 ? Array.from(zones)[0] : null;
   });
   return origins.every((origin) => origin !== null && origin === origins[0]) ? origins[0] : null;
@@ -141,10 +165,14 @@ export function resolveBattleLogEffectCatalogTagFromRows(
   title: string,
   rows: CardEffectLookupRow[]
 ): BattleLogActionTag | null {
-  const index = buildCardEffectCatalogIndex(rows);
+  return resolveTagFromIndex(title, buildCardEffectCatalogIndex(rows));
+}
+
+function resolveTagFromIndex(title: string, index: CardEffectCatalogIndex): BattleLogActionTag | null {
   const usedEffectCandidate = extractUsedEffectCandidate(title);
 
   if (usedEffectCandidate) {
+    if (index.incompleteEffectCards.has(usedEffectCandidate.cardName)) return null;
     return selectUnambiguousTag(
       index.effectTagsByCardAndEffect.get(
         buildEffectKey(usedEffectCandidate.cardName, usedEffectCandidate.effectName)
@@ -153,7 +181,7 @@ export function resolveBattleLogEffectCatalogTagFromRows(
   }
 
   const cardName = extractPlayedCardName(title) || extractAttachedCardName(title);
-  if (!cardName) {
+  if (!cardName || index.incompleteEffectCards.has(cardName)) {
     return null;
   }
 
@@ -165,7 +193,6 @@ async function fetchCandidateRows(args: {
   trainerCardNames: string[];
 }, signal?: AbortSignal) {
   const supabase = createPublicClient();
-  const rows: CardEffectLookupRow[] = [];
   const effectCardNames = Array.from(
     new Set(args.effectCandidates.map((candidate) => candidate.cardName))
   );
@@ -174,7 +201,7 @@ async function fetchCandidateRows(args: {
   );
   const trainerCardNames = Array.from(new Set(args.trainerCardNames));
 
-  try {
+  async function fetchEffects(): Promise<CardEffectLookupRow[]> {
     if (effectCardNames.length > 0 && effectNames.length > 0) {
       const { data, error, count } = await supabase
         .from("card_effect_catalog")
@@ -186,9 +213,11 @@ async function fetchCandidateRows(args: {
 
       // A capped or incomplete response cannot establish agreement across printings.
       if (error || !Array.isArray(data) || !Number.isInteger(count) || count !== data.length) return [];
-      rows.push(...((data as unknown) as CardEffectLookupRow[]));
+      return data as unknown as CardEffectLookupRow[];
     }
-
+    return [];
+  }
+  async function fetchTrainers(): Promise<CardEffectLookupRow[]> {
     if (trainerCardNames.length > 0) {
       const { data, error, count } = await supabase
         .from("card_effect_catalog")
@@ -199,13 +228,14 @@ async function fetchCandidateRows(args: {
 
       // A capped or incomplete response cannot establish agreement across printings.
       if (error || !Array.isArray(data) || !Number.isInteger(count) || count !== data.length) return [];
-      rows.push(...((data as unknown) as CardEffectLookupRow[]));
+      return data as unknown as CardEffectLookupRow[];
     }
-  } catch {
     return [];
   }
-
-  return rows;
+  // Each family must be complete, but an independent failure does not erase
+  // already established evidence from the other family.
+  const results = await Promise.allSettled([fetchEffects(), fetchTrainers()]);
+  return results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
 }
 
 export async function resolveBattleLogEffectCatalogEvidence(titles: string[], signal?: AbortSignal) {
@@ -218,20 +248,36 @@ export async function resolveBattleLogEffectCatalogEvidence(titles: string[], si
     effectCandidates,
     trainerCardNames
   }, signal);
+  return resolveBattleLogEffectEvidenceFromRows(uniqueTitles, rows);
+}
+
+/** Resolve all titles against one complete candidate set without more network work. */
+export function resolveBattleLogEffectEvidenceFromRows(titles: string[], rows: CardEffectLookupRow[]) {
+  const uniqueTitles = Array.from(new Set(titles.map((title) => title.trim()).filter(Boolean)));
   const resolvedByTitle = new Map<string, BattleLogActionTag>();
   const origins = new Map<string, EffectOrigin>();
+  const resolver = createBattleLogEffectEvidenceResolver(rows);
 
   uniqueTitles.forEach((title) => {
-    const resolved = resolveBattleLogEffectCatalogTagFromRows(title, rows);
+    const resolved = resolver.tag(title);
 
     if (resolved) {
       resolvedByTitle.set(title, resolved);
     }
-    const origin = resolveBattleLogEffectOriginFromRows(title, rows);
+    const origin = resolver.origin(title);
     if (origin) origins.set(title, origin);
   });
 
-  return { tags: resolvedByTitle, origins };
+  return { tags: resolvedByTitle, origins, rows };
+}
+
+/** One index per complete lookup, reused for parent actions and scoped details. */
+export function createBattleLogEffectEvidenceResolver(rows: CardEffectLookupRow[]) {
+  const index = buildCardEffectCatalogIndex(rows);
+  return {
+    tag: (title: string) => resolveTagFromIndex(title, index),
+    origin: (title: string, detail?: string) => resolveOriginFromIndex(title, index, detail),
+  };
 }
 
 export async function resolveBattleLogEffectCatalogTags(titles: string[]) {

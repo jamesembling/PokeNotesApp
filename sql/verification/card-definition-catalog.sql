@@ -1,5 +1,5 @@
 -- Synthetic, transaction-scoped exercise of the actual migration boundary.
--- Run only through migration:rehearse:local against its disposable database.
+-- Run only against a disposable local database, through migration rehearsal or Database behavior CI.
 begin;
 set local role service_role;
 insert into public.card_definition_generations (id, source, expected_count, source_manifest_hash, source_coverage)

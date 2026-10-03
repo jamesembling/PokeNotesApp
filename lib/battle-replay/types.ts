@@ -1,5 +1,6 @@
 import type { ReplayCondition } from "./conditions";
 import type { LogSection } from "@/types/index";
+import type { CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
 
 export type ReplayActor = "self" | "opponent";
 type HandCard = { id: string; name: string; imageUrl: string };
@@ -15,11 +16,17 @@ export type ReplayCard = {
   id: string;
   name: string;
   imageUrl: string;
+  /** Compatibility alias for effective maxHp, never printed HP. */
   hp: number | null;
+  baseHp?: number | null;
+  maxHp?: number | null;
+  remainingHp?: number | null;
   damage: number;
   /** False when the accumulated total is not established by the source. */
   damageKnown?: boolean;
   abilityUsed?: boolean;
+  /** Effects observed on this physical top card, never shared across namesakes. */
+  observedEffects?: string[];
   conditions?: ReplayCondition[];
   energy: string[];
   underlying: ReplayZoneCard[];
@@ -91,10 +98,14 @@ export type ReplayEvent = {
 export type ReplayEffectKind = "ability" | "attack" | "item" | "supporter" | "tool" | "stadium";
 
 export type ReplayLogSource = {
+  /** Complete printing candidates resolved independently from representative artwork. */
+  cardDefinitions?: CardDefinitionEvidenceByName;
   /** Unambiguous catalog evidence keyed by the exact original title/detail. */
   effectTags?: Record<string, ReplayEffectKind>;
   /** Origins established by validated effect text, never inferred from a card name. */
   effectOrigins?: Record<string, "hand" | "deck" | "discard">;
+  /** Context-specific detail evidence keyed by zero-based actionIndex:detailIndex. */
+  effectDetailOrigins?: Record<string, "hand" | "deck" | "discard">;
   id: string;
   date: string;
   result: string;

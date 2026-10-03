@@ -84,6 +84,7 @@ type PreviewCard = ReplayZoneCard & {
   damageKnown?: boolean;
   energy?: string[];
   hp?: number | null;
+  baseHp?: number | null;
   underlying?: ReplayZoneCard[];
   tool?: string;
 };
@@ -229,7 +230,7 @@ function CardFace({
         >
           <span style={{ transform: `scaleX(${healthPercent / 100})` }} />
         </div> : null}
-        <strong>{remainingHp === null ? card.damageKnown === false ? "Damage unknown" : "HP unknown" : `${remainingHp} HP`}</strong>
+        <strong title={remainingHp === null && card.baseHp ? "Printed HP is verified. Maximum or remaining HP is not established." : undefined}>{remainingHp === null ? card.baseHp ? `${card.baseHp} printed HP` : card.damageKnown === false ? "Damage unknown" : "HP unknown" : `${remainingHp} HP`}</strong>
       </div>
     </div>
   );
@@ -969,7 +970,7 @@ export function BattleReplay({
                   <span style={{ width: `${Math.max(0, ((previewedCard.hp - (previewedCard.damage ?? 0)) / previewedCard.hp) * 100)}%` }} />
                 </div>
                 <strong>{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
-              </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewedCard.damageKnown === false ? "Accumulated damage unknown · remaining HP unknown" : "HP unknown"}</p> : null}
+              </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewedCard.baseHp ? `${previewedCard.baseHp} printed HP · ` : ""}{previewedCard.damageKnown === false ? "Accumulated damage unknown · remaining HP unknown" : previewedCard.baseHp ? "Maximum and remaining HP unknown" : "HP unknown"}</p> : null}
             </div> : null}
           </AppDialogContent>
         </Dialog>

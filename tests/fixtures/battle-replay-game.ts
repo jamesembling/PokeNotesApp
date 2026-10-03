@@ -77,3 +77,14 @@ export const canonicalReplayGame: ReplayLogSource = {
     return sections;
   }, []),
 };
+
+// Public metadata fixture; synthetic identities keep catalog tests independent
+// of a changing provider while preserving the complete card-definition shape.
+export const syntheticCardDefinition = (extra: Partial<import("@/lib/card-definition-catalog/types").CardDefinition> = {}): import("@/lib/card-definition-catalog/types").CardDefinition => ({
+  source: "tcgdex", sourceCardId: "synthetic-1", name: "Seedling", setId: "synthetic", localId: "1",
+  setReleaseDate: "2026-01-01", hp: 70, category: "Pokemon", trainerType: null, stage: "Basic",
+  types: ["Grass"], evolvesFrom: null, regulationMark: "I", rules: [], abilities: [],
+  attacks: [{ name: "Tap", text: null, damage: "10", cost: ["Grass"] }],
+  sourceUrl: "https://api.tcgdex.net/v2/en/cards/synthetic-1", sourceUpdatedAt: null,
+  syncedAt: "2026-10-03T00:00:00.000Z", ...extra,
+});

@@ -113,6 +113,12 @@ jobs:
         if: steps.changes.outputs.relevant == 'true'
         run: node_modules/.bin/supabase --agent=no --workdir tests/e2e test db --local
 
+      - name: Verify card definition publication and staging concurrency
+        if: steps.changes.outputs.relevant == 'true'
+        run: |
+          node_modules/.bin/supabase --agent=no --workdir tests/e2e db query --local --file sql/verification/card-definition-catalog.sql
+          node scripts/verify-card-definition-concurrency.mjs
+
       - name: Verify Tournament Deck List behavior
         if: steps.changes.outputs.relevant == 'true'
         run: npm run verify:tournament-deck-list
