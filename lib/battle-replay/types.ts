@@ -27,6 +27,8 @@ export type ReplayZoneCard = {
   localId?: string;
   observedEffects?: string[];
   definitionOwner?: ReplayActor;
+  /** Recorded in-play component role; used when its catalogue entry is absent. */
+  boardRole?: "tool" | "energy" | "evolution";
 };
 
 export type ReplayCard = {
@@ -41,6 +43,8 @@ export type ReplayCard = {
   /** Probable is a catalogue choice, never proof of the played printing. */
   hpBasis?: "known" | "probable" | "unknown";
   damage: number;
+  /** A visible baseline whose recorded attachment effect is not verified. */
+  hpModifierBasis?: "unverified_attachment";
   /** False when the accumulated total is not established by the source. */
   damageKnown?: boolean;
   /** A recorded top card whose physical copy cannot be assigned safely. */
@@ -62,12 +66,25 @@ export type ReplayCard = {
   definitionOwner?: ReplayActor;
 };
 
+/** Physical components in play whose assignment to namesake copies is unresolved.
+ * Member evidence refers to the original tops and does not add physical cards. */
+export type ReplayBoardPool = {
+  id: string;
+  memberIds: string[];
+  cards: ReplayZoneCard[];
+  memberEvidence?: ReplayZoneCard[];
+  /** Recorded Evolution components whose location is either in play or in
+   * their owner's hand. Excluded from confirmed board inventory and knownHand. */
+  possiblyReturnedCards?: ReplayZoneCard[];
+};
+
 export type ReplaySide = {
   name: string;
   active: ReplayCard | null;
   bench: ReplayCard[];
   /** Surviving top cards evidenced in play, without a resolved Active/Bench position. */
   unplaced?: ReplayCard[];
+  boardPools?: ReplayBoardPool[];
   activeUncertain?: boolean;
   /** False only when unseen board/attachment facts can change HP modifiers. */
   hpModifiersKnown?: boolean;
@@ -123,6 +140,7 @@ export type ReplayTransaction = {
 
 export type ReplayEvent = {
   actor: ReplayActor;
+  turnActor?: ReplayActor;
   sourceSectionIndex: number;
   label: string;
   sourceTitle: string;

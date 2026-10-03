@@ -2,7 +2,7 @@ import { resolveCardDefinition, selectCardDefinitionPrinting } from "@/lib/card-
 import { normalizeText } from "@/lib/log-import/normalization";
 import type { CardDefinition, CardDefinitionEvidence, CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
 import type { ReplayCard, ReplayCardResolution, ReplayEffectKind, ReplayState, ReplayZoneCard } from "./types";
-import { resolveReplayEffectConstraint, type ReplayEffectOperation } from "./effect-targets";
+import { resolveReplayEffectConstraint, resolveReplayTrainerDisposition, type ReplayEffectOperation } from "./effect-targets";
 import type { ReplayLinkedCardDefinitions } from "./linked-deck-list";
 
 const hasHp = (text: string) => /\bHP\b/i.test(text);
@@ -121,6 +121,8 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
   const candidates = (found: CardDefinitionEvidence | undefined) => found?.coverage === "complete" && found.candidates.length ? found.candidates : null;
   const modifierCandidates = (found: CardDefinitionEvidence | undefined) => found?.candidates.length ? found.candidates : null;
   const attachmentFallbacks = new Map<string, CardDefinitionEvidence>();
+  const attachmentRulesUnverified = (found: CardDefinitionEvidence | undefined) =>
+    !found?.candidates.length || found.coverage !== "complete" || found.candidates.some((printing) => printing.rules === null);
   const attachmentKey = (name: string, owner?: "self" | "opponent") => JSON.stringify([normalize(name), owner ?? null]);
   const resolveAttachment = (name: string, owner?: "self" | "opponent") => {
     const found = resolve({ name, definitionOwner: owner });
@@ -312,15 +314,38 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       // an HP-changing effect. Only a recorded modifier can obscure maximum HP.
       let adjustment: number | null = abilityUnknown || card.hpModifierUncertain ? null
         : state.stadium ? modifier(stadiumCandidates, targets, "stadium") : 0;
+      let unverifiedAttachment = false;
       for (const attachment of [...(card.tool ? [card.tool] : []), ...card.energy.filter((energy) => /Energy$/i.test(energy) && !/^Basic /i.test(energy))]) {
-        const printedAddition = modifier(modifierCandidates(resolveAttachment(attachment, actor)), targets, "attachment");
+        const attachmentFound = resolveAttachment(attachment, actor);
+        if (!(attachment === card.tool && toolSuppression === true) && attachmentRulesUnverified(attachmentFound)) unverifiedAttachment = true;
+        const printedAddition = modifier(modifierCandidates(attachmentFound), targets, "attachment");
         const addition = attachment === card.tool && toolSuppression !== false && printedAddition !== 0
           ? toolSuppression === true ? 0 : null : printedAddition;
         adjustment = adjustment === null || addition === null ? null : adjustment + addition;
       }
+      for (const pool of state[actor].boardPools ?? []) {
+        if (!pool.memberIds.includes(card.id)) continue;
+        for (const component of pool.cards) {
+          if (component.boardRole === "evolution" || /^Basic .+ Energy$/i.test(component.name)) continue;
+          const componentFound = component.setId && component.localId ? resolve(component) : resolveAttachment(component.name, actor);
+          const source = modifierCandidates(componentFound);
+          const isTool = component.boardRole === "tool" || source?.every((printing) => printing.category === "Trainer" && normalize(printing.trainerType ?? "") === "tool");
+          const isEnergy = component.boardRole === "energy" || source?.every((printing) => printing.category === "Energy");
+          if (!isTool && !isEnergy || isTool && toolSuppression === true) continue;
+          if (attachmentRulesUnverified(componentFound)) unverifiedAttachment = true;
+          const printedAddition = modifier(source, targets, "attachment");
+          const addition = isTool && toolSuppression === null && printedAddition !== 0 ? null : printedAddition;
+          // A sole remaining member resolves assignment without duplicating
+          // the physical component in its ordinary attachment arrays.
+          if (pool.memberIds.length === 1) adjustment = adjustment === null || addition === null ? null : adjustment + addition;
+          else if (addition !== 0) adjustment = null;
+        }
+      }
       const base = abilitySet ?? card.baseHp;
       card.maxHp = base === null || adjustment === null ? null : base + adjustment;
-      card.hpBasis = card.maxHp === null ? "unknown" : abilitySet !== undefined ? "known" : selection.basis;
+      card.hpBasis = card.maxHp === null ? "unknown" : unverifiedAttachment ? "probable" : abilitySet !== undefined ? "known" : selection.basis;
+      if (unverifiedAttachment) card.hpModifierBasis = "unverified_attachment";
+      else delete card.hpModifierBasis;
       card.hp = card.maxHp;
       card.remainingHp = card.maxHp === null || card.damageKnown === false ? null : Math.max(0, card.maxHp - card.damage);
     }
@@ -355,6 +380,11 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       if (state[actor].active) visit(state[actor].active!, actor);
       state[actor].bench.forEach((card) => visit(card, actor));
       state[actor].unplaced?.forEach((card) => visit(card, actor));
+      state[actor].boardPools?.forEach((pool) => {
+        pool.cards.forEach((card) => visit(card, actor));
+        pool.memberEvidence?.forEach((card) => visit(card, actor));
+        pool.possiblyReturnedCards?.forEach((card) => visit(card, actor));
+      });
       state[actor].knownHand.forEach((card) => visit(card, actor));
       state[actor].discard.forEach((card) => visit(card, actor));
     }
@@ -367,6 +397,7 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
   };
   const effectConstraints = (card: Pick<ReplayCard, "name" | "observedEffects" | "setId" | "localId" | "definitionOwner">, effectName: string | undefined, kind: ReplayEffectKind, operation: ReplayEffectOperation) =>
     resolveReplayEffectConstraint(resolve({ ...card, ...(effectName ? { observedEffects: [...(card.observedEffects ?? []), effectName] } : {}) }), effectName, kind, operation);
+  const trainerDisposition = (card: Pick<ReplayCard, "name" | "observedEffects" | "setId" | "localId" | "definitionOwner">) => resolveReplayTrainerDisposition(resolve(card));
   const hasAttachmentHpModifier = (card: Pick<ReplayCard, "tool" | "energy" | "definitionOwner">): boolean =>
     [...(card.tool ? [card.tool] : []), ...card.energy.filter((energy) => /Energy$/i.test(energy) && !/^Basic /i.test(energy))]
       .some((name) => modifierCandidates(resolveAttachment(name, card.definitionOwner))?.some((printing) => printing.rules?.some((text) =>
@@ -399,7 +430,7 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
     // replaces the Pokémon executing that text or receiving "this Pokémon" effects.
     return { status: "copied", observedEffect: copyAbilities[0][0].name, definitionCard: donors[0].card };
   };
-  return { resolve, update, abilityTexts, effectConstraints, attackPrintingEvidence, hasAttachmentHpModifier, decorateCard, decorateState, collectResolutions: () => cardResolutions };
+  return { resolve, update, abilityTexts, effectConstraints, trainerDisposition, attackPrintingEvidence, hasAttachmentHpModifier, decorateCard, decorateState, collectResolutions: () => cardResolutions };
 }
 
 export function replayCardDefinitionEvidence(card: ReplayCard, evidence: CardDefinitionEvidenceByName | undefined) {

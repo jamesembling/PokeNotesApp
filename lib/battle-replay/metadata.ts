@@ -14,6 +14,7 @@ export function collectReplayOwnerCardNames(program: ReplayProgram, actor: Repla
       if (card.tool) names.add(card.tool);
       for (const energy of card.energy) names.add(/Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`);
     }
+    for (const pool of side.boardPools ?? []) for (const card of [...pool.cards, ...(pool.possiblyReturnedCards ?? []), ...(pool.memberEvidence ?? [])]) names.add(card.name);
     for (const card of [...side.knownHand, ...side.discard]) names.add(card.name);
     if (frame.stadium?.actor === actor) names.add(frame.stadium.name);
     if (frame.playedCard?.actor === actor) names.add(frame.playedCard.card.name);
@@ -41,6 +42,7 @@ export function collectReplayOwnerCardCounts(program: ReplayProgram, actor: Repl
       if (card.tool) add(card.tool);
       for (const energy of card.energy) add(/Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`);
     }
+    for (const pool of side.boardPools ?? []) for (const card of [...pool.cards, ...(pool.possiblyReturnedCards ?? [])]) add(card.name, card.id);
     if (!side.uncertainZones?.includes("hand")) for (const card of side.knownHand) add(card.name, card.id);
     if (!side.uncertainZones?.includes("discard")) for (const card of side.discard) add(card.name, card.id);
     if (frame.stadium?.actor === actor) add(frame.stadium.name);

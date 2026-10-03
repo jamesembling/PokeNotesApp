@@ -251,6 +251,20 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   const offboardDefinition = compileBattleReplay({ ...hpInput, cardDefinitions: { ...cardDefinitions, unseen: resolveCardDefinition(buildCardDefinitionIndex([]), { name: "Unseen" }, "unavailable") } });
   assert.equal(offboardDefinition.frames[7].self.active?.maxHp, 250, "unavailable metadata for an off-board card cannot invalidate the visible board");
 
+  const pooledTool = compileBattleReplay({ ...source([section("PlayerOne", [
+    action("PlayerOne played Rival to the Active Spot."), action("PlayerOne played Seedling to the Bench."), action("PlayerOne played Seedling to the Bench."),
+    action("PlayerOne attached HP Tool to Seedling on the Bench."),
+    action("PlayerOne's Seedling was switched with PlayerOne's Rival to become the Active Pokémon."),
+    action("HP Tool was discarded from PlayerOne's Seedling."),
+  ])]), cardDefinitions, effectTags: { "PlayerOne attached HP Tool to Seedling on the Bench.": "tool" } });
+  const toolPool = pooledTool.frames[5].self.boardPools!.find((pool) => pool.cards.some((card) => card.name === "HP Tool"))!;
+  assert.equal(toolPool.cards.length, 1, "the disputed Tool remains one visible physical card across a switch");
+  assert.ok([pooledTool.frames[5].self.active!, ...pooledTool.frames[5].self.bench].filter((card) => toolPool.memberIds.includes(card.id)).every((card) => card.maxHp === null), "the HP-changing Tool's assignment is unresolved only on its possible holders");
+  assert.equal(pooledTool.frames[5].self.bench.find((card) => card.name === "Rival")?.maxHp, 100);
+  assert.ok([pooledTool.frames[6].self.active!, ...pooledTool.frames[6].self.bench].filter((card) => card.name === "Seedling").every((card) => card.maxHp === 70), "discarding the pooled HP source recovers every possible holder's maximum");
+  assert.equal(pooledTool.frames[6].self.boardPools?.flatMap((pool) => pool.cards).length, 0);
+  assert.equal(pooledTool.frames[6].self.discard.find((card) => card.name === "HP Tool")?.id, toolPool.cards[0].id, "moving pooled cards preserves their recorded physical identity");
+
   const conditionalTool = syntheticCardDefinition({ ...definitions[4], rules: ["If this Pokémon is Basic, it gets +100 HP."] });
   const conditionalHp = compileBattleReplay({ ...hpInput, cardDefinitions: { ...cardDefinitions, "hp tool": resolveCardDefinition(buildCardDefinitionIndex([conditionalTool]), { name: "HP Tool" }) } });
   assert.equal(conditionalHp.frames[7].self.active?.baseHp, 150);
@@ -265,6 +279,16 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   const basicCharm = compileBattleReplay(basicInput);
   assert.equal(basicCharm.frames[6].self.active?.maxHp, 120);
   assert.equal(basicCharm.frames[6].self.active?.remainingHp, 100);
+  const absentToolEvidence: NonNullable<ReplayLogSource["cardDefinitions"]> = { ...basicInput.cardDefinitions }; delete absentToolEvidence["hp tool"];
+  const absentTool = compileBattleReplay({ ...basicInput, cardDefinitions: absentToolEvidence });
+  assert.equal(absentTool.frames[6].self.active?.maxHp, 70);
+  assert.equal(absentTool.frames[6].self.active?.hpBasis, "probable", "an attached Tool without catalogue rules cannot establish a zero HP adjustment");
+  assert.equal(absentTool.frames[6].self.active?.hpModifierBasis, "unverified_attachment");
+  assert.equal(absentTool.frames[6].opponent.active?.hpBasis, "known", "an unverified Tool stays local to its recorded recipient");
+  const missingToolRules = compileBattleReplay({ ...basicInput, cardDefinitions: { ...basicInput.cardDefinitions,
+    "hp tool": resolveCardDefinition(buildCardDefinitionIndex([{ ...braveryCharm, rules: null }]), { name: "HP Tool" }) } });
+  assert.equal(missingToolRules.frames[6].self.active?.maxHp, 70);
+  assert.equal(missingToolRules.frames[6].self.active?.hpBasis, "probable");
   const suppressionTower = syntheticCardDefinition({ name: "Null Tower", hp: null, category: "Trainer", trainerType: "Stadium", attacks: [], rules: ["Pokémon Tools attached to each Pokémon (both yours and your opponent's) have no effect."] });
   const suppressedTool = compileBattleReplay({ ...basicInput, sections: [section("PlayerOne", [...basicInput.sections[0].actions, action("PlayerOne played Null Tower to the Stadium spot.")])],
     cardDefinitions: { ...basicInput.cardDefinitions, "null tower": resolveCardDefinition(buildCardDefinitionIndex([suppressionTower]), { name: "Null Tower" }) } });
@@ -417,7 +441,8 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(twins.events[3].unresolved, undefined, "identical bare copies have equivalent visible outcomes");
   assert.deepEqual(twins.frames[4].self.bench.map((card) => card.energy), [["Grass"], []]);
   assert.match(twins.events[4].unresolved?.[0] ?? "", /which Twin/);
-  assert.deepEqual(twins.frames[5].self.bench.map((card) => card.energy), [[], []], "ambiguous physical-copy attachments are explicitly unidentified");
+  assert.deepEqual(twins.frames[5].self.bench.map((card) => card.energy), [["Grass"], []], "a new ambiguous attachment cannot remove the previously recorded Energy");
+  assert.deepEqual(twins.frames[5].self.boardPools?.flatMap((pool) => pool.cards.map((card) => card.name)), ["Basic Fire Energy"], "the incoming Energy remains in play on one of the eligible copies");
   assert.ok(twins.frames[5].self.bench.every((card) => card.instanceUncertain));
   assert.ok(twins.frames[5].self.uncertainZones?.includes("board"));
   assert.equal(twins.events[4].transaction, undefined, "a rejected attachment cannot animate as successful");
@@ -550,6 +575,10 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(counted.frames[8].self.handCount, 2, "one Energy leaves hand even when the receiving Twin is ambiguous");
   assert.equal(counted.frames[9].self.handCount, 1, "one evolution card leaves hand independently of the underlying copy choice");
   assert.equal(counted.frames[9].self.inPlayCount, 6, "ambiguous attachment and evolution destinations preserve their independent physical-card totals");
+  const displayedInventory = (side: ReplaySide) => [side.active, ...side.bench, ...(side.unplaced ?? [])].reduce((sum, card) => sum + (card ? 1 + card.energy.length + card.underlying.length + Number(Boolean(card.tool)) : 0), 0)
+    + (side.boardPools ?? []).reduce((sum, pool) => sum + pool.cards.length, 0);
+  assert.equal(displayedInventory(counted.frames[8].self), 5, "both recorded Energy remain visible before the ambiguous evolution");
+  assert.equal(displayedInventory(counted.frames[9].self), 6, "evolution retains every prior physical card, with uncertain assignment explicitly pooled");
   assert.equal(counted.frames[10].self.deckCount, 46);
   assert.equal(counted.frames[10].self.handCount, 2);
   assert.equal(counted.frames[11].self.deckCount, 46, "KO and attachment-discard ambiguity cannot change the deck");
@@ -565,12 +594,77 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     action("PlayerOne attached Basic Grass Energy to Twin on the Bench."),
     action("PlayerOne attached Basic Water Energy to Twin on the Bench."),
     action("PlayerOne's Twin was Knocked Out!", ["2 cards were discarded from PlayerOne's Twin."]),
+    action("PlayerOne's Twin was Knocked Out!"),
   ])]));
   assert.equal(countedKo.frames[8].self.inPlayCount, 5);
   assert.equal(countedKo.frames[9].self.inPlayCount, 2, "recorded KO attachment counts identify a physical total without selecting a receiving copy");
   assert.equal(countedKo.frames[9].self.discardCount, 3, "KO moves its top Pokémon and two attachments exactly once even when identities are missing");
+  assert.equal(displayedInventory(countedKo.frames[9].self), 2, "the recorded KO removes pooled attachment quantity from the visible board once");
   assert.equal(countedKo.frames[9].self.deckCount, 47);
   assert.equal(countedKo.frames[9].self.handCount, 2);
+  assert.equal(countedKo.frames[10].self.inPlayCount, 1, "a bare surviving copy recovers its stack quantity after its potential attachment pool is exhausted");
+  assert.equal(countedKo.frames[10].self.discardCount, 4);
+
+  const movementRows = [
+    syntheticCardDefinition({ name: "Pivot", hp: null, category: "Trainer", trainerType: "Item", rules: ["Switch your Active Pokémon with 1 of your Benched Pokémon."] }),
+    syntheticCardDefinition({ name: "Archive", hp: null, category: "Trainer", trainerType: "Stadium", rules: ["Once during each player's turn, that player may put a card from their hand on top of their deck."] }),
+    syntheticCardDefinition({ name: "Exchange", hp: null, category: "Trainer", trainerType: "Stadium", rules: ["Once during each player's turn, that player may discard 2 cards from their hand in order to draw a card."] }),
+    syntheticCardDefinition({ name: "Lookup", hp: null, category: "Trainer", trainerType: "Stadium", rules: ["Once during each player's turn, that player may search their deck for a Keeper's Pokémon, reveal it, and put it into their hand. Then, that player shuffles their deck."] }),
+    syntheticCardDefinition({ name: "Keeper's Seed", hp: 60 }),
+    syntheticCardDefinition({ name: "Clock", hp: null, category: "Trainer", trainerType: "Item", rules: ["Devolve 1 of your evolved {P} Pokémon by putting any number of Evolution cards on it into your hand. (That Pokémon can't evolve this turn.)"] }),
+    syntheticCardDefinition({ name: "Twin", hp: 80, types: ["Psychic"], stage: "Basic" }),
+    syntheticCardDefinition({ name: "Middle", hp: 100, types: ["Psychic"], stage: "Stage1" }),
+    syntheticCardDefinition({ name: "Sprout", hp: 150, types: ["Psychic"], stage: "Stage2", attacks: [{ name: "Flame", text: "Put 6 damage counters on your opponent's Benched Pokémon in any way you like.", damage: "20", cost: ["Fire", "Psychic"] }] }),
+    syntheticCardDefinition({ name: "Starter", hp: 80 }), syntheticCardDefinition({ name: "Rival", hp: 100 }),
+  ];
+  const movementIndex = buildCardDefinitionIndex(movementRows);
+  const movementEvidence = Object.fromEntries(movementRows.map((card) => [card.name.toLowerCase(), resolveCardDefinition(movementIndex, { name: card.name })]));
+  const catalogueItem = compileBattleReplay({ ...source([completeSetup, section("PlayerOne", [action("PlayerOne played Pivot.")])]), cardDefinitions: movementEvidence });
+  assert.equal(catalogueItem.frames.at(-1)?.self.discardCount, 1, "complete Trainer subtype evidence establishes disposition without a supplied tag");
+  assert.equal(catalogueItem.frames.at(-1)?.self.inPlayCount, 3);
+  const stadiumMovement = compileBattleReplay({ ...source([completeSetup, section("PlayerTwo", [action("PlayerTwo played Exchange to the Stadium spot.")]), section("PlayerOne", [
+    action("PlayerOne played Exchange.", ["- PlayerOne discarded 2 cards.", "• Supply, Supply", "- PlayerOne drew Supply."]),
+    action("PlayerOne played Archive to the Stadium spot."), action("PlayerOne played Archive.", ["- PlayerOne put a card on top of their deck."]),
+  ])]), cardDefinitions: movementEvidence });
+  assert.equal(stadiumMovement.frames[8].self.deckCount, 46);
+  assert.equal(stadiumMovement.frames[8].self.handCount, 3);
+  assert.equal(stadiumMovement.frames[8].self.discardCount, 2);
+  assert.equal(stadiumMovement.frames[8].opponent.inPlayCount, 2, "another player activating the existing Stadium does not replace its ownership");
+  assert.equal(stadiumMovement.frames.at(-1)?.self.deckCount, 47);
+  assert.equal(stadiumMovement.frames.at(-1)?.self.handCount, 1);
+  const namedStadiumSearch = (drawn: string) => compileBattleReplay({ ...source([completeSetup, section("PlayerTwo", [action("PlayerTwo played Lookup to the Stadium spot.")]), section("PlayerOne", [action("PlayerOne played Lookup.", [`- PlayerOne drew ${drawn}.`])])]), cardDefinitions: movementEvidence });
+  const namedSearch = namedStadiumSearch("Keeper's Seed");
+  assert.equal(namedSearch.frames.at(-1)?.self.deckCount, 46);
+  assert.equal(namedSearch.frames.at(-1)?.self.handCount, 5);
+  assert.equal(namedSearch.frames.at(-1)?.opponent.discardCount, 0, "a named, verified search activates the current Stadium without replaying its placement");
+  assert.ok(namedStadiumSearch("a card").events.at(-1)?.unresolved, "an anonymous draw cannot establish the search's recorded Pokémon selector");
+  const costInput = { ...source([completeSetup, section("PlayerOne", [
+    action("PlayerOne attached Basic Fire Energy to Twin on the Bench."), action("PlayerOne attached Basic Psychic Energy to Twin on the Bench."),
+    action("PlayerOne evolved Twin to Sprout on the Bench."), action("PlayerOne's Sprout is now in the Active Spot."),
+    action("PlayerOne's Sprout used Flame on PlayerTwo's Rival for 20 damage."),
+  ])]), cardDefinitions: movementEvidence };
+  const costWitness = compileBattleReplay(costInput);
+  const holder = costWitness.frames.at(-1)!.self.active!;
+  assert.deepEqual(costWitness.frames.at(-1)!.self.boardPools?.filter((pool) => pool.cards.length).map((pool) => pool.memberIds), [[holder.id], [holder.id]], "a native attack's complete cost and sole Basic providers resolve only the required pooled attachments");
+  const missingCostText = compileBattleReplay({ ...costInput, cardDefinitions: { ...movementEvidence, sprout: { ...movementEvidence.sprout, candidates: movementEvidence.sprout.candidates.map((card) => ({ ...card, attacks: card.attacks.map((attack) => ({ ...attack, text: null })) })) } } });
+  assert.ok(missingCostText.frames.at(-1)!.self.boardPools?.some((pool) => pool.cards.length && pool.memberIds.length > 1), "missing native cost-effect text cannot bind an attachment to the attacker");
+
+  const devolution = compileBattleReplay({ ...source([completeSetup, section("PlayerOne", [
+    action("PlayerOne evolved Twin to Middle on the Bench."), action("PlayerOne evolved Middle to Sprout on the Bench."), action("PlayerOne evolved Twin to Sprout on the Bench."),
+  ]), section("PlayerTwo", [action("PlayerTwo ended their turn.")]), section("PlayerOne", [action("PlayerOne drew a card."), action("PlayerOne played Clock.", [
+    "- PlayerOne devolved PlayerOne's Sprout to Twin on the Bench.", "- PlayerOne moved PlayerOne's Sprout to their hand.",
+  ])])]), cardDefinitions: movementEvidence });
+  const devolved = devolution.frames.at(-1)!.self;
+  assert.deepEqual(devolved.bench.map((card) => card.name).sort(), ["Sprout", "Twin"], "the recorded endpoint replaces one evolved top even when the old copy is unidentified");
+  assert.equal(devolved.deckCount, 46); assert.equal(devolved.discardCount, 1); assert.equal(devolved.prizesRemaining, 6);
+  assert.equal(devolved.handCount, null); assert.equal(devolved.inPlayCount, null, "different source-compatible suffix lengths remain uncertain only across board and hand");
+  assert.deepEqual(devolved.boardPools?.flatMap((pool) => pool.possiblyReturnedCards ?? []).map((card) => card.name), ["Middle"]);
+  assert.equal(devolved.boardPools?.flatMap((pool) => pool.cards).filter((card) => card.name === "Middle").length, 0, "a possibly returned layer cannot be represented as certainly in play");
+  assert.equal(devolved.knownHand.filter((card) => card.name === "Sprout").length, 1, "the named returned top is an annotation of the same devolution movement");
+  const devolvedBaseId = devolved.bench.find((card) => card.name === "Twin")!.id;
+  assert.ok(devolved.boardPools?.filter((pool) => pool.cards.some((card) => card.boardRole === "evolution") || pool.possiblyReturnedCards?.length).every((pool) => !pool.memberIds.includes(devolvedBaseId)), "confirmed Basic endpoints cannot retain or possibly own older Evolution layers");
+
+
   const evolvedKoActions = [
     action("PlayerOne evolved Twin to Sprout on the Bench."),
     action("PlayerOne evolved Twin to Sprout on the Bench."),
@@ -826,6 +920,12 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.deepEqual([realMulligan.frames[6].self.deckCount, realMulligan.frames[6].self.handCount, realMulligan.frames[6].opponent.deckCount, realMulligan.frames[6].opponent.handCount], [47, 6, 46, 7]);
   assert.deepEqual(realMulligan.frames[4].opponent.knownHand.map((card) => card.name), ["Buddy-Buddy Poffin"], "the named bonus annotation reveals the already-counted card once");
   assert.deepEqual(realMulligan.frames[3].self.knownHand, [], "revealed mulligan cards belong to the returned opening, not the implicit replacement hand");
+  const numericBonus = compileBattleReplay(source([section("", [
+    action("PlayerOne drew 7 cards for the opening hand."), action("PlayerTwo drew 7 cards for the opening hand."),
+    action("PlayerOne took 2 mulligans.", ["Cards revealed from Mulligan 1", "• Boss's Orders, Ultra Ball, Gwynn, Banette, Poké Pad, Switch, Gwynn", "PlayerTwo drew 2 more cards because PlayerOne took at least 1 mulligan.", "- PlayerTwo drew 2 cards."]),
+    action("PlayerOne played Starter to the Active Spot."), action("PlayerTwo played Rival to the Active Spot."),
+  ])]));
+  assert.deepEqual([numericBonus.frames[5].opponent.deckCount, numericBonus.frames[5].opponent.handCount], [45, 8], "the numeric detail annotates the same two mulligan bonus cards");
 
   const adrena = syntheticCardDefinition({ name: "Munkidori", hp: 110, abilities: [{ name: "Adrena-Brain", type: "Ability", text: "Once during your turn, if this Pokémon has any Darkness Energy attached, you may move up to 3 damage counters from 1 of your Pokémon to 1 of your opponent's Pokémon." }] });
   const counters = compileBattleReplay({ ...source([section("PlayerOne", [
@@ -850,7 +950,7 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
 
   const ambiguousKoPosition = compileBattleReplay(source([section("PlayerOne", [
     action("PlayerOne played Twin to the Active Spot."), action("PlayerOne played Twin to the Bench."),
-    action("PlayerOne attached Basic Grass Energy to Twin in the Active Spot."), action("PlayerOne's Twin was Knocked Out!", ["a card was discarded from PlayerOne's Twin.", "• Basic Grass Energy"]),
+    action("PlayerOne attached Basic Grass Energy to Twin in the Active Spot."), action("PlayerOne's Twin was Knocked Out!", ["Basic Grass Energy was discarded from PlayerOne's Twin."]),
     action("PlayerOne's Twin is now in the Active Spot."),
   ])]));
   assert.equal(ambiguousKoPosition.frames[4].self.active, null, "an unresolved Active/Bench copy cannot remain falsely labelled Active after a recorded KO");
@@ -859,6 +959,9 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(ambiguousKoPosition.frames[5].self.active?.name, "Twin", "later recorded promotion re-establishes Active presence");
   assert.equal(ambiguousKoPosition.frames[5].self.unplaced?.length, 0);
   assert.equal(ambiguousKoPosition.frames[5].self.active?.instanceUncertain, true);
+  assert.equal(displayedInventory(ambiguousKoPosition.frames[3].self), 3);
+  assert.equal(displayedInventory(ambiguousKoPosition.frames[4].self), 1, "the explicit KO attachment identity leaves the pool for discard");
+  assert.equal(displayedInventory(ambiguousKoPosition.frames[5].self), 1, "promotion preserves the surviving physical inventory");
 });
 
 // 9/10: the compiler's public input seam must reject unusable and over-budget

@@ -72,6 +72,29 @@ set manifest and one cached request per set that needs enrichment. Unavailable
 secondary data stops that attempted publication; the previous complete generation
 remains active. Remaining source gaps and conflicting text stay unknown.
 
+Two further reviewed overlays supply only the missing rules for HS Trainer Kit
+Energy Switch `tk-hs-g-21` (Gyarados 21/30) and `tk-hs-r-29` (Raichu 29/30).
+The exact English scans linked from [Border City Games](https://www.bordercitygames.ca/products/energy-switch-gyarados-hgss-trainer-kit-gyarados-raichu)
+and [Gnome Games](https://gnomegames.com/products/energy-switch-raichu-hgss-trainer-kit-gyarados-raichu-85261)
+were inspected on 2026-10-03. Both show the same Basic Energy movement rule and
+the generic printed Trainer label. Their modern subtype remains absent; the
+overlay does not manufacture an Item label. Exact printing ID, set, collector
+number, name, category and missing rules are checked before supplementation.
+Provenance records each scan and its corresponding printing page. The runtime
+can establish an instantaneous discard destination through functional rule
+agreement with verified Item reprints, without changing those printed identities.
+The overlay takes effect for production only after a new full catalogue generation
+is published through the reference-data workflow and read back by the consumer.
+
+The missing effect for Poké Pad `30th-126` is also supplied from its
+[exact TCGdex scan](https://assets.tcgdex.net/en/me/30th/126/high.webp), inspected
+on 2026-10-03. It visibly identifies Poké Pad, Item, regulation J and 126/128;
+its effect searches the deck for a Pokémon without a Rule Box and puts it into
+the hand. The overlay checks the exact source ID, set, collector number, name,
+category, supplied Item subtype and missing rules, retains the primary artwork
+and identity, and records only `rules` as supplemented. It does not borrow text
+from another printing.
+
 ### Published artwork
 
 Optional `imageUrl` comes from TCGdex's own card image prefix and documented
