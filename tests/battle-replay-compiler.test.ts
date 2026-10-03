@@ -9,6 +9,7 @@ import { collectReplayDefinitionNames } from "@/lib/battle-replay/metadata";
 import { resolveEnergyMarkers } from "@/lib/battle-replay/preview";
 import { canonicalReplayGame, expectedGameChanges, syntheticCardDefinition, type ExpectedSide } from "./fixtures/battle-replay-game";
 
+import { getLinkedReplayDefinitions, getReplayLinkedDeckListCompatibility } from "@/lib/battle-replay/linked-deck-list";
 import { buildCardDefinitionIndex, resolveCardDefinition } from "@/lib/card-definition-catalog/resolve";
 
 const action = (title: string, details: string[] = []): LogAction => ({ title, details });
@@ -87,6 +88,16 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.ok(definitionNames.includes("Forest Seal Stone"));
   assert.ok(definitionNames.every((name) => !/PlayerOne|PlayerTwo|used|played|attached|Active Spot|Bench/i.test(name)), "metadata lookup receives public card names, not player identities or action sentences");
   assert.equal(new Set(definitionNames).size, definitionNames.length);
+  const linkedCards = [{ name: "Seedling", set: "TST", number: "1", count: 2 }, { name: "Seedling", set: "ALT", number: "2", count: 2 }, { name: "Basic {D} Energy", set: "ENE", number: "7", count: 56 }];
+  assert.equal(getReplayLinkedDeckListCompatibility(linkedCards, ["Seedling", "Basic Darkness Energy"]).status, "compatible", "symbolic Basic Energy names agree with canonical recorded names");
+  assert.deepEqual(getReplayLinkedDeckListCompatibility(linkedCards, ["Torchic"]), { status: "conflicting", missingNames: ["Torchic"] }, "a full live list cannot narrow an owned game that independently evidences an absent card");
+  assert.equal(getReplayLinkedDeckListCompatibility(linkedCards.map((card) => ({ ...card, count: 1 })), ["Seedling"]).status, "unavailable", "partial inventory cannot establish a complete linked-list snapshot");
+  const linkedPrints = [syntheticCardDefinition({ setId: "synthetic", localId: "1" }), syntheticCardDefinition({ sourceCardId: "synthetic-other", setId: "alternate", localId: "2", hp: 80 })];
+  const linkedEvidence = { seedling: resolveCardDefinition(buildCardDefinitionIndex(linkedPrints), { name: "Seedling" }) };
+  assert.equal(getLinkedReplayDefinitions(linkedCards, linkedEvidence, { synthetic: "TST", alternate: "ALT" }).seedling.candidates.length, 2, "same-name mixed printings remain separate viable instances");
+  const incompleteLinked = getLinkedReplayDefinitions(linkedCards, linkedEvidence, { synthetic: "TST" }).seedling;
+  assert.equal(incompleteLinked.coverage, "incomplete", "missing set mapping cannot manufacture precise printing evidence");
+
   const incidentalWords = collectReplayDefinitionNames(artSource, ["- PlayerOne drew 2 cards and played them to the Bench.", "- PlayerOne drew Seedling and played it to the Bench.", "• 6 attached Energy: 300 damage"], ["PlayerOne", "PlayerTwo"]);
   assert.ok(incidentalWords.every((name) => !/^(?:it|them|energy:|energy )/i.test(name)), "pronouns and damage-breakdown text are not card identities");
 
@@ -394,7 +405,8 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(twins.events[3].unresolved, undefined, "identical bare copies have equivalent visible outcomes");
   assert.deepEqual(twins.frames[4].self.bench.map((card) => card.energy), [["Grass"], []]);
   assert.match(twins.events[4].unresolved?.[0] ?? "", /which Twin/);
-  assert.deepEqual(twins.frames[5].self.bench.map((card) => card.energy), [["Grass"], []], "distinct physical copies must not be guessed");
+  assert.deepEqual(twins.frames[5].self.bench.map((card) => card.energy), [[], []], "ambiguous physical-copy attachments are explicitly unidentified");
+  assert.ok(twins.frames[5].self.bench.every((card) => card.instanceUncertain));
   assert.ok(twins.frames[5].self.uncertainZones?.includes("board"));
   assert.equal(twins.events[4].transaction, undefined, "a rejected attachment cannot animate as successful");
   assert.match(twins.events[5].unresolved?.[0] ?? "", /origin/);
@@ -774,6 +786,59 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(contradictions.frames[3].opponent.active?.damageKnown, false, "contradictory attack totals cannot display certain damage");
   assert.deepEqual(contradictions.frames[3].self.knownHand.map((card) => card.name), ["Supply"]);
   assert.equal(contradictions.status, "partial");
+
+  const nested = compileBattleReplay({ ...source([section("PlayerOne", [
+    action("PlayerTwo played Dipplin to the Active Spot."), action("PlayerOne played Munkidori to the Active Spot."),
+    action("PlayerTwo's Dipplin used Festival Lead.", ["- Damage breakdown:", "• 5 Benched Pokémon: 100 damage", "- PlayerTwo's Dipplin used Do the Wave on PlayerOne’s Munkidori for 100 damage.", "- PlayerTwo chose Do the Wave"]),
+  ])]), effectTags: { "PlayerTwo's Dipplin used Festival Lead.": "ability" } });
+  assert.deepEqual(nested.diagnostics.unresolvedActions, []);
+  assert.equal(nested.frames[3].self.active?.damage, 100, "a complete nested attack establishes damage after its explanatory breakdown");
+  assert.notEqual(nested.frames[3].self.active?.damageKnown, false);
+  assert.deepEqual(nested.frames[3].self.uncertainZones ?? [], []);
+
+  const realMulligan = compileBattleReplay(source([section("", [
+    action("PlayerOne drew 7 cards for the opening hand."), action("PlayerTwo drew 7 cards for the opening hand."),
+    action("PlayerOne took a mulligan.", ["Cards revealed from Mulligan 1", "• Supply, Supply, Supply, Supply, Supply, Supply, Supply"]),
+    action("PlayerTwo drew 1 more card because PlayerOne took at least 1 mulligan."),
+    action("PlayerOne played Starter to the Active Spot."), action("PlayerTwo played Rival to the Active Spot."),
+  ])]));
+  assert.deepEqual(realMulligan.diagnostics.unresolvedActions, []);
+  assert.deepEqual([realMulligan.frames[6].self.deckCount, realMulligan.frames[6].self.handCount, realMulligan.frames[6].opponent.deckCount, realMulligan.frames[6].opponent.handCount], [47, 6, 46, 7]);
+  assert.deepEqual(realMulligan.frames[4].opponent.knownHand, [], "bonus draws establish quantity without creating a username-containing card identity");
+  assert.deepEqual(realMulligan.frames[3].self.knownHand, [], "revealed mulligan cards belong to the returned opening, not the implicit replacement hand");
+
+  const adrena = syntheticCardDefinition({ name: "Munkidori", hp: 110, abilities: [{ name: "Adrena-Brain", type: "Ability", text: "Once during your turn, if this Pokémon has any Darkness Energy attached, you may move up to 3 damage counters from 1 of your Pokémon to 1 of your opponent's Pokémon." }] });
+  const counters = compileBattleReplay({ ...source([section("PlayerOne", [
+    action("PlayerOne played Munkidori to the Active Spot."), action("PlayerOne put 4 damage counters on PlayerOne's Munkidori."),
+    action("PlayerTwo played Dipplin to the Active Spot."), action("PlayerTwo played Dipplin to the Bench."),
+    action("PlayerOne's Munkidori used Adrena-Brain.", ["- PlayerOne moved 3 damage counters from PlayerOne's Munkidori to PlayerOne's Dipplin."]),
+  ])]), effectTags: { "PlayerOne's Munkidori used Adrena-Brain.": "ability" }, cardDefinitions: { munkidori: resolveCardDefinition(buildCardDefinitionIndex([adrena]), { name: "Munkidori" }) } });
+  assert.equal(counters.frames[5].self.active?.damage, 10, "a unique donor's recorded reduction remains exact when only the receiving physical copy is unidentified");
+  assert.notEqual(counters.frames[5].self.active?.damageKnown, false);
+  assert.equal(counters.frames[5].opponent.active?.damageKnown, false);
+  assert.equal(counters.frames[5].opponent.bench[0].damageKnown, false);
+  const diver = syntheticCardDefinition({ name: "Dragapult ex", attacks: [{ name: "Phantom Dive", damage: "200", cost: [], text: "Put 6 damage counters on your opponent's Benched Pokémon in any way you like." }] });
+  const benchOnlyCounters = compileBattleReplay({ ...source([section("PlayerOne", [
+    action("PlayerOne played Dragapult ex to the Active Spot."), action("PlayerTwo played Thwackey to the Active Spot."),
+    action("PlayerTwo played Thwackey to the Bench."), action("PlayerTwo played Thwackey to the Bench."),
+    action("PlayerOne's Dragapult ex used Phantom Dive on PlayerTwo’s Thwackey for 200 damage.", ["- PlayerOne put 6 damage counters on PlayerOne's Thwackey."]),
+  ])]), cardDefinitions: { "dragapult ex": resolveCardDefinition(buildCardDefinitionIndex([diver]), { name: "Dragapult ex" }) } });
+  assert.equal(benchOnlyCounters.frames[5].opponent.active?.damage, 200);
+  assert.notEqual(benchOnlyCounters.frames[5].opponent.active?.damageKnown, false, "Bench-only counter copy ambiguity cannot erase independently recorded Active attack damage");
+  assert.ok(benchOnlyCounters.frames[5].opponent.bench.every((card) => card.damageKnown === false));
+
+
+  const ambiguousKoPosition = compileBattleReplay(source([section("PlayerOne", [
+    action("PlayerOne played Twin to the Active Spot."), action("PlayerOne played Twin to the Bench."),
+    action("PlayerOne attached Basic Grass Energy to Twin in the Active Spot."), action("PlayerOne's Twin was Knocked Out!", ["a card was discarded from PlayerOne's Twin.", "• Basic Grass Energy"]),
+    action("PlayerOne's Twin is now in the Active Spot."),
+  ])]));
+  assert.equal(ambiguousKoPosition.frames[4].self.active, null, "an unresolved Active/Bench copy cannot remain falsely labelled Active after a recorded KO");
+  assert.equal(ambiguousKoPosition.frames[4].self.unplaced?.length, 1);
+  assert.equal(ambiguousKoPosition.frames[4].self.activeUncertain, true);
+  assert.equal(ambiguousKoPosition.frames[5].self.active?.name, "Twin", "later recorded promotion re-establishes Active presence");
+  assert.equal(ambiguousKoPosition.frames[5].self.unplaced?.length, 0);
+  assert.equal(ambiguousKoPosition.frames[5].self.active?.instanceUncertain, true);
 });
 
 // 9/10: the compiler's public input seam must reject unusable and over-budget

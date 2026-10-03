@@ -1,6 +1,7 @@
 import type { ReplayCondition } from "./conditions";
 import type { LogSection } from "@/types/index";
 import type { CardDefinition, CardDefinitionEvidence, CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
+import type { ReplayLinkedCardDefinitions } from "./linked-deck-list";
 
 export type ReplayActor = "self" | "opponent";
 type HandCard = ReplayZoneCard;
@@ -9,6 +10,7 @@ type HandCard = ReplayZoneCard;
 export type ReplayCardResolution = Pick<CardDefinitionEvidence, "coverage" | "generation" | "resolution" | "candidatePrintingIds" | "selectedPrinting" | "displayBasis" | "agreedFacts" | "formatBasis"> & {
   name: string;
   selectedDefinition: CardDefinition | null;
+  evidenceBasis?: "linked_deck_list";
 };
 
 export type ReplayZoneCard = {
@@ -20,6 +22,7 @@ export type ReplayZoneCard = {
   setId?: string;
   localId?: string;
   observedEffects?: string[];
+  definitionOwner?: ReplayActor;
 };
 
 export type ReplayCard = {
@@ -34,6 +37,8 @@ export type ReplayCard = {
   damage: number;
   /** False when the accumulated total is not established by the source. */
   damageKnown?: boolean;
+  /** A recorded top card whose physical copy cannot be assigned safely. */
+  instanceUncertain?: boolean;
   abilityUsed?: boolean;
   /** Effects observed on this physical top card, never shared across namesakes. */
   observedEffects?: string[];
@@ -44,12 +49,18 @@ export type ReplayCard = {
   definitionKey?: string;
   setId?: string;
   localId?: string;
+  definitionOwner?: ReplayActor;
 };
 
 export type ReplaySide = {
   name: string;
   active: ReplayCard | null;
   bench: ReplayCard[];
+  /** Surviving top cards evidenced in play, without a resolved Active/Bench position. */
+  unplaced?: ReplayCard[];
+  activeUncertain?: boolean;
+  /** False only when unseen board/attachment facts can change HP modifiers. */
+  hpModifiersKnown?: boolean;
   deckCount: number | null;
   handCount: number | null;
   /** Physical cards in play, including evolution cards, attachments and owned Stadiums. */
@@ -117,6 +128,8 @@ export type ReplayEffectKind = "ability" | "attack" | "item" | "supporter" | "to
 export type ReplayLogSource = {
   /** Complete printing candidates resolved independently from representative artwork. */
   cardDefinitions?: CardDefinitionEvidenceByName;
+  /** User-selected owner list; it never constrains the opponent's printings. */
+  selfCardDefinitions?: ReplayLinkedCardDefinitions;
   /** Unambiguous catalog evidence keyed by the exact original title/detail. */
   effectTags?: Record<string, ReplayEffectKind>;
   /** Origins established by validated effect text, never inferred from a card name. */

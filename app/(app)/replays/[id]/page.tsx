@@ -12,10 +12,13 @@ import { resolveBattleLogEffectCatalogEvidence, resolveBattleLogEffectEvidenceFr
 import { buildCardDefinitionIndex, definitionEffectRows, resolveCardDefinition } from "@/lib/card-definition-catalog/resolve";
 import { loadCardDefinitions } from "@/lib/card-definition-catalog/server";
 import { normalizeText } from "@/lib/log-import/normalization";
-import { collectReplayDefinitionNames } from "@/lib/battle-replay/metadata";
+import { collectReplayDefinitionNames, collectReplayOwnerCardNames } from "@/lib/battle-replay/metadata";
 import type { ReplayEffectKind } from "@/lib/battle-replay/types";
 import { compileBattleReplay } from "@/lib/battle-replay/compiler";
 import { getLogById } from "@/lib/db/logs";
+import { getDeckListById } from "@/lib/db/deck-lists";
+import { getLinkedReplayDefinitions, getReplayLinkedDeckListCompatibility } from "@/lib/battle-replay/linked-deck-list";
+import { loadReplaySetCodes } from "@/lib/battle-replay/linked-deck-list-server";
 
 export const metadata: Metadata = { title: "Battle Replay (Beta) | Poke Notes" };
 
@@ -36,12 +39,17 @@ export default async function ReplayPage({ params, searchParams }: {
   const preliminary = withinBounds ? compileBattleReplay(log) : null;
   const definitionNames = preliminary && preliminary.status !== "unsupported" ? collectReplayDefinitionNames(preliminary, rawLines, [log.selfPlayerName, log.opponentPlayerName]) : [];
   const signal = AbortSignal.timeout(2500);
-  const [legacyEvidence, loadedDefinitions] = await Promise.all([
+  const [legacyEvidence, loadedDefinitions, linkedDeckList] = await Promise.all([
     withinBounds ? resolveBattleLogEffectCatalogEvidence(rawLines, signal) : Promise.resolve({ rows: [] }),
     loadCardDefinitions(definitionNames, signal),
+    withinBounds && log.linkedDeckListId ? getDeckListById(user.id, log.linkedDeckListId) : Promise.resolve(null),
   ]);
   const cardDefinitions = Object.fromEntries(Object.entries(loadedDefinitions).map(([name, evidence]) => [name,
     resolveCardDefinition(buildCardDefinitionIndex(evidence.candidates), { name, declaredFormat: log.format }, evidence.coverage, evidence.generation, evidence.sourceCoverage)]));
+  const linkedCompatibility = linkedDeckList && preliminary ? getReplayLinkedDeckListCompatibility(linkedDeckList.parsedCards,
+    collectReplayOwnerCardNames(preliminary, "self")) : undefined;
+  const selfCardDefinitions = linkedDeckList && linkedCompatibility?.status === "compatible" ? getLinkedReplayDefinitions(linkedDeckList.parsedCards, loadedDefinitions,
+    await loadReplaySetCodes(linkedDeckList.parsedCards, cardDefinitions), log.format) : undefined;
   const completeDefinitions = Object.values(cardDefinitions).filter((evidence) => evidence.coverage === "complete" && evidence.candidates.length);
   const verifiedNames = new Set(completeDefinitions.flatMap((evidence) => evidence.candidates.map((card) => normalizeText(card.name))));
   const rows = [
@@ -68,7 +76,7 @@ export default async function ReplayPage({ params, searchParams }: {
     if (origin) effectOrigins[rawLine] = origin;
     if (tag && supportedTags.has(tag)) effectTags[rawLine] = tag as ReplayEffectKind;
   }
-  const program = compileBattleReplay({ ...log, effectTags, effectOrigins, effectDetailOrigins, cardDefinitions: loadedDefinitions });
+  const program = compileBattleReplay({ ...log, effectTags, effectOrigins, effectDetailOrigins, cardDefinitions: loadedDefinitions, selfCardDefinitions });
   const requestedPosition = Array.isArray(query.position) ? query.position[0] : query.position;
   const position = requestedPosition && /^\d{1,8}$/.test(requestedPosition) ? Number(requestedPosition) : 0;
   const initialActionIndex = Math.min(position, Math.max(0, program.frames.length - 1));
@@ -80,6 +88,9 @@ export default async function ReplayPage({ params, searchParams }: {
       subtitle="Beta · Follow the recorded actions. Hidden information and unresolved events remain labelled."
       title="Battle Replay"
     />
+    {linkedCompatibility && linkedCompatibility.status !== "compatible" ? <p className="mb-4 text-sm text-muted-foreground" role="status">
+      The Deck List selected for this game {linkedCompatibility.status === "conflicting" ? "does not match its recorded cards" : "does not contain a valid 60-card list"}. Select the list you played in the <Link className="underline underline-offset-4" href={logHref} prefetch={false}>Battle Log</Link> to resolve your card details.
+    </p> : null}
     {program.status === "unsupported" ? <section className="flex flex-col items-start gap-3 border-t border-border py-6" aria-label="Replay unavailable">
       <ItemTitle as="h2">This Battle Log cannot be replayed yet</ItemTitle>
       <p className="max-w-prose text-sm text-muted-foreground">Its saved actions do not contain enough supported information. You can still read the original Battle Log.</p>

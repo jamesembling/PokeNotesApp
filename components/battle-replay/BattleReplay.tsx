@@ -91,6 +91,7 @@ type PreviewCard = ReplayZoneCard & {
   baseHp?: number | null;
   underlying?: ReplayZoneCard[];
   tool?: string;
+  instanceUncertain?: boolean;
 };
 
 function AbilityUsedMarker({ className }: { className: string }) {
@@ -223,6 +224,7 @@ function CardFace({
       {!faceDown ? <ConditionMarkers conditions={card.conditions} /> : null}
       {card.energy.length > 0 && !faceDown ? <EnergyOrbs energy={card.energy} className={styles.boardEnergyOrbs} /> : null}
       </div>
+      {card.instanceUncertain && !faceDown ? <span className={styles.copyUncertain} title="The log establishes this Pokémon, but does not identify its physical copy or attached cards.">Copy uncertain</span> : null}
       <div aria-hidden={faceDown} className={styles.healthStatus} data-tone={remainingHp === null ? "unknown" : healthTone}>
         {remainingHp !== null && card.hp !== null ? <div
           aria-label={`${card.name}: ${remainingHp} of ${card.hp} HP remaining`}
@@ -483,8 +485,8 @@ function PlayerBoard({
   const faceDown = !currentEvent || currentEvent.turn === 0;
   const isCurrentActor = currentEvent?.actor === actor;
   const isKnockout = currentEvent?.label === "KO";
-  const currentCards = [side.active, ...side.bench].filter((card): card is ReplayCard => Boolean(card));
-  const knockedOutIds = new Set(isKnockout
+  const currentCards = [side.active, ...side.bench, ...(side.unplaced ?? [])].filter((card): card is ReplayCard => Boolean(card));
+  const knockedOutIds = new Set(isKnockout && !currentEvent?.unresolved?.length
     ? [previousSide.active, ...previousSide.bench].filter((card): card is ReplayCard => Boolean(card) && !currentCards.some((current) => current.id === card?.id)).map((card) => card.id)
     : []);
   // Hold the departing Pokémon in its original slot for this KO action.
@@ -546,7 +548,7 @@ function PlayerBoard({
               {displayActive ? (
                 <CardFace attackName={attackName} damageTaken={damageTaken(displayActive, previousActive)} knockedOut={knockedOutIds.has(displayActive.id)} effectKey={currentEvent?.sourceTitle} card={displayActive} faceDown={faceDown} motion={activeMotion} onPreview={onPreview} />
               ) : (
-                <span aria-hidden="true" className={styles.emptyZone} />
+                side.activeUncertain ? <span className={styles.unknownActive}>Active Pokémon unknown</span> : <span aria-hidden="true" className={styles.emptyZone} />
               )}
             </div>
             <StadiumSpot actor={actor} onPreview={onPreview} stadium={stadium} />
@@ -574,6 +576,10 @@ function PlayerBoard({
               </div>
             );})}
           </div>
+          {side.unplaced?.length ? <div className={styles.unplacedCards} aria-label={`${side.name} Pokémon with unknown position`}>
+            <p>Position unknown</p>
+            <div>{side.unplaced.map((card) => <CardFace card={card} compact key={card.id} faceDown={faceDown} onPreview={onPreview} />)}</div>
+          </div> : null}
         </div>
 
         <div className={styles.zonePiles}>
@@ -969,6 +975,7 @@ export function BattleReplay({
             <DialogTitle className="sr-only">{previewedCard?.name}</DialogTitle>
             <DialogDescription className="sr-only">Enlarged card preview</DialogDescription>
             {previewedCard ? <div aria-label="Card preview details" className={styles.cardPreviewStage} role="region" tabIndex={0}>
+              {previewedCard.instanceUncertain ? <p className={styles.previewUnknownHealth}>Physical copy uncertain · attached cards and accumulated damage cannot be assigned to this copy.</p> : null}
               <div className={styles.cardPreviewImage}>
                 <CardArtwork card={previewedCard} alt={`${previewedCard.name}, enlarged representative card artwork`} sizes="340px" />
                 <ConditionMarkers conditions={previewedCard.conditions} />
@@ -984,8 +991,8 @@ export function BattleReplay({
                 <strong>{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
               </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewedCard.baseHp ? `${previewedCard.baseHp} printed HP · ` : ""}{previewedCard.damageKnown === false ? "Accumulated damage unknown · remaining HP unknown" : previewedCard.baseHp ? "Maximum and remaining HP unknown" : "HP unknown"}</p> : null}
               {printed ? <div className={styles.printedCardDetails}>
-                <p className="text-muted-foreground">{previewDefinition?.displayBasis === "played_evidence" ? "Recorded printing" : "Representative printing"} · {printed.setId.toUpperCase()} {printed.localId}{printed.hp ? ` · ${printed.hp} printed HP` : ""}</p>
-                {previewDefinition?.displayBasis !== "played_evidence" ? <p className="text-muted-foreground">The log does not identify the exact printing played.{previewDefinition?.resolution === "ambiguous" ? " Printed details can differ between possible printings." : ""}</p> : null}
+                <p className="text-muted-foreground">{previewDefinition?.displayBasis === "played_evidence" ? "Recorded printing" : previewDefinition?.evidenceBasis === "linked_deck_list" ? "Selected Deck List printing" : "Representative printing"} · {printed.setId.toUpperCase()} {printed.localId}{printed.hp ? ` · ${printed.hp} printed HP` : ""}</p>
+                {previewDefinition?.evidenceBasis === "linked_deck_list" ? <p className="text-muted-foreground">Card details follow the Deck List selected for this Battle Log.{previewDefinition?.resolution === "ambiguous" ? " More than one listed printing is possible." : ""}</p> : previewDefinition?.displayBasis !== "played_evidence" ? <p className="text-muted-foreground">The log does not identify the exact printing played.{previewDefinition?.resolution === "ambiguous" ? " Printed details can differ between possible printings." : ""}</p> : null}
                 {previewDefinition?.formatBasis?.status === "conflicting" ? <p className="text-muted-foreground">This recorded printing differs from the saved format. The replay follows the recorded card.</p> : null}
                 {printed.rules?.map((rule, index) => <p key={`rule-${index}`}>{rule}</p>)}
                 {printed.abilities.map((ability, index) => <p key={`ability-${index}`}><strong>{ability.name || "Ability"}</strong>{ability.text ? ` · ${ability.text}` : " · Text unavailable"}</p>)}

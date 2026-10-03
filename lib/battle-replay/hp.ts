@@ -1,7 +1,9 @@
 import { resolveCardDefinition, selectCardDefinitionPrinting } from "@/lib/card-definition-catalog/resolve";
 import { normalizeText } from "@/lib/log-import/normalization";
 import type { CardDefinition, CardDefinitionEvidence, CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
-import type { ReplayCard, ReplayCardResolution, ReplayState, ReplayZoneCard } from "./types";
+import type { ReplayCard, ReplayCardResolution, ReplayEffectKind, ReplayState, ReplayZoneCard } from "./types";
+import { resolveReplayEffectConstraint, type ReplayEffectOperation } from "./effect-targets";
+import type { ReplayLinkedCardDefinitions } from "./linked-deck-list";
 
 const hasHp = (text: string) => /\bHP\b/i.test(text);
 
@@ -73,9 +75,10 @@ function abilityPlan(text: string | null): AbilityPlan {
 }
 
 /** One compiler owns these caches. Frames clone game state, never catalogue data. */
-export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | undefined, declaredFormat?: string) {
+export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | undefined, declaredFormat?: string, selfEvidence?: ReplayLinkedCardDefinitions) {
   const originalEvidence = evidence;
   const originalIndex = new Map(Object.entries(evidence ?? {}).map(([name, found]) => [name, found.candidates]));
+  const selfIndex = new Map(Object.entries(selfEvidence ?? {}).map(([name, found]) => [name, found.candidates]));
   // Apply the saved format once; this same candidate set feeds HP and visual identity.
   if (declaredFormat && evidence) evidence = Object.fromEntries(Object.entries(evidence).map(([name, found]) => [name,
     resolveCardDefinition(new Map([[name, found.candidates]]), { name, declaredFormat }, found.coverage, found.generation, found.sourceCoverage)]));
@@ -87,14 +90,15 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
   };
   const index = new Map(Object.entries(evidence ?? {}).map(([name, found]) => [name, found.candidates]));
   const resolutions = new Map<string, CardDefinitionEvidence | undefined>();
-  const resolve = (card: Pick<ReplayCard, "name" | "observedEffects" | "setId" | "localId">): CardDefinitionEvidence | undefined => {
+  const resolve = (card: Pick<ReplayCard, "name" | "observedEffects" | "setId" | "localId" | "definitionOwner">): CardDefinitionEvidence | undefined => {
     const name = normalize(card.name);
     const exactIdentity = Boolean(card.setId && card.localId);
-    const found = (exactIdentity ? originalEvidence : evidence)?.[name];
+    const linked = !exactIdentity && card.definitionOwner === "self" && selfEvidence !== undefined;
+    const found = (exactIdentity ? originalEvidence : linked ? selfEvidence : evidence)?.[name];
     if (!found || !card.observedEffects?.length && !card.setId && !card.localId) return found;
     const effects = (card.observedEffects ?? []).map(normalize).sort();
-    const key = JSON.stringify([name, effects, card.setId ?? null, card.localId ?? null]);
-    if (!resolutions.has(key)) resolutions.set(key, resolveCardDefinition(exactIdentity ? originalIndex : index,
+    const key = JSON.stringify([name, effects, card.setId ?? null, card.localId ?? null, linked]);
+    if (!resolutions.has(key)) resolutions.set(key, resolveCardDefinition(exactIdentity ? originalIndex : linked ? selfIndex : index,
       { name, effectNames: effects, setId: card.setId, localId: card.localId, declaredFormat }, found.coverage, found.generation, found.sourceCoverage));
     return resolutions.get(key);
   };
@@ -197,10 +201,10 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
     return result;
   };
   const abilityTextsCache = new Map<string, string[] | null>();
-  const abilityTexts = (name: string, effect: string): string[] | null => {
-    const key = JSON.stringify([normalize(name), normalize(effect)]);
+  const abilityTexts = (name: string, effect: string, definitionOwner?: "self" | "opponent"): string[] | null => {
+    const key = JSON.stringify([normalize(name), normalize(effect), definitionOwner ?? null]);
     if (abilityTextsCache.has(key)) return abilityTextsCache.get(key)!;
-    const found = resolve({ name, observedEffects: [effect] });
+    const found = resolve({ name, observedEffects: [effect], definitionOwner });
     const options = candidates(found);
     if (!options) { abilityTextsCache.set(key, null); return null; }
     const texts = options.map((definition) => definition.abilities.find((ability) => normalize(ability.name) === normalize(effect))?.text);
@@ -210,11 +214,14 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
   };
   const update = (state: ReplayState): void => {
     const board = (["self", "opponent"] as const).flatMap((actor) =>
-      [state[actor].active, ...state[actor].bench].filter((card): card is ReplayCard => card !== null).map((card) => ({ actor, card, found: resolve(card) })));
-    const stadiumCandidates = state.stadium ? candidates(evidence?.[normalize(state.stadium.name)]) : null;
+      [state[actor].active, ...state[actor].bench, ...(state[actor].unplaced ?? [])].filter((card): card is ReplayCard => card !== null).map((card) => {
+        card.definitionOwner = actor;
+        return { actor, card, found: resolve(card) };
+      }));
+    const stadiumCandidates = state.stadium ? candidates(resolve({ name: state.stadium.name, definitionOwner: state.stadium.actor })) : null;
     const stadiumToolSuppression = toolsSuppressed(stadiumCandidates);
     const otherToolSuppression = board.some((origin) => possibleToolSuppression(candidates(origin.found), false)
-      || Boolean(origin.card.tool && possibleToolSuppression(candidates(evidence?.[normalize(origin.card.tool)]), true)));
+      || Boolean(origin.card.tool && possibleToolSuppression(candidates(resolve({ name: origin.card.tool, definitionOwner: origin.actor })), true)));
     const toolSuppression = stadiumToolSuppression === true ? true : stadiumToolSuppression === null || otherToolSuppression ? null : false;
     const suppressions = [
       ...candidateSuppressions(stadiumCandidates),
@@ -232,6 +239,9 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
         const effect = abilityEffect(candidates(origin.found), card, actor === origin.actor, card.id === origin.card.id);
         if (!effect) { abilityUnknown = true; break; }
         if (effect.set !== undefined) {
+          // An uncertain physical copy may no longer supply this setter. Its
+          // presence is immaterial only when the target's printed HP is the same.
+          if (origin.card.instanceUncertain && effect.set !== card.baseHp) { abilityUnknown = true; break; }
           // Ability suppression and historical Poké-Power/Body interactions
           // require an active-effect model. Do not assert a setter is active.
           if (abilityMayBeSuppressed(origin.found)) { abilityUnknown = true; break; }
@@ -239,12 +249,14 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
           abilitySet = effect.set;
         }
       }
-      let adjustment: number | null = abilityUnknown || state[actor].uncertainZones?.includes("board") ? null
+      const unknownModifiers = (["self", "opponent"] as const).some((owner) => state[owner].hpModifiersKnown === false
+        || state[owner].hpModifiersKnown === undefined && owner === actor && state[owner].uncertainZones?.includes("board"));
+      let adjustment: number | null = abilityUnknown || card.instanceUncertain || unknownModifiers ? null
         : state.stadium ? modifier(stadiumCandidates, targets, "stadium") : 0;
       for (const attachment of [...(card.tool ? [card.tool] : []), ...card.energy.filter((energy) => /Energy$/i.test(energy) && !/^Basic /i.test(energy))]) {
         const addition = attachment === card.tool && toolSuppression !== false
           ? toolSuppression === true ? 0 : null
-          : modifier(candidates(evidence?.[normalize(attachment)]), targets, "attachment");
+          : modifier(candidates(resolve({ name: attachment, definitionOwner: actor })), targets, "attachment");
         adjustment = adjustment === null || addition === null ? null : adjustment + addition;
       }
       const base = abilitySet ?? card.baseHp;
@@ -256,7 +268,8 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
   const cardResolutions: Record<string, ReplayCardResolution> = {};
   const decorateCard = (card: ReplayZoneCard & { observedEffects?: string[] }): void => {
     const found = resolve(card);
-    const key = JSON.stringify([normalize(card.name), [...(card.observedEffects ?? [])].map(normalize).sort(), card.setId ?? null, card.localId ?? null]);
+    const linked = card.definitionOwner === "self" && selfEvidence !== undefined && !(card.setId && card.localId);
+    const key = JSON.stringify([normalize(card.name), [...(card.observedEffects ?? [])].map(normalize).sort(), card.setId ?? null, card.localId ?? null, linked]);
     card.definitionKey = key;
     if (Object.hasOwn(cardResolutions, key)) return;
     cardResolutions[key] = {
@@ -265,27 +278,32 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       selectedPrinting: found?.selectedPrinting ?? null, displayBasis: found?.displayBasis ?? "unavailable",
       agreedFacts: found?.agreedFacts ?? {}, ...(found?.formatBasis ? { formatBasis: found.formatBasis } : {}),
       selectedDefinition: found?.candidates.length ? selectCardDefinitionPrinting(found.candidates) : null,
+      ...(linked ? { evidenceBasis: "linked_deck_list" as const } : {}),
     };
   };
   const decorateState = (state: ReplayState): void => {
-    const visit = (card: ReplayZoneCard & { observedEffects?: string[]; underlying?: ReplayZoneCard[] }) => {
+    const visit = (card: ReplayZoneCard & { observedEffects?: string[]; underlying?: ReplayZoneCard[] }, actor: "self" | "opponent") => {
+      card.definitionOwner = actor;
       decorateCard(card);
-      card.underlying?.forEach(visit);
+      card.underlying?.forEach((underlying) => visit(underlying, actor));
     };
     for (const actor of ["self", "opponent"] as const) {
-      if (state[actor].active) visit(state[actor].active!);
-      state[actor].bench.forEach(visit);
-      state[actor].knownHand.forEach(visit);
-      state[actor].discard.forEach(visit);
+      if (state[actor].active) visit(state[actor].active!, actor);
+      state[actor].bench.forEach((card) => visit(card, actor));
+      state[actor].unplaced?.forEach((card) => visit(card, actor));
+      state[actor].knownHand.forEach((card) => visit(card, actor));
+      state[actor].discard.forEach((card) => visit(card, actor));
     }
-    if (state.playedCard) visit(state.playedCard.card);
+    if (state.playedCard) visit(state.playedCard.card, state.playedCard.actor);
     if (state.stadium) {
-      const card = { ...state.stadium, id: "stadium" };
+      const card = { ...state.stadium, id: "stadium", definitionOwner: state.stadium.actor };
       decorateCard(card);
       state.stadium.definitionKey = card.definitionKey;
     }
   };
-  return { resolve, update, abilityTexts, decorateCard, decorateState, collectResolutions: () => cardResolutions };
+  const effectConstraints = (card: Pick<ReplayCard, "name" | "observedEffects" | "setId" | "localId" | "definitionOwner">, effectName: string | undefined, kind: ReplayEffectKind, operation: ReplayEffectOperation) =>
+    resolveReplayEffectConstraint(resolve({ ...card, ...(effectName ? { observedEffects: [...(card.observedEffects ?? []), effectName] } : {}) }), effectName, kind, operation);
+  return { resolve, update, abilityTexts, effectConstraints, decorateCard, decorateState, collectResolutions: () => cardResolutions };
 }
 
 export function replayCardDefinitionEvidence(card: ReplayCard, evidence: CardDefinitionEvidenceByName | undefined) {
