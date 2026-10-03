@@ -35,7 +35,7 @@
 .replayShell {
   display: grid;
   grid-template-columns: minmax(18rem, 0.72fr) minmax(34rem, 1.28fr);
-  min-height: 46rem;
+  min-height: 40rem;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 1rem;
@@ -189,12 +189,6 @@
   transition: filter 240ms ease-out, opacity 240ms ease-out, transform 240ms ease-out;
 }
 
-.boardFrame[data-transaction] .board {
-  opacity: 0.42;
-  filter: saturate(0.72) brightness(0.72);
-  transform: scale(0.995);
-}
-
 .playerBoard {
   --replay-player-tint: var(--color-loss);
   --replay-pile-card-width: 4.4rem;
@@ -267,42 +261,18 @@
 .prizes {
   display: grid;
   grid-area: prizes;
-  grid-template-columns: repeat(2, var(--replay-pile-card-width));
+  grid-template-columns: var(--replay-pile-card-width);
   align-content: center;
   justify-content: center;
   gap: 0.3rem;
 }
 
-.prizes strong {
-  grid-column: 1 / -1;
-  color: var(--muted-foreground);
-  font-size: 0.58rem;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.prizes span {
-  width: var(--replay-pile-card-width);
-  aspect-ratio: 0.714;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 0.2rem;
-  background: transparent;
-}
-
-.prizes span[data-remaining] {
-  border-color: color-mix(in oklab, var(--replay-player-tint) 72%, var(--border));
-  background: var(--replay-card-back-ink) url("https://images.pokemontcg.io/card-back.png") center / cover no-repeat;
-  box-shadow: 0 0.15rem 0.35rem color-mix(in oklab, var(--foreground) 18%, transparent);
-}
-
 .playArea {
   display: grid;
   grid-area: play;
-  min-height: 24rem;
+  min-height: 0;
   grid-template-areas: "prizes field piles";
-  grid-template-columns: calc(var(--replay-pile-card-width) + var(--replay-pile-card-width) + 0.3rem) minmax(0, 1fr) 5rem;
+  grid-template-columns: var(--replay-pile-card-width) minmax(0, 1fr) 5rem;
   align-items: center;
   gap: 0.75rem;
 }
@@ -409,15 +379,15 @@ button.pile:disabled {
   grid-template-areas:
     "active"
     "bench";
-  grid-template-rows: 12rem 8rem;
+  grid-template-rows: minmax(9.8rem, auto) minmax(6.2rem, auto);
   align-items: center;
-  gap: 1.25rem;
+  gap: 0.7rem;
 }
 
 .activeRow {
   display: grid;
   grid-area: active;
-  grid-template-columns: 6.5rem 8.5rem 6.5rem;
+  grid-template-columns: 5rem 6.8rem 5rem;
   align-items: center;
   justify-content: center;
   column-gap: 0.35rem;
@@ -466,7 +436,9 @@ button.pile:disabled {
   position: relative;
   display: grid;
   min-width: 0;
-  height: 8rem;
+  min-height: 6.2rem;
+  height: auto;
+  padding-block: 1.1rem 0.4rem;
   grid-area: bench;
   width: min(100%, 26rem);
   grid-template-columns: repeat(5, minmax(0, 4.2rem));
@@ -483,8 +455,8 @@ button.pile:disabled {
 .active {
   position: relative;
   display: flex;
-  width: 8.5rem;
-  min-height: 12rem;
+  width: 6.8rem;
+  min-height: 9.8rem;
   grid-column: 2;
   grid-row: 1;
   align-items: center;
@@ -514,6 +486,10 @@ button.pile:disabled {
   background: transparent;
 }
 
+.benchSlot[data-populated] {
+  aspect-ratio: auto;
+}
+
 .zoneLabel {
   position: absolute;
   top: 0.25rem;
@@ -527,16 +503,15 @@ button.pile:disabled {
 }
 
 .bench > .zoneLabel {
-  top: -0.15rem;
+  top: 0;
   left: 0;
-  transform: translateY(-100%);
 }
 
 .playerBoard[data-actor="opponent"] .field {
   grid-template-areas:
     "bench"
     "active";
-  grid-template-rows: 8rem 12rem;
+  grid-template-rows: minmax(6.2rem, auto) minmax(9.8rem, auto);
 }
 
 .emptyZone {
@@ -549,7 +524,7 @@ button.pile:disabled {
 
 .cardStack {
   position: relative;
-  width: 7.5rem;
+  width: 6.3rem;
   isolation: isolate;
 }
 
@@ -627,13 +602,6 @@ button.pile:disabled {
 }
 
 .cardStack[data-motion="evolve"] .cardFace { animation: evolve-card 620ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-.playerBoard[data-actor="self"] .cardStack[data-motion="promote"] { animation: promote-self 480ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-.playerBoard[data-actor="opponent"] .cardStack[data-motion="promote"] { animation: promote-opponent 480ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-.cardStack[data-motion="retreat"],
-.cardStack[data-motion="bench"] { animation: bench-arrival 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-
-
-
 
 .healthStatus {
   position: relative;
@@ -808,21 +776,22 @@ button.pile:disabled {
 
 .handArea {
   display: grid;
-  min-height: 8rem;
+  min-height: 0;
   grid-area: hand;
   justify-items: center;
   gap: 0.25rem;
-  padding-block: 0.35rem 0.15rem;
+  padding-block: 0.55rem 0.15rem;
 }
 
 .handLabel {
   display: flex;
+  grid-row: 2;
   align-items: baseline;
   gap: 0.3rem;
 }
 
 .playerBoard[data-actor="opponent"] .handLabel {
-  grid-row: 2;
+  grid-row: 1;
 }
 
 .handLabel strong {
@@ -840,7 +809,7 @@ button.pile:disabled {
 
 .handCard {
   position: relative;
-  width: 4.5rem;
+  width: 3.4rem;
   aspect-ratio: 0.714;
   flex: 0 0 auto;
   overflow: visible;
@@ -995,19 +964,7 @@ button.pile:disabled {
   overscroll-behavior: contain;
 }
 .cardPreviewStage:focus-visible { outline: 2px solid var(--ring); outline-offset: 0.2rem; }
-.printedCardDetails {
-  display: grid;
-  width: 100%;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  background: var(--popover);
-  color: var(--popover-foreground);
-  font-size: 0.875rem;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
+
 .cardPreviewImage { position: relative; width: 100%; aspect-ratio: 0.714; filter: drop-shadow(0 1.25rem 1.5rem color-mix(in oklab, var(--foreground) 30%, transparent)); }
 .cardPreviewImage > img { border-radius: 0.75rem; object-fit: cover; }
 .cardPreviewTool { position: absolute; z-index: 1; color: white; font-size: 0.72rem; font-weight: 800; line-height: 1; box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 28%, transparent); }
@@ -1404,7 +1361,7 @@ button.pile:disabled {
 
   .playArea {
     min-height: 14rem;
-    grid-template-columns: calc(var(--replay-pile-card-width) + var(--replay-pile-card-width) + 0.2rem) minmax(0, 1fr) 3.1rem;
+    grid-template-columns: var(--replay-pile-card-width) minmax(0, 1fr) 3.1rem;
     gap: 0.4rem;
   }
 
@@ -1459,7 +1416,7 @@ button.pile:disabled {
   }
 
   .handArea {
-    min-height: 4rem;
+    min-height: 0;
   }
 
   .handCard {
@@ -1507,12 +1464,8 @@ button.pile:disabled {
   }
 
   .controls {
-    position: sticky;
-    bottom: 0;
-    z-index: 5;
     gap: 0.45rem;
-    padding: 0.65rem 0;
-    background: var(--background);
+    padding: 0;
   }
 
   .controlGroup span {
@@ -1688,15 +1641,15 @@ button.pile:disabled {
 
 /* Keep enlarged hands bounded when a log records a large draw. */
 .handArea { min-width: 0; }
-.handCards { max-width: 100%; overflow-x: auto; justify-content: safe center; padding-block: 1.6rem 0.35rem; }
+.handCards { max-width: 100%; overflow-x: auto; justify-content: safe center; padding-block: 0.75rem 0.2rem; }
 
 @container replay (max-width: 40rem) {
-  .playerBoard { --replay-pile-card-width: 3.2rem; }
+  .playerBoard { --replay-pile-card-width: 3.8rem; }
   .playArea {
-    min-height: 24rem;
+    min-height: 0;
     grid-template-areas: "prizes field piles" "bench bench bench";
-    grid-template-columns: 6.6rem minmax(0, 1fr) 3.8rem;
-    row-gap: 1.3rem;
+    grid-template-columns: 3.8rem minmax(0, 1fr) 3.8rem;
+    row-gap: 0.85rem;
     padding-block: 0.75rem;
   }
   .playerBoard[data-actor="opponent"] .playArea {
@@ -1716,9 +1669,9 @@ button.pile:disabled {
   .active { width: 5.8rem; min-height: 8.8rem; }
   .cardStack { width: 5.5rem; }
   .cardStack[data-compact] { width: min(100%, 3.4rem); }
-  .bench { width: 100%; height: 6rem; grid-template-columns: repeat(5, minmax(0, 3.4rem)); gap: 0.4rem; }
+  .bench { width: 100%; height: auto; min-height: 6rem; grid-template-columns: repeat(5, minmax(0, 3.4rem)); gap: 0.4rem; }
   .benchSlot { max-width: 3.4rem; }
-  .handArea { min-height: 6.5rem; }
+  .handArea { min-height: 0; }
   .handCard { width: 3.4rem; }
   .handCard + .handCard { margin-left: -1rem; }
 }
@@ -2005,7 +1958,7 @@ button.pile:disabled {
 
 .timelineAction small { display: block; grid-column: 1 / -1; color: var(--muted-foreground); font-size: 0.8rem; line-height: 1.5; overflow-wrap: anywhere; }
 
-.replayDiagnostics, .sourceEvidence {
+.replayDiagnostics {
   min-width: 0;
   padding: 0.75rem 1rem;
   color: var(--card-foreground);
@@ -2016,13 +1969,11 @@ button.pile:disabled {
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.replayDiagnostics summary, .sourceEvidence summary { cursor: pointer; font-weight: 650; }
-.replayDiagnostics summary:focus-visible, .sourceEvidence summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
-.replayDiagnostics p, .sourceEvidence p { margin-block: 0.75rem 0; max-width: 75ch; }
-.replayDiagnostics ul, .sourceEvidence ul { margin-block: 0.5rem 0; padding-inline-start: 1.25rem; max-width: 75ch; }
-.replayDiagnostics li, .sourceEvidence li { margin-block: 0.35rem; }
-.sourceUnresolved { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
-.uncertainZones { max-width: 24ch; font-size: 0.65rem; line-height: 1.35; color: var(--foreground); overflow-wrap: anywhere; }
+.replayDiagnostics summary { cursor: pointer; font-weight: 650; }
+.replayDiagnostics summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.replayDiagnostics p { margin-block: 0.75rem 0; max-width: 75ch; }
+.replayDiagnostics ul { margin-block: 0.5rem 0; padding-inline-start: 1.25rem; max-width: 75ch; }
+.replayDiagnostics li { margin-block: 0.35rem; }
 .copyUncertain { color: var(--muted-foreground); font-size: 0.65rem; line-height: 1.25; text-align: center; }
 .unknownActive { color: var(--muted-foreground); font-size: 0.75rem; max-width: 10ch; text-align: center; }
 .unplacedCards { border-top: 1px dashed var(--border); padding-top: 0.75rem; }
@@ -2042,3 +1993,23 @@ button.pile:disabled {
 .poolCard small { display: block; color: var(--muted-foreground); }
 .boardPool details { margin-top: 0.5rem; }
 .boardPool button:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+
+.playerHeader { flex-wrap: wrap; align-items: center; column-gap: 0.65rem; }
+.controls { position: relative; z-index: 60; margin-left: auto; gap: 0.45rem; padding: 0; }
+.controlGroup { gap: 0.2rem; }
+.controlGroup span { min-width: 2.75rem; font-size: 0.65rem; }
+.playerBoard[data-actor="opponent"] .handCards { padding-block: 0.75rem 0.1rem; }
+.boardFrame[data-transaction] > .transactionOverlay { inset-block-start: 6rem; }
+.boardActionContext { margin-top: 0.65rem; border: 1px solid var(--border); border-radius: 0.65rem; }
+.boardActionContext .transactionOverlay { position: static; padding: 0.65rem; background: var(--card); backdrop-filter: none; animation: none; }
+.boardActionContext .transactionHeading { display: none; }
+.boardActionContext .transactionCardState, .boardActionContext .transactionCard { width: 3.4rem; }
+.boardActionContext .transactionStep { min-width: 4rem; }
+.boardActionContext .transactionOverlay > p { display: none; }
+.replayDiagnostics { margin-top: 0.8rem; }
+@container replay (max-width: 40rem) {
+  .controls { flex: 1 0 100%; justify-content: flex-end; align-items: start; }
+  .controlGroup { display: grid; grid-template-columns: 2.75rem 2.75rem; column-gap: 0.3rem; row-gap: 0.15rem; }
+  .controlGroup span { grid-column: 1 / -1; grid-row: 2; text-align: center; }
+  .boardFrame[data-transaction] > .transactionOverlay { inset-block-start: 8rem; }
+}

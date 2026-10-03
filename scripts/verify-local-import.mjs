@@ -507,17 +507,15 @@ async function verifyReplayLayouts(scrubber) {
     }
     if (label === "desktop" || label === "mobile") {
       const diagnostics = page.locator("details").filter({ has: page.locator("summary", { hasText: /^Partial replay/ }) });
-      const source = page.locator("details").filter({ has: page.locator("summary", { hasText: /^Recorded source/ }) });
+      assert.equal(await page.locator("summary", { hasText: /^Recorded source/ }).count(), 0,
+        "Recorded source must not take space beneath the board.");
       await diagnostics.locator("summary").click();
-      await source.locator("summary").click();
-      await source.getByText("Unresolved", { exact: true }).waitFor();
-      for (const detail of [diagnostics, source]) {
+      for (const detail of [diagnostics]) {
         const box = await detail.boundingBox();
         assert.ok(box && box.width >= 200 && box.x >= 0 && box.x + box.width <= width + 1,
           `Expanded ${label} replay evidence must stay readable within the viewport.`);
       }
       await captureReplay(`battle-replay-${label}-diagnostics-expanded`);
-      await source.locator("summary").click();
       await diagnostics.locator("summary").click();
     }
     const geometry = await page.getByRole("button", { name: "Preview Dreepy", exact: true }).boundingBox();
@@ -700,29 +698,27 @@ async function verifyReplayCollection(db, userId, original) {
     await page.getByRole("dialog", { name: "Seedling", exact: true }).getByText("170 / 170 HP", { exact: true }).waitFor();
     const definitionDialog = page.getByRole("dialog", { name: "Seedling", exact: true });
     const printedDetails = definitionDialog.getByRole("region", { name: "Card preview details", exact: true });
-    await definitionDialog.getByText(/Representative printing.*SYNTHETIC 0.*70 printed HP/).scrollIntoViewIfNeeded();
-    assert.equal(await definitionDialog.getByText("Fixture Glow", { exact: true }).count(), 1,
-      "The resolved printing's Ability must reach the card preview.");
-    await definitionDialog.getByText("Tap", { exact: true }).scrollIntoViewIfNeeded();
-    assert.equal(await definitionDialog.getByText("Tap", { exact: true }).count(), 1,
-      "The resolved printing's attack must reach the same card preview.");
+    assert.equal(await definitionDialog.getByText("Fixture Glow", { exact: true }).count(), 0,
+      "Card previews show artwork and HP without printed Ability prose.");
+    assert.equal(await definitionDialog.getByText("Tap", { exact: true }).count(), 0,
+      "Card previews show artwork and HP without printed attack prose.");
     for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 844 });
-      await definitionDialog.getByText("Tap", { exact: true }).scrollIntoViewIfNeeded();
+      await until(() => printedDetails.evaluate(element => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+      }));
       const geometry = await printedDetails.evaluate(element => ({
         top: element.getBoundingClientRect().top, bottom: element.getBoundingClientRect().bottom,
-        viewportHeight: window.innerHeight, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight,
+        viewportHeight: window.innerHeight,
       }));
       assert.ok(geometry.top >= 0 && geometry.bottom <= geometry.viewportHeight,
-        "Printed card details must stay in the viewport at desktop and mobile widths.");
-      await printedDetails.focus();
-      await page.keyboard.press("Home");
-      await page.keyboard.press("End");
-      const attackBounds = await definitionDialog.getByText("Tap", { exact: true }).boundingBox();
+        "Card artwork and HP must stay in the viewport at desktop and mobile widths.");
+      const hpBounds = await definitionDialog.getByText("170 / 170 HP", { exact: true }).boundingBox();
       const regionBounds = await printedDetails.boundingBox();
-      assert.ok(attackBounds && regionBounds && attackBounds.y >= regionBounds.y &&
-        attackBounds.y + attackBounds.height <= regionBounds.y + regionBounds.height,
-      "Keyboard scrolling must bring the printed attack into the visible details region.");
+      assert.ok(hpBounds && regionBounds && hpBounds.y >= regionBounds.y &&
+        hpBounds.y + hpBounds.height <= regionBounds.y + regionBounds.height,
+        "HP must remain visible beneath the enlarged card.");
     }
     await page.setViewportSize({ width: 1280, height: 900 });
     const restoredPreview = await printedDetails.boundingBox();

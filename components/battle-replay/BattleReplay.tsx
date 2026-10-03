@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -202,6 +202,9 @@ function CardFace({
     <div
       ref={stackRef}
       className={styles.cardStack}
+      data-board-card={card.id}
+      data-card-name={card.name}
+      data-copy-uncertain={card.instanceUncertain || undefined}
       data-compact={compact || undefined}
       data-motion={motion}
       data-knocked-out={knockedOut || undefined}
@@ -253,7 +256,6 @@ function CardFace({
           <span style={{ transform: `scaleX(${healthPercent / 100})` }} />
         </div> : null}
         <strong>{remainingHp !== null ? `${remainingHp} HP` : card.hp !== null ? `${card.hp} max HP · damage ?` : card.baseHp ? `${card.baseHp} printed HP · max ?` : "HP ?"}</strong>
-        {probableHp ? <span className={styles.probableHp}>probably</span> : null}
         {card.hpModifierBasis === "unverified_attachment" ? <span className={styles.probableHp}>Attached effect unverified</span> : null}
       </div>
     </div>
@@ -284,7 +286,7 @@ function Pile({
   const pileContents = (
     <>
       <div className={styles.pileCards} data-pile-face={label} data-empty={count === 0 || undefined} data-new-card={animate || undefined} key={topCard?.id ?? label}>
-        <PileFace card={topCard} hidden={label === "Deck" && count !== 0} />
+        <PileFace card={topCard} hidden={(label === "Deck" || label === "Prizes") && count !== 0} />
       </div>
       <span>{label}</span>
       <strong>{count ?? "Unknown"}</strong>
@@ -318,10 +320,7 @@ function PrizeTrack({ remaining }: { remaining: number | null }) {
       aria-label={remaining === null ? "Prize cards remaining unknown" : `${remaining} Prize cards remaining`}
       className={styles.prizes}
     >
-      <strong>Prizes</strong>
-      {remaining === null ? <strong>Unknown</strong> : Array.from({ length: 6 }).map((_, index) => (
-        <span data-remaining={index < remaining || undefined} key={index} />
-      ))}
+      <Pile count={remaining} label="Prizes" />
     </div>
   );
 }
@@ -336,6 +335,7 @@ function HandFan({ actor, onPreview, side }: { actor: ReplayActor; onPreview: (c
           : side.handCount === null ? "Opponent hand count is unknown" : `${side.handCount} cards in the opponent's hidden hand`
       }
       className={styles.handArea}
+      data-replay-hand={actor}
     >
       <div className={styles.handLabel}>
         <span>Hand</span>
@@ -350,6 +350,7 @@ function HandFan({ actor, onPreview, side }: { actor: ReplayActor; onPreview: (c
               aria-label={knownCard?.name}
               className={styles.handCard}
               data-known={Boolean(knownCard?.imageUrl) || undefined}
+              data-hand-card={knownCard?.name}
               key={knownCard?.id ?? `hidden-${index}`}
             >
               {knownCard ? (
@@ -543,6 +544,7 @@ function PlayerBoard({
   previousSide,
   side,
   stadium,
+  controls,
 }: {
   actor: ReplayActor;
   coinPhase: CoinFlipPhase;
@@ -552,6 +554,7 @@ function PlayerBoard({
   previousSide: ReplaySide;
   side: ReplaySide;
   stadium: ReplayState["stadium"];
+  controls?: ReactNode;
 }) {
   const coinToss = resolveOpeningCoinToss(currentEvent);
   const turnChoice = resolveOpeningTurnChoice(currentEvent);
@@ -591,8 +594,8 @@ function PlayerBoard({
           <span>{actor === "self" ? "You" : "Opponent"}</span>
           <strong>{side.name}</strong>
         </div>
-        {side.uncertainZones?.length ? <span className={styles.uncertainZones}>Incomplete: {side.uncertainZones.join(", ")}</span> : null}
         {side.itemLocked ? <span className={styles.itemLockBadge}>Item lock</span> : null}
+        {controls}
       </header>
 
       <div className={styles.playArea}>
@@ -672,6 +675,20 @@ function PlayerBoard({
   );
 }
 
+type BoardSnapshot = {
+  index: number;
+  cards: Map<string, { rect: DOMRect; uncertain: boolean }>;
+  hands: Map<ReplayActor, { rect: DOMRect; cards: Map<string, DOMRect[]> }>;
+};
+
+function boardChanged(previous: ReplayState, current: ReplayState) {
+  return (["self", "opponent"] as const).some((actor) => {
+    const positions = (side: ReplaySide) => [side.active, ...side.bench]
+      .map((card) => card ? `${card.id}:${card.name}` : null);
+    return JSON.stringify(positions(previous[actor])) !== JSON.stringify(positions(current[actor]));
+  });
+}
+
 export function BattleReplay({
   program,
   initialActionIndex = 0,
@@ -686,13 +703,14 @@ export function BattleReplay({
   );
   const [previewedCard, setPreviewedCard] = useState<PreviewCard | null>(null);
   const previewDefinition = previewedCard ? resolveReplayCardPreviewDefinition(previewedCard, program) : undefined;
-  const printed = previewDefinition?.selectedDefinition;
   const previewHpIsProbable = previewedCard?.hpBasis === "probable" || previewedCard?.hp === null && previewDefinition?.hpBasis === "probable";
   const [inspectedDiscard, setInspectedDiscard] =
     useState<ReplayActor | null>(null);
   const [playing, setPlaying] = useState(false);
   const timelineRef = useRef<HTMLOListElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const boardSnapshotRef = useRef<BoardSnapshot | null>(null);
   const previewTriggerRef = useRef<HTMLElement | null>(null);
   const discardTriggerRef = useRef<HTMLElement | null>(null);
   const replayEvents = program.events;
@@ -704,6 +722,18 @@ export function BattleReplay({
     (inspectedDiscardSide?.discardCount ?? 0) > (inspectedDiscardSide?.discard.length ?? 0);
   const previousState = replayFrames[Math.max(0, actionIndex - 1)];
   const currentEvent = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
+  const movingOnBoard = boardChanged(previousState, state);
+  // Effect-driven placements (for example Poffin searching the deck) need the
+  // selection context. Direct hand placements and moves are shown on the board.
+  const effectPlacement = currentEvent?.label !== "Pokémon" && currentEvent?.transaction?.stages.some((stage) => stage.kind === "bench");
+  const inlineTransaction = movingOnBoard && !effectPlacement;
+  const popupTransaction = currentEvent?.transaction && currentEvent.label !== "Attack" && currentEvent.label !== "KO"
+    ? inlineTransaction
+      ? currentEvent.transaction.stages.some((stage) => ["find", "draw", "shuffle", "return"].includes(stage.kind))
+        ? { ...currentEvent.transaction, stages: currentEvent.transaction.stages.filter((stage) => !["before", "bench", "evolve", "move"].includes(stage.kind)) }
+        : null
+      : currentEvent.transaction
+    : null;
   const coinToss = resolveOpeningCoinToss(currentEvent);
   const resultOnlyCoinFlip = resolveResultOnlyCoinFlip(currentEvent);
   const coinFlipResult = coinToss?.result ?? resultOnlyCoinFlip?.result ?? null;
@@ -734,6 +764,65 @@ export function BattleReplay({
     (stop) => stop.index > actionIndex,
   )?.index;
 
+  const captureBoard = useCallback(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    const cards: BoardSnapshot["cards"] = new Map();
+    for (const card of board.querySelectorAll<HTMLElement>("[data-board-card]")) {
+      const actor = card.closest<HTMLElement>("[data-actor]")?.dataset.actor;
+      cards.set(`${actor}:${card.dataset.boardCard}`, { rect: card.getBoundingClientRect(), uncertain: Boolean(card.dataset.copyUncertain) });
+    }
+    const hands: BoardSnapshot["hands"] = new Map();
+    for (const hand of board.querySelectorAll<HTMLElement>("[data-replay-hand]")) {
+      const knownCards = new Map<string, DOMRect[]>();
+      for (const card of hand.querySelectorAll<HTMLElement>("[data-hand-card]")) {
+        const name = card.dataset.handCard!;
+        knownCards.set(name, [...(knownCards.get(name) ?? []), card.getBoundingClientRect()]);
+      }
+      hands.set(hand.dataset.replayHand as ReplayActor, { rect: hand.getBoundingClientRect(), cards: knownCards });
+    }
+    boardSnapshotRef.current = { index: actionIndex, cards, hands };
+  }, [actionIndex]);
+
+  useLayoutEffect(() => {
+    const board = boardRef.current;
+    const snapshot = boardSnapshotRef.current;
+    boardSnapshotRef.current = null;
+    if (!board || !snapshot || snapshot.index + 1 !== actionIndex || !movingOnBoard || currentEvent?.label === "KO") return;
+    const animations: Animation[] = [];
+    const elevated: HTMLElement[] = [];
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    for (const card of board.querySelectorAll<HTMLElement>("[data-board-card]")) {
+      const actor = card.closest<HTMLElement>("[data-actor]")?.dataset.actor as ReplayActor;
+      const previous = snapshot.cards.get(`${actor}:${card.dataset.boardCard}`);
+      const hand = snapshot.hands.get(actor);
+      const matchingHandCards = hand?.cards.get(card.dataset.cardName!) ?? [];
+      // A normal Pokémon placement comes from the hand. Search effects such as
+      // Buddy-Buddy Poffin have no recorded physical origin here: fade them in.
+      const fromHand = !previous && currentEvent?.label === "Pokémon" && currentEvent.actor === actor;
+      const origin = previous?.rect ?? (fromHand ? matchingHandCards.length === 1 ? matchingHandCards[0] : hand ? new DOMRect(hand.rect.x + hand.rect.width / 2 - 27, hand.rect.y + hand.rect.height / 2 - 38, 54, 76) : undefined : undefined);
+      const destination = card.getBoundingClientRect();
+      const uncertain = Boolean(card.dataset.copyUncertain) || previous?.uncertain;
+      if (previous && origin && Math.abs(origin.x - destination.x) < 2 && Math.abs(origin.y - destination.y) < 2) continue;
+      if (!destination.width || !destination.height) continue;
+      const keyframes = reducedMotion || uncertain || !origin
+        ? [{ opacity: 0.35 }, { opacity: 1 }]
+        : [{ transform: `translate(${origin.x - destination.x}px, ${origin.y - destination.y}px) scale(${origin.width / destination.width})`, opacity: fromHand ? 0.7 : 1 }, { transform: "none", opacity: 1 }];
+      card.style.zIndex = "50";
+      card.style.transformOrigin = "top left";
+      elevated.push(card);
+      const animation = card.animate(keyframes, { duration: reducedMotion ? 140 : 500, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+      animation.onfinish = () => { card.style.removeProperty("z-index"); card.style.removeProperty("transform-origin"); };
+      animations.push(animation);
+    }
+    const cancel = () => {
+      for (const animation of animations) animation.cancel();
+      for (const card of elevated) { card.style.removeProperty("z-index"); card.style.removeProperty("transform-origin"); }
+    };
+    window.addEventListener("resize", cancel);
+    return () => { cancel(); window.removeEventListener("resize", cancel); };
+  }, [actionIndex, currentEvent, movingOnBoard]);
+
   useEffect(() => {
     if (!playing) return;
     if (actionIndex >= maxIndex) {
@@ -742,11 +831,11 @@ export function BattleReplay({
     }
 
     const timer = window.setTimeout(
-      () => setActionIndex((value) => Math.min(maxIndex, value + 1)),
+      () => { captureBoard(); setActionIndex(Math.min(maxIndex, actionIndex + 1)); },
       autoplayDelay,
     );
     return () => window.clearTimeout(timer);
-  }, [actionIndex, autoplayDelay, maxIndex, playing]);
+  }, [actionIndex, autoplayDelay, captureBoard, maxIndex, playing]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -791,6 +880,7 @@ export function BattleReplay({
   }, [actionIndex, playing]);
 
   const seek = useCallback((nextIndex: number, revealBoard = false) => {
+    captureBoard();
     setPlaying(false);
     setActionIndex(Math.max(0, Math.min(maxIndex, nextIndex)));
     const stage = stageRef.current;
@@ -800,7 +890,7 @@ export function BattleReplay({
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
       }));
     }
-  }, [maxIndex]);
+  }, [captureBoard, maxIndex]);
   const seekFromTimeline = useCallback((nextIndex: number) => seek(nextIndex, true), [seek]);
 
   function seekTurn(direction: -1 | 1) {
@@ -820,121 +910,7 @@ export function BattleReplay({
     setInspectedDiscard(actor);
   }
 
-  return (
-    <DefinitionContext.Provider value={program.cardResolutions}>
-    <TurnActorContext.Provider value={currentEvent?.turnActor ?? null}>
-    <ArtworkContext.Provider value={artwork}>
-    <div className={styles.replayContainer}>
-    <div className={styles.replay}>
-      <p className={styles.artNote}>Reconstructed from the saved Battle Log. Unrecorded information stays unknown. Artwork may show a representative printing.</p>
-      {program.status === "partial" ? <details className={styles.replayDiagnostics}>
-        <summary>Partial replay · {program.diagnostics.unresolvedMutations} unresolved {program.diagnostics.unresolvedMutations === 1 ? "change" : "changes"}</summary>
-        <p>Recorded actions remain available. Unresolved changes are labelled in the timeline and source below the board.</p>
-        <ul>{program.diagnostics.messages.map((message, index) => <li key={index}>{message}</li>)}</ul>
-      </details> : null}
-
-      <div className={styles.matchMeta}>
-        <div><span>Matchup</span><strong>{replaySource.selfDeck} vs {replaySource.opponentDeck}</strong></div>
-        <div><span>Result</span><strong>{replaySource.result}</strong></div>
-        <div><span>Prizes taken</span><strong>{replaySource.selfPrizesTaken}–{replaySource.opponentPrizesTaken}</strong></div>
-        <div><span>Turns</span><strong>{replaySource.turns}</strong></div>
-      </div>
-
-      <div className={styles.replayShell}>
-      <div className={styles.timelinePane}>
-        <div className={styles.timelineHeader}>
-          <div>
-            <SectionTitle size="sm">Match timeline</SectionTitle>
-            <p>
-              {formatPlayedOn(replaySource.playedOn)} · {replaySource.format || "Format not recorded"} · {replaySource.turns} turns ·{" "}
-              {replayEvents.length} visual actions
-            </p>
-          </div>
-          <Button
-            aria-label="Restart replay"
-            className={styles.iconControl}
-            onClick={() => seek(0)}
-            size="icon-sm"
-            variant="ghost"
-          >
-            <RotateCcwIcon />
-          </Button>
-        </div>
-
-        <ol aria-label="Match actions" className={styles.timeline} ref={timelineRef}>
-          {replayEvents.map((event, index) => <TimelineAction event={event} key={index} onSeek={seekFromTimeline} selected={index + 1 === actionIndex} step={index + 1} />)}
-        </ol>
-      </div>
-
-      <div className={styles.replayStage} ref={stageRef}>
-        <div className={styles.boardFrame} data-transaction={currentEvent?.transaction && currentEvent.label !== "Attack" && currentEvent.label !== "KO" ? true : undefined}>
-          <div className={styles.board}>
-            <PlayerBoard coinPhase={coinPhase} actor="opponent" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
-            {currentEvent?.label === "Attack" ? <div aria-hidden="true" className={styles.attackAnnouncementAnchor}>
-              <div key={`${program.id}-${actionIndex}`} className={styles.attackAnnouncement}>
-                <span>{currentEvent.actor === "self" ? "Your attack" : "Opponent’s attack"}</span>
-                <strong>{currentEvent.transaction?.stages.find((stage) => stage.kind === "attack")?.label ?? "Attack"}</strong>
-              </div>
-
-            </div> : null}
-            {coinToss || resultOnlyCoinFlip ? <div className={styles.boardCoinToss} role="status" aria-label={coinPhase === "call" && coinToss
-              ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}`
-              : coinPhase === "toss" ? "Tossing the coin"
-                : coinToss?.winner ? `${coinToss.result}. ${coinToss.winner === "self" ? "You won" : "Opponent won"} the toss.`
-                  : resultOnlyCoinFlip ? `${resultOnlyCoinFlip.result}. ${resultOnlyCoinFlip.actor === "self" ? "Your" : "Opponent’s"} coin flip.` : "Result not recorded."}>
-              {coinPhase !== "call" ? <div aria-hidden="true" className={styles.replayCoin} data-phase={coinPhase}>
-                <div className={styles.coinRotor} data-result={coinFlipResult}>
-                  <span className={styles.coinMetalFace} data-side="heads" />
-                  <span className={styles.coinMetalFace} data-side="tails" />
-                </div>
-                {coinPhase === "result" && !coinFlipResult ? <span>Unknown</span> : null}
-              </div> : null}
-            </div> : null}
-            <PlayerBoard coinPhase={coinPhase} actor="self" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
-          </div>
-          {currentEvent?.transaction && currentEvent.label !== "Attack" && currentEvent.label !== "KO" ? <TransactionOverlay onPreview={previewCard} previousState={previousState} state={state} transaction={currentEvent.transaction} /> : null}
-        </div>
-
-        <div className={styles.currentAction} aria-live="polite">
-          <span>
-            {currentEvent
-              ? currentEvent.turn === 0
-                ? "Setup"
-                : `Turn ${currentEvent.turn}`
-              : "Before setup"}
-          </span>
-          <strong>
-            {(coinToss || resultOnlyCoinFlip) && coinPhase !== "result"
-              ? coinPhase === "call" && coinToss ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}` : "Tossing the coin…"
-              : currentEvent?.summary ?? "Ready to replay the imported battle."}
-          </strong>
-        </div>
-
-        {currentEvent ? <details className={styles.sourceEvidence}>
-          <summary>Recorded source{currentEvent.unresolved?.length ? " · unresolved changes" : ""}</summary>
-          <p>{currentEvent.sourceTitle}</p>
-          {currentEvent.sourceDetails.length ? <ul>{currentEvent.sourceDetails.map((detail, index) => <li key={index}>{detail}</li>)}</ul> : null}
-          {currentEvent.unresolved?.length ? <div className={styles.sourceUnresolved}><strong>Unresolved</strong><ul>{currentEvent.unresolved.map((message, index) => <li key={index}>{message}</li>)}</ul></div> : null}
-        </details> : null}
-
-        <div className={styles.scrubber}>
-          <label htmlFor="replay-position">
-            <span>Replay position</span>
-            <strong>
-              {actionIndex} / {maxIndex}
-            </strong>
-          </label>
-          <input
-            aria-label="Scrub through battle replay"
-            id="replay-position"
-            max={maxIndex}
-            min={0}
-            onChange={(event) => seek(Number(event.target.value))}
-            type="range"
-            value={actionIndex}
-          />
-        </div>
-
+  const playbackControls = (
         <div className={styles.controls}>
           <div
             aria-label="Action controls"
@@ -1000,8 +976,118 @@ export function BattleReplay({
             </Button>
           </div>
         </div>
+  );
 
+  return (
+    <DefinitionContext.Provider value={program.cardResolutions}>
+    <TurnActorContext.Provider value={currentEvent?.turnActor ?? null}>
+    <ArtworkContext.Provider value={artwork}>
+    <div className={styles.replayContainer}>
+    <div className={styles.replay}>
+      <p className={styles.artNote}>Reconstructed from the saved Battle Log. Unrecorded information stays unknown. Artwork may show a representative printing.</p>
 
+      <div className={styles.matchMeta}>
+        <div><span>Matchup</span><strong>{replaySource.selfDeck} vs {replaySource.opponentDeck}</strong></div>
+        <div><span>Result</span><strong>{replaySource.result}</strong></div>
+        <div><span>Prizes taken</span><strong>{replaySource.selfPrizesTaken}–{replaySource.opponentPrizesTaken}</strong></div>
+        <div><span>Turns</span><strong>{replaySource.turns}</strong></div>
+      </div>
+
+      <div className={styles.replayShell}>
+      <div className={styles.timelinePane}>
+        <div className={styles.timelineHeader}>
+          <div>
+            <SectionTitle size="sm">Match timeline</SectionTitle>
+            <p>
+              {formatPlayedOn(replaySource.playedOn)} · {replaySource.format || "Format not recorded"} · {replaySource.turns} turns ·{" "}
+              {replayEvents.length} visual actions
+            </p>
+          </div>
+          <Button
+            aria-label="Restart replay"
+            className={styles.iconControl}
+            onClick={() => seek(0)}
+            size="icon-sm"
+            variant="ghost"
+          >
+            <RotateCcwIcon />
+          </Button>
+        </div>
+
+        <ol aria-label="Match actions" className={styles.timeline} ref={timelineRef}>
+          {replayEvents.map((event, index) => <TimelineAction event={event} key={index} onSeek={seekFromTimeline} selected={index + 1 === actionIndex} step={index + 1} />)}
+        </ol>
+      </div>
+
+      <div className={styles.replayStage} ref={stageRef}>
+        <div className={styles.boardFrame} data-transaction={popupTransaction && !inlineTransaction || undefined}>
+          <div className={styles.board} ref={boardRef}>
+            <PlayerBoard controls={playbackControls} coinPhase={coinPhase} actor="opponent" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
+            {currentEvent?.label === "Attack" ? <div aria-hidden="true" className={styles.attackAnnouncementAnchor}>
+              <div key={`${program.id}-${actionIndex}`} className={styles.attackAnnouncement}>
+                <span>{currentEvent.actor === "self" ? "Your attack" : "Opponent’s attack"}</span>
+                <strong>{currentEvent.transaction?.stages.find((stage) => stage.kind === "attack")?.label ?? "Attack"}</strong>
+              </div>
+
+            </div> : null}
+            {coinToss || resultOnlyCoinFlip ? <div className={styles.boardCoinToss} role="status" aria-label={coinPhase === "call" && coinToss
+              ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}`
+              : coinPhase === "toss" ? "Tossing the coin"
+                : coinToss?.winner ? `${coinToss.result}. ${coinToss.winner === "self" ? "You won" : "Opponent won"} the toss.`
+                  : resultOnlyCoinFlip ? `${resultOnlyCoinFlip.result}. ${resultOnlyCoinFlip.actor === "self" ? "Your" : "Opponent’s"} coin flip.` : "Result not recorded."}>
+              {coinPhase !== "call" ? <div aria-hidden="true" className={styles.replayCoin} data-phase={coinPhase}>
+                <div className={styles.coinRotor} data-result={coinFlipResult}>
+                  <span className={styles.coinMetalFace} data-side="heads" />
+                  <span className={styles.coinMetalFace} data-side="tails" />
+                </div>
+                {coinPhase === "result" && !coinFlipResult ? <span>Unknown</span> : null}
+              </div> : null}
+            </div> : null}
+            <PlayerBoard coinPhase={coinPhase} actor="self" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
+          </div>
+          {popupTransaction && !inlineTransaction ? <TransactionOverlay onPreview={previewCard} previousState={previousState} state={state} transaction={popupTransaction} /> : null}
+        </div>
+
+        {popupTransaction && inlineTransaction ? <div className={styles.boardActionContext}><TransactionOverlay onPreview={previewCard} previousState={previousState} state={state} transaction={popupTransaction} /></div> : null}
+
+        <div className={styles.currentAction} aria-live="polite">
+          <span>
+            {currentEvent
+              ? currentEvent.turn === 0
+                ? "Setup"
+                : `Turn ${currentEvent.turn}`
+              : "Before setup"}
+          </span>
+          <strong>
+            {(coinToss || resultOnlyCoinFlip) && coinPhase !== "result"
+              ? coinPhase === "call" && coinToss ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}` : "Tossing the coin…"
+              : currentEvent?.summary ?? "Ready to replay the imported battle."}
+          </strong>
+        </div>
+
+        <div className={styles.scrubber}>
+          <label htmlFor="replay-position">
+            <span>Replay position</span>
+            <strong>
+              {actionIndex} / {maxIndex}
+            </strong>
+          </label>
+          <input
+            aria-label="Scrub through battle replay"
+            id="replay-position"
+            max={maxIndex}
+            min={0}
+            onChange={(event) => seek(Number(event.target.value))}
+            type="range"
+            value={actionIndex}
+          />
+        </div>
+
+        {program.status === "partial" ? <details className={styles.replayDiagnostics}>
+          <summary>Partial replay · {program.diagnostics.unresolvedMutations} unresolved {program.diagnostics.unresolvedMutations === 1 ? "change" : "changes"}</summary>
+          <p>Recorded actions remain available. Unresolved changes are labelled in the timeline.</p>
+          <ul>{program.diagnostics.messages.map((message, index) => <li key={index}>{message}</li>)}</ul>
+        </details> : null}
 
         <Sheet
           onOpenChange={(open) => {
@@ -1051,8 +1137,6 @@ export function BattleReplay({
             <DialogTitle className="sr-only">{previewedCard?.name}</DialogTitle>
             <DialogDescription className="sr-only">Enlarged card preview</DialogDescription>
             {previewedCard ? <div aria-label="Card preview details" className={styles.cardPreviewStage} role="region" tabIndex={0}>
-              {previewedCard.hpModifierBasis === "unverified_attachment" ? <p className={styles.previewUnknownHealth}>Attached card effect unverified · {previewedCard.hp === null ? "effective HP is unknown" : "effective HP is probable"}.</p> : null}
-              {previewedCard.instanceUncertain ? <p className={styles.previewUnknownHealth}>Physical copy uncertain · only unresolved copy facts are marked unknown. Shared in-play cards are listed on the board.</p> : null}
               <div className={styles.cardPreviewImage}>
                 <CardArtwork card={previewedCard} alt={`${previewedCard.name}, enlarged representative card artwork`} sizes="340px" />
                 <ConditionMarkers conditions={previewedCard.conditions} />
@@ -1067,14 +1151,7 @@ export function BattleReplay({
                 </div>
                 <strong>{previewHpIsProbable ? "Probably " : ""}{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
               </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewHpIsProbable ? "Probably " : ""}{previewedCard.hp ? `${previewedCard.hp} maximum HP · damage ? · remaining HP ?` : previewedCard.baseHp ? `${previewedCard.baseHp} printed HP · maximum and remaining HP ?` : "HP ?"}</p> : null}
-              {printed ? <div className={styles.printedCardDetails}>
-                <p className="text-muted-foreground">{previewDefinition?.displayBasis === "played_evidence" ? "Recorded printing" : previewDefinition?.hpBasis === "probable" ? "Probable printing" : previewDefinition?.evidenceBasis === "linked_deck_list" ? "Selected Deck List printing" : "Representative printing"} · {printed.setId.toUpperCase()} {printed.localId}{printed.hp ? ` · ${printed.hp} printed HP` : ""}</p>
-                {previewDefinition?.hpBasis === "probable" ? <p className="text-muted-foreground">{previewDefinition.probableHpBasis === "linked_deck_list" ? "This probable printing follows the Deck List selected for this Battle Log." : "This probable printing is the most recent catalogue candidate surviving the saved format filter."} The log does not confirm the printing played.{previewDefinition.formatBasis?.status === "partial" || previewDefinition.formatBasis?.status === "unsupported" ? " Format filtering is incomplete." : ""}</p> : previewDefinition?.evidenceBasis === "linked_deck_list" ? <p className="text-muted-foreground">Card details follow the Deck List selected for this Battle Log.{previewDefinition?.resolution === "ambiguous" ? " More than one listed printing is possible." : ""}</p> : previewDefinition?.displayBasis !== "played_evidence" ? <p className="text-muted-foreground">The log does not identify the exact printing played.{previewDefinition?.resolution === "ambiguous" ? " Printed details can differ between possible printings." : ""}</p> : null}
-                {previewDefinition?.formatBasis?.status === "conflicting" ? <p className="text-muted-foreground">{previewDefinition.displayBasis === "played_evidence" ? "This recorded printing differs from the saved format. The replay follows the recorded card." : previewDefinition.evidenceBasis === "linked_deck_list" ? "The selected Deck List printing differs from the saved format. The log does not confirm this printing." : "The catalogue candidates conflict with the saved format. The log does not confirm the exact printing."}</p> : null}
-                {printed.rules?.map((rule, index) => <p key={`rule-${index}`}>{rule}</p>)}
-                {printed.abilities.map((ability, index) => <p key={`ability-${index}`}><strong>{ability.name || "Ability"}</strong>{ability.text ? ` · ${ability.text}` : " · Text unavailable"}</p>)}
-                {printed.attacks.map((attack, index) => <p key={`attack-${index}`}><strong>{attack.name || "Attack"}</strong>{attack.damage ? ` · ${attack.damage}` : ""}{attack.cost?.length ? ` · ${attack.cost.join(", ")}` : ""}{attack.text ? ` · ${attack.text}` : ""}</p>)}
-              </div> : <p className={styles.printedCardDetails}>Printed card details unavailable.</p>}
+              {previewedCard.hp === undefined && previewDefinition?.printedHp ? <p className={styles.previewUnknownHealth}>{previewDefinition.hpBasis === "probable" ? "Probably " : ""}{previewDefinition.printedHp} HP</p> : null}
             </div> : null}
           </AppDialogContent>
         </Dialog>
