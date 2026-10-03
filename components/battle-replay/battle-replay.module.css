@@ -1663,14 +1663,12 @@ button.pile:disabled {
   .field { display: contents; }
   .activeRow {
     grid-area: field;
-    grid-template-columns: 5.8rem;
-    grid-template-rows: minmax(8.8rem, auto) auto;
-    align-content: center;
-    row-gap: 0.5rem;
+    grid-template-columns: 3.5rem 5.8rem 3.5rem;
+    grid-template-rows: minmax(8.8rem, auto);
   }
-  .active { grid-column: 1; grid-row: 1; }
-  .stadiumSpot { grid-column: 1; grid-row: 2; }
-  .stadiumName { width: 5.5rem; }
+  .active { grid-column: 2; grid-row: 1; }
+  .stadiumSpot { grid-column: 1; grid-row: 1; }
+  .stadiumName { width: 100%; }
   .active { width: 5.8rem; min-height: 8.8rem; }
   .cardStack { width: 5.5rem; }
   .cardStack[data-compact] { width: min(100%, 3.4rem); }
@@ -1679,6 +1677,19 @@ button.pile:disabled {
   .handArea { min-height: 0; }
   .handCard { width: 3.4rem; }
   .handCard + .handCard { margin-left: -1rem; }
+}
+
+/* Only the tightest panels need to share the left lane with Prizes. */
+@container replay (max-width: 28rem) {
+  .playArea:has(.stadiumSpot) {
+    grid-template-areas: "prizes field piles" "stadium field piles" "bench bench bench";
+  }
+  .playerBoard[data-actor="opponent"] .playArea:has(.stadiumSpot) {
+    grid-template-areas: "bench bench bench" "prizes field piles" "stadium field piles";
+  }
+  .activeRow { display: contents; }
+  .active { grid-area: field; }
+  .stadiumSpot { grid-area: stadium; }
 }
 
 
