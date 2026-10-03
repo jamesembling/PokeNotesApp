@@ -19,6 +19,8 @@ export type ReplayCardResolution = Pick<CardDefinitionEvidence, "coverage" | "ge
 
 export type ReplayZoneCard = {
   id: string;
+  /** Immutable physical top/layer identity, distinct from a stack or projection ID. */
+  physicalCardId?: string;
   name: string;
   imageUrl: string;
   artwork?: "representative";
@@ -26,6 +28,9 @@ export type ReplayZoneCard = {
   setId?: string;
   localId?: string;
   observedEffects?: string[];
+  /** Position-only printing query; never immutable physical-copy evidence. */
+  activeEpisodeId?: string;
+  activePrintingEffects?: { episodeId: string; effects: string[] };
   definitionOwner?: ReplayActor;
   /** Recorded in-play component role; used when its catalogue entry is absent. */
   boardRole?: "tool" | "energy" | "evolution";
@@ -33,6 +38,8 @@ export type ReplayZoneCard = {
 
 export type ReplayCard = {
   id: string;
+  /** Changes on evolution; retained when this physical top changes zones. */
+  physicalCardId?: string;
   name: string;
   imageUrl: string;
   /** Compatibility alias for effective maxHp, never printed HP. */
@@ -56,6 +63,9 @@ export type ReplayCard = {
   abilityUsed?: boolean;
   /** Effects observed on this physical top card, never shared across namesakes. */
   observedEffects?: string[];
+  /** Position-only printing query; never immutable physical-copy evidence. */
+  activeEpisodeId?: string;
+  activePrintingEffects?: { episodeId: string; effects: string[] };
   conditions?: ReplayCondition[];
   energy: string[];
   underlying: ReplayZoneCard[];
@@ -106,6 +116,8 @@ export type ReplaySide = {
   discardCount?: number | null;
   knownHand: HandCard[];
   discard: ReplayZoneCard[];
+  /** Complete recorded discard identities can survive unrelated count uncertainty. */
+  discardIdentitiesKnown?: boolean;
   prizesRemaining: number | null;
   itemLocked?: boolean;
   uncertainZones?: Array<"hand" | "deck" | "board" | "discard" | "prizes">;

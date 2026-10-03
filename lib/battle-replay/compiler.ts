@@ -38,17 +38,18 @@ function zoneCard(id: string, name: string): ReplayZoneCard {
 function topCardEvidence(id: string, card: ReplayCard): ReplayZoneCard {
   return { ...zoneCard(id, card.name),
     observedEffects: [...(card.observedEffects ?? [])],
+    ...(card.physicalCardId ? { physicalCardId: card.physicalCardId } : {}),
     ...(card.setId ? { setId: card.setId } : {}),
     ...(card.localId ? { localId: card.localId } : {}),
   };
 }
 
 function pokemon(id: string, name: string): ReplayCard {
-  return { ...zoneCard(id, name), hp: null, damage: 0, energy: [], underlying: [] };
+  return { ...zoneCard(id, name), physicalCardId: id, hp: null, damage: 0, energy: [], underlying: [] };
 }
 
 function emptySide(name: string): ReplaySide {
-  return { name, active: null, bench: [], unplaced: [], boardPools: [], activeUncertain: false, hpModifiersKnown: true, deckCount: null, handCount: null, inPlayCount: null, discardCount: null, knownHand: [], discard: [], prizesRemaining: null };
+  return { name, active: null, bench: [], unplaced: [], boardPools: [], activeUncertain: false, hpModifiersKnown: true, deckCount: null, handCount: null, inPlayCount: null, discardCount: null, knownHand: [], discard: [], discardIdentitiesKnown: false, prizesRemaining: null };
 }
 
 function changeCount(value: number | null, change: number, zones: CountZone[] = ["hand", "deck"]): number | null {
@@ -58,7 +59,45 @@ function changeCount(value: number | null, change: number, zones: CountZone[] = 
   return next;
 }
 
+function commonPrinting(cards: ReplayZoneCard[]): Partial<ReplayZoneCard> {
+  if (!cards.length) return {};
+  const first = cards[0];
+  const sameExact = cards.every((card) => card.setId === first.setId && card.localId === first.localId);
+  return {
+    observedEffects: (first.observedEffects ?? []).filter((effect) => cards.every((card) => card.observedEffects?.includes(effect))),
+    ...(sameExact && first.setId && first.localId ? { setId: first.setId, localId: first.localId } : {}),
+    ...(cards.length === 1 && first.physicalCardId ? { physicalCardId: first.physicalCardId } : {}),
+  };
+}
+
+/** Removing a named copy from a complete zone proves an individual only
+ * when unique. An exhaustive same-name batch moves the original multiset;
+ * a partial batch shares only facts true of every alternative on BOTH sides. */
+function removeKnownZone(cards: ReplayZoneCard[], names: string[], complete: boolean): Array<Partial<ReplayZoneCard>> {
+  const originals = new Map(names.map((name) => [name, cards.filter((card) => card.name === name).map((card) => structuredClone(card))]));
+  const requested = new Map(names.map((name) => [name, names.filter((value) => value === name).length]));
+  const used = new Map<string, number>();
+  const result = names.map((name) => {
+    const alternatives = originals.get(name) ?? [];
+    const ordinal = used.get(name) ?? 0; used.set(name, ordinal + 1);
+    const exhaustive = complete && requested.get(name) === alternatives.length;
+    const evidence = complete && (requested.get(name) ?? 0) <= alternatives.length ? exhaustive ? commonPrinting([alternatives[ordinal]]) : commonPrinting(alternatives) : {};
+    const index = cards.findIndex((card) => card.name === name);
+    if (index >= 0) cards.splice(index, 1);
+    return evidence;
+  });
+  for (const [name, alternatives] of originals) if (!complete || alternatives.length > (requested.get(name) ?? 0)) {
+    const common = complete ? commonPrinting(alternatives) : { observedEffects: [] };
+    for (const card of cards.filter((card) => card.name === name)) {
+      delete card.physicalCardId; delete card.setId; delete card.localId; delete card.definitionKey;
+      Object.assign(card, common);
+    }
+  }
+  return result;
+}
+
 function removeHand(side: ReplaySide, names: string[], amount = names.length, destination?: CountZone) {
+  const complete = side.handCount !== null && side.knownHand.length === side.handCount;
   const zones: CountZone[] = destination ? ["hand", destination] : ["hand"];
   if (side.handCount !== null && side.knownHand.length === side.handCount) {
     const available = side.knownHand.map((card) => card.name);
@@ -69,12 +108,10 @@ function removeHand(side: ReplaySide, names: string[], amount = names.length, de
     }
   }
   side.handCount = changeCount(side.handCount, -amount, zones);
-  for (const name of names) {
-    const index = side.knownHand.findIndex((card) => card.name === name);
-    if (index >= 0) side.knownHand.splice(index, 1);
-  }
+  const evidence = removeKnownZone(side.knownHand, names, complete);
   // With an unidentified removal we cannot know which previously seen cards remain.
   if (amount > names.length) side.knownHand = [];
+  return evidence;
 }
 
 function findBoardCard(side: ReplaySide, name: string, position: string | undefined, hp: ReturnType<typeof createReplayHpContext>, eligible: (card: ReplayCard) => boolean = () => true, sameHistory: (left: ReplayCard, right: ReplayCard) => boolean = () => true) {
@@ -149,6 +186,10 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
   const hp = createReplayHpContext(input.cardDefinitions, input.format, input.selfCardDefinitions, input.date);
   const enteredPlay = new Map<string, number>();
   const lastEvolution = new Map<string, number>();
+  // Original top printing and complete attached-component history survive a
+  // positional projection. These references are not extra physical inventory.
+  const retainedTops = new Map<string, { actor: ReplayActor; memberIds: string[]; top: ReplayZoneCard; components?: string[] }>();
+  const pendingTopDepartures: Array<{ actor: ReplayActor; destination: "discard"; id: string; topIds: string[] }> = [];
   let currentSection = -1;
   let currentAction = -1;
   let currentLine = "";
@@ -270,7 +311,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
     return opening && !needsRedraw && activePlaced && setup.prizesAfterTurn[name] === 6;
   });
   if (completeSetup) for (const actor of ["self", "opponent"] as const) {
-    Object.assign(initial[actor], { deckCount: 60, handCount: 0, inPlayCount: 0, discardCount: 0, prizesRemaining: 0 });
+    Object.assign(initial[actor], { deckCount: 60, handCount: 0, inPlayCount: 0, discardCount: 0, discardIdentitiesKnown: true, prizesRemaining: 0 });
   }
   const sectionEnds = new Map<number, (typeof sections)[number]>();
   let offset = 0;
@@ -354,7 +395,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       if (countsUnknown && zones.includes("prizes")) side.prizesRemaining = null;
       if (zones.includes("board")) side.hpModifiersKnown = false;
       if (countsUnknown && zones.includes("board")) side.inPlayCount = null;
-      if (countsUnknown && zones.includes("discard")) side.discardCount = null;
+      if (countsUnknown && zones.includes("discard")) { side.discardCount = null; side.discardIdentitiesKnown = false; }
     };
     const clearUncertain = (actor: ReplayActor, zone: NonNullable<ReplaySide["uncertainZones"]>[number]) => {
       if (next[actor].uncertainZones) next[actor].uncertainZones = next[actor].uncertainZones!.filter((item) => item !== zone);
@@ -375,14 +416,12 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       next[actor].discard.unshift(...cards);
       discardedThisAction.push(...cards.map((card) => ({ actor, name: card.name })));
     };
-    const takeDiscard = (actor: ReplayActor, names: string[]) => {
-      for (const name of names) {
-        const index = next[actor].discard.findIndex((card) => card.name === name);
-        // A recorded origin establishes a real card even when earlier discard
-        // history is absent; do not manufacture a duplicate retained in the pile.
-        if (index >= 0) next[actor].discard.splice(index, 1);
-        else { markUncertain(actor, ["discard"], false); next.partial = true; }
-      }
+    const takeDiscard = (actor: ReplayActor, names: string[], complete = next[actor].discardIdentitiesKnown === true || next[actor].discardIdentitiesKnown === undefined && next[actor].discardCount === next[actor].discard.length) => {
+      const side = next[actor];
+      const missing = names.some((name) => names.filter((value) => value === name).length > side.discard.filter((card) => card.name === name).length);
+      const evidence = removeKnownZone(side.discard, names, complete);
+      if (missing) { side.discardIdentitiesKnown = false; markUncertain(actor, ["discard"], false); next.partial = true; }
+      return evidence;
     };
     const ownerAndName = (value: string, fallback?: ReplayActor): { actor: ReplayActor; name: string } => {
       for (const [player, actor] of [[input.selfPlayerName, "self"], [input.opponentPlayerName, "opponent"]] as const) {
@@ -406,6 +445,10 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
           if (plan.status === "known" && plan.operation === "put_counters" && plan.trigger) pendingBenchTriggers.push({ actor, cardId: card.id, section: action.sourceSectionIndex, stadium: next.stadium.name });
         }
       });
+      if (kind === "evolve" && actor && cards.some((card) => next[actor].active === card)) {
+        next[actor].active!.activeEpisodeId = `active:${actor}:${actionIndex}:${currentLineOrdinal}:top`;
+        delete next[actor].active!.activePrintingEffects;
+      }
       if (proof.printing && actor) cards.forEach((card) => {
         if (!card.definitionOwner) card.definitionOwner = actor;
         hp.applyPrintingProofToCard(card, actor, kind === "before" ? actionIndex : actionIndex + 1, proof.printing!);
@@ -615,6 +658,15 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       card.conditions = []; delete card.abilityUsed;
     };
     const uncertainCopies = (actor: ReplayActor, cards: ReplayCard[]) => {
+      const memberIds = cards.map((card) => card.id);
+      for (const retained of retainedTops.values()) if (retained.actor === actor && retained.memberIds.some((id) => memberIds.includes(id))) {
+        retained.memberIds = [...new Set([...retained.memberIds, ...memberIds])];
+      }
+      for (const card of cards) if (card.physicalCardId && !card.instanceUncertain) {
+        retainedTops.set(card.physicalCardId, { actor, memberIds: [...memberIds], top: topCardEvidence(card.id, card),
+          components: [...card.underlying.map((layer) => layer.name),
+            ...card.energy.map((energy) => /Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`), ...(card.tool ? [card.tool] : [])].sort() });
+      }
       const common = cards[0] && structuredClone(cards[0]);
       const same = (value: (card: ReplayCard) => unknown) => cards.every((card) => JSON.stringify(value(card)) === JSON.stringify(value(common)));
       const size = common && cards.map((card) => card.knownStackSize ?? (card.instanceUncertain ? null : physicalCardCount(card)));
@@ -632,7 +684,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       ]);
       // Reference-only groups may include earlier placement alternatives.
       // They cannot widen the eligible owners of an existing component pool.
-      addBoardPool(actor, cards, pooled, cards.map((card) => topCardEvidence(card.id, card)));
+      addBoardPool(actor, cards, pooled, cards.filter((card) => card.physicalCardId).map((card) => topCardEvidence(card.id, card)));
       // Pooled attachment uncertainty is derived from the live pool, so its
       // removal recovers HP. Preserve only independent existing flag evidence.
       const modifierUncertain = cards.some((card) => card.hpModifierUncertain);
@@ -643,7 +695,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
         if (!values.every((value) => value === values[0])) cards.forEach((card) => history.delete(card.id));
       }
       cards.forEach((card, index) => {
-        uncertainCopy(card); if (modifierUncertain) card.hpModifierUncertain = true; else delete card.hpModifierUncertain; card.observedEffects = [...sharedEffects]; delete card.definitionKey;
+        uncertainCopy(card); delete card.physicalCardId; if (modifierUncertain) card.hpModifierUncertain = true; else delete card.hpModifierUncertain; card.observedEffects = [...sharedEffects]; delete card.definitionKey;
         if (!sameSet) { delete card.setId; delete card.localId; }
         if (sharedSize !== undefined) card.knownStackSize = sharedSize; else delete card.knownStackSize;
         if (sharedDamage) { card.damage = common.damage; card.damageKnown = true; }
@@ -800,8 +852,9 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       }
       side.bench = side.bench.filter((card) => card.id !== target.id);
       side.unplaced = side.unplaced?.filter((card) => card.id !== target.id);
-      if (side.active) { side.active.conditions = []; side.bench.unshift(side.active); }
+      if (side.active) { side.active.conditions = []; delete side.active.activeEpisodeId; delete side.active.activePrintingEffects; side.bench.unshift(side.active); }
       side.active = target; side.activeUncertain = false; lastPromotionActor = actor;
+      target.activeEpisodeId = `active:${actor}:${actionIndex}:${currentLineOrdinal}`; delete target.activePrintingEffects;
       // Once the sole Active is established, all surviving in-play copies have
       // a known Bench position even if their attachment/damage assignment does not.
       side.bench.push(...(side.unplaced ?? [])); side.unplaced = [];
@@ -815,12 +868,14 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       try {
         transferCounts(actor, origin as CountZone, destination as CountZone, amount);
         if (origin === "discard") {
-          takeDiscard(actor, names);
+          const recovered = takeDiscard(actor, names, side.discardIdentitiesKnown === true || side.discardIdentitiesKnown === undefined && side.discardCount != null && side.discardCount + amount === side.discard.length);
+          cards.forEach((card, index) => Object.assign(card, recovered[index]));
           if (names.length < amount) {
+            side.discardIdentitiesKnown = false;
             markUncertain(actor, ["discard"], false); next.partial = true;
             errors.push("Some recovered discard card identities are not recorded.");
           }
-        } else if (origin === "hand") removeHand(side, names, amount, destination as CountZone);
+        } else if (origin === "hand") { const removed = removeHand(side, names, amount, destination as CountZone); cards.forEach((card, index) => Object.assign(card, removed[index])); }
         else if (origin === "deck") side.deckCount = changeCount(side.deckCount, -amount, zones);
         else throw new Unresolved("The moved cards' origin is not supported.");
         if (destination === "hand") { side.handCount = changeCount(side.handCount, amount, zones); side.knownHand.push(...cards); }
@@ -1090,9 +1145,8 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
           if (next.stadium?.name === name) {
             addDiscard(next.stadium.actor, [zoneCard(id(), name)], "board"); next.stadium = null; continue;
           }
-          if (origin === "deck") next[actor].deckCount = changeCount(next[actor].deckCount, -1, ["deck"]);
-          else removeHand(next[actor], [name], 1, "discard");
-          cards.push(zoneCard(id(), name));
+          if (origin === "deck") { next[actor].deckCount = changeCount(next[actor].deckCount, -1, ["deck"]); cards.push(zoneCard(id(), name)); }
+          else cards.push({ ...zoneCard(id(), name), ...removeHand(next[actor], [name], 1, "discard")[0] });
         }
         addDiscard(actor, cards, origin); stage("discard", "Discard", cards, actor); mutationCount++; return true;
       }
@@ -1105,9 +1159,9 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       if ((match = line.match(/^(.+?) played (.+?) to (?:the )?(Active Spot|Bench)$/i))) {
         const actor = actorFor(match[1]); const side = next[actor]; const card = pokemon(physicalId(), match[2]);
         if (match[3] === "Active Spot" && side.active) throw new Unresolved("The Active Spot is already occupied.");
-        removeHand(side, [match[2]], 1, "board");
+        Object.assign(card, removeHand(side, [match[2]], 1, "board")[0]);
         transferCounts(actor, "hand", "board", 1);
-        if (match[3] === "Active Spot") side.active = card; else side.bench.push(card);
+        if (match[3] === "Active Spot") { side.active = card; card.activeEpisodeId = `active:${actor}:${actionIndex}:${currentLineOrdinal}`; } else side.bench.push(card);
         stage("bench", match[3], [card], actor); label = "Pokémon"; mutationCount++; return true;
       }
       if ((match = line.match(/^(.+?) devolved (.+?)['’]s (.+?) to (.+?) (?:in|on) the (Active Spot|Bench)$/i))) {
@@ -1145,7 +1199,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
         const card = candidates[0]; const basisFields = { ...basis }; delete basisFields.boardRole;
         if (!bases.every((base) => base.setId === bases[0].setId && base.localId === bases[0].localId)) { delete basisFields.setId; delete basisFields.localId; }
         basisFields.observedEffects = (bases[0].observedEffects ?? []).filter((effect) => bases.every((base) => base.observedEffects?.includes(effect)));
-        delete card.setId; delete card.localId; Object.assign(card, basisFields); delete card.definitionKey; delete card.knownStackSize; card.damageKnown = false; card.instanceUncertain = true;
+        delete card.setId; delete card.localId; Object.assign(card, basisFields); delete card.physicalCardId; delete card.definitionKey; delete card.knownStackSize; card.damageKnown = false; card.instanceUncertain = true;
         for (const pool of next[actor].boardPools ?? []) pool.memberIds = pool.memberIds.map((id) => id === originalId ? card.id : id);
         const memberIds = candidates.map((card) => card.id);
         const commonLayers = [...commonReturned]; commonLayers.splice(commonLayers.indexOf(match[3]), 1);
@@ -1183,11 +1237,12 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       if ((match = line.match(/^(.+?) evolved (.+?) to (.+?) (?:in|on) the (Active Spot|Bench)$/i))) {
         const actor = actorFor(match[1]); const card = findEvolutionCard(actor, match[2], match[4]);
         stage("before", "From", [card], actor);
-        card.underlying.push(topCardEvidence(physicalId(), card));
+        const newTopId = physicalId();
+        card.underlying.push(topCardEvidence(newTopId, card));
         if (card.knownStackSize !== undefined) card.knownStackSize++;
         delete card.setId; delete card.localId; delete card.definitionKey;
-        Object.assign(card, zoneCard(card.id, match[3]), { hp: null, conditions: [], abilityUsed: false, observedEffects: [] });
-        removeHand(next[actor], [match[3]], 1, "board"); transferCounts(actor, "hand", "board", 1); lastEvolution.set(card.id, action.sourceSectionIndex); stage("evolve", "Evolve", [card], actor);
+        Object.assign(card, zoneCard(card.id, match[3]), { physicalCardId: newTopId, hp: null, conditions: [], abilityUsed: false, observedEffects: [] });
+        Object.assign(card, removeHand(next[actor], [match[3]], 1, "board")[0]); transferCounts(actor, "hand", "board", 1); lastEvolution.set(card.id, action.sourceSectionIndex); stage("evolve", "Evolve", [card], actor);
         label = "Evolve"; mutationCount++; return true;
       }
       if ((match = line.match(/^(.+?) attached (.+?) to (.+?) (?:in|on) the (Active Spot|Bench)(?: from (?:their |the )?(hand|deck|discard pile))?$/i))) {
@@ -1236,7 +1291,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       }
       if ((match = line.match(/^(.+?) retreated (.+?) to (?:the )?Bench$/i))) {
         const actor = actorFor(match[1]); const side = next[actor]; retreating = findCard(side, match[2], "Active Spot");
-        stage("move", "Out", [retreating], actor); retreating.conditions = [];
+        stage("move", "Out", [retreating], actor); retreating.conditions = []; delete retreating.activeEpisodeId; delete retreating.activePrintingEffects;
         side.bench.push(retreating); side.active = null; label = "Retreat"; mutationCount++; return true;
       }
       if ((match = line.match(/^(.+?)['’]s (.+?) is now in the Active Spot$/i))) {
@@ -1333,10 +1388,10 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       if ((match = line.match(/^(.+?) discarded (a|\d+) cards?(?: from (?:their |the )?(hand|deck))?$/i))) {
         const actor = actorFor(match[1]); const names = cardList(detailIndex); const amount = count(match[2]);
         if (names.length > amount) throw new Unresolved("The discarded list exceeds its recorded count.");
-        if (names.length < amount) { markUncertain(actor, ["discard"], false); next.partial = true; errors.push("Some discarded card identities are not recorded."); }
+        if (names.length < amount) { next[actor].discardIdentitiesKnown = false; markUncertain(actor, ["discard"], false); next.partial = true; errors.push("Some discarded card identities are not recorded."); }
+        const removed = match[3] === "deck" ? [] : removeHand(next[actor], names, amount, "discard");
         if (match[3] === "deck") next[actor].deckCount = changeCount(next[actor].deckCount, -amount, ["deck"]);
-        else removeHand(next[actor], names, amount, "discard");
-        const cards = names.map((name) => zoneCard(id(), name));
+        const cards = names.map((name, index) => ({ ...zoneCard(id(), name), ...removed[index] }));
         addDiscard(actor, cards, match[3] === "deck" ? "deck" : "hand", amount); stage("discard", "Discard", cards, actor, amount - names.length); mutationCount++; return true;
       }
       if ((match = line.match(/^(.+?) (?:was|were) discarded from (.+?)['’]s (.+)$/i))) {
@@ -1546,8 +1601,8 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
           next.stadium = { actor, name: match[2], imageUrl: zoneCard(id(), match[2]).imageUrl };
           stage("stadium", "Stadium", [zoneCard(id(), match[2])], actor); label = "Stadium"; mutationCount++; return true;
         }
-        removeHand(next[actor], [match[2]], 1, kind === "tool" ? "board" : "discard");
-        next.playedCard = { actor, card: zoneCard(id(), match[2]) };
+        const playedEvidence = removeHand(next[actor], [match[2]], 1, kind === "tool" ? "board" : "discard")[0];
+        next.playedCard = { actor, card: { ...zoneCard(id(), match[2]), ...playedEvidence } };
         stage("play", "Play", [next.playedCard.card], actor);
         const disposition = !kind ? hp.trainerDisposition({ name, definitionOwner: actor }) : null;
         if (["item", "supporter"].includes(kind ?? "") || disposition?.status === "known" && disposition.destination === "discard") addDiscard(actor, [structuredClone(next.playedCard.card)]);
@@ -1720,6 +1775,17 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
           const amount = recordedAttachments ? recordedAmount(recordedAttachments[1]) : namedExhaustsBudget ? namedAmount : retainedEnergy ? 0 : null;
           const candidateSizes = candidates.map((card) => card.knownStackSize ?? (card.instanceUncertain ? null : physicalCardCount(card)));
           const discardedComponents: ReplayZoneCard[] = [];
+          // A full recorded below-top multiset can identify an original top
+          // whose position was lost, without guessing which projected ID it was.
+          const listed = recordedAttachments && discardDetailIndex >= 0 ? cardList(discardDetailIndex) : [];
+          const retainedGroup = [...retainedTops.values()].filter((retained) => retained.actor === actor && retained.top.name === knockout[2]
+            && retained.memberIds.some((id) => candidates.some((card) => card.id === id)));
+          const completeTopAlternatives = retainedGroup.length >= candidates.length
+            && candidates.every((card) => retainedGroup.some((retained) => retained.top.id === card.id))
+            && retainedGroup.every((retained) => retained.components !== undefined);
+          const eligibleRetained = completeTopAlternatives && amount !== null && recordedAttachments && listed.length === amount
+            ? retainedGroup.filter((retained) => retained.components && JSON.stringify(retained.components) === JSON.stringify([...listed].sort())) : [];
+          const provenTop = eligibleRetained.length === 1 ? eligibleRetained[0].top : undefined;
           if (candidates.length) {
             const side = next[actor]; const activeAffected = candidates.some((card) => card.id === side.active?.id);
             uncertainCopies(actor, candidates);
@@ -1736,7 +1802,16 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
               side.bench = side.bench.filter((card) => !survivors.some((survivor) => survivor.id === card.id));
               side.unplaced = [...(side.unplaced ?? []).filter((card) => !survivors.some((survivor) => survivor.id === card.id)), ...survivors];
             }
-            side.discard.unshift(topCardEvidence(id(), removed));
+            const discardedTop = provenTop ? { ...structuredClone(provenTop), id: id() } : topCardEvidence(id(), removed);
+            side.discard.unshift(discardedTop);
+            stage("discard", "Knocked out top", [discardedTop], actor);
+            if (!provenTop && retainedGroup.length) pendingTopDepartures.push({ actor, destination: "discard", id: discardedTop.id,
+              topIds: retainedGroup.map((retained) => retained.top.physicalCardId!) });
+            if (provenTop?.physicalCardId) {
+              retainedTops.delete(provenTop.physicalCardId);
+              for (const pool of side.boardPools ?? []) pool.memberEvidence = pool.memberEvidence?.filter((card) => card.physicalCardId !== provenTop.physicalCardId);
+            }
+            for (const retained of retainedTops.values()) if (retained.actor === actor) retained.memberIds = retained.memberIds.filter((id) => id !== removed.id);
             restoreCounterSurvivors(actor, knockout[2], candidates, removed.id);
           }
           // PTCGL's discarded-from total includes every card below the top
@@ -1765,6 +1840,23 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
           } else {
             markUncertain(actor, ["board", "discard"]);
             aggregateKnockout = { actor, name: knockout[2], belowTop: null, reportedBelowTop: 0, memberIds: candidates.map((card) => card.id) };
+          }
+          // If individual KO order remains unresolved, the whole original
+          // multiset still becomes known once every possible top is in discard.
+          // New presentation IDs avoid claiming an arbitrary KO ordinal.
+          for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor === actor)) {
+            const originalIds = pending.topIds.filter((key) => retainedTops.has(key));
+            const related = pendingTopDepartures.filter((entry) => entry.actor === actor && entry.topIds.some((key) => originalIds.includes(key)));
+            const originals = originalIds.map((key) => retainedTops.get(key)!);
+            if (!originals.length || originals.some((entry) => entry.memberIds.length) || related.length !== originals.length
+              || related.some((entry) => !next[actor].discard.some((card) => card.id === entry.id))) continue;
+            const moved = originals.map((entry) => ({ ...structuredClone(entry.top), id: id() }));
+            const replaced = new Set(related.map((entry) => entry.id));
+            next[actor].discard = [...moved, ...next[actor].discard.filter((card) => !replaced.has(card.id))];
+            for (const key of originalIds) retainedTops.delete(key);
+            for (let index = pendingTopDepartures.length - 1; index >= 0; index--) if (related.includes(pendingTopDepartures[index])) pendingTopDepartures.splice(index, 1);
+            for (const pool of next[actor].boardPools ?? []) pool.memberEvidence = pool.memberEvidence?.filter((card) => !card.physicalCardId || !originalIds.includes(card.physicalCardId));
+            stage("discard", "Resolved printing multiset", moved, actor);
           }
           refreshBoardPools(actor, "discard", sizes.size === 1 && aggregateKnockout?.belowTop !== null && discardedComponents.length === aggregateKnockout.belowTop, sizes.size === 1);
         } else {
@@ -1819,7 +1911,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
           } else uncertainCopies(actor, candidates);
           if (evolution && candidates.length) {
             const target = candidates[0]; target.underlying.push(topCardEvidence(physicalId(), target)); if (target.knownStackSize !== undefined) target.knownStackSize++; lastEvolution.set(target.id, action.sourceSectionIndex); delete target.setId; delete target.localId; delete target.definitionKey;
-            target.name = evolution[3]; target.observedEffects = []; target.hp = null;
+            target.name = evolution[3]; delete target.physicalCardId; target.observedEffects = []; target.hp = null;
           }
           markUncertain(actor, ["board"], false); side.hpModifiersKnown = modifierKnowledge;
           // The log establishes one physical card leaving this source even
@@ -1863,6 +1955,12 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       const affected = directTargetOwner && [input.selfPlayerName, input.opponentPlayerName].includes(directTargetOwner) ? [actorFor(directTargetOwner)] : damageMutation && /damage counters?/.test(line) ? ["self", "opponent"] as const : actors.length ? actors : damageMutation && damageApplied.size
         ? (["self", "opponent"] as const).filter((actor) => allCards(next[actor]).some((card) => damageApplied.has(card.id)))
         : [event.actor];
+      const severTopContinuity = (actor: ReplayActor) => {
+        const named = allCards(next[actor]).filter((card) => line.includes(card.name));
+        const cards = named.length ? named : allCards(next[actor]);
+        for (const card of cards) { delete card.physicalCardId; delete card.activeEpisodeId; delete card.activePrintingEffects; card.instanceUncertain = true; }
+        for (const [key, retained] of retainedTops) if (retained.actor === actor && retained.memberIds.some((id) => cards.some((card) => card.id === id))) retainedTops.delete(key);
+      };
       for (const actor of affected) {
         if (damageMutation) {
           const attackTarget = /^.+?['’]s .+? used .+? on (.+?)['’]s (.+?) for \d+\+? damage/.exec(line);
@@ -1880,13 +1978,20 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
         } else if (/^(?:moved|returned|put|shuffled)\b/i.test(verb) || /(?:was|were) added to .+?['’]s hand$/i.test(line)) {
           // Without a supported origin even the last public discard/board may
           // have changed. Preserve it only as explicitly incomplete history.
+          severTopContinuity(actor);
           markUncertain(actor, ["hand", "deck", "discard", "board"]);
         } else if (/^discarded\b/i.test(verb)) {
           markUncertain(actor, [/ from (?:their |the )?deck$/i.test(verb) ? "deck" : "hand", "discard"]);
         } else if (/^(?:draw|drew)\b/i.test(verb)) {
           markUncertain(actor, ["hand", "deck"]);
-        } else if (/^(?:attached|evolved|retreated|switched|played)\b/i.test(verb)
-          || /(?:is now in the Active Spot|was Knocked Out|to become the Active Pok[eé]mon)$/i.test(line)) {
+        } else if (/^(?:attached|evolved|devolved|retreated|switched|played)\b/i.test(verb)
+          || /(?:is now in the Active Spot|was Knocked Out|was devolved|to become the Active Pok[eé]mon)$/i.test(line)) {
+          // An unsupported top/position change cannot keep an individual
+          // physical lineage on the last-seen projection. Attachments alone
+          // change the stack, not the immutable top printing.
+          if (!/^attached\b/i.test(verb)) {
+            severTopContinuity(actor);
+          }
           markUncertain(actor, ["board", "hand"]);
         } else {
           // An unknown effect can change either player's zones. Keep last seen
@@ -2038,7 +2143,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       // evidence-pass operation needs a second copy for its rollback fallback.
       const evidenceBefore = before;
       const beforeStages = structuredClone(stages);
-      const beforeContext = { selectedCopies: new Map(selectedCopies), counterEliminations: structuredClone(counterEliminations), recordedKnockoutBindings: new Map(recordedKnockoutBindings), boardShuffleActivation: boardShuffleActivation ? { ...boardShuffleActivation } : null, pendingPrizeAnnotations: structuredClone(pendingPrizeAnnotations), earlyPrizeAnnotations: new Map(earlyPrizeAnnotations), pendingBenchTriggers: [...pendingBenchTriggers], bonusDraw: bonusDraw ? { ...bonusDraw } : null, enteredPlay: new Map(enteredPlay), lastEvolution: new Map(lastEvolution), prizeAction, prizeCardsAdded, prizeAmount, attackDamage, expectedBreakdownDamage, devolutionActor, devolutionReturned: [...devolutionReturned], healed: healed ? { ...healed } : null, retreatingId: retreating?.id, knockedOut: knockedOut ? structuredClone(knockedOut) : null, aggregateKnockout: aggregateKnockout ? { ...aggregateKnockout } : null, label, damageBreakdown, lastPromotionActor, cardCounter, physicalCounter, damageApplied: new Map(damageApplied), changedCountZones: { self: new Set(changedCountZones.self), opponent: new Set(changedCountZones.opponent) } };
+      const beforeContext = { pendingTopDepartures: structuredClone(pendingTopDepartures), retainedTops: structuredClone(retainedTops), selectedCopies: new Map(selectedCopies), counterEliminations: structuredClone(counterEliminations), recordedKnockoutBindings: new Map(recordedKnockoutBindings), boardShuffleActivation: boardShuffleActivation ? { ...boardShuffleActivation } : null, pendingPrizeAnnotations: structuredClone(pendingPrizeAnnotations), earlyPrizeAnnotations: new Map(earlyPrizeAnnotations), pendingBenchTriggers: [...pendingBenchTriggers], bonusDraw: bonusDraw ? { ...bonusDraw } : null, enteredPlay: new Map(enteredPlay), lastEvolution: new Map(lastEvolution), prizeAction, prizeCardsAdded, prizeAmount, attackDamage, expectedBreakdownDamage, devolutionActor, devolutionReturned: [...devolutionReturned], healed: healed ? { ...healed } : null, retreatingId: retreating?.id, knockedOut: knockedOut ? structuredClone(knockedOut) : null, aggregateKnockout: aggregateKnockout ? { ...aggregateKnockout } : null, label, damageBreakdown, lastPromotionActor, cardCounter, physicalCounter, damageApplied: new Map(damageApplied), changedCountZones: { self: new Set(changedCountZones.self), opponent: new Set(changedCountZones.opponent) } };
       const beforeDiscarded = structuredClone(discardedThisAction);
       const beforeCount = mutationCount;
       const beforeErrors = errors.length;
@@ -2062,6 +2167,8 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
         discardedThisAction.splice(0, discardedThisAction.length, ...beforeDiscarded);
         mutationCount = beforeCount; counterEliminations = beforeContext.counterEliminations; recordedKnockoutBindings.clear(); beforeContext.recordedKnockoutBindings.forEach((value, key) => recordedKnockoutBindings.set(key, value)); boardShuffleActivation = beforeContext.boardShuffleActivation; pendingPrizeAnnotations = beforeContext.pendingPrizeAnnotations; earlyPrizeAnnotations.clear(); beforeContext.earlyPrizeAnnotations.forEach((value, key) => earlyPrizeAnnotations.set(key, value)); pendingBenchTriggers = beforeContext.pendingBenchTriggers;
         for (const [history, saved] of [[enteredPlay, beforeContext.enteredPlay], [lastEvolution, beforeContext.lastEvolution]]) { history.clear(); saved.forEach((value, key) => history.set(key, value)); }
+        pendingTopDepartures.splice(0, pendingTopDepartures.length, ...beforeContext.pendingTopDepartures);
+        retainedTops.clear(); beforeContext.retainedTops.forEach((value, key) => retainedTops.set(key, value));
         selectedCopies.clear(); beforeContext.selectedCopies.forEach((value, key) => selectedCopies.set(key, value));
         prizeAction = beforeContext.prizeAction; prizeCardsAdded = beforeContext.prizeCardsAdded; prizeAmount = beforeContext.prizeAmount; bonusDraw = beforeContext.bonusDraw;
         attackDamage = beforeContext.attackDamage; expectedBreakdownDamage = beforeContext.expectedBreakdownDamage; devolutionActor = beforeContext.devolutionActor; devolutionReturned = beforeContext.devolutionReturned; healed = beforeContext.healed; knockedOut = beforeContext.knockedOut; aggregateKnockout = beforeContext.aggregateKnockout;
@@ -2084,6 +2191,24 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
           next.partial = true; applyLine(raw, detailIndex, true); return;
         } else invalidate(raw, detailIndex, error);
       }
+      const componentNames = (state: ReplayState, actor: ReplayActor, memberIds: string[]) => {
+        const side = state[actor];
+        return [...allCards(side).filter((card) => memberIds.includes(card.id)).flatMap((card) => [
+          ...card.underlying.map((layer) => layer.name), ...card.energy.map((energy) => /Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`), ...(card.tool ? [card.tool] : [])]),
+          ...(side.boardPools ?? []).filter((pool) => pool.memberIds.some((id) => memberIds.includes(id))).flatMap((pool) => pool.cards.map((card) => card.name))].sort();
+      };
+      const isKnockout = /^.+?['’]s .+? was Knocked Out/i.test(clean(raw))
+        || / (?:was|were) discarded from /i.test(clean(raw)) && Boolean(aggregateKnockout || knockedOut);
+      let attachmentTransfer = false;
+      if (/^.+? attached .+? Energy to /i.test(clean(raw))) {
+        try { attachmentTransfer = effectOrigin(raw, detailIndex) === "board"; }
+        catch { attachmentTransfer = true; } // Conflicting origin cannot preserve an old allocation proof.
+      }
+      const redistribution = attachmentTransfer || /\b(?:moved|transferred|reassigned|rearranged)\b/i.test(clean(raw)) && /\b(?:Energy|Tool|attachments?)\b/i.test(clean(raw));
+      if (!isKnockout) for (const retained of retainedTops.values()) {
+        if (redistribution && (clean(raw).includes(retained.top.name) || attachmentTransfer)
+          || JSON.stringify(componentNames(evidenceBefore, retained.actor, retained.memberIds)) !== JSON.stringify(componentNames(next, retained.actor, retained.memberIds))) delete retained.components;
+      }
       captureCopyLine(raw, evidenceBefore, detailIndex);
     };
     applyLine(action.sourceTitle, -1);
@@ -2098,7 +2223,11 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       const card = allCards(next[fact.actor]).find((candidate) => candidate.id === fact.id && candidate.name === fact.name && !candidate.instanceUncertain);
       if (card) { card.abilityUsed = true; for (const effect of fact.effects) observeEffect(card, effect); }
     }
-    for (const actor of ["self", "opponent"] as const) refreshBoardPools(actor);
+    for (const actor of ["self", "opponent"] as const) {
+      refreshBoardPools(actor);
+      const side = next[actor];
+      if (side.discardCount != null && side.discardCount !== side.discard.length) side.discardIdentitiesKnown = false;
+    }
     const section = sectionEnds.get(actionIndex);
     if (section) for (const actor of ["self", "opponent"] as const) {
       const name = actor === "self" ? input.selfPlayerName : input.opponentPlayerName;

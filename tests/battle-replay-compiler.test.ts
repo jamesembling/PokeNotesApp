@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { compileBattleReplay, type ReplayLogSource } from "@/lib/battle-replay/compiler";
 import type { LogAction, LogSection } from "@/types/index";
-import type { ReplayCard, ReplaySide } from "@/lib/battle-replay/types";
+import type { ReplayCard, ReplaySide, ReplayZoneCard } from "@/lib/battle-replay/types";
 import { collectMissingReplayArtworkNames, resolveReplayArtwork, selectReplayArtworkPrinting } from "@/lib/battle-replay/artwork";
 import { createReplayHpContext, replayCardDefinitionEvidence } from "@/lib/battle-replay/hp";
 import { selectExactReplayArtwork } from "@/lib/battle-replay/selected-artwork-server";
 import { collectReplayDefinitionNames } from "@/lib/battle-replay/metadata";
-import { resolveEnergyMarkers } from "@/lib/battle-replay/preview";
+import { resolveEnergyMarkers, resolveReplayCardPreviewDefinition } from "@/lib/battle-replay/preview";
+import { collectReplayPrintingProofs } from "@/lib/battle-replay/printing-proofs";
 import { canonicalReplayGame, expectedGameChanges, syntheticCardDefinition, type ExpectedSide } from "./fixtures/battle-replay-game";
 
 import { getLinkedReplayDefinitions, getReplayLinkedDeckListCompatibility } from "@/lib/battle-replay/linked-deck-list";
@@ -241,11 +242,11 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.deepEqual(hpReplay.diagnostics.unresolvedActions, []);
   // Real PTCGL wording with anonymized players; public card metadata isolates
   // immutable top-printing evidence from the evolving physical stack.
-  const festivalPrint = syntheticCardDefinition({ name: "Dipplin", sourceCardId: "sv06-018", setId: "sv06", localId: "018", hp: 80, stage: "Stage1", setReleaseDate: "2024-05-24",
+  const festivalPrint = syntheticCardDefinition({ name: "Dipplin", sourceCardId: "sv06-018", setId: "sv06", localId: "018", hp: 80, stage: "Stage1", setReleaseDate: "2024-05-24", sourceUrl: "https://api.tcgdex.net/v2/en/cards/sv06-018", imageUrl: "https://assets.tcgdex.net/en/sv/sv06/018/high.webp",
     abilities: [{ name: "Festival Lead", type: "Ability", text: "If Festival Grounds is in play, this Pokémon may use an attack it has twice. If the first attack Knocks Out your opponent's Active Pokémon, you may attack again after your opponent chooses a new Active Pokémon." }],
     attacks: [{ name: "Do the Wave", text: "This attack does 20 damage for each of your Benched Pokémon.", damage: "20×", cost: ["Grass"] }] });
-  const dipplinPrints = [festivalPrint, { ...festivalPrint, sourceCardId: "sv06-170", localId: "170" },
-    { ...festivalPrint, sourceCardId: "sv10-017", setId: "sv10", localId: "017", hp: 90, setReleaseDate: "2025-05-30", abilities: [], attacks: [{ name: "Energy Loop", text: "Put an Energy attached to this Pokémon into your hand.", damage: "50", cost: ["Grass"] }] }];
+  const dipplinPrints = [festivalPrint, { ...festivalPrint, sourceCardId: "sv06-170", localId: "170", sourceUrl: "https://api.tcgdex.net/v2/en/cards/sv06-170", imageUrl: "https://assets.tcgdex.net/en/sv/sv06/170/high.webp" },
+    { ...festivalPrint, sourceCardId: "sv10-017", setId: "sv10", localId: "017", hp: 90, setReleaseDate: "2025-05-30", sourceUrl: "https://api.tcgdex.net/v2/en/cards/sv10-017", imageUrl: "https://assets.tcgdex.net/en/sv/sv10/017/high.webp", abilities: [], attacks: [{ name: "Energy Loop", text: "Put an Energy attached to this Pokémon into your hand.", damage: "50", cost: ["Grass"] }] }];
   const dipplinSource = { ...source([
     section("", [action("PlayerTwo played Applin to the Active Spot."), action("PlayerTwo played Applin to the Bench."), action("PlayerOne played Budew to the Active Spot.")]),
     section("PlayerTwo", [action("PlayerTwo evolved Applin to Dipplin in the Active Spot."), action("PlayerTwo evolved Applin to Dipplin on the Bench.")]),
@@ -272,6 +273,144 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   const noDipplinWitness = compileBattleReplay({ ...dipplinSource, sections: dipplinSource.sections.slice(0, -1) });
   assert.equal(noDipplinWitness.frames.at(-1)!.opponent.active?.baseHp, 90);
   assert.equal(noDipplinWitness.frames.at(-1)!.opponent.active?.hpBasis, "probable");
+
+  // Anonymized recorded placements, native attacks, switch and KO wording.
+  // Unrelated source actions are omitted; attachment/position uncertainty may
+  // not erase an independently proven physical top's printing family.
+  const continuitySource = { ...source([
+    section("", [action("PlayerTwo played Applin to the Active Spot."), action("PlayerTwo played Applin to the Bench."), action("PlayerTwo played Grookey to the Bench."), action("PlayerOne played Budew to the Active Spot.")]),
+    section("PlayerTwo", [
+      action("PlayerTwo attached Basic Grass Energy to Applin on the Bench."),
+      action("PlayerTwo evolved Applin to Dipplin in the Active Spot."),
+      action("PlayerTwo evolved Applin to Dipplin on the Bench."),
+      action("PlayerTwo evolved Grookey to Thwackey on the Bench."),
+      action("PlayerTwo attached Basic Grass Energy to Dipplin in the Active Spot."),
+      action("PlayerTwo attached Brave Bangle to Dipplin in the Active Spot."),
+      action("PlayerTwo's Dipplin used Do the Wave on PlayerOne’s Budew for 100 damage.", ["- Damage breakdown:", "• 5 Benched Pokémon: 100 damage"]),
+    ]),
+    section("PlayerOne", [action("PlayerOne played Boss's Orders.", ["- PlayerTwo's Thwackey was switched with PlayerTwo's Dipplin to become the Active Pokémon.", "PlayerTwo's Thwackey is now in the Active Spot."])]),
+    section("PlayerTwo", [
+      action("PlayerTwo played Kieran.", ["- PlayerTwo chose Switch your Active Pokémon with 1 of your Benched Pokémon.", "- PlayerTwo's Dipplin was switched with PlayerTwo's Thwackey to become the Active Pokémon.", "PlayerTwo's Dipplin is now in the Active Spot."]),
+      action("PlayerTwo's Dipplin used Do the Wave on PlayerOne’s Budew for 100 damage.", ["- Damage breakdown:", "• 5 Benched Pokémon: 100 damage"]),
+    ]),
+    section("PlayerOne", [
+      action("PlayerTwo's Dipplin was Knocked Out!", ["- 3 cards were discarded from PlayerTwo's Dipplin.", "• Basic Grass Energy, Applin, Brave Bangle"]),
+      action("PlayerTwo's Dipplin was Knocked Out!", ["- 2 cards were discarded from PlayerTwo's Dipplin.", "• Basic Grass Energy, Applin"]),
+    ]),
+  ]), cardDefinitions: { ...dipplinSource.cardDefinitions,
+    grookey: resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Grookey", hp: 70, abilities: [], attacks: [] })]), { name: "Grookey" }),
+    thwackey: resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Thwackey", hp: 100, stage: "Stage1", abilities: [], attacks: [] })]), { name: "Thwackey" }),
+    "brave bangle": resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Brave Bangle", category: "Trainer", trainerType: "Tool", hp: null, attacks: [], rules: ["If the Pokémon this card is attached to doesn't have a Rule Box, the attacks it uses do 30 more damage to your opponent's Active Pokémon ex (before applying Weakness and Resistance). (Pokémon ex, Pokémon V, etc. have Rule Boxes.)"] })]), { name: "Brave Bangle" }),
+  }, effectTags: { "PlayerTwo attached Brave Bangle to Dipplin in the Active Spot.": "tool" as const } };
+  const printingContinuity = compileBattleReplay(continuitySource);
+  const witnessedPhysicalId = printingContinuity.frames[11].opponent.active?.physicalCardId;
+  assert.ok(witnessedPhysicalId, "printing continuity has a physical identity independent of the stack's presentation ID");
+  const basicPhysicalId = printingContinuity.frames[11].opponent.active?.underlying[0]?.physicalCardId;
+  const otherCopyPhysicalId = printingContinuity.frames[11].opponent.bench[0]?.physicalCardId;
+  assert.ok(basicPhysicalId);
+  assert.ok(otherCopyPhysicalId);
+  assert.notEqual(witnessedPhysicalId, basicPhysicalId, "the evolved top and its Basic layer are separate physical cards");
+  assert.notEqual(witnessedPhysicalId, otherCopyPhysicalId, "same-name copies have separate physical printing identities");
+  const establishedImage = resolveReplayCardPreviewDefinition(printingContinuity.frames[11].opponent.active!, printingContinuity)?.selectedPrinting?.imageUrl;
+  assert.ok(dipplinPrints.slice(0, 2).some((print) => print.imageUrl === establishedImage));
+  const assertPrintingFamily = (card: ReplayZoneCard, message: string, program = printingContinuity, requiresRetainedNativeEffect = true) => {
+    const preview = resolveReplayCardPreviewDefinition(card, program);
+    assert.equal(preview?.printedHp, 80, message);
+    assert.equal(preview?.hpBasis, "known", message);
+    assert.deepEqual(preview?.candidatePrintingIds?.slice().sort(), ["sv06-018", "sv06-170"], message);
+    assert.equal(preview?.selectedPrinting?.imageUrl, establishedImage, message);
+    assert.equal(preview?.selectedDefinition?.imageUrl, establishedImage, message);
+    if (requiresRetainedNativeEffect) assert.ok(card.observedEffects?.includes("Do the Wave"), message);
+  };
+  for (const position of [6, 9, 10, 11]) {
+    assert.equal(printingContinuity.frames[position].opponent.active?.physicalCardId, witnessedPhysicalId);
+    assertPrintingFamily(printingContinuity.frames[position].opponent.active!, "attachment changes preserve the native-witness printing from evolution onwards");
+  }
+  assertPrintingFamily(printingContinuity.frames[13].opponent.active!, "a continuous Active episode retains its later native printing before the attack even when the incoming original copy is unresolved", printingContinuity, false);
+  assert.equal(printingContinuity.frames[13].opponent.active?.physicalCardId, undefined, "functional printing evidence for the Active episode does not assign an original physical copy");
+  const separateEpisodes = compileBattleReplay({ ...continuitySource,
+    sections: continuitySource.sections.map((entry, index) => index === 1 ? { ...entry, actions: entry.actions.slice(0, -1) } : entry),
+  });
+  const separatingSwitch = separateEpisodes.events.findIndex((entry) => entry.sourceTitle === "PlayerOne played Boss's Orders.");
+  const earlierUnwitnessedTop = separateEpisodes.frames[separatingSwitch].opponent.active!;
+  assert.ok(resolveReplayCardPreviewDefinition(earlierUnwitnessedTop, separateEpisodes)?.candidatePrintingIds?.includes("sv10-017"),
+    "a native witness in a later ambiguous Active episode cannot identify an earlier episode across a recorded switch");
+  assert.ok(!earlierUnwitnessedTop.observedEffects?.includes("Do the Wave"));
+  const firstKo = printingContinuity.events.findIndex((entry) => entry.sourceDetails.some((detail) => detail.includes("Brave Bangle") && detail.startsWith("•")));
+  const discardedTop = printingContinuity.frames[firstKo + 1].opponent.discard.find((card) => card.name === "Dipplin")!;
+  assert.equal(discardedTop.physicalCardId, witnessedPhysicalId, "the complete named KO bundle identifies the original Tool carrier without guessing its position");
+  assertPrintingFamily(discardedTop, "the named Tool KO witness retains the established top printing after an ambiguous same-name promotion");
+  const discardedPreview = printingContinuity.events[firstKo].transaction?.stages.find((stage) => stage.kind === "discard")?.cards.find((card) => card.name === "Dipplin");
+  assert.ok(discardedPreview, "the identified KO supplies its top-card transaction preview");
+  assert.equal(discardedPreview.physicalCardId, witnessedPhysicalId);
+  assertPrintingFamily(discardedPreview, "KO transaction artwork and discard preview preserve the same native printing evidence");
+  assertPrintingFamily(printingContinuity.frames.at(-1)!.opponent.discard.find((card) => card.id === discardedTop.id)!, "a later same-name KO cannot replace an earlier discard printing query");
+  const recoveryTitle = "PlayerTwo played Lana's Aid.";
+  const printingRecoverySource = { ...dipplinSource,
+    // The recorded seven-card opening and six-Prize setup establish an empty
+    // prior discard; a placement-only excerpt cannot prove unique recovery.
+    sections: [section("", [action("PlayerOne drew 7 cards for the opening hand."), action("PlayerTwo drew 7 cards for the opening hand."), ...dipplinSource.sections[0].actions]),
+    ...dipplinSource.sections.slice(1, -1), section("PlayerTwo", [
+      action("PlayerTwo attached Basic Grass Energy to Dipplin in the Active Spot."),
+      ...dipplinSource.sections.at(-1)!.actions,
+    ]), section("PlayerOne", [action("PlayerTwo's Dipplin was Knocked Out!", ["- 2 cards were discarded from PlayerTwo's Dipplin.", "• Basic Grass Energy, Applin"])]),
+    section("PlayerTwo", [action(recoveryTitle, ["- PlayerTwo moved PlayerTwo's 3 cards to their hand.", "• Applin, Dipplin, Basic Grass Energy"])])],
+    cardDefinitions: { ...dipplinSource.cardDefinitions,
+      "lana's aid": resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Lana's Aid", category: "Trainer", trainerType: "Supporter", hp: null, attacks: [], rules: ["Put up to 3 in any combination of Pokémon that don't have a Rule Box and Basic Energy cards from your discard pile into your hand. (Pokémon ex, Pokémon V, etc. have Rule Boxes.)"] })]), { name: "Lana's Aid" }),
+    }, effectOrigins: { [recoveryTitle]: "discard" },
+  } satisfies ReplayLogSource;
+  const printingRecovery = compileBattleReplay(printingRecoverySource);
+  const recoveredTop = printingRecovery.frames.at(-1)!.opponent.knownHand.find((card) => card.name === "Dipplin")!;
+  const recoveryKoIndex = printingRecovery.events.findIndex((entry) => entry.sourceTitle === "PlayerTwo's Dipplin was Knocked Out!");
+  const recoveredPhysicalId = printingRecovery.frames[recoveryKoIndex].opponent.active?.physicalCardId;
+  assert.ok(recoveredPhysicalId);
+  assert.equal(recoveredTop.physicalCardId, recoveredPhysicalId, "a unique discard recovery retains physical identity rather than allocating a new name-only card");
+  assertPrintingFamily(recoveredTop, "recovering the sole named discarded top retains its proven native family and artwork", printingRecovery);
+  const recoveryPreview = printingRecovery.events.at(-1)?.transaction?.stages.find((stage) => stage.kind === "return")?.cards.find((card) => card.name === "Dipplin");
+  assert.ok(recoveryPreview, "the named recovery supplies its returned top-card transaction preview");
+  assert.equal(recoveryPreview.physicalCardId, recoveredPhysicalId);
+  assertPrintingFamily(recoveryPreview, "recovery transaction and hand preview preserve the discard's printing evidence", printingRecovery);
+  const partialPrintingRecovery = compileBattleReplay({ ...printingRecoverySource,
+    sections: printingRecoverySource.sections.map((entry, index) => index ? entry : { ...entry, actions: entry.actions.slice(2) }),
+  });
+  assert.equal(partialPrintingRecovery.frames.at(-1)!.opponent.knownHand.find((card) => card.name === "Dipplin")?.physicalCardId, undefined,
+    "a placement-only excerpt cannot identify which discarded namesake was recovered before the saved game boundary");
+
+  // Recorded Dunsparce/Dudunsparce wording: the verified Ability and its
+  // departing top exist only in transaction snapshots after this action.
+  const runawayPrint = syntheticCardDefinition({ name: "Dudunsparce", sourceCardId: "sv05-129", setId: "sv05", localId: "129", hp: 140, stage: "Stage1", types: ["Colorless"], evolvesFrom: "Dunsparce", rules: null,
+    imageUrl: "https://assets.tcgdex.net/en/sv/sv05/129/high.webp", sourceUrl: "https://api.tcgdex.net/v2/en/cards/sv05-129", setReleaseDate: "2024-03-22",
+    abilities: [{ name: "Run Away Draw", type: "Ability", text: "Once during your turn, you may draw 3 cards. If you drew any cards in this way, shuffle this Pokémon and all attached cards into your deck." }],
+    attacks: [{ name: "Land Crush", text: null, damage: "90", cost: ["Colorless", "Colorless", "Colorless"] }] });
+  const departureDefinitions = {
+    dunsparce: resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Dunsparce", hp: 70, abilities: [], attacks: [] })]), { name: "Dunsparce" }),
+    dudunsparce: resolveCardDefinition(buildCardDefinitionIndex([runawayPrint,
+      { ...runawayPrint, sourceCardId: "sv08.5-080", setId: "sv08.5", localId: "080", setReleaseDate: "2025-01-17", imageUrl: "https://assets.tcgdex.net/en/sv/sv08.5/080/high.webp", sourceUrl: "https://api.tcgdex.net/v2/en/cards/sv08.5-080" },
+      { ...runawayPrint, sourceCardId: "sv02-157", setId: "sv02", localId: "157", setReleaseDate: "2023-06-09", imageUrl: "https://assets.tcgdex.net/en/sv/sv02/157/high.webp", sourceUrl: "https://api.tcgdex.net/v2/en/cards/sv02-157", abilities: [],
+        attacks: [{ name: "Mud-Slap", text: null, damage: "30", cost: ["Colorless"] }, { name: "Dig Away Flash", text: "Your opponent's Active Pokémon is now Paralyzed. Shuffle this Pokémon and all attached cards into your deck.", damage: "100", cost: ["Colorless", "Colorless", "Colorless", "Colorless"] }] },
+    ]), { name: "Dudunsparce" }),
+  };
+  const stageDeparture = compileBattleReplay({ ...source([section("", [action("PlayerTwo played Dunsparce to the Active Spot."), action("PlayerTwo played Shuppet to the Bench.")]), section("PlayerTwo", [
+    action("PlayerTwo evolved Dunsparce to Dudunsparce in the Active Spot."),
+    action("PlayerTwo played Dudunsparce.", ["- PlayerTwo drew 3 cards.", "- PlayerTwo shuffled 2 cards into their deck.", "• Dudunsparce, Dunsparce", "PlayerTwo's Shuppet is now in the Active Spot."]),
+  ])]), cardDefinitions: departureDefinitions, effectTags: { "PlayerTwo played Dudunsparce.": "ability" } });
+  const departingTop = stageDeparture.frames[3].opponent.active!;
+  const departureFamily = ["sv05-129", "sv08.5-080"];
+  assert.deepEqual(resolveReplayCardPreviewDefinition(departingTop, stageDeparture)?.candidatePrintingIds?.slice().sort(), departureFamily,
+    "a verified native Ability followed by departure proves its earlier physical top even with equal printed HP across families");
+  assert.ok(departingTop.observedEffects?.includes("Run Away Draw"));
+  assert.equal(stageDeparture.frames[4].opponent.active?.name, "Shuppet");
+  for (const stage of stageDeparture.events[3].transaction!.stages.filter((entry) => entry.kind === "ability" || entry.kind === "shuffle")) {
+    const top = stage.cards.find((card) => card.name === "Dudunsparce")!;
+    assert.equal(top.physicalCardId, departingTop.physicalCardId);
+    assert.deepEqual(resolveReplayCardPreviewDefinition(top, stageDeparture)?.candidatePrintingIds?.slice().sort(), departureFamily);
+  }
+  const departureHp = createReplayHpContext(departureDefinitions);
+  const departurePlan = collectReplayPrintingProofs(stageDeparture, departureHp.resolve);
+  const unrelatedNamesake = { ...departingTop, physicalCardId: `${departingTop.physicalCardId}-other`, observedEffects: [] };
+  departureHp.applyPrintingProofToCard(unrelatedNamesake, "opponent", 3, departurePlan);
+  assert.deepEqual(unrelatedNamesake.observedEffects, [], "a transaction-only native witness cannot identify another same-name physical top");
+  assert.equal(departureHp.resolve(unrelatedNamesake)?.candidates.length, 3);
 
   const absentRival = { ...cardDefinitions };
   delete absentRival.rival;
