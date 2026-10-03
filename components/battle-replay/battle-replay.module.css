@@ -2088,7 +2088,7 @@ button.pile:disabled {
   }
   .playArea:has(.bench:is([data-capacity="6"], [data-capacity="7"], [data-capacity="8"])) .field { display: contents; }
   .playArea:has(.bench:is([data-capacity="6"], [data-capacity="7"], [data-capacity="8"])) .activeRow { grid-area: field; }
-  .bench .cardStack { --energy-exposure: 0.85rem; --energy-layer-gap: 0.3rem; }
+  .bench .cardStack { --energy-exposure: 0.4rem; --energy-layer-gap: 0.2rem; }
 }
 .cardStack:not([data-compact]) .boardEnergyOrbs { --energy-orb-size: 1.3rem; --energy-orb-count-size: 0.7rem; }
 .cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.9rem; --energy-orb-count-size: 0.55rem; }
