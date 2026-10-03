@@ -5,7 +5,14 @@ import type {
   ReplayState,
   ReplayTransactionStage,
   ReplayZoneCard,
+  ReplayProgram,
 } from "@/lib/battle-replay/types";
+
+/** Gameplay and preview look up the same physical-card evidence query. */
+export function resolveReplayCardPreviewDefinition(card: Pick<ReplayZoneCard, "definitionKey">, program: Pick<ReplayProgram, "cardResolutions">) {
+  return card.definitionKey && Object.hasOwn(program.cardResolutions ?? {}, card.definitionKey)
+    ? program.cardResolutions![card.definitionKey] : undefined;
+}
 
 const boardStateStageKinds = new Set<ReplayTransactionStage["kind"]>([
   "ability",

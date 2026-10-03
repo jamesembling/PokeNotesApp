@@ -981,7 +981,33 @@ button.pile:disabled {
   background: color-mix(in oklab, black 70%, transparent);
 }
 
-.cardPreviewStage { display: grid; justify-items: center; width: min(78vw, 22rem, 55dvh); gap: 0.65rem; }
+.cardPreviewStage {
+  display: grid;
+  justify-items: center;
+  width: min(78vw, 22rem, 55dvh);
+  max-height: calc(88dvh - 2rem);
+  box-sizing: content-box;
+  gap: 0.65rem;
+  padding: 1rem;
+  margin: -1rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cardPreviewStage:focus-visible { outline: 2px solid var(--ring); outline-offset: 0.2rem; }
+.printedCardDetails {
+  display: grid;
+  width: 100%;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
 .cardPreviewImage { position: relative; width: 100%; aspect-ratio: 0.714; filter: drop-shadow(0 1.25rem 1.5rem color-mix(in oklab, var(--foreground) 30%, transparent)); }
 .cardPreviewImage > img { border-radius: 0.75rem; object-fit: cover; }
 .cardPreviewTool { position: absolute; z-index: 1; color: white; font-size: 0.72rem; font-weight: 800; line-height: 1; box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 28%, transparent); }

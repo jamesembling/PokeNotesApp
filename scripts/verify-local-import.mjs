@@ -655,13 +655,14 @@ async function verifyReplayCollection(db, userId, original) {
     await page.keyboard.press("Escape");
     await requireRestoredFocus(preview, "Preview Dreepy");
     await page.getByRole("button", { name: "Switch to light mode", exact: true }).click();
-    const discard = page.getByRole("button", { name: "View discard, 1 card", exact: true });
+    const discard = page.locator('section[data-actor="self"]').getByRole("button", { name: "View discard, total count unknown", exact: true });
     await discard.click();
     const gallery = page.getByRole("dialog", { name: "Your discard pile", exact: true });
     await gallery.waitFor();
-    await gallery.getByText("Basic Fire Energy", { exact: true }).waitFor();
-    await captureReplay("battle-replay-discard-gallery", false);
+    await gallery.getByText("1 known card · total unknown · identified cards, newest first", { exact: true }).waitFor();
     const discardedCard = gallery.getByRole("button", { name: "Preview Basic Fire Energy", exact: true });
+    await discardedCard.waitFor();
+    await captureReplay("battle-replay-discard-gallery", false);
     await discardedCard.click();
     await page.getByRole("dialog", { name: "Basic Fire Energy", exact: true }).waitFor();
     await captureReplay("battle-replay-discard-card-preview", false);
@@ -669,7 +670,7 @@ async function verifyReplayCollection(db, userId, original) {
     await requireRestoredFocus(discardedCard, "Preview Basic Fire Energy in discard gallery");
     checkpoint("restore discard gallery focus after Escape");
     await page.keyboard.press("Escape");
-    await requireRestoredFocus(discard, "View discard, 1 card");
+    await requireRestoredFocus(discard, "View discard, total count unknown");
     await verifyReplayLayouts(scrubber);
     checkpoint("verify published card definitions reach replay HP and card preview");
     const syntheticDefinitions = [
@@ -678,7 +679,8 @@ async function verifyReplayCollection(db, userId, original) {
       { name: "Fixture Charm", hp: null, category: "Trainer", trainerType: "Tool", rules: ["The Pokémon this card is attached to gets +100 HP."] },
     ].map((card, index) => ({ source: "tcgdex", sourceCardId: `e2e-definition-${index}`, setId: "synthetic", localId: String(index),
       setReleaseDate: "2025-01-01", stage: card.category === "Pokemon" ? "Basic" : null, types: card.category === "Pokemon" ? ["Grass"] : null,
-      evolvesFrom: null, regulationMark: null, abilities: [],
+      evolvesFrom: null, regulationMark: null, abilities: index === 0
+        ? [{ name: "Fixture Glow", text: "Once during your turn, you may draw a card.", type: "Ability" }] : [],
       attacks: card.category === "Pokemon" ? [{ name: "Tap", text: null, damage: "10", cost: ["Grass"] }] : [], sourceUpdatedAt: null,
       sourceUrl: `https://api.tcgdex.net/v2/en/cards/e2e-definition-${index}`, syncedAt: new Date().toISOString(), ...card }));
     await query(db.from("card_definition_generations").insert({ id: definitionGeneration, source: "tcgdex", expected_count: 3,
@@ -694,6 +696,36 @@ async function verifyReplayCollection(db, userId, original) {
       "An attached Tool must affect only its recorded physical target.");
     await page.getByLabel(`${rows[2].self_deck_name} Active Spot`, { exact: true }).getByRole("button", { name: "Preview Seedling", exact: true }).click();
     await page.getByRole("dialog", { name: "Seedling", exact: true }).getByText("170 / 170 HP", { exact: true }).waitFor();
+    const definitionDialog = page.getByRole("dialog", { name: "Seedling", exact: true });
+    const printedDetails = definitionDialog.getByRole("region", { name: "Card preview details", exact: true });
+    await definitionDialog.getByText(/Representative printing.*SYNTHETIC 0.*70 printed HP/).scrollIntoViewIfNeeded();
+    assert.equal(await definitionDialog.getByText("Fixture Glow", { exact: true }).count(), 1,
+      "The resolved printing's Ability must reach the card preview.");
+    await definitionDialog.getByText("Tap", { exact: true }).scrollIntoViewIfNeeded();
+    assert.equal(await definitionDialog.getByText("Tap", { exact: true }).count(), 1,
+      "The resolved printing's attack must reach the same card preview.");
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await definitionDialog.getByText("Tap", { exact: true }).scrollIntoViewIfNeeded();
+      const geometry = await printedDetails.evaluate(element => ({
+        top: element.getBoundingClientRect().top, bottom: element.getBoundingClientRect().bottom,
+        viewportHeight: window.innerHeight, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight,
+      }));
+      assert.ok(geometry.top >= 0 && geometry.bottom <= geometry.viewportHeight,
+        "Printed card details must stay in the viewport at desktop and mobile widths.");
+      await printedDetails.focus();
+      await page.keyboard.press("Home");
+      await page.keyboard.press("End");
+      const attackBounds = await definitionDialog.getByText("Tap", { exact: true }).boundingBox();
+      const regionBounds = await printedDetails.boundingBox();
+      assert.ok(attackBounds && regionBounds && attackBounds.y >= regionBounds.y &&
+        attackBounds.y + attackBounds.height <= regionBounds.y + regionBounds.height,
+      "Keyboard scrolling must bring the printed attack into the visible details region.");
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const restoredPreview = await printedDetails.boundingBox();
+    assert.ok(restoredPreview && restoredPreview.y >= 0 && restoredPreview.y + restoredPreview.height <= 900,
+      "The details preview must remain in the viewport after restoring desktop size.");
     await captureReplay("battle-replay-verified-hp", false);
     await page.keyboard.press("Escape");
     await page.getByRole("link", { name: "Choose another game", exact: true }).click();

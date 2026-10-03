@@ -34,6 +34,8 @@ export type CardDefinition = {
 };
 
 export type CardDefinitionCoverage = "complete" | "incomplete" | "stale" | "unavailable";
+export type CardPrintingIdentity = Pick<CardDefinition, "source" | "sourceCardId" | "setId" | "localId" | "imageUrl" | "sourceUrl">;
+export type CardDefinitionFacts = Pick<CardDefinition, "hp" | "category" | "trainerType" | "stage" | "types" | "evolvesFrom" | "rules" | "abilities" | "attacks">;
 export type CardDefinitionEvidence = {
   coverage: CardDefinitionCoverage;
   generation: string | null;
@@ -44,6 +46,12 @@ export type CardDefinitionEvidence = {
   hp: number | null;
   resolution: "exact" | "functional_agreement" | "ambiguous" | "missing";
   definition: CardDefinition | null;
+  candidatePrintingIds?: string[];
+  selectedPrinting?: CardPrintingIdentity | null;
+  /** A selected representative never establishes which physical printing was played. */
+  displayBasis?: "played_evidence" | "representative" | "unavailable";
+  agreedFacts?: Partial<CardDefinitionFacts>;
+  formatBasis?: { declared: string; status: "applied" | "partial" | "unsupported" | "conflicting"; minimumRegulationMark?: string; latestReleaseDate?: string };
 };
 export type CardDefinitionEvidenceByName = Record<string, CardDefinitionEvidence>;
-export type CardDefinitionQuery = { name: string; setId?: string; localId?: string; effectNames?: string[] };
+export type CardDefinitionQuery = { name: string; setId?: string; localId?: string; effectNames?: string[]; declaredFormat?: string };

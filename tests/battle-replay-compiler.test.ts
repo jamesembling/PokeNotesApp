@@ -37,7 +37,7 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
     active: projectCard(side.active), bench: side.bench.map(projectCard), hand: side.handCount,
     known: side.knownHand.map((card) => card.name), discard: side.discard.map((card) => card.name),
   });
-  const blank: ExpectedSide = { active: null, bench: [], hand: null, known: [], discard: [] };
+  const blank: ExpectedSide = { active: null, bench: [], hand: 0, known: [], discard: [] };
   let expected = { self: structuredClone(blank), opponent: structuredClone(blank), stadium: null as string | null };
   const expectedFrames = [structuredClone(expected)];
   for (const change of expectedGameChanges) {
@@ -47,8 +47,18 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.equal(complete.frames.length, expectedFrames.length);
   complete.frames.forEach((frame, index) => {
     assert.deepEqual({ self: projectSide(frame.self), opponent: projectSide(frame.opponent), stadium: frame.stadium?.name ?? null }, expectedFrames[index], `frame ${index}: ${complete.events[index - 1]?.sourceTitle ?? "initial"}`);
-    assert.equal(frame.self.deckCount, null, "a log without a deck count cannot invent one");
-    assert.equal(frame.opponent.deckCount, null);
+    const selfDeck = index === 0 ? 60 : index < 5 ? 53 : index < 6 ? 47 : index < 7 ? 45 : index < 17 ? 43 : index < 30 ? 42 : index < 31 ? 44 : 41;
+    const opponentDeck = index < 2 ? 60 : index < 5 ? 53 : index < 12 ? 47 : 46;
+    assert.equal(frame.self.deckCount, selfDeck, "complete setup establishes 60 minus recorded draws and six setup Prizes");
+    assert.equal(frame.opponent.deckCount, opponentDeck, "hidden card identities do not hide public zone totals");
+    for (const actor of ["self", "opponent"] as const) {
+      const side = frame[actor];
+      const physicalInPlay = [side.active, ...side.bench].reduce<number>((total, card) => total + (card ? 1 + card.underlying.length + card.energy.length + Number(Boolean(card.tool)) : 0), 0)
+        + Number(frame.stadium?.actor === actor);
+      assert.equal(side.inPlayCount, physicalInPlay, "in-play totals count physical cards rather than occupied Pokémon slots");
+      assert.equal(side.discardCount, side.discard.length, "complete discard evidence agrees with its independent pile total");
+      assert.equal(side.deckCount! + side.handCount! + side.prizesRemaining! + side.inPlayCount! + side.discardCount!, 60, "every settled complete frame conserves all sixty physical cards");
+    }
     for (const side of [frame.self, frame.opponent]) for (const card of [side.active, ...side.bench]) if (card) assert.equal(card.hp, null);
   });
   assert.deepEqual(complete.diagnostics.unresolvedActions, []);
@@ -135,7 +145,7 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
     action("PlayerOne evolved Seedling to Sprout on the Bench."),
     action("PlayerOne attached Forest Seal Stone to Sprout on the Bench."),
     action("PlayerOne attached Double Turbo Energy to Sprout on the Bench."),
-    action("PlayerOne's Sprout was Knocked Out!", ["3 cards were discarded from PlayerOne's Sprout.", "• Basic Grass Energy, Double Turbo Energy, Forest Seal Stone"]),
+    action("PlayerOne's Sprout was Knocked Out!", ["4 cards were discarded from PlayerOne's Sprout.", "• Seedling, Basic Grass Energy, Double Turbo Energy, Forest Seal Stone"]),
     action("PlayerOne moved Seedling from their discard pile to their hand."),
     action("PlayerOne shuffled Double Turbo Energy from their discard pile into their deck."),
   ])]);
@@ -341,8 +351,8 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.equal(replay.source.result, "Unknown");
   assert.equal(replay.source.playedOn, "2026-10-01");
   assert.deepEqual(replay.diagnostics.unresolvedActions, []);
-  assert.equal(replay.frames[0].self.handCount, null);
-  assert.equal(replay.frames[0].self.deckCount, null);
+  assert.equal(replay.frames[0].self.handCount, 0);
+  assert.equal(replay.frames[0].self.deckCount, 60);
   assert.equal(replay.frames[2].self.handCount, 7);
   assert.equal(replay.frames[4].self.handCount, 6);
   assert.deepEqual(replay.frames[7].self.active?.conditions, ["Poisoned"]);
@@ -456,7 +466,7 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     action("PlayerOne put 2 damage counters on PlayerOne's Seedling."),
     action("PlayerOne rearranged unknown cards in their hand."),
   ])]));
-  assert.equal(handOnly.frames[4].self.handCount, null);
+  assert.equal(handOnly.frames[4].self.handCount, 1, "a hand permutation cannot change its physical card count");
   assert.deepEqual(handOnly.frames[4].self.knownHand, []);
   assert.equal(handOnly.frames[4].self.active?.damage, 20);
   assert.notEqual(handOnly.frames[4].self.active?.damageKnown, false, "a hand-only unknown action cannot invalidate recorded damage");
@@ -483,9 +493,184 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     action(reconTitle, ["PlayerOne drew Supply."]),
   ])]), effectTags: { [reconTitle]: "ability" }, cardDefinitions: { drakloak: reconEvidence } });
   assert.ok(missingSource.events[2].unresolved?.length);
-  assert.deepEqual(missingSource.frames[3].self.uncertainZones, ["hand", "deck"], "verified card-selection text constrains an unresolved source to the hand and deck");
+  assert.deepEqual(missingSource.frames[3].self.uncertainZones ?? [], [], "a verified selection plus its recorded draw preserves independent zone facts despite a missing source copy");
   assert.equal(missingSource.frames[3].self.active?.damage, 20);
   assert.notEqual(missingSource.frames[3].self.active?.damageKnown, false);
+
+  const completeSetup = section("", [
+    action("PlayerOne drew 7 cards for the opening hand."), action("PlayerTwo drew 7 cards for the opening hand."),
+    action("PlayerOne played Starter to the Active Spot."), action("PlayerTwo played Rival to the Active Spot."),
+    action("PlayerOne played Twin to the Bench."), action("PlayerOne played Twin to the Bench."),
+  ]);
+  const countInput = { ...source([completeSetup, section("PlayerOne", [
+    action("PlayerOne attached Basic Grass Energy to Twin on the Bench."),
+    action("PlayerOne attached Basic Water Energy to Twin on the Bench."),
+    action("PlayerOne evolved Twin to Sprout on the Bench."),
+    action(reconTitle, ["PlayerOne drew Supply."]),
+    action("PlayerOne's Twin was Knocked Out!", ["2 cards were discarded from PlayerOne's Twin.", "• Basic Grass Energy, Basic Water Energy"]),
+    action("PlayerOne attached Basic Fire Energy from their deck to Twin on the Bench."),
+    action("PlayerOne drew 2 cards."),
+    action("PlayerOne shuffled 5 cards from their hand into their deck."),
+  ])]), effectTags: { [reconTitle]: "ability" as const }, cardDefinitions: { drakloak: reconEvidence } };
+  const counted = compileBattleReplay(countInput);
+  assert.equal(counted.frames[6].self.deckCount, 47);
+  assert.equal(counted.frames[6].self.handCount, 4);
+  assert.equal(counted.frames[8].self.handCount, 2, "one Energy leaves hand even when the receiving Twin is ambiguous");
+  assert.equal(counted.frames[9].self.handCount, 1, "one evolution card leaves hand independently of the underlying copy choice");
+  assert.equal(counted.frames[9].self.inPlayCount, 6, "ambiguous attachment and evolution destinations preserve their independent physical-card totals");
+  assert.equal(counted.frames[10].self.deckCount, 46);
+  assert.equal(counted.frames[10].self.handCount, 2);
+  assert.equal(counted.frames[11].self.deckCount, 46, "KO and attachment-discard ambiguity cannot change the deck");
+  assert.equal(counted.frames[11].opponent.deckCount, 47, "the other player's deck remains independent");
+  assert.equal(counted.frames[12].self.deckCount, 45, "an explicit deck attachment moves one card even if its recipient is ambiguous");
+  assert.equal(counted.frames[13].self.deckCount, 43);
+  assert.equal(counted.frames[13].self.handCount, 4);
+  assert.equal(counted.frames[14].self.deckCount, null, "returning five cards from a reconstructed four-card hand is a genuine count contradiction");
+  assert.equal(counted.frames[14].self.handCount, null);
+  assert.ok(counted.events[13].unresolved?.length);
+  assert.equal(counted.frames[14].opponent.deckCount, 47);
+  const countedKo = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    action("PlayerOne attached Basic Grass Energy to Twin on the Bench."),
+    action("PlayerOne attached Basic Water Energy to Twin on the Bench."),
+    action("PlayerOne's Twin was Knocked Out!", ["2 cards were discarded from PlayerOne's Twin."]),
+  ])]));
+  assert.equal(countedKo.frames[8].self.inPlayCount, 5);
+  assert.equal(countedKo.frames[9].self.inPlayCount, 2, "recorded KO attachment counts identify a physical total without selecting a receiving copy");
+  assert.equal(countedKo.frames[9].self.discardCount, 3, "KO moves its top Pokémon and two attachments exactly once even when identities are missing");
+  assert.equal(countedKo.frames[9].self.deckCount, 47);
+  assert.equal(countedKo.frames[9].self.handCount, 2);
+  const evolvedKoActions = [
+    action("PlayerOne evolved Twin to Sprout on the Bench."),
+    action("PlayerOne evolved Twin to Sprout on the Bench."),
+  ];
+  const evolvedKo = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    ...evolvedKoActions,
+    action("PlayerOne attached Basic Grass Energy to Sprout on the Bench."),
+    action("PlayerOne attached Basic Water Energy to Sprout on the Bench."),
+    action("PlayerOne's Sprout was Knocked Out!", ["2 cards were discarded from PlayerOne's Sprout.", "• Twin, Basic Grass Energy"]),
+  ])]));
+  assert.equal(evolvedKo.frames[10].self.inPlayCount, 7);
+  assert.equal(evolvedKo.frames[11].self.inPlayCount, 4, "the KO detail's two cards already include the underlying evolution card");
+  assert.equal(evolvedKo.frames[11].self.discardCount, 3, "recorded cards below the top Pokémon plus that top card move once");
+  assert.equal(evolvedKo.frames[11].self.deckCount, 47);
+  const malformedKo = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    ...evolvedKoActions,
+    action("PlayerOne attached Basic Grass Energy to Sprout on the Bench."),
+    action("PlayerOne attached Basic Water Energy to Sprout on the Bench."),
+    action("PlayerOne's Sprout was Knocked Out!", ["2 cards were discarded from PlayerOne's Sprout.", "• Twin, Basic Grass Energy, Basic Water Energy"]),
+  ])]));
+  assert.equal(malformedKo.frames[11].self.inPlayCount, null, "a list longer than the recorded KO quantity cannot establish a physical stack count");
+  assert.equal(malformedKo.frames[11].self.discardCount, null);
+  assert.equal(malformedKo.frames[11].self.deckCount, 47);
+  const namedLayerKo = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    ...evolvedKoActions,
+    action("PlayerOne put a damage counter on PlayerOne's Sprout."),
+    action("PlayerOne's Sprout was Knocked Out!", ["Twin was discarded from PlayerOne's Sprout."]),
+  ])]));
+  assert.equal(namedLayerKo.frames[10].self.inPlayCount, 3, "a named underlying card is part of the already-counted KO stack");
+  assert.equal(namedLayerKo.frames[10].self.discardCount, 2);
+  assert.equal(namedLayerKo.frames[10].self.deckCount, 47);
+  const uniqueToolTitle = "PlayerOne attached HP Tool to Sprout on the Bench.";
+  const contradictoryKnownKo = compileBattleReplay({ ...source([completeSetup, section("PlayerOne", [
+    evolvedKoActions[0],
+    action("PlayerOne attached Basic Grass Energy to Sprout on the Bench."),
+    action(uniqueToolTitle),
+    action("PlayerOne's Sprout was Knocked Out!", ["2 cards were discarded from PlayerOne's Sprout.", "• Basic Grass Energy, HP Tool"]),
+  ])]), effectTags: { [uniqueToolTitle]: "tool" } });
+  assert.equal(contradictoryKnownKo.frames[9].self.inPlayCount, 6);
+  assert.equal(contradictoryKnownKo.frames[10].self.inPlayCount, null, "a numeric KO total contradicting a fully known stack cannot silently omit its evolution layer");
+  assert.equal(contradictoryKnownKo.frames[10].self.discardCount, null);
+  assert.equal(contradictoryKnownKo.frames[10].self.deckCount, 47);
+  assert.equal(contradictoryKnownKo.frames[10].self.handCount, 1);
+  assert.ok(contradictoryKnownKo.events[9].unresolved?.length);
+  const anonymousBench = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    action("PlayerOne drew 2 cards and played them to the Bench."),
+  ])]));
+  assert.equal(anonymousBench.frames[7].self.deckCount, 45);
+  assert.equal(anonymousBench.frames[7].self.handCount, 4);
+  assert.equal(anonymousBench.frames[7].self.inPlayCount, 5, "anonymous board identities do not hide an explicit two-card Bench transfer");
+  const incompleteSetup = compileBattleReplay({ ...countInput, sections: [section("", completeSetup.actions.slice(1))] });
+  assert.equal(incompleteSetup.frames.at(-1)?.self.deckCount, null);
+  assert.equal(incompleteSetup.frames.at(-1)?.opponent.deckCount, null, "one missing opening hand cannot establish a complete setup");
+  const missingDraw = compileBattleReplay({ ...countInput, sections: [completeSetup, section("PlayerOne", [action(reconTitle)])] });
+  assert.equal(missingDraw.frames[7].self.deckCount, null, "effect text alone does not establish how many optional selections occurred");
+  const mulligan = compileBattleReplay(source([section("", [
+    action("PlayerOne drew 7 cards for the opening hand."), action("PlayerTwo drew 7 cards for the opening hand."),
+    action("PlayerOne took a mulligan."), action("PlayerOne drew 7 cards for the opening hand."),
+    action("PlayerTwo drew 2 cards."), action("PlayerOne played Starter to the Active Spot."), action("PlayerTwo played Rival to the Active Spot."),
+  ])]));
+  assert.deepEqual(mulligan.diagnostics.unresolvedActions, []);
+  assert.equal(mulligan.frames.at(-1)?.self.deckCount, 47, "a mulligan returns the previous opening hand before redrawing");
+  assert.equal(mulligan.frames.at(-1)?.opponent.deckCount, 45, "recorded bonus draws reduce the opponent's deck separately from Prize setup");
+  const incompleteRedraw = compileBattleReplay(source([section("", [
+    ...completeSetup.actions, action("PlayerOne took a mulligan."),
+  ])]));
+  assert.equal(incompleteRedraw.frames[0].self.deckCount, null, "a setup with no redraw after a mulligan cannot establish the game boundary");
+  const lateMulligan = compileBattleReplay(source([section("", [
+    ...completeSetup.actions, action("PlayerOne took a mulligan."), action("PlayerOne drew 7 cards for the opening hand."),
+  ])]));
+  assert.equal(lateMulligan.frames[0].self.deckCount, null, "mulligans cannot occur after setup Pokémon placements");
+  const duplicateOpening = compileBattleReplay(source([section("", [
+    ...completeSetup.actions, action("PlayerOne drew 7 cards for the opening hand."),
+  ])]));
+  assert.equal(duplicateOpening.frames[0].self.deckCount, null, "a duplicate opening hand without a mulligan cannot establish the game boundary");
+  const incompletePrizes = compileBattleReplay(source([{ ...completeSetup, prizesAfterTurn: { PlayerOne: 6, PlayerTwo: 5 } }]));
+  assert.equal(incompletePrizes.frames[0].self.deckCount, null, "the six-card Prize setup is required for the standard game boundary");
+
+  const countScope = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    action("PlayerOne discarded 5 cards."),
+    action("PlayerOne drew 2 cards."),
+  ])]));
+  assert.equal(countScope.frames[7].self.handCount, null, "a hand-only removal contradicts the four-card hand");
+  assert.equal(countScope.frames[7].self.deckCount, 47, "a contradictory hand discard cannot invalidate the independently evidenced deck");
+  assert.equal(countScope.frames[7].self.discardCount, null, "a failed hand-to-discard transfer invalidates both sides of that quantity boundary");
+  assert.ok([countScope.frames[7].self.deckCount, countScope.frames[7].self.handCount, countScope.frames[7].self.inPlayCount, countScope.frames[7].self.discardCount, countScope.frames[7].self.prizesRemaining]
+    .reduce<number>((total, value) => total + (value ?? 0), 0) <= 60, "known lower bounds cannot exceed sixty even while another zone is unknown");
+  assert.equal(countScope.frames[8].self.deckCount, 45, "subsequent recorded draws continue from the evidenced deck count");
+  assert.equal(countScope.frames[7].opponent.deckCount, 47);
+  const deckDiscard = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    action("PlayerOne discarded 2 cards from their deck."),
+  ])]));
+  assert.equal(deckDiscard.frames[7].self.handCount, 4, "a deck discard cannot erase the independent hand count");
+  assert.equal(deckDiscard.frames[7].self.deckCount, 45, "recorded deck removals establish totals even with unidentified discarded cards");
+  assert.equal(deckDiscard.frames[7].self.discardCount, 2, "the whole discard pile can be counted without knowing its card identities");
+  assert.equal(deckDiscard.frames[7].self.discard.length, 0);
+  assert.deepEqual(deckDiscard.frames[7].self.uncertainZones, ["discard"]);
+
+  const unidentifiedRecovery = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    action("PlayerOne discarded 2 cards from their deck."),
+    action("PlayerOne moved 2 cards from their discard pile into their deck."),
+  ])]));
+  assert.equal(unidentifiedRecovery.frames[8].self.handCount, 4, "unidentified discard recovery affects its source and destination zones only");
+  assert.equal(unidentifiedRecovery.frames[8].self.deckCount, 47, "recorded recovery totals are independent of discarded card identities");
+  assert.equal(unidentifiedRecovery.frames[8].self.discardCount, 0);
+  assert.deepEqual(unidentifiedRecovery.frames[8].self.uncertainZones, ["discard"]);
+  assert.notEqual(unidentifiedRecovery.frames[8].self.active?.damageKnown, false);
+  assert.equal(unidentifiedRecovery.frames[8].opponent.deckCount, 47);
+  const impossibleRecovery = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    action("PlayerOne moved 2 cards from their discard pile into their deck."),
+  ])]));
+  assert.equal(impossibleRecovery.frames[7].self.deckCount, null, "a recovery from a known empty discard cannot manufacture two extra physical cards");
+  assert.equal(impossibleRecovery.frames[7].self.discardCount, null);
+  assert.equal(impossibleRecovery.frames[7].self.handCount, 4);
+  assert.equal(impossibleRecovery.frames[7].self.inPlayCount, 3);
+  assert.equal(impossibleRecovery.frames[7].opponent.deckCount, 47);
+  const contradictoryRecovery = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    action("PlayerOne moved a card from their discard pile into their deck.", ["• Supply, Extra"]),
+  ])]));
+  assert.equal(contradictoryRecovery.frames[7].self.deckCount, null, "a moved-card list contradicting its count invalidates that destination");
+  assert.equal(contradictoryRecovery.frames[7].self.handCount, 4);
+  assert.notEqual(contradictoryRecovery.frames[7].self.active?.damageKnown, false);
+  const conservedRecovery = compileBattleReplay(source([completeSetup, section("PlayerOne", [
+    action("PlayerOne drew 2 cards.", ["• Supply, Extra, Another"]),
+    action("PlayerOne shuffled their hand into their deck."),
+    action("PlayerOne drew 2 cards."),
+  ])]));
+  assert.equal(conservedRecovery.frames[7].self.deckCount, null, "a contradictory draw cannot establish either hidden-zone total");
+  assert.equal(conservedRecovery.frames[8].self.handCount, 0);
+  assert.equal(conservedRecovery.frames[8].self.deckCount, 51, "a complete hand return restores deck=60−Prizes−inPlay−discard even if its size was unknown");
+  assert.equal(conservedRecovery.frames[9].self.deckCount, 49);
+  assert.ok(conservedRecovery.events[6].unresolved?.length, "later conservation does not erase the original source contradiction");
 
   const recovery = compileBattleReplay(source([section("PlayerOne", [
     action("PlayerOne drew 3 cards for the opening hand.", ["• Seedling, Supply, Supply"]),
@@ -498,9 +683,9 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     action("PlayerOne conceded the game."),
   ])]));
   assert.equal(recovery.frames[2].self.handCount, 2);
-  assert.equal(recovery.frames[3].self.handCount, null, "an unsupported hand mutation must not leave an exact stale count");
+  assert.equal(recovery.frames[3].self.handCount, 2, "unsupported ordering does not change independently known hand membership counts");
   assert.deepEqual(recovery.frames[3].self.knownHand, []);
-  assert.equal(recovery.frames[4].self.handCount, null);
+  assert.equal(recovery.frames[4].self.handCount, 3);
   assert.deepEqual(recovery.frames[4].self.knownHand.map((card) => card.name), ["Supply"]);
   assert.equal(recovery.frames[5].self.handCount, 0);
   assert.deepEqual(recovery.frames[5].self.knownHand, []);
