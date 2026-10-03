@@ -348,7 +348,7 @@ button.pile:disabled {
 .cardFace img,
 .stadium img,
 .playedCard img {
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .cardBack {
@@ -837,7 +837,7 @@ button.pile:disabled {
 }
 
 .handCard img {
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .discardSheet {
@@ -910,7 +910,7 @@ button.pile:disabled {
 }
 
 .discardCardImage img {
-  object-fit: cover;
+  object-fit: contain;
 }
 
 /* The discard sheet is portaled outside the replay container. */
@@ -971,7 +971,7 @@ button.pile:disabled {
 .cardPreviewStage:focus-visible { outline: 2px solid var(--ring); outline-offset: 0.2rem; }
 
 .cardPreviewImage { position: relative; width: 100%; aspect-ratio: 0.714; filter: drop-shadow(0 1.25rem 1.5rem color-mix(in oklab, var(--foreground) 30%, transparent)); }
-.cardPreviewImage > img { border-radius: 0.75rem; object-fit: cover; }
+.cardPreviewImage > img { border-radius: 0.75rem; object-fit: contain; }
 .cardPreviewTool { position: absolute; z-index: 1; color: white; font-size: 0.72rem; font-weight: 800; line-height: 1; box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 28%, transparent); }
 .cardPreviewDamage {
   top: 38%;
@@ -1225,7 +1225,7 @@ button.pile:disabled {
 .transactionOverlay[data-actor="self"] .transactionCard { border-color: color-mix(in oklab, var(--color-win) 28%, var(--border)); }
 .transactionCards > .transactionCardState + .transactionCardState { margin-left: clamp(-3.1rem, -4vw, -2.2rem); }
 .transactionCards[data-many] > .transactionCardState + .transactionCardState { margin-left: clamp(-5.5rem, -6.5vw, -4.35rem); }
-.transactionCard img { object-fit: cover; }
+.transactionCard img { object-fit: contain; }
 .transactionCard.cardPreviewTrigger { pointer-events: auto; }
 .transactionHiddenCards { position: relative; display: flex; align-items: center; }
 .transactionHiddenCards .transactionCard { width: clamp(6rem, 9vw, 7.25rem); }
@@ -1261,7 +1261,7 @@ button.pile:disabled {
   text-transform: uppercase;
 }
 .transactionWeaknessBreakdown strong { color: white; font-size: 0.6875rem; font-weight: 800; line-height: 1; }
-.transactionEvolutionStack img { object-fit: cover; }
+.transactionEvolutionStack img { object-fit: contain; }
 .transactionEvolutionStack { position: absolute; z-index: 0; inset: 0; }
 .transactionEvolutionStack > span {
   position: absolute;
@@ -2098,3 +2098,20 @@ button.pile:disabled {
 @container (max-width: 40rem) {
   .handArea[data-opening] .handCards { grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(100%, 18rem); gap: 0.5rem; }
 }
+
+/* Preserve the complete scanned artwork, including its original card corners. */
+.pileCards,
+.playedCard,
+.cardFace,
+.cardReverse,
+.stadium,
+.handCard,
+.handCard > .cardPreviewTrigger,
+.discardCardImage,
+.transactionCard,
+.transactionEvolutionStack > span,
+.boardCardFlight,
+.attachedEnergyCard,
+.poolCard > span:first-child,
+.cardPreviewImage > img { border-radius: 0; }
+.cardArtwork { object-fit: contain; }

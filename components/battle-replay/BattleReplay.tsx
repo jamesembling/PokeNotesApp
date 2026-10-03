@@ -67,7 +67,7 @@ function CardArtwork({ card, alt, sizes }: { card: Pick<ReplayZoneCard, "name" |
   const src = resolution ? resolution.selectedPrinting?.imageUrl : card.imageUrl || (Object.hasOwn(artwork, card.name) ? artwork[card.name] : undefined);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   return src && failedSrc !== src
-    ? <Image quality={95} alt={resolution?.displayBasis === "played_evidence" ? `${card.name}, recorded printing` : alt} fill sizes={sizes} src={src} onError={() => setFailedSrc(src)} />
+    ? <Image className={styles.cardArtwork} quality={95} alt={resolution?.displayBasis === "played_evidence" ? `${card.name}, recorded printing` : alt} fill sizes={sizes} src={src} onError={() => setFailedSrc(src)} />
     : <UnavailableArtwork name={card.name} />;
 }
 
