@@ -2013,3 +2013,70 @@ button.pile:disabled {
   .controlGroup span { grid-column: 1 / -1; grid-row: 2; text-align: center; }
   .boardFrame[data-transaction] > .transactionOverlay { inset-block-start: 8rem; }
 }
+
+/* Opening hands stay separate and readable; hidden cards remain card backs. */
+.handArea[data-opening] .handCards {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+  width: min(100%, 37rem);
+  margin-inline: auto;
+  overflow: visible;
+}
+.handArea[data-opening] .handCard {
+  width: 100%;
+  margin: 0;
+  transform: none;
+}
+.cardStack[data-reveal-instant] .cardFlipper { transition: none; }
+.boardCardFlight {
+  position: absolute;
+  z-index: 55;
+  visibility: hidden;
+  pointer-events: none;
+  transform-origin: top left;
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+.boardRoutineAnnouncement {
+  position: relative;
+  height: 0;
+  z-index: 40;
+  text-align: center;
+  pointer-events: none;
+}
+.boardRoutineAnnouncement > span,
+.boardRoutineAnnouncement > strong {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 90%;
+  margin-inline: auto;
+  padding: 0.25rem 0.65rem;
+  background: var(--card);
+  color: var(--foreground);
+  border-radius: 0.4rem;
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 12%, transparent);
+  font-size: 0.75rem;
+  transform: translateY(-50%);
+}
+.boardRoutineAnnouncement > span { font-size: 0.6rem; color: var(--muted-foreground); }
+.attachedEnergyCards { position: absolute; inset: 0; z-index: 1; }
+.attachedEnergyCard {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  aspect-ratio: 0.714;
+  border-radius: 0.4rem;
+  overflow: hidden;
+  transform: translate(calc(var(--energy-layer) * 0.22rem), calc(0.5rem + var(--energy-layer) * 0.18rem));
+  box-shadow: 0 1px 4px color-mix(in oklab, var(--foreground) 20%, transparent);
+}
+.attachedEnergyCard:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.cardStack:not([data-compact]) .boardEnergyOrbs { --energy-orb-size: 1.3rem; --energy-orb-count-size: 0.7rem; }
+.cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.9rem; --energy-orb-count-size: 0.55rem; }
+.cardStack:not([data-compact])[data-has-energy] .healthStatus,
+.cardStack[data-compact][data-has-energy] .healthStatus { margin-top: 1.05rem; }
+@container (max-width: 40rem) {
+  .handArea[data-opening] .handCards { grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(100%, 18rem); gap: 0.5rem; }
+}

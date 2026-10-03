@@ -148,6 +148,7 @@ function CardFace({
   effectKey,
   compact = false,
   faceDown = false,
+  instantReveal = false,
   motion,
   onPreview,
 }: {
@@ -159,6 +160,7 @@ function CardFace({
   effectKey?: string;
   compact?: boolean;
   faceDown?: boolean;
+  instantReveal?: boolean;
   motion?: "bench" | "evolve" | "promote" | "retreat";
   onPreview: (card: PreviewCard) => void;
 }) {
@@ -209,12 +211,24 @@ function CardFace({
       data-motion={motion}
       data-knocked-out={knockedOut || undefined}
       data-face-down={faceDown || undefined}
+      data-reveal-instant={instantReveal || undefined}
       data-has-energy={card.energy.length > 0 || undefined}
     >
       {knockedOut ? <span key={`ko-${effectKey}`} className={styles.knockoutStamp} role="status" aria-label={`${card.name} was Knocked Out`}>KO</span> : null}
       {attackName ? <div key={`attack-${effectKey}`} className={styles.boardAttack} role="status"><span className={styles.attackPulse} aria-hidden="true" /><strong>{attackName}</strong></div> : null}
       {damageTaken > 0 ? <span key={`damage-${effectKey}`} className={styles.attackDamage} role="status" aria-label={`${card.name} took ${damageTaken} damage`}>−{damageTaken}</span> : null}
       <div className={styles.cardSurface}>
+      {!faceDown && card.energy.length ? <div className={styles.attachedEnergyCards} aria-label="Attached Energy artwork">
+        {[...new Set(card.energy)].slice(0, 3).map((energy, index) => {
+          const name = /Energy$/.test(energy) ? energy : `Basic ${energy} Energy`;
+          const imageUrl = Object.values(cardResolutions ?? {}).find((resolution) => resolution.name === name && resolution.selectedPrinting?.imageUrl)?.selectedPrinting?.imageUrl ?? "";
+          return <button type="button" className={styles.attachedEnergyCard} style={{ "--energy-layer": index } as React.CSSProperties}
+            aria-label={`Preview attached ${name}, representative artwork`} key={name}
+            onClick={() => onPreview({ id: `${card.id}-energy-${index}`, name, imageUrl })}>
+            <CardArtwork card={{ name, imageUrl }} alt={`${name}, representative attached Energy artwork`} sizes="100px" />
+          </button>;
+        })}
+      </div> : null}
       <button
         aria-label={faceDown ? "Face-down Pokémon" : `Preview ${card.name}${abilityUsed ? ", ability used this turn" : ""}`}
         disabled={faceDown}
@@ -325,7 +339,7 @@ function PrizeTrack({ remaining }: { remaining: number | null }) {
   );
 }
 
-function HandFan({ actor, onPreview, side }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; side: ReplaySide }) {
+function HandFan({ actor, onPreview, side, opening }: { actor: ReplayActor; onPreview: (card: PreviewCard) => void; side: ReplaySide; opening: boolean }) {
   const visibleCardCount = side.handCount ?? (actor === "self" ? side.knownHand.length : 0);
   return (
     <div
@@ -336,6 +350,7 @@ function HandFan({ actor, onPreview, side }: { actor: ReplayActor; onPreview: (c
       }
       className={styles.handArea}
       data-replay-hand={actor}
+      data-opening={opening || undefined}
     >
       <div className={styles.handLabel}>
         <span>Hand</span>
@@ -351,6 +366,8 @@ function HandFan({ actor, onPreview, side }: { actor: ReplayActor; onPreview: (c
               className={styles.handCard}
               data-known={Boolean(knownCard?.imageUrl) || undefined}
               data-hand-card={knownCard?.name}
+              data-hand-card-id={knownCard?.id}
+              data-hand-index={index}
               key={knownCard?.id ?? `hidden-${index}`}
             >
               {knownCard ? (
@@ -545,6 +562,8 @@ function PlayerBoard({
   side,
   stadium,
   controls,
+  openingRevealed,
+  instantReveal,
 }: {
   actor: ReplayActor;
   coinPhase: CoinFlipPhase;
@@ -555,10 +574,12 @@ function PlayerBoard({
   side: ReplaySide;
   stadium: ReplayState["stadium"];
   controls?: ReactNode;
+  openingRevealed: boolean;
+  instantReveal: boolean;
 }) {
   const coinToss = resolveOpeningCoinToss(currentEvent);
   const turnChoice = resolveOpeningTurnChoice(currentEvent);
-  const faceDown = !currentEvent || currentEvent.turn === 0;
+  const faceDown = (!currentEvent || currentEvent.turn === 0) && !openingRevealed;
   const isCurrentActor = currentEvent?.actor === actor;
   const isKnockout = currentEvent?.label === "KO";
   const currentCards = [side.active, ...side.bench, ...(side.unplaced ?? [])].filter((card): card is ReplayCard => Boolean(card));
@@ -622,7 +643,7 @@ function PlayerBoard({
               data-populated={displayActive ? true : undefined}
             >
               {displayActive ? (
-                <CardFace actor={actor} attackName={attackName} damageTaken={damageTaken(displayActive, previousActive)} knockedOut={knockedOutIds.has(displayActive.id)} effectKey={currentEvent?.sourceTitle} card={displayActive} faceDown={faceDown} motion={activeMotion} onPreview={onPreview} />
+                <CardFace actor={actor} attackName={attackName} damageTaken={damageTaken(displayActive, previousActive)} knockedOut={knockedOutIds.has(displayActive.id)} effectKey={currentEvent?.sourceTitle} card={displayActive} faceDown={faceDown} instantReveal={instantReveal} motion={activeMotion} onPreview={onPreview} />
               ) : (
                 side.activeUncertain ? <span className={styles.unknownActive}>Active Pokémon unknown</span> : <span aria-hidden="true" className={styles.emptyZone} />
               )}
@@ -647,14 +668,14 @@ function PlayerBoard({
                 key={index}
               >
                 {benchCard ? (
-                  <CardFace actor={actor} knockedOut={knockedOutIds.has(benchCard.id)} damageTaken={damageTaken(benchCard, previousCard)} effectKey={currentEvent?.sourceTitle} card={benchCard} compact faceDown={faceDown} motion={motion} onPreview={onPreview} />
+                  <CardFace actor={actor} knockedOut={knockedOutIds.has(benchCard.id)} damageTaken={damageTaken(benchCard, previousCard)} effectKey={currentEvent?.sourceTitle} card={benchCard} compact faceDown={faceDown} instantReveal={instantReveal} motion={motion} onPreview={onPreview} />
                 ) : null}
               </div>
             );})}
           </div>
           {side.unplaced?.length ? <div className={styles.unplacedCards} aria-label={`${side.name} Pokémon with unknown position`}>
             <p>Position unknown</p>
-            <div>{side.unplaced.map((card) => <CardFace actor={actor} card={card} compact key={card.id} faceDown={faceDown} onPreview={onPreview} />)}</div>
+            <div>{side.unplaced.map((card) => <CardFace actor={actor} card={card} compact key={card.id} faceDown={faceDown} instantReveal={instantReveal} onPreview={onPreview} />)}</div>
           </div> : null}
           {!faceDown ? <BoardCardPools cards={currentCards} onPreview={onPreview} side={side} /> : null}
         </div>
@@ -670,7 +691,7 @@ function PlayerBoard({
           />
         </div>
       </div>
-      <HandFan actor={actor} onPreview={onPreview} side={side} />
+      <HandFan actor={actor} onPreview={onPreview} side={side} opening={currentEvent?.turn === 0} />
     </section>
   );
 }
@@ -679,6 +700,7 @@ type BoardSnapshot = {
   index: number;
   cards: Map<string, { rect: DOMRect; uncertain: boolean }>;
   hands: Map<ReplayActor, { rect: DOMRect; cards: Map<string, DOMRect[]> }>;
+  decks: Map<ReplayActor, DOMRect>;
 };
 
 function boardChanged(previous: ReplayState, current: ReplayState) {
@@ -687,6 +709,31 @@ function boardChanged(previous: ReplayState, current: ReplayState) {
       .map((card) => card ? `${card.id}:${card.name}` : null);
     return JSON.stringify(positions(previous[actor])) !== JSON.stringify(positions(current[actor]));
   });
+}
+
+function routineBoardAction(event: ReplayEvent | null, previous: ReplayState, state: ReplayState, previousEvent?: ReplayEvent) {
+  if (!event?.transaction || event.turn === 0) return null;
+  const stages = event.transaction.stages;
+  const actor = event.actor;
+  if (actor !== "self" && actor !== "opponent") return null;
+  const draw = stages.find((stage) => stage.kind === "draw");
+  if (event.label === "Draw" && stages.length === 1 && draw
+    && previousEvent?.sourceSectionIndex !== event.sourceSectionIndex
+    && draw.cards.length + (draw.hiddenCount ?? 0) === 1) {
+    return { kind: "draw" as const, actor, card: actor === "self" ? draw.cards[0] : undefined };
+  }
+  const attach = stages.find((stage) => stage.kind === "attach");
+  const move = stages.find((stage) => stage.kind === "move");
+  if (event.label !== "Attach" || event.sourceDetails.length > 0
+    || /\bfrom\b.*\b(deck|discard)\b/i.test(event.sourceTitle)
+    || stages.length !== 2 || !attach || !move
+    || attach.cards.length !== 1 || !/Energy$/.test(attach.cards[0].name)
+    || move.cards.length !== 1 || attach.targetResolved === false || move.targetResolved === false) return null;
+  const target = [state[actor].active, ...state[actor].bench].find((card) => card?.id === move.cards[0].id);
+  const before = [previous[actor].active, ...previous[actor].bench].find((card) => card?.id === target?.id);
+  if (!target || !before || target.instanceUncertain || target.energy.length !== before.energy.length + 1) return null;
+  if (previous[actor].handCount !== null && state[actor].handCount !== previous[actor].handCount! - 1) return null;
+  return { kind: "attach" as const, actor, card: attach.cards[0], targetId: target.id };
 }
 
 export function BattleReplay({
@@ -711,6 +758,9 @@ export function BattleReplay({
   const stageRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const boardSnapshotRef = useRef<BoardSnapshot | null>(null);
+  const boardGhostRef = useRef<HTMLDivElement>(null);
+  const [openingRevealPending, setOpeningRevealPending] = useState(false);
+  const [animateOpeningReveal, setAnimateOpeningReveal] = useState(false);
   const previewTriggerRef = useRef<HTMLElement | null>(null);
   const discardTriggerRef = useRef<HTMLElement | null>(null);
   const replayEvents = program.events;
@@ -722,23 +772,31 @@ export function BattleReplay({
     (inspectedDiscardSide?.discardCount ?? 0) > (inspectedDiscardSide?.discard.length ?? 0);
   const previousState = replayFrames[Math.max(0, actionIndex - 1)];
   const currentEvent = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
+  const finalSetupIndex = replayEvents.findIndex((event) => event.turn > 0);
+  const atOpeningReveal = finalSetupIndex > 0 && actionIndex === finalSetupIndex;
+  const openingRevealed = finalSetupIndex > 0 && actionIndex >= finalSetupIndex && !openingRevealPending;
+  const routineAction = useMemo(() => routineBoardAction(currentEvent, previousState, state, replayEvents[actionIndex - 2]), [actionIndex, currentEvent, previousState, replayEvents, state]);
   const movingOnBoard = boardChanged(previousState, state);
   // Effect-driven placements (for example Poffin searching the deck) need the
   // selection context. Direct hand placements and moves are shown on the board.
   const effectPlacement = currentEvent?.label !== "Pokémon" && currentEvent?.transaction?.stages.some((stage) => stage.kind === "bench");
   const inlineTransaction = movingOnBoard && !effectPlacement;
-  const popupTransaction = currentEvent?.transaction && currentEvent.label !== "Attack" && currentEvent.label !== "KO"
+  const visibleTransaction = currentEvent?.transaction ? {
+    ...currentEvent.transaction,
+    stages: currentEvent.transaction.stages.filter((stage) => !(stage.kind === "draw" && stage.label === "Opening hand")),
+  } : null;
+  const popupTransaction = visibleTransaction?.stages.length && !routineAction && currentEvent?.label !== "Attack" && currentEvent?.label !== "KO"
     ? inlineTransaction
-      ? currentEvent.transaction.stages.some((stage) => ["find", "draw", "shuffle", "return"].includes(stage.kind))
-        ? { ...currentEvent.transaction, stages: currentEvent.transaction.stages.filter((stage) => !["before", "bench", "evolve", "move"].includes(stage.kind)) }
+      ? visibleTransaction.stages.some((stage) => ["find", "draw", "shuffle", "return"].includes(stage.kind))
+        ? { ...visibleTransaction, stages: visibleTransaction.stages.filter((stage) => !["before", "bench", "evolve", "move"].includes(stage.kind)) }
         : null
-      : currentEvent.transaction
+      : visibleTransaction
     : null;
   const coinToss = resolveOpeningCoinToss(currentEvent);
   const resultOnlyCoinFlip = resolveResultOnlyCoinFlip(currentEvent);
   const coinFlipResult = coinToss?.result ?? resultOnlyCoinFlip?.result ?? null;
   const coinPhase = useCoinFlipPhase(currentEvent);
-  const autoplayDelay = currentEvent?.label === "KO" ? 2000 : currentEvent?.label === "Attack" ? 2400 : coinToss ? 4400 : resultOnlyCoinFlip ? 2800 : resolveOpeningTurnChoice(currentEvent) ? 2400 : currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
+  const autoplayDelay = atOpeningReveal ? 1800 : currentEvent?.label === "KO" ? 2000 : currentEvent?.label === "Attack" ? 2400 : coinToss ? 4400 : resultOnlyCoinFlip ? 2800 : resolveOpeningTurnChoice(currentEvent) ? 2400 : currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
   const maxIndex = replayFrames.length - 1;
   const previewHealthPercent = previewedCard?.hp
     ? Math.max(0, ((previewedCard.hp - (previewedCard.damage ?? 0)) / previewedCard.hp) * 100)
@@ -781,18 +839,22 @@ export function BattleReplay({
       }
       hands.set(hand.dataset.replayHand as ReplayActor, { rect: hand.getBoundingClientRect(), cards: knownCards });
     }
-    boardSnapshotRef.current = { index: actionIndex, cards, hands };
+    const decks: BoardSnapshot["decks"] = new Map();
+    for (const deck of board.querySelectorAll<HTMLElement>('[data-pile-face="Deck"]')) {
+      decks.set(deck.closest<HTMLElement>("[data-actor]")?.dataset.actor as ReplayActor, deck.getBoundingClientRect());
+    }
+    boardSnapshotRef.current = { index: actionIndex, cards, hands, decks };
   }, [actionIndex]);
 
   useLayoutEffect(() => {
     const board = boardRef.current;
     const snapshot = boardSnapshotRef.current;
     boardSnapshotRef.current = null;
-    if (!board || !snapshot || snapshot.index + 1 !== actionIndex || !movingOnBoard || currentEvent?.label === "KO") return;
+    if (!board || !snapshot || snapshot.index + 1 !== actionIndex || currentEvent?.label === "KO") return;
     const animations: Animation[] = [];
     const elevated: HTMLElement[] = [];
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    for (const card of board.querySelectorAll<HTMLElement>("[data-board-card]")) {
+    for (const card of movingOnBoard ? board.querySelectorAll<HTMLElement>("[data-board-card]") : []) {
       const actor = card.closest<HTMLElement>("[data-actor]")?.dataset.actor as ReplayActor;
       const previous = snapshot.cards.get(`${actor}:${card.dataset.boardCard}`);
       const hand = snapshot.hands.get(actor);
@@ -815,13 +877,51 @@ export function BattleReplay({
       animation.onfinish = () => { card.style.removeProperty("z-index"); card.style.removeProperty("transform-origin"); };
       animations.push(animation);
     }
+    const ghost = boardGhostRef.current;
+    if (routineAction && ghost) {
+      const hand = snapshot.hands.get(routineAction.actor);
+      const matches = routineAction.card ? hand?.cards.get(routineAction.card.name) ?? [] : [];
+      const origin = routineAction.kind === "draw" ? snapshot.decks.get(routineAction.actor)
+        : matches.length === 1 ? matches[0] : hand ? new DOMRect(hand.rect.x + hand.rect.width / 2 - 27, hand.rect.y + hand.rect.height / 2 - 38, 54, 76) : undefined;
+      const targetHand = board.querySelector<HTMLElement>(`[data-replay-hand="${routineAction.actor}"]`);
+      const destination = routineAction.kind === "attach"
+        ? [...board.querySelectorAll<HTMLElement>("[data-board-card]")].find((card) => card.dataset.boardCard === routineAction.targetId && card.closest<HTMLElement>("[data-actor]")?.dataset.actor === routineAction.actor)?.querySelector<HTMLElement>(`.${styles.cardSurface}`)?.getBoundingClientRect()
+        : (routineAction.card ? [...(targetHand?.querySelectorAll<HTMLElement>("[data-hand-card-id]") ?? [])].find((card) => card.dataset.handCardId === routineAction.card?.id) : undefined)?.getBoundingClientRect()
+          ?? targetHand?.querySelector<HTMLElement>("[data-hand-index]:last-child")?.getBoundingClientRect();
+      const frame = ghost.parentElement?.getBoundingClientRect();
+      if (origin && destination && frame && !reducedMotion) {
+        Object.assign(ghost.style, { visibility: "visible", left: `${origin.left - frame.left}px`, top: `${origin.top - frame.top}px`, width: `${origin.width}px`, height: `${origin.height}px` });
+        const animation = ghost.animate([
+          { transform: "none", opacity: 1 },
+          { transform: `translate(${destination.left - origin.left}px, ${destination.top - origin.top}px) scale(${destination.width / origin.width})`, opacity: 1, offset: 0.85 },
+          { transform: `translate(${destination.left - origin.left}px, ${destination.top - origin.top}px) scale(${destination.width / origin.width})`, opacity: 0 },
+        ], { duration: 650, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+        animation.onfinish = () => { ghost.style.visibility = "hidden"; };
+        animations.push(animation);
+      }
+    }
     const cancel = () => {
+      if (ghost) ghost.style.visibility = "hidden";
       for (const animation of animations) animation.cancel();
       for (const card of elevated) { card.style.removeProperty("z-index"); card.style.removeProperty("transform-origin"); }
     };
     window.addEventListener("resize", cancel);
     return () => { cancel(); window.removeEventListener("resize", cancel); };
-  }, [actionIndex, currentEvent, movingOnBoard]);
+  }, [actionIndex, currentEvent, movingOnBoard, routineAction]);
+
+  const advanceTo = useCallback((nextIndex: number) => {
+    captureBoard();
+    const reveal = nextIndex === finalSetupIndex && nextIndex === actionIndex + 1 && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setOpeningRevealPending(reveal);
+    setAnimateOpeningReveal(reveal);
+    setActionIndex(nextIndex);
+  }, [actionIndex, captureBoard, finalSetupIndex]);
+
+  useEffect(() => {
+    if (!openingRevealPending) return;
+    const timer = window.setTimeout(() => setOpeningRevealPending(false), 500);
+    return () => window.clearTimeout(timer);
+  }, [actionIndex, openingRevealPending]);
 
   useEffect(() => {
     if (!playing) return;
@@ -831,11 +931,11 @@ export function BattleReplay({
     }
 
     const timer = window.setTimeout(
-      () => { captureBoard(); setActionIndex(Math.min(maxIndex, actionIndex + 1)); },
+      () => advanceTo(Math.min(maxIndex, actionIndex + 1)),
       autoplayDelay,
     );
     return () => window.clearTimeout(timer);
-  }, [actionIndex, autoplayDelay, captureBoard, maxIndex, playing]);
+  }, [actionIndex, autoplayDelay, advanceTo, maxIndex, playing]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -880,9 +980,8 @@ export function BattleReplay({
   }, [actionIndex, playing]);
 
   const seek = useCallback((nextIndex: number, revealBoard = false) => {
-    captureBoard();
+    advanceTo(Math.max(0, Math.min(maxIndex, nextIndex)));
     setPlaying(false);
-    setActionIndex(Math.max(0, Math.min(maxIndex, nextIndex)));
     const stage = stageRef.current;
     if (revealBoard && stage && window.getComputedStyle(stage).order === "-1") {
       window.requestAnimationFrame(() => stage.scrollIntoView({
@@ -890,7 +989,7 @@ export function BattleReplay({
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
       }));
     }
-  }, [captureBoard, maxIndex]);
+  }, [advanceTo, maxIndex]);
   const seekFromTimeline = useCallback((nextIndex: number) => seek(nextIndex, true), [seek]);
 
   function seekTurn(direction: -1 | 1) {
@@ -1022,7 +1121,7 @@ export function BattleReplay({
       <div className={styles.replayStage} ref={stageRef}>
         <div className={styles.boardFrame} data-transaction={popupTransaction && !inlineTransaction || undefined}>
           <div className={styles.board} ref={boardRef}>
-            <PlayerBoard controls={playbackControls} coinPhase={coinPhase} actor="opponent" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
+            <PlayerBoard openingRevealed={openingRevealed} instantReveal={!atOpeningReveal || !animateOpeningReveal} controls={playbackControls} coinPhase={coinPhase} actor="opponent" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={state.opponent} stadium={state.stadium} />
             {currentEvent?.label === "Attack" ? <div aria-hidden="true" className={styles.attackAnnouncementAnchor}>
               <div key={`${program.id}-${actionIndex}`} className={styles.attackAnnouncement}>
                 <span>{currentEvent.actor === "self" ? "Your attack" : "Opponent’s attack"}</span>
@@ -1043,7 +1142,14 @@ export function BattleReplay({
                 {coinPhase === "result" && !coinFlipResult ? <span>Unknown</span> : null}
               </div> : null}
             </div> : null}
-            <PlayerBoard coinPhase={coinPhase} actor="self" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
+            {routineAction || atOpeningReveal ? <div className={styles.boardRoutineAnnouncement} aria-hidden="true" key={actionIndex}>
+              <span>{atOpeningReveal ? "Setup complete" : routineAction?.actor === "self" ? "Your action" : "Opponent action"}</span>
+              <strong>{atOpeningReveal ? "Opening Pokémon revealed" : currentEvent?.summary}</strong>
+            </div> : null}
+            <PlayerBoard openingRevealed={openingRevealed} instantReveal={!atOpeningReveal || !animateOpeningReveal} coinPhase={coinPhase} actor="self" currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={state.self} stadium={state.stadium} />
+          </div>
+          <div className={styles.boardCardFlight} ref={boardGhostRef} aria-hidden="true" data-board-flight={routineAction?.kind}>
+            {routineAction?.card ? <CardArtwork card={routineAction.card} alt="" sizes="100px" /> : <div className={styles.cardBack} />}
           </div>
           {popupTransaction && !inlineTransaction ? <TransactionOverlay onPreview={previewCard} previousState={previousState} state={state} transaction={popupTransaction} /> : null}
         </div>
