@@ -96,6 +96,14 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   assert.equal(normalized.hp, null);
   assert.equal(normalized.imageUrl, "https://assets.tcgdex.net/en/sv/synthetic/1/high.webp");
   assert.equal(isCardDefinition(normalized), true);
+  for (const localId of [0, 1, "001", "TG01"]) {
+    const numericPrinting = normalizeTcgdexCard({ id: "synthetic-1", localId, name: "Crispin", category: "Trainer", set: { id: "synthetic" } }, { id: "synthetic" }, crispin.syncedAt);
+    assert.equal(numericPrinting.localId, String(localId), "numeric collector numbers normalize without changing string identities");
+    assert.equal(isCardDefinition(numericPrinting), true);
+  }
+  for (const localId of [null, {}, NaN, Infinity, -1, 1.5, ""]) {
+    assert.throws(() => normalizeTcgdexCard({ id: "synthetic-1", localId, name: "Crispin", category: "Trainer", set: { id: "synthetic" } }, { id: "synthetic" }, crispin.syncedAt), /identity/);
+  }
   const unsafeArtwork = normalizeTcgdexCard({ id: "synthetic-2", localId: "2", name: "Seedling", category: "Pokemon", set: { id: "synthetic" }, image: "https://untrusted.invalid/en/sv/synthetic/2" }, { id: "synthetic" }, crispin.syncedAt);
   assert.equal(unsafeArtwork.imageUrl, undefined);
   assert.equal(isCardDefinition({ ...normalized, imageUrl: "https://untrusted.invalid/card/high.webp" }), false);
