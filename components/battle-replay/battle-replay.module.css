@@ -1,0 +1,1974 @@
+.replayContainer { container-type: inline-size; container-name: replay; min-width: 0; }
+.unavailableArtwork { display: flex; width: 100%; height: 100%; flex-direction: column; justify-content: center; gap: 0.25rem; padding: 0.3rem; background: var(--muted); color: var(--foreground); overflow-wrap: anywhere; text-align: center; font-size: 0.65rem; }
+.unavailableArtwork span { font-size: 0.55rem; }
+.replayNotice { margin: 0; color: var(--muted-foreground); font-size: 0.875rem; }
+.healthStatus[data-tone="unknown"] { color: var(--muted-foreground); }
+
+.replay {
+  display: grid;
+  gap: 1rem;
+}
+
+.matchMeta strong { color: var(--card-foreground); }
+.matchMeta span { color: var(--muted-foreground); font-size: 0.75rem; }
+
+.matchMeta {
+  display: grid;
+  grid-template-columns: minmax(14rem, 2fr) repeat(3, minmax(6rem, 0.6fr));
+  gap: 1.25rem;
+}
+
+.matchMeta > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.matchMeta span {
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.matchMeta strong {
+  font-size: 0.9rem;
+}
+
+.replayShell {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.72fr) minmax(34rem, 1.28fr);
+  min-height: 46rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+}
+
+@container replay (max-width: 44rem) {
+  .matchMeta {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .matchMeta > div:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.timelinePane {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: color-mix(in oklab, var(--muted) 44%, var(--card));
+}
+
+.timelineHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.timelineHeader h2 {
+  margin: 0;
+  color: var(--card-foreground);
+}
+
+.timelineHeader p,
+.timelineAction p,
+.artNote {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+
+.timelineHeader p {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.timeline {
+  display: grid;
+  max-height: 44rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-color: var(--border) transparent;
+}
+
+.timelineAction {
+  position: relative;
+  display: grid;
+  width: 100%;
+  grid-template-columns: 4.25rem 4.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.65rem;
+  padding: 0.85rem 1.25rem 0.85rem 1.55rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--card-foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.timelineAction::before {
+  position: absolute;
+  top: 1.15rem;
+  left: 0.7rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--color-loss);
+  content: "";
+}
+
+.timelineAction[data-actor="self"]::before {
+  background: var(--color-win);
+}
+
+.timelineAction:hover,
+.timelineAction[data-selected] {
+  background: var(--card);
+}
+
+.timelineAction[data-selected] {
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.timelineAction:focus-visible {
+  z-index: 1;
+  outline: 3px solid color-mix(in oklab, var(--ring) 45%, transparent);
+  outline-offset: -3px;
+}
+
+.timelineAction > span,
+.timelineAction > strong {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.timelineAction > span {
+  color: var(--muted-foreground);
+}
+
+.timelineAction p {
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.replayStage {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 1rem;
+  background: var(--background);
+}
+
+.boardFrame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.85rem;
+  isolation: isolate;
+}
+
+.board {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: var(--card);
+  transition: filter 240ms ease-out, opacity 240ms ease-out, transform 240ms ease-out;
+}
+
+.boardFrame[data-transaction] .board {
+  opacity: 0.42;
+  filter: saturate(0.72) brightness(0.72);
+  transform: scale(0.995);
+}
+
+.playerBoard {
+  --replay-player-tint: var(--color-loss);
+  --replay-pile-card-width: 4.4rem;
+  display: grid;
+  grid-template-areas:
+    "header"
+    "play"
+    "hand";
+  padding: 0.8rem;
+  background: color-mix(in oklab, var(--replay-player-tint) 5%, var(--card));
+}
+
+.playerBoard[data-actor="self"] {
+  --replay-player-tint: var(--color-win);
+}
+
+.playerBoard[data-actor="opponent"] {
+  grid-template-areas:
+    "header"
+    "hand"
+    "play";
+}
+
+.playerBoard + .playerBoard {
+  border-top: 1px solid var(--border);
+}
+
+.playerHeader {
+  display: flex;
+  grid-area: header;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.playerIdentity {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.playerHeader span {
+  color: var(--muted-foreground);
+  font-size: 0.69rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.playerHeader strong {
+  color: var(--card-foreground);
+  font-size: 0.9rem;
+}
+
+.itemLockBadge {
+  display: inline-flex;
+  min-height: 1.6rem;
+  align-items: center;
+  padding-inline: 0.55rem;
+  border-radius: 999px;
+  background: var(--color-loss);
+  color: white !important;
+  font-size: 0.6rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.065em !important;
+  box-shadow: 0 0.2rem 0.5rem color-mix(in oklab, black 35%, transparent);
+}
+
+.prizes {
+  display: grid;
+  grid-area: prizes;
+  grid-template-columns: repeat(2, var(--replay-pile-card-width));
+  align-content: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.prizes strong {
+  grid-column: 1 / -1;
+  color: var(--muted-foreground);
+  font-size: 0.58rem;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.prizes span {
+  width: var(--replay-pile-card-width);
+  aspect-ratio: 0.714;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.2rem;
+  background: transparent;
+}
+
+.prizes span[data-remaining] {
+  border-color: color-mix(in oklab, var(--replay-player-tint) 72%, var(--border));
+  background: var(--replay-card-back-ink) url("https://images.pokemontcg.io/card-back.png") center / cover no-repeat;
+  box-shadow: 0 0.15rem 0.35rem color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
+.playArea {
+  display: grid;
+  grid-area: play;
+  min-height: 24rem;
+  grid-template-areas: "prizes field piles";
+  grid-template-columns: calc(var(--replay-pile-card-width) + var(--replay-pile-card-width) + 0.3rem) minmax(0, 1fr) 5rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.zonePiles {
+  display: grid;
+  grid-area: piles;
+  gap: 0.65rem;
+}
+
+.pile {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+button.pile {
+  cursor: pointer;
+}
+
+button.pile:hover .pileCards {
+  border-color: var(--ring);
+  transform: translateY(-0.1rem);
+}
+
+button.pile:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--ring) 45%, transparent);
+  outline-offset: 0.25rem;
+  border-radius: 0.35rem;
+}
+
+button.pile:disabled {
+  cursor: default;
+}
+
+.pile strong {
+  color: var(--card-foreground);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pileCards {
+  position: relative;
+  width: var(--replay-pile-card-width);
+  aspect-ratio: 0.714;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  box-shadow: 0 0.2rem 0.55rem color-mix(in oklab, var(--foreground) 15%, transparent);
+  transition: border-color 160ms ease-out, transform 160ms ease-out;
+}
+
+.pileCards[data-empty] {
+  box-shadow: none;
+}
+
+.pileCards[data-new-card] {
+  animation: discard-arrival 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.pileCards img,
+.cardFace img,
+.stadium img,
+.playedCard img {
+  object-fit: cover;
+}
+
+.cardBack {
+  width: 100%;
+  height: 100%;
+  background: var(--replay-card-back-ink) url("https://images.pokemontcg.io/card-back.png") center / cover no-repeat;
+}
+
+.emptyPile {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 0.2rem;
+  background: color-mix(in oklab, var(--muted) 48%, transparent);
+}
+
+.emptyPile span {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 0.42rem;
+  font-weight: 650;
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
+.field {
+  display: grid;
+  grid-area: field;
+  grid-template-areas:
+    "active"
+    "bench";
+  grid-template-rows: 12rem 8rem;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.activeRow {
+  display: grid;
+  grid-area: active;
+  grid-template-columns: 6.5rem 8.5rem 6.5rem;
+  align-items: center;
+  justify-content: center;
+  column-gap: 0.35rem;
+}
+
+.playedCardSpot {
+  display: grid;
+  grid-column: 1;
+  align-self: center;
+  justify-items: center;
+  gap: 0.2rem;
+}
+
+.playedCardSpot > span {
+  color: var(--muted-foreground);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.playedCard {
+  position: relative;
+  width: 3.35rem;
+  overflow: hidden;
+  aspect-ratio: 0.714;
+  border-radius: 0.35rem;
+  box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 24%, transparent);
+  transform: rotate(-2deg);
+  animation: played-card-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes played-card-in {
+  from {
+    opacity: 0.78;
+    filter: blur(1px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.bench {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  height: 8rem;
+  grid-area: bench;
+  width: min(100%, 26rem);
+  grid-template-columns: repeat(5, minmax(0, 4.2rem));
+  align-items: center;
+  justify-self: center;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+.bench[data-capacity="6"] { width: min(100%, 23.5rem); grid-template-columns: repeat(6, minmax(0, 3.2rem)); }
+.bench[data-capacity="7"] { width: min(100%, 27.5rem); grid-template-columns: repeat(7, minmax(0, 3.2rem)); }
+.bench[data-capacity="8"] { width: min(100%, 31.5rem); grid-template-columns: repeat(8, minmax(0, 3.2rem)); gap: 0.65rem; }
+
+.active {
+  position: relative;
+  display: flex;
+  width: 8.5rem;
+  min-height: 12rem;
+  grid-column: 2;
+  grid-row: 1;
+  align-items: center;
+  justify-self: center;
+  justify-content: center;
+  border: 1px solid color-mix(in oklab, var(--replay-player-tint) 40%, var(--border));
+  border-radius: 0.65rem;
+  background: color-mix(in oklab, var(--replay-player-tint) 4%, var(--card));
+}
+
+.benchSlot {
+  display: flex;
+  width: 100%;
+  max-width: 4.2rem;
+  aspect-ratio: 0.714;
+  align-items: center;
+  justify-self: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in oklab, var(--replay-player-tint) 34%, var(--border));
+  border-radius: 0.38rem;
+  background: color-mix(in oklab, var(--replay-player-tint) 3%, var(--card));
+}
+
+.active[data-populated],
+.benchSlot[data-populated] {
+  border-color: transparent;
+  background: transparent;
+}
+
+.zoneLabel {
+  position: absolute;
+  top: 0.25rem;
+  left: 0.35rem;
+  z-index: 1;
+  color: var(--muted-foreground);
+  font-size: 0.52rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.bench > .zoneLabel {
+  top: -0.15rem;
+  left: 0;
+  transform: translateY(-100%);
+}
+
+.playerBoard[data-actor="opponent"] .field {
+  grid-template-areas:
+    "bench"
+    "active";
+  grid-template-rows: 8rem 12rem;
+}
+
+.emptyZone {
+  color: var(--muted-foreground);
+  font-size: 0.67rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.cardStack {
+  position: relative;
+  width: 7.5rem;
+  isolation: isolate;
+}
+
+.cardStack[data-compact] {
+  width: min(100%, 4.2rem);
+}
+
+.cardFace {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  aspect-ratio: 0.714;
+  border-radius: 0.42rem;
+  box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 20%, transparent);
+  transition: transform 180ms ease-out;
+}
+
+/* Keep both faces mounted so seeking across setup reverses the same flip. */
+.cardFlipper {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-style: preserve-3d;
+  transform: perspective(700px) rotateY(0deg);
+  transition: transform 680ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.cardFront,
+.cardReverse {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: inherit;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.cardReverse {
+  overflow: hidden;
+  border-radius: 0.42rem;
+  transform: rotateY(180deg);
+}
+
+.cardReverse .cardBack { display: block; }
+.cardStack[data-face-down] .cardFlipper { transform: perspective(700px) rotateY(180deg); }
+.cardStack[data-face-down] .healthStatus { visibility: hidden; }
+.cardStack[data-face-down] .cardPreviewTrigger { cursor: default; }
+.cardStack[data-face-down] .cardPreviewTrigger:hover { transform: none; }
+
+.cardPreviewTrigger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: zoom-in;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.cardPreviewTrigger:focus-visible {
+  z-index: 30;
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.cardPreviewTrigger:hover {
+  z-index: 30;
+  transform: scale(1.12);
+}
+
+.handCard > .cardPreviewTrigger {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cardStack[data-motion="evolve"] .cardFace { animation: evolve-card 620ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.playerBoard[data-actor="self"] .cardStack[data-motion="promote"] { animation: promote-self 480ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.playerBoard[data-actor="opponent"] .cardStack[data-motion="promote"] { animation: promote-opponent 480ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.cardStack[data-motion="retreat"],
+.cardStack[data-motion="bench"] { animation: bench-arrival 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+
+
+
+.healthStatus {
+  position: relative;
+  z-index: 12;
+  display: grid;
+  gap: 0.12rem;
+  margin-top: 0.28rem;
+}
+
+.healthTrack {
+  height: 0.38rem;
+  overflow: hidden;
+  border-radius: 0.2rem;
+  background: color-mix(in oklab, var(--muted-foreground) 22%, transparent);
+}
+
+.healthTrack span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-win);
+  transform-origin: left center;
+  transition: transform 180ms ease-out, background-color 180ms ease-out;
+}
+
+.healthStatus[data-tone="warning"] .healthTrack span {
+  background: var(--color-warning);
+}
+
+.healthStatus[data-tone="warning"] .healthTrack {
+  background: var(--color-warning-bg);
+}
+
+.healthStatus[data-tone="critical"] .healthTrack span {
+  background: var(--color-loss);
+}
+
+.healthStatus[data-tone="critical"] .healthTrack {
+  background: var(--color-loss-bg);
+  box-shadow: inset 0 0 0 1px var(--color-loss-border);
+}
+
+.healthStatus strong {
+  color: var(--card-foreground);
+  font-size: 0.5rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
+}
+
+.damageBadge,
+.transactionDamageCounter,
+.cardPreviewDamage {
+  position: absolute;
+  z-index: 4;
+  top: 30%;
+  right: -0.38rem;
+  display: grid;
+  width: 1.45rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 2px solid color-mix(in oklab, var(--color-warning) 72%, black);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 34% 28%,
+    color-mix(in oklab, var(--color-warning) 42%, white) 0 13%,
+    var(--color-warning) 58%,
+    color-mix(in oklab, var(--color-warning) 76%, black) 100%
+  );
+  color: white;
+  font-size: 0.5rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  paint-order: stroke fill;
+  box-shadow: 0 0.18rem 0.4rem color-mix(in oklab, black 42%, transparent);
+  text-shadow: 0 0.08rem 0.06rem black;
+  transform: translateY(-50%) rotate(-5deg);
+  -webkit-text-stroke: 0.055rem black;
+}
+
+.damageBadge {
+  z-index: 1;
+}
+
+.cardStack:not([data-compact]) .damageBadge {
+  top: 38%;
+  right: -0.8rem;
+  width: 2.35rem;
+  font-size: 0.9rem;
+  box-shadow: 0 0.28rem 0.58rem color-mix(in oklab, black 45%, transparent);
+}
+
+.cardStack:not([data-compact]) .damageBadge + .boardAbilityUsedMarker {
+  top: 68%;
+}
+
+.cardStack:not([data-compact]) .boardAbilityUsedMarker {
+  width: 2rem;
+  right: -0.8rem;
+  top: 46%;
+}
+
+.boardAbilityUsedMarker,
+.transactionAbilityUsedMarker,
+.previewAbilityUsedMarker {
+  position: absolute;
+  z-index: 14;
+  display: grid;
+  width: 1.25rem;
+  aspect-ratio: 1;
+  place-items: center;
+  pointer-events: none;
+}
+
+.boardAbilityUsedMarker {
+  top: 48%;
+  right: -0.48rem;
+}
+
+.boardAbilityUsedMarker svg,
+.transactionAbilityUsedMarker svg,
+.previewAbilityUsedMarker svg {
+  width: 100%;
+  height: 100%;
+  fill: var(--color-loss);
+  stroke: white;
+  stroke-width: 2.35;
+  filter: drop-shadow(0 0.2rem 0.25rem color-mix(in oklab, black 55%, transparent));
+  transform: rotate(180deg);
+}
+
+.cardStack[data-compact] .boardAbilityUsedMarker {
+  right: -0.38rem;
+  width: 1rem;
+}
+
+.stadiumSpot {
+  display: grid;
+  grid-column: 1;
+  grid-row: 1;
+  justify-items: center;
+  gap: 0.3rem;
+}
+
+.stadiumSpot > span,
+.handLabel span {
+  color: var(--muted-foreground);
+  font-size: 0.56rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stadium {
+  position: relative;
+  width: 5rem;
+  overflow: hidden;
+  aspect-ratio: 0.714;
+  border-radius: 0.42rem;
+  box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 20%, transparent);
+}
+
+.stadiumName {
+  width: 6.5rem;
+  color: var(--card-foreground);
+  font-size: 0.58rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.handArea {
+  display: grid;
+  min-height: 8rem;
+  grid-area: hand;
+  justify-items: center;
+  gap: 0.25rem;
+  padding-block: 0.35rem 0.15rem;
+}
+
+.handLabel {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.playerBoard[data-actor="opponent"] .handLabel {
+  grid-row: 2;
+}
+
+.handLabel strong {
+  color: var(--card-foreground);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.handCards {
+  display: flex;
+  min-width: 0;
+  justify-content: center;
+  padding-inline: 1rem;
+}
+
+.handCard {
+  position: relative;
+  width: 4.5rem;
+  aspect-ratio: 0.714;
+  flex: 0 0 auto;
+  overflow: visible;
+  border: 1px solid var(--border);
+  border-radius: 0.28rem;
+  box-shadow: 0 0.18rem 0.45rem color-mix(in oklab, var(--foreground) 16%, transparent);
+  transform-origin: bottom center;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.handCard:has(> .cardPreviewTrigger:hover),
+.handCard:has(> .cardPreviewTrigger:focus-visible) {
+  z-index: 30;
+  box-shadow: 0 0.5rem 1rem color-mix(in oklab, var(--foreground) 28%, transparent);
+  transform: translateY(-0.35rem) scale(1.12);
+}
+
+.handCard + .handCard {
+  margin-left: -1.1rem;
+}
+
+.handCard img {
+  object-fit: cover;
+}
+
+.discardSheet {
+  width: 100%;
+  max-width: none;
+  max-height: min(48svh, 24rem);
+  gap: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.discardSheetHeader {
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 4rem 0.9rem 1.25rem;
+}
+
+.discardList {
+  display: flex;
+  min-height: 0;
+  margin: 0;
+  gap: 0.9rem;
+  padding: 1rem 1.25rem 1.25rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  list-style: none;
+  scroll-padding-inline: 1.25rem;
+  scroll-snap-type: x proximity;
+  scrollbar-color: var(--border) transparent;
+}
+
+.discardList li {
+  display: grid;
+  width: 5.5rem;
+  flex: 0 0 5.5rem;
+  align-content: start;
+  gap: 0.45rem;
+  scroll-snap-align: start;
+}
+
+.discardList li > div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.discardList li strong,
+.discardList li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discardList li strong {
+  color: var(--card-foreground);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.discardList li span {
+  color: var(--muted-foreground);
+  font-size: 0.62rem;
+  line-height: 1.2;
+}
+
+.discardCardImage {
+  position: relative;
+  width: 5.5rem;
+  overflow: hidden;
+  aspect-ratio: 0.714;
+  border-radius: 0.4rem;
+  box-shadow: 0 0.25rem 0.65rem color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
+.discardCardImage img {
+  object-fit: cover;
+}
+
+/* The discard sheet is portaled outside the replay container. */
+@media (max-width: 44rem) {
+  .discardSheet {
+    max-height: min(52svh, 21rem);
+  }
+
+  .discardList {
+    gap: 0.75rem;
+    padding-inline: 1rem;
+    scroll-padding-inline: 1rem;
+  }
+
+  .discardList li,
+  .discardCardImage {
+    width: 4.75rem;
+  }
+
+  .discardList li {
+    flex-basis: 4.75rem;
+  }
+}
+
+.cardPreviewDialog {
+  width: auto;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.cardPreviewDialog > button {
+  z-index: 1;
+  top: 0.4rem;
+  right: 0.4rem;
+  color: white;
+  background: color-mix(in oklab, black 70%, transparent);
+}
+
+.cardPreviewStage { display: grid; justify-items: center; width: min(78vw, 22rem, 55dvh); gap: 0.65rem; }
+.cardPreviewImage { position: relative; width: 100%; aspect-ratio: 0.714; filter: drop-shadow(0 1.25rem 1.5rem color-mix(in oklab, var(--foreground) 30%, transparent)); }
+.cardPreviewImage > img { border-radius: 0.75rem; object-fit: cover; }
+.cardPreviewTool { position: absolute; z-index: 1; color: white; font-size: 0.72rem; font-weight: 800; line-height: 1; box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 28%, transparent); }
+.cardPreviewDamage {
+  top: 38%;
+  right: -0.8rem;
+  width: 2.35rem;
+  font-size: 0.9rem;
+  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 38%, transparent);
+}
+.previewAbilityUsedMarker {
+  top: 50%;
+  right: -0.9rem;
+  width: 2.25rem;
+}
+.cardPreviewTool { border-radius: 999px; }
+.cardPreviewTool { right: 0.75rem; bottom: 0.75rem; max-width: calc(100% - 1.5rem); padding: 0.42rem 0.58rem; overflow: hidden; background: color-mix(in oklab, black 78%, transparent); text-overflow: ellipsis; white-space: nowrap; }
+.cardPreviewHealth { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.7rem; color: white; font-size: 0.72rem; text-shadow: 0 1px 0.35rem black; }
+.cardPreviewHealth > div { height: 0.46rem; overflow: hidden; border-radius: 999px; background: color-mix(in oklab, white 22%, transparent); }
+.cardPreviewHealth span { display: block; height: 100%; border-radius: inherit; background: var(--color-win); }
+.cardPreviewHealth[data-tone="warning"] span { background: var(--color-warning); }
+.cardPreviewHealth[data-tone="critical"] span { background: var(--color-loss); }
+.cardPreviewHealth strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.previewUnknownHealth {
+  border: 1px solid var(--border);
+  border-radius: var(--dialog-radius-compact);
+  background: var(--card);
+  padding: 0.5rem 0.75rem;
+  color: var(--card-foreground);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.discardList li > div:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.discardList strong {
+  overflow-wrap: anywhere;
+  color: var(--card-foreground);
+  font-size: 0.9rem;
+}
+
+.discardList span {
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+}
+
+.currentAction {
+  display: grid;
+  min-height: 4.8rem;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 1rem;
+  margin-top: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-top: 2px solid var(--card-foreground);
+  border-bottom: 1px solid var(--border);
+}
+
+.currentAction span {
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.currentAction strong {
+  color: var(--card-foreground);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.scrubber {
+  padding: 0.75rem 0.25rem 0.25rem;
+}
+
+.scrubber label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+}
+
+.scrubber strong {
+  color: var(--card-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.scrubber input {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 0.65rem 0;
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+}
+
+.iconControl {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.controlGroup span {
+  min-width: 3.8rem;
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.artNote {
+  max-width: 68ch;
+  align-self: center;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.transactionOverlay {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  align-items: center;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  background: color-mix(in oklab, var(--card) 68%, transparent);
+  backdrop-filter: blur(1.5px);
+  pointer-events: none;
+  animation: transaction-overlay-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.transactionHeading,
+.transactionStep {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+}
+
+.transactionHeading span,
+.transactionStep > span {
+  color: color-mix(in oklab, var(--color-loss) 72%, var(--card-foreground));
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.transactionOverlay[data-actor="self"] .transactionHeading span,
+.transactionOverlay[data-actor="self"] .transactionStep > span {
+  color: color-mix(in oklab, var(--color-win) 72%, var(--card-foreground));
+}
+
+.transactionHeading strong { color: var(--card-foreground); font-size: 0.95rem; }
+.transactionRail,
+.transactionStage { display: flex; min-width: 0; align-items: center; gap: clamp(0.45rem, 1.5vw, 1rem); }
+.transactionRail { max-width: 100%; justify-content: center; margin: 0; padding: 0; list-style: none; }
+.transactionStage { animation: transaction-stage-in 360ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.transactionStage:nth-child(2) { animation-delay: 90ms; }
+.transactionStage:nth-child(3) { animation-delay: 180ms; }
+.transactionStage[data-kind="evolve"] .transactionCardState { animation: transaction-evolve 480ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.transactionArrow { width: 1rem; flex: 0 0 auto; color: var(--muted-foreground); }
+.transactionStep { min-width: 5rem; grid-template-rows: 1rem 10.5rem 1rem; align-items: center; }
+.transactionStep > span { align-self: end; }
+.transactionStep small { align-self: start; max-width: 8rem; color: color-mix(in oklab, var(--card-foreground) 76%, var(--muted-foreground)); font-size: 0.6875rem; text-align: center; }
+.transactionParticipants { display: flex; height: 100%; min-width: 0; align-items: center; justify-content: center; gap: 0.5rem; }
+.transactionParticipant { display: grid; min-width: 0; justify-items: center; }
+.transactionParticipant > strong { color: var(--card-foreground); font-size: 0.58rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.transactionParticipant[data-actor="opponent"] > strong { color: color-mix(in oklab, var(--color-loss) 72%, var(--card-foreground)); }
+.transactionParticipant[data-actor="self"] > strong { color: color-mix(in oklab, var(--color-win) 72%, var(--card-foreground)); }
+.transactionCards { display: flex; height: 100%; min-height: 0; align-items: center; justify-content: center; padding: 0.35rem 1rem 1rem; }
+.transactionParticipants[data-multiple] .transactionCards { padding-inline: 0; }
+.transactionParticipants[data-multiple] .transactionCardState,
+.transactionParticipants[data-multiple] .transactionCard { width: 4.5rem; }
+.transactionParticipants[data-multiple] .transactionCards > .transactionCardState + .transactionCardState { margin-left: -3.65rem; }
+.replayCoin {
+  position: relative;
+  width: clamp(5.5rem, 9vw, 7rem);
+  aspect-ratio: 1;
+  perspective: 800px;
+  filter: drop-shadow(0 0.6rem 0.6rem color-mix(in oklab, black 45%, transparent));
+}
+.coinRotor {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.coinRotor[data-result="tails"] { transform: rotateY(180deg); }
+.coinMetalFace, .coinOption {
+  display: block;
+  border-radius: 50%;
+  /* Source: https://archives.bulbagarden.net/wiki/File:TCGP_Coin_Pikachu.png */
+  background-image: url("/images/battle-replay/coin-pikachu.png");
+  background-size: 138%;
+  background-position: center;
+}
+.coinMetalFace {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0.14rem);
+}
+.coinMetalFace[data-side="tails"] {
+  transform: rotateY(180deg) translateZ(0.14rem);
+}
+.coinOption {
+  width: 2.8rem;
+  aspect-ratio: 1;
+  margin-block: 0.2rem;
+}
+.coinMetalFace[data-side="tails"], .coinOption[data-side="tails"] {
+  /* Source: https://archives.bulbagarden.net/wiki/File:Coin_Back_Metal_Pikachu.png */
+  background-image: url("/images/battle-replay/coin-pokemon-back.png");
+  background-size: cover;
+}
+.transactionCardState {
+  position: relative;
+  width: clamp(5rem, 8vw, 6.5rem);
+  flex: 0 0 auto;
+  isolation: isolate;
+}
+.transactionCard {
+  position: relative;
+  width: clamp(5rem, 8vw, 6.5rem);
+  flex: 0 0 auto;
+  overflow: hidden;
+  aspect-ratio: 0.714;
+  border: 1px solid color-mix(in oklab, var(--color-loss) 28%, var(--border));
+  border-radius: 0.38rem;
+  background: var(--card);
+  box-shadow: 0 0.55rem 1.2rem color-mix(in oklab, var(--foreground) 24%, transparent);
+}
+.transactionCardState .transactionCard { z-index: 2; width: 100%; }
+.transactionOverlay[data-actor="self"] .transactionCard { border-color: color-mix(in oklab, var(--color-win) 28%, var(--border)); }
+.transactionCards > .transactionCardState + .transactionCardState { margin-left: clamp(-3.1rem, -4vw, -2.2rem); }
+.transactionCards[data-many] > .transactionCardState + .transactionCardState { margin-left: clamp(-5.5rem, -6.5vw, -4.35rem); }
+.transactionCard img { object-fit: cover; }
+.transactionCard.cardPreviewTrigger { pointer-events: auto; }
+.transactionHiddenCards { position: relative; display: flex; align-items: center; }
+.transactionHiddenCards .transactionCard { width: clamp(6rem, 9vw, 7.25rem); }
+.transactionDamageCounter {
+  right: -0.7rem;
+  width: 1.8rem;
+  font-size: 0.68rem;
+  box-shadow: 0 0.22rem 0.45rem color-mix(in oklab, black 45%, transparent);
+}
+.transactionAbilityUsedMarker {
+  top: 50%;
+  right: -0.58rem;
+  width: 1.35rem;
+}
+.transactionWeaknessBreakdown {
+  align-self: start;
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  color: white;
+  text-align: center;
+}
+.transactionWeaknessBreakdown span {
+  padding: 0.24rem 0.45rem;
+  border-radius: 0.22rem;
+  background: var(--color-warning);
+  color: color-mix(in oklab, var(--color-warning) 14%, black);
+  box-shadow: 0 0.24rem 0.5rem color-mix(in oklab, black 38%, transparent);
+  font-size: 0.48rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.transactionWeaknessBreakdown strong { color: white; font-size: 0.6875rem; font-weight: 800; line-height: 1; }
+.transactionEvolutionStack img { object-fit: cover; }
+.transactionEvolutionStack { position: absolute; z-index: 0; inset: 0; }
+.transactionEvolutionStack > span {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 0.38rem;
+  box-shadow: 0 0.35rem 0.75rem color-mix(in oklab, black 30%, transparent);
+  transform: translate(-0.38rem, 0.4rem) rotate(-3deg);
+}
+.transactionEvolutionStack > span:nth-child(2) { transform: translate(-0.68rem, 0.7rem) rotate(-5deg); }
+.transactionTool {
+  position: absolute;
+  z-index: 4;
+  right: -0.55rem;
+  bottom: -0.5rem;
+  max-width: 5.8rem;
+  padding: 0.2rem 0.34rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, white 35%, transparent);
+  border-radius: 0.25rem;
+  background: color-mix(in oklab, black 82%, transparent);
+  color: white;
+  font-size: 0.48rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.transactionCount {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-loss);
+  color: white;
+  box-shadow: 0 0.35rem 0.7rem color-mix(in oklab, black 58%, transparent);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  transform: translate(-50%, -50%);
+}
+.transactionOverlay > p { color: var(--muted-foreground); font-size: 0.56rem; letter-spacing: 0.02em; }
+
+@keyframes transaction-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes transaction-stage-in { from { opacity: 0; transform: translateY(0.65rem) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes transaction-evolve { from { filter: brightness(1.55) saturate(0.7); transform: rotateY(68deg) scale(0.88); } to { filter: none; transform: rotateY(0) scale(1); } }
+@keyframes coin-result { from { filter: brightness(1.4); transform: rotateY(540deg) scale(0.82); } to { filter: none; transform: rotateY(0) scale(1); } }
+@keyframes evolve-card { 0% { opacity: 0.35; filter: brightness(1.9) saturate(0.4); transform: rotateY(78deg) scale(0.86); } 55% { filter: brightness(1.35) saturate(1.2); transform: rotateY(-8deg) scale(1.08); } 100% { opacity: 1; filter: none; transform: rotateY(0) scale(1); } }
+@keyframes promote-self { from { opacity: 0.4; transform: translateY(3.5rem) scale(0.82); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes promote-opponent { from { opacity: 0.4; transform: translateY(-3.5rem) scale(0.82); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes bench-arrival { from { opacity: 0.35; transform: translateY(-1.25rem) scale(0.82); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes discard-arrival { from { opacity: 0.3; transform: translateX(-2rem) rotate(-8deg) scale(0.76); } to { opacity: 1; transform: translateX(0) rotate(0) scale(1); } }
+
+@container replay (max-width: 68rem) {
+  .replayShell {
+    grid-template-columns: 1fr;
+  }
+
+  .replayStage {
+    order: -1;
+  }
+
+  .timelinePane {
+    border-top: 1px solid var(--border);
+    border-right: 0;
+  }
+
+  .timeline {
+    max-height: 24rem;
+  }
+}
+
+@container replay (max-width: 40rem) {
+  .replayShell {
+    margin-inline: -1rem;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .replayStage {
+    padding: 0.6rem;
+  }
+
+  .playerBoard {
+    --replay-pile-card-width: 2.8rem;
+    padding: 0.6rem;
+  }
+
+  .playerHeader {
+    align-items: flex-start;
+  }
+
+  .playerIdentity {
+    display: grid;
+    gap: 0.05rem;
+  }
+
+  .playArea {
+    min-height: 14rem;
+    grid-template-columns: calc(var(--replay-pile-card-width) + var(--replay-pile-card-width) + 0.2rem) minmax(0, 1fr) 3.1rem;
+    gap: 0.4rem;
+  }
+
+  .field {
+    grid-template-rows: 7.2rem 4.7rem;
+    gap: 0.9rem;
+  }
+
+  .activeRow {
+    grid-template-columns: 3rem 4.9rem 3rem;
+  }
+
+  .playerBoard[data-actor="opponent"] .field {
+    grid-template-rows: 4.7rem 7.2rem;
+  }
+
+  .active {
+    width: 4.9rem;
+    min-height: 7.2rem;
+  }
+
+  .bench {
+    height: 4.7rem;
+    width: min(100%, 15.4rem);
+    grid-template-columns: repeat(5, minmax(0, 2.55rem));
+    gap: 0.65rem;
+  }
+
+  .benchSlot {
+    max-width: 2.55rem;
+  }
+
+  .bench[data-capacity="6"] { width: 100%; grid-template-columns: repeat(6, minmax(0, 2.2rem)); gap: 0.4rem; }
+  .bench[data-capacity="7"] { width: 100%; grid-template-columns: repeat(7, minmax(0, 2.2rem)); gap: 0.3rem; }
+  .bench[data-capacity="8"] { width: 100%; grid-template-columns: repeat(8, minmax(0, 2.2rem)); gap: 0.25rem; }
+
+  .cardStack {
+    width: 4.2rem;
+  }
+
+  .cardStack[data-compact] {
+    width: 2.55rem;
+  }
+
+
+  .healthStatus strong {
+    font-size: 0.44rem;
+  }
+
+  .prizes {
+    gap: 0.2rem;
+  }
+
+  .handArea {
+    min-height: 4rem;
+  }
+
+  .handCard {
+    width: 2.25rem;
+  }
+
+  .handCard + .handCard {
+    margin-left: -0.5rem;
+  }
+
+  .stadium {
+    width: 3.5rem;
+  }
+
+  .stadiumName { font-size: 0.5rem; }
+
+  .transactionOverlay { gap: 0.4rem; padding: 0.65rem 0.4rem; }
+  .transactionHeading strong { font-size: 0.78rem; }
+  .transactionRail,
+  .transactionStage { gap: 0.25rem; }
+  .transactionStep { min-width: 3.75rem; grid-template-rows: 0.8rem 6.25rem 1rem; gap: 0.25rem; }
+  .transactionParticipants { gap: 0.25rem; }
+  .transactionParticipant > strong { font-size: 0.48rem; }
+  .transactionCards { min-height: 0; padding: 0.25rem 0.4rem 0.7rem; }
+  .transactionParticipants[data-multiple] .transactionCardState,
+  .transactionParticipants[data-multiple] .transactionCard { width: 2.75rem; }
+  .transactionParticipants[data-multiple] .transactionCards > .transactionCardState + .transactionCardState { margin-left: -2.05rem; }
+  .transactionCardState,
+  .transactionCard { width: 3.75rem; }
+  .transactionHiddenCards .transactionCard { width: 4.25rem; }
+  .transactionCard + .transactionCard { margin-left: -1.95rem; }
+  .transactionArrow { width: 0.75rem; }
+  .transactionOverlay > p { font-size: 0.48rem; }
+  .transactionCount { min-width: 1.7rem; height: 1.7rem; font-size: 0.68rem; }
+
+  .playedCard {
+    width: 2.65rem;
+  }
+
+  .currentAction {
+    min-height: 5.4rem;
+    grid-template-columns: 4rem minmax(0, 1fr);
+    gap: 0.65rem;
+    padding-inline: 0.45rem;
+  }
+
+  .controls {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    gap: 0.45rem;
+    padding: 0.65rem 0;
+    background: var(--background);
+  }
+
+  .controlGroup span {
+    min-width: 3rem;
+    font-size: 0.65rem;
+  }
+
+  .timelineAction {
+    grid-template-columns: 3.7rem 4rem minmax(0, 1fr);
+    padding-inline: 1.35rem 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardFlipper { transition: none; }
+  .cardFace,
+  .healthTrack span,
+  .pileCards,
+  .playedCard,
+  .board,
+  .transactionOverlay,
+  .transactionStage,
+  .transactionStage[data-kind="evolve"] .transactionCardState,
+  .replayCoin {
+    animation: none;
+    transition: none;
+  }
+
+  .cardStack[data-motion],
+  .cardStack[data-motion] .cardFace,
+  .pileCards[data-new-card] {
+    animation: none;
+  }
+}
+
+
+.boardCoinToss {
+  position: relative;
+  z-index: 25;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.boardCoinToss > * {
+  position: absolute;
+  translate: 0 -50%;
+}
+
+.playArea:has(.coinCall) { position: relative; }
+.playArea:has(.coinCall) .field { visibility: hidden; }
+.coinCall {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  pointer-events: none;
+  text-align: center;
+}
+.coinCaller {
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+}
+.coinCall strong {
+  color: var(--foreground);
+  font-size: clamp(1.5rem, 2.5vw, 2.1rem);
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  text-transform: capitalize;
+}
+.coinCall[data-winner] strong { color: var(--color-warning); }
+.coinWinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  color: var(--color-warning);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.coinWinner svg { width: 0.95rem; height: 0.95rem; }
+
+
+/* The call, landing and winner share a stable layout throughout the sequence. */
+.coinCall {
+  transition: opacity 450ms ease-out, transform 550ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.coinCall {
+  animation: coin-call-enter 550ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.coinCall[data-caller][data-phase="toss"] { opacity: 0.55; transform: scale(0.96); }
+.coinCall[data-phase="call"]:not([data-caller]) { opacity: 0.65; }
+.coinCall[data-caller] .coinCaller { color: var(--foreground); font-weight: 700; }
+.coinCall[data-caller] .coinCaller::before {
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+.coinCall[data-phase="result"]:not([data-winner]) { opacity: 0.45; }
+.coinCall[data-winner] { transform: scale(1.1); }
+.coinCall[data-winner] .coinWinner { font-size: 0.95rem; }
+.turnChoice[data-chooser] strong { color: var(--color-warning); }
+.turnChoice:not([data-chooser]) { opacity: 0.65; }
+.coinCall strong { transition: color 500ms ease-out; }
+.coinWinner {
+  min-height: 1.2rem;
+  opacity: 0;
+  transform: translateY(0.45rem);
+  transition: opacity 450ms ease-out 150ms, transform 550ms cubic-bezier(0.16, 1, 0.3, 1) 150ms;
+}
+.coinCall[data-winner] .coinWinner { opacity: 1; transform: translateY(0); }
+.boardCoinToss .replayCoin[data-phase="result"] > span {
+  animation: coin-result-label 350ms ease-out both;
+}
+@keyframes coin-call-enter {
+  from { opacity: 0; transform: translateY(0.65rem) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes coin-result-label {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.boardCoinToss .replayCoin { animation: none; }
+.boardCoinToss .replayCoin[data-phase="toss"] {
+  animation: board-coin-toss 1400ms cubic-bezier(0.2, 0.65, 0.4, 1) both;
+}
+@keyframes board-coin-toss {
+  0% { opacity: 0; transform: translateY(0.7rem) scale(0.8); }
+  15% { opacity: 1; }
+  45% { transform: translateY(-1.5rem) scale(1.1); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boardCoinToss .replayCoin[data-phase="toss"],
+  .coinCall,
+  .boardCoinToss .replayCoin[data-phase="result"] > span { animation: none; }
+  .coinCall, .coinWinner { transition: opacity 150ms ease-out; transform: none; }
+  .coinCall[data-caller][data-phase="toss"],
+  .coinCall:not([data-caller]),
+  .coinCall[data-winner] { transform: none; }
+}
+
+
+/* Rotate the two-sided rotor inside the shadowed shell, not its flattened image. */
+.replayCoin[data-phase="toss"] .coinRotor {
+  animation: coin-spin-heads 1400ms cubic-bezier(0.2, 0.65, 0.4, 1) both;
+}
+.replayCoin[data-phase="toss"] .coinRotor[data-result="tails"] {
+  animation-name: coin-spin-tails;
+}
+@keyframes coin-spin-heads {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(1800deg); }
+}
+@keyframes coin-spin-tails {
+  from { transform: rotateY(180deg); }
+  to { transform: rotateY(1980deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .replayCoin[data-phase="toss"] .coinRotor { animation: none; }
+}
+
+
+/* Keep enlarged hands bounded when a log records a large draw. */
+.handArea { min-width: 0; }
+.handCards { max-width: 100%; overflow-x: auto; justify-content: safe center; padding-block: 1.6rem 0.35rem; }
+
+@container replay (max-width: 40rem) {
+  .playerBoard { --replay-pile-card-width: 3.2rem; }
+  .playArea {
+    min-height: 24rem;
+    grid-template-areas: "prizes field piles" "bench bench bench";
+    grid-template-columns: 6.6rem minmax(0, 1fr) 3.8rem;
+    row-gap: 1.3rem;
+    padding-block: 0.75rem;
+  }
+  .playerBoard[data-actor="opponent"] .playArea {
+    grid-template-areas: "bench bench bench" "prizes field piles";
+  }
+  .field { display: contents; }
+  .activeRow {
+    grid-area: field;
+    grid-template-columns: 5.8rem;
+    grid-template-rows: 8.8rem auto;
+    align-content: center;
+    row-gap: 0.5rem;
+  }
+  .active { grid-column: 1; grid-row: 1; }
+  .stadiumSpot { grid-column: 1; grid-row: 2; }
+  .stadiumName { width: 5.5rem; }
+  .active { width: 5.8rem; min-height: 8.8rem; }
+  .cardStack { width: 5.5rem; }
+  .cardStack[data-compact] { width: min(100%, 3.4rem); }
+  .bench { width: 100%; height: 6rem; grid-template-columns: repeat(5, minmax(0, 3.4rem)); gap: 0.4rem; }
+  .benchSlot { max-width: 3.4rem; }
+  .handArea { min-height: 6.5rem; }
+  .handCard { width: 3.4rem; }
+  .handCard + .handCard { margin-left: -1rem; }
+}
+
+
+/* Attack feedback stays anchored to the Pokémon involved. */
+.boardAttack {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.boardAttack strong {
+  position: absolute;
+  bottom: calc(100% + 0.6rem);
+  left: 50%;
+  width: max-content;
+  max-width: 12rem;
+  transform: translateX(-50%);
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--card);
+  color: var(--card-foreground);
+  font-size: 0.75rem;
+  text-align: center;
+  animation: attack-label-in 220ms ease-out both;
+}
+.attackPulse {
+  position: absolute;
+  inset: -0.3rem -0.3rem 1.4rem;
+  border: 2px solid var(--primary);
+  border-radius: 0.5rem;
+  animation: attack-pulse 700ms ease-out 2;
+}
+.attackDamage {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  z-index: 20;
+  pointer-events: none;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.5rem;
+  background: var(--color-loss);
+  color: white;
+  font-size: 1.4rem;
+  font-weight: 800;
+  transform: translate(-50%, -50%);
+  animation: attack-damage-in 420ms 180ms ease-out both;
+}
+.cardStack[data-compact] .attackDamage { font-size: 1rem; }
+@keyframes attack-label-in {
+  from { opacity: 0; translate: 0 0.3rem; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes attack-pulse {
+  0% { opacity: 0.5; scale: 0.98; }
+  40% { opacity: 1; scale: 1.04; }
+  100% { opacity: 0.7; scale: 1; }
+}
+@keyframes attack-damage-in {
+  from { opacity: 0; translate: 0 0.6rem; scale: 0.85; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boardAttack strong, .attackPulse, .attackDamage { animation: none; }
+}
+
+
+.attackAnnouncementAnchor {
+  position: relative;
+  height: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+.attackAnnouncement {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 1rem 1.5rem;
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, transparent, var(--card) 18%, var(--card) 82%, transparent);
+  color: var(--card-foreground);
+  text-align: center;
+  animation: attack-announcement 1800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.attackAnnouncement span {
+  color: var(--muted-foreground);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.attackAnnouncement strong {
+  font-size: clamp(1.7rem, 4vw, 3.6rem);
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+@keyframes attack-announcement {
+  0% { opacity: 0; translate: -12% 0; scale: 0.88; }
+  18%, 72% { opacity: 1; translate: 0 0; scale: 1; }
+  100% { opacity: 0; translate: 8% 0; scale: 1.03; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .attackAnnouncement { animation-name: attack-announcement-fade; }
+}
+@keyframes attack-announcement-fade {
+  0%, 100% { opacity: 0; }
+  15%, 75% { opacity: 1; }
+}
+
+
+.knockoutStamp {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  z-index: 35;
+  pointer-events: none;
+  padding: 0.1rem 0.55rem;
+  border: 3px solid currentColor;
+  border-radius: 0.35rem;
+  background: var(--color-loss);
+  color: white;
+  font-size: 2.7rem;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1.1;
+  letter-spacing: -0.06em;
+  transform: translate(-50%, -50%) rotate(-10deg);
+  animation: knockout-stamp 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.cardStack[data-compact] .knockoutStamp {
+  font-size: 1.6rem;
+  border-width: 2px;
+  padding-inline: 0.3rem;
+}
+.cardStack[data-knocked-out] .cardFace {
+  filter: grayscale(0.75) brightness(0.6);
+  transition: filter 500ms ease-out;
+}
+@keyframes knockout-stamp {
+  0% { opacity: 0; scale: 1.8; }
+  40% { opacity: 1; scale: 0.9; }
+  65% { scale: 1.08; }
+  100% { opacity: 1; scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .knockoutStamp { animation: none; }
+  .cardStack[data-knocked-out] .cardFace { transition: none; }
+}
+
+
+.cardStack[data-knocked-out] {
+  z-index: 45;
+  transform-origin: top left;
+  pointer-events: none;
+}
+.cardStack[data-knocked-out] .healthStatus {
+  opacity: 0;
+}
+.playerBoard:has([data-knocked-out]) [data-pile-face="Discard"] {
+  animation: knockout-discard-arrival 400ms 1450ms ease-out both;
+}
+@keyframes knockout-discard-arrival {
+  0%, 100% { scale: 1; }
+  40% { scale: 1.12; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .playerBoard:has([data-knocked-out]) [data-pile-face="Discard"] { animation: none; }
+}
+
+
+.energyOrbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.12rem;
+  pointer-events: none;
+}
+.energyOrb {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  width: var(--energy-orb-size, 2rem);
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0.12rem 0.3rem color-mix(in oklab, black 53%, transparent);
+  animation: energy-orb-arrive 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.energyOrb img { width: 100%; height: 100%; }
+.energyOrbCount {
+  position: absolute;
+  z-index: 2;
+  color: white;
+  font-size: var(--energy-orb-count-size, 0.72rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  line-height: 1;
+  paint-order: stroke fill;
+  text-shadow: 0 0.08rem 0.08rem black;
+  -webkit-text-stroke: 0.04rem black;
+}
+.energyOrb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 30% 18%, color-mix(in oklab, white 67%, transparent), transparent 45%);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, white 33%, transparent), inset -0.15rem -0.25rem 0.3rem color-mix(in oklab, black 33%, transparent);
+}
+.boardEnergyOrbs {
+  --energy-orb-size: 0.75rem;
+  --energy-orb-count-size: 0.48rem;
+  position: absolute;
+  z-index: 16;
+  bottom: 0;
+  transform: translateY(50%);
+  left: 0;
+  width: 100%;
+}
+.cardStack[data-has-energy] .healthStatus { margin-top: 0.6rem; }
+.cardStack:not([data-compact]) .boardEnergyOrbs { --energy-orb-size: 1rem; --energy-orb-count-size: 0.58rem; }
+.cardStack:not([data-compact])[data-has-energy] .healthStatus { margin-top: 0.72rem; }
+.cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.55rem; --energy-orb-count-size: 0.4rem; }
+.cardStack[data-compact][data-has-energy] .healthStatus { margin-top: 0.5rem; }
+.transactionEnergyOrbs { position: absolute; z-index: 16; bottom: 0; left: 0; width: 100%; transform: translateY(50%); --energy-orb-size: 0.625rem; --energy-orb-count-size: 0.42rem; }
+.previewEnergyOrbs { position: absolute; z-index: 16; bottom: 0; left: 0; width: 100%; transform: translateY(50%); --energy-orb-size: 1.5rem; --energy-orb-count-size: 0.72rem; }
+@keyframes energy-orb-arrive {
+  from { opacity: 0; scale: 0.4; translate: 0 0.4rem; }
+  to { opacity: 1; scale: 1; translate: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) { .energyOrb { animation: none; } }
+
+.cardSurface { position: relative; width: 100%; }
+.cardSurface > button, .transactionCardState > button { display: block; }
+.cardPreviewImage:has(.previewEnergyOrbs) { margin-bottom: 0.85rem; }
+
+/* Scale the card and attached orbs together. */
+.cardSurface {
+  transition: transform 180ms ease-out;
+}
+.cardSurface:has(> .cardPreviewTrigger:hover),
+.cardSurface:has(> .cardPreviewTrigger:focus-visible) {
+  z-index: 30;
+  transform: scale(1.12);
+}
+.cardSurface > .cardPreviewTrigger:hover,
+.cardSurface > .cardPreviewTrigger:focus-visible {
+  transform: none;
+  z-index: 10;
+}
+.cardStack[data-face-down] .cardSurface { transform: none; }
+.handCard > .cardPreviewTrigger {
+  overflow: hidden;
+  border-radius: inherit;
+}
+.handCard > .cardPreviewTrigger:hover,
+.handCard > .cardPreviewTrigger:focus-visible {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cardSurface,
+  .handCard { transition: none; }
+}
+
+
+.conditionMarkers { position: absolute; top: 0.4rem; left: -0.4rem; z-index: 32; display: flex; flex-direction: column; gap: 0.25rem; pointer-events: none; }
+.conditionMarker { display: grid; place-items: center; width: 1.8rem; aspect-ratio: 1; filter: drop-shadow(0 0.1rem 0.2rem color-mix(in oklab, black 45%, transparent)); }
+.conditionMarker img { width: 100%; height: 100%; object-fit: contain; }
+.conditionMarker[data-condition="Asleep"] { border: 1px solid var(--border); border-radius: 50%; background: var(--card); color: var(--card-foreground); font-size: 0.75rem; font-weight: 800; }
+.cardStack[data-compact] .conditionMarker { width: 1rem; font-size: 0.5rem; }
+.cardPreviewImage .conditionMarker { width: 2.3rem; font-size: 1rem; }
+
+.timelineAction small { display: block; color: var(--muted-foreground); font-size: 0.72rem; }

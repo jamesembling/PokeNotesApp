@@ -190,12 +190,18 @@ function buildLogRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test("getLogById falls back to an empty raw log when the stored value is missing", async (t) => {
+test("getLogById scopes saved source by owner and preserves a missing raw log", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const { client } = createFakeSupabaseClient(() => ({
-    data: buildLogRow({ raw_log: undefined }),
-    error: null
-  }));
+  const calls: QueryContext[] = [];
+  const { client } = createFakeSupabaseClient((context) => {
+    calls.push(context);
+    const owner = context.operations.find((operation) => operation.method === "eq" && operation.args[0] === "user_id")?.args[1];
+    const id = context.operations.find((operation) => operation.method === "eq" && operation.args[0] === "id")?.args[1];
+    return {
+      data: owner === "user-1" && id === "log-1" ? buildLogRow({ raw_log: undefined }) : null,
+      error: null
+    };
+  });
 
   logsDbTestHooks.createClient = async () => client as never;
   t.after(() => {
@@ -205,6 +211,16 @@ test("getLogById falls back to an empty raw log when the stored value is missing
   const log = await getLogById("user-1", "log-1");
 
   assert.equal(log?.rawLog, "");
+  assert.equal(await getLogById("other-owner", "log-1"), null);
+  assert.equal(await getLogById("user-1", "missing-log"), null);
+  assert.deepEqual(calls.map((context) => ({
+    table: context.table,
+    filters: context.operations.filter((operation) => operation.method === "eq").map((operation) => operation.args)
+  })), [
+    { table: "logs", filters: [["user_id", "user-1"], ["id", "log-1"]] },
+    { table: "logs", filters: [["user_id", "other-owner"], ["id", "log-1"]] },
+    { table: "logs", filters: [["user_id", "user-1"], ["id", "missing-log"]] }
+  ]);
 });
 
 test("mapBattleLog reports malformed stored sections and falls back safely", () => {
