@@ -1,7 +1,9 @@
+import { normalizeText } from "@/lib/log-import/normalization";
 import { decodeLogSections } from "@/lib/battle-log/runtime-validation";
 import { buildDeckListCardImageUrl } from "@/lib/deck-lists/render";
 import { representativePrintings } from "./artwork";
 import { flattenReplaySourceActions } from "./source";
+import { createReplayHpContext } from "./hp";
 import type { ReplayCondition } from "./conditions";
 import type {
   ReplayActor, ReplayCard, ReplayEvent, ReplayLogSource, ReplayProgram,
@@ -16,6 +18,7 @@ const count = (text: string) => {
   if (!Number.isSafeInteger(value) || value < 1 || value > 60) throw new Unresolved("The recorded count is outside the supported replay bounds.");
   return value;
 };
+const observeEffect = (card: ReplayCard, name: string) => { card.observedEffects = [...new Set([...(card.observedEffects ?? []), name])]; };
 const allCards = (side: ReplaySide) => [side.active, ...side.bench].filter((card): card is ReplayCard => card !== null);
 
 class Unresolved extends Error {}
@@ -63,18 +66,34 @@ function removeHand(side: ReplaySide, names: string[], amount = names.length) {
   if (amount > names.length) side.knownHand = [];
 }
 
-function findCard(side: ReplaySide, name: string, position?: string) {
+function findBoardCard(side: ReplaySide, name: string, position: string | undefined, hp: ReturnType<typeof createReplayHpContext>, eligible: (card: ReplayCard) => boolean = () => true) {
   const pool = position === "Active Spot" ? [side.active] : position === "Bench" ? side.bench : allCards(side);
-  const matches = pool.filter((card): card is ReplayCard => Boolean(card && card.name === name));
+  const matches = pool.filter((card): card is ReplayCard => Boolean(card && card.name === name && eligible(card)));
   // IDs distinguish physical copies, but only observable, future-relevant state
   // can distinguish the outcome of an action whose source omits copy identity.
-  const signature = (card: ReplayCard) => JSON.stringify({
-    ...card, id: undefined, conditions: [...(card.conditions ?? [])].sort(),
-    abilityUsed: Boolean(card.abilityUsed),
-    underlying: card.underlying.map((item) => ({ ...item, id: undefined })),
-  });
+  const sameList = (left: string[], right: string[]) => left.length === right.length
+    && left.every((value, index) => value === right[index]);
+  const samePrintingEvidence = (left: ReplayCard, right: ReplayCard) => {
+    if (sameList([...(left.observedEffects ?? [])].sort(), [...(right.observedEffects ?? [])].sort())) return true;
+    const leftEvidence = hp.resolve(left);
+    const rightEvidence = hp.resolve(right);
+    return leftEvidence?.coverage === "complete" && rightEvidence?.coverage === "complete"
+      && leftEvidence.candidates.length > 0 && sameList(
+        leftEvidence.candidates.map((card) => card.sourceCardId).sort(),
+        rightEvidence.candidates.map((card) => card.sourceCardId).sort(),
+      );
+  };
+  const sameState = (left: ReplayCard, right: ReplayCard) => left.name === right.name
+    && left.hp === right.hp && left.damage === right.damage
+    && (left.damageKnown !== false) === (right.damageKnown !== false)
+    && Boolean(left.abilityUsed) === Boolean(right.abilityUsed)
+    && left.tool === right.tool
+    && samePrintingEvidence(left, right)
+    && sameList([...(left.conditions ?? [])].sort(), [...(right.conditions ?? [])].sort())
+    && sameList([...left.energy].sort(), [...right.energy].sort())
+    && sameList(left.underlying.map((card) => card.name), right.underlying.map((card) => card.name));
   const interchangeable = matches.length > 1 && !matches.some((card) => card.id === side.active?.id)
-    && matches.every((card) => signature(card) === signature(matches[0]));
+    && matches.every((card) => sameState(card, matches[0]));
   if (matches.length !== 1 && !interchangeable) throw new Unresolved(matches.length
     ? `The log does not identify which ${name} was affected.`
     : `${name} is not present in the last evidenced board state.`);
@@ -96,6 +115,27 @@ function anonymise(text: string, input: ReplayLogSource) {
  * invalidate only affected knowledge; validated catalog metadata classifies effects.
  */
 export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
+  const hp = createReplayHpContext(input.cardDefinitions);
+  const findCard = (side: ReplaySide, name: string, position?: string) => findBoardCard(side, name, position, hp);
+  const findAbilityCard = (side: ReplaySide, name: string, effect: string) => {
+    const texts = hp.abilityTexts(name, effect);
+    const oncePerCopy = texts?.length && texts.every((text) => /^Once during your turn[, (]/i.test(text)
+      && !/(?:can['’]?t|cannot|may not) (?:use|apply) more than 1|only (?:use|apply) (?:this|1|one).+?Ability|(?:use|apply) only (?:1|one)\b/i.test(text));
+    return findBoardCard(side, name, undefined, hp, (card) => !oncePerCopy || !card.abilityUsed);
+  };
+  const ordinaryAttackTargetsActive = (attacker: ReplayCard, effect: string, recordedDamage: number) => {
+    const evidence = hp.resolve({ ...attacker, observedEffects: [...(attacker.observedEffects ?? []), effect] });
+    if (evidence?.coverage !== "complete" || !evidence.candidates.length) return false;
+    return evidence.candidates.every((candidate) => {
+      const attacks = candidate.attacks.filter((attack) => normalizeText(attack.name) === normalizeText(effect));
+      if (attacks.length !== 1) return false;
+      const attack = attacks[0];
+      if (attack.damage === null || !/^\d+$/.test(attack.damage) || Number(attack.damage) !== recordedDamage || attack.text === null) return false;
+      // Only complete understood clauses establish ordinary Active damage.
+      // Absence of a Bench keyword alone cannot rule out target selection.
+      return attack.text.trim() === "" || /^During your opponent['’]s next turn, they can['’]t play any Item cards from their hand\.$/i.test(attack.text.trim());
+    });
+  };
   const initial: ReplayState = { self: emptySide(input.selfDeckName), opponent: emptySide(input.opponentDeckName), stadium: null, playedCard: null };
   const program: ReplayProgram = {
     id: input.id, label: `${input.selfDeckName} vs ${input.opponentDeckName}`,
@@ -149,7 +189,10 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
     let damageBreakdown = false;
     let lastPromotionActor: ReplayActor | null = null;
     const effectTag = (raw: string) => input.effectTags?.[raw] ?? input.effectTags?.[clean(raw)] ?? input.effectTags?.[`${clean(raw)}.`];
-    const effectOrigin = input.effectOrigins?.[action.sourceTitle];
+    const effectOrigin = (raw: string, detailIndex: number) => (detailIndex >= 0 ? input.effectDetailOrigins?.[`${actionIndex}:${detailIndex}`] : undefined)
+      ?? input.effectOrigins?.[raw]
+      ?? input.effectOrigins?.[clean(raw)] ?? input.effectOrigins?.[`${clean(raw)}.`]
+      ?? input.effectOrigins?.[action.sourceTitle];
     const markUncertain = (actor: ReplayActor, zones: NonNullable<ReplaySide["uncertainZones"]>) => {
       const side = next[actor];
       side.uncertainZones = [...new Set([...(side.uncertainZones ?? []), ...zones])];
@@ -185,6 +228,7 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
     };
     const id = () => `action-${actionIndex}-card-${cardCounter++}`;
     const stage = (kind: ReplayTransactionStage["kind"], title: string, cards: ReplayZoneCard[], actor?: ReplayActor, hiddenCount?: number) => {
+      hp.update(next);
       stages.push({ kind, label: title, cards: structuredClone(cards), ...(actor ? { actor } : {}), ...(hiddenCount ? { hiddenCount } : {}) });
     };
     const cardList = (index: number) => {
@@ -243,7 +287,7 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
       stage(destination === "hand" ? "return" : "shuffle", destination === "hand" ? "To hand" : "Shuffle", cards, actor, amount - names.length); mutationCount++;
     };
     const parseLine = (raw: string, detailIndex: number): boolean => {
-      const line = clean(raw).replace(/^(.*?) attached (.+?) from (?:their |the )?(hand|deck|discard pile) to (.+)$/i, "$1 attached $2 to $4 from $3");
+      const line = clean(raw).replace(/^(.+?)['’]s (.+?) healed (\d+) damage$/i, "$1 healed $3 damage from $1's $2").replace(/^(.*?) attached (.+?) from (?:their |the )?(hand|deck|discard pile) to (.+)$/i, "$1 attached $2 to $4 from $3");
       let match: RegExpMatchArray | null;
       if ((match = line.match(/^(.+?) drew (a|\d+) cards? and played them to (?:the )?Bench$/i))) {
         const actor = actorFor(match[1]); const names = cardList(detailIndex); const amount = count(match[2]);
@@ -314,10 +358,11 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
       if ((match = line.match(/^(.+?) moved (.+?) to (?:their |the )?(hand|deck)$/i))) {
         const mover = [input.selfPlayerName, input.opponentPlayerName].includes(match[1]) ? actorFor(match[1]) : undefined;
         const target = ownerAndName(match[2], mover);
-        if (!effectOrigin) throw new Unresolved("The recovered cards' origin is not recorded or established by effect metadata.");
+        const origin = effectOrigin(raw, detailIndex);
+        if (!origin) throw new Unresolved("The recovered cards' origin is not recorded or established by effect metadata.");
         const numeric = /^(a|\d+) cards?$/i.exec(target.name);
         const names = numeric ? cardList(detailIndex) : target.name.split(",").map((name) => name.trim());
-        transfer(target.actor, names, numeric ? count(numeric[1]) : names.length, effectOrigin, match[3]); return true;
+        transfer(target.actor, names, numeric ? count(numeric[1]) : names.length, origin, match[3]); return true;
       }
       if ((match = line.match(/^(.+?) shuffled (.+?)(?: from (?:their |the )?(hand|discard pile))? into their deck$/i))) {
         const actor = actorFor(match[1]);
@@ -332,9 +377,17 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
         }
         const numeric = /^(a|\d+) cards?$/i.exec(match[2]);
         const names = numeric ? cardList(detailIndex) : match[2].split(",").map((name) => name.trim());
-        const origin = match[3] === "discard pile" ? "discard" : match[3] ?? effectOrigin;
+        const origin = match[3] === "discard pile" ? "discard" : match[3] ?? effectOrigin(raw, detailIndex);
         if (!origin) throw new Unresolved("The shuffled cards' origin is not recorded.");
         transfer(actor, names, numeric ? count(numeric[1]) : names.length, origin, "deck"); return true;
+      }
+      if ((match = line.match(/^(.+?) shuffled their hand$/i))) { actorFor(match[1]); return true; }
+      if ((match = line.match(/^(.+?) put (a|\d+) cards? on the bottom of their deck$/i))) {
+        const actor = actorFor(match[1]);
+        const preceding = detailIndex > 0 ? clean(action.details[detailIndex - 1]) : "";
+        const origin = preceding === `${match[1]} shuffled their hand` ? "hand" : effectOrigin(raw, detailIndex);
+        if (origin !== "hand") throw new Unresolved("The cards placed on the bottom of the deck have no established hand origin.");
+        transfer(actor, cardList(detailIndex), count(match[2]), origin, "deck"); return true;
       }
       if ((match = line.match(/^(.+?) shuffled their deck$/i))) { actorFor(match[1]); return true; }
       if ((match = line.match(/^(.+?) discarded (.+?)(?: from (?:their |the )?(hand|deck))?$/i)) && [input.selfPlayerName, input.opponentPlayerName].includes(match[1]) && !/^(?:a|\d+) cards?$/i.test(match[2])) {
@@ -368,7 +421,7 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
         const actor = actorFor(match[1]); const card = findCard(next[actor], match[2], match[4]);
         stage("before", "From", [card], actor);
         card.underlying.push(zoneCard(id(), card.name));
-        Object.assign(card, zoneCard(card.id, match[3]), { hp: null, conditions: [], abilityUsed: false });
+        Object.assign(card, zoneCard(card.id, match[3]), { hp: null, conditions: [], abilityUsed: false, observedEffects: [] });
         removeHand(next[actor], [match[3]]); stage("evolve", "Evolve", [card], actor);
         label = "Evolve"; mutationCount++; return true;
       }
@@ -379,7 +432,7 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
         if (!isEnergy && !isTool) throw new Unresolved("The attachment type is not recorded.");
         if (isTool && card.tool) throw new Unresolved("An existing Tool must be explicitly removed before replacement.");
         // A standalone manual attachment is from hand; an effect detail needs its origin stated.
-        const origin = match[5] ?? effectOrigin ?? (detailIndex < 0 || next.playedCard?.actor === actor && next.playedCard.card.name === match[2] ? "hand" : undefined);
+        const origin = match[5] ?? effectOrigin(raw, detailIndex) ?? (detailIndex < 0 || next.playedCard?.actor === actor && next.playedCard.card.name === match[2] ? "hand" : undefined);
         if (!origin) throw new Unresolved("The effect's attachment origin is not recorded.");
         if (origin === "hand") {
           if (!(detailIndex >= 0 && next.playedCard?.actor === actor && next.playedCard.card.name === match[2])) removeHand(side, [match[2]]);
@@ -402,22 +455,26 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
       if ((match = line.match(/^(.+?)['’]s (.+?) used (.+?) on (.+?)['’]s (.+?) for (\d+)\+? damage(?:\. (.+))?$/i))) {
         const actor = actorFor(match[1]); const targetActor = actorFor(match[4]);
         const attacker = findCard(next[actor], match[2], "Active Spot");
-        const target = findCard(next[targetActor], match[5]); attackDamage = Number(match[6]);
+        attackDamage = Number(match[6]);
+        const targetPosition = actor !== targetActor && ordinaryAttackTargetsActive(attacker, match[3], attackDamage) ? "Active Spot" : undefined;
+        const target = findCard(next[targetActor], match[5], targetPosition);
         if (match[7] && !/^.+? took \d+ more damage because of .+? Weakness$/i.test(match[7])) return false;
+        observeEffect(attacker, match[3]);
         target.damage += attackDamage; damageApplied.set(target.id, attackDamage);
         stage("attack", match[3], [attacker], actor); stage("damage", `${attackDamage} damage`, [target], targetActor);
         label = "Attack"; mutationCount++; return true;
       }
       if ((match = line.match(/^(.+?)['’]s (.+?) used (?:its )?Ability(?::|\s)\s*(.+)$/i))) {
-        const actor = actorFor(match[1]); const card = findCard(next[actor], match[2]);
-        card.abilityUsed = true; stage("ability", match[3], [card], actor);
+        const actor = actorFor(match[1]); const card = findAbilityCard(next[actor], match[2], match[3]);
+        card.abilityUsed = true; observeEffect(card, match[3]); stage("ability", match[3], [card], actor);
         label = "Ability"; mutationCount++; return true;
       }
       if ((match = line.match(/^(.+?)['’]s (.+?) used (.+)$/i))) {
         const actor = actorFor(match[1]); const kind = effectTag(raw);
         if (kind !== "ability" && kind !== "attack") throw new Unresolved("The source does not identify a supported attack or a catalog-validated Ability.");
-        const card = findCard(next[actor], match[2], kind === "attack" ? "Active Spot" : undefined);
+        const card = kind === "ability" ? findAbilityCard(next[actor], match[2], match[3]) : findCard(next[actor], match[2], "Active Spot");
         if (kind === "ability") card.abilityUsed = true;
+        observeEffect(card, match[3]);
         stage(kind, match[3], [card], actor); label = kind === "ability" ? "Ability" : "Attack"; mutationCount++; return true;
       }
       if ((match = line.match(/^(.+?)['’]s (.+?) was Knocked Out$/i))) {
@@ -538,6 +595,7 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
         label = detailIndex < 0 ? "Coin flip" : label; return true;
       }
       if (/^.+? decided to go (?:first|second)$/i.test(line)) { label = "First"; return true; }
+      if (/^Pok[eé]mon Checkup$/i.test(line)) { label = "Checkup"; return true; }
       if (/^.+? ended their turn$/i.test(line)) { label = "End turn"; return true; }
       if (/^(?:.+? wins(?: the game)?|.+? conceded(?: the game)?|All Prize cards taken|No Pokémon in play)$/i.test(line)) { label = "Result"; return true; }
       if (/^Damage breakdown:$/i.test(line)) { damageBreakdown = attackDamage !== null; return damageBreakdown; }
@@ -563,17 +621,50 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
     }
     const invalidate = (raw: string) => {
       const line = clean(raw);
+      const used = /^(.+?)['’]s (.+?) used (?:its Ability:\s*)?(.+)$/i.exec(line);
+      const abilityTexts = used ? hp.abilityTexts(used[2], used[3]) : null;
+      if (used && [input.selfPlayerName, input.opponentPlayerName].includes(used[1]) && abilityTexts?.length && abilityTexts.every((text) =>
+        /^Once during your turn, you may look at the top \d+ cards of your deck and put \d+ of them into your hand\. Put the other cards? on the bottom of your deck\.$/i.test(text))) {
+        // Unidentified use of a verified hand/deck-only Ability does not
+        // invalidate either board. The recorded details still apply below.
+        markUncertain(actorFor(used[1]), ["hand", "deck"]);
+        next.partial = true;
+        return;
+      }
+      // Classify the operation, never words inside card/effect names (for
+      // example, moving Damage Pump is a zone movement, not damage).
+      const damageMutation = /^.+?['’]s .+? took \d+ damage(?: from .+)?$/i.test(line)
+        || /^.+? (?:put|moved) (?:a|\d+) damage counters? (?:on|from) /i.test(line)
+        || /^(?:a|\d+) damage counters? (?:was|were) placed on /i.test(line)
+        || /^.+? healed \d+ damage from /i.test(line)
+        || /^.+?['’]s .+? healed \d+ damage$/i.test(line)
+        || /^.+?['’]s .+? used .+? on .+?['’]s .+? for \d+\+? damage/i.test(line)
+        || /^(?:Total damage|Base damage|Damage breakdown|Weakness to .+?|Resistance to .+?):/i.test(line)
+        || damageBreakdown;
+      const playerNames = [input.selfPlayerName, input.opponentPlayerName];
+      const operation = playerNames.sort((a, b) => b.length - a.length)
+        .find((name) => line.startsWith(`${name} `));
+      const verb = operation ? line.slice(operation.length + 1) : line;
       const actors = (["self", "opponent"] as const).filter((actor) => line.includes(actor === "self" ? input.selfPlayerName : input.opponentPlayerName));
-      const affected = actors.length ? actors : /\bdamage\b/i.test(line) && damageApplied.size
+      const affected = actors.length ? actors : damageMutation && damageApplied.size
         ? (["self", "opponent"] as const).filter((actor) => allCards(next[actor]).some((card) => damageApplied.has(card.id)))
         : [event.actor];
       for (const actor of affected) {
-        if (/\b(?:damage|healed|counters?)\b/i.test(line)) {
+        if (damageMutation) {
           const named = allCards(next[actor]).filter((card) => line.includes(card.name));
           (named.length ? named : allCards(next[actor])).forEach((card) => { card.damageKnown = false; });
-        } else if (/\b(?:draw|drew|hand|shuffl|deck|discard)/i.test(line)) {
-          markUncertain(actor, ["hand", "deck", ...(/discard/i.test(line) ? ["discard" as const] : [])]);
-        } else if (/\b(?:attach|evolv|retreat|switch|Bench|Active Spot|Knocked Out)/i.test(line)) {
+        } else if (/^(?:rearranged|reordered) .+? (?:in|within) (?:their|the) hand$/i.test(verb)) {
+          // The recorded operation is explicitly confined to the hand. It
+          // cannot erase independently evidenced board damage or attachments.
+          markUncertain(actor, ["hand"]);
+        } else if (/^(?:moved|returned|put|shuffled)\b/i.test(verb) || /(?:was|were) added to .+?['’]s hand$/i.test(line)) {
+          // Without a supported origin even the last public discard/board may
+          // have changed. Preserve it only as explicitly incomplete history.
+          markUncertain(actor, ["hand", "deck", "discard", "board"]);
+        } else if (/^(?:draw|drew|discarded)\b/i.test(verb)) {
+          markUncertain(actor, ["hand", "deck", ...(/^discarded\b/i.test(verb) ? ["discard" as const] : [])]);
+        } else if (/^(?:attached|evolved|retreated|switched|played)\b/i.test(verb)
+          || /(?:is now in the Active Spot|was Knocked Out|to become the Active Pok[eé]mon)$/i.test(line)) {
           markUncertain(actor, ["board", "hand"]);
         } else {
           // An unknown effect can change either player's zones. Keep last seen
@@ -648,13 +739,14 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
       program.diagnostics.unresolvedActions.push(actionIndex);
       program.diagnostics.unresolvedMutations++;
     }
+    hp.update(next);
     program.frames.push(next);
     previousSectionIndex = action.sourceSectionIndex;
     program.events.push(event);
   });
   program.diagnostics.evidencedActions = program.events.length;
   if (program.diagnostics.unresolvedActions.length) program.diagnostics.messages.push("Some recorded transitions could not be reconstructed. Affected information is marked unknown; independently recorded transitions remain visible.");
-  program.diagnostics.messages.push("HP and exact card printings are not recorded in Battle Logs. Artwork is representative; unknown counts are shown as unknown. Discard piles include only evidenced cards.");
+  program.diagnostics.messages.push("Printed HP comes only from complete, compatible card definitions; effective HP remains unknown when modifiers are unresolved. Artwork is representative; unknown counts are shown as unknown. Discard piles include only evidenced cards.");
   program.status = understoodMutations > 0 ? "partial" : "unsupported";
   if (JSON.stringify(program).length > 8_000_000) {
     program.events = [];

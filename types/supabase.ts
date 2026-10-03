@@ -180,6 +180,24 @@ export type Database = {
         }
         Relationships: []
       }
+      card_definition_generations: {
+        Row: { id: string; source: string; expected_count: number; source_manifest_hash: string; source_coverage: Json; created_at: string; completed_at: string | null }
+        Insert: { id: string; source: string; expected_count: number; source_manifest_hash: string; source_coverage: Json; created_at?: string; completed_at?: string | null }
+        Update: { completed_at?: string | null }
+        Relationships: []
+      }
+      card_definition_catalog: {
+        Row: { generation_id: string; source_card_id: string; normalized_card_name: string; definition: Json }
+        Insert: { generation_id: string; source_card_id: string; normalized_card_name: string; definition: Json }
+        Update: { definition?: Json }
+        Relationships: []
+      }
+      card_definition_active: {
+        Row: { singleton: boolean; generation_id: string }
+        Insert: { singleton?: boolean; generation_id: string }
+        Update: { generation_id?: string }
+        Relationships: [{ foreignKeyName: "card_definition_active_generation_id_fkey"; columns: ["generation_id"]; isOneToOne: false; referencedRelation: "card_definition_generations"; referencedColumns: ["id"] }]
+      }
       card_effect_catalog: {
         Row: {
           card_name: string
@@ -1437,6 +1455,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      publish_card_definition_generation: { Args: { target_generation: string }; Returns: undefined }
       get_player_profile: {
         Args: { p_user_id: string }
         Returns: Json

@@ -605,6 +605,15 @@ async function verifyReplayCollection(db, userId, original) {
       { title: "E2ETrainer rearranged unknown cards in their hand.", details: [] }
     ] }
   ];
+  rows[2].raw_log = "Synthetic verified card-definition replay";
+  rows[2].sections = [{ title: "Setup", player: "", prizesAfterTurn: {}, actions: [
+    { title: "E2ETrainer played Seedling to the Active Spot.", details: [] },
+    { title: "FixtureOpponent played Rival to the Active Spot.", details: [] },
+  ] }, { title: "E2ETrainer's Turn", player: "E2ETrainer", prizesAfterTurn: {}, actions: [
+    { title: "E2ETrainer attached Fixture Charm to Seedling in the Active Spot.", details: [] },
+  ] }];
+  const definitionGeneration = randomUUID();
+  let definitionsCreated = false;
   let otherUserId;
   try {
     await query(db.from("logs").insert(rows));
@@ -662,6 +671,31 @@ async function verifyReplayCollection(db, userId, original) {
     await page.keyboard.press("Escape");
     await requireRestoredFocus(discard, "View discard, 1 card");
     await verifyReplayLayouts(scrubber);
+    checkpoint("verify published card definitions reach replay HP and card preview");
+    const syntheticDefinitions = [
+      { name: "Seedling", hp: 70, category: "Pokemon", trainerType: null, rules: [] },
+      { name: "Rival", hp: 80, category: "Pokemon", trainerType: null, rules: [] },
+      { name: "Fixture Charm", hp: null, category: "Trainer", trainerType: "Tool", rules: ["The Pokémon this card is attached to gets +100 HP."] },
+    ].map((card, index) => ({ source: "tcgdex", sourceCardId: `e2e-definition-${index}`, setId: "synthetic", localId: String(index),
+      setReleaseDate: "2025-01-01", stage: card.category === "Pokemon" ? "Basic" : null, types: card.category === "Pokemon" ? ["Grass"] : null,
+      evolvesFrom: null, regulationMark: null, abilities: [],
+      attacks: card.category === "Pokemon" ? [{ name: "Tap", text: null, damage: "10", cost: ["Grass"] }] : [], sourceUpdatedAt: null,
+      sourceUrl: `https://api.tcgdex.net/v2/en/cards/e2e-definition-${index}`, syncedAt: new Date().toISOString(), ...card }));
+    await query(db.from("card_definition_generations").insert({ id: definitionGeneration, source: "tcgdex", expected_count: 3,
+      source_manifest_hash: "synthetic-e2e", source_coverage: { scope: "tcgdex-listed-en-physical", listedPrintings: 3, unlistedSets: [] } }));
+    definitionsCreated = true;
+    await query(db.from("card_definition_catalog").insert(syntheticDefinitions.map(definition => ({
+      generation_id: definitionGeneration, source_card_id: definition.sourceCardId, normalized_card_name: definition.name.toLowerCase(), definition,
+    }))));
+    await query(db.rpc("publish_card_definition_generation", { target_generation: definitionGeneration }));
+    await page.goto(`${baseUrl}/replays/${rows[2].id}?position=3`);
+    await page.getByRole("meter", { name: "Seedling: 170 of 170 HP remaining", exact: true }).waitFor();
+    assert.equal(await page.getByRole("meter", { name: "Rival: 80 of 80 HP remaining", exact: true }).count(), 1,
+      "An attached Tool must affect only its recorded physical target.");
+    await page.getByLabel(`${rows[2].self_deck_name} Active Spot`, { exact: true }).getByRole("button", { name: "Preview Seedling", exact: true }).click();
+    await page.getByRole("dialog", { name: "Seedling", exact: true }).getByText("170 / 170 HP", { exact: true }).waitFor();
+    await captureReplay("battle-replay-verified-hp", false);
+    await page.keyboard.press("Escape");
     await page.getByRole("link", { name: "Choose another game", exact: true }).click();
     const collection = page.getByRole("region", { name: "Your Battle Logs", exact: true });
     await collection.waitFor();
@@ -694,6 +728,10 @@ async function verifyReplayCollection(db, userId, original) {
     } finally { await anonymous.close(); }
   } finally {
     await query(db.from("logs").delete().in("id", ids));
+    if (definitionsCreated) {
+      await query(db.from("card_definition_active").delete().eq("generation_id", definitionGeneration));
+      await query(db.from("card_definition_generations").delete().eq("id", definitionGeneration));
+    }
     if (otherUserId) {
       const result = await db.auth.admin.deleteUser(otherUserId);
       if (result.error) throw result.error;

@@ -113,6 +113,12 @@ jobs:
         if: steps.changes.outputs.relevant == 'true'
         run: node_modules/.bin/supabase --agent=no --workdir tests/e2e test db --local
 
+      - name: Verify card definition publication and staging concurrency
+        if: steps.changes.outputs.relevant == 'true'
+        run: |
+          docker exec -i supabase_db_pokenotes-e2e psql -U postgres -d postgres -v ON_ERROR_STOP=1 < sql/verification/card-definition-catalog.sql
+          node scripts/verify-card-definition-concurrency.mjs
+
       - name: Verify Tournament Deck List behavior
         if: steps.changes.outputs.relevant == 'true'
         run: npm run verify:tournament-deck-list
