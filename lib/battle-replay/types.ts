@@ -1,15 +1,25 @@
 import type { ReplayCondition } from "./conditions";
 import type { LogSection } from "@/types/index";
-import type { CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
+import type { CardDefinition, CardDefinitionEvidence, CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
 
 export type ReplayActor = "self" | "opponent";
-type HandCard = { id: string; name: string; imageUrl: string };
+type HandCard = ReplayZoneCard;
+
+/** One entry per evidence query, shared by frames and preview surfaces. */
+export type ReplayCardResolution = Pick<CardDefinitionEvidence, "coverage" | "generation" | "resolution" | "candidatePrintingIds" | "selectedPrinting" | "displayBasis" | "agreedFacts" | "formatBasis"> & {
+  name: string;
+  selectedDefinition: CardDefinition | null;
+};
 
 export type ReplayZoneCard = {
   id: string;
   name: string;
   imageUrl: string;
   artwork?: "representative";
+  definitionKey?: string;
+  setId?: string;
+  localId?: string;
+  observedEffects?: string[];
 };
 
 export type ReplayCard = {
@@ -31,6 +41,9 @@ export type ReplayCard = {
   energy: string[];
   underlying: ReplayZoneCard[];
   tool?: string;
+  definitionKey?: string;
+  setId?: string;
+  localId?: string;
 };
 
 export type ReplaySide = {
@@ -39,6 +52,10 @@ export type ReplaySide = {
   bench: ReplayCard[];
   deckCount: number | null;
   handCount: number | null;
+  /** Physical cards in play, including evolution cards, attachments and owned Stadiums. */
+  inPlayCount?: number | null;
+  /** Whole pile size; discard contains only evidenced card identities. */
+  discardCount?: number | null;
   knownHand: HandCard[];
   discard: ReplayZoneCard[];
   prizesRemaining: number | null;
@@ -50,7 +67,7 @@ export type ReplayState = {
   partial?: boolean;
   self: ReplaySide;
   opponent: ReplaySide;
-  stadium: { name: string; imageUrl: string; actor: ReplayActor } | null;
+  stadium: { name: string; imageUrl: string; actor: ReplayActor; definitionKey?: string } | null;
   playedCard: {
     actor: ReplayActor;
     card: ReplayZoneCard;
@@ -143,4 +160,5 @@ export type ReplayProgram = {
     messages: string[];
   };
   status: "supported" | "partial" | "unsupported";
+  cardResolutions?: Record<string, ReplayCardResolution>;
 };

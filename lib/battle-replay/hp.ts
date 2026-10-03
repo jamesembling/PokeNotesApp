@@ -1,7 +1,7 @@
-import { resolveCardDefinition } from "@/lib/card-definition-catalog/resolve";
+import { resolveCardDefinition, selectCardDefinitionPrinting } from "@/lib/card-definition-catalog/resolve";
 import { normalizeText } from "@/lib/log-import/normalization";
 import type { CardDefinition, CardDefinitionEvidence, CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
-import type { ReplayCard, ReplayState } from "./types";
+import type { ReplayCard, ReplayCardResolution, ReplayState, ReplayZoneCard } from "./types";
 
 const hasHp = (text: string) => /\bHP\b/i.test(text);
 
@@ -73,7 +73,12 @@ function abilityPlan(text: string | null): AbilityPlan {
 }
 
 /** One compiler owns these caches. Frames clone game state, never catalogue data. */
-export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | undefined) {
+export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | undefined, declaredFormat?: string) {
+  const originalEvidence = evidence;
+  const originalIndex = new Map(Object.entries(evidence ?? {}).map(([name, found]) => [name, found.candidates]));
+  // Apply the saved format once; this same candidate set feeds HP and visual identity.
+  if (declaredFormat && evidence) evidence = Object.fromEntries(Object.entries(evidence).map(([name, found]) => [name,
+    resolveCardDefinition(new Map([[name, found.candidates]]), { name, declaredFormat }, found.coverage, found.generation, found.sourceCoverage)]));
   const normalized = new Map<string, string>();
   const normalize = (value: string) => {
     let result = normalized.get(value);
@@ -82,14 +87,15 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
   };
   const index = new Map(Object.entries(evidence ?? {}).map(([name, found]) => [name, found.candidates]));
   const resolutions = new Map<string, CardDefinitionEvidence | undefined>();
-  const resolve = (card: Pick<ReplayCard, "name" | "observedEffects">): CardDefinitionEvidence | undefined => {
+  const resolve = (card: Pick<ReplayCard, "name" | "observedEffects" | "setId" | "localId">): CardDefinitionEvidence | undefined => {
     const name = normalize(card.name);
-    const found = evidence?.[name];
-    if (!found || !card.observedEffects?.length) return found;
-    const effects = card.observedEffects.map(normalize).sort();
-    const key = JSON.stringify([name, effects]);
-    if (!resolutions.has(key)) resolutions.set(key, resolveCardDefinition(index,
-      { name, effectNames: effects }, found.coverage, found.generation, found.sourceCoverage));
+    const exactIdentity = Boolean(card.setId && card.localId);
+    const found = (exactIdentity ? originalEvidence : evidence)?.[name];
+    if (!found || !card.observedEffects?.length && !card.setId && !card.localId) return found;
+    const effects = (card.observedEffects ?? []).map(normalize).sort();
+    const key = JSON.stringify([name, effects, card.setId ?? null, card.localId ?? null]);
+    if (!resolutions.has(key)) resolutions.set(key, resolveCardDefinition(exactIdentity ? originalIndex : index,
+      { name, effectNames: effects, setId: card.setId, localId: card.localId, declaredFormat }, found.coverage, found.generation, found.sourceCoverage));
     return resolutions.get(key);
   };
   const candidates = (found: CardDefinitionEvidence | undefined) => found?.coverage === "complete" && found.candidates.length ? found.candidates : null;
@@ -247,7 +253,39 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       card.remainingHp = card.maxHp === null || card.damageKnown === false ? null : Math.max(0, card.maxHp - card.damage);
     }
   };
-  return { resolve, update, abilityTexts };
+  const cardResolutions: Record<string, ReplayCardResolution> = {};
+  const decorateCard = (card: ReplayZoneCard & { observedEffects?: string[] }): void => {
+    const found = resolve(card);
+    const key = JSON.stringify([normalize(card.name), [...(card.observedEffects ?? [])].map(normalize).sort(), card.setId ?? null, card.localId ?? null]);
+    card.definitionKey = key;
+    if (Object.hasOwn(cardResolutions, key)) return;
+    cardResolutions[key] = {
+      name: card.name, coverage: found?.coverage ?? "unavailable", generation: found?.generation ?? null,
+      resolution: found?.resolution ?? "missing", candidatePrintingIds: found?.candidatePrintingIds ?? found?.candidates.map((candidate) => candidate.sourceCardId) ?? [],
+      selectedPrinting: found?.selectedPrinting ?? null, displayBasis: found?.displayBasis ?? "unavailable",
+      agreedFacts: found?.agreedFacts ?? {}, ...(found?.formatBasis ? { formatBasis: found.formatBasis } : {}),
+      selectedDefinition: found?.candidates.length ? selectCardDefinitionPrinting(found.candidates) : null,
+    };
+  };
+  const decorateState = (state: ReplayState): void => {
+    const visit = (card: ReplayZoneCard & { observedEffects?: string[]; underlying?: ReplayZoneCard[] }) => {
+      decorateCard(card);
+      card.underlying?.forEach(visit);
+    };
+    for (const actor of ["self", "opponent"] as const) {
+      if (state[actor].active) visit(state[actor].active!);
+      state[actor].bench.forEach(visit);
+      state[actor].knownHand.forEach(visit);
+      state[actor].discard.forEach(visit);
+    }
+    if (state.playedCard) visit(state.playedCard.card);
+    if (state.stadium) {
+      const card = { ...state.stadium, id: "stadium" };
+      decorateCard(card);
+      state.stadium.definitionKey = card.definitionKey;
+    }
+  };
+  return { resolve, update, abilityTexts, decorateCard, decorateState, collectResolutions: () => cardResolutions };
 }
 
 export function replayCardDefinitionEvidence(card: ReplayCard, evidence: CardDefinitionEvidenceByName | undefined) {

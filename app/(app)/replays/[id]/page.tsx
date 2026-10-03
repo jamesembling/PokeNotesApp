@@ -9,12 +9,10 @@ import { PageWidth } from "@/components/ui/PageWidth";
 import { ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { resolveBattleLogEffectCatalogEvidence, resolveBattleLogEffectEvidenceFromRows, createBattleLogEffectEvidenceResolver } from "@/lib/battle-log/effect-catalog";
-import { definitionEffectRows } from "@/lib/card-definition-catalog/resolve";
+import { buildCardDefinitionIndex, definitionEffectRows, resolveCardDefinition } from "@/lib/card-definition-catalog/resolve";
 import { loadCardDefinitions } from "@/lib/card-definition-catalog/server";
 import { normalizeText } from "@/lib/log-import/normalization";
 import { collectReplayDefinitionNames } from "@/lib/battle-replay/metadata";
-import { resolveReplayArtwork } from "@/lib/battle-replay/artwork";
-import { searchCardArtPrints } from "@/lib/social/card-art";
 import type { ReplayEffectKind } from "@/lib/battle-replay/types";
 import { compileBattleReplay } from "@/lib/battle-replay/compiler";
 import { getLogById } from "@/lib/db/logs";
@@ -38,10 +36,12 @@ export default async function ReplayPage({ params, searchParams }: {
   const preliminary = withinBounds ? compileBattleReplay(log) : null;
   const definitionNames = preliminary && preliminary.status !== "unsupported" ? collectReplayDefinitionNames(preliminary, rawLines, [log.selfPlayerName, log.opponentPlayerName]) : [];
   const signal = AbortSignal.timeout(2500);
-  const [legacyEvidence, cardDefinitions] = await Promise.all([
+  const [legacyEvidence, loadedDefinitions] = await Promise.all([
     withinBounds ? resolveBattleLogEffectCatalogEvidence(rawLines, signal) : Promise.resolve({ rows: [] }),
     loadCardDefinitions(definitionNames, signal),
   ]);
+  const cardDefinitions = Object.fromEntries(Object.entries(loadedDefinitions).map(([name, evidence]) => [name,
+    resolveCardDefinition(buildCardDefinitionIndex(evidence.candidates), { name, declaredFormat: log.format }, evidence.coverage, evidence.generation, evidence.sourceCoverage)]));
   const completeDefinitions = Object.values(cardDefinitions).filter((evidence) => evidence.coverage === "complete" && evidence.candidates.length);
   const verifiedNames = new Set(completeDefinitions.flatMap((evidence) => evidence.candidates.map((card) => normalizeText(card.name))));
   const rows = [
@@ -68,8 +68,7 @@ export default async function ReplayPage({ params, searchParams }: {
     if (origin) effectOrigins[rawLine] = origin;
     if (tag && supportedTags.has(tag)) effectTags[rawLine] = tag as ReplayEffectKind;
   }
-  const program = compileBattleReplay({ ...log, effectTags, effectOrigins, effectDetailOrigins, cardDefinitions });
-  const artwork = program.status === "unsupported" ? {} : await resolveReplayArtwork(program, searchCardArtPrints, AbortSignal.timeout(2500), cardDefinitions);
+  const program = compileBattleReplay({ ...log, effectTags, effectOrigins, effectDetailOrigins, cardDefinitions: loadedDefinitions });
   const requestedPosition = Array.isArray(query.position) ? query.position[0] : query.position;
   const position = requestedPosition && /^\d{1,8}$/.test(requestedPosition) ? Number(requestedPosition) : 0;
   const initialActionIndex = Math.min(position, Math.max(0, program.frames.length - 1));
@@ -85,6 +84,6 @@ export default async function ReplayPage({ params, searchParams }: {
       <ItemTitle as="h2">This Battle Log cannot be replayed yet</ItemTitle>
       <p className="max-w-prose text-sm text-muted-foreground">Its saved actions do not contain enough supported information. You can still read the original Battle Log.</p>
       <Button asChild variant="outline"><Link href={logHref} prefetch={false}>View Battle Log</Link></Button>
-    </section> : <BattleReplay artwork={artwork} initialActionIndex={initialActionIndex} key={program.id} program={program} />}
+    </section> : <BattleReplay initialActionIndex={initialActionIndex} key={program.id} program={program} />}
   </PageWidth>;
 }

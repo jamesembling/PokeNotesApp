@@ -48,6 +48,7 @@ import {
   resolveTransactionActors,
   resolveTransactionStage,
   shouldShowTransactionEvolutionStack,
+  resolveReplayCardPreviewDefinition,
 } from "@/lib/battle-replay/preview";
 import styles from "./battle-replay.module.css";
 
@@ -56,13 +57,16 @@ function UnavailableArtwork({ name }: { name: string }) {
 }
 
 const ArtworkContext = createContext<Record<string, string>>({});
+const DefinitionContext = createContext<ReplayProgram["cardResolutions"]>({});
 
-function CardArtwork({ card, alt, sizes }: { card: Pick<ReplayZoneCard, "name" | "imageUrl">; alt: string; sizes: string }) {
+function CardArtwork({ card, alt, sizes }: { card: Pick<ReplayZoneCard, "name" | "imageUrl" | "definitionKey">; alt: string; sizes: string }) {
   const artwork = useContext(ArtworkContext);
-  const src = card.imageUrl || (Object.hasOwn(artwork, card.name) ? artwork[card.name] : undefined);
+  const cardResolutions = useContext(DefinitionContext);
+  const resolution = resolveReplayCardPreviewDefinition(card, { cardResolutions });
+  const src = resolution ? resolution.selectedPrinting?.imageUrl : card.imageUrl || (Object.hasOwn(artwork, card.name) ? artwork[card.name] : undefined);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   return src && failedSrc !== src
-    ? <Image quality={95} alt={alt} fill sizes={sizes} src={src} onError={() => setFailedSrc(src)} />
+    ? <Image quality={95} alt={resolution?.displayBasis === "played_evidence" ? `${card.name}, recorded printing` : alt} fill sizes={sizes} src={src} onError={() => setFailedSrc(src)} />
     : <UnavailableArtwork name={card.name} />;
 }
 
@@ -357,7 +361,7 @@ function StadiumSpot({
   return (
     <div className={styles.stadiumSpot}>
       <span>Stadium</span>
-      <button aria-label={`Preview ${stadium.name}`} className={`${styles.stadium} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ id: "stadium", name: stadium.name, imageUrl: stadium.imageUrl })} type="button">
+      <button aria-label={`Preview ${stadium.name}`} className={`${styles.stadium} ${styles.cardPreviewTrigger}`} onClick={() => onPreview({ ...stadium, id: "stadium" })} type="button">
         <CardArtwork card={stadium} alt={`${stadium.name}, representative card artwork`} sizes="(max-width: 40rem) 56px, 80px" />
       </button>
       <strong className={styles.stadiumName}>{stadium.name}</strong>
@@ -378,7 +382,7 @@ function TransactionCards({ actor, onPreview, previousState, stage, state }: { a
           </span>)}
         </div> : null}
         <button aria-label={`Preview ${card.name}${boardCard.abilityUsed ? ", ability used this turn" : ""}`} className={`${styles.transactionCard} ${styles.cardPreviewTrigger}`} onClick={() => onPreview(boardCard)} type="button">
-          <CardArtwork card={card} alt={`${card.name}, representative card artwork`} sizes="112px" />
+          <CardArtwork card={boardCard} alt={`${card.name}, representative card artwork`} sizes="112px" />
         </button>
         <ConditionMarkers conditions={boardCard.conditions} />
         {boardCard.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.transactionDamageCounter}>?</span> : boardCard.damage ? <span aria-label={`${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
@@ -576,10 +580,10 @@ function PlayerBoard({
           <Pile count={side.deckCount} label="Deck" />
           <Pile
             animate={side.discard[0]?.id !== previousSide.discard[0]?.id}
-            count={side.uncertainZones?.includes("discard") ? null : side.discard.length}
+            count={side.discardCount ?? null}
             label="Discard"
             onInspect={() => onInspectDiscard(actor)}
-            topCard={side.discard[0]}
+            topCard={side.discardCount == null || side.uncertainZones?.includes("discard") || side.discardCount > side.discard.length ? undefined : side.discard[0]}
           />
         </div>
       </div>
@@ -601,6 +605,8 @@ export function BattleReplay({
     Math.max(0, Math.min(program.frames.length - 1, initialActionIndex)),
   );
   const [previewedCard, setPreviewedCard] = useState<PreviewCard | null>(null);
+  const previewDefinition = previewedCard ? resolveReplayCardPreviewDefinition(previewedCard, program) : undefined;
+  const printed = previewDefinition?.selectedDefinition;
   const [inspectedDiscard, setInspectedDiscard] =
     useState<ReplayActor | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -612,6 +618,9 @@ export function BattleReplay({
   const replayFrames = program.frames;
   const replaySource = program.source;
   const state = replayFrames[actionIndex];
+  const inspectedDiscardSide = inspectedDiscard ? state[inspectedDiscard] : null;
+  const discardIdentityIncomplete = inspectedDiscardSide?.discardCount == null || inspectedDiscardSide?.uncertainZones?.includes("discard") ||
+    (inspectedDiscardSide?.discardCount ?? 0) > (inspectedDiscardSide?.discard.length ?? 0);
   const previousState = replayFrames[Math.max(0, actionIndex - 1)];
   const currentEvent = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
   const coinToss = resolveOpeningCoinToss(currentEvent);
@@ -731,6 +740,7 @@ export function BattleReplay({
   }
 
   return (
+    <DefinitionContext.Provider value={program.cardResolutions}>
     <ArtworkContext.Provider value={artwork}>
     <div className={styles.replayContainer}>
     <div className={styles.replay}>
@@ -783,6 +793,7 @@ export function BattleReplay({
                 <span>{currentEvent.actor === "self" ? "Your attack" : "Opponent’s attack"}</span>
                 <strong>{currentEvent.transaction?.stages.find((stage) => stage.kind === "attack")?.label ?? "Attack"}</strong>
               </div>
+
             </div> : null}
             {coinToss || resultOnlyCoinFlip ? <div className={styles.boardCoinToss} role="status" aria-label={coinPhase === "call" && coinToss
               ? `${coinToss.caller === "self" ? "You call" : "Opponent calls"} ${coinToss.choice}`
@@ -926,8 +937,9 @@ export function BattleReplay({
                 pile
               </SheetTitle>
               <SheetDescription>
-                {(inspectedDiscard ? state[inspectedDiscard].discard.length : 0)}{" "}
-                {inspectedDiscard && state[inspectedDiscard].uncertainZones?.includes("discard") ? "known cards · incomplete pile" : "cards"} · newest first
+                {inspectedDiscardSide?.discardCount == null
+                  ? `${inspectedDiscardSide?.discard.length ?? 0} known ${inspectedDiscardSide?.discard.length === 1 ? "card" : "cards"} · total unknown`
+                  : `${inspectedDiscardSide.discardCount} ${inspectedDiscardSide.discardCount === 1 ? "card" : "cards"}${inspectedDiscardSide.discardCount !== inspectedDiscardSide.discard.length ? ` · ${inspectedDiscardSide.discard.length} identified` : ""}`} · {discardIdentityIncomplete ? "identified cards, newest first" : "newest first"}
               </SheetDescription>
             </SheetHeader>
             <ol className={styles.discardList}>
@@ -941,7 +953,7 @@ export function BattleReplay({
                   </button>
                   <div>
                     <strong>{discardedCard.name}</strong>
-                    <span>{index === 0 ? "Newest discard" : `#${index + 1}`}</span>
+                    <span>{index === 0 ? discardIdentityIncomplete ? "Latest identified discard" : "Newest discard" : `#${index + 1}`}</span>
                   </div>
                 </li>
               ))}
@@ -956,7 +968,7 @@ export function BattleReplay({
           }}>
             <DialogTitle className="sr-only">{previewedCard?.name}</DialogTitle>
             <DialogDescription className="sr-only">Enlarged card preview</DialogDescription>
-            {previewedCard ? <div className={styles.cardPreviewStage}>
+            {previewedCard ? <div aria-label="Card preview details" className={styles.cardPreviewStage} role="region" tabIndex={0}>
               <div className={styles.cardPreviewImage}>
                 <CardArtwork card={previewedCard} alt={`${previewedCard.name}, enlarged representative card artwork`} sizes="340px" />
                 <ConditionMarkers conditions={previewedCard.conditions} />
@@ -971,6 +983,14 @@ export function BattleReplay({
                 </div>
                 <strong>{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
               </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewedCard.baseHp ? `${previewedCard.baseHp} printed HP · ` : ""}{previewedCard.damageKnown === false ? "Accumulated damage unknown · remaining HP unknown" : previewedCard.baseHp ? "Maximum and remaining HP unknown" : "HP unknown"}</p> : null}
+              {printed ? <div className={styles.printedCardDetails}>
+                <p className="text-muted-foreground">{previewDefinition?.displayBasis === "played_evidence" ? "Recorded printing" : "Representative printing"} · {printed.setId.toUpperCase()} {printed.localId}{printed.hp ? ` · ${printed.hp} printed HP` : ""}</p>
+                {previewDefinition?.displayBasis !== "played_evidence" ? <p className="text-muted-foreground">The log does not identify the exact printing played.{previewDefinition?.resolution === "ambiguous" ? " Printed details can differ between possible printings." : ""}</p> : null}
+                {previewDefinition?.formatBasis?.status === "conflicting" ? <p className="text-muted-foreground">This recorded printing differs from the saved format. The replay follows the recorded card.</p> : null}
+                {printed.rules?.map((rule, index) => <p key={`rule-${index}`}>{rule}</p>)}
+                {printed.abilities.map((ability, index) => <p key={`ability-${index}`}><strong>{ability.name || "Ability"}</strong>{ability.text ? ` · ${ability.text}` : " · Text unavailable"}</p>)}
+                {printed.attacks.map((attack, index) => <p key={`attack-${index}`}><strong>{attack.name || "Attack"}</strong>{attack.damage ? ` · ${attack.damage}` : ""}{attack.cost?.length ? ` · ${attack.cost.join(", ")}` : ""}{attack.text ? ` · ${attack.text}` : ""}</p>)}
+              </div> : <p className={styles.printedCardDetails}>Printed card details unavailable.</p>}
             </div> : null}
           </AppDialogContent>
         </Dialog>
@@ -979,5 +999,6 @@ export function BattleReplay({
     </div>
     </div>
     </ArtworkContext.Provider>
+    </DefinitionContext.Provider>
   );
 }

@@ -234,6 +234,10 @@ test("card effect catalog refuses ambiguous or partial effect matches", () => {
   assert.equal(agreed.hp, 70);
   assert.equal(agreed.resolution, "functional_agreement");
   assert.equal(agreed.candidates.length, 2);
+  assert.equal(agreed.displayBasis, "representative", "agreement about game fields cannot establish an exact played printing");
+  assert.deepEqual(agreed.candidatePrintingIds, [first.sourceCardId, reprint.sourceCardId]);
+  assert(agreed.candidates.some((card) => card.sourceCardId === agreed.selectedPrinting?.sourceCardId));
+  assert.equal(agreed.agreedFacts?.hp, 70);
   const differentAttack = { ...reprint, attacks: [{ name: "Wave", text: null, damage: "20", cost: ["Grass"] }] };
   const ambiguous = buildCardDefinitionIndex([first, differentAttack]);
   assert.equal(resolveCardDefinition(ambiguous, { name: "Seedling" }).hp, 70, "agreed printed HP is independent of other differing rules");
@@ -244,6 +248,8 @@ test("card effect catalog refuses ambiguous or partial effect matches", () => {
   const exact = resolveCardDefinition(conflict, { name: "Seedling", setId: "synthetic", localId: "001" });
   assert.equal(exact.hp, 70);
   assert.equal(exact.resolution, "exact");
+  assert.equal(exact.displayBasis, "played_evidence");
+  assert.equal(exact.selectedPrinting?.sourceCardId, first.sourceCardId);
   const effectMatched = resolveCardDefinition(buildCardDefinitionIndex([first, { ...differentAttack, hp: 90 }]), { name: "Seedling", effectNames: ["Tap"] });
   assert.equal(effectMatched.hp, 70, "a recorded effect can exclude a conflicting printing");
   const incompleteEffect = { ...differentAttack, hp: 90, attacks: [{ name: "", text: null, damage: null, cost: null }] };
@@ -254,7 +260,38 @@ test("card effect catalog refuses ambiguous or partial effect matches", () => {
     const withheld = resolveCardDefinition(buildCardDefinitionIndex([first]), { name: "Seedling", setId: "synthetic", localId: "1" }, coverage);
     assert.equal(withheld.hp, null, `${coverage} coverage cannot establish HP`);
     assert.equal(withheld.definition, null);
+    assert.deepEqual(withheld.agreedFacts, {}, "incomplete source coverage cannot establish gameplay facts");
   }
+
+  const legal = definition({ regulationMark: "H", setReleaseDate: "2024-05-24" });
+  const oldEquivalent = definition({ sourceCardId: "old-equivalent", regulationMark: null, setReleaseDate: "2015-01-01" });
+  const historicDifferent = definition({ sourceCardId: "historic-different", hp: 60, regulationMark: null, setReleaseDate: "2010-01-01" });
+  const futureDifferent = definition({ sourceCardId: "future-different", hp: 90, regulationMark: "J", setReleaseDate: "2026-09-16" });
+  const knownFormatIndex = buildCardDefinitionIndex([historicDifferent, legal, oldEquivalent, futureDifferent]);
+  const historicFormat = resolveCardDefinition(knownFormatIndex, { name: "Seedling", declaredFormat: "TEF-PBL" });
+  assert.equal(historicFormat.hp, 70, "saved format excludes incompatible old and later prints while retaining legal functional Pokemon reprints");
+  assert.deepEqual(historicFormat.candidatePrintingIds, [legal.sourceCardId, oldEquivalent.sourceCardId]);
+  assert.equal(historicFormat.formatBasis?.latestReleaseDate, "2026-07-17");
+  // Give the exact identity its own number: synthetic duplicate set/numbers are not exact evidence.
+  const historicalIdentity = { ...historicDifferent, localId: "7" };
+  const recordedPrinting = resolveCardDefinition(buildCardDefinitionIndex([legal, historicalIdentity]), { name: "Seedling", declaredFormat: "TEF-PBL", setId: historicalIdentity.setId.toUpperCase(), localId: " 007 " });
+  assert.equal(recordedPrinting.hp, 60);
+  assert.equal(recordedPrinting.displayBasis, "played_evidence", "recorded exact printing takes precedence over a manually declared format");
+  assert.equal(recordedPrinting.formatBasis?.status, "conflicting");
+  const noEndpoint = resolveCardDefinition(knownFormatIndex, { name: "Seedling", declaredFormat: "TEF-30C" });
+  assert.equal(noEndpoint.formatBasis?.status, "partial", "an unverified endpoint cannot invent a release cutoff");
+  assert.equal(noEndpoint.hp, null, "known rotation alone cannot discard later conflicting printings");
+  assert.equal(resolveCardDefinition(knownFormatIndex, { name: "Seedling", declaredFormat: "Expanded" }).hp, null);
+  const missingMark = definition({ sourceCardId: "missing-mark", hp: 80, regulationMark: null, setReleaseDate: null });
+  assert.equal(resolveCardDefinition(buildCardDefinitionIndex([legal, missingMark]), { name: "Seedling", declaredFormat: "TEF-PBL" }).hp, null, "missing modern format metadata remains an unknown candidate");
+  const legalTrainer = definition({ name: "Supply", hp: null, category: "Trainer", trainerType: "Item", attacks: [], rules: ["Draw 2 cards."], regulationMark: "H" });
+  const oldTrainer = { ...legalTrainer, sourceCardId: "old-trainer", regulationMark: "D", setReleaseDate: "2020-02-07" };
+  assert.deepEqual(resolveCardDefinition(buildCardDefinitionIndex([legalTrainer, oldTrainer]), { name: "Supply", declaredFormat: "TEF-PBL" }).candidatePrintingIds, [legalTrainer.sourceCardId, oldTrainer.sourceCardId], "an old Trainer's mark does not discard its equivalent legal reprint");
+  const revisedWordingTrainer = { ...oldTrainer, sourceCardId: "revised-wording", trainerType: null, rules: ["Draw two cards."] };
+  const revisedEvidence = resolveCardDefinition(buildCardDefinitionIndex([legalTrainer, revisedWordingTrainer]), { name: "Supply", declaredFormat: "TEF-PBL" });
+  assert.equal(revisedEvidence.candidates.length, 2, "wording changes cannot establish that an old Trainer has no legal reprint");
+  assert.equal(revisedEvidence.definition, null, "possible errata do not establish agreed printed rules");
+  assert.equal(revisedEvidence.formatBasis?.status, "partial");
 
   const shuffleDetail = "- PlayerTwo shuffled 5 cards into their deck.";
   const judgeRules = definitionEffectRows([definition({ name: "Judge", hp: null, category: "Trainer", trainerType: "Supporter", attacks: [], rules: ["Each player shuffles their hand into their deck and draws 4 cards."] })]);
