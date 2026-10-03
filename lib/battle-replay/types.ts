@@ -11,6 +11,10 @@ export type ReplayCardResolution = Pick<CardDefinitionEvidence, "coverage" | "ge
   name: string;
   selectedDefinition: CardDefinition | null;
   evidenceBasis?: "linked_deck_list";
+  printedHp?: number | null;
+  hpBasis?: "known" | "probable" | "unknown";
+  probableHpBasis?: "linked_deck_list" | "latest_format_candidate";
+  artworkSource?: { provider: "limitless"; sourceUrl: string };
 };
 
 export type ReplayZoneCard = {
@@ -34,11 +38,17 @@ export type ReplayCard = {
   baseHp?: number | null;
   maxHp?: number | null;
   remainingHp?: number | null;
+  /** Probable is a catalogue choice, never proof of the played printing. */
+  hpBasis?: "known" | "probable" | "unknown";
   damage: number;
   /** False when the accumulated total is not established by the source. */
   damageKnown?: boolean;
   /** A recorded top card whose physical copy cannot be assigned safely. */
   instanceUncertain?: boolean;
+  /** A recorded HP-changing attachment has unresolved assignment to this copy. */
+  hpModifierUncertain?: boolean;
+  /** Independently known physical total, retained across copy-fact uncertainty. */
+  knownStackSize?: number;
   abilityUsed?: boolean;
   /** Effects observed on this physical top card, never shared across namesakes. */
   observedEffects?: string[];

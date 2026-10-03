@@ -21,6 +21,34 @@ export function collectReplayOwnerCardNames(program: ReplayProgram, actor: Repla
   return [...names].sort();
 }
 
+/** Lower bounds on simultaneous physical copies, never the number of times a
+ * name appeared in the log. Transient played-card animations are not extra cards. */
+export function collectReplayOwnerCardCounts(program: ReplayProgram, actor: ReplayActor): Record<string, number> {
+  const maxima: Record<string, number> = {};
+  for (const frame of program.frames) {
+    const side = frame[actor];
+    const counts = new Map<string, number>();
+    const seen = new Set<string>();
+    const add = (name: string, id?: string) => {
+      if (id && seen.has(id)) return;
+      if (id) seen.add(id);
+      const normalized = normalizeText(name);
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+    };
+    for (const card of [side.active, ...side.bench, ...(side.unplaced ?? [])]) if (card) {
+      add(card.name, card.id);
+      for (const underlying of card.underlying) add(underlying.name, underlying.id);
+      if (card.tool) add(card.tool);
+      for (const energy of card.energy) add(/Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`);
+    }
+    if (!side.uncertainZones?.includes("hand")) for (const card of side.knownHand) add(card.name, card.id);
+    if (!side.uncertainZones?.includes("discard")) for (const card of side.discard) add(card.name, card.id);
+    if (frame.stadium?.actor === actor) add(frame.stadium.name);
+    for (const [name, amount] of counts) maxima[name] = Math.max(maxima[name] ?? 0, amount);
+  }
+  return maxima;
+}
+
 /** Collect public card names from reconstructed evidence, never player names or raw logs. */
 export function collectReplayDefinitionNames(program: ReplayProgram, lines: readonly string[], playerNames: readonly string[] = []): string[] {
   const names = new Set<string>();

@@ -21,8 +21,17 @@ export async function loadReplaySetCodes(
   const setIds = [...new Set(Object.entries(definitions).flatMap(([name, found]) =>
     found.candidates.filter((card) => numbers.get(name)?.has(collector(card.localId)))
       .map((card) => card.setId)).filter((id) => /^[a-zA-Z0-9._-]{1,32}$/.test(id)))];
+  return loadReplayOfficialSetCodes(setIds, signal);
+}
+
+/** Shared public identity lookup for selected printings and linked inventories. */
+export async function loadReplayOfficialSetCodes(
+  requestedSetIds: readonly string[],
+  signal: AbortSignal = AbortSignal.timeout(2500),
+): Promise<Record<string, string>> {
+  const setIds = [...new Set(requestedSetIds)];
   // Unbounded or unavailable reference data cannot justify a printing match.
-  if (setIds.length > 64) return {};
+  if (setIds.length > 64 || setIds.some((id) => !/^[a-zA-Z0-9._-]{1,32}$/.test(id))) return {};
   const entries = await Promise.all(setIds.map(async (id): Promise<[string, string] | null> => {
     try {
       const response = await fetch(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(id)}`, {

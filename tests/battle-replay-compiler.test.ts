@@ -5,6 +5,7 @@ import type { LogAction, LogSection } from "@/types/index";
 import type { ReplayCard, ReplaySide } from "@/lib/battle-replay/types";
 import { collectMissingReplayArtworkNames, resolveReplayArtwork, selectReplayArtworkPrinting } from "@/lib/battle-replay/artwork";
 import { replayCardDefinitionEvidence } from "@/lib/battle-replay/hp";
+import { selectExactReplayArtwork } from "@/lib/battle-replay/selected-artwork-server";
 import { collectReplayDefinitionNames } from "@/lib/battle-replay/metadata";
 import { resolveEnergyMarkers } from "@/lib/battle-replay/preview";
 import { canonicalReplayGame, expectedGameChanges, syntheticCardDefinition, type ExpectedSide } from "./fixtures/battle-replay-game";
@@ -76,6 +77,13 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   const plain = { name: "Seedling", set: "TWM", number: "1" };
   assert.equal(selectReplayArtworkPrinting("Seedling", [{ ...plain, name: "Seedling ex" }]), null);
   assert.deepEqual(selectReplayArtworkPrinting("Seedling", [{ ...plain, name: "Seedling ex" }, plain]), plain);
+  const printingPage = `<select data-card-language data-location="MEP/56"></select><p class="card-text-title"><span class="card-text-name"><a href="/cards/MEP/56">Torchic</a></span> - Fire - 60 HP</p><div class="card-image"><img src="https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/MEP/MEP_056_R_EN.png"></div>`;
+  const exactPrint = { name: "Torchic", localId: "056", hp: 60 };
+  assert.deepEqual(selectExactReplayArtwork(printingPage, exactPrint, "MEP"), { imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/MEP/MEP_056_R_EN.png", sourceUrl: "https://limitlesstcg.com/cards/MEP/56" });
+  assert.equal(selectExactReplayArtwork(printingPage, { ...exactPrint, hp: 70 }, "MEP"), null, "same-name artwork with different HP is not the selected printing");
+  assert.equal(selectExactReplayArtwork(printingPage, { ...exactPrint, localId: "52" }, "MEP"), null, "another collector number cannot supply this printing's artwork");
+  assert.equal(selectExactReplayArtwork(printingPage.replace("Torchic", "Torchic ex"), exactPrint, "MEP"), null, "the full canonical name must agree");
+  assert.equal(selectExactReplayArtwork(printingPage.replace("limitlesstcg.nyc3.cdn.digitaloceanspaces.com", "example.com"), exactPrint, "MEP"), null, "external artwork must stay on the admitted provider");
   const artSource = compileBattleReplay(source([section("", [
     action("PlayerOne played Seedling to the Active Spot."),
     action("PlayerOne played Seedling to the Bench."),
@@ -97,7 +105,9 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.equal(getLinkedReplayDefinitions(linkedCards, linkedEvidence, { synthetic: "TST", alternate: "ALT" }).seedling.candidates.length, 2, "same-name mixed printings remain separate viable instances");
   const incompleteLinked = getLinkedReplayDefinitions(linkedCards, linkedEvidence, { synthetic: "TST" }).seedling;
   assert.equal(incompleteLinked.coverage, "incomplete", "missing set mapping cannot manufacture precise printing evidence");
-
+  const oneListedCopy = [{ ...linkedCards[0], count: 1 }, { ...linkedCards[2], count: 59 }];
+  assert.equal(getReplayLinkedDeckListCompatibility(oneListedCopy, ["Seedling"], { Seedling: 2 }).status, "conflicting", "simultaneous observed copies veto an insufficient selected inventory");
+  assert.equal(getReplayLinkedDeckListCompatibility(linkedCards, ["Seedling"], { Seedling: 4 }).status, "compatible", "the counts of different listed same-name printings add together");
   const incidentalWords = collectReplayDefinitionNames(artSource, ["- PlayerOne drew 2 cards and played them to the Bench.", "- PlayerOne drew Seedling and played it to the Bench.", "• 6 attached Energy: 300 damage"], ["PlayerOne", "PlayerTwo"]);
   assert.ok(incidentalWords.every((name) => !/^(?:it|them|energy:|energy )/i.test(name)), "pronouns and damage-breakdown text are not card identities");
 
@@ -209,14 +219,16 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
     action("PlayerOne attached HP Tool to Sprout in the Active Spot."),
   ])]), cardDefinitions, effectTags: { "PlayerOne attached HP Tool to Sprout in the Active Spot.": "tool" as const } };
   const hpReplay = compileBattleReplay(hpInput);
-  assert.equal(hpReplay.frames[2].self.active?.baseHp, null, "conflicting candidate HP stays unknown before identifying evidence");
+  assert.equal(hpReplay.frames[2].self.active?.baseHp, 70, "the latest compatible printing supplies explicitly probable HP before identifying evidence");
+  assert.equal(hpReplay.frames[2].self.active?.hpBasis, "probable");
   assert.equal(hpReplay.frames[3].self.active?.baseHp, 70);
   const sourceCoverage = { scope: "tcgdex-listed-en-physical" as const, listedPrintings: 2, unlistedSets: [] };
   const narrowed = replayCardDefinitionEvidence(hpReplay.frames[3].self.active!, { seedling: { ...cardDefinitions.seedling, sourceCoverage } });
   assert.equal(narrowed?.hp, 70);
   assert.deepEqual(narrowed?.sourceCoverage, sourceCoverage, "per-instance narrowing retains the source coverage qualification");
 
-  assert.equal(hpReplay.frames[5].self.bench[0].baseHp, null, "one physical copy's attack cannot identify another copy");
+  assert.equal(hpReplay.frames[5].self.bench[0].baseHp, 70, "another copy retains its own probable catalogue HP");
+  assert.equal(hpReplay.frames[5].self.bench[0].hpBasis, "probable", "one physical copy's attack cannot identify another copy");
   assert.equal(hpReplay.frames[4].self.active?.remainingHp, 50);
   assert.equal(hpReplay.frames[6].self.active?.baseHp, 150);
   assert.equal(hpReplay.frames[6].self.active?.damage, 20, "evolution preserves damage, not remaining HP");
@@ -228,14 +240,14 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   delete absentRival.rival;
   const absentBoardDefinition = compileBattleReplay({ ...hpInput, cardDefinitions: absentRival });
   assert.equal(absentBoardDefinition.frames[4].self.active?.baseHp, 70);
-  assert.equal(absentBoardDefinition.frames[4].self.active?.maxHp, null, "an actual opposing Pokémon with missing metadata could have a global HP Ability");
+  assert.equal(absentBoardDefinition.frames[4].self.active?.maxHp, 70, "missing opposing metadata alone does not establish an HP-changing effect");
   const partialBoardDefinition = compileBattleReplay({ ...hpInput, cardDefinitions: { ...cardDefinitions, rival: { ...cardDefinitions.rival, coverage: "incomplete" } } });
   assert.equal(partialBoardDefinition.frames[4].self.active?.baseHp, 70);
-  assert.equal(partialBoardDefinition.frames[4].self.active?.remainingHp, null);
+  assert.equal(partialBoardDefinition.frames[4].self.active?.remainingHp, 50, "partial metadata alone does not hide independently known HP and damage");
   const emptyEffectRival = resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Rival", hp: 100, attacks: [], abilities: [] })]), { name: "Rival" });
   const unknownBoardEffects = compileBattleReplay({ ...hpInput, cardDefinitions: { ...cardDefinitions, rival: emptyEffectRival } });
   assert.equal(unknownBoardEffects.frames[4].self.active?.baseHp, 70);
-  assert.equal(unknownBoardEffects.frames[4].self.active?.maxHp, null, "a Pokémon with neither effect list available cannot establish absence of a global HP Ability");
+  assert.equal(unknownBoardEffects.frames[4].self.active?.maxHp, 70, "no recorded HP-changing effect means visible HP remains usable");
   const offboardDefinition = compileBattleReplay({ ...hpInput, cardDefinitions: { ...cardDefinitions, unseen: resolveCardDefinition(buildCardDefinitionIndex([]), { name: "Unseen" }, "unavailable") } });
   assert.equal(offboardDefinition.frames[7].self.active?.maxHp, 250, "unavailable metadata for an off-board card cannot invalidate the visible board");
 
@@ -417,9 +429,8 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   // The first copy has passed through Active and a turn reset; the second
   // arrived later. Those histories do not distinguish their present bare state.
   const interchangeable = compileBattleReplay(source([
-    section("", [action("PlayerOne played Dreepy to the Active Spot.")]),
+    section("", [action("PlayerOne played Dreepy to the Active Spot."), action("PlayerOne played Dreepy to the Bench.")]),
     section("PlayerOne", [
-      action("PlayerOne played Dreepy to the Bench."),
       action("PlayerOne played Buddy to the Bench."),
       action("PlayerOne retreated Dreepy to the Bench.", ["PlayerOne's Buddy is now in the Active Spot."]),
       action("PlayerOne's Buddy was Knocked Out!"),
@@ -432,6 +443,15 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(interchangeable.frames[7].self.active?.name, "Drakloak");
   assert.deepEqual(interchangeable.frames[7].self.active?.underlying.map((card) => card.name), ["Dreepy"]);
   assert.deepEqual(interchangeable.frames[7].self.bench.map((card) => card.name), ["Dreepy"]);
+
+  const timedEvolution = compileBattleReplay(source([
+    section("", [action("PlayerOne played Munkidori to the Active Spot."), action("PlayerOne played Dreepy to the Bench.")]),
+    section("PlayerOne", [action("PlayerOne attached Basic Psychic Energy to Dreepy on the Bench."), action("PlayerOne ended their turn.")]),
+    section("PlayerTwo", [action("PlayerTwo ended their turn.")]),
+    section("PlayerOne", [action("PlayerOne played Dreepy to the Bench."), action("PlayerOne evolved Dreepy to Drakloak on the Bench.")]),
+  ]));
+  assert.deepEqual(timedEvolution.diagnostics.unresolvedActions, [], "normal evolution timing identifies the older eligible physical copy");
+  assert.deepEqual(timedEvolution.frames[7].self.bench.map((card) => ({ name: card.name, energy: card.energy })), [{ name: "Drakloak", energy: ["Psychic"] }, { name: "Dreepy", energy: [] }]);
 
   const ordinaryAttacker = syntheticCardDefinition({ name: "Attacker", attacks: [{ name: "Pollen", damage: "10", cost: [], text: "During your opponent's next turn, they can't play any Item cards from their hand." }] });
   const ordinaryAttackInput = source([section("PlayerOne", [
@@ -799,12 +819,12 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   const realMulligan = compileBattleReplay(source([section("", [
     action("PlayerOne drew 7 cards for the opening hand."), action("PlayerTwo drew 7 cards for the opening hand."),
     action("PlayerOne took a mulligan.", ["Cards revealed from Mulligan 1", "• Supply, Supply, Supply, Supply, Supply, Supply, Supply"]),
-    action("PlayerTwo drew 1 more card because PlayerOne took at least 1 mulligan."),
+    action("PlayerTwo drew 1 more card because PlayerOne took at least 1 mulligan.", ["- PlayerTwo drew Buddy-Buddy Poffin."]),
     action("PlayerOne played Starter to the Active Spot."), action("PlayerTwo played Rival to the Active Spot."),
   ])]));
   assert.deepEqual(realMulligan.diagnostics.unresolvedActions, []);
   assert.deepEqual([realMulligan.frames[6].self.deckCount, realMulligan.frames[6].self.handCount, realMulligan.frames[6].opponent.deckCount, realMulligan.frames[6].opponent.handCount], [47, 6, 46, 7]);
-  assert.deepEqual(realMulligan.frames[4].opponent.knownHand, [], "bonus draws establish quantity without creating a username-containing card identity");
+  assert.deepEqual(realMulligan.frames[4].opponent.knownHand.map((card) => card.name), ["Buddy-Buddy Poffin"], "the named bonus annotation reveals the already-counted card once");
   assert.deepEqual(realMulligan.frames[3].self.knownHand, [], "revealed mulligan cards belong to the returned opening, not the implicit replacement hand");
 
   const adrena = syntheticCardDefinition({ name: "Munkidori", hp: 110, abilities: [{ name: "Adrena-Brain", type: "Ability", text: "Once during your turn, if this Pokémon has any Darkness Energy attached, you may move up to 3 damage counters from 1 of your Pokémon to 1 of your opponent's Pokémon." }] });

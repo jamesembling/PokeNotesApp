@@ -15,13 +15,20 @@ const inventoryName = (name: string) => normalizeText(name.replace(/^Basic\s*\{(
 export function getReplayLinkedDeckListCompatibility(
   cards: readonly Pick<DeckCard, "name" | "set" | "number" | "count">[],
   observedOwnerCardNames: readonly string[],
+  observedOwnerCardCounts?: Readonly<Record<string, number>>,
 ): { status: "compatible" | "conflicting" | "unavailable"; missingNames: string[] } {
   if (!cards.length || cards.some((card) => typeof card.name !== "string" || typeof card.set !== "string" || typeof card.number !== "string"
     || !Number.isSafeInteger(card.count) || card.count < 1 || card.count > 60) || cards.reduce((total, card) => total + card.count, 0) !== 60) {
     return { status: "unavailable", missingNames: [] };
   }
-  const listed = new Set(cards.map((card) => inventoryName(card.name)));
-  const missingNames = [...new Set(observedOwnerCardNames.filter((name) => !listed.has(inventoryName(name))))].sort();
+  const listed = new Map<string, number>();
+  for (const card of cards) listed.set(inventoryName(card.name), (listed.get(inventoryName(card.name)) ?? 0) + card.count);
+  const missing = observedOwnerCardNames.filter((name) => !listed.has(inventoryName(name)));
+  for (const [name, count] of Object.entries(observedOwnerCardCounts ?? {})) {
+    if (!Number.isSafeInteger(count) || count < 0) return { status: "unavailable", missingNames: [] };
+    if (count > (listed.get(inventoryName(name)) ?? 0)) missing.push(name);
+  }
+  const missingNames = [...new Set(missing)].sort();
   return { status: missingNames.length ? "conflicting" : "compatible", missingNames };
 }
 
@@ -48,7 +55,7 @@ export function getLinkedReplayDefinitions(
     const ids = new Set<string>();
     for (const print of listed) {
       if (typeof print.set !== "string" || typeof print.number !== "string" || !Number.isSafeInteger(print.count) || print.count < 1 || print.count > 60) { complete = false; continue; }
-      const matching = formatted.candidates.filter((candidate) => {
+      const matching = found.candidates.filter((candidate) => {
         const code = officialCodesBySetId[candidate.setId];
         return typeof code === "string" && normalizeLimitlessSetCode(code) === normalizeLimitlessSetCode(print.set)
           && collector(candidate.localId) === collector(print.number);
@@ -56,8 +63,13 @@ export function getLinkedReplayDefinitions(
       if (!matching.length) complete = false;
       matching.forEach((candidate) => ids.add(candidate.sourceCardId));
     }
-    const candidates = formatted.candidates.filter((candidate) => ids.has(candidate.sourceCardId));
-    const resolved = resolveCardDefinition(buildCardDefinitionIndex(candidates), { name, declaredFormat }, complete ? formatted.coverage : "incomplete", found.generation, found.sourceCoverage);
-    return [name, { ...resolved, evidenceBasis: "linked_deck_list" as const }];
+    const candidates = found.candidates.filter((candidate) => ids.has(candidate.sourceCardId));
+    // Association evidence names physical printings before format inference.
+    // Keep them as probable choices even when the saved format disagrees.
+    const resolved = resolveCardDefinition(buildCardDefinitionIndex(candidates), { name }, complete ? found.coverage : "incomplete", found.generation, found.sourceCoverage);
+    const formattedIds = new Set(formatted.candidates.map((candidate) => candidate.sourceCardId));
+    const conflict = candidates.some((candidate) => !formattedIds.has(candidate.sourceCardId));
+    return [name, { ...resolved, ...(formatted.formatBasis ? { formatBasis: { ...formatted.formatBasis,
+      ...(conflict ? { status: "conflicting" as const } : {}) } } : {}), evidenceBasis: "linked_deck_list" as const }];
   }));
 }

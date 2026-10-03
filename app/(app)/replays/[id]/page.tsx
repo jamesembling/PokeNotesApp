@@ -12,13 +12,14 @@ import { resolveBattleLogEffectCatalogEvidence, resolveBattleLogEffectEvidenceFr
 import { buildCardDefinitionIndex, definitionEffectRows, resolveCardDefinition } from "@/lib/card-definition-catalog/resolve";
 import { loadCardDefinitions } from "@/lib/card-definition-catalog/server";
 import { normalizeText } from "@/lib/log-import/normalization";
-import { collectReplayDefinitionNames, collectReplayOwnerCardNames } from "@/lib/battle-replay/metadata";
+import { collectReplayDefinitionNames, collectReplayOwnerCardCounts, collectReplayOwnerCardNames } from "@/lib/battle-replay/metadata";
 import type { ReplayEffectKind } from "@/lib/battle-replay/types";
 import { compileBattleReplay } from "@/lib/battle-replay/compiler";
 import { getLogById } from "@/lib/db/logs";
 import { getDeckListById } from "@/lib/db/deck-lists";
 import { getLinkedReplayDefinitions, getReplayLinkedDeckListCompatibility } from "@/lib/battle-replay/linked-deck-list";
 import { loadReplaySetCodes } from "@/lib/battle-replay/linked-deck-list-server";
+import { hydrateReplaySelectedArtwork } from "@/lib/battle-replay/selected-artwork-server";
 
 export const metadata: Metadata = { title: "Battle Replay (Beta) | Poke Notes" };
 
@@ -42,14 +43,14 @@ export default async function ReplayPage({ params, searchParams }: {
   const [legacyEvidence, loadedDefinitions, linkedDeckList] = await Promise.all([
     withinBounds ? resolveBattleLogEffectCatalogEvidence(rawLines, signal) : Promise.resolve({ rows: [] }),
     loadCardDefinitions(definitionNames, signal),
-    withinBounds && log.linkedDeckListId ? getDeckListById(user.id, log.linkedDeckListId) : Promise.resolve(null),
+    preliminary && preliminary.status !== "unsupported" && log.linkedDeckListId ? getDeckListById(user.id, log.linkedDeckListId, log.linkedDeckId) : Promise.resolve(null),
   ]);
   const cardDefinitions = Object.fromEntries(Object.entries(loadedDefinitions).map(([name, evidence]) => [name,
     resolveCardDefinition(buildCardDefinitionIndex(evidence.candidates), { name, declaredFormat: log.format }, evidence.coverage, evidence.generation, evidence.sourceCoverage)]));
   const linkedCompatibility = linkedDeckList && preliminary ? getReplayLinkedDeckListCompatibility(linkedDeckList.parsedCards,
-    collectReplayOwnerCardNames(preliminary, "self")) : undefined;
+    collectReplayOwnerCardNames(preliminary, "self"), collectReplayOwnerCardCounts(preliminary, "self")) : undefined;
   const selfCardDefinitions = linkedDeckList && linkedCompatibility?.status === "compatible" ? getLinkedReplayDefinitions(linkedDeckList.parsedCards, loadedDefinitions,
-    await loadReplaySetCodes(linkedDeckList.parsedCards, cardDefinitions), log.format) : undefined;
+    await loadReplaySetCodes(linkedDeckList.parsedCards, loadedDefinitions), log.format) : undefined;
   const completeDefinitions = Object.values(cardDefinitions).filter((evidence) => evidence.coverage === "complete" && evidence.candidates.length);
   const verifiedNames = new Set(completeDefinitions.flatMap((evidence) => evidence.candidates.map((card) => normalizeText(card.name))));
   const rows = [
@@ -76,7 +77,7 @@ export default async function ReplayPage({ params, searchParams }: {
     if (origin) effectOrigins[rawLine] = origin;
     if (tag && supportedTags.has(tag)) effectTags[rawLine] = tag as ReplayEffectKind;
   }
-  const program = compileBattleReplay({ ...log, effectTags, effectOrigins, effectDetailOrigins, cardDefinitions: loadedDefinitions, selfCardDefinitions });
+  const program = await hydrateReplaySelectedArtwork(compileBattleReplay({ ...log, effectTags, effectOrigins, effectDetailOrigins, cardDefinitions: loadedDefinitions, selfCardDefinitions }));
   const requestedPosition = Array.isArray(query.position) ? query.position[0] : query.position;
   const position = requestedPosition && /^\d{1,8}$/.test(requestedPosition) ? Number(requestedPosition) : 0;
   const initialActionIndex = Math.min(position, Math.max(0, program.frames.length - 1));

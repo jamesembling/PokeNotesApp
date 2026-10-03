@@ -364,7 +364,9 @@ async function verifyBattleReplay(db, userId, logId) {
     .replaceAll(`${original.self_player_name}'s`, "Your")
     .replaceAll(`${original.opponent_player_name}'s`, "Opponent's")
     .replaceAll(original.self_player_name, "You")
-    .replaceAll(original.opponent_player_name, "Opponent")));
+    .replaceAll(original.opponent_player_name, "Opponent")
+    .replace(/\bYou wins\b/g, "You win")
+    .replace(/\bYou ended their turn\b/g, "You ended your turn")));
   await page.goto(`${baseUrl}/logs/${logId}`);
   await page.getByRole("link", { name: /^Replay battle(?: Beta| \(Beta\))?$/ }).click();
   await page.waitForURL(`${baseUrl}${replayPath}`);

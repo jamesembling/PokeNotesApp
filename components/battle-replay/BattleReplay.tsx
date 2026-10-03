@@ -92,6 +92,7 @@ type PreviewCard = ReplayZoneCard & {
   underlying?: ReplayZoneCard[];
   tool?: string;
   instanceUncertain?: boolean;
+  hpBasis?: ReplayCard["hpBasis"];
 };
 
 function AbilityUsedMarker({ className }: { className: string }) {
@@ -152,6 +153,9 @@ function CardFace({
   onPreview: (card: PreviewCard) => void;
 }) {
   const stackRef = useRef<HTMLDivElement>(null);
+  const cardResolutions = useContext(DefinitionContext);
+  const probableHp = card.hpBasis === "probable" || card.hp === null
+    && resolveReplayCardPreviewDefinition(card, { cardResolutions })?.hpBasis === "probable";
   useEffect(() => {
     if (!knockedOut) return;
     const stack = stackRef.current;
@@ -227,7 +231,7 @@ function CardFace({
       {card.instanceUncertain && !faceDown ? <span className={styles.copyUncertain} title="The log establishes this Pokémon, but does not identify its physical copy or attached cards.">Copy uncertain</span> : null}
       <div aria-hidden={faceDown} className={styles.healthStatus} data-tone={remainingHp === null ? "unknown" : healthTone}>
         {remainingHp !== null && card.hp !== null ? <div
-          aria-label={`${card.name}: ${remainingHp} of ${card.hp} HP remaining`}
+          aria-label={`${card.name}: ${probableHp ? "probably " : ""}${remainingHp} of ${card.hp} HP remaining`}
           aria-valuemax={card.hp}
           aria-valuemin={0}
           aria-valuenow={remainingHp}
@@ -236,7 +240,8 @@ function CardFace({
         >
           <span style={{ transform: `scaleX(${healthPercent / 100})` }} />
         </div> : null}
-        <strong title={remainingHp === null && card.baseHp ? "Printed HP is verified. Maximum or remaining HP is not established." : undefined}>{remainingHp === null ? card.baseHp ? `${card.baseHp} printed HP` : card.damageKnown === false ? "Damage unknown" : "HP unknown" : `${remainingHp} HP`}</strong>
+        <strong>{remainingHp !== null ? `${remainingHp} HP` : card.hp !== null ? `${card.hp} max HP · damage ?` : card.baseHp ? `${card.baseHp} printed HP · max ?` : "HP ?"}</strong>
+        {probableHp ? <span className={styles.probableHp}>probably</span> : null}
       </div>
     </div>
   );
@@ -613,6 +618,7 @@ export function BattleReplay({
   const [previewedCard, setPreviewedCard] = useState<PreviewCard | null>(null);
   const previewDefinition = previewedCard ? resolveReplayCardPreviewDefinition(previewedCard, program) : undefined;
   const printed = previewDefinition?.selectedDefinition;
+  const previewHpIsProbable = previewedCard?.hpBasis === "probable" || previewedCard?.hp === null && previewDefinition?.hpBasis === "probable";
   const [inspectedDiscard, setInspectedDiscard] =
     useState<ReplayActor | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -985,15 +991,15 @@ export function BattleReplay({
                 {previewedCard.energy?.length ? <EnergyOrbs energy={previewedCard.energy} className={styles.previewEnergyOrbs} /> : null}
               </div>
               {previewedCard.hp && previewedCard.damageKnown !== false ? <div className={styles.cardPreviewHealth} data-tone={previewHealthTone}>
-                <div aria-label={`${Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} of ${previewedCard.hp} HP remaining`} aria-valuemax={previewedCard.hp} aria-valuemin={0} aria-valuenow={Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} role="progressbar">
+                <div aria-label={`${previewHpIsProbable ? "Probably " : ""}${Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} of ${previewedCard.hp} HP remaining`} aria-valuemax={previewedCard.hp} aria-valuemin={0} aria-valuenow={Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} role="progressbar">
                   <span style={{ width: `${Math.max(0, ((previewedCard.hp - (previewedCard.damage ?? 0)) / previewedCard.hp) * 100)}%` }} />
                 </div>
-                <strong>{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
-              </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewedCard.baseHp ? `${previewedCard.baseHp} printed HP · ` : ""}{previewedCard.damageKnown === false ? "Accumulated damage unknown · remaining HP unknown" : previewedCard.baseHp ? "Maximum and remaining HP unknown" : "HP unknown"}</p> : null}
+                <strong>{previewHpIsProbable ? "Probably " : ""}{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
+              </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewHpIsProbable ? "Probably " : ""}{previewedCard.hp ? `${previewedCard.hp} maximum HP · damage ? · remaining HP ?` : previewedCard.baseHp ? `${previewedCard.baseHp} printed HP · maximum and remaining HP ?` : "HP ?"}</p> : null}
               {printed ? <div className={styles.printedCardDetails}>
-                <p className="text-muted-foreground">{previewDefinition?.displayBasis === "played_evidence" ? "Recorded printing" : previewDefinition?.evidenceBasis === "linked_deck_list" ? "Selected Deck List printing" : "Representative printing"} · {printed.setId.toUpperCase()} {printed.localId}{printed.hp ? ` · ${printed.hp} printed HP` : ""}</p>
-                {previewDefinition?.evidenceBasis === "linked_deck_list" ? <p className="text-muted-foreground">Card details follow the Deck List selected for this Battle Log.{previewDefinition?.resolution === "ambiguous" ? " More than one listed printing is possible." : ""}</p> : previewDefinition?.displayBasis !== "played_evidence" ? <p className="text-muted-foreground">The log does not identify the exact printing played.{previewDefinition?.resolution === "ambiguous" ? " Printed details can differ between possible printings." : ""}</p> : null}
-                {previewDefinition?.formatBasis?.status === "conflicting" ? <p className="text-muted-foreground">This recorded printing differs from the saved format. The replay follows the recorded card.</p> : null}
+                <p className="text-muted-foreground">{previewDefinition?.displayBasis === "played_evidence" ? "Recorded printing" : previewDefinition?.hpBasis === "probable" ? "Probable printing" : previewDefinition?.evidenceBasis === "linked_deck_list" ? "Selected Deck List printing" : "Representative printing"} · {printed.setId.toUpperCase()} {printed.localId}{printed.hp ? ` · ${printed.hp} printed HP` : ""}</p>
+                {previewDefinition?.hpBasis === "probable" ? <p className="text-muted-foreground">{previewDefinition.probableHpBasis === "linked_deck_list" ? "This probable printing follows the Deck List selected for this Battle Log." : "This probable printing is the most recent catalogue candidate surviving the saved format filter."} The log does not confirm the printing played.{previewDefinition.formatBasis?.status === "partial" || previewDefinition.formatBasis?.status === "unsupported" ? " Format filtering is incomplete." : ""}</p> : previewDefinition?.evidenceBasis === "linked_deck_list" ? <p className="text-muted-foreground">Card details follow the Deck List selected for this Battle Log.{previewDefinition?.resolution === "ambiguous" ? " More than one listed printing is possible." : ""}</p> : previewDefinition?.displayBasis !== "played_evidence" ? <p className="text-muted-foreground">The log does not identify the exact printing played.{previewDefinition?.resolution === "ambiguous" ? " Printed details can differ between possible printings." : ""}</p> : null}
+                {previewDefinition?.formatBasis?.status === "conflicting" ? <p className="text-muted-foreground">{previewDefinition.displayBasis === "played_evidence" ? "This recorded printing differs from the saved format. The replay follows the recorded card." : "The selected Deck List printing differs from the saved format. The log does not confirm this printing."}</p> : null}
                 {printed.rules?.map((rule, index) => <p key={`rule-${index}`}>{rule}</p>)}
                 {printed.abilities.map((ability, index) => <p key={`ability-${index}`}><strong>{ability.name || "Ability"}</strong>{ability.text ? ` · ${ability.text}` : " · Text unavailable"}</p>)}
                 {printed.attacks.map((attack, index) => <p key={`attack-${index}`}><strong>{attack.name || "Attack"}</strong>{attack.damage ? ` · ${attack.damage}` : ""}{attack.cost?.length ? ` · ${attack.cost.join(", ")}` : ""}{attack.text ? ` · ${attack.text}` : ""}</p>)}
