@@ -39,6 +39,8 @@ export type ReplayZoneCard = {
 };
 
 export type ReplayCard = {
+  /** Renderer-only annotation on a materialized plausible board allocation. */
+  plausibleFields?: ReplayPlausibleField[];
   id: string;
   /** Changes on evolution; retained when this physical top changes zones. */
   physicalCardId?: string;
@@ -126,6 +128,9 @@ export type ReplaySide = {
 };
 
 export type ReplayState = {
+  /** One source-compatible allocation for display, never a factual copy binding.
+   * Top IDs address presentation slots, not original physical-card identities. */
+  boardProjection?: Partial<Record<ReplayActor, ReplayBoardProjection>>;
   partial?: boolean;
   self: ReplaySide;
   opponent: ReplaySide;
@@ -135,6 +140,19 @@ export type ReplayState = {
     card: ReplayZoneCard;
   } | null;
 };
+
+export type ReplayBoardProjection = {
+  basis: "plausible";
+  cards: Array<{
+    id: string; name: string; position: "active" | "bench";
+    damage: number; energy: string[]; tool?: string; underlyingNames: string[];
+    plausibleFields: ReplayPlausibleField[];
+    /** An effective maximum from a different allocation is not reusable. */
+    hpUncertain?: true;
+  }>;
+  moves?: Array<{ sourceKey: string; kind: "damage" | "counters" | "attach" | "promote"; cardId: string; amount?: number }>;
+};
+export type ReplayPlausibleField = "damage" | "position" | "energy" | "tool" | "underlying";
 
 export type ReplayTransactionStage = {
   kind: "play" | "ability" | "attack" | "before" | "damage" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";

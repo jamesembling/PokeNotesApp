@@ -7,8 +7,9 @@ import { collectMissingReplayArtworkNames, resolveReplayArtwork, selectReplayArt
 import { createReplayHpContext, replayCardDefinitionEvidence } from "@/lib/battle-replay/hp";
 import { selectExactReplayArtwork } from "@/lib/battle-replay/selected-artwork-server";
 import { collectReplayDefinitionNames } from "@/lib/battle-replay/metadata";
-import { resolveEnergyMarkers, resolveReplayCardPreviewDefinition } from "@/lib/battle-replay/preview";
+import { resolveEnergyMarkers, resolveReplayCardPreviewDefinition, resolveReplayBoardDisplay } from "@/lib/battle-replay/preview";
 import { collectReplayPrintingProofs } from "@/lib/battle-replay/printing-proofs";
+import { replayCopyKey, solveReplayCopyConstraints, type CopyFact, type CopyStep } from "@/lib/battle-replay/copy-constraints";
 import { canonicalReplayGame, expectedGameChanges, syntheticCardDefinition, type ExpectedSide } from "./fixtures/battle-replay-game";
 
 import { getLinkedReplayDefinitions, getReplayLinkedDeckListCompatibility } from "@/lib/battle-replay/linked-deck-list";
@@ -407,6 +408,39 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   }
   assertPrintingFamily(printingContinuity.frames[13].opponent.active!, "a continuous Active episode retains its later native printing before the attack even when the incoming original copy is unresolved", printingContinuity, false);
   assert.equal(printingContinuity.frames[13].opponent.active?.physicalCardId, undefined, "functional printing evidence for the Active episode does not assign an original physical copy");
+  // Display-only position assignment must not turn the Active episode's
+  // native family into immutable evidence for a projected Bench original.
+  const episodeDisplayFrame = structuredClone(printingContinuity.frames[13]);
+  const episodeActive = episodeDisplayFrame.opponent.active!;
+  const unprovenOriginal = episodeDisplayFrame.opponent.bench.find((card) => card.name === "Dipplin")!;
+  const nativeUnproven = episodeDisplayFrame.opponent.boardPools!.flatMap((pool) => pool.memberEvidence ?? []).find((card) => card.id === unprovenOriginal.id)!;
+  nativeUnproven.definitionKey = "display-native-broad";
+  const nativeDictionary = { ...printingContinuity.cardResolutions, "display-native-broad": { ...resolveReplayCardPreviewDefinition(unprovenOriginal, printingContinuity)!, printedHp: 90, hpBasis: "probable" as const } };
+  episodeDisplayFrame.opponent.active = { ...unprovenOriginal, activeEpisodeId: episodeActive.activeEpisodeId, activePrintingEffects: episodeActive.activePrintingEffects,
+    definitionKey: episodeActive.definitionKey, baseHp: 80, maxHp: 80, hp: 80, hpBasis: "known" };
+  episodeDisplayFrame.opponent.bench = episodeDisplayFrame.opponent.bench.filter((card) => card.id !== unprovenOriginal.id).concat(episodeActive);
+  episodeDisplayFrame.boardProjection = { opponent: { basis: "plausible", cards: [episodeActive, unprovenOriginal].map((card) => ({
+    id: card.id, name: card.name, position: card.id === episodeActive.id ? "active" : "bench", damage: 0,
+    energy: ["Grass"], ...(card.id === episodeActive.id ? { tool: "Brave Bangle" } : {}), underlyingNames: card.underlying.map((layer) => layer.name), plausibleFields: ["position", "tool"],
+  })) } };
+  const unchangedEpisode = JSON.stringify(episodeDisplayFrame);
+  const episodeDisplay = resolveReplayBoardDisplay(episodeDisplayFrame, nativeDictionary);
+  assert.equal(episodeDisplay.opponent.active?.baseHp, 80);
+  assert.equal(episodeDisplay.opponent.active?.hpBasis, "known", "native position evidence stays on the projected Active episode");
+  const projectedBenchOriginal = episodeDisplay.opponent.bench.find((card) => card.id === unprovenOriginal.id)!;
+  assert.equal(projectedBenchOriginal.baseHp, 90);
+  assert.equal(projectedBenchOriginal.hpBasis, "probable", "an unproven Bench original regains its native broad display query");
+  assert.equal(projectedBenchOriginal.activePrintingEffects, undefined);
+  assert.equal(JSON.stringify(episodeDisplayFrame), unchangedEpisode);
+  assert.equal(resolveReplayBoardDisplay(episodeDisplayFrame).opponent, episodeDisplayFrame.opponent, "without the native dictionary, the position projection refuses rather than leaking an Active-only family onto Bench");
+  const uncertainModifierDisplay = structuredClone(episodeDisplayFrame);
+  uncertainModifierDisplay.boardProjection!.opponent!.cards.find((card) => card.position === "active")!.hpUncertain = true;
+  const uncertainModifierActive = resolveReplayBoardDisplay(uncertainModifierDisplay, nativeDictionary).opponent.active!;
+  assert.equal(uncertainModifierActive.baseHp, 80, "modifier uncertainty preserves the Active episode's printed HP");
+  assert.equal(uncertainModifierActive.hp, null, "modifier uncertainty applies after restoring the Active episode query");
+  assert.equal(uncertainModifierActive.maxHp, null);
+  assert.equal(uncertainModifierActive.remainingHp, null);
+  assert.equal(uncertainModifierActive.hpBasis, "unknown");
   const separateEpisodes = compileBattleReplay({ ...continuitySource,
     sections: continuitySource.sections.map((entry, index) => index === 1 ? { ...entry, actions: entry.actions.slice(0, -1) } : entry),
   });
@@ -823,6 +857,101 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(reconCopies(15).filter((card) => card.abilityUsed).length < 3, true, "two uses cannot prove three per-copy markers");
   assert.deepEqual(reconCopies(16).map((card) => card.abilityUsed), [true, true, true], "three once-per-copy uses prove all three despite different attachment state and unknown order");
   assert.deepEqual(threeCopyRecon.frames[16].self.active?.energy, ["Psychic"], "Ability copy ambiguity cannot relocate an independently recorded attachment");
+  // Direct solver boundaries: these are allocation-module guards, not an
+  // invented recorded game or an expected board reconstructed from its output.
+  const allocationCard = (id: string, damage = 0): CopyFact => ({ position: "bench", card: { id, name: "Copy", damage, damageKnown: true, imageUrl: "", hp: 100, energy: [], underlying: [] } });
+  const allocationStep = (event: number, kind: CopyStep["kind"], values: Partial<CopyStep> = {}): CopyStep => ({ key: String(event), event, section: 1, actor: "self", name: "Copy", kind, ...values });
+  const coherent = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [allocationCard("a"), allocationCard("b")] }),
+    allocationStep(1, "damage", { amount: 30 }), allocationStep(2, "damage", { amount: 30 }),
+    allocationStep(3, "ko", { lethal: (card) => card.damage === 30 }),
+  ]);
+  const firstAllocation = coherent.projection.get(2)?.get("self")!.cards;
+  const secondAllocation = coherent.projection.get(3)?.get("self")!.cards;
+  assert.equal(firstAllocation?.reduce((sum, copy) => sum + copy.card.damage, 0), 30);
+  assert.deepEqual(secondAllocation?.map((copy) => copy.card.damage).sort(), [30, 30], "a selected whole witness satisfies its later knockout, rather than splicing unioned choices");
+  assert.equal(firstAllocation?.filter((copy) => copy.card.damage === 30).length, 1);
+  assert.equal(coherent.bindings.has("1"), false, "the deterministic display tie is never an evidenced recipient binding");
+  const linkedDonor = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [allocationCard("powered", 30), allocationCard("bare")] }),
+    allocationStep(1, "ability", { once: true }),
+    allocationStep(2, "counters", { amount: 30, referenceKey: "1" }),
+    allocationStep(3, "damage", { amount: 30, distinctFromKey: "2" }),
+  ]);
+  assert.equal(linkedDonor.bindings.get("1"), "powered", "a verified source donor stays the physical copy that activated the Ability");
+  assert.equal(linkedDonor.bindings.get("3"), "bare", "the recipient cannot be the same copy when the printed effect requires distinct targets");
+  const donorKey = replayCopyKey(3, "self", "recorded movement", "Copy", undefined, 0, "donor");
+  const recipientKey = replayCopyKey(3, "self", "recorded movement", "Copy", undefined, 0, "recipient");
+  assert.notEqual(donorKey, recipientKey, "same-name same-owner counter endpoints retain different source-role identities");
+  assert.equal(JSON.parse(donorKey)[0], 3);
+  const cappedAllocation = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: Array.from({ length: 129 }, (_, index) => allocationCard(String(index))) }),
+    allocationStep(1, "damage", { amount: 10 }),
+  ]);
+  assert.equal(cappedAllocation.boundedOut, true);
+  assert.equal(cappedAllocation.projection.size, 0, "a bounded-out segment has no preferred history");
+  const contradictedAllocation = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [allocationCard("a")] }),
+    allocationStep(1, "ko", { lethal: () => false }),
+  ]);
+  assert.equal(contradictedAllocation.projection.size, 0, "known nonlethal knockouts cannot supply a plausible history");
+  const probableHpAllocation = allocationCard("variable-print", 80);
+  probableHpAllocation.card.hp = 90; probableHpAllocation.card.hpBasis = "probable";
+  const viablePrintingAllocation = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [probableHpAllocation] }),
+    allocationStep(1, "ko", { lethal: () => undefined }),
+  ], "display");
+  assert.equal(viablePrintingAllocation.projection.get(1)?.get("self")?.cards[0].card.damage, 80, "an unresolved compatible printed-HP domain cannot be rejected from a probable 90HP display value");
+  const incompatibleNativeAllocation = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [allocationCard("has-native-effect"), allocationCard("different-native-family")] }),
+    allocationStep(1, "ability", { effect: "Native effect", effectAllowed: (card) => card.id === "has-native-effect" }),
+  ], "display");
+  assert.equal(incompatibleNativeAllocation.projection.get(2)?.get("self")?.cards.find((copy) => copy.card.abilityUsed)?.card.id, "has-native-effect", "a plausible activation cannot be assigned to a source-proven incompatible printing family");
+  const displayFrame = structuredClone(threeCopyRecon.frames[16]);
+  displayFrame.self.bench.forEach((card) => { card.damageKnown = false; });
+  const displayMembers = displayFrame.self.bench.map((card) => card.id);
+  displayFrame.self.boardPools = [{ id: "display-only-components", memberIds: displayMembers, cards: [{ id: "one-tool", name: "Brave Bangle", imageUrl: "", boardRole: "tool" }] }];
+  displayFrame.boardProjection = { self: { basis: "plausible", cards: displayFrame.self.bench.map((card, index) => ({
+    id: card.id, name: card.name, position: "bench", damage: index === 0 ? 30 : 0, energy: [...card.energy], underlyingNames: card.underlying.map((layer) => layer.name),
+    ...(index === 0 ? { tool: "Brave Bangle" } : {}), plausibleFields: ["damage", "tool"],
+  })), moves: [{ sourceKey: "display-only-source", kind: "damage", cardId: displayMembers[0], amount: 30 }] } };
+  const displayBefore = JSON.stringify(displayFrame);
+  const boardDisplay = resolveReplayBoardDisplay(displayFrame);
+  assert.equal(JSON.stringify(displayFrame), displayBefore, "materializing a plausible board never mutates its factual frame");
+  assert.equal(boardDisplay.self.active, displayFrame.self.active, "unpatched known Pokémon and donor facts are preserved");
+  assert.deepEqual(boardDisplay.self.bench.map((card) => card.damage), [30, 0]);
+  assert.ok(boardDisplay.self.bench.every((card) => card.plausibleFields?.includes("damage")));
+  assert.equal(boardDisplay.self.bench.filter((card) => card.tool === "Brave Bangle").length, 1);
+  assert.equal(boardDisplay.self.boardPools?.flatMap((pool) => pool.cards).length, 0, "the one materialized Tool is not also displayed as a second pooled copy");
+  const partialPoolDisplay = structuredClone(displayFrame);
+  partialPoolDisplay.boardProjection!.self!.cards = partialPoolDisplay.boardProjection!.self!.cards.slice(0, 1);
+  const partialPoolBefore = JSON.stringify(partialPoolDisplay);
+  assert.equal(resolveReplayBoardDisplay(partialPoolDisplay).self, partialPoolDisplay.self, "a partial member assignment cannot duplicate a guaranteed pooled Tool or Energy");
+  assert.equal(JSON.stringify(partialPoolDisplay), partialPoolBefore);
+  partialPoolDisplay.self.boardPools![0].cards = [];
+  delete partialPoolDisplay.boardProjection!.self!.cards[0].tool;
+  partialPoolDisplay.boardProjection!.self!.cards[0].plausibleFields = ["damage"];
+  const emptyReferenceDisplay = resolveReplayBoardDisplay(partialPoolDisplay);
+  assert.equal(emptyReferenceDisplay.self.bench[0].damage, 30, "an empty historical-reference pool does not block an otherwise eligible subset projection");
+  const knownAttachmentDisplay = structuredClone(displayFrame);
+  knownAttachmentDisplay.self.boardPools = [];
+  knownAttachmentDisplay.self.bench[0].energy = ["Grass"];
+  knownAttachmentDisplay.self.bench[1].energy = ["Psychic"];
+  knownAttachmentDisplay.boardProjection!.self!.cards.forEach((card, index) => {
+    delete card.tool; card.energy = [index === 0 ? "Psychic" : "Grass"];
+  });
+  assert.equal(resolveReplayBoardDisplay(knownAttachmentDisplay).self, knownAttachmentDisplay.self,
+    "even a conserved Energy multiset cannot override independently known unpooled attachments");
+  const knownDamageDisplay = structuredClone(displayFrame);
+  knownDamageDisplay.self.bench.forEach((card) => { card.damageKnown = true; });
+  assert.equal(resolveReplayBoardDisplay(knownDamageDisplay).self, knownDamageDisplay.self, "a plausible assignment cannot override independently known damage");
+  const conditionalPoolDisplay = structuredClone(displayFrame);
+  conditionalPoolDisplay.self.boardPools![0].uncertainCards = [{ cards: [{ id: "conditional-tool", name: "Brave Bangle", imageUrl: "" }], destinations: ["hand"] }];
+  assert.equal(resolveReplayBoardDisplay(conditionalPoolDisplay).self, conditionalPoolDisplay.self, "a conditional board-or-zone component cannot be materialized as a guaranteed attachment");
+  const extraActiveDisplay = structuredClone(displayFrame);
+  extraActiveDisplay.self.bench.forEach((card) => { card.instanceUncertain = true; });
+  extraActiveDisplay.boardProjection!.self!.cards[0].position = "active";
+  assert.equal(resolveReplayBoardDisplay(extraActiveDisplay).self, extraActiveDisplay.self, "a plausible position assignment cannot add a second Active Pokémon");
   for (const frame of threeCopyRecon.frames) for (const actor of ["self", "opponent"] as const) {
     const side = frame[actor];
     assert.equal(side.deckCount! + side.handCount! + side.prizesRemaining! + side.inPlayCount! + side.discardCount!, 60);

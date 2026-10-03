@@ -166,9 +166,11 @@ function anonymise(text: string, input: ReplayLogSource) {
  */
 export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
   const trace: CopyStep[] = [];
-  const first = compileReplayPass(input, { trace });
+  const projectionTrace: CopyStep[] = [];
+  const first = compileReplayPass(input, { trace, projectionTrace });
   if (!first.events.length) return first;
-  const copies = solveReplayCopyConstraints(trace);
+  const copies = solveReplayCopyConstraints(trace, "facts");
+  const display = solveReplayCopyConstraints(projectionTrace, "display");
   const selections = new Map<string, string>();
   const second = copies.bindings.size || copies.relations.size || copies.used.size ? compileReplayPass(input, { copies, selections }) : first;
   const hp = createReplayHpContext(input.cardDefinitions, input.format, input.selfCardDefinitions, input.date);
@@ -179,10 +181,62 @@ export function compileBattleReplay(input: ReplayLogSource): ReplayProgram {
   // successful selection by making previously equivalent copies look unlike.
   // Retain only origins of proven relations, never arbitrary lookup choices.
   const referenceSelections = new Map([...copies.relations.values()].flatMap((key) => selections.has(key) ? [[key, selections.get(key)!] as const] : []));
-  return printing.length ? compileReplayPass(input, { copies, printing, referenceSelections }) : second;
+  const program = printing.length ? compileReplayPass(input, { copies, printing, referenceSelections }) : second;
+  applyBoardProjections(program, display, hp);
+  return program;
 }
 
-function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; copies?: ReplayCopyProofs; printing?: readonly ReplayPrintingProof[]; selections?: Map<string, string>; referenceSelections?: ReadonlyMap<string, string> } = {}): ReplayProgram {
+/** Validate the selected concrete source path against actual represented
+ * inventory. Symbolic cards are never published as real card/printing objects. */
+function applyBoardProjections(program: ReplayProgram, copies: ReplayCopyProofs, hp: ReturnType<typeof createReplayHpContext>) {
+  const namesOf = (card: ReplayCard) => [...card.underlying.map((layer) => layer.name), ...card.energy.map((energy) => /Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`), ...(card.tool ? [card.tool] : [])];
+  const equalNames = (a: string[], b: string[]) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+  for (const [frameIndex, actors] of copies.projection) {
+    const frame = program.frames[frameIndex]; if (!frame) continue;
+    for (const [actor, checkpoint] of actors) {
+      const side = frame[actor]; const current = allCards(side);
+      const patches: NonNullable<ReplayState["boardProjection"]>[ReplayActor] = { basis: "plausible", cards: [] };
+      for (const name of new Set(checkpoint.cards.map((copy) => copy.card.name))) {
+        const projected = checkpoint.cards.filter((copy) => copy.card.name === name);
+        const actual = current.filter((card) => card.name === name); const ids = new Set(actual.map((card) => card.id));
+        if (projected.length !== actual.length || projected.some((copy) => !ids.has(copy.card.id))) continue;
+        const pools = (side.boardPools ?? []).filter((pool) => pool.memberIds.some((id) => ids.has(id)));
+        if (pools.some((pool) => pool.memberIds.some((id) => !ids.has(id)) || pool.possiblyReturnedCards?.length || pool.uncertainCards?.some((group) => group.cards.length))) continue;
+        const represented = [...actual.flatMap(namesOf), ...pools.flatMap((pool) => pool.cards.map((card) => card.name))];
+        if (!equalNames(represented, projected.flatMap((copy) => namesOf(copy.card)))) continue;
+        if (projected.some((copy) => {
+          const card = actual.find((card) => card.id === copy.card.id)!;
+          return copy.card.damageKnown === false || copy.card.instanceUncertain || copy.card.damage < 0
+            || !equalNames(card.underlying.map((layer) => layer.name), copy.card.underlying.map((layer) => layer.name))
+            || card.damageKnown !== false && !card.instanceUncertain && card.damage !== copy.card.damage
+            || !card.instanceUncertain && (side.active?.id === card.id) !== (copy.position === "active") && !side.unplaced?.some((unplaced) => unplaced.id === card.id);
+        })) continue;
+        for (const copy of projected) {
+          const card = actual.find((card) => card.id === copy.card.id)!;
+          const fields: NonNullable<ReplayCard["plausibleFields"]> = [];
+          if (card.damageKnown === false) fields.push("damage");
+          if (card.instanceUncertain || side.unplaced?.some((unplaced) => unplaced.id === card.id)) fields.push("position");
+          if (!equalNames(card.energy, copy.card.energy) || pools.some((pool) => pool.cards.some((card) => card.boardRole === "energy"))) fields.push("energy");
+          if (card.tool !== copy.card.tool || pools.some((pool) => pool.cards.some((card) => card.boardRole === "tool"))) fields.push("tool");
+          if (!equalNames(card.underlying.map((layer) => layer.name), copy.card.underlying.map((layer) => layer.name)) || pools.some((pool) => pool.cards.some((card) => card.boardRole === "evolution"))) fields.push("underlying");
+          const assignmentChanged = !equalNames(card.energy, copy.card.energy) || card.tool !== copy.card.tool;
+          const pooledHpModifier = pools.some((pool) => pool.cards.some((component) => hp.hasAttachmentHpModifier({ tool: component.name, energy: [component.name], definitionOwner: actor })));
+          const attachmentHpChanged = assignmentChanged && (pooledHpModifier || hp.hasAttachmentHpModifier({ ...card, definitionOwner: actor }) || hp.hasAttachmentHpModifier({ ...copy.card, definitionOwner: actor }));
+          const derivedMaximum = (candidate: ReplayCard | null) => candidate?.maxHp != null && candidate.baseHp != null && candidate.maxHp !== candidate.baseHp;
+          const positionHpChanged = (side.active?.id === card.id) !== (copy.position === "active") && (derivedMaximum(card) || derivedMaximum(side.active));
+          if (fields.length) patches.cards.push({ id: card.id, name, position: copy.position, damage: copy.card.damage, energy: [...copy.card.energy], ...(copy.card.tool ? { tool: copy.card.tool } : {}), underlyingNames: copy.card.underlying.map((layer) => layer.name), plausibleFields: fields,
+            ...(card.hpModifierUncertain || card.baseHp != null && card.maxHp == null || attachmentHpChanged || positionHpChanged ? { hpUncertain: true as const } : {}) });
+        }
+      }
+      if (patches.cards.length) {
+        patches.moves = checkpoint.moves.filter((move) => patches.cards.some((card) => card.id === move.cardId));
+        frame.boardProjection ??= {}; frame.boardProjection[actor] = patches;
+      }
+    }
+  }
+}
+
+function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; projectionTrace?: CopyStep[]; copies?: ReplayCopyProofs; printing?: readonly ReplayPrintingProof[]; selections?: Map<string, string>; referenceSelections?: ReadonlyMap<string, string> } = {}): ReplayProgram {
   const hp = createReplayHpContext(input.cardDefinitions, input.format, input.selfCardDefinitions, input.date);
   const enteredPlay = new Map<string, number>();
   const lastEvolution = new Map<string, number>();
@@ -2009,7 +2063,21 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
     const captureCopyLine = (raw: string, before: ReplayState, ordinal: number) => {
       if (!proof.trace) return;
       const line = clean(raw).replace(/^(.*?) attached (.+?) from (?:their |the )?(hand|deck|discard pile) to (.+)$/i, "$1 attached $2 to $4 from $3");
-      const emit = (actor: ReplayActor, name: string, kind: CopyStep["kind"], values: Partial<CopyStep> = {}, position?: "active" | "bench") => proof.trace!.push({ key: replayCopyKey(actionIndex, actor, clean(raw), name, position === "active" ? "Active Spot" : position === "bench" ? "Bench" : undefined, ordinal), event: actionIndex, section: action.sourceSectionIndex, actor, name, kind, cards: copyFacts(next, actor), ...values, ...(position ? { position } : {}) });
+      const emit = (actor: ReplayActor, name: string, kind: CopyStep["kind"], values: Partial<CopyStep> = {}, position?: "active" | "bench", mode: "both" | "facts" | "display" = "both", role?: "donor" | "recipient") => {
+        const key = replayCopyKey(actionIndex, actor, clean(raw), name, position === "active" ? "Active Spot" : position === "bench" ? "Bench" : undefined, ordinal, role);
+        const step = { key, event: actionIndex, section: action.sourceSectionIndex, actor, name, kind, cards: copyFacts(next, actor), ...values, ...(position ? { position } : {}) };
+        if (mode !== "display") proof.trace!.push(step);
+        if (mode !== "facts") proof.projectionTrace?.push({ ...step, ...((kind === "ability" || kind === "witness") && values.effect ? { effectAllowed: (card: ReplayCard) => {
+          // The observed native effect may narrow an unproven printing domain,
+          // but cannot execute on a copy whose immutable native domain excludes it.
+          // Probable display preferences never enter this query.
+          const found = hp.resolve(card);
+          const observed = hp.resolve({ ...card, observedEffects: [...new Set([...(card.observedEffects ?? []), values.effect!])] });
+          return found?.coverage === "complete" && observed?.coverage === "complete" && found.candidates.some((candidate) => observed.candidates.some((compatible) => compatible.sourceCardId === candidate.sourceCardId)
+            && (kind === "ability" ? candidate.abilities : candidate.attacks).some((effect) => normalizeText(effect.name) === normalizeText(values.effect!)));
+        } } : {}) });
+        return key;
+      };
       // New physical Pokémon are identified by their source-scoped allocator,
       // independent of transaction/pool allocations in either compiler pass.
       let createdAny = false;
@@ -2025,7 +2093,12 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       if ((match = /^(.+?) attached (.+?) to (.+?) (?:in|on) the (Active Spot|Bench)(?: from .+)?$/i.exec(line))) {
         const actor = actorFor(match[1]);
         if (/Energy$/i.test(match[2]) && effectOrigin(raw, ordinal) !== "board") emit(actor, match[3], "attach", { energy: match[2].replace(/^Basic (.+) Energy$/i, "$1") }, match[4] === "Active Spot" ? "active" : "bench");
-        else emit(actor, match[3], "barrier");
+        else {
+          emit(actor, match[3], "barrier", {}, undefined, "facts");
+          const found = hp.resolve({ ...pokemon("attachment-source", match[2]), definitionOwner: actor });
+          if (effectOrigin(raw, ordinal) !== "board" && found?.coverage === "complete" && found.candidates.length && found.candidates.every((candidate) => candidate.category === "Trainer" && candidate.trainerType?.toLowerCase() === "tool")) emit(actor, match[3], "attach", { tool: match[2] }, match[4] === "Active Spot" ? "active" : "bench", "display");
+          else emit(actor, match[3], "barrier", {}, undefined, "display");
+        }
         return;
       }
       if ((match = /^(.+?) retreated (.+?) to (?:the )?Bench$/i.exec(line))) { emit(actorFor(match[1]), match[2], "retreat", {}, "active"); return; }
@@ -2101,16 +2174,30 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       if ((match = /^(.+?) moved (a|\d+) damage counters? from (.+?)['’]s (.+?) to (.+?)['’]s (.+)$/i.exec(line))) {
         const context = effectContext(); const plan = context && hp.effectConstraints(context.card, context.name, context.kind, "move_counters");
         if (context && plan?.status === "known" && plan.operation === "move_counters" && plan.from.owner === "effect_actor") {
-          emit(context.actor, match[4], "counters", { amount: count(match[2]) * 10 });
           const targetActor = plan.to.owner === "effect_actor" ? context.actor : plan.to.owner === "opponent" ? context.actor === "self" ? "opponent" : "self" : undefined;
-          if (targetActor) emit(targetActor, match[6], "damage", { amount: count(match[2]) * 10 }, plan.to.zone === "active" ? "active" : plan.to.zone === "bench" ? "bench" : undefined);
-          else emit(actorFor(match[5]), match[6], "barrier");
+          emit(context.actor, match[4], "counters", { amount: count(match[2]) * 10 }, undefined, "facts");
+          if (targetActor) emit(targetActor, match[6], "damage", { amount: count(match[2]) * 10 }, plan.to.zone === "active" ? "active" : plan.to.zone === "bench" ? "bench" : undefined, "facts");
+          else emit(actorFor(match[5]), match[6], "barrier", {}, undefined, "facts");
+          const activation = [...(proof.projectionTrace ?? [])].reverse().find((step) => step.event === actionIndex && step.actor === context.actor && step.name === context.card.name && step.effect === context.name && step.kind === (context.kind === "attack" ? "witness" : "ability"));
+          if ((plan.from.subject === "source" || plan.to.subject === "source") && !activation) { emit(context.actor, match[4], "barrier", {}, undefined, "display"); return; }
+          const donor = emit(context.actor, match[4], "counters", { amount: count(match[2]) * 10, ...(plan.from.subject === "source" ? { referenceKey: activation!.key } : {}) }, plan.from.zone === "active" ? "active" : plan.from.zone === "bench" ? "bench" : undefined, "display", "donor");
+          if (targetActor) emit(targetActor, match[6], "damage", { amount: count(match[2]) * 10, ...(plan.to.subject === "source" && targetActor === context.actor ? { referenceKey: activation!.key } : {}), ...(plan.distinctTargets && targetActor === context.actor ? { distinctFromKey: donor } : {}) }, plan.to.zone === "active" ? "active" : plan.to.zone === "bench" ? "bench" : undefined, "display", "recipient");
+          else emit(actorFor(match[5]), match[6], "barrier", {}, undefined, "display");
         } else emit(actorFor(match[3]), match[4], "barrier");
         return;
       }
       if ((match = /^.+? put (a|\d+) damage counters? on (.+?)['’]s (.+)$/i.exec(line))) {
         const context = effectContext(); const plan = context && hp.effectConstraints(context.card, context.name, context.kind, "put_counters");
-        if (context && plan?.status === "known" && plan.operation === "put_counters" && ["effect_actor", "opponent"].includes(plan.target.owner)) {
+        if (context && plan?.status === "known" && plan.operation === "put_counters" && plan.target.owner === "trigger") {
+          emit(actorFor(match[2]), match[3], "barrier", {}, undefined, "facts");
+          // The executed parser has validated the recorded Bench trigger.
+          // Keep its uniquely changed physical target, not the possessive
+          // effect-player name, in the symbolic source ledger.
+          const controller = actorFor(/^(.+?) put /.exec(line)![1]);
+          const changed = allCards(next[controller]).filter((card) => card.name === match![3] && card.damageKnown !== false && allCards(before[controller]).some((old) => old.id === card.id && old.damageKnown !== false && card.damage - old.damage === count(match![1]) * 10));
+          if (changed.length === 1) emit(controller, match[3], "damage", { amount: count(match[1]) * 10, targetId: changed[0].id }, "bench", "display");
+          else emit(controller, match[3], "barrier", {}, undefined, "display");
+        } else if (context && plan?.status === "known" && plan.operation === "put_counters" && ["effect_actor", "opponent"].includes(plan.target.owner)) {
           const actor = plan.target.owner === "effect_actor" ? context.actor : context.actor === "self" ? "opponent" : "self";
           emit(actor, match[3], "damage", { amount: count(match[1]) * 10 }, plan.target.zone === "active" ? "active" : plan.target.zone === "bench" ? "bench" : undefined);
         } else emit(actorFor(match[2]), match[3], "barrier");
