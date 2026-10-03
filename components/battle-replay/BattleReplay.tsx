@@ -490,13 +490,15 @@ function BoardCardPools({ cards, onPreview, side }: {
   return side.boardPools?.map((pool) => {
     const members = pool.memberIds.map((id) => cards.find((card) => card.id === id)?.name ?? "Pokémon");
     const assignmentKnown = pool.memberIds.length === 1;
+    const locationLabels = { board: "in play", hand: "in hand", discard: "in discard", deck: "in deck" };
+    const locationGroups = [...(pool.possiblyReturnedCards?.length ? [{ cards: pool.possiblyReturnedCards, destinations: ["hand" as const, ...(pool.possibleReturnedDestinations ?? [])] }] : []), ...(pool.uncertainCards ?? [])];
     const evidence = pool.memberEvidence?.filter((card) => card.observedEffects?.length || card.setId) ?? [];
     const knownHpEvidence = [...new Set(evidence.flatMap((card) => {
       const resolution = resolveReplayCardPreviewDefinition(card, { cardResolutions });
       return resolution?.hpBasis === "known" && resolution.printedHp ? [`${card.name} · ${resolution.printedHp} printed HP`] : [];
     }))];
     return <div className={styles.boardPool} key={pool.id} role="group" aria-label={`${side.name} card assignment evidence`}>
-      <strong>{pool.cards.length ? `In play · ${assignmentKnown ? `with ${members[0]}` : "copy assignment unknown"}` : "Recorded printing evidence"}</strong>
+      <strong>{pool.cards.length ? `In play · ${assignmentKnown ? `with ${members[0]}` : "copy assignment unknown"}` : locationGroups.length ? "Card location evidence" : "Recorded printing evidence"}</strong>
       {pool.cards.length && !assignmentKnown ? <p>On one of: {members.join(", ")}</p> : null}
       {knownHpEvidence.length ? <p>Known printing evidence: {knownHpEvidence.join("; ")}</p> : null}
       <ul>{pool.cards.map((card) => <li key={card.id}>
@@ -507,15 +509,20 @@ function BoardCardPools({ cards, onPreview, side }: {
           <span>{card.name}<small>{card.boardRole === "evolution" ? "Evolution card" : card.boardRole === "tool" ? "Tool" : card.boardRole === "energy" ? "Energy" : "Card"}</small></span>
         </button>
       </li>)}</ul>
-      {pool.possiblyReturnedCards?.length ? <>
-        <p>Location uncertain · in play or returned to hand</p>
-        <ul>{pool.possiblyReturnedCards.map((card) => <li key={card.id}>
-          <button type="button" className={styles.poolCard} aria-label={`Preview ${card.name}, location uncertain: in play or returned to hand`} onClick={() => onPreview(card)}>
+      {locationGroups.map((group, index) => {
+        const locations = [...(pool.memberIds.length ? ["board"] as const : []), ...group.destinations];
+        const locationText = locations.map((location) => locationLabels[location]).join(" or ");
+        const locationStatus = locations.length > 1 ? "Location uncertain" : "Recorded location";
+        return <div key={index}>
+        <p>{locationStatus} · {locationText}</p>
+        <ul>{group.cards.map((card) => <li key={card.id}>
+          <button type="button" className={styles.poolCard} aria-label={`Preview ${card.name}, ${locationStatus.toLowerCase()}: ${locationText}`} onClick={() => onPreview(card)}>
             <span><CardArtwork card={card} alt={`${card.name}, representative card artwork`} sizes="48px" /></span>
-            <span>{card.name}<small>Location uncertain</small></span>
+            <span>{card.name}<small>{locationStatus}</small></span>
           </button>
         </li>)}</ul>
-      </> : null}
+      </div>;
+      })}
       {evidence.length ? <details>
         <summary>Known printing evidence{assignmentKnown ? "" : " · assignment unknown"}</summary>
         <p>Evidence for these Pokémon; no extra cards are counted.</p>

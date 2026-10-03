@@ -66,16 +66,26 @@ export type ReplayCard = {
   definitionOwner?: ReplayActor;
 };
 
-/** Physical components in play whose assignment to namesake copies is unresolved.
- * Member evidence refers to the original tops and does not add physical cards. */
+/** Recorded components whose holder or location is unresolved. `cards` remain
+ * in play; conditional groups list alternatives. Member evidence refers to
+ * the original tops and does not add physical cards. */
 export type ReplayBoardPool = {
   id: string;
   memberIds: string[];
   cards: ReplayZoneCard[];
   memberEvidence?: ReplayZoneCard[];
-  /** Recorded Evolution components whose location is either in play or in
-   * their owner's hand. Excluded from confirmed board inventory and knownHand. */
+  /** Recorded Evolution components that may already be in their owner's hand.
+   * In play is possible only while memberIds remain; later holder departures
+   * may add the destinations below. Excluded from confirmed board and knownHand. */
   possiblyReturnedCards?: ReplayZoneCard[];
+  /** Additional conditional destinations from eligible holders' recorded
+   * departures. Hand is always possible; board eligibility is derived from
+   * memberIds, so neither belongs in this list. Original component IDs persist. */
+  possibleReturnedDestinations?: Array<"deck" | "discard">;
+  /** Original physical components that may remain with a surviving member or
+   * have moved to one of these explicit destinations. No implicit hand location;
+   * excluded from confirmed board and known-zone inventories until resolved. */
+  uncertainCards?: Array<{ cards: ReplayZoneCard[]; destinations: Array<"hand" | "deck" | "discard"> }>;
 };
 
 export type ReplaySide = {

@@ -4,7 +4,7 @@ import { compileBattleReplay, type ReplayLogSource } from "@/lib/battle-replay/c
 import type { LogAction, LogSection } from "@/types/index";
 import type { ReplayCard, ReplaySide } from "@/lib/battle-replay/types";
 import { collectMissingReplayArtworkNames, resolveReplayArtwork, selectReplayArtworkPrinting } from "@/lib/battle-replay/artwork";
-import { replayCardDefinitionEvidence } from "@/lib/battle-replay/hp";
+import { createReplayHpContext, replayCardDefinitionEvidence } from "@/lib/battle-replay/hp";
 import { selectExactReplayArtwork } from "@/lib/battle-replay/selected-artwork-server";
 import { collectReplayDefinitionNames } from "@/lib/battle-replay/metadata";
 import { resolveEnergyMarkers } from "@/lib/battle-replay/preview";
@@ -264,6 +264,16 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.ok([pooledTool.frames[6].self.active!, ...pooledTool.frames[6].self.bench].filter((card) => card.name === "Seedling").every((card) => card.maxHp === 70), "discarding the pooled HP source recovers every possible holder's maximum");
   assert.equal(pooledTool.frames[6].self.boardPools?.flatMap((pool) => pool.cards).length, 0);
   assert.equal(pooledTool.frames[6].self.discard.find((card) => card.name === "HP Tool")?.id, toolPool.cards[0].id, "moving pooled cards preserves their recorded physical identity");
+  const conditionalModifierState = structuredClone(pooledTool.frames[5]);
+  const modifierPool = conditionalModifierState.self.boardPools!.find((pool) => pool.id === toolPool.id)!;
+  modifierPool.memberIds = [modifierPool.memberIds[0]];
+  modifierPool.uncertainCards = [{ cards: modifierPool.cards.splice(0), destinations: ["discard"] }];
+  const modifierContext = createReplayHpContext(cardDefinitions);
+  modifierContext.update(conditionalModifierState);
+  const possibleHolder = [conditionalModifierState.self.active!, ...conditionalModifierState.self.bench].find((card) => card.id === modifierPool.memberIds[0])!;
+  assert.equal(possibleHolder.maxHp, null, "a conditional HP source can remain attached even when only one eligible holder survives");
+  modifierPool.memberIds = []; modifierContext.update(conditionalModifierState);
+  assert.equal(possibleHolder.maxHp, 70, "memberless conditional locations cannot modify a surviving Pokémon's HP");
 
   const conditionalTool = syntheticCardDefinition({ ...definitions[4], rules: ["If this Pokémon is Basic, it gets +100 HP."] });
   const conditionalHp = compileBattleReplay({ ...hpInput, cardDefinitions: { ...cardDefinitions, "hp tool": resolveCardDefinition(buildCardDefinitionIndex([conditionalTool]), { name: "HP Tool" }) } });
@@ -607,6 +617,7 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
 
   const movementRows = [
     syntheticCardDefinition({ name: "Pivot", hp: null, category: "Trainer", trainerType: "Item", rules: ["Switch your Active Pokémon with 1 of your Benched Pokémon."] }),
+    syntheticCardDefinition({ name: "Shift", hp: null, category: "Trainer", trainerType: "Item", rules: ["Move a Basic Energy from 1 of your Pokémon to another of your Pokémon."] }),
     syntheticCardDefinition({ name: "Archive", hp: null, category: "Trainer", trainerType: "Stadium", rules: ["Once during each player's turn, that player may put a card from their hand on top of their deck."] }),
     syntheticCardDefinition({ name: "Exchange", hp: null, category: "Trainer", trainerType: "Stadium", rules: ["Once during each player's turn, that player may discard 2 cards from their hand in order to draw a card."] }),
     syntheticCardDefinition({ name: "Lookup", hp: null, category: "Trainer", trainerType: "Stadium", rules: ["Once during each player's turn, that player may search their deck for a Keeper's Pokémon, reveal it, and put it into their hand. Then, that player shuffles their deck."] }),
@@ -614,8 +625,8 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     syntheticCardDefinition({ name: "Clock", hp: null, category: "Trainer", trainerType: "Item", rules: ["Devolve 1 of your evolved {P} Pokémon by putting any number of Evolution cards on it into your hand. (That Pokémon can't evolve this turn.)"] }),
     syntheticCardDefinition({ name: "Twin", hp: 80, types: ["Psychic"], stage: "Basic" }),
     syntheticCardDefinition({ name: "Middle", hp: 100, types: ["Psychic"], stage: "Stage1" }),
-    syntheticCardDefinition({ name: "Sprout", hp: 150, types: ["Psychic"], stage: "Stage2", attacks: [{ name: "Flame", text: "Put 6 damage counters on your opponent's Benched Pokémon in any way you like.", damage: "20", cost: ["Fire", "Psychic"] }] }),
-    syntheticCardDefinition({ name: "Starter", hp: 80 }), syntheticCardDefinition({ name: "Rival", hp: 100 }),
+    syntheticCardDefinition({ name: "Sprout", hp: 150, types: ["Psychic"], stage: "Stage2", abilities: [{ type: "Ability", name: "Recall", text: "Once during your turn, you may draw 2 cards. If you drew any cards in this way, shuffle this Pokémon and all attached cards into your deck." }], attacks: [{ name: "Flame", text: "Put 6 damage counters on your opponent's Benched Pokémon in any way you like.", damage: "20", cost: ["Fire", "Psychic"] }] }),
+    syntheticCardDefinition({ name: "Starter", hp: 80, abilities: [{ type: "Ability", name: "Recall", text: "Once during your turn, you may draw 2 cards. If you drew any cards in this way, shuffle this Pokémon and all attached cards into your deck." }] }), syntheticCardDefinition({ name: "Rival", hp: 100 }),
   ];
   const movementIndex = buildCardDefinitionIndex(movementRows);
   const movementEvidence = Object.fromEntries(movementRows.map((card) => [card.name.toLowerCase(), resolveCardDefinition(movementIndex, { name: card.name })]));
@@ -638,6 +649,27 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(namedSearch.frames.at(-1)?.self.handCount, 5);
   assert.equal(namedSearch.frames.at(-1)?.opponent.discardCount, 0, "a named, verified search activates the current Stadium without replaying its placement");
   assert.ok(namedStadiumSearch("a card").events.at(-1)?.unresolved, "an anonymous draw cannot establish the search's recorded Pokémon selector");
+  const receivedPoolKo = compileBattleReplay({ ...source([completeSetup, section("PlayerOne", [
+    action("PlayerOne attached Basic Grass Energy to Twin on the Bench."),
+    action("PlayerOne attached Basic Fire Energy to Twin on the Bench."),
+    action("PlayerOne played Shift.", ["- PlayerOne attached Basic Fire Energy to Starter in the Active Spot."]),
+    action("PlayerOne's Starter was Knocked Out."),
+  ])]), cardDefinitions: movementEvidence });
+  assert.ok(receivedPoolKo.frames.at(-2)?.self.boardPools?.some((pool) => pool.cards.some((card) => card.name === "Basic Fire Energy") && pool.memberIds.length === 1));
+  assert.equal(receivedPoolKo.frames.at(-1)?.self.inPlayCount, 3, "a uniquely knocked-out recipient's sole-member pool is part of its physical stack transfer");
+  assert.equal(receivedPoolKo.frames.at(-1)?.self.discardCount, 3);
+  assert.deepEqual(receivedPoolKo.events.at(-1)?.transaction?.stages.filter((stage) => stage.kind === "discard").flatMap((stage) => stage.cards.map((card) => card.name)), ["Starter", "Basic Fire Energy"]);
+  const receivedPoolReturn = compileBattleReplay({ ...source([completeSetup, section("PlayerOne", [
+    action("PlayerOne attached Basic Grass Energy to Twin on the Bench."),
+    action("PlayerOne attached Basic Fire Energy to Twin on the Bench."),
+    action("PlayerOne played Shift.", ["- PlayerOne attached Basic Fire Energy to Starter in the Active Spot."]),
+    action("PlayerOne played Starter.", ["- PlayerOne drew 2 cards.", "- PlayerOne shuffled 2 cards into their deck.", "• Starter, Basic Fire Energy"]),
+  ])]), cardDefinitions: movementEvidence });
+  assert.equal(receivedPoolReturn.frames.at(-1)?.self.inPlayCount, 3);
+  assert.equal(receivedPoolReturn.frames.at(-1)?.self.discardCount, 1);
+  assert.equal(receivedPoolReturn.frames.at(-1)?.self.deckCount, 47);
+  const returnedEnergy = receivedPoolReturn.events.at(-1)?.transaction?.stages.find((stage) => stage.kind === "shuffle")?.cards.find((card) => card.name === "Basic Fire Energy");
+  assert.equal(returnedEnergy?.id, receivedPoolReturn.frames.at(-2)?.self.boardPools?.find((pool) => pool.memberIds.includes(receivedPoolReturn.frames.at(-2)!.self.active!.id))?.cards[0].id, "the originating return transaction retains the guaranteed pooled Energy's physical ID");
   const costInput = { ...source([completeSetup, section("PlayerOne", [
     action("PlayerOne attached Basic Fire Energy to Twin on the Bench."), action("PlayerOne attached Basic Psychic Energy to Twin on the Bench."),
     action("PlayerOne evolved Twin to Sprout on the Bench."), action("PlayerOne's Sprout is now in the Active Spot."),
@@ -663,6 +695,36 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(devolved.knownHand.filter((card) => card.name === "Sprout").length, 1, "the named returned top is an annotation of the same devolution movement");
   const devolvedBaseId = devolved.bench.find((card) => card.name === "Twin")!.id;
   assert.ok(devolved.boardPools?.filter((pool) => pool.cards.some((card) => card.boardRole === "evolution") || pool.possiblyReturnedCards?.length).every((pool) => !pool.memberIds.includes(devolvedBaseId)), "confirmed Basic endpoints cannot retain or possibly own older Evolution layers");
+  const mixedConditionalDepartureInput = { ...source([
+    section("", [...completeSetup.actions, action("PlayerOne played Twin to the Bench.")]),
+    section("PlayerOne", [action("PlayerOne drew 3 cards."), action("PlayerOne evolved Twin to Middle on the Bench."),
+      action("PlayerOne evolved Middle to Sprout on the Bench."), action("PlayerOne evolved Twin to Middle on the Bench."), action("PlayerOne evolved Middle to Sprout on the Bench."), action("PlayerOne evolved Twin to Sprout on the Bench.")]),
+    section("PlayerTwo", [action("PlayerTwo ended their turn.")]),
+    section("PlayerOne", [action("PlayerOne drew a card."), action("PlayerOne played Clock.", ["- PlayerOne devolved PlayerOne's Sprout to Twin on the Bench.", "- PlayerOne moved PlayerOne's Sprout to their hand."]),
+      action("PlayerOne's Sprout was Knocked Out."),
+      action("PlayerOne played Sprout.", ["- PlayerOne drew 2 cards.", "- PlayerOne shuffled 3 cards into their deck.", "• Sprout"]),
+    ]),
+  ]), cardDefinitions: movementEvidence };
+  const mixedConditionalDeparture = compileBattleReplay(mixedConditionalDepartureInput);
+  const firstDeparture = mixedConditionalDeparture.frames.at(-2)!.self;
+  const partialLocations = firstDeparture.boardPools?.find((pool) => pool.possiblyReturnedCards?.length);
+  assert.equal(partialLocations?.memberIds.length, 1);
+  assert.deepEqual(partialLocations?.possibleReturnedDestinations, ["discard"], "each departure contributes its location before the pool's last member leaves");
+  assert.equal(firstDeparture.deckCount, 43, "an unknown KO allocation does not affect the independent deck");
+  assert.equal(firstDeparture.discardCount, null, "a possible layer may have accompanied the KO, so its destination total is now unresolved");
+  assert.ok(firstDeparture.boardPools?.some((pool) => pool.uncertainCards?.some((group) => group.cards.length)), "unassigned departing components cannot all remain certified under the sole surviving stack");
+  const finalLocations = mixedConditionalDeparture.frames.at(-1)!.self.boardPools?.find((pool) => pool.possiblyReturnedCards?.length);
+  assert.deepEqual(finalLocations?.memberIds, []);
+  assert.deepEqual(finalLocations?.possibleReturnedDestinations?.slice().sort(), ["deck", "discard"], "mixed departure history remains available after no in-play assignment remains");
+  assert.equal(finalLocations?.cards.length, 0, "orphan guaranteed components cannot remain duplicated in a conditional pool");
+  assert.equal(mixedConditionalDeparture.frames.at(-1)!.self.discardCount, null);
+  assert.equal(mixedConditionalDeparture.frames.at(-1)!.self.prizesRemaining, 6);
+  assert.equal(mixedConditionalDeparture.frames.at(-1)!.self.deckCount, 44, "the later recorded draw-two and return-three delta remains exact despite unresolved component identities");
+  const completeConditionalReturnInput = structuredClone(mixedConditionalDepartureInput);
+  completeConditionalReturnInput.sections.at(-1)!.actions.at(-1)!.details = ["- PlayerOne drew 2 cards.", "- PlayerOne shuffled 3 cards into their deck.", "• Sprout, Twin, Middle"];
+  const completeConditionalReturn = compileBattleReplay(completeConditionalReturnInput);
+  assert.equal(completeConditionalReturn.frames.at(-1)!.self.deckCount, 44);
+  assert.ok(completeConditionalReturn.frames.at(-1)!.self.boardPools?.find((pool) => pool.possiblyReturnedCards?.some((card) => card.name === "Middle"))?.possibleReturnedDestinations?.includes("deck"), "a complete name list cannot exclude a same-name physical alternative in another conditional location group");
 
 
   const evolvedKoActions = [

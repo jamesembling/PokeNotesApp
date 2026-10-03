@@ -325,21 +325,24 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       }
       for (const pool of state[actor].boardPools ?? []) {
         if (!pool.memberIds.includes(card.id)) continue;
-        for (const component of pool.cards) {
-          if (component.boardRole === "evolution" || /^Basic .+ Energy$/i.test(component.name)) continue;
+        const applyComponent = (component: ReplayZoneCard, assignmentKnown: boolean) => {
+          if (component.boardRole === "evolution" || /^Basic .+ Energy$/i.test(component.name)) return;
           const componentFound = component.setId && component.localId ? resolve(component) : resolveAttachment(component.name, actor);
           const source = modifierCandidates(componentFound);
           const isTool = component.boardRole === "tool" || source?.every((printing) => printing.category === "Trainer" && normalize(printing.trainerType ?? "") === "tool");
           const isEnergy = component.boardRole === "energy" || source?.every((printing) => printing.category === "Energy");
-          if (!isTool && !isEnergy || isTool && toolSuppression === true) continue;
+          if (!isTool && !isEnergy || isTool && toolSuppression === true) return;
           if (attachmentRulesUnverified(componentFound)) unverifiedAttachment = true;
           const printedAddition = modifier(source, targets, "attachment");
           const addition = isTool && toolSuppression === null && printedAddition !== 0 ? null : printedAddition;
-          // A sole remaining member resolves assignment without duplicating
-          // the physical component in its ordinary attachment arrays.
-          if (pool.memberIds.length === 1) adjustment = adjustment === null || addition === null ? null : adjustment + addition;
+          // A sole member resolves a guaranteed board component's assignment.
+          // Conditional components may already have left play, even with one
+          // member remaining, so a nonzero effect stays unresolved locally.
+          if (assignmentKnown) adjustment = adjustment === null || addition === null ? null : adjustment + addition;
           else if (addition !== 0) adjustment = null;
-        }
+        };
+        pool.cards.forEach((component) => applyComponent(component, pool.memberIds.length === 1));
+        pool.uncertainCards?.forEach((group) => group.cards.forEach((component) => applyComponent(component, false)));
       }
       const base = abilitySet ?? card.baseHp;
       card.maxHp = base === null || adjustment === null ? null : base + adjustment;
@@ -384,6 +387,7 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
         pool.cards.forEach((card) => visit(card, actor));
         pool.memberEvidence?.forEach((card) => visit(card, actor));
         pool.possiblyReturnedCards?.forEach((card) => visit(card, actor));
+        pool.uncertainCards?.forEach((group) => group.cards.forEach((card) => visit(card, actor)));
       });
       state[actor].knownHand.forEach((card) => visit(card, actor));
       state[actor].discard.forEach((card) => visit(card, actor));
