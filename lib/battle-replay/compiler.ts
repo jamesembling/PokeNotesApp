@@ -25,6 +25,32 @@ const observeEffect = (card: ReplayCard, name: string) => { card.observedEffects
 const allCards = (side: ReplaySide) => [side.active, ...side.bench, ...(side.unplaced ?? [])].filter((card): card is ReplayCard => card !== null);
 const physicalCardCount = (card: ReplayCard) => 1 + card.underlying.length + card.energy.length + Number(Boolean(card.tool));
 
+/** A Stadium activation may be skipped as a mutation-free notice only when
+ * every printed rules sentence is a pure passive prevention clause (or a
+ * damage-still-taken clarification). Any heal, draw, move, return, discard,
+ * search, Prize, HP, condition, choice or conditional wording refuses. */
+const PREVENTION_FORBIDDEN = /\b(?:heal|healed|draw|drew|attach|attached|move|moved|return|returned|discard|discarded|shuffle|search|put|switch|remove|evolve|devolve|flip|choose|look|reveal|play|played|use|take|takes|Prize|Knocked Out|knock|HP|Energy|Tool|Special Condition|Poisoned|Burned|Asleep|Paralyzed|Confused|hand|deck|instead|unless|if|except|only|until|during|once|then|and also|additional|more)\b/i;
+const PREVENTION_SCOPE_WORDS = new Set(["benched", "active", "basic", "stage", "1", "2", "evolution", "evolved", "pokémon", "pokemon", "ex", "v", "your", "opponent's", "the", "both", "yours", "and", "each", "player's", "in", "play"]);
+export function isReplayPurePreventionStadiumRules(rules: readonly string[] | null | undefined): boolean {
+  if (!rules?.length || rules.some((rule) => typeof rule !== "string" || !rule.trim())) return false;
+  const sentences = rules.flatMap((rule) => rule.trim().split(/(?<=[.!?)])\s+(?=[A-Z(])/));
+  let hasPrevention = false;
+  const valid = sentences.every((raw) => {
+    const sentence = raw.trim();
+    const prevention = /^Prevent all (?:damage counters from being placed on|damage done to|effects of attacks(?:, including damage,)? done to) ([^.]+?)(?: by (?:effects of )?(attacks(?: and Abilities)?|Abilities)(?: (?:from|used by) ([^.]+?))?)?(?: \(both yours and your opponent['’]s\))?\.$/i.exec(sentence);
+    if (prevention) {
+      hasPrevention = true;
+      // Target and source phrases are a closed Pokémon-scope vocabulary, so no
+      // effect clause can hide inside them (a denylist alone is open-ended).
+      return [prevention[1], prevention[3] ?? ""].every((part) => !PREVENTION_FORBIDDEN.test(part)
+        && part.replace(/[(),]/g, " ").split(/\s+/).filter(Boolean).every((word) => PREVENTION_SCOPE_WORDS.has(word.toLowerCase().replace(/’/g, "'"))));
+    }
+    const clarification = /^\((Damage from attacks is still (?:taken|done))\.\)$/i.exec(sentence);
+    return Boolean(clarification);
+  });
+  return valid && hasPrevention;
+}
+
 /** Absence of a passive limit override requires both physical inventories. */
 export function replayPassiveInventoriesComplete(state: ReplayState): boolean {
   return (["self", "opponent"] as const).every((owner) => {
@@ -1145,6 +1171,25 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
         }
         if (!stages.length && /^Damage to .+? was prevented$|^Effects of .+? did not affect .+$/i.test(title)
           && previous.sourceDetails.map(clean).every((line) => /^Damage to .+? was prevented$|^Effects of .+? did not affect .+$/i.test(line))) continue;
+        // "<Stadium> was activated." with only prevention notices records no
+        // mutation. It is skippable only when that Stadium is still in play
+        // (the backward walk refuses any intervening non-KO event) and every
+        // printing's complete rules contain only passive prevention; the
+        // empty stage alone is never treated as proof.
+        const activated = !stages.length && /^(.+?) was activated$/i.exec(title);
+        // The same Stadium (name and controller) must be in play before and
+        // after the activation and at this KO, so its text is the one that acted.
+        const sameStadium = (state: ReplayState | undefined) => Boolean(state?.stadium && next.stadium && state.stadium.name === next.stadium.name && state.stadium.actor === next.stadium.actor);
+        if (activated && previous.sourceDetails.length > 0 && next.stadium?.name === activated[1] && sameStadium(program.frames[index]) && sameStadium(program.frames[index + 1])
+          && previous.sourceDetails.map(clean).every((line) => /^Damage to .+? was prevented$|^Effects of .+? did not affect .+$/i.test(line))) {
+          const evidence = hp.resolve({ name: activated[1] });
+          // Detail lines show only prevention; the printed text must also be
+          // pure passive prevention, because an unmodelled printed mutation
+          // would not necessarily appear as a stage.
+          if (evidence?.coverage === "complete" && evidence.candidates.length > 0 && evidence.candidates.every((candidate) => candidate.category === "Trainer"
+            && candidate.trainerType === "Stadium" && !candidate.attacks.length && !candidate.abilities.length
+            && isReplayPurePreventionStadiumRules(candidate.rules))) continue;
+        }
         if (previous.label !== "Attack" || stages.some((entry) => !["attack", "damage"].includes(entry.kind))) return null;
         const attacks = stages.filter((entry) => entry.kind === "attack");
         if (attacks.length !== 1 || attacks[0].cards.length !== 1) return null;

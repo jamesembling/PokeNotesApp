@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compileBattleReplay, replayPassiveInventoriesComplete, type ReplayLogSource } from "@/lib/battle-replay/compiler";
+import { compileBattleReplay, isReplayPurePreventionStadiumRules, replayPassiveInventoriesComplete, type ReplayLogSource } from "@/lib/battle-replay/compiler";
 import type { LogAction, LogSection } from "@/types/index";
 import type { ReplayCard, ReplaySide, ReplayZoneCard } from "@/lib/battle-replay/types";
 import { collectMissingReplayArtworkNames, resolveReplayArtwork, selectReplayArtworkPrinting } from "@/lib/battle-replay/artwork";
@@ -1116,6 +1116,26 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(isReplayAbilityLimitContextNeutral("Your Pokémon can use the Abilities of your Benched Pokémon.", false, "Boom Boom Groove"), false);
   assert.equal(stripReplayNamedAbilityLimits("You can't use more than 1 Flip the Script Ability each turn."), "");
   assert.equal(stripReplayNamedAbilityLimits("You can't use more than 1 Fan Call Ability during your turn."), "");
+  assert.equal(stripReplayNamedAbilityLimits("You can't use more than 1 Ability that has \"Last-Ditch\" in its name each turn."), "", "a complete quoted-family once-limit is not suppression");
+  const quotedConditional = "You can't use more than 1 Ability that has \"Ditch or Catch\" in its name each turn.";
+  assert.equal(stripReplayNamedAbilityLimits(quotedConditional), quotedConditional);
+  const quotedSuppression = "Pokémon in play have no Abilities. You can't use more than 1 Ability that has \"Last-Ditch\" in its name each turn.";
+  assert.equal(stripReplayNamedAbilityLimits(quotedSuppression), "Pokémon in play have no Abilities.");
+  // Stripping the quoted family limit for passive HP/suppression scans must not relax the separate cohort limit guard.
+  const lastDitch = "Once during your turn, when you play this Pokémon from your hand onto your Bench, you may use this Ability. Search your deck for a Supporter card, reveal it, and put it into your hand. Then, shuffle your deck. You can't use more than 1 Ability that has \"Last-Ditch\" in its name each turn.";
+  assert.equal(isReplayAbilityLimitContextNeutral(lastDitch, true, "Last-Ditch Catch"), false, "the matching family's own once-per-turn limit still refuses repeat/cohort certification");
+  // A stage-less Stadium activation is skippable only for pure passive prevention text.
+  const battleCage = "Prevent all damage counters from being placed on Benched Pokémon (both yours and your opponent's) by effects of attacks and Abilities from the opponent's Pokémon. (Damage from attacks is still taken.)";
+  assert.equal(isReplayPurePreventionStadiumRules([battleCage]), true);
+  assert.equal(isReplayPurePreventionStadiumRules(["Prevent all damage done to Benched Pokémon by attacks (both yours and your opponent's)."]), true);
+  for (const rules of [[battleCage + " Once during each player's turn, that player may heal 30 damage from their Active Pokémon."],
+    [battleCage + " Then, move an Energy from 1 of your Pokémon to another of your Pokémon."], [battleCage + " Each player draws a card at the end of their turn."],
+    ["Prevent all damage done to Benched Pokémon by attacks from your opponent's Pokémon, and place 1 damage counter on each Active Pokémon."],
+    ["Prevent all damage done to Benched Pokémon, and each player's Active Pokémon can't retreat."],
+    ["Prevent all damage done to Benched Pokémon by attacks if that player has no cards in hand."], [battleCage, ""], ["(Damage from attacks is still taken.)"], ["   "], []]) {
+    assert.equal(isReplayPurePreventionStadiumRules(rules), false, "prevention plus any mutation, condition or blank rules is not a mutation-free activation");
+  }
+  assert.equal(isReplayPurePreventionStadiumRules(null), false);
   const conditionalLimit = "If a Stadium is in play, you can't use more than 1 Flip the Script Ability each turn.";
   assert.equal(stripReplayNamedAbilityLimits(conditionalLimit), conditionalLimit);
   const complexLimit = "You can't use more than 1 Fan Call if your Active has no other Ability each turn.";

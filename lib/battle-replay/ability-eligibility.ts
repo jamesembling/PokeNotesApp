@@ -69,7 +69,10 @@ export function supportsReplayActiveAbilityPredicate(input: {
  * clauses, including suppression or conditional limits, stay available. */
 export function stripReplayNamedAbilityLimits(raw: string): string {
   return raw.split(/(?<=[.!?])\s+/).filter((sentence) => {
-    const limit = /^You can['’]t use more than 1 ([\p{L}\p{N}][\p{L}\p{N} '\u2019-]*) Ability (?:each turn|during your turn)\.$/iu.exec(sentence.trim());
+    const trimmed = sentence.trim();
+    const limit = /^You can['’]t use more than 1 ([\p{L}\p{N}][\p{L}\p{N} '\u2019-]*) Ability (?:each turn|during your turn)\.$/iu.exec(trimmed)
+      // The same complete once-limit, naming its family by a quoted fragment.
+      ?? /^You can['’]t use more than 1 Ability that has ["“]([\p{L}\p{N}][\p{L}\p{N} '\u2019-]*)["”] in its name (?:each turn|during your turn)\.$/iu.exec(trimmed);
     return !limit || /\b(?:if|when|whenever|unless|while|except|and|or|until|provided)\b/i.test(limit[1]);
   }).join(" ");
 }
