@@ -931,6 +931,53 @@ export function BattleReplay({
     const animations: Animation[] = [];
     const elevated: HTMLElement[] = [];
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Attack transactions can also contain Bench counter placement, or start
+    // with an Ability such as Festival Lead. Only the actual attack stage
+    // drives the collision, and its destination is the defending Active Spot.
+    const attack = currentEvent?.label === "Attack"
+      ? currentEvent.transaction?.stages.find((stage) => stage.kind === "attack" && stage.actor === currentEvent.actor)
+      : undefined;
+    if (attack && currentEvent?.actor) {
+      const defender = currentEvent.actor === "self" ? "opponent" : "self";
+      const attackerStack = board.querySelector<HTMLElement>(`[data-actor="${currentEvent.actor}"] .${styles.active} [data-board-card]`);
+      const defenderStack = board.querySelector<HTMLElement>(`[data-actor="${defender}"] .${styles.active} [data-board-card]`);
+      const attackerFace = attackerStack?.querySelector<HTMLElement>(`.${styles.cardSurface}`);
+      const defenderFace = defenderStack?.querySelector<HTMLElement>(`.${styles.cardSurface}`);
+      const directDamage = currentEvent.transaction?.stages.filter((stage) => stage.kind === "damage" && stage.actor === defender) ?? [];
+      const targetsActive = directDamage.length === 0 || directDamage.some((stage) => stage.cards.some((card) => card.id === defenderStack?.dataset.boardCard));
+      if (attackerStack && attackerFace && defenderFace && targetsActive && attack.cards.some((card) => card.id === attackerStack.dataset.boardCard)) {
+        const source = attackerFace.getBoundingClientRect();
+        const target = defenderFace.getBoundingClientRect();
+        const direction = target.top < source.top ? -1 : 1;
+        const x = target.left + target.width / 2 - source.left - source.width / 2;
+        // Overlap the near edges slightly: the card strikes its opponent rather
+        // than covering it. Attached cards travel with their Pokémon; HP stays put.
+        const y = target.top + target.height / 2 - source.top - source.height / 2
+          - direction * ((source.height + target.height) / 2 - Math.min(source.height, target.height) * 0.22);
+        if (source.width && target.width) {
+          attackerStack.style.zIndex = "50";
+          elevated.push(attackerStack);
+          const lunge = attackerFace.animate(reducedMotion ? [
+            { opacity: 1 }, { opacity: 0.65 }, { opacity: 1 },
+          ] : [
+            { transform: "none", offset: 0, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+            { transform: `translate(0, ${-direction * 14}px) rotate(${-direction * 3}deg)`, offset: 0.18, easing: "cubic-bezier(0.4, 0, 1, 1)" },
+            { transform: `translate(${x}px, ${y}px) rotate(0deg)`, offset: 0.42 },
+            { transform: `translate(${x}px, ${y}px) rotate(0deg)`, offset: 0.49, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+            { transform: "none", offset: 1 },
+          ], { id: "replay-attack-lunge", delay: 900, duration: reducedMotion ? 180 : 700, easing: "linear" });
+          lunge.onfinish = () => attackerStack.style.removeProperty("z-index");
+          animations.push(lunge);
+          animations.push(defenderFace.animate(reducedMotion ? [
+            { opacity: 1 }, { opacity: 0.65 }, { opacity: 1 },
+          ] : [
+            { transform: "none", offset: 0 },
+            { transform: `translate(0, ${direction * 18}px) rotate(${direction * 3}deg)`, offset: 0.24 },
+            { transform: "none", offset: 1 },
+          ], { id: "replay-attack-impact", delay: reducedMotion ? 900 : 1194, duration: reducedMotion ? 180 : 340, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }));
+        }
+      }
+    }
     for (const card of movingOnBoard ? board.querySelectorAll<HTMLElement>("[data-board-card]") : []) {
       const actor = card.closest<HTMLElement>("[data-actor]")?.dataset.actor as ReplayActor;
       const previous = snapshot.cards.get(`${actor}:${card.dataset.boardCard}`);

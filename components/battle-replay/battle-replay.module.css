@@ -1723,7 +1723,7 @@ button.pile:disabled {
   font-size: 1.4rem;
   font-weight: 800;
   transform: translate(-50%, -50%);
-  animation: attack-damage-in 420ms 180ms ease-out both;
+  animation: attack-damage-in 420ms 1194ms ease-out both;
 }
 .cardStack[data-compact] .attackDamage { font-size: 1rem; }
 @keyframes attack-pulse {
@@ -1759,7 +1759,7 @@ button.pile:disabled {
   background: linear-gradient(90deg, transparent, var(--card) 18%, var(--card) 82%, transparent);
   color: var(--card-foreground);
   text-align: center;
-  animation: attack-announcement 1800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: attack-announcement 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .attackAnnouncement span {
   color: var(--muted-foreground);
