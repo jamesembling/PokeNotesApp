@@ -75,6 +75,19 @@ upstream row to carry one identical valid timestamp, exactly matching
 is rejected. Calendar-only legacy scope remains readable. `expected_count` is the reduced row
 count, while `source_manifest_hash` remains the full upstream identity manifest.
 The existing atomic RPC and immutable-generation lifecycle remain unchanged.
+Before staging, the publisher reads the completed active reference with exact
+counts, stable pagination and pointer checks. It holds a proposal that removes
+retained legal identities or historical Standard floors, shrinks the full
+upstream count, withdraws known operative fields, or expands/changes existing
+possible-printing diagnostics. A resolved gap needs fresh validated upstream
+evidence; old rows are never copied into the proposal. A legacy full archive is
+compared after projection into the authorized retained floor union. Source
+clocks, cosmetic changes, supplied previously missing fields and legal additions
+can proceed. Intentional corrections that conflict with known data require
+review; there is no force flag. An empty initial installation is accepted only
+when no completed generation exists. The pointer is rechecked before the RPC;
+the controlled workflow serializes authorized publishers, but this recheck is
+not an atomic compare-and-swap against other writers.
 The first reduced publication keeps the previous full generation as its backup;
 a later verified reduced publication may retire it through the normal two-snapshot
 and at-least-24-hour policy. Active rows and total stored rows must be measured
@@ -83,13 +96,70 @@ separately. No DDL or manual cleanup is required.
 `--dry-run --output /tmp/retained.json` performs no database reads or writes and
 writes the reduced rows plus `/tmp/retained.json.generation.json` scope metadata.
 Optional `--upstream-output /tmp/private-upstream.json` preserves the validated full
-capture separately. Dry runs use the reviewed saved-format inventory; a write
-run obtains it live. All shared-definition consumers use the same public lookup;
+capture separately, plus parsed provider responses in its `.responses` directory.
+Validated rows and scope are saved before publication, including when the guard
+holds a proposal. Responses retain field presence and null values; their
+`payloadSha256` binds the stored JSON serialization, not original HTTP wire
+bytes. The index records public endpoints, capture times and workflow run IDs.
+The workflow uploads only these public reference artifacts for 14 days; account
+data, raw Battle Logs, credentials and headers are excluded. Dry runs use the
+default supported Standard inventory, or an explicitly supplied inventory; a
+write run obtains saved formats live, including unsupported/blank labels. All
+shared-definition consumers use the same public lookup;
 legacy full-archive generation metadata remains supported during rollout. The
 controlled reference workflow refreshes daily at 03:20 UTC so subsequent UTC
 days do not wait for a weekly refresh; failed or missing refreshes leave explicit
 local name-domain gaps and do not invalidate immutable printing facts. The
 separate effect and Pokémon-name catalogues are unchanged by this storage cut.
+
+Successful GraphQL aliases with missing/invalid regulation marks can be completed
+through the same provider's exact REST card endpoint. Both payloads use the same
+normalizer and must agree on exact printing identity and all mutually supplied
+operative fields. Only the mark is supplemented; one-sided fields remain as
+originally supplied. Valid native single-letter marks are retained without a
+REST query. Supplemental marks are explicitly A–J and preserve supplied casing.
+The request budget excludes pre-Sword & Shield manifest dates and supported
+unmarked Basic Energy; these exclusions never establish a mark. Reads use the
+existing bounded JSON fetch/retry policy with two concurrent completion requests;
+transport failure or conflicting reviewed evidence stops publication. The
+separate `regulationMarkProvenance` binds the public REST identity, fetched time
+and payload hash. It is community source metadata, not scan-backed
+`regulationEvidence`, printed-absence proof or whole-card completeness.
+
+### Held refresh recovery
+
+A failed refresh stays failed and appears in the GitHub run summary with a link
+to this procedure. GitHub's workflow notification settings control delivery;
+the summary does not establish that anyone received a notification. Inspect the
+active generation and its completion time: the runtime treats it as stale after
+14 days. A new game beyond the last capture's UTC day can lose name-domain
+coverage immediately, even while old games remain readable. Treat a held daily
+refresh as a same-day incident, not a 14-day grace period. James owns this
+workflow; delivery of its failure notification was verified in his inbox on
+2026-10-04. Notification delivery should be reverified if the workflow's owner or
+GitHub notification settings change.
+
+Download the run's public source artifact and inspect the capture phase, exact
+regression reasons, validated proposal, and previous active reference. Confirm
+whether the failure occurred before staging or left an unpublished staging
+generation. Never republish by copying old values or changing an unknown field
+to known merely to clear the hold. For a new future set, add a digital launch
+instant only after verifying a primary PTCGL announcement; paper dates alone do
+not establish digital availability. Provider removals, text corrections or
+changed legality require a reviewed source/policy correction with exact
+before/after evidence and the relevant real saved-log acceptance checks, followed
+by normal PR/CI gates and a controlled workflow retry. If an intentional
+contraction cannot be represented safely, keep the hold and design a separately
+reviewed exception bound to the exact active snapshot, proposal, changed fields
+and primary proof. That requires an explicit reviewed guard/policy correction
+through a PR and the acceptance gates; until it ships, the catalogue remains held
+and coverage can degrade. Any exception must match the reviewed IDs, fields,
+before/after values and active generation, expire or be removed, and leave every
+other difference guarded. Independent comparisons with an older accepted capture
+are offline release evidence; the live guard compares with the current active
+generation at publication. If no primary digital-launch announcement exists for a
+new set, the corresponding hold remains until there is usable proof. No generic
+acknowledgement or force-publish path is provided.
 
 ## Runtime and uncertainty
 
