@@ -57,14 +57,14 @@ export type CopyStep = {
   /** Display-only convention for a completed adjacent attack knockout batch. */
   attackKoBatch?: { id: string; index: number; last: boolean };
 };
-export type ReplayAbilityCohortProof = { actor: ReplayActor; name: string; effect: string; section: number; memberIds: readonly string[]; fromEvent: number; untilEvent: number };
+export type ReplayAbilityCohortProof = { actor: ReplayActor; name: string; effect: string; section: number; memberIds: readonly string[]; useEvents: readonly number[]; fromEvent: number; untilEvent: number };
 
 /** Cardinality of legal native once-copy activations entails a universal
  * marker without enumerating an order or choosing original physical IDs. */
 function collectAbilityCohorts(steps: readonly CopyStep[]): ReplayAbilityCohortProof[] {
   const result: ReplayAbilityCohortProof[] = [];
   for (const actor of ["self", "opponent"] as const) {
-    const scopes = new Map<string, { section: number; members: string[]; uses: number; proof?: ReplayAbilityCohortProof }>();
+    const scopes = new Map<string, { section: number; members: string[]; useEvents: number[]; proof?: ReplayAbilityCohortProof }>();
     const activations = new Map<string, number>();
     const blocked = new Map<string, number>();
     let section = -1;
@@ -109,12 +109,12 @@ function collectAbilityCohorts(steps: readonly CopyStep[]): ReplayAbilityCohortP
         blocked.delete(step.name); activations.delete(step.name);
       }
       let scope = scopes.get(key);
-      if (!scope) { scope = { section: step.section, members, uses: 0 }; scopes.set(key, scope); }
-      scope.uses++; activations.set(step.name, step.event);
-      if (scope.uses === members.length) {
-        scope.proof = { actor, name: step.name, effect: step.effect, section: step.section, memberIds: members, fromEvent: step.event, untilEvent: Number.MAX_SAFE_INTEGER };
+      if (!scope) { scope = { section: step.section, members, useEvents: [] }; scopes.set(key, scope); }
+      scope.useEvents.push(step.event); activations.set(step.name, step.event);
+      if (scope.useEvents.length === members.length) {
+        scope.proof = { actor, name: step.name, effect: step.effect, section: step.section, memberIds: members, useEvents: [...scope.useEvents], fromEvent: step.event, untilEvent: Number.MAX_SAFE_INTEGER };
         result.push(scope.proof);
-      } else if (scope.uses > members.length) close(step.name, step.event);
+      } else if (scope.useEvents.length > members.length) close(step.name, step.event);
     }
   }
   return result;

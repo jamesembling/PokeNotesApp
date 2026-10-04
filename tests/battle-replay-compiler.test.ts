@@ -1079,11 +1079,11 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
       assert.equal(card.damageKnown, original.damageKnown, "an Ability-only marker preserves the original damage knowledge metadata");
     }
   }
-  assert.ok(threeCopyRecon.events[13].unresolved?.length && threeCopyRecon.events[14].unresolved?.length, "intermediate order warnings remain factual");
-  assert.equal(threeCopyRecon.events[15].unresolved, undefined, "only the completed cohort's sole copy-selection warning can be resolved collectively");
-  assert.match(threeCopyRecon.events[15].transaction?.stages.find((entry) => entry.kind === "ability")?.detail ?? "", /activation order remains unidentified/);
+  assert.equal(threeCopyRecon.events[15].unresolved, undefined, "the completed cohort entails its recorded activation without selecting its physical order");
   assert.equal(threeCopyRecon.events[15].transaction?.stages.find((entry) => entry.kind === "ability")?.collective, true);
-  assert.equal(threeCopyRecon.events[15].transaction?.stages.find((entry) => entry.kind === "ability")?.label, "All 3 copies have used Recon Directive");
+  assert.equal(threeCopyRecon.events[15].transaction?.stages.find((entry) => entry.kind === "ability")?.label, "Recon Directive");
+  assert.deepEqual(threeCopyRecon.events.slice(13, 16).map((event) => event.unresolved), [undefined, undefined, undefined], "order-only ambiguity does not turn the recorded individual uses into errors");
+  assert.ok(threeCopyRecon.events.slice(13, 16).every((event) => event.label === "Ability" && event.transaction?.stages.filter((entry) => entry.kind === "ability").every((entry) => !entry.detail && !entry.cards.length)), "recorded activations keep the literal effect and no invented cohort narration or simultaneous activation");
   for (const text of ["Your Pokémon can use the Abilities of your Benched Pokémon.", "This Pokémon gains the following Ability.",
     "This Pokémon may use another Pokémon's Ability as its own.", "Your Pokémon may use their Abilities again.", "Remove all Ability-used markers from your Pokémon.",
     "Your Pokémon have no Abilities."]) assert.equal(isReplayAbilityLimitContextNeutral(text, false, "Recon Directive"), false);
@@ -2154,6 +2154,79 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     const refused = compileBattleReplay({ ...noBundle, cardDefinitions: { attacker: resolveCardDefinition(buildCardDefinitionIndex([{ ...ordinaryAttacker, attacks: [{ ...ordinaryAttacker.attacks[0], damage: "60", text }] }]), { name: "Attacker" }) } });
     assert.ok(refused.events[5].unresolved?.length, "incomplete, redirected or independently changing attack clauses cannot provide the recipient-only KO proof");
   }
+
+  // Literal anonymized a30ae7d8 attachment/evolution/KO wording. The
+  // reduced source keeps the recorded board prerequisites and turn sections.
+  const evolvedAttachmentSource = source([
+    section("", [
+      action("PlayerOne played Dreepy to the Active Spot."),
+      action("PlayerTwo played Fezandipiti ex to the Active Spot."),
+    ]),
+    section("PlayerOne", [
+      action("PlayerOne played Buddy-Buddy Poffin.", ["- PlayerOne drew 2 cards and played them to the Bench.", "• Dreepy, Dreepy"]),
+      action("PlayerOne played Torchic to the Bench."),
+      action("PlayerOne attached Basic Darkness Energy to Dreepy in the Active Spot."),
+    ]),
+    section("PlayerTwo", [
+      action("PlayerTwo played Buddy-Buddy Poffin.", ["- PlayerTwo drew 2 cards and played them to the Bench.", "• Dreepy, Dreepy"]),
+      action("PlayerTwo played Budew to the Bench."),
+      action("PlayerTwo attached Basic Fire Energy to Fezandipiti ex in the Active Spot."),
+      action("PlayerTwo retreated Fezandipiti ex to the Bench.", ["- Basic Fire Energy was discarded from PlayerTwo's Fezandipiti ex.", "PlayerTwo's Budew is now in the Active Spot."]),
+      action("PlayerTwo's Budew used Itchy Pollen on PlayerOne’s Dreepy for 10 damage."),
+    ]),
+    section("PlayerOne", [
+      action("PlayerOne attached Basic Psychic Energy to Torchic on the Bench."),
+      action("PlayerOne retreated Dreepy to the Bench.", ["- Basic Darkness Energy was discarded from PlayerOne's Dreepy.", "PlayerOne's Torchic is now in the Active Spot."]),
+    ]),
+    section("PlayerTwo", [
+      action("PlayerTwo evolved Dreepy to Drakloak on the Bench."),
+      action("PlayerTwo attached Basic Psychic Energy to Drakloak on the Bench."),
+      action("PlayerTwo's Budew used Itchy Pollen on PlayerOne’s Torchic for 10 damage."),
+    ]),
+    section("PlayerOne", [
+      action("PlayerOne attached Basic Fire Energy to Dreepy on the Bench."),
+      action("PlayerOne evolved Dreepy to Drakloak on the Bench."),
+      action("PlayerOne evolved Dreepy to Drakloak on the Bench."),
+      action("PlayerOne played Torchic to the Bench."),
+    ]),
+    section("PlayerTwo", [
+      action("PlayerTwo attached Basic Fire Energy to Drakloak on the Bench."),
+      action("PlayerTwo evolved Drakloak to Dragapult ex on the Bench."),
+      action("PlayerTwo retreated Budew to the Bench.", ["PlayerTwo's Dragapult ex is now in the Active Spot."]),
+      action("PlayerTwo played Boss's Orders.", ["- PlayerOne's Drakloak was switched with PlayerOne's Torchic to become the Active Pokémon.", "PlayerOne's Drakloak is now in the Active Spot."]),
+      action("PlayerTwo's Dragapult ex used Phantom Dive on PlayerOne’s Drakloak for 200 damage.", ["- PlayerTwo put 6 damage counters on PlayerTwo's Dreepy."]),
+      action("PlayerOne's Drakloak was Knocked Out!", ["- 2 cards were discarded from PlayerOne's Drakloak.", "• Basic Fire Energy, Dreepy"]),
+      action("PlayerOne's Dreepy was Knocked Out!"),
+      action("PlayerTwo took 2 Prize cards.", ["A card was added to PlayerTwo's hand.", "A card was added to PlayerTwo's hand.", "PlayerOne's Torchic is now in the Active Spot."]),
+    ]),
+    section("PlayerOne", [
+      action("PlayerOne played Lillie's Clefairy ex to the Bench."),
+      action("PlayerOne retreated Torchic to the Bench.", ["- Basic Psychic Energy was discarded from PlayerOne's Torchic.", "PlayerOne's Lillie's Clefairy ex is now in the Active Spot."]),
+    ]),
+  ]);
+  const attachmentDefinitions = [diver,
+    syntheticCardDefinition({ name: "Dreepy", hp: 70, abilities: [], attacks: [] }),
+    syntheticCardDefinition({ name: "Drakloak", hp: 90, abilities: [], attacks: [] }),
+    syntheticCardDefinition({ name: "Torchic", hp: 70, abilities: [], attacks: [] }),
+    syntheticCardDefinition({ name: "Fezandipiti ex", hp: 210, abilities: [], attacks: [] }),
+    syntheticCardDefinition({ name: "Budew", hp: 30, abilities: [], attacks: [{ name: "Itchy Pollen", cost: [], damage: "10", text: "During your opponent's next turn, they can't play any Item cards from their hand." }] })];
+  const evolvedAttachmentInput = { ...evolvedAttachmentSource,
+    cardDefinitions: Object.fromEntries(attachmentDefinitions.map((definition) => [definition.name.toLowerCase(), resolveCardDefinition(buildCardDefinitionIndex(attachmentDefinitions), { name: definition.name })])),
+    effectTags: { "PlayerOne played Buddy-Buddy Poffin.": "item", "PlayerTwo played Buddy-Buddy Poffin.": "item", "PlayerTwo played Boss's Orders.": "supporter" } as const };
+  const evolvedAttachment = compileBattleReplay(evolvedAttachmentInput);
+  const evolvedKoIndex = evolvedAttachment.events.findIndex((event) => event.sourceTitle === "PlayerOne's Drakloak was Knocked Out!");
+  assert.equal(evolvedAttachment.events[evolvedKoIndex].label, "KO", "an exact source attachment stays eligible through evolution of only some possible holders");
+  const evolvedDiscard = evolvedAttachment.frames[evolvedKoIndex + 1].self.discard;
+  assert.ok(evolvedDiscard.some((card) => card.name === "Basic Fire Energy"));
+  assert.equal(evolvedDiscard.find((card) => card.name === "Drakloak")?.physicalCardId, undefined, "a proven KO bundle must not invent the source evolution identity");
+  assert.ok(evolvedDiscard.find((card) => card.name === "Dreepy")?.id.startsWith(`action-${evolvedKoIndex}-card-`), "an unidentified evolution layer receives a neutral departure identity");
+
+  const paidRetreatIndex = evolvedAttachment.events.findIndex((event) => event.sourceTitle === "PlayerOne retreated Torchic to the Bench." && event.sourceDetails.some((detail) => detail.includes("Basic Psychic Energy")));
+  const paidPromotionIndex = evolvedAttachment.events.findIndex((event) => event.sourceDetails.includes("PlayerOne's Torchic is now in the Active Spot.") && event.sourceTitle.includes("Prize"));
+  assert.equal(evolvedAttachment.events[paidPromotionIndex].unresolved, undefined, "later retreat payment binds the earlier promotion to the same physical holder");
+  assert.equal(evolvedAttachment.frames[paidPromotionIndex + 1].self.active?.damage, 10);
+  assert.deepEqual(evolvedAttachment.frames[paidPromotionIndex + 1].self.active?.energy, ["Psychic"]);
+  assert.deepEqual(evolvedAttachment.frames[paidRetreatIndex + 1].self.bench.filter((card) => card.name === "Torchic").map((card) => card.damage).sort((a, b) => a - b), [0, 10]);
 
   for (const abilities of [[{ name: "Borrowed Route", type: "Ability", text: "This Pokémon can use the attacks of your Benched Pokémon." }],
     [{ name: "Unknown Route", type: "Ability", text: null }]]) {

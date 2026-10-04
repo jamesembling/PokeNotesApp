@@ -1229,12 +1229,65 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       }
       return findCard(side, name);
     };
+    const sourceProvenAttachmentSupply = (actor: ReplayActor, name: string) => {
+      const side = next[actor]; const current = allCards(side);
+      const player = actor === "self" ? input.selfPlayerName : input.opponentPlayerName;
+      const other = actor === "self" ? input.opponentPlayerName : input.selfPlayerName;
+      // Strings on a top have no source-card provenance. A matching total must
+      // not conceal one missing component with another counted twice.
+      if (current.some((top) => top.tool === name || top.energy.some((energy) => (/Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`) === name))) return false;
+      const pools = side.boardPools ?? [];
+      if (pools.some((pool) => pool.possiblyReturnedCards?.some((card) => card.name === name)
+        || pool.uncertainCards?.some((group) => group.cards.some((card) => card.name === name)))) return false;
+      const supplied = pools.flatMap((pool) => pool.cards.filter((card) => card.name === name).map((card) => ({ pool, card })));
+      if (!supplied.length || new Set(supplied.map(({ card }) => card.id)).size !== supplied.length) return false;
+      const witnessed = new Set<string>();
+      for (let index = 0; index < actionIndex; index++) {
+        const raw = [actions[index].sourceTitle, ...actions[index].details];
+        let attachments = 0;
+        for (let ordinal = 0; ordinal < raw.length; ordinal++) {
+          const line = clean(raw[ordinal]);
+          if (line.startsWith(`${player} attached `) && /^(?:a card|\d+ cards|an? Energy|\d+ Energy)\b/i.test(line.slice(player.length + 10))) return false;
+          if (!line.includes(name)) continue;
+          if (/^\s*•/.test(raw[ordinal])) {
+            const header = clean(raw[ordinal - 1] ?? "");
+            if ([`${player} drew `, `${player} shuffled `, `${player} discarded `].some((prefix) => header.startsWith(prefix))
+              && /(?:a|\d+) cards?(?: into their deck)?$/i.test(header)) continue;
+            if (header.startsWith(`${other} `) && !header.includes(player)) continue;
+            return false;
+          }
+          if (line === `${player} drew ${name}` || line === `${name} was added to ${player}'s hand` || line === `${name} was added to ${player}’s hand` || line === `${player} discarded ${name}`) continue;
+          const attachment = /^(.+?) attached (.+?) to (.+?) (?:in|on) the (Active Spot|Bench)(?: from (?:their |the )?(hand|deck|discard pile))?$/i.exec(line);
+          const otherActor = actor === "self" ? "opponent" : "self";
+          if (!line.includes(player) && (line === `${other} drew ${name}` || line === `${other} discarded ${name}`
+            || line.startsWith(`${name} was discarded from ${other}'s `) || line.startsWith(`${name} was discarded from ${other}’s `)
+            || attachment?.[1] === other && allCards(program.frames[index][otherActor]).some((top) => top.name === attachment[3]))) continue;
+          // The narrow proof accepts a named manual attachment or an explicit
+          // origin. Other movements/departures cannot borrow this ledger.
+          if (!attachment || attachment[1] !== player || attachment[2] !== name || ordinal > 0 && !attachment[5] || ++attachments !== 1) return false;
+          const born = program.frames[index + 1]?.[actor];
+          const holders = born && allCards(program.frames[index][actor]).filter((top) => top.name === attachment[3]
+            && (attachment[4] === "Active Spot" ? program.frames[index][actor].active?.id === top.id : program.frames[index][actor].bench.some((bench) => bench.id === top.id)));
+          const matches = supplied.filter(({ pool, card }) => {
+            const original = born?.boardPools?.find((candidate) => candidate.id === pool.id && candidate.cards.some((component) => component.id === card.id && component.name === name));
+            return card.id.startsWith(`action-${index}-card-`) && (card.boardRole === "energy" || card.boardRole === "tool") && original && holders?.length
+              && original.memberIds.length === holders.length && original.memberIds.every((id) => holders.some((holder) => holder.id === id) && current.some((holder) => holder.id === id))
+              && pool.memberIds.every((id) => original.memberIds.includes(id));
+          });
+          if (matches.length !== 1 || witnessed.has(matches[0].card.id)) return false;
+          witnessed.add(matches[0].card.id);
+        }
+      }
+      return witnessed.size === supplied.length && supplied.every(({ card }) => witnessed.has(card.id));
+    };
     const slotProvenKnockoutComponents = (actor: ReplayActor, card: ReplayCard, sameName: ReplayCard[]): ReplayZoneCard[] | null => {
       if (sameName.length !== 1 && knockoutRecipientId !== card.id) return null;
       const side = next[actor]; const current = allCards(side);
       const pools = (side.boardPools ?? []).filter((pool) => pool.memberIds.includes(card.id));
       if (pools.some((pool) => pool.possiblyReturnedCards?.length || pool.uncertainCards?.some((group) => group.cards.length)
-        || pool.cards.length && pool.memberIds.some((id) => !current.some((member) => member.id === id && member.name === card.name)))) return null;
+        || pool.cards.length && pool.memberIds.some((id) => !current.some((member) => member.id === id && member.name === card.name))
+          && !(pool.memberIds.every((id) => current.some((member) => member.id === id))
+            && pool.cards.every((entry) => (entry.boardRole === "energy" || entry.boardRole === "tool") && sourceProvenAttachmentSupply(actor, entry.name))))) return null;
       const lines = action.details.map(clean);
       const player = actor === "self" ? input.selfPlayerName : input.opponentPlayerName;
       const indices = lines.flatMap((line, index) => [`'s ${card.name}`, `’s ${card.name}`].some((suffix) => line.endsWith(` discarded from ${player}${suffix}`)) ? [index] : []);
@@ -1261,6 +1314,14 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       if (card.knownStackSize !== undefined && card.knownStackSize !== recorded.length + 1) return null;
       const needed = [...recorded];
       for (const component of own) { const index = needed.indexOf(component.name); if (index < 0) return null; needed.splice(index, 1); }
+      const evolvedNames = new Set(pools.filter((pool) => pool.cards.length && pool.memberIds.some((id) => current.some((member) => member.id === id && member.name !== card.name)))
+        .flatMap((pool) => pool.cards.map((component) => component.name)));
+      // The recorded bundle must exhaust these source-proven copies. Otherwise
+      // their names establish the quantity, but not which source card departed.
+      for (const name of evolvedNames) {
+        const supply = (side.boardPools ?? []).flatMap((pool) => pool.cards).filter((component) => component.name === name);
+        if (needed.filter((component) => component === name).length !== supply.length) return null;
+      }
       const available = new Map(pools.map((pool) => [pool, [...pool.cards]]));
       const chosen: Array<{ pool: (typeof pools)[number]; component: ReplayZoneCard }> = [];
       for (const name of needed) {
@@ -1939,7 +2000,13 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
         }
         stage("before", "Knocked Out", [knockedOut], actor);
         const discardedTop = topCardEvidence(id(), knockedOut);
-        const discarded = [discardedTop, ...(provenComponents ?? [...knockedOut.underlying,
+        // The KO bundle can identify its components without identifying which
+        // source evolution created this top. Keep those two proofs separate.
+        if (knockedOut.instanceUncertain && !identified) delete discardedTop.physicalCardId;
+        const layerIds = new Set(knockedOut.underlying.map((layer) => layer.id));
+        const rekeyLayer = (component: ReplayZoneCard): ReplayZoneCard => knockedOut!.instanceUncertain && !identified && layerIds.has(component.id)
+          ? { ...component, id: id() } : component;
+        const discarded = [discardedTop, ...(provenComponents?.map(rekeyLayer) ?? [...knockedOut.underlying.map(rekeyLayer),
           ...knockedOut.energy.map((energy) => zoneCard(id(), /Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`)),
           ...(knockedOut.tool ? [zoneCard(id(), knockedOut.tool)] : []), ...takeSoleMemberCards(actor, knockedOut.id)])];
         addDiscard(actor, discarded, "board");
@@ -2837,7 +2904,10 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
       if ((match = /^(.+?) (?:was|were) discarded from (.+?)['’]s (.+)$/i.exec(line))) {
         if (/was Knocked Out/i.test(action.sourceTitle)) return;
         const actor = actorFor(match[2]);
-        if (/Energy$/i.test(match[1])) emit(actor, match[3], "remove_energy", { energy: match[1].replace(/^Basic (.+) Energy$/i, "$1") }); else emit(actor, match[3], "barrier");
+        const retreat = /^(.+?) retreated (.+?) to (?:the )?Bench$/i.exec(clean(action.sourceTitle));
+        const referenceKey = ordinal >= 0 && retreat?.[1] === match[2] && retreat[2] === match[3]
+          ? replayCopyKey(actionIndex, actor, clean(action.sourceTitle), match[3], "Active Spot", -1) : undefined;
+        if (/Energy$/i.test(match[1])) emit(actor, match[3], "remove_energy", { energy: match[1].replace(/^Basic (.+) Energy$/i, "$1"), ...(referenceKey ? { referenceKey } : {}) }); else emit(actor, match[3], "barrier");
         return;
       }
       if ((match = /^(.+?) moved (a|\d+) damage counters? from (.+?)['’]s (.+?) to (.+?)['’]s (.+)$/i.exec(line))) {
@@ -3075,16 +3145,18 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
       }
     }
     for (const cohort of proof.copies?.cohorts ?? []) {
-      if (cohort.fromEvent !== actionIndex || cohort.section !== action.sourceSectionIndex || action.actor !== cohort.actor
+      if (!cohort.useEvents.includes(actionIndex) || cohort.section !== action.sourceSectionIndex || action.actor !== cohort.actor
         || errors.length !== 1 || errors[0] !== `The log does not identify which ${cohort.name} was affected.`) continue;
       const used = /^(.+?)['’]s (.+?) used (?:its Ability:\s*)?(.+)$/i.exec(clean(action.sourceTitle));
       const cards = allCards(next[cohort.actor]).filter((card) => card.name === cohort.name);
       if (!used || actorFor(used[1]) !== cohort.actor || used[2] !== cohort.name || normalizeText(used[3]) !== normalizeText(cohort.effect)
-        || effectTag(action.sourceTitle) !== "ability" || cards.length !== cohort.memberIds.length || !cards.every((card) => cohort.memberIds.includes(card.id) && card.abilityUsed)) continue;
+        || effectTag(action.sourceTitle) !== "ability" || cards.length !== cohort.memberIds.length || !cards.every((card) => cohort.memberIds.includes(card.id))) continue;
       errors.length = 0;
-      stage("ability", `All ${cards.length} copies have used ${cohort.effect}`, cards, cohort.actor);
+      // The source records one activation here. Its order within the proved
+      // once-per-copy cohort is immaterial, and must not invent another action
+      // or show every copy activating at this single source step.
+      stage("ability", cohort.effect, [], cohort.actor);
       stages[stages.length - 1].collective = true;
-      stages[stages.length - 1].detail = `All ${cards.length} copies have used this Ability; their activation order remains unidentified.`;
       label = "Ability"; mutationCount++;
     }
     understoodMutations += mutationCount;
