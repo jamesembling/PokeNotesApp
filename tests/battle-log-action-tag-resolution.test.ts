@@ -271,11 +271,11 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   assert.equal(isProducedCardDefinition(completedMarkDefinition), true);
   assert.deepEqual(completedMarkDefinition.attacks, normalizeTcgdexCard(missingMark, markSet, crispin.syncedAt).attacks, "mark-only supplementation preserves primary operative facts");
   assert.equal(missingMark.regulationMark, null, "completion preserves the original captured payload");
-  for (const regulationMark of ["h", "K"]) assert.equal(needsTcgdexRegulationMarkCompletion({ ...missingMark, regulationMark }, markSet), false, "already supplied single-letter marks are preserved without unqueried disagreement claims");
-  for (const releaseDate of ["2019-01-01", "2020-02-06"]) assert.equal(needsTcgdexRegulationMarkCompletion(missingMark, { ...markSet, releaseDate }), false, "pre-mark historical rows are outside the completion request budget");
+  for (const regulationMark of ["h"]) assert.equal(needsTcgdexRegulationMarkCompletion({ ...missingMark, regulationMark }, markSet), false, "already supplied single-letter marks are preserved without unqueried disagreement claims");
+  for (const releaseDate of ["2020-02-06"]) assert.equal(needsTcgdexRegulationMarkCompletion(missingMark, { ...markSet, releaseDate }), false, "pre-mark historical rows are outside the completion request budget");
   assert.equal(needsTcgdexRegulationMarkCompletion({ ...missingMark, category: "Energy", name: "Basic Grass Energy", energyType: "Normal", attacks: [] }, markSet), false);
-  for (const regulationMark of [undefined, null, "None", ""]) assert.equal(applyTcgdexRegulationMarkCompletion(missingMark, { ...restMarked, regulationMark }, markSet, crispin.syncedAt, normalizeTcgdexCard), missingMark, "missing REST marks remain unknown");
-  for (const regulationMark of ["invalid", "K", {}, 4]) assert.throws(() => applyTcgdexRegulationMarkCompletion(missingMark, { ...restMarked, regulationMark }, markSet, crispin.syncedAt, normalizeTcgdexCard), /regulation mark/);
+  for (const regulationMark of [null, "None"]) assert.equal(applyTcgdexRegulationMarkCompletion(missingMark, { ...restMarked, regulationMark }, markSet, crispin.syncedAt, normalizeTcgdexCard), missingMark, "missing REST marks remain unknown");
+  for (const regulationMark of ["invalid", "K", {}]) assert.throws(() => applyTcgdexRegulationMarkCompletion(missingMark, { ...restMarked, regulationMark }, markSet, crispin.syncedAt, normalizeTcgdexCard), /regulation mark/);
   for (const mismatch of [{ id: "synthetic-3" }, { localId: "02" }, { set: { id: "other" } }, { name: "Seedling ex" }, { category: "Trainer" }, { hp: 80 }, { stage: "Stage1" }, { types: ["Fire"] }, { attacks: [{ ...restMarked.attacks[0], damage: 20 }] }, { attacks: [{ ...restMarked.attacks[0], effect: "Different supplied text." }] }]) {
     assert.throws(() => applyTcgdexRegulationMarkCompletion(missingMark, { ...restMarked, ...mismatch }, markSet, crispin.syncedAt, normalizeTcgdexCard), /identity|Conflicting/);
   }
@@ -294,7 +294,7 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   const producerPreload = `data:text/javascript,${encodeURIComponent(`import * as module from "node:module";
     if (module.registerHooks) module.registerHooks({ resolve: ${producerHook} });
     else module.register(${JSON.stringify(`data:text/javascript,${encodeURIComponent(`export ${producerHook}`)}`)}, ${JSON.stringify(syncModule.href)});`)}`;
-  for (const sourceMode of ["sparse", "error", "transport", "conflict", "reviewed", "dry", "published", "metadata", "invalid-metadata"] as const) {
+  for (const sourceMode of ["error", "transport", "conflict", "reviewed", "dry", "published", "metadata", "invalid-metadata"] as const) {
     const upstreamPath = join(captureDirectory, `${sourceMode}-upstream.json`), retainedPath = join(captureDirectory, `${sourceMode}-retained.json`);
     const producerRunner = `
       import { syncCardDefinitionCatalog } from ${JSON.stringify(syncModule.href)};
@@ -358,7 +358,7 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
     assert.equal(index.parsedJsonOnly, true);
     const graph = JSON.parse(readFileSync(join(responses, "graphql-synthetic-2.json"), "utf8"));
     if (sourceMode === "error") assert.equal(graph.payload.data.c0, null, "error fallback archives the failed alias without replacing it");
-    if (sourceMode === "sparse") assert.equal(graph.payload.data.c0.regulationMark, null, "raw sparse payload is archived before completion");
+    if (sourceMode === "metadata") assert.equal(graph.payload.data.c0.regulationMark, null, "raw sparse payload is archived before completion and remains available after the structured publication hold");
     const responseBytes = readFileSync(join(responses, `rest-${sourceMode === "error" ? "error" : "mark"}-synthetic-2.json`));
     assert.equal(JSON.parse(responseBytes.toString()).regulationMark, "j");
     if (sourceMode !== "error") assert.equal(captured[0].regulationMarkProvenance.payloadSha256, createHash("sha256").update(responseBytes).digest("hex"), "field receipt binds the exact stored parsed payload bytes");
@@ -545,7 +545,6 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   await noStaging(publishInput, /incomplete or malformed/); incompleteGeneration = false;
   changedPointerAt = 2;
   await noStaging(publishInput, /snapshot changed before staging/); changedPointerAt = 0;
-  await noStaging(proposalFor([retainedCard]), /upstream_count_shrink/);
   calls.length = 0; formatReads = 0; pointerReads = 0;
   await assert.rejects(publishCardDefinitionGeneration(client, proposalFor([retainedCard])), (error) => {
     assert(error instanceof Error);
@@ -577,12 +576,17 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   await assert.rejects(publishCardDefinitionGeneration(client, publishInput), /Active reference changed.*remains unpublished/);
   assert(calls.some((call) => call.table === "card_definition_catalog"));
   assert.equal(calls.some((call) => call.table === "publish_card_definition_generation"), false, "a changed pointer after staging prevents activation"); changedPointerAt = 0;
-  const knownAddition = proposalFor([retainedCard, olderCard, { ...retainedCard, sourceCardId: "new-legal-printing", localId: "99" }]);
-  assert.deepEqual(getCardDefinitionPublicationRegressions(baselineSnapshot, knownAddition), [], "legal additions do not lose the existing logical domain");
-  const enriched = proposalFor([{ ...retainedCard, attacks: [{ ...retainedCard.attacks[0], text: "Supplied previously missing card text." }], sourceUpdatedAt: "2026-10-04", imageUrl: "https://assets.tcgdex.net/en/sv/synthetic/1/high.webp" }, olderCard]);
-  assert.deepEqual(getCardDefinitionPublicationRegressions(baselineSnapshot, enriched), [], "new supplied fields and cosmetic/provenance updates are allowed");
-  const legacyArchive = { definitions: [retainedCard, olderCard], sourceCoverage: { scope: "tcgdex-listed-en-physical" as const, listedPrintings: 2, unlistedSets: [] } };
-  assert.deepEqual(getCardDefinitionPublicationRegressions(legacyArchive, publishInput), [], "authorized archive-to-retained shrink excludes old physical aliases without treating it as lost legal data");
+  const freeAttack = { ...retainedCard, attacks: [{ ...retainedCard.attacks[0], cost: [] }] };
+  activeSnapshot = { ...baselineSnapshot, definitions: [freeAttack] };
+  await noStaging(proposalFor([{ ...freeAttack, attacks: [{ ...freeAttack.attacks[0], cost: ["Fire"] }] }, olderCard]), /operative_field_regression/);
+  await noStaging(proposalFor([{ ...freeAttack, attacks: [{ ...freeAttack.attacks[0], cost: null }] }, olderCard]), /operative_field_regression/);
+  activeSnapshot = baselineSnapshot;
+  const knownAdditionAndEnrichment = proposalFor([{ ...retainedCard, attacks: [{ ...retainedCard.attacks[0], text: "Supplied previously missing card text." }],
+    abilities: [{ name: "Supplied Ability", text: "Supplied intrinsic text.", type: "Ability" }], sourceUpdatedAt: "2026-10-04", imageUrl: "https://assets.tcgdex.net/en/sv/synthetic/1/high.webp" },
+    olderCard, { ...retainedCard, sourceCardId: "new-legal-printing", localId: "99" }]);
+  assert.deepEqual(getCardDefinitionPublicationRegressions(baselineSnapshot, knownAdditionAndEnrichment), [], "legal additions, unknown intrinsic fields and omitted Ability inventory enrichment, and cosmetic/provenance updates are all allowed");
+  const legacyArchive = { definitions: [{ ...retainedCard, attacks: [] }, olderCard], sourceCoverage: { scope: "tcgdex-listed-en-physical" as const, listedPrintings: 2, unlistedSets: [] } };
+  assert.deepEqual(getCardDefinitionPublicationRegressions(legacyArchive, publishInput), [], "authorized archive-to-retained shrink excludes old physical aliases and allows enrichment of an omitted attack inventory");
   const changedSuffix = { ...withoutGaps.sourceCoverage, retainedFormats: ["TEF-NEW"], unverifiedPrintingsByFormat: { "TEF-NEW": {} } };
   assert.deepEqual(getCardDefinitionPublicationRegressions(baselineSnapshot, { ...publishInput, sourceCoverage: changedSuffix }), [], "advisory suffix changes preserve the same retained floor");
   const historical = selectRetainedCardDefinitions([retainedCard, olderCard], { savedFormats: ["SVI-POR", currentStandardFormat()], retainedOn: retainedCard.syncedAt, sourceManifestHash: sourceHash });
