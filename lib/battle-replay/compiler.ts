@@ -30,16 +30,20 @@ const physicalCardCount = (card: ReplayCard) => 1 + card.underlying.length + car
  * damage-still-taken clarification). Any heal, draw, move, return, discard,
  * search, Prize, HP, condition, choice or conditional wording refuses. */
 const PREVENTION_FORBIDDEN = /\b(?:heal|healed|draw|drew|attach|attached|move|moved|return|returned|discard|discarded|shuffle|search|put|switch|remove|evolve|devolve|flip|choose|look|reveal|play|played|use|take|takes|Prize|Knocked Out|knock|HP|Energy|Tool|Special Condition|Poisoned|Burned|Asleep|Paralyzed|Confused|hand|deck|instead|unless|if|except|only|until|during|once|then|and also|additional|more)\b/i;
+const PREVENTION_SCOPE_WORDS = new Set(["benched", "active", "basic", "stage", "1", "2", "evolution", "evolved", "pokémon", "pokemon", "ex", "v", "your", "opponent's", "the", "both", "yours", "and", "each", "player's", "in", "play"]);
 export function isReplayPurePreventionStadiumRules(rules: readonly string[] | null | undefined): boolean {
   if (!rules?.length || rules.some((rule) => typeof rule !== "string" || !rule.trim())) return false;
   const sentences = rules.flatMap((rule) => rule.trim().split(/(?<=[.!?)])\s+(?=[A-Z(])/));
   let hasPrevention = false;
   const valid = sentences.every((raw) => {
     const sentence = raw.trim();
-    const prevention = /^Prevent all (?:damage counters from being placed on|damage done to|effects of attacks(?:, including damage,)? done to) ([^.]+?)(?: by (?:effects of )?(attacks(?: and Abilities)?|Abilities)(?: (?:from|used by) ([^.]+?))?)?\.$/i.exec(sentence);
+    const prevention = /^Prevent all (?:damage counters from being placed on|damage done to|effects of attacks(?:, including damage,)? done to) ([^.]+?)(?: by (?:effects of )?(attacks(?: and Abilities)?|Abilities)(?: (?:from|used by) ([^.]+?))?)?(?: \(both yours and your opponent['’]s\))?\.$/i.exec(sentence);
     if (prevention) {
       hasPrevention = true;
-      return [prevention[1], prevention[3] ?? ""].every((part) => !PREVENTION_FORBIDDEN.test(part));
+      // Target and source phrases are a closed Pokémon-scope vocabulary, so no
+      // effect clause can hide inside them (a denylist alone is open-ended).
+      return [prevention[1], prevention[3] ?? ""].every((part) => !PREVENTION_FORBIDDEN.test(part)
+        && part.replace(/[(),]/g, " ").split(/\s+/).filter(Boolean).every((word) => PREVENTION_SCOPE_WORDS.has(word.toLowerCase().replace(/’/g, "'"))));
     }
     const clarification = /^\((Damage from attacks is still (?:taken|done))\.\)$/i.exec(sentence);
     return Boolean(clarification);
