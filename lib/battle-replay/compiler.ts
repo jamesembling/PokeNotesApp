@@ -3076,9 +3076,14 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
       if (attacker?.name === entry.match![2] && !action.details.some((raw) => /\b(?:attached|discarded|moved|returned|shuffled)\b.*Energy|Energy.*\b(?:discarded|moved|returned|shuffled)\b/i.test(clean(raw)))) bindAttackEnergy(owner, attacker, entry.match![3]);
     }
     for (const cohort of proof.copies?.cohorts ?? []) {
-      if (cohort.section !== action.sourceSectionIndex || actionIndex < cohort.fromEvent || actionIndex >= cohort.untilEvent) continue;
+      if (cohort.section !== action.sourceSectionIndex || actionIndex < cohort.useEvents[0] || actionIndex >= cohort.untilEvent) continue;
       const cards = allCards(next[cohort.actor]).filter((card) => card.name === cohort.name);
-      if (cards.length === cohort.memberIds.length && cards.every((card) => cohort.memberIds.includes(card.id))) cards.forEach((card) => { card.abilityUsed = true; });
+      if (cards.length === cohort.memberIds.length && cards.every((card) => cohort.memberIds.includes(card.id))) cards.forEach((card) => {
+        if (actionIndex >= cohort.fromEvent) card.abilityUsed = true;
+        // Before completion the source proves a usage count, not unusedness of
+        // each possible member. Preserve independently proven used markers.
+        else if (card.abilityUsed !== true) delete card.abilityUsed;
+      });
       // This is only a universal usage marker, not an ordered copy selection
       // or native printing/effect observation on an unidentified physical top.
     }

@@ -1071,6 +1071,7 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     const display = resolveReplayBoardDisplay(factual, threeCopyRecon.cardResolutions);
     const shown = [display.self.active, ...display.self.bench].filter((card): card is ReplayCard => Boolean(card));
     assert.equal(shown.filter((card) => card.abilityUsed).length, uses, "one supported whole witness preserves intermediate activation cardinality");
+    if (uses < 3) assert.ok(reconCopies(frame).every((card) => card.abilityUsed !== false), "an unidentified used copy cannot leave every possible member factually unused");
     if (uses < 3) assert.ok(shown.filter((card) => card.abilityUsed && ![factual.self.active, ...factual.self.bench].find((original) => original?.id === card.id)?.abilityUsed).every((card) => card.plausibleFields?.includes("abilityUsed")));
     assert.equal(JSON.stringify(factual), beforeDisplay);
     assert.equal(display.self.active?.hpBasis, factual.self.active?.hpBasis, "a guessed Ability marker does not downgrade independent HP evidence");
