@@ -1,9 +1,10 @@
 import { resolveCardDefinition, selectCardDefinitionPrinting } from "@/lib/card-definition-catalog/resolve";
 import { normalizeText } from "@/lib/log-import/normalization";
 import type { CardDefinition, CardDefinitionEvidence, CardDefinitionEvidenceByName } from "@/lib/card-definition-catalog/types";
-import type { ReplayCard, ReplayCardResolution, ReplayEffectKind, ReplayState, ReplayZoneCard } from "./types";
+import type { ReplayActor, ReplayCard, ReplayCardResolution, ReplayEffectKind, ReplayProgram, ReplayState, ReplayZoneCard } from "./types";
 import { resolveReplayEffectConstraint, resolveReplayTrainerDisposition, type ReplayEffectOperation } from "./effect-targets";
 import type { ReplayLinkedCardDefinitions } from "./linked-deck-list";
+import { applyReplayPrintingProofs, applyReplayPrintingProofToCard, type ReplayPrintingProof } from "./printing-proofs";
 
 const hasHp = (text: string) => /\bHP\b/i.test(text);
 
@@ -118,6 +119,10 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
     }
     return resolutions.get(key);
   };
+  // Positional proof affects the visible definition query only. The public
+  // resolver used by physical proof collection remains native-evidence-only.
+  const displayCard = (card: ReplayZoneCard) => card.activeEpisodeId && card.activePrintingEffects?.episodeId === card.activeEpisodeId
+    ? { ...card, observedEffects: [...new Set([...(card.observedEffects ?? []), ...card.activePrintingEffects.effects])] } : card;
   const candidates = (found: CardDefinitionEvidence | undefined) => found?.coverage === "complete" && found.candidates.length ? found.candidates : null;
   const modifierCandidates = (found: CardDefinitionEvidence | undefined) => found?.candidates.length ? found.candidates : null;
   const attachmentFallbacks = new Map<string, CardDefinitionEvidence>();
@@ -141,14 +146,21 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
     attachmentFallbacks.set(key, fallback);
     return fallback;
   };
-  type HpSelection = { hp: number | null; basis: "known" | "probable" | "unknown"; selected: CardDefinition | null; probableBasis?: "linked_deck_list" | "latest_format_candidate" };
-  const selectionCache = new WeakMap<CardDefinitionEvidence, Map<boolean, HpSelection>>();
+  type HpSelection = { hp: number | null; basis: "known" | "probable" | "unknown"; selected: CardDefinition | null; preferredFamily?: boolean; probableBasis?: "linked_deck_list" | "latest_format_candidate" | "same_owner_witnessed_family" };
+  let selectionCache = new WeakMap<CardDefinitionEvidence, Map<string, HpSelection>>();
+  // Populated only after semantic reconstruction. No execution lookup sees
+  // this same-owner display preference or its selected representative.
+  const seenFamilies = new Map<string, string | null>();
+  const familyKey = (card: CardDefinition) => JSON.stringify([card.hp, card.category, card.trainerType, card.stage, card.types,
+    card.evolvesFrom, card.rules, card.abilities, card.attacks]);
+  const ownerName = (actor: ReplayActor, name: string) => JSON.stringify([actor, normalize(name)]);
   const hpSelection = (card: Pick<ReplayCard, "name" | "observedEffects" | "setId" | "localId" | "definitionOwner">, found: CardDefinitionEvidence | undefined): HpSelection => {
     if (!found) return { hp: null, basis: "unknown", selected: null };
     const linked = usesLinked(card);
     let cached = selectionCache.get(found);
     if (!cached) { cached = new Map(); selectionCache.set(found, cached); }
-    if (cached.has(linked)) return cached.get(linked)!;
+    const selectionKey = JSON.stringify([linked, card.definitionOwner ?? null]);
+    if (cached.has(selectionKey)) return cached.get(selectionKey)!;
     const publicHp = linked ? resolve({ ...card, definitionOwner: undefined })?.hp : found.hp;
     const recorded = Boolean(card.setId && card.localId && found.candidates.length === 1 && Number.isSafeInteger(found.candidates[0].hp) && found.candidates[0].hp! > 0);
     const agreed = recorded || found.coverage === "complete" && Number.isSafeInteger(found.hp) && found.hp! > 0;
@@ -165,8 +177,13 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       hp = selected && options.includes(selected) ? selected.hp : null;
       basis = hp === null ? "unknown" : "probable";
     }
-    const result: HpSelection = { hp, basis, selected, ...(basis === "probable" ? { probableBasis: linked ? "linked_deck_list" : "latest_format_candidate" } : {}) };
-    cached.set(linked, result);
+    const witnessedFamily = card.definitionOwner && !linked && !card.observedEffects?.length && !card.setId && !card.localId
+      ? seenFamilies.get(ownerName(card.definitionOwner, card.name)) : undefined;
+    const preferred = witnessedFamily && found.coverage === "complete"
+      ? selectCardDefinitionPrinting(available.filter((printing) => familyKey(printing) === witnessedFamily && Number.isSafeInteger(printing.hp) && printing.hp! > 0)) : null;
+    if (preferred) { selected = preferred; hp = preferred.hp; }
+    const result: HpSelection = { hp, basis, selected, ...(preferred ? { preferredFamily: true } : {}), ...(basis === "probable" ? { probableBasis: preferred ? "same_owner_witnessed_family" : linked ? "linked_deck_list" : "latest_format_candidate" } : {}) };
+    cached.set(selectionKey, result);
     return result;
   };
   const plans = new WeakMap<CardDefinition, AbilityPlan[]>();
@@ -275,11 +292,15 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
     abilityTextsCache.set(key, result);
     return result;
   };
+  const printedBaseDependency = new WeakMap<ReplayZoneCard, boolean>();
+  const copySnapshotHpProvenance = (cards: ReplayZoneCard[], snapshots: ReplayZoneCard[]) => cards.forEach((card, index) => {
+    if (printedBaseDependency.has(card)) printedBaseDependency.set(snapshots[index], printedBaseDependency.get(card)!);
+  });
   const update = (state: ReplayState): void => {
     const board = (["self", "opponent"] as const).flatMap((actor) =>
       [state[actor].active, ...state[actor].bench, ...(state[actor].unplaced ?? [])].filter((card): card is ReplayCard => card !== null).map((card) => {
         card.definitionOwner = actor;
-        return { actor, card, found: resolve(card) };
+        return { actor, card, found: resolve(displayCard(card)) };
       }));
     const stadiumCandidates = state.stadium ? modifierCandidates(resolve({ name: state.stadium.name, definitionOwner: state.stadium.actor })) : null;
     const stadiumToolSuppression = toolsSuppressed(stadiumCandidates);
@@ -295,7 +316,7 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       !mode.basicOnly || !(candidates(found)?.every((definition) => definition.stage !== null && normalize(definition.stage) !== "basic")));
     for (const { actor, card, found } of board) {
       const targets = modifierCandidates(found);
-      const selection = hpSelection(card, found);
+      const selection = hpSelection(displayCard(card), found);
       card.baseHp = selection.hp;
       let abilitySet: number | undefined;
       let abilityUnknown = false;
@@ -344,6 +365,7 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
         pool.cards.forEach((component) => applyComponent(component, pool.memberIds.length === 1));
         pool.uncertainCards?.forEach((group) => group.cards.forEach((component) => applyComponent(component, false)));
       }
+      printedBaseDependency.set(card, abilitySet === undefined);
       const base = abilitySet ?? card.baseHp;
       card.maxHp = base === null || adjustment === null ? null : base + adjustment;
       card.hpBasis = card.maxHp === null ? "unknown" : unverifiedAttachment ? "probable" : abilitySet !== undefined ? "known" : selection.basis;
@@ -355,11 +377,13 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
   };
   const cardResolutions: Record<string, ReplayCardResolution> = {};
   const decorateCard = (card: ReplayZoneCard & { observedEffects?: string[] }): void => {
-    const resolved = resolve(card);
+    const query = displayCard(card);
+    const resolved = resolve(query);
     const found = resolved?.candidates.length ? resolved : attachmentFallbacks.get(attachmentKey(card.name, card.definitionOwner)) ?? resolved;
-    const selection = hpSelection(card, found);
+    const selection = hpSelection(query, found);
     const linked = usesLinked(card);
-    const key = JSON.stringify([normalize(card.name), [...(card.observedEffects ?? [])].map(normalize).sort(), card.setId ?? null, card.localId ?? null, linked]);
+    const queryKey = [normalize(card.name), [...(query.observedEffects ?? [])].map(normalize).sort(), card.setId ?? null, card.localId ?? null, linked];
+    const key = JSON.stringify(selection.preferredFamily ? [...queryKey, card.definitionOwner] : queryKey);
     card.definitionKey = key;
     if (Object.hasOwn(cardResolutions, key)) return;
     cardResolutions[key] = {
@@ -370,6 +394,7 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       agreedFacts: found?.agreedFacts ?? {}, ...(found?.formatBasis ? { formatBasis: found.formatBasis } : {}),
       selectedDefinition: selection.selected, printedHp: selection.hp, hpBasis: selection.basis,
       ...(selection.probableBasis ? { probableHpBasis: selection.probableBasis } : {}),
+      ...(selection.preferredFamily ? { printingPreferenceBasis: "same_owner_witnessed_family" as const } : {}),
       ...(linked ? { evidenceBasis: "linked_deck_list" as const } : {}),
     };
   };
@@ -434,7 +459,66 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
     // replaces the Pokémon executing that text or receiving "this Pokémon" effects.
     return { status: "copied", observedEffect: copyAbilities[0][0].name, definitionCard: donors[0].card };
   };
-  return { resolve, update, abilityTexts, effectConstraints, trainerDisposition, attackPrintingEvidence, hasAttachmentHpModifier, decorateCard, decorateState, collectResolutions: () => cardResolutions };
+  /** Final display projection, after every source transition and copy/printing
+   * proof has executed. Candidate sets and native effects are never narrowed.
+   * Mixed witnessed gameplay families refuse the preference for that owner. */
+  const applySeenPrintingPreferences = (program: ReplayProgram, plan: readonly ReplayPrintingProof[]) => {
+    for (const proof of plan) {
+      if (!proof.effects.length && !(proof.setId && proof.localId)) continue;
+      const found = resolve({ name: proof.name, definitionOwner: proof.actor, observedEffects: [...proof.effects], setId: proof.setId, localId: proof.localId });
+      const key = ownerName(proof.actor, proof.name);
+      if (found?.coverage !== "complete" || !found.candidates.length) { seenFamilies.set(key, null); continue; }
+      for (const printing of found.candidates) {
+        const signature = familyKey(printing);
+        if (!seenFamilies.has(key)) seenFamilies.set(key, signature);
+        else if (seenFamilies.get(key) !== signature) seenFamilies.set(key, null);
+      }
+    }
+    if (![...seenFamilies.values()].some(Boolean)) return;
+    selectionCache = new WeakMap();
+    const eligible = (card: ReplayZoneCard, actor: ReplayActor) => {
+      const query = displayCard({ ...card, definitionOwner: actor });
+      return hpSelection(query, resolve(query)).preferredFamily === true;
+    };
+    const decoratePreferred = (card: ReplayZoneCard, actor: ReplayActor, snapshot = false) => {
+      if (!eligible(card, actor)) return;
+      card.definitionOwner = actor;
+      // A snapshot's effective HP already contains the actual modifiers. Only
+      // an uncertain printed baseline changes; known setters stay independent.
+      if (snapshot && "baseHp" in card) {
+        const top = card as ReplayCard;
+        const selection = hpSelection(displayCard(top), resolve(displayCard(top)));
+        const previousBase = top.baseHp;
+        top.baseHp = selection.hp;
+        if (printedBaseDependency.get(top) === true && top.maxHp != null && previousBase != null && selection.hp != null) {
+          top.maxHp += selection.hp - previousBase; top.hp = top.maxHp;
+          top.remainingHp = top.damageKnown === false ? null : Math.max(0, top.maxHp - top.damage);
+        }
+      }
+      decorateCard(card);
+    };
+    for (const state of program.frames) {
+      const changedBoard = (["self", "opponent"] as const).some((actor) =>
+        [state[actor].active, ...state[actor].bench, ...(state[actor].unplaced ?? [])].some((card) => card && eligible(card, actor)));
+      if (changedBoard) update(state);
+      for (const actor of ["self", "opponent"] as const) {
+        const side = state[actor];
+        const tops = [side.active, ...side.bench, ...(side.unplaced ?? [])].filter((card): card is ReplayCard => card !== null);
+        const cards = [...tops, ...tops.flatMap((card) => card.underlying), ...side.knownHand, ...side.discard,
+          ...(side.boardPools ?? []).flatMap((pool) => [...pool.cards, ...(pool.memberEvidence ?? []), ...(pool.possiblyReturnedCards ?? []), ...(pool.uncertainCards ?? []).flatMap((group) => group.cards)])];
+        cards.forEach((card) => decoratePreferred(card, actor));
+      }
+    }
+    for (const event of program.events) for (const stage of event.transaction?.stages ?? []) {
+      if (stage.actor) stage.cards.forEach((card) => decoratePreferred(card, stage.actor!, true));
+      for (const [actor, cards] of Object.entries(stage.actorCards ?? {})) cards?.forEach((card) => decoratePreferred(card, actor as ReplayActor, true));
+    }
+  };
+  const applyPrintingProofs = (state: ReplayState, frameIndex: number, plan: readonly ReplayPrintingProof[]) =>
+    applyReplayPrintingProofs(plan, state, frameIndex, resolve);
+  const applyPrintingProofToCard = (card: ReplayZoneCard, actor: ReplayActor, frameIndex: number, plan: readonly ReplayPrintingProof[]) =>
+    applyReplayPrintingProofToCard(plan, card, actor, frameIndex, resolve);
+  return { resolve, update, abilityTexts, effectConstraints, trainerDisposition, attackPrintingEvidence, hasAttachmentHpModifier, decorateCard, decorateState, applyPrintingProofs, applyPrintingProofToCard, applySeenPrintingPreferences, copySnapshotHpProvenance, collectResolutions: () => cardResolutions };
 }
 
 export function replayCardDefinitionEvidence(card: ReplayCard, evidence: CardDefinitionEvidenceByName | undefined) {

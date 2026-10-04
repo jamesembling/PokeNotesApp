@@ -13,12 +13,16 @@ export type ReplayCardResolution = Pick<CardDefinitionEvidence, "coverage" | "ge
   evidenceBasis?: "linked_deck_list";
   printedHp?: number | null;
   hpBasis?: "known" | "probable" | "unknown";
-  probableHpBasis?: "linked_deck_list" | "latest_format_candidate";
+  probableHpBasis?: "linked_deck_list" | "latest_format_candidate" | "same_owner_witnessed_family";
+  /** A probable representative preference; compatible candidates stay unchanged. */
+  printingPreferenceBasis?: "same_owner_witnessed_family";
   artworkSource?: { provider: "limitless"; sourceUrl: string };
 };
 
 export type ReplayZoneCard = {
   id: string;
+  /** Immutable physical top/layer identity, distinct from a stack or projection ID. */
+  physicalCardId?: string;
   name: string;
   imageUrl: string;
   artwork?: "representative";
@@ -26,13 +30,20 @@ export type ReplayZoneCard = {
   setId?: string;
   localId?: string;
   observedEffects?: string[];
+  /** Position-only printing query; never immutable physical-copy evidence. */
+  activeEpisodeId?: string;
+  activePrintingEffects?: { episodeId: string; effects: string[] };
   definitionOwner?: ReplayActor;
   /** Recorded in-play component role; used when its catalogue entry is absent. */
   boardRole?: "tool" | "energy" | "evolution";
 };
 
 export type ReplayCard = {
+  /** Renderer-only annotation on a materialized plausible board allocation. */
+  plausibleFields?: ReplayPlausibleField[];
   id: string;
+  /** Changes on evolution; retained when this physical top changes zones. */
+  physicalCardId?: string;
   name: string;
   imageUrl: string;
   /** Compatibility alias for effective maxHp, never printed HP. */
@@ -56,6 +67,9 @@ export type ReplayCard = {
   abilityUsed?: boolean;
   /** Effects observed on this physical top card, never shared across namesakes. */
   observedEffects?: string[];
+  /** Position-only printing query; never immutable physical-copy evidence. */
+  activeEpisodeId?: string;
+  activePrintingEffects?: { episodeId: string; effects: string[] };
   conditions?: ReplayCondition[];
   energy: string[];
   underlying: ReplayZoneCard[];
@@ -106,12 +120,17 @@ export type ReplaySide = {
   discardCount?: number | null;
   knownHand: HandCard[];
   discard: ReplayZoneCard[];
+  /** Complete recorded discard identities can survive unrelated count uncertainty. */
+  discardIdentitiesKnown?: boolean;
   prizesRemaining: number | null;
   itemLocked?: boolean;
   uncertainZones?: Array<"hand" | "deck" | "board" | "discard" | "prizes">;
 };
 
 export type ReplayState = {
+  /** One source-compatible allocation for display, never a factual copy binding.
+   * Top IDs address presentation slots, not original physical-card identities. */
+  boardProjection?: Partial<Record<ReplayActor, ReplayBoardProjection>>;
   partial?: boolean;
   self: ReplaySide;
   opponent: ReplaySide;
@@ -121,6 +140,25 @@ export type ReplayState = {
     card: ReplayZoneCard;
   } | null;
 };
+
+export type ReplayBoardProjection = {
+  basis: "plausible";
+  /** Surviving modeled states, never a probability or a proof count. */
+  selection?: { rules: string[]; alternatives: number };
+  /** Complete validated Bench presentation order for this whole witness. */
+  benchOrder?: string[];
+  cards: Array<{
+    id: string; name: string; position: "active" | "bench";
+    damage: number; energy: string[]; tool?: string; underlyingNames: string[];
+    /** Existing guaranteed native objects only; no synthetic layer metadata. */
+    underlyingIds?: string[];
+    plausibleFields: ReplayPlausibleField[];
+    /** An effective maximum from a different allocation is not reusable. */
+    hpUncertain?: true;
+  }>;
+  moves?: Array<{ sourceKey: string; kind: "damage" | "counters" | "attach" | "promote"; cardId: string; amount?: number }>;
+};
+export type ReplayPlausibleField = "damage" | "position" | "energy" | "tool" | "underlying";
 
 export type ReplayTransactionStage = {
   kind: "play" | "ability" | "attack" | "before" | "damage" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
@@ -212,4 +250,12 @@ export type ReplayProgram = {
   };
   status: "supported" | "partial" | "unsupported";
   cardResolutions?: Record<string, ReplayCardResolution>;
+  /** Display-only selection and conservative fallback measurements. */
+  displayDiagnostics?: {
+    attackKoOrderConvention: "enabled" | "disabled" | "counterexample_disabled";
+    factsPeakAlternatives: number; displayPeakAlternatives: number;
+    factsBoundedOut: boolean; displayBoundedOut: boolean;
+    segments: Array<{ actor: ReplayActor; endEvent: number; reason: "complete" | "barrier" | "cap" | "no_candidate" | "contradiction"; alternatives: number; rules: string[] }>;
+    refusals: Array<{ actor: ReplayActor; stage: "producer" | "materializer"; reason: string; count: number; exampleFrames: number[] }>;
+  };
 };
