@@ -3,7 +3,7 @@ import { decodeLogSections } from "@/lib/battle-log/runtime-validation";
 import { flattenReplaySourceActions } from "./source";
 import { createReplayHpContext } from "./hp";
 import { collectReplayPrintingProofs, type ReplayPrintingProof } from "./printing-proofs";
-import { replayCopyKey, resolveReplayKnockoutHpInventory, solveReplayCopyConstraints, type CopyFact, type CopyStep, type ReplayCopyProofs } from "./copy-constraints";
+import { hasReplayCopyProofs, replayCopyKey, resolveReplayKnockoutHpInventory, solveReplayCopyConstraints, type CopyFact, type CopyStep, type ReplayCopyProofs } from "./copy-constraints";
 import { replayBenchTriggerMatches, type ReplayEffectTarget } from "./effect-targets";
 import { isReplayAbilityLimitContextNeutral, isReplayCopyIndependentOnceAbilityText, isReplayHandEvolutionText, isReplaySelfAttackPermission, resolveReplayAbilityActivation, stripReplayNamedAbilityLimits, supportsReplayActiveAbilityPredicate } from "./ability-eligibility";
 import { resolveReplayAssignmentGroups, resolveReplayBoardDisplay } from "./preview";
@@ -24,6 +24,19 @@ const count = (text: string) => {
 const observeEffect = (card: ReplayCard, name: string) => { card.observedEffects = [...new Set([...(card.observedEffects ?? []), name])]; };
 const allCards = (side: ReplaySide) => [side.active, ...side.bench, ...(side.unplaced ?? [])].filter((card): card is ReplayCard => card !== null);
 const physicalCardCount = (card: ReplayCard) => 1 + card.underlying.length + card.energy.length + Number(Boolean(card.tool));
+
+/** Absence of a passive limit override requires both physical inventories. */
+export function replayPassiveInventoriesComplete(state: ReplayState): boolean {
+  return (["self", "opponent"] as const).every((owner) => {
+    const side = state[owner];
+    if (side.inPlayCount == null || side.activeUncertain || side.unplaced?.length
+      || side.boardPools?.some((pool) => pool.cards.length > 0 && !pool.memberIds.length
+        || pool.possiblyReturnedCards?.length || pool.uncertainCards?.some((group) => group.cards.length))) return false;
+    const represented = allCards(side).reduce((sum, card) => sum + physicalCardCount(card), 0)
+      + (side.boardPools ?? []).reduce((sum, pool) => sum + pool.cards.length, 0) + Number(state.stadium?.actor === owner);
+    return represented === side.inPlayCount;
+  });
+}
 const openComponents = (side: ReplaySide, card: ReplayCard) => (side.boardPools ?? []).some((pool) => pool.memberIds.includes(card.id)
   && (pool.cards.length > 0 && pool.memberIds.length > 1 || pool.possiblyReturnedCards?.length || pool.uncertainCards?.some((group) => group.cards.length)));
 const stackComplete = (side: ReplaySide, card: ReplayCard) => !card.instanceUncertain && !openComponents(side, card);
@@ -178,7 +191,7 @@ export function compileBattleReplay(input: ReplayLogSource, options: { attackKoO
   if (!first.events.length) return first;
   const copies = solveReplayCopyConstraints(trace, "facts");
   const selections = new Map<string, string>();
-  const second = copies.bindings.size || copies.relations.size || copies.used.size ? compileReplayPass(input, { copies, selections }) : first;
+  const second = hasReplayCopyProofs(copies) ? compileReplayPass(input, { copies, selections }) : first;
   const hp = createReplayHpContext(input.cardDefinitions, input.format, input.selfCardDefinitions, input.date);
   const printing = collectReplayPrintingProofs(second, hp.resolve, copies.barriers);
   // A fixed, bounded reconciliation: source trace, copy proof, then printing
@@ -450,14 +463,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
   const activeAbilityPredicateSafe = (state: ReplayState, actor: ReplayActor, sourceName: string, ability: string) => {
     // Absence of a repeat/grant/suppression source needs a complete physical
     // passive inventory on both sides, not just the visible Active predicate.
-    for (const owner of ["self", "opponent"] as const) {
-      const side = state[owner];
-      if (side.inPlayCount == null || side.activeUncertain || side.unplaced?.length
-        || side.boardPools?.some((pool) => pool.possiblyReturnedCards?.length || pool.uncertainCards?.some((group) => group.cards.length))) return false;
-      const represented = allCards(side).reduce((sum, card) => sum + physicalCardCount(card), 0)
-        + (side.boardPools ?? []).reduce((sum, pool) => sum + pool.cards.length, 0) + Number(state.stadium?.actor === owner);
-      if (represented !== side.inPlayCount) return false;
-    }
+    if (!replayPassiveInventoriesComplete(state)) return false;
     const side = state[actor]; const active = side.active;
     const activeEvidence = active ? hp.resolve(active) : undefined;
     const sourceEvidence = hp.resolve({ name: sourceName, definitionOwner: actor });
@@ -2705,11 +2711,9 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
         const sharedActive = activation.kind === "active_has_ability" && activeAbilityPredicateSafe(before, actor, match[2], activation.ability);
         const supportedCondition = activation.kind === "unconditional" || sharedActive || activation.kind === "basic_energy" && requiredEnergy !== undefined;
         if (once && supportedCondition && action.actor === actor && action.turn > 0 && abilityLimitContextSafe(before, match[2], match[3])) {
-          const side = before[actor]; const cards = allCards(side); const pools = side.boardPools ?? [];
+          const cards = allCards(before[actor]);
           const members = cards.filter((card) => card.name === match![2]);
-          const represented = cards.reduce((sum, card) => sum + physicalCardCount(card), 0) + pools.reduce((sum, pool) => sum + pool.cards.length, 0) + Number(before.stadium?.actor === actor);
-          const complete = (activation.kind === "unconditional" || sharedActive) && members.length > 0 && side.inPlayCount === represented
-            && !pools.some((pool) => pool.possiblyReturnedCards?.length || pool.uncertainCards?.some((group) => group.cards.length))
+          const complete = (activation.kind === "unconditional" || sharedActive) && members.length > 0 && replayPassiveInventoriesComplete(before)
             && members.every((card) => {
               const evidence = hp.resolve(card);
               return evidence?.coverage === "complete" && evidence.candidates.length > 0 && evidence.candidates.every((candidate) => candidate.abilities.length === 1

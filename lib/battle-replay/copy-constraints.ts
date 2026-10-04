@@ -130,6 +130,11 @@ export type ReplayCopyProofs = {
   projection: ReadonlyMap<number, ReadonlyMap<ReplayActor, CopyProjection>>;
   displaySegments: readonly { actor: ReplayActor; endEvent: number; reason: "complete" | "barrier" | "cap" | "no_candidate" | "contradiction"; alternatives: number; rules: string[] }[];
 };
+
+/** Independent cohort certificates can survive exhaustion of copy worlds. */
+export function hasReplayCopyProofs(proofs: ReplayCopyProofs): boolean {
+  return Boolean(proofs.bindings.size || proofs.relations.size || proofs.used.size || proofs.cohorts.length);
+}
 export type CopyProjection = { cards: CopyFact[]; moves: Array<{ sourceKey: string; kind: "damage" | "counters" | "attach" | "promote"; cardId: string; amount?: number }>; selection?: { rules: string[]; alternatives: number }; resetOrder?: boolean };
 type Witness = { previous?: Witness; event: number; cards: CopyFact[]; move?: CopyProjection["moves"][number]; resetOrder?: boolean };
 type World = { copies: CopyFact[]; choices: Map<string, Set<string>>; references: Map<string, string>; witness?: Witness; projectionValid?: boolean;

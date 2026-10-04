@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compileBattleReplay, type ReplayLogSource } from "@/lib/battle-replay/compiler";
+import { compileBattleReplay, replayPassiveInventoriesComplete, type ReplayLogSource } from "@/lib/battle-replay/compiler";
 import type { LogAction, LogSection } from "@/types/index";
 import type { ReplayCard, ReplaySide, ReplayZoneCard } from "@/lib/battle-replay/types";
 import { collectMissingReplayArtworkNames, resolveReplayArtwork, selectReplayArtworkPrinting } from "@/lib/battle-replay/artwork";
@@ -11,7 +11,7 @@ import { resolveEnergyMarkers, resolveReplayCardPreviewDefinition, resolveReplay
 import { resolveReplayEffectConstraint } from "@/lib/battle-replay/effect-targets";
 import { isReplayAbilityLimitContextNeutral, isReplayCopyIndependentOnceAbilityText, isReplaySelfAttackPermission, resolveReplayAbilityActivation, stripReplayNamedAbilityLimits, supportsReplayActiveAbilityPredicate } from "@/lib/battle-replay/ability-eligibility";
 import { collectReplayPrintingProofs } from "@/lib/battle-replay/printing-proofs";
-import { replayCopyKey, resolveReplayKnockoutHpInventory, solveReplayCopyConstraints, type CopyFact, type CopyStep } from "@/lib/battle-replay/copy-constraints";
+import { hasReplayCopyProofs, replayCopyKey, resolveReplayKnockoutHpInventory, solveReplayCopyConstraints, type CopyFact, type CopyStep } from "@/lib/battle-replay/copy-constraints";
 import { canonicalReplayGame, expectedGameChanges, syntheticCardDefinition, type ExpectedSide } from "./fixtures/battle-replay-game";
 
 import { getLinkedReplayDefinitions, getReplayLinkedDeckListCompatibility } from "@/lib/battle-replay/linked-deck-list";
@@ -1031,6 +1031,36 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   ]), effectTags: { [reconTitle]: "ability" }, cardDefinitions: { drakloak: reconEvidence,
     dreepy: resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Dreepy", abilities: [], attacks: [] })]), { name: "Dreepy" }) } };
   const threeCopyRecon = compileBattleReplay(threeCopyReconInput);
+  // Direct completeness boundaries use the already compiled source fixture;
+  // they do not invent a positive game with an omitted passive source.
+  const reconInventory = threeCopyRecon.frames[13];
+  assert.equal(replayPassiveInventoriesComplete(reconInventory), true);
+  const missingOpponentPassive = structuredClone(reconInventory);
+  missingOpponentPassive.opponent.inPlayCount!++;
+  assert.equal(replayPassiveInventoriesComplete(missingOpponentPassive), false, "a complete acting cohort cannot prove absence of an unrepresented opponent passive");
+  for (const owner of ["self", "opponent"] as const) {
+    const pooled = structuredClone(reconInventory);
+    pooled[owner].inPlayCount!++;
+    pooled[owner].boardPools = [{ id: "guaranteed-inventory", memberIds: [pooled[owner].active!.id],
+      cards: [{ id: "pooled-energy", name: "Basic Psychic Energy", boardRole: "energy", imageUrl: "" }] }];
+    assert.equal(replayPassiveInventoriesComplete(pooled), true, "guaranteed pooled inventory with a live holder is represented");
+    pooled[owner].boardPools[0].memberIds = [];
+    assert.equal(replayPassiveInventoriesComplete(pooled), false, "balanced arithmetic cannot make an orphan pool a complete passive inventory");
+    const unknownCount = structuredClone(reconInventory); unknownCount[owner].inPlayCount = null;
+    assert.equal(replayPassiveInventoriesComplete(unknownCount), false);
+    const unknownActive = structuredClone(reconInventory); unknownActive[owner].activeUncertain = true;
+    assert.equal(replayPassiveInventoriesComplete(unknownActive), false);
+    const unplacedTop = structuredClone(reconInventory); unplacedTop[owner].unplaced = [unplacedTop[owner].active!]; unplacedTop[owner].active = null;
+    assert.equal(replayPassiveInventoriesComplete(unplacedTop), false);
+    const conditional = structuredClone(reconInventory);
+    conditional[owner].boardPools = [{ id: "conditional-inventory", memberIds: [conditional[owner].active!.id], cards: [],
+      possiblyReturnedCards: [{ id: "possible-passive", name: "Permission Tool", imageUrl: "" }] }];
+    assert.equal(replayPassiveInventoriesComplete(conditional), false);
+    const uncertain = structuredClone(reconInventory);
+    uncertain[owner].boardPools = [{ id: "uncertain-inventory", memberIds: [uncertain[owner].active!.id], cards: [],
+      uncertainCards: [{ cards: [{ id: "possible-passive", name: "Permission Tool", imageUrl: "" }], destinations: ["discard"] }] }];
+    assert.equal(replayPassiveInventoriesComplete(uncertain), false);
+  }
   const reconCopies = (index: number) => [threeCopyRecon.frames[index].self.active, ...threeCopyRecon.frames[index].self.bench].filter((card): card is ReplayCard => Boolean(card));
   assert.equal(reconCopies(15).filter((card) => card.abilityUsed).length < 3, true, "two uses cannot prove three per-copy markers");
   assert.deepEqual(reconCopies(16).map((card) => card.abilityUsed), [true, true, true], "three once-per-copy uses prove all three despite different attachment state and unknown order");
@@ -1206,6 +1236,9 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     allocationStep(5, "damage", { name: "Other", amount: 10, cards: [...cohortCards, ...outsiders] }),
   ], "facts");
   assert.equal(retainedCohort.boundedOut, true);
+  assert.equal(retainedCohort.bindings.size + retainedCohort.relations.size + retainedCohort.used.size, 0, "the cap leaves only the independent certificate");
+  assert.equal(hasReplayCopyProofs(retainedCohort), true, "the compiler must replay a retained cohort even without copy bindings or checkpoints");
+  assert.equal(hasReplayCopyProofs({ ...retainedCohort, cohorts: [] }), false, "empty proof collections need no proof-aware replay");
   assert.deepEqual(retainedCohort.cohorts.map((fact) => [fact.fromEvent, fact.memberIds, fact.effect]), [[3, ["one", "three", "two"], "Native once-copy"]], "an unrelated capacity reset cannot erase an already entailed cohort marker");
   const stoppedCohort = solveReplayCopyConstraints([...cohortSteps, allocationStep(4, "barrier", { cards: cohortCards })], "facts");
   assert.equal(stoppedCohort.cohorts[0].untilEvent, 4, "unknown top identity cannot carry old all-used markers into a replacement cohort");
