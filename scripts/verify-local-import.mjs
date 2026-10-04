@@ -378,7 +378,7 @@ async function verifyBattleReplay(db, userId, logId) {
     assert.equal(await page.getByText(summary, { exact: true }).and(page.locator("ol button p")).count(), 1,
       "The timeline must preserve each saved source action exactly once.");
   }
-  await page.getByText("Unrecorded information stays unknown.", { exact: false }).waitFor();
+  await page.getByText("Hidden cards stay face down.", { exact: false }).waitFor();
   assert.ok(await page.getByLabel("Deck count unknown", { exact: true }).count() === 2);
   assert.ok(await page.getByLabel("Prize cards remaining unknown", { exact: true }).count() === 2);
   const diagnostics = page.locator("details").filter({ has: page.locator("summary", { hasText: /^Partial replay/ }) });
