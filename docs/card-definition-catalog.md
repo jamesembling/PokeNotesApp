@@ -192,7 +192,9 @@ saved-format inventory, derives the retained pool again using the original
 capture time, and refuses unless the inventory, retained-row hash and scope hash
 match the approved acceptance basis. A changed inventory requires fresh review
 and acceptance. It invokes the unchanged publisher, regression guards, inventory
-rechecks and active-pointer checks. All rows come from one complete capture;
+rechecks and active-pointer checks. An expiry check runs after those checks,
+immediately before submitting the publication RPC. If staging crosses the
+deadline, the staged generation remains unpublished. All rows come from one complete capture;
 there is no per-card carry-forward or clock refresh.
 
 Inspect the controlled dry-run artifact, compare it with the reviewed capture
@@ -202,9 +204,10 @@ Recovery does not establish that the provider's daily source is healthy. Keep
 the normal refresh paused until a fresh controlled source capture passes the
 same comparisons and acceptance. The name-domain horizon stays on the original
 capture day; newer games can have incomplete coverage. The existing runtime's
-14-day generation age uses publication completion time, so a recovery can move
-that whole-generation deadline by at most the 24-hour recovery window; it does
-not advance the name-domain horizon.
+14-day generation age uses publication completion time. The recovery deadline
+governs RPC submission; transaction completion can occur later. This client
+check is not an atomic database deadline and does not advance the name-domain
+horizon.
 
 ## Runtime and uncertainty
 
