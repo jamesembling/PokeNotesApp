@@ -62,7 +62,7 @@ jobs:
           const entry = entries.find((item) => item.asset.id === Number(process.env.CAPTURE_ASSET_ID));
           const release = JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/capture-release.json`, 'utf8'));
           const asset = release.assets.find((item) => item.id === entry.asset.id);
-          if (release.id !== entry.asset.releaseId || release.tag_name !== entry.asset.releaseTag || release.draft !== true || !asset
+          if (release.id !== entry.asset.releaseId || release.tag_name !== entry.asset.releaseTag || release.draft !== false || release.prerelease !== true || !asset
             || asset.name !== entry.asset.name || asset.size !== entry.bytes || asset.digest !== `sha256:${entry.sha256}`)
             throw new Error('Release data asset identity changed.');
           NODE

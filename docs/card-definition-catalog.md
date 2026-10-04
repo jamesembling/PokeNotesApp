@@ -173,6 +173,15 @@ same-repository release asset, byte count, full JSON hash, ID manifest, original
 capture timestamp, known source-listing gaps and acceptance evidence. The
 capture expires for recovery 24 hours after its original timestamp.
 
+The data asset is a published prerelease inside this private repository. The
+workflow requires `draft: false` and `prerelease: true`, retaining read-only
+repository permissions. GitHub denied the read-only workflow token access to
+the draft release before any database step; publishing the same pinned data
+asset makes it readable without granting the workflow repository write access.
+This operational reference release does not change repository visibility or
+represent an application release. The controlled dry run must verify access,
+redirect handling and the exact downloaded bytes before live publication.
+
 This is a normalized whole source capture approved as data. Its parsed public
 response archive and producer invocation remain independent audit evidence;
 the workflow does not claim to reproduce uncaptured historical enrichment
