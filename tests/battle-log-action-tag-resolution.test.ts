@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { extractBattleLogActionCardCandidate } from "@/lib/battle-log/action-tags";
 import {
   extractUsedEffectCandidate,
@@ -19,6 +21,7 @@ import { selectRetainedCardDefinitions, getCardDefinitionScopeCoverage, getCardD
 import { publishCardDefinitionGeneration } from "@/lib/card-definition-catalog/publication.mjs";
 import { applyReviewedRegulationMark, hasVerifiedPrintedRegulationMarkAbsence } from "@/lib/card-definition-catalog/regulation-evidence.mjs";
 import { applyReviewedPokemonRuleBox } from "@/lib/card-definition-catalog/rule-evidence.mjs";
+import { createReplayEffectEvidenceResolver } from "@/lib/battle-replay/effect-evidence";
 
 const rows: CardEffectLookupRow[] = [
   {
@@ -262,6 +265,40 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   assert.equal(isCardDefinition(forgedMark), true);
   assert.equal(isProducedCardDefinition(forgedMark), false);
   assert.equal(hasVerifiedPrintedRegulationMarkAbsence(forgedMark), false);
+  const cli = new URL("../sync-card-definition-catalog.mjs", import.meta.url);
+  const syncStub = `data:text/javascript,${encodeURIComponent('export async function syncCardDefinitionCatalog(options) { console.log("CLI_SYNC_ARGS:" + JSON.stringify(options)); }')}`;
+  const resolveHook = `function resolve(specifier, context, nextResolve) {
+    if (context.parentURL === ${JSON.stringify(cli.href)} && specifier === "./lib/card-definition-catalog/sync.mjs") return { url: ${JSON.stringify(syncStub)}, shortCircuit: true };
+    return nextResolve(specifier, context);
+  }`;
+  const hookModule = `data:text/javascript,${encodeURIComponent(`export ${resolveHook}`)}`;
+  const preload = `data:text/javascript,${encodeURIComponent(`import * as module from "node:module";
+    if (module.registerHooks) module.registerHooks({ resolve: ${resolveHook} });
+    else module.register(${JSON.stringify(hookModule)}, ${JSON.stringify(cli.href)});`)}`;
+  const runCli = (options: string[]) => spawnSync(process.execPath, ["--import", preload, fileURLToPath(cli), ...options], {
+    encoding: "utf8", timeout: 5000, maxBuffer: 256 * 1024, env: { ...process.env, NODE_OPTIONS: "" }
+  });
+  for (const options of [["--upstream-output", "--dry-run"], ["--dry-run", "--upstream-output", "--output", "safe.json"],
+    ["--output", "--dry-run"], ["--dry-run", "--output"], ["--upstream-output", ""],
+    ["--output", "first.json", "--output", "second.json"], ["--unknown"], ["--"], ["--upstream-output=private.json"], ["--output", "-retained.json"]]) {
+    const result = runCli(options);
+    assert.equal(result.error, undefined);
+    assert.notEqual(result.status, 0, "invalid paths/options refuse before the sync adapter can run");
+    assert.match(result.stderr, /Missing path|Duplicate option|Usage:/);
+    assert.doesNotMatch(result.stdout, /CLI_SYNC_ARGS:/, "invalid CLI input cannot start provider or publication work");
+  }
+  for (const options of [["--dry-run", "--upstream-output", "private.json", "--output", "retained.json"],
+    ["--output", "retained.json", "--upstream-output", "private.json", "--dry-run"]]) {
+    const result = runCli(options);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    const argsLine = result.stdout.split("\n").find((line) => line.startsWith("CLI_SYNC_ARGS:"));
+    assert.ok(argsLine);
+    assert.deepEqual(JSON.parse(argsLine.slice("CLI_SYNC_ARGS:".length)), { dryRun: true, outputPath: "retained.json", upstreamOutputPath: "private.json" }, "path parsing cannot consume the original dry-run flag");
+  }
+  const defaultMode = runCli([]);
+  assert.equal(defaultMode.status, 0, defaultMode.stderr);
+  assert.match(defaultMode.stdout, /CLI_SYNC_ARGS:{"dryRun":false}/, "the ordinary controlled publication mode still requires no dry-run flag");
   const retainedCard = definition({ regulationMark: "H", setReleaseDate: "2024-03-22", syncedAt: "2026-10-04T00:00:00.000Z" });
   const olderCard = definition({ sourceCardId: "synthetic-4", localId: "4", regulationMark: "D", setReleaseDate: "2020-02-07", syncedAt: retainedCard.syncedAt });
   const unknownModern = definition({ sourceCardId: "synthetic-5", localId: "5", regulationMark: null, setReleaseDate: "2026-09-01", syncedAt: retainedCard.syncedAt });
@@ -473,6 +510,48 @@ test("card effect catalog resolves attacks and abilities only when Pokemon and e
     resolveBattleLogEffectCatalogTagFromRows("Dudunsparce used Run Away Draw.", rows),
     "ability"
   );
+  const first = definition({ regulationMark: "H", setReleaseDate: "2024-05-24",
+    attacks: [{ name: "Tap", text: "Put a Pokémon from your discard pile into your hand.", damage: "10", cost: ["Grass"] }],
+    abilities: [{ name: "Gather", type: "Ability", text: "Put a Pokémon from your discard pile into your hand." }] });
+  const second = definition({ sourceCardId: "synthetic-wave", localId: "2", regulationMark: "I", setReleaseDate: "2025-09-26",
+    attacks: [{ name: "Wave", text: "Put a Pokémon from your deck into your hand.", damage: "20", cost: ["Grass"] }] });
+  const omitted = definition({ sourceCardId: "synthetic-unknown", localId: "3", regulationMark: null, setReleaseDate: "2026-09-16",
+    attacks: [], abilities: [{ name: "Gather", type: "Ability", text: "Put a Pokémon from your hand into your deck." }] });
+  const scoped = selectRetainedCardDefinitions([first, second, omitted], { savedFormats: ["TEF-30C"], retainedOn: "2026-10-04", sourceManifestHash: "a".repeat(64) });
+  const raw = { ...resolveCardDefinition(buildCardDefinitionIndex(scoped.definitions), { name: "Seedling" }), sourceCoverage: scoped.sourceCoverage };
+  const context = { declaredFormat: "TEF-30C", playedOn: "2026-10-04" };
+  assert.equal(resolveCardDefinition(buildCardDefinitionIndex(raw.candidates), { name: "Seedling", ...context }, raw.coverage, raw.generation, raw.sourceCoverage).coverage, "incomplete", "name-only projection cannot exclude the omitted printing");
+  const resolver = createReplayEffectEvidenceResolver({ seedling: raw }, [...rows, ...definitionEffectRows([first, omitted])], context);
+  const tap = "PlayerOne's Seedling used Tap.";
+  const wave = "PlayerTwo's Seedling used Wave.";
+  const gather = "PlayerOne's Seedling used Gather.";
+  const returnDetail = "- PlayerOne moved a Pokémon into their hand.";
+  assert.equal(resolver.tag(tap), "attack", "the literal effect excludes a complete incompatible omitted inventory");
+  assert.equal(resolver.origin(tap, returnDetail), "discard");
+  assert.equal(resolver.tag(wave), "attack", "different same-name copies are queried independently instead of intersecting their effects");
+  assert.equal(resolver.origin(wave, returnDetail), "deck");
+  assert.equal(resolver.tag(gather), null, "another action cannot borrow Gather from Tap's narrowed candidate projection");
+  assert.equal(resolver.origin(gather), null);
+  assert.equal(resolver.origin(gather, returnDetail), null, "scoped details cannot bypass an incomplete parent effect");
+  assert.equal(resolver.tag("PlayerOne's Seedling used Granted Effect."), null, "an effect outside the native candidate domain cannot borrow legacy proof");
+  assert.equal(resolver.tag(`  ${tap}  `), "attack", "duplicate literal titles share the same scoped evidence without rewriting the source");
+  assert.equal(resolver.tag("Johan played Boss's Orders."), "supporter", "unlisted legacy Trainer lookup remains available");
+  for (const coverage of ["incomplete", "stale", "unavailable"] as const) {
+    assert.equal(createReplayEffectEvidenceResolver({ seedling: { ...raw, coverage } }, definitionEffectRows([first]), context).tag(tap), null, "observed effects cannot repair partial source transport or borrow legacy rows");
+  }
+  const unknownInventory = selectRetainedCardDefinitions([first, { ...omitted, abilities: [] }], { savedFormats: ["TEF-30C"], retainedOn: "2026-10-04", sourceManifestHash: "a".repeat(64) });
+  assert.equal(createReplayEffectEvidenceResolver({ seedling: { ...raw, sourceCoverage: unknownInventory.sourceCoverage } }, [], context).tag(tap), null, "an omitted unknown effect inventory cannot prove incompatibility");
+  const trainer = definition({ name: "Crispin", category: "Trainer", hp: null, trainerType: "Supporter", attacks: [], regulationMark: "H", setReleaseDate: "2024-05-24", rules: ["Search your deck for a Basic Energy card."] });
+  const trainerRaw = resolveCardDefinition(buildCardDefinitionIndex([trainer]), { name: "Crispin" });
+  assert.equal(createReplayEffectEvidenceResolver({ crispin: trainerRaw }, [], context).tag("PlayerOne played Crispin."), "supporter");
+  assert.equal(createReplayEffectEvidenceResolver({ crispin: { ...trainerRaw, coverage: "incomplete" } }, definitionEffectRows([trainer]), context).tag("PlayerOne played Crispin."), null, "contextual Trainer gaps also suppress legacy fallback");
+  const conflictingKind = { ...second, attacks: [], abilities: [{ name: "Tap", type: "Ability", text: first.attacks[0].text }] };
+  const kindRaw = resolveCardDefinition(buildCardDefinitionIndex([first, conflictingKind]), { name: "Seedling" });
+  assert.equal(createReplayEffectEvidenceResolver({ seedling: kindRaw }, [], context).tag(tap), null, "a used-effect name does not resolve Ability versus attack disagreement");
+  const conflictingOrigin = { ...second, attacks: [{ ...first.attacks[0], text: "Put a Pokémon from your hand into your deck." }] };
+  const originResolver = createReplayEffectEvidenceResolver({ seedling: resolveCardDefinition(buildCardDefinitionIndex([first, conflictingOrigin]), { name: "Seedling" }) }, [], context);
+  assert.equal(originResolver.tag(tap), "attack");
+  assert.equal(originResolver.origin(tap, returnDetail), null, "a tag agreement cannot establish an origin when native text differs");
 });
 
 test("card effect catalog refuses ambiguous or partial effect matches", () => {

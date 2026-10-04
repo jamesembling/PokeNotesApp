@@ -1,13 +1,18 @@
 import nextEnv from "@next/env";
 import { syncCardDefinitionCatalog } from "./lib/card-definition-catalog/sync.mjs";
+const args = Object.freeze(process.argv.slice(2));
+const dryRun = args.includes("--dry-run");
+const paths = new Map();
+const usage = "Usage: node sync-card-definition-catalog.mjs [--dry-run] [--output retained-path] [--upstream-output private-path]";
+for (let index = 0; index < args.length; index++) {
+  const option = args[index];
+  if (option === "--dry-run") continue;
+  if (option !== "--output" && option !== "--upstream-output") throw new Error(usage);
+  const output = args[index + 1];
+  if (!output || output.startsWith("-")) throw new Error(`Missing path for ${option}. ${usage}`);
+  if (paths.has(option)) throw new Error(`Duplicate option ${option}. ${usage}`);
+  paths.set(option, output);
+  index++;
+}
 nextEnv.loadEnvConfig(process.cwd());
-const args = process.argv.slice(2);
-const upstreamIndex = args.indexOf("--upstream-output");
-const upstreamOutputPath = upstreamIndex >= 0 ? args[upstreamIndex + 1] : undefined;
-if (upstreamIndex >= 0 && !upstreamOutputPath) throw new Error("Missing upstream output path.");
-if (upstreamIndex >= 0) args.splice(upstreamIndex, 2);
-const outputIndex = args.indexOf("--output");
-const outputPath = outputIndex >= 0 ? args[outputIndex + 1] : undefined;
-const remaining = outputIndex >= 0 ? args.filter((_, i) => i !== outputIndex && i !== outputIndex + 1) : args;
-if ((outputIndex >= 0 && !outputPath) || remaining.some((arg) => arg !== "--dry-run")) throw new Error("Usage: node sync-card-definition-catalog.mjs [--dry-run] [--output retained-path] [--upstream-output private-path]");
-await syncCardDefinitionCatalog({ dryRun: args.includes("--dry-run"), outputPath, upstreamOutputPath });
+await syncCardDefinitionCatalog({ dryRun, outputPath: paths.get("--output"), upstreamOutputPath: paths.get("--upstream-output") });
