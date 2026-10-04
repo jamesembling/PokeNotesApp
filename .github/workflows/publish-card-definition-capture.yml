@@ -1,0 +1,107 @@
+name: Publish reviewed card reference capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      snapshot_id:
+        description: "Whole public capture approved in the reviewed main commit"
+        type: choice
+        options:
+          - tcgdex-en-20261004-211538
+        required: true
+      dry_run:
+        description: "Validate the approved capture without database reads or writes"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-card-definitions
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    steps:
+      - name: Require production branch
+        run: test "$GITHUB_REF" = "refs/heads/main"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Select fixed same-repository data asset
+        env:
+          SNAPSHOT_ID: ${{ inputs.snapshot_id }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, appendFile } from 'node:fs/promises';
+          const entries = JSON.parse(await readFile('lib/card-definition-catalog/reviewed-captures.json', 'utf8'));
+          const matching = entries.filter((entry) => entry.id === process.env.SNAPSHOT_ID);
+          if (matching.length !== 1) throw new Error('Capture is not reviewed.');
+          const entry = matching[0];
+          if (entry.asset.repository !== process.env.GITHUB_REPOSITORY || !Number.isSafeInteger(entry.asset.id) || entry.asset.id <= 0
+            || !Number.isSafeInteger(entry.asset.releaseId) || entry.asset.releaseId <= 0
+            || !/^[a-zA-Z0-9_.-]+$/.test(entry.id) || !/^[a-f0-9]{64}$/.test(entry.sha256)
+            || Date.now() >= Date.parse(entry.expiresAt)) throw new Error('Invalid or expired reviewed capture.');
+          await appendFile(process.env.GITHUB_ENV, `CAPTURE_ASSET_ID=${entry.asset.id}\nCAPTURE_RELEASE_ID=${entry.asset.releaseId}\n`);
+          NODE
+      - name: Download data only from the pinned release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/$CAPTURE_RELEASE_ID" > "$RUNNER_TEMP/capture-release.json"
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const entries = JSON.parse(await readFile('lib/card-definition-catalog/reviewed-captures.json', 'utf8'));
+          const entry = entries.find((item) => item.asset.id === Number(process.env.CAPTURE_ASSET_ID));
+          const release = JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/capture-release.json`, 'utf8'));
+          const asset = release.assets.find((item) => item.id === entry.asset.id);
+          if (release.id !== entry.asset.releaseId || release.tag_name !== entry.asset.releaseTag || release.draft !== true || !asset
+            || asset.name !== entry.asset.name || asset.size !== entry.bytes || asset.digest !== `sha256:${entry.sha256}`)
+            throw new Error('Release data asset identity changed.');
+          NODE
+          gh api "repos/$GITHUB_REPOSITORY/releases/assets/$CAPTURE_ASSET_ID" --header "Accept: application/octet-stream" > "$RUNNER_TEMP/card-definitions-upstream.json"
+      - name: Validate and publish through the existing guarded publisher
+        id: publish
+        env:
+          SNAPSHOT_ID: ${{ inputs.snapshot_id }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            node publish-card-definition-capture.mjs --snapshot-id "$SNAPSHOT_ID" --capture "$RUNNER_TEMP/card-definitions-upstream.json" --output "$RUNNER_TEMP/card-definitions-retained.json" --dry-run
+          else
+            node publish-card-definition-capture.mjs --snapshot-id "$SNAPSHOT_ID" --capture "$RUNNER_TEMP/card-definitions-upstream.json" --output "$RUNNER_TEMP/card-definitions-retained.json"
+          fi
+      - name: Retain public reference result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: reviewed-card-reference-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/card-definitions-upstream.json
+            ${{ runner.temp }}/card-definitions-retained.json
+            ${{ runner.temp }}/card-definitions-retained.json.generation.json
+            ${{ runner.temp }}/card-definitions-retained.json.recovery.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Report recovery outcome
+        if: always()
+        env:
+          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, appendFile } from 'node:fs/promises';
+          let receipt;
+          try { receipt = JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/card-definitions-retained.json.recovery.json`, 'utf8')); } catch {}
+          const safe = (value) => String(value ?? 'unavailable').replace(/[&<>|`\r\n\u0000]/g, (char) => `&#${char.charCodeAt(0)};`);
+          const count = (value) => Number.isSafeInteger(value) && value >= 0 ? value : 'unavailable';
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Reviewed reference recovery\n\nStep: ${safe(process.env.PUBLISH_OUTCOME)}; status: ${safe(receipt?.status)}; phase: ${safe(receipt?.failurePhase)}.\n\nCapture: ${safe(receipt?.snapshotId)}; original source time: ${safe(receipt?.originalSyncedAt)}; recovery expiry: ${safe(receipt?.expiresAt)}.\n\nSource SHA256: ${safe(receipt?.sourceSha256)}; publication generation: ${safe(receipt?.generationId)}. Upstream: ${count(receipt?.upstreamPrintings)}; retained: ${count(receipt?.retainedPrintings)}.\n\nThe original source date and name-domain horizon are preserved. This recovery does not establish daily provider health; keep normal refresh paused until fresh source acceptance. Inspect the public reference artifacts before a live dispatch, and verify the active generation and product consumer afterward.\n`);
+          NODE

@@ -161,6 +161,54 @@ generation at publication. If no primary digital-launch announcement exists for 
 new set, the corresponding hold remains until there is usable proof. No generic
 acknowledgement or force-publish path is provided.
 
+### Reviewed whole-capture recovery
+
+When a later provider response serves an older revision, a reviewed complete
+capture can be published through **Publish reviewed card reference capture**.
+This manual, `main`-only Production workflow shares the normal publisher's
+concurrency group. It accepts a capture ID from
+`lib/card-definition-catalog/reviewed-captures.json`; operators cannot supply a
+URL, hash, field override or force option. The reviewed record fixes the private
+same-repository release asset, byte count, full JSON hash, ID manifest, original
+capture timestamp, known source-listing gaps and acceptance evidence. The
+capture expires for recovery 24 hours after its original timestamp.
+
+This is a normalized whole source capture approved as data. Its parsed public
+response archive and producer invocation remain independent audit evidence;
+the workflow does not claim to reproduce uncaptured historical enrichment
+requests. The initial capture passed the original13 saved-log source gates
+(17/17) and Ability checks (31/31). The current source discrepancy is corroborated
+against the provider's repository before release: all191 missing printings agree
+on their supplied operative fields with
+[commit c5c0a8a](https://github.com/tcgdex/cards-database/tree/c5c0a8a63fe81746d05b9c95e8f51ed6931f7e78).
+Their source files were parsed as data without executing repository code.
+
+Download identity and digest are checked before parsing. The loader then checks
+the full-file hash, strict produced rows, unique printing IDs, complete ID
+manifest and uniform original capture clock before opening a database client.
+Dry run performs no database reads or writes and derives the pool from the
+approved saved-format inventory. Live publication reads the actual
+saved-format inventory, derives the retained pool again using the original
+capture time, and refuses unless the inventory, retained-row hash and scope hash
+match the approved acceptance basis. A changed inventory requires fresh review
+and acceptance. It invokes the unchanged publisher, regression guards, inventory
+rechecks and active-pointer checks. An expiry check runs after those checks,
+immediately before submitting the publication RPC. If staging crosses the
+deadline, the staged generation remains unpublished. All rows come from one complete capture;
+there is no per-card carry-forward or clock refresh.
+
+Inspect the controlled dry-run artifact, compare it with the reviewed capture
+and actual saved-format scope, and pass the real-log acceptance before a live
+dispatch. Then verify the active generation, product payload and replay UI.
+Recovery does not establish that the provider's daily source is healthy. Keep
+the normal refresh paused until a fresh controlled source capture passes the
+same comparisons and acceptance. The name-domain horizon stays on the original
+capture day; newer games can have incomplete coverage. The existing runtime's
+14-day generation age uses publication completion time. The recovery deadline
+governs RPC submission; transaction completion can occur later. This client
+check is not an atomic database deadline and does not advance the name-domain
+horizon.
+
 ## Runtime and uncertainty
 
 Replay pools keep guaranteed in-play components separate from Evolution layers
