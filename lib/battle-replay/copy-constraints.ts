@@ -1,14 +1,46 @@
-import type { ReplayActor, ReplayCard } from "./types";
+import type { ReplayActor, ReplayBoardPool, ReplayCard, ReplaySide } from "./types";
 
 /** Source operations retain copy facts before presentation pooling discards
  * their correlation. This ledger never contains hidden hand/deck cards. */
-export type CopyFact = { card: ReplayCard; position: "active" | "bench"; entered?: number; evolved?: number };
+export type CopyFact = { card: ReplayCard; position: "active" | "bench"; positionKnown?: boolean; componentsOpen?: boolean; entered?: number; evolved?: number };
+
+/** Reconcile a symbolic HP board with guaranteed public attachment inventory.
+ * Unallocated Basic Energy retains its possible holders; this establishes no
+ * individual attachment or effective HP. Other missing components refuse. */
+export function resolveReplayKnockoutHpInventory(side: ReplaySide, copies: readonly CopyFact[], ownsStadium: boolean): ReplayBoardPool[] | undefined {
+  const pools = side.boardPools ?? [];
+  if (pools.some((pool) => pool.possiblyReturnedCards?.length || pool.uncertainCards?.some((group) => group.cards.length))) return undefined;
+  const names = (card: ReplayCard) => [...card.underlying.map((layer) => layer.name),
+    ...card.energy.map((energy) => /Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`), ...(card.tool ? [card.tool] : [])];
+  const additional = copies.flatMap((copy) => names(copy.card));
+  const local = [side.active, ...side.bench, ...(side.unplaced ?? [])].filter((card): card is ReplayCard => card !== null);
+  for (const name of local.flatMap(names)) {
+    const index = additional.indexOf(name); if (index < 0) return undefined;
+    additional.splice(index, 1);
+  }
+  const ids = new Set(copies.map((copy) => copy.card.id));
+  const retained: ReplayBoardPool[] = [];
+  for (const pool of pools) {
+    if (pool.cards.length && (!pool.memberIds.length || pool.memberIds.some((id) => !ids.has(id)))) return undefined;
+    const cards = pool.cards.filter((component) => {
+      const index = additional.indexOf(component.name);
+      if (index < 0) return true;
+      additional.splice(index, 1); return false;
+    });
+    if (cards.some((component) => !/^Basic .+ Energy$/i.test(component.name) || component.boardRole !== "energy")) return undefined;
+    if (cards.length) retained.push({ ...structuredClone(pool), cards: structuredClone(cards) });
+  }
+  const represented = copies.reduce((sum, copy) => sum + 1 + names(copy.card).length, Number(ownsStadium));
+  return additional.length || side.inPlayCount !== represented + retained.reduce((sum, pool) => sum + pool.cards.length, 0) ? undefined : retained;
+}
 export type CopyStep = {
   key: string; event: number; section: number; actor: ReplayActor;
   kind: "create" | "evolve" | "attach" | "promote" | "retreat" | "ability" | "damage" | "counters" | "remove_energy" | "ko" | "heal" | "barrier" | "witness" | "checkpoint";
   name: string; position?: "active" | "bench"; newName?: string; cards?: CopyFact[];
   energy?: string; amount?: number; once?: boolean; timing?: boolean;
   requiredEnergy?: string;
+  /** Producer-validated complete native unconditional once-copy cohort. */
+  cohortMembers?: readonly string[];
   tool?: string;
   /** Source/destination selections belonging to the same verified activation. */
   referenceKey?: string; distinctFromKey?: string;
@@ -25,7 +57,71 @@ export type CopyStep = {
   /** Display-only convention for a completed adjacent attack knockout batch. */
   attackKoBatch?: { id: string; index: number; last: boolean };
 };
+export type ReplayAbilityCohortProof = { actor: ReplayActor; name: string; effect: string; section: number; memberIds: readonly string[]; fromEvent: number; untilEvent: number };
+
+/** Cardinality of legal native once-copy activations entails a universal
+ * marker without enumerating an order or choosing original physical IDs. */
+function collectAbilityCohorts(steps: readonly CopyStep[]): ReplayAbilityCohortProof[] {
+  const result: ReplayAbilityCohortProof[] = [];
+  for (const actor of ["self", "opponent"] as const) {
+    const scopes = new Map<string, { section: number; members: string[]; uses: number; proof?: ReplayAbilityCohortProof }>();
+    const activations = new Map<string, number>();
+    const blocked = new Map<string, number>();
+    let section = -1;
+    const close = (name: string, event: number, uncertainWindow = true) => {
+      const names = name === "*" ? new Set([...activations.keys(), ...[...scopes.keys()].map((key) => key.split("\u0000")[0])]) : new Set([name]);
+      for (const affected of names) {
+        if (uncertainWindow && activations.has(affected)) blocked.set(affected, event);
+        for (const [key, scope] of scopes) if (key.startsWith(`${affected}\u0000`)) {
+          if (scope.proof) scope.proof.untilEvent = Math.min(scope.proof.untilEvent, event);
+          scopes.delete(key);
+        }
+      }
+    };
+    for (const step of steps.filter((entry) => entry.actor === actor)) {
+      if (step.section !== section) { close("*", step.event, false); scopes.clear(); activations.clear(); blocked.clear(); section = step.section; }
+      if (step.kind !== "create") for (const [key, scope] of scopes) {
+        const name = key.split("\u0000")[0];
+        const ids = (step.cards ?? []).filter((copy) => copy.card.name === name).map((copy) => copy.card.id).sort();
+        if (JSON.stringify(ids) !== JSON.stringify(scope.members)) close(name, step.event);
+      }
+      if (step.kind === "create") for (const copy of step.cards ?? []) close(copy.card.name, step.event);
+      if (step.kind === "barrier" || step.kind === "evolve" || step.kind === "ko") {
+        close(step.name, step.event);
+        if (step.newName) close(step.newName, step.event);
+      }
+      if (step.kind !== "ability" || !step.once || !step.effect) continue;
+      if (!step.cohortMembers?.length) { close(step.name, step.event); blocked.set(step.name, step.event); activations.set(step.name, step.event); continue; }
+      const key = `${step.name}\u0000${step.effect}`;
+      const members = [...step.cohortMembers].sort();
+      const copies = (step.cards ?? []).filter((copy) => copy.card.name === step.name);
+      const represented = copies.map((copy) => copy.card.id).sort();
+      if (new Set(members).size !== members.length || JSON.stringify(members) !== JSON.stringify(represented)) { close(step.name, step.event); continue; }
+      const boundary = blocked.get(step.name);
+      if (boundary !== undefined) {
+        // A truly new source-born top/entry can establish a new legal window;
+        // an erased namesake or a mere scope reset cannot erase earlier uses.
+        const allNew = copies.every((copy) => {
+          const birth = copy.card.physicalCardId && /^action-(\d+)-physical-\d+$/.exec(copy.card.physicalCardId);
+          return Boolean(birth && Number(birth[1]) > boundary);
+        });
+        if (!allNew) { activations.set(step.name, step.event); continue; }
+        blocked.delete(step.name); activations.delete(step.name);
+      }
+      let scope = scopes.get(key);
+      if (!scope) { scope = { section: step.section, members, uses: 0 }; scopes.set(key, scope); }
+      scope.uses++; activations.set(step.name, step.event);
+      if (scope.uses === members.length) {
+        scope.proof = { actor, name: step.name, effect: step.effect, section: step.section, memberIds: members, fromEvent: step.event, untilEvent: Number.MAX_SAFE_INTEGER };
+        result.push(scope.proof);
+      } else if (scope.uses > members.length) close(step.name, step.event);
+    }
+  }
+  return result;
+}
+
 export type ReplayCopyProofs = {
+  cohorts: readonly ReplayAbilityCohortProof[];
   bindings: ReadonlyMap<string, string>;
   relations: ReadonlyMap<string, string>;
   used: ReadonlyMap<number, readonly { actor: ReplayActor; id: string; name: string; effects: readonly string[] }[]>;
@@ -34,11 +130,16 @@ export type ReplayCopyProofs = {
   projection: ReadonlyMap<number, ReadonlyMap<ReplayActor, CopyProjection>>;
   displaySegments: readonly { actor: ReplayActor; endEvent: number; reason: "complete" | "barrier" | "cap" | "no_candidate" | "contradiction"; alternatives: number; rules: string[] }[];
 };
+
+/** Independent cohort certificates can survive exhaustion of copy worlds. */
+export function hasReplayCopyProofs(proofs: ReplayCopyProofs): boolean {
+  return Boolean(proofs.bindings.size || proofs.relations.size || proofs.used.size || proofs.cohorts.length);
+}
 export type CopyProjection = { cards: CopyFact[]; moves: Array<{ sourceKey: string; kind: "damage" | "counters" | "attach" | "promote"; cardId: string; amount?: number }>; selection?: { rules: string[]; alternatives: number }; resetOrder?: boolean };
 type Witness = { previous?: Witness; event: number; cards: CopyFact[]; move?: CopyProjection["moves"][number]; resetOrder?: boolean };
 type World = { copies: CopyFact[]; choices: Map<string, Set<string>>; references: Map<string, string>; witness?: Witness; projectionValid?: boolean;
   orderPenalty?: number; slotPenalty?: number; preferredSlots?: boolean; creationTie?: number[]; koBatches?: Map<string, number | undefined>; orderedBatches?: Set<string> };
-const stateKey = (world: World, factual: boolean) => JSON.stringify([world.copies.map((copy) => [copy.card.id, copy.card.name, copy.position, copy.entered, copy.evolved,
+const stateKey = (world: World, factual: boolean) => JSON.stringify([world.copies.map((copy) => [copy.card.id, copy.card.name, copy.position, copy.positionKnown, copy.componentsOpen, copy.entered, copy.evolved,
   copy.card.damage, copy.card.damageKnown, copy.card.abilityUsed, [...copy.card.energy].sort(), copy.card.underlying.map((layer) => [layer.id, layer.name, layer.setId, layer.localId]), copy.card.tool,
   copy.card.setId, copy.card.localId, [...(copy.card.observedEffects ?? [])].sort(), copy.card.conditions,
   ...(factual ? [] : [copy.card.instanceUncertain, copy.card.hpModifierUncertain, copy.card.hpModifierBasis])]).sort(), ...(factual ? [] : [[...world.references], [...(world.koBatches ?? [])]])]);
@@ -94,7 +195,7 @@ export function solveReplayCopyConstraints(steps: readonly CopyStep[], mode: "fa
         const checkpoint = path[index]; const from = checkpoint.event + 1;
         const to = Math.min(endFrame, path[index + 1] ? path[index + 1].event + 1 : endFrame);
         for (let frame = from; frame < to; frame++) {
-          const cards = checkpoint.cards.filter((copy) => !copy.card.instanceUncertain);
+          const cards = checkpoint.cards.filter((copy) => !copy.card.instanceUncertain && !copy.componentsOpen);
           if (!cards.length) continue;
           const actors = projection.get(frame) ?? new Map<ReplayActor, CopyProjection>();
           const old = actors.get(actor) ?? { cards: [], moves: [] };
@@ -137,7 +238,18 @@ export function solveReplayCopyConstraints(steps: readonly CopyStep[], mode: "fa
         }
       }
     };
-    for (const step of steps.filter((entry) => entry.actor === actor)) {
+    for (const sourceStep of steps.filter((entry) => entry.actor === actor)) {
+      let step = sourceStep;
+      // An erased snapshot is an alternative, not evidence that its copy is
+      // ineligible. Refuse local attribution instead of proving uniqueness by
+      // removing that competitor. Complete symbolic worlds remain usable.
+      if (mode !== "display" && !["barrier", "create", "checkpoint"].includes(step.kind)
+        && worlds.some((world) => world.copies.some((copy) => copy.card.instanceUncertain && copy.card.name === step.name
+          && (!step.targetId || copy.card.id === step.targetId)
+          && (!step.position || copy.position === step.position || copy.positionKnown === false)
+          && !(step.kind === "ability" && step.once && copy.card.abilityUsed)))) {
+        step = { ...step, kind: "barrier" };
+      }
       if (step.section !== section) { worlds.forEach((world) => { world.copies = world.copies.map((copy) => ({ ...copy, card: { ...copy.card, abilityUsed: false } })); }); section = step.section; }
       if (step.kind === "checkpoint" && mode === "display") {
         const snapshots = step.cards ?? [];
@@ -152,6 +264,10 @@ export function solveReplayCopyConstraints(steps: readonly CopyStep[], mode: "fa
             const prior = world.copies.find((other) => other.card.id === copy.card.id && other.card.name === copy.card.name);
             copy.entered ??= prior?.entered;
             copy.evolved ??= prior?.evolved;
+            // A complete physical snapshot may still omit the unknown order
+            // of recorded Ability uses. Preserve the concrete witness marker
+            // on the same top; section resets/evolution already reset it.
+            if (prior?.card.abilityUsed && copy.card.physicalCardId === prior.card.physicalCardId) copy.card.abilityUsed = true;
           }
           return { ...world, copies: cards, witness: { previous: world.witness, event: step.event, cards } };
         });
@@ -190,11 +306,21 @@ export function solveReplayCopyConstraints(steps: readonly CopyStep[], mode: "fa
         finish();
         // Earlier proofs cannot cross a source operation whose identity effect
         // is unmodelled. Restore only the explicitly retained known snapshot.
-        const affected = new Set(worlds.flatMap((world) => world.copies.filter((copy) => step.name === "*" || copy.card.name === step.name).map((copy) => copy.card.id)));
+        const universe = [...worlds.flatMap((world) => world.copies), ...(step.cards ?? [])];
+        const affectedNames = new Set(step.barrierNames ?? [step.name]);
+        const affected = new Set<string>();
+        let grew = true;
+        while (grew) {
+          grew = false;
+          for (const copy of universe) if (step.name === "*" || affectedNames.has(copy.card.name) || affected.has(copy.card.id)) {
+            if (!affected.has(copy.card.id)) { affected.add(copy.card.id); grew = true; }
+            if (!affectedNames.has(copy.card.name)) { affectedNames.add(copy.card.name); grew = true; }
+          }
+        }
         if (step.name === "*") barriers.push({ frameIndex: step.event + 1, actor });
         else affected.forEach((cardId) => barriers.push({ frameIndex: step.event + 1, actor, cardId }));
         worlds.forEach((world) => {
-          world.copies = [...world.copies.filter((copy) => !affected.has(copy.card.id)), ...structuredClone((step.cards ?? []).filter((copy) => affected.has(copy.card.id) || copy.card.name === step.name))];
+          world.copies = [...world.copies.filter((copy) => !affected.has(copy.card.id)), ...structuredClone((step.cards ?? []).filter((copy) => affected.has(copy.card.id)))];
           for (const [key, ids] of world.choices) if ([...ids].some((id) => affected.has(id))) world.choices.delete(key);
           for (const [key, id] of world.references) if (affected.has(id)) world.references.delete(key);
           if (mode !== "facts") world.witness = { previous: world.witness, event: step.event, cards: world.copies };
@@ -219,18 +345,21 @@ export function solveReplayCopyConstraints(steps: readonly CopyStep[], mode: "fa
         if (step.kind === "attach" && step.tool) candidates = candidates.filter((copy) => !copy.card.tool);
         if (step.effectAllowed) candidates = candidates.filter((copy) => step.effectAllowed!(copy.card));
         if (step.kind === "ability" && step.once) candidates = candidates.filter((copy) => !copy.card.abilityUsed);
-        if (step.requiredEnergy) candidates = candidates.filter((copy) => copy.card.instanceUncertain || copy.card.energy.some((energy) => energy === step.requiredEnergy || energy === `Basic ${step.requiredEnergy} Energy` || /Energy$/i.test(energy) && !/^Basic /i.test(energy)));
+        if (step.requiredEnergy) candidates = candidates.filter((copy) => copy.card.instanceUncertain || copy.componentsOpen || copy.card.energy.some((energy) => energy === step.requiredEnergy || energy === `Basic ${step.requiredEnergy} Energy` || /Energy$/i.test(energy) && !/^Basic /i.test(energy)));
         if (step.kind === "evolve" && step.timing) candidates = candidates.filter((copy) => copy.entered !== step.section && copy.evolved !== step.section);
-        if (step.kind === "counters") candidates = candidates.filter((copy) => copy.card.damageKnown !== false && copy.card.damage >= (step.amount ?? 0));
+        if (step.kind === "counters") candidates = candidates.filter((copy) => copy.card.damageKnown === false || copy.card.damage >= (step.amount ?? 0));
         if (step.kind === "ko") {
           const verdicts = candidates.map((copy) => step.lethal?.(copy.card, world.copies));
           candidates.forEach((copy, index) => { if (verdicts[index] === false) nonlethal.add(copy.card.id); });
           const lethal = candidates.filter((_, index) => verdicts[index] === true);
           if (verdicts.every((value) => value !== undefined) && lethal.length === 1) candidates = lethal;
-          candidates = candidates.filter((copy) => contains(components(copy.card), step.belowTop ?? []) && (step.belowTopCount === undefined || components(copy.card).length === step.belowTopCount));
+          candidates = candidates.filter((copy) => copy.componentsOpen
+            ? (step.belowTopCount === undefined || components(copy.card).length <= step.belowTopCount)
+              && (step.belowTopCount !== step.belowTop?.length || contains([...(step.belowTop ?? [])], components(copy.card)))
+            : contains(components(copy.card), step.belowTop ?? []) && (step.belowTopCount === undefined || components(copy.card).length === step.belowTopCount));
         }
-        if (step.kind === "remove_energy") candidates = candidates.filter((copy) => copy.card.energy.includes(step.energy ?? ""));
-        if (step.cost?.length) candidates = candidates.filter((copy) => contains(copy.card.energy, step.cost!.filter((type) => type !== "Colorless")) && copy.card.energy.length >= step.cost!.length);
+        if (step.kind === "remove_energy") candidates = candidates.filter((copy) => copy.componentsOpen || copy.card.energy.includes(step.energy ?? ""));
+        if (step.cost?.length) candidates = candidates.filter((copy) => copy.componentsOpen || contains(copy.card.energy, step.cost!.filter((type) => type !== "Colorless")) && copy.card.energy.length >= step.cost!.length);
         for (const candidate of candidates) {
           const branch: World = { copies: structuredClone(world.copies), choices: mode === "display" ? new Map() : new Map([...world.choices].map(([key, values]) => [key, new Set(values)])), references: new Map(world.references), witness: world.witness, projectionValid: world.projectionValid !== false && !nonlethal.has(candidate.card.id),
             ...(mode === "display" ? { orderPenalty: world.orderPenalty ?? 0, slotPenalty: (world.slotPenalty ?? 0) + (step.preferredId && candidate.card.id !== step.preferredId ? 1 : 0), preferredSlots: world.preferredSlots || Boolean(step.preferredId && candidates.length > 1), creationTie: [...(world.creationTie ?? []), step.event, ...birth(candidate.card)], koBatches: new Map(world.koBatches), orderedBatches: new Set(world.orderedBatches) } : {}) };
@@ -244,9 +373,9 @@ export function solveReplayCopyConstraints(steps: readonly CopyStep[], mode: "fa
           if (step.kind === "ability") { copy.card.abilityUsed = true; if (step.effect) copy.card.observedEffects = [...new Set([...(copy.card.observedEffects ?? []), step.effect])]; }
           if (step.kind === "witness" && step.effect) copy.card.observedEffects = [...new Set([...(copy.card.observedEffects ?? []), step.effect])];
           if (step.kind === "damage") copy.card.damage += step.amount!;
-          if (step.kind === "counters") copy.card.damage -= step.amount!;
+          if (step.kind === "counters") copy.card.damage = Math.max(0, copy.card.damage - step.amount!);
           if (step.kind === "heal") copy.card.damage = Math.max(0, copy.card.damage - step.amount!);
-          if (step.kind === "remove_energy") copy.card.energy.splice(copy.card.energy.indexOf(step.energy!), 1);
+          if (step.kind === "remove_energy") { const index = copy.card.energy.indexOf(step.energy!); if (index >= 0) copy.card.energy.splice(index, 1); }
           if (step.kind === "ko") branch.copies = branch.copies.filter((other) => other.card.id !== copy.card.id);
           if (mode === "display" && options.attackKoOrderConvention !== false && step.attackKoBatch) {
             const batch = step.attackKoBatch;
@@ -290,7 +419,7 @@ export function solveReplayCopyConstraints(steps: readonly CopyStep[], mode: "fa
     finish();
     if (mode !== "facts") project();
   }
-  return { bindings, relations, used, barriers, peakAlternatives, boundedOut, projection, displaySegments };
+  return { bindings, relations, used, cohorts: mode === "display" ? [] : collectAbilityCohorts(steps), barriers, peakAlternatives, boundedOut, projection, displaySegments };
 }
 
 export const replayCopyKey = (event: number, actor: ReplayActor, line: string, name: string, position?: string, ordinal = -1, role?: "donor" | "recipient") => JSON.stringify([event, actor, ordinal, line, name, position ?? null, ...(role ? [role] : [])]);

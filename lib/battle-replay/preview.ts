@@ -81,7 +81,7 @@ export function resolveReplayBoardDisplay(frame: ReplayState, cardResolutions: R
       const original = originals.find((card) => card.id === patch.id)!;
       if (patch.position === "active" || !original.activePrintingEffects) return false;
       const key = nativeEvidence.find((entry) => entry.id === original.id && entry.name === original.name)?.definitionKey;
-      return !key || !Object.hasOwn(cardResolutions ?? {}, key);
+      return !key || !cardResolutions?.[key];
     })) { refuse("native_position_query"); continue; }
     const patchedIds = new Set(projection.cards.map((card) => card.id));
     const touchedPools = (side.boardPools ?? []).filter((pool) => pool.memberIds.some((id) => patchedIds.has(id)));
@@ -125,14 +125,17 @@ export function resolveReplayBoardDisplay(frame: ReplayState, cardResolutions: R
     const cards = originals.map((original) => {
       const patch = projection.cards.find((card) => card.id === original.id);
       if (!patch) return { card: original, position: side.active?.id === original.id ? "active" : side.bench.some((card) => card.id === original.id) ? "bench" : "unplaced" };
-      const fields: NonNullable<ReplayCard["plausibleFields"]> = [...patch.plausibleFields];
+      const fields: NonNullable<ReplayCard["plausibleFields"]> = patch.plausibleFields.filter((field) => field !== "abilityUsed" || !original.abilityUsed && patch.abilityUsed === true);
       if (original.damageKnown === false || original.instanceUncertain && original.damage !== patch.damage) fields.push("damage");
       if (original.instanceUncertain || (side.active?.id === patch.id) !== (patch.position === "active")) fields.push("position");
       if (!equalNames(original.energy, patch.energy)) fields.push("energy");
       if (original.tool !== patch.tool) fields.push("tool");
+      if (!original.abilityUsed && patch.abilityUsed) fields.push("abilityUsed");
       const underlying = layersFor(patch).filter((layer): layer is ReplayZoneCard => Boolean(layer));
       if (JSON.stringify(original.underlying.map((layer) => layer.id)) !== JSON.stringify(underlying.map((layer) => layer.id))) fields.push("underlying");
-      const card: ReplayCard = { ...original, underlying, damage: patch.damage, damageKnown: true, energy: [...patch.energy], tool: patch.tool,
+      const card: ReplayCard = { ...original, underlying, damage: patch.damage,
+        damageKnown: fields.includes("damage") ? true : original.damageKnown, energy: [...patch.energy], tool: patch.tool,
+        abilityUsed: patch.abilityUsed ? true : original.abilityUsed,
         remainingHp: original.hp === null ? null : Math.max(0, original.hp - patch.damage),
         instanceUncertain: false, knownStackSize: 1 + underlying.length + patch.energy.length + Number(Boolean(patch.tool)),
         ...(fields.length ? { plausibleFields: [...new Set(fields)] } : {}) };
@@ -146,9 +149,12 @@ export function resolveReplayBoardDisplay(frame: ReplayState, cardResolutions: R
         card.remainingHp = card.hp === null ? null : Math.max(0, card.hp - patch.damage);
       } else if (original.activePrintingEffects) {
         delete card.activeEpisodeId; delete card.activePrintingEffects;
-        const native = nativeEvidence.find((entry) => entry.id === card.id && entry.name === card.name)!;
+        const native = nativeEvidence.find((entry) => entry.id === card.id && entry.name === card.name);
+        const resolution = native?.definitionKey ? cardResolutions?.[native.definitionKey] : undefined;
+        // The actor-level validation above should establish this fallback;
+        // retain the fact object if an externally supplied projection lacks it.
+        if (!native || !resolution) return { card: original, position: side.active?.id === original.id ? "active" : "bench" };
         card.definitionKey = native.definitionKey;
-        const resolution = cardResolutions![native.definitionKey!];
         card.baseHp = resolution.printedHp ?? null;
         card.hpBasis = resolution.hpBasis ?? "unknown";
         // Positional printed HP cannot survive on an original Bench copy.
@@ -173,8 +179,15 @@ export function resolveReplayBoardDisplay(frame: ReplayState, cardResolutions: R
     const bench = cards.filter((entry) => entry.position === "bench").map((entry) => entry.card);
     if (projection.benchOrder && (new Set(projection.benchOrder).size !== bench.length || projection.benchOrder.length !== bench.length
       || !bench.every((card) => projection.benchOrder!.includes(card.id)))) { refuse("bench_order"); continue; }
+    const scalarOnly = projection.cards.every((patch) => patch.plausibleFields.every((field) => field === "abilityUsed"))
+      && cards.every(({ card, position }) => {
+        const original = originals.find((entry) => entry.id === card.id)!;
+        const originalPosition = side.active?.id === card.id ? "active" : side.bench.some((entry) => entry.id === card.id) ? "bench" : "unplaced";
+        return position === originalPosition && card.damage === original.damage && equalNames(card.energy, original.energy)
+          && card.tool === original.tool && JSON.stringify(card.underlying.map((layer) => layer.id)) === JSON.stringify(original.underlying.map((layer) => layer.id));
+      });
     display[actor] = { ...side, active: cards.find((entry) => entry.position === "active")?.card ?? null,
-      bench: projection.benchOrder ? projection.benchOrder.map((id) => bench.find((card) => card.id === id)!) : bench,
+      bench: projection.benchOrder && !scalarOnly ? projection.benchOrder.map((id) => bench.find((card) => card.id === id)!) : bench,
       unplaced: cards.filter((entry) => entry.position === "unplaced").map((entry) => entry.card),
       activeUncertain: activeCards.length > 0 && patchedIds.has(activeCards[0].card.id) ? false : side.activeUncertain,
       boardPools: side.boardPools?.map((pool) => pool.memberIds.length && pool.memberIds.every((id) => patchedIds.has(id)) ? { ...pool, cards: [] } : pool) };

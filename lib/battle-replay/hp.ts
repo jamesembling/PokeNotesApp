@@ -5,10 +5,12 @@ import type { ReplayActor, ReplayCard, ReplayCardResolution, ReplayEffectKind, R
 import { resolveReplayEffectConstraint, resolveReplayTrainerDisposition, type ReplayEffectOperation } from "./effect-targets";
 import type { ReplayLinkedCardDefinitions } from "./linked-deck-list";
 import { applyReplayPrintingProofs, applyReplayPrintingProofToCard, type ReplayPrintingProof } from "./printing-proofs";
+import { isReplaySelfAttackPermission } from "./ability-eligibility";
 
 const hasHp = (text: string) => /\bHP\b/i.test(text);
 
 type ModifierScope = "attachment" | "stadium";
+export type ReplayAttackRouteContext = { card: ReplayZoneCard; effect?: string; kind: "trainer" | "ability" | "attack" };
 
 function appliesTo(selector: string, card: CardDefinition): boolean | null {
   const selected = normalizeText(selector);
@@ -431,33 +433,113 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
     [...(card.tool ? [card.tool] : []), ...card.energy.filter((energy) => /Energy$/i.test(energy) && !/^Basic /i.test(energy))]
       .some((name) => modifierCandidates(resolveAttachment(name, card.definitionOwner))?.some((printing) => printing.rules?.some((text) =>
         /\bgets? [＋+−-]\d+ HP\b|\b(?:maximum )?HP (?:is (?:now )?|becomes? |changes? to )\d+\b|\b(?:increase|reduce|decrease)(?:s|d)?\b[^.]*\b(?:maximum )?HP\b/i.test(text))) ?? false);
-  const attackPrintingEvidence = (card: ReplayCard, attackName: string, state: ReplayState):
+  const attackPrintingEvidence = (card: ReplayCard, attackName: string, state: ReplayState, history: readonly ReplayAttackRouteContext[] = []):
     | { status: "native"; observedEffect: string }
-    | { status: "copied"; observedEffect: string; definitionCard: ReplayCard }
+    | { status: "copied"; observedEffect?: string; definitionCard: ReplayCard }
     | { status: "unmodelled" } => {
+    // Enumerate routes from the existing native domain, before adding the
+    // executed name. Native and borrowed attacks may share a name but differ.
     const options = candidates(resolve(card));
     if (!options) return { status: "unmodelled" };
     const attack = normalize(attackName);
-    const copyAbilities = options.map((printing) => printing.abilities.filter((ability) => ability.text !== null
-      && /^This Pok[eé]mon can use the attacks of any of your Benched Pok[eé]mon\.\s*(?:\(You still need the necessary Energy to use each attack\.\))?$/i.test(ability.text)));
-    const native = options.some((printing) => printing.attacks.some((printed) => normalize(printed.name) === attack));
-    if (native && copyAbilities.every((abilities) => !abilities.length)) return { status: "native", observedEffect: attackName };
-    if (options.every((printing) => printing.attacks.some((printed) => normalize(printed.name) === attack))) return { status: "native", observedEffect: attackName };
-    if (!copyAbilities.every((abilities) => abilities.length === 1 && normalize(abilities[0].name) === normalize(copyAbilities[0][0]?.name ?? ""))) return { status: "unmodelled" };
     const owner = card.definitionOwner ?? (["self", "opponent"] as const).find((actor) =>
-      state[actor].active?.id === card.id || state[actor].bench.some((copy) => copy.id === card.id));
+      [state[actor].active, ...state[actor].bench, ...(state[actor].unplaced ?? [])].some((copy) => copy?.id === card.id));
     if (!owner) return { status: "unmodelled" };
-    const donors = state[owner].bench.flatMap((donor) => {
-      const printings = candidates(resolve(donor));
-      if (!printings) return [];
-      const attacks = printings.map((printing) => printing.attacks.find((printed) => normalize(printed.name) === attack));
-      return attacks.every((printed) => printed !== undefined && JSON.stringify(printed) === JSON.stringify(attacks[0]))
-        ? [{ card: donor, attack: attacks[0]! }] : [];
-    });
-    if (!donors.length || !donors.every((donor) => JSON.stringify(donor.attack) === JSON.stringify(donors[0].attack))) return { status: "unmodelled" };
-    // The donor supplies printed attack text. Its owner/physical identity never
-    // replaces the Pokémon executing that text or receiving "this Pokémon" effects.
-    return { status: "copied", observedEffect: copyAbilities[0][0].name, definitionCard: donors[0].card };
+    const tops = (actor: ReplayActor) => [state[actor].active, ...state[actor].bench, ...(state[actor].unplaced ?? [])].filter((top): top is ReplayCard => Boolean(top));
+    const copyLike = (text: string) => /(?:can|may|able to) use (?:the |any |all )?attacks?\b|use[^.]*attacks?[^.]*as (?:its|their|your) own|(?:has|have|gains?|choose|use) (?:the |an? |this |that |following )*attacks?\b|use[^.]*VSTAR Power/i.test(text.replace(/\b(?:may|can) use an attack it has twice\b/gi, "repeat its native attack"));
+    const hasCopyPermission = options.some((printing) => [...(printing.rules ?? []), ...printing.abilities.map((ability) => ability.text ?? "")].some(copyLike));
+    const permission = (text: string): "bench" | "in_play" | null => {
+      const body = text.replace(/\s*\(You still need the necessary Energy to use each attack\.\)\s*$/i, "").trim();
+      if (/^This Pok[eé]mon can use the attacks of any of your Benched Pok[eé]mon\.$/i.test(body)) return "bench";
+      const all = /^(.+?) can use the attacks of all Pok[eé]mon in play as its own\.$/i.exec(body);
+      return all && normalize(all[1]) === normalize(card.name) ? "in_play" : null;
+    };
+    // Current passive permissions/suppression can invalidate route absence.
+    // Unused attack prose is not a passive effect, and an unrelated old Item
+    // is not assumed to have established an unrecorded persistent exception.
+    for (const actor of ["self", "opponent"] as const) {
+      const side = state[actor];
+      const passiveSources: Array<{ source: CardDefinition[] | null; executor: boolean }> = tops(actor).map((top) => ({ source: candidates(resolve(top)), executor: actor === owner && top.id === card.id }));
+      for (const top of tops(actor)) {
+        if (top.tool) passiveSources.push({ source: candidates(resolveAttachment(top.tool, actor)), executor: false });
+        for (const energy of top.energy.filter((name) => /Energy$/i.test(name) && !/^Basic /i.test(name))) passiveSources.push({ source: candidates(resolveAttachment(energy, actor)), executor: false });
+      }
+      for (const pool of side.boardPools ?? []) if (pool.memberIds.length) {
+        const conditional = [...(pool.possiblyReturnedCards ?? []), ...(pool.uncertainCards ?? []).flatMap((group) => group.cards)];
+        if (conditional.some((component) => component.boardRole !== "evolution" && !/^Basic .+ Energy$/i.test(component.name))) return { status: "unmodelled" };
+        for (const component of pool.cards) if (component.boardRole !== "evolution" && !/^Basic .+ Energy$/i.test(component.name)) passiveSources.push({ source: candidates(resolveAttachment(component.name, actor)), executor: false });
+      }
+      if (state.stadium?.actor === actor) passiveSources.push({ source: candidates(resolve({ name: state.stadium.name, definitionOwner: actor })), executor: false });
+      for (const { source, executor } of passiveSources) {
+        if (!source) return { status: "unmodelled" };
+        for (const printing of source) {
+          if (normalize(printing.category ?? "") !== "pokemon" && (printing.rules === null || printing.attacks.length > 0) || printing.abilities.some((ability) => ability.text === null)) return { status: "unmodelled" };
+          for (const text of [...(printing.rules ?? []), ...printing.abilities.map((ability) => ability.text!)]) {
+            const namedUseLimit = /You can['’]t use more than \d+ Ability that has "([^"]+)" in its name each turn\./i.exec(text);
+            const selfKnockoutOnly = /^Pok[eé]mon in play \(both yours and your opponent['’]s\) lose (?:any Ability that requires the Pok[eé]mon using it to Knock Out itself|all Abilities that require those Pok[eé]mon to be Knocked Out)\.$/i.test(text);
+            const irrelevantLimit = namedUseLimit && options.every((candidate) => candidate.abilities.every((ability) => !normalize(ability.name).includes(normalize(namedUseLimit[1])) || !copyLike(ability.text ?? "")));
+            if (hasCopyPermission && !irrelevantLimit && !selfKnockoutOnly && /\b(?:lose|has no|have no|ignore all)\b[^.]*\b(?:Abilit(?:y|ies)|Pok[eé]-BODY|Pok[eé]-POWER)\b|\b(?:can't|cannot) use (?!more than)[^.]*\bAbilit(?:y|ies)\b|\bAbilit(?:y|ies)\b[^.]*\b(?:no effect|stop working)\b/i.test(text)) return { status: "unmodelled" };
+            if (!copyLike(text)) continue;
+            // A different Pokémon's self-contained native permission doesn't
+            // grant attacks to this executor. Every other permission is held.
+            if (normalize(printing.category ?? "") === "pokemon" && !executor && isReplaySelfAttackPermission(text, printing.name)) continue;
+            if (!executor || !permission(text)) return { status: "unmodelled" };
+          }
+        }
+      }
+    }
+    // A recorded permission may persist after its source leaves play. We
+    // retain only this source section's executions; unrelated Item effects
+    // are not hypothesized to grant attacks merely because prose is missing.
+    for (const context of history) {
+      const definitions = candidates(resolve(context.card));
+      if (!definitions) { if (context.kind !== "trainer") return { status: "unmodelled" }; continue; }
+      const texts = definitions.flatMap((printing) => context.kind === "trainer" ? printing.rules ?? []
+        : (context.kind === "ability" ? printing.abilities : printing.attacks).filter((effect) => normalize(effect.name) === normalize(context.effect ?? "")).map((effect) => effect.text));
+      if (context.kind === "trainer" && definitions.some((printing) => printing.attacks.length > 0)
+        || texts.some((text) => text !== null && copyLike(text))
+        || context.kind !== "trainer" && (!texts.length || texts.some((text) => text === null))) return { status: "unmodelled" };
+    }
+    const inventoryComplete = (actor: ReplayActor) => {
+      const side = state[actor]; const cards = tops(actor);
+      const pools = side.boardPools ?? [];
+      if (side.inPlayCount == null || pools.some((pool) => pool.possiblyReturnedCards?.length || pool.uncertainCards?.some((group) => group.cards.length))) return false;
+      const objects = [...cards, ...cards.flatMap((top) => top.underlying), ...pools.flatMap((pool) => pool.cards)];
+      if (new Set(objects.map((object) => object.id)).size !== objects.length) return false;
+      const represented = cards.reduce((total, top) => total + 1 + top.underlying.length + top.energy.length + Number(Boolean(top.tool)), 0)
+        + pools.reduce((total, pool) => total + pool.cards.length, 0) + Number(state.stadium?.actor === actor);
+      return represented === side.inPlayCount;
+    };
+    type Route = { kind: "native" } | { kind: "copy"; effect: string; donor: ReplayCard; text: string; definite: boolean };
+    const routes: Route[] = [];
+    for (const printing of options) {
+      if (printing.attacks.some((printed) => normalize(printed.name) === attack)) routes.push({ kind: "native" });
+      for (const ability of printing.abilities) {
+        if (ability.text === null) return { status: "unmodelled" };
+        const scope = permission(ability.text);
+        if (!scope) { if (copyLike(ability.text)) return { status: "unmodelled" }; continue; }
+        const actors: ReplayActor[] = scope === "bench" ? [owner] : ["self", "opponent"];
+        if (!actors.every(inventoryComplete)) return { status: "unmodelled" };
+        for (const actor of actors) for (const donor of tops(actor)) {
+          if (actor === owner && donor.id === card.id) continue;
+          const side = state[actor];
+          if (scope === "bench" && side.active?.id === donor.id && !side.activeUncertain && !donor.instanceUncertain) continue;
+          const donorOptions = candidates(resolve(donor));
+          if (!donorOptions || donorOptions.some((candidate) => candidate.attacks.some((printed) => normalize(printed.name) === attack && printed.text === null))) return { status: "unmodelled" };
+          for (const donorPrinting of donorOptions) for (const printed of donorPrinting.attacks.filter((value) => normalize(value.name) === attack)) {
+            const definite = scope === "in_play" || side.bench.some((top) => top.id === donor.id) && !side.activeUncertain && !donor.instanceUncertain;
+            routes.push({ kind: "copy", effect: ability.name, donor: { ...donor, observedEffects: [...(donor.observedEffects ?? []), attackName] }, text: JSON.stringify(printed), definite });
+          }
+        }
+      }
+    }
+    if (!routes.length) return { status: "unmodelled" };
+    if (routes.every((route) => route.kind === "native")) return { status: "native", observedEffect: attackName };
+    if (routes.some((route) => route.kind === "native")) return { status: "unmodelled" };
+    const copied = routes.filter((route): route is Extract<Route, { kind: "copy" }> => route.kind === "copy");
+    if (!copied.some((route) => route.definite) || copied.some((route) => route.text !== copied[0].text)) return { status: "unmodelled" };
+    const effects = new Set(copied.map((route) => normalize(route.effect)));
+    return { status: "copied", ...(effects.size === 1 ? { observedEffect: copied[0].effect } : {}), definitionCard: copied.find((route) => route.definite)!.donor };
   };
   /** Final display projection, after every source transition and copy/printing
    * proof has executed. Candidate sets and native effects are never narrowed.
