@@ -42,19 +42,21 @@ export default async function ReplayPage({ params, searchParams }: {
   const signal = AbortSignal.timeout(2500);
   const [legacyEvidence, loadedDefinitions, linkedDeckList] = await Promise.all([
     withinBounds ? resolveBattleLogEffectCatalogEvidence(rawLines, signal) : Promise.resolve({ rows: [] }),
-    loadCardDefinitions(definitionNames, signal),
+    loadCardDefinitions(definitionNames, signal, { declaredFormat: log.format, playedOn: log.date }),
     preliminary && preliminary.status !== "unsupported" && log.linkedDeckListId ? getDeckListById(user.id, log.linkedDeckListId, log.linkedDeckId) : Promise.resolve(null),
   ]);
   const cardDefinitions = Object.fromEntries(Object.entries(loadedDefinitions).map(([name, evidence]) => [name,
-    resolveCardDefinition(buildCardDefinitionIndex(evidence.candidates), { name, declaredFormat: log.format }, evidence.coverage, evidence.generation, evidence.sourceCoverage)]));
+    resolveCardDefinition(buildCardDefinitionIndex(evidence.candidates), { name, declaredFormat: log.format, playedOn: log.date }, evidence.coverage, evidence.generation, evidence.sourceCoverage)]));
   const linkedCompatibility = linkedDeckList && preliminary ? getReplayLinkedDeckListCompatibility(linkedDeckList.parsedCards,
     collectReplayOwnerCardNames(preliminary, "self"), collectReplayOwnerCardCounts(preliminary, "self")) : undefined;
   const selfCardDefinitions = linkedDeckList && linkedCompatibility?.status === "compatible" ? getLinkedReplayDefinitions(linkedDeckList.parsedCards, loadedDefinitions,
-    await loadReplaySetCodes(linkedDeckList.parsedCards, loadedDefinitions), log.format) : undefined;
+    await loadReplaySetCodes(linkedDeckList.parsedCards, loadedDefinitions), log.format, log.date) : undefined;
   const completeDefinitions = Object.values(cardDefinitions).filter((evidence) => evidence.coverage === "complete" && evidence.candidates.length);
-  const verifiedNames = new Set(completeDefinitions.flatMap((evidence) => evidence.candidates.map((card) => normalizeText(card.name))));
+  // A legacy whole-history name lookup must not reintroduce excluded families
+  // when the saved-format catalogue has incomplete or empty evidence.
+  const contextualNames = new Set(Object.keys(cardDefinitions).map(normalizeText));
   const rows = [
-    ...legacyEvidence.rows.filter((row) => !verifiedNames.has(normalizeText(row.normalized_card_name || row.card_name))),
+    ...legacyEvidence.rows.filter((row) => !contextualNames.has(normalizeText(row.normalized_card_name || row.card_name))),
     ...definitionEffectRows(completeDefinitions.flatMap((evidence) => evidence.candidates)),
   ];
   const catalogEvidence = resolveBattleLogEffectEvidenceFromRows(rawLines, rows);

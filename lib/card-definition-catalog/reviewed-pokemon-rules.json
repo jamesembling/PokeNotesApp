@@ -1,0 +1,1263 @@
+[
+  {
+    "sourceCardId": "2021swsh-11",
+    "setId": "2021swsh",
+    "localId": "11",
+    "name": "Torchic",
+    "hp": 60,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "28a6fe70d8a56cb3942c1423736c255728aa60062ce0b16499dca24f84a723d1",
+      "sourceCardId": "2021swsh-11",
+      "sourceUrl": "https://images.pokemontcg.io/mcd21/11_hires.png"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "30th-100",
+    "setId": "30th",
+    "localId": "100",
+    "name": "Yveltal",
+    "hp": 120,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "30th-100",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/30th/100/high.webp",
+      "scanSha256": "c7c1fed520f3e1265464b54ff4d6b186cbe5c0c2d669f89d4ce76920f1e4bf1d"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Life-Locked",
+          "text": "Your opponent's Active Pokémon can't be healed.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me01-088",
+    "setId": "me01",
+    "localId": "088",
+    "name": "Yveltal",
+    "hp": 110,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "6145d82bdc818c8e3a9d745d0ad02a0d100b9bb9ef772f4862547c2c2658cb43",
+      "sourceCardId": "me01-088",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me01/088/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me01-104",
+    "setId": "me01",
+    "localId": "104",
+    "name": "Mega Kangaskhan ex",
+    "hp": 300,
+    "stage": "Basic",
+    "rules": [
+      "When your Mega Evolution Pokémon ex is Knocked Out, your opponent takes 3 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "me01-104",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me01/104/high.webp",
+      "scanSha256": "496d0f1ab0e8ccb86cb9c1770eae89fdc12ebd756bc17d7a2152649c4a23bfab"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Run Errand",
+          "text": "Once during your turn, if this Pokémon is in the Active Spot, you may use this Ability. Draw 2 cards. You can't use more than 1 Run Errand Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me01-164",
+    "setId": "me01",
+    "localId": "164",
+    "name": "Mega Kangaskhan ex",
+    "hp": 300,
+    "stage": "Basic",
+    "rules": [
+      "When your Mega Evolution Pokémon ex is Knocked Out, your opponent takes 3 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "me01-164",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me01/164/high.webp",
+      "scanSha256": "00c794210e01308786a533cc0b5afeef2a21da620f5fb1eb24924f7213bf7989"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Run Errand",
+          "text": "Once during your turn, if this Pokémon is in the Active Spot, you may use this Ability. Draw 2 cards. You can't use more than 1 Run Errand Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me01-182",
+    "setId": "me01",
+    "localId": "182",
+    "name": "Mega Kangaskhan ex",
+    "hp": 300,
+    "stage": "Basic",
+    "rules": [
+      "When your Mega Evolution Pokémon ex is Knocked Out, your opponent takes 3 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "me01-182",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me01/182/high.webp",
+      "scanSha256": "92667dbd9d86928129da8dfa48377e6bdfa10377965de40eea9bbcfa7b2e4a08"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Run Errand",
+          "text": "Once during your turn, if this Pokémon is in the Active Spot, you may use this Ability. Draw 2 cards. You can't use more than 1 Run Errand Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-016",
+    "setId": "me02.5",
+    "localId": "016",
+    "name": "Budew",
+    "hp": 30,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "4ec1cc9220cffc81e4f06da2d089b07629390fd4f41ef5a016d72a932b16cea9",
+      "sourceCardId": "me02.5-016",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/016/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-099",
+    "setId": "me02.5",
+    "localId": "099",
+    "name": "Munkidori",
+    "hp": 110,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "ecd44b71c89036389c38847a021894ab00adace43294907ce1874e1f709cf8e9",
+      "sourceCardId": "me02.5-099",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/099/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Adrena-Brain",
+          "text": "Once during your turn, if this Pokémon has any {D} Energy attached, you may move up to 3 damage counters from 1 of your Pokémon to 1 of your opponent's Pokémon.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-142",
+    "setId": "me02.5",
+    "localId": "142",
+    "name": "Fezandipiti ex",
+    "hp": 210,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "9205bbf6c94e069b4a94d1b4b7b644e221b018da7b7b6743091b99f541c4c80c",
+      "sourceCardId": "me02.5-142",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/142/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Flip the Script",
+          "text": "Once during your turn, if any of your Pokémon were Knocked Out during your opponent's last turn, you may draw 3 cards. You can't use more than 1 Flip the Script Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-158",
+    "setId": "me02.5",
+    "localId": "158",
+    "name": "Dreepy",
+    "hp": 70,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "bfd89dfe9bfd5e0d4ab436bc70abcfe3f2dcab658ff25ee4a340bf2716b0c32b",
+      "sourceCardId": "me02.5-158",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/158/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-159",
+    "setId": "me02.5",
+    "localId": "159",
+    "name": "Drakloak",
+    "hp": 90,
+    "stage": "Stage1",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "me02.5-159",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/159/high.webp",
+      "scanSha256": "fd027d36dd6702982431821248be91743817884445b808e414a8040a3b922d4d"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Recon Directive",
+          "text": "Once during your turn, you may look at the top 2 cards of your deck and put 1 of them into your hand. Put the other card on the bottom of your deck.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-160",
+    "setId": "me02.5",
+    "localId": "160",
+    "name": "Dragapult ex",
+    "hp": 320,
+    "stage": "Stage2",
+    "rules": [
+      "As long as this Pokémon is on your Bench, prevent all damage done to this Pokémon by attacks (both yours and your opponent's).",
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "me02.5-160",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/160/high.webp",
+      "scanSha256": "5d925dd53808a16dd4ad0b7f2f09043eeb3daf4f796fe0cff2801b3daedf4b73"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-221",
+    "setId": "me02.5",
+    "localId": "221",
+    "name": "Budew",
+    "hp": 30,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "8eb148170bd90f25e02a15d5ea9d398ac54a300eb8d0ec2a32d7708408712a8c",
+      "sourceCardId": "me02.5-221",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/221/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-247",
+    "setId": "me02.5",
+    "localId": "247",
+    "name": "Dreepy",
+    "hp": 70,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "ca25565b19e75af0488e6d9270811378dfe02b6a1dccc675528280bc2890d9b7",
+      "sourceCardId": "me02.5-247",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/247/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-248",
+    "setId": "me02.5",
+    "localId": "248",
+    "name": "Drakloak",
+    "hp": 90,
+    "stage": "Stage1",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "me02.5-248",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/248/high.webp",
+      "scanSha256": "328f2323a1c1ce415c25cc8894e7db05177a17e7c1e021be40e763a1a72b8a7f"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Recon Directive",
+          "text": "Once during your turn, you may look at the top 2 cards of your deck and put 1 of them into your hand. Put the other card on the bottom of your deck.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-287",
+    "setId": "me02.5",
+    "localId": "287",
+    "name": "Marnie's Grimmsnarl ex",
+    "hp": 320,
+    "stage": "Stage2",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "23ac22e0c7811c02b59a8aa0c7502f4b10a74607edf206402576093be88fd070",
+      "sourceCardId": "me02.5-287",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/287/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Punk Up",
+          "text": "When you play this Pokémon from your hand to evolve 1 of your Pokémon during your turn, you may search your deck for up to 5 Basic {D} Energy cards and attach them to your Marnie's Pokémon in any way you like. Then, shuffle your deck.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me02.5-288",
+    "setId": "me02.5",
+    "localId": "288",
+    "name": "Fezandipiti ex",
+    "hp": 210,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "a6e2270554929570abaa69281107818b8c67de156f98e224862139f5e9dbe4ac",
+      "sourceCardId": "me02.5-288",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me02.5/288/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Flip the Script",
+          "text": "Once during your turn, if any of your Pokémon were Knocked Out during your opponent's last turn, you may draw 3 cards. You can't use more than 1 Flip the Script Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me03-062",
+    "setId": "me03",
+    "localId": "062",
+    "name": "Meowth ex",
+    "hp": 170,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "dd2daf12fc2e73833c92abe6763b84e8841b57c153ab7c01fe70f447cdde94d1",
+      "sourceCardId": "me03-062",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me03/062/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Last-Ditch Catch",
+          "text": "Once during your turn, when you play this Pokémon from your hand onto your Bench, you may use this Ability. Search your deck for a Supporter card, reveal it, and put it into your hand. Then, shuffle your deck. You can't use more than 1 Ability that has \"Last-Ditch\" in its name each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me03-107",
+    "setId": "me03",
+    "localId": "107",
+    "name": "Meowth ex",
+    "hp": 170,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "fbd5fb6fa7416776ea8851ee23f04a0f77fc4b4b0575cc120d0fcd7e8384815e",
+      "sourceCardId": "me03-107",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me03/107/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Last-Ditch Catch",
+          "text": "Once during your turn, when you play this Pokémon from your hand onto your Bench, you may use this Ability. Search your deck for a Supporter card, reveal it, and put it into your hand. Then, shuffle your deck. You can't use more than 1 Ability that has \"Last-Ditch\" in its name each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "me03-121",
+    "setId": "me03",
+    "localId": "121",
+    "name": "Meowth ex",
+    "hp": 170,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "969c8c144dbdbd73bc238eae16e68fb88e9d04ad8ed481ceaf17f6d8c9e05515",
+      "sourceCardId": "me03-121",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/me03/121/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Last-Ditch Catch",
+          "text": "Once during your turn, when you play this Pokémon from your hand onto your Bench, you may use this Ability. Search your deck for a Supporter card, reveal it, and put it into your hand. Then, shuffle your deck. You can't use more than 1 Ability that has \"Last-Ditch\" in its name each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "mep-025",
+    "setId": "mep",
+    "localId": "025",
+    "name": "Mega Kangaskhan ex",
+    "hp": 300,
+    "stage": "Basic",
+    "rules": [
+      "When your Mega Evolution Pokémon ex is Knocked Out, your opponent takes 3 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "06be0d3d213137d2bf27ee7353caa88bc9e6984a0d376c1509a70f824a51825f",
+      "sourceCardId": "mep-025",
+      "sourceUrl": "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/MEP/MEP_025_R_EN.png"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Run Errand",
+          "text": "Once during your turn, if this Pokémon is in the Active Spot, you may use this Ability. Draw 2 cards. You can't use more than 1 Run Errand Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "mep-056",
+    "setId": "mep",
+    "localId": "056",
+    "name": "Torchic",
+    "hp": 60,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "2508e90ff4c6ac182ba7b8ff0bdd3b846d399120caf1001c42dbcc229aa73b8c",
+      "sourceCardId": "mep-056",
+      "sourceUrl": "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpci/MEP/MEP_056_R_EN.png"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06-095",
+    "setId": "sv06",
+    "localId": "095",
+    "name": "Munkidori",
+    "hp": 110,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "01583b9f71b5d55be02d56fb81e1fd2dcd60988efa391aed5e56ca9425fca01d",
+      "sourceCardId": "sv06-095",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06/095/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Adrena-Brain",
+          "text": "Once during your turn, if this Pokémon has any {D} Energy attached, you may move up to 3 damage counters from 1 of your Pokémon to 1 of your opponent's Pokémon.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06-128",
+    "setId": "sv06",
+    "localId": "128",
+    "name": "Dreepy",
+    "hp": 70,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "25ee92d366ebb33bd88fc7806192c4237cc9008b164e905f053eec71e3604895",
+      "sourceCardId": "sv06-128",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06/128/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06-129",
+    "setId": "sv06",
+    "localId": "129",
+    "name": "Drakloak",
+    "hp": 90,
+    "stage": "Stage1",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "sv06-129",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06/129/high.webp",
+      "scanSha256": "b2290f11843704bc8c28df799ca09a80ad627fad2f47531c0613595c7ac2aa19"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Recon Directive",
+          "text": "Once during your turn, you may look at the top 2 cards of your deck and put 1 of them into your hand. Put the other card on the bottom of your deck.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06-130",
+    "setId": "sv06",
+    "localId": "130",
+    "name": "Dragapult ex",
+    "hp": 320,
+    "stage": "Stage2",
+    "rules": [
+      "As long as this Pokémon is on your Bench, prevent all damage done to this Pokémon by attacks (both yours and your opponent's).",
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "sv06-130",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06/130/high.webp",
+      "scanSha256": "f30567fddb3bd799873eb001b8c250251428ebf7a463dd95f3953bbfcfc404b2"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06-200",
+    "setId": "sv06",
+    "localId": "200",
+    "name": "Dragapult ex",
+    "hp": 320,
+    "stage": "Stage2",
+    "rules": [
+      "As long as this Pokémon is on your Bench, prevent all damage done to this Pokémon by attacks (both yours and your opponent's).",
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "sv06-200",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06/200/high.webp",
+      "scanSha256": "7783e3615f2cecaad9dc2136bebca6b131d955f9cba39c6d1d09bff173695efa"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06.5-035",
+    "setId": "sv06.5",
+    "localId": "035",
+    "name": "Yveltal",
+    "hp": 120,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "8f76f05e491fb966143b77b1a601708f56b4033f61e273d43ba905249fb21146",
+      "sourceCardId": "sv06.5-035",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06.5/035/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06.5-038",
+    "setId": "sv06.5",
+    "localId": "038",
+    "name": "Fezandipiti ex",
+    "hp": 210,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "d4711bf37932ba0b09b53a6e81c688e5acb19367186ccf401c0f7e36bfb1148a",
+      "sourceCardId": "sv06.5-038",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06.5/038/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Flip the Script",
+          "text": "Once during your turn, if any of your Pokémon were Knocked Out during your opponent's last turn, you may draw 3 cards. You can't use more than 1 Flip the Script Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06.5-039",
+    "setId": "sv06.5",
+    "localId": "039",
+    "name": "Pecharunt ex",
+    "hp": 190,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "37187e5c052c3376f0acd3019e0d9abb0aee70339d2d4b972fe0920ff11e231f",
+      "sourceCardId": "sv06.5-039",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06.5/039/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Subjugating Chains",
+          "text": "Once during your turn, you may switch 1 of your Benched {D} Pokémon, except any Pecharunt ex, with your Active Pokémon. If you do, the new Active Pokémon is now Poisoned. You can't use more than 1 Subjugating Chains Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06.5-072",
+    "setId": "sv06.5",
+    "localId": "072",
+    "name": "Munkidori",
+    "hp": 110,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "1be2abf64eb1203fb937e3717967090df86388b6e0317ade2e4cc630e39d80a9",
+      "sourceCardId": "sv06.5-072",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06.5/072/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Adrena-Brain",
+          "text": "Once during your turn, if this Pokémon has any {D} Energy attached, you may move up to 3 damage counters from 1 of your Pokémon to 1 of your opponent's Pokémon.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06.5-084",
+    "setId": "sv06.5",
+    "localId": "084",
+    "name": "Fezandipiti ex",
+    "hp": 210,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "ff7688677218248282b744ca4d7d69344f5208d6f5258980c10998d724f888eb",
+      "sourceCardId": "sv06.5-084",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06.5/084/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Flip the Script",
+          "text": "Once during your turn, if any of your Pokémon were Knocked Out during your opponent's last turn, you may draw 3 cards. You can't use more than 1 Flip the Script Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06.5-085",
+    "setId": "sv06.5",
+    "localId": "085",
+    "name": "Pecharunt ex",
+    "hp": 190,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "ecad26462c2a3ea1f526efd98f2d1c7b3db4aa4bdd2aa8da7046c820f9e05a7c",
+      "sourceCardId": "sv06.5-085",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06.5/085/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Subjugating Chains",
+          "text": "Once during your turn, you may switch 1 of your Benched {D} Pokémon, except any Pecharunt ex, with your Active Pokémon. If you do, the new Active Pokémon is now Poisoned. You can't use more than 1 Subjugating Chains Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06.5-092",
+    "setId": "sv06.5",
+    "localId": "092",
+    "name": "Fezandipiti ex",
+    "hp": 210,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "b66b1ed1b0814e435924c17d2a550d7272793a3e934ceda3f46379e0c6037c19",
+      "sourceCardId": "sv06.5-092",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06.5/092/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Flip the Script",
+          "text": "Once during your turn, if any of your Pokémon were Knocked Out during your opponent's last turn, you may draw 3 cards. You can't use more than 1 Flip the Script Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06.5-093",
+    "setId": "sv06.5",
+    "localId": "093",
+    "name": "Pecharunt ex",
+    "hp": 190,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "162c46e484d67f7626ade81ff7ffd040cd1423e5ab5e4aef4e93c21043e06bca",
+      "sourceCardId": "sv06.5-093",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06.5/093/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Subjugating Chains",
+          "text": "Once during your turn, you may switch 1 of your Benched {D} Pokémon, except any Pecharunt ex, with your Active Pokémon. If you do, the new Active Pokémon is now Poisoned. You can't use more than 1 Subjugating Chains Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv06.5-095",
+    "setId": "sv06.5",
+    "localId": "095",
+    "name": "Pecharunt ex",
+    "hp": 190,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "89d0d3d101efdd96e986dd26b9f53b2eff83b866ac23732fb3d7a1101f4de410",
+      "sourceCardId": "sv06.5-095",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv06.5/095/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Subjugating Chains",
+          "text": "Once during your turn, you may switch 1 of your Benched {D} Pokémon, except any Pecharunt ex, with your Active Pokémon. If you do, the new Active Pokémon is now Poisoned. You can't use more than 1 Subjugating Chains Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv08.5-004",
+    "setId": "sv08.5",
+    "localId": "004",
+    "name": "Budew",
+    "hp": 30,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "9db2b56d4f734bc9d7f4f83aa691692fd9b5d5e39ee1b1144448922d677efe27",
+      "sourceCardId": "sv08.5-004",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv08.5/004/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv08.5-044",
+    "setId": "sv08.5",
+    "localId": "044",
+    "name": "Munkidori",
+    "hp": 110,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "8e0a001e6a6f4f3027e70eb0166132ca0b58538ba1b595f409f647c4c528b6cb",
+      "sourceCardId": "sv08.5-044",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv08.5/044/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Adrena-Brain",
+          "text": "Once during your turn, if this Pokémon has any {D} Energy attached, you may move up to 3 damage counters from 1 of your Pokémon to 1 of your opponent's Pokémon.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv08.5-071",
+    "setId": "sv08.5",
+    "localId": "071",
+    "name": "Dreepy",
+    "hp": 70,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "c8b84d8078aa98a6ffcd3ef851170f804f480f17d571bb3cb1063d72a0b1fbf2",
+      "sourceCardId": "sv08.5-071",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv08.5/071/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv08.5-072",
+    "setId": "sv08.5",
+    "localId": "072",
+    "name": "Drakloak",
+    "hp": 90,
+    "stage": "Stage1",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "sv08.5-072",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv08.5/072/high.webp",
+      "scanSha256": "79f3b7161123924d64088fb79e1385573452185e57b7dff65a7c69158a9a458e"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Recon Directive",
+          "text": "Once during your turn, you may look at the top 2 cards of your deck and put 1 of them into your hand. Put the other card on the bottom of your deck.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv08.5-073",
+    "setId": "sv08.5",
+    "localId": "073",
+    "name": "Dragapult ex",
+    "hp": 320,
+    "stage": "Stage2",
+    "rules": [
+      "As long as this Pokémon is on your Bench, prevent all damage done to this Pokémon by attacks (both yours and your opponent's).",
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "sv08.5-073",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv08.5/073/high.webp",
+      "scanSha256": "8cac3adc6d0a757c7a96ce93631e7e188b0678cbb55efd67dc184f598b1fc3d8"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv08.5-163",
+    "setId": "sv08.5",
+    "localId": "163",
+    "name": "Pecharunt ex",
+    "hp": 190,
+    "stage": "Basic",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "40b8b93609c617635af25e7b961d10230093f8adba53df299bdb1b30a20984e2",
+      "sourceCardId": "sv08.5-163",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv08.5/163/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Subjugating Chains",
+          "text": "Once during your turn, you may switch 1 of your Benched {D} Pokémon, except any Pecharunt ex, with your Active Pokémon. If you do, the new Active Pokémon is now Poisoned. You can't use more than 1 Subjugating Chains Ability each turn.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv08.5-165",
+    "setId": "sv08.5",
+    "localId": "165",
+    "name": "Dragapult ex",
+    "hp": 320,
+    "stage": "Stage2",
+    "rules": [
+      "As long as this Pokémon is on your Bench, prevent all damage done to this Pokémon by attacks (both yours and your opponent's).",
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "sv08.5-165",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv08.5/165/high.webp",
+      "scanSha256": "e648a367170692ea728e9a1df162aebfd9c5f9a00bece9bc81395e84ec5086bc"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv09-022",
+    "setId": "sv09",
+    "localId": "022",
+    "name": "Torchic",
+    "hp": 60,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "7a5e637a0416b0177d0076735f864e36b19965628f3c26ee6e3a369010059c6b",
+      "sourceCardId": "sv09-022",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv09/022/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv09-023",
+    "setId": "sv09",
+    "localId": "023",
+    "name": "Combusken",
+    "hp": 90,
+    "stage": "Stage1",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "56bca1a7be53bd3d7a9ca07db08e6c04f89e2eb2a6ee5675a3dbb540a6653c4e",
+      "sourceCardId": "sv09-023",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv09/023/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv09-024",
+    "setId": "sv09",
+    "localId": "024",
+    "name": "Blaziken ex",
+    "hp": 320,
+    "stage": "Stage2",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "sv09-024",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv09/024/high.webp",
+      "scanSha256": "56c429ff59469f1a4cbed3a1766d45e50a377bb532485a0eb7696aa425c06aa2"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Seething Spirit",
+          "text": "Once during your turn, you may attach a Basic Energy card from your discard pile to 1 of your Pokémon.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv10-040",
+    "setId": "sv10",
+    "localId": "040",
+    "name": "Torchic",
+    "hp": 70,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "e70064d634a7609e60fe3b53cbfca360482503b8aa520609abaf1b98a64fe193",
+      "sourceCardId": "sv10-040",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv10/040/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv10-041",
+    "setId": "sv10",
+    "localId": "041",
+    "name": "Combusken",
+    "hp": 100,
+    "stage": "Stage1",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "2da2652857205d62c0fdf01c14a178e416ea6b158c1988456a77f0a74c49e043",
+      "sourceCardId": "sv10-041",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv10/041/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv10-134",
+    "setId": "sv10",
+    "localId": "134",
+    "name": "Marnie's Impidimp",
+    "hp": 70,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "7b74bb9317bf6a59f3e75ae819d9547266be7b26908f75477e0ad584f28b04f7",
+      "sourceCardId": "sv10-134",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv10/134/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "sv10-136",
+    "setId": "sv10",
+    "localId": "136",
+    "name": "Marnie's Grimmsnarl ex",
+    "hp": 320,
+    "stage": "Stage2",
+    "rules": [
+      "When your Pokémon ex is Knocked Out, your opponent takes 2 Prize cards."
+    ],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "ecb2aa7c6db73f859998464166836ecaa40c282324f70638365e79fc9fe4d861",
+      "sourceCardId": "sv10-136",
+      "sourceUrl": "https://assets.tcgdex.net/en/sv/sv10/136/high.webp"
+    },
+    "passiveInventory": {
+      "abilities": [
+        {
+          "name": "Punk Up",
+          "text": "When you play this Pokémon from your hand to evolve 1 of your Pokémon during your turn, you may search your deck for up to 5 Basic {D} Energy cards and attach them to your Marnie's Pokémon in any way you like. Then, shuffle your deck.",
+          "type": "Ability"
+        }
+      ],
+      "additionalTraits": "verified_absent"
+    }
+  },
+  {
+    "sourceCardId": "tk-xy-latio-12",
+    "setId": "tk-xy-latio",
+    "localId": "12",
+    "name": "Solrock",
+    "hp": 80,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "tk-xy-latio-12",
+      "sourceUrl": "https://static.dextcg.com/cards/tk8a/12.png",
+      "scanSha256": "7a18dc4f0d182331868c6833a0b4b05891ab836ab8b2d5b6d5fd582d357081a4"
+    }
+  },
+  {
+    "sourceCardId": "tk-xy-latio-26",
+    "setId": "tk-xy-latio",
+    "localId": "26",
+    "name": "Solrock",
+    "hp": 80,
+    "stage": "Basic",
+    "rules": [],
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "tk-xy-latio-26",
+      "sourceUrl": "https://static.dextcg.com/cards/tk8a/26.png",
+      "scanSha256": "0cfd665f1aae75e2c4b9ebdbcab04dd72a5885b4be9afec81142ceaa53423fd2"
+    }
+  }
+]

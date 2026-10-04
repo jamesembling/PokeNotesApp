@@ -1,0 +1,10 @@
+import type { CardDefinition } from "./types";
+export const HISTORICAL_REVISION: string;
+export const HISTORICAL_ROOT: string;
+export function cardDefinitionSourceUrl(id: string): string;
+export function historicalCardSourceUrl(setId: string): string;
+export function applyReviewedPokemonRuleBox(card: CardDefinition): CardDefinition;
+export function isCardRuleEvidence(card: unknown): boolean;
+export function isCardPassiveEvidence(card: unknown): boolean;
+export function isCardPassiveEvidenceMetadata(card: unknown): boolean;
+export function isCardRuleEvidenceMetadata(card: unknown): boolean;

@@ -1,0 +1,104 @@
+[
+  {
+    "sourceCardId": "2021swsh-8",
+    "setId": "2021swsh",
+    "localId": "8",
+    "name": "Grookey",
+    "hp": 60,
+    "stage": "Basic",
+    "category": "Pokemon",
+    "regulationMark": "D",
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "2021swsh-8",
+      "sourceUrl": "https://images.pokemontcg.io/mcd21/8_hires.png",
+      "scanSha256": "15f1322d89bb6ad8d7c1cbc64dce6caec9a4194307c147864e8128ab0ad7f387"
+    }
+  },
+  {
+    "sourceCardId": "2021swsh-2",
+    "setId": "2021swsh",
+    "localId": "2",
+    "name": "Chikorita",
+    "hp": 70,
+    "stage": "Basic",
+    "category": "Pokemon",
+    "regulationMark": null,
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "2021swsh-2",
+      "sourceUrl": "https://images.pokemontcg.io/mcd21/2_hires.png",
+      "scanSha256": "4ae487d324819df84000cd48d522a196502f518830f59117baac60858849939b"
+    }
+  },
+  {
+    "sourceCardId": "cel25cc-CC013",
+    "setId": "cel25cc",
+    "localId": "CC013",
+    "name": "Mew ex",
+    "hp": 90,
+    "stage": "Basic",
+    "category": "Pokemon",
+    "regulationMark": null,
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "cel25cc-CC013",
+      "sourceUrl": "https://images.pokemontcg.io/cel25c/88_A_hires.png",
+      "scanSha256": "1ebd507258f2c3035a86ebc752dd68f3efb07404a7ebbae403acbbf88ca3e8f9"
+    }
+  },
+  {
+    "sourceCardId": "30th-c-003",
+    "setId": "30th-c",
+    "localId": "003",
+    "name": "Metagross",
+    "hp": 100,
+    "stage": "Stage2",
+    "category": "Pokemon",
+    "regulationMark": null,
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "30th-c-003",
+      "sourceUrl": "https://img.illudex.com/30th-c-003/high.webp?v=595901a6",
+      "scanSha256": "b7790a97aea51e3b7d6ff5c4af76be4dad7b4397b0c491e6aed88f7436c44adf"
+    }
+  },
+  {
+    "sourceCardId": "2021swsh-11",
+    "setId": "2021swsh",
+    "localId": "11",
+    "name": "Torchic",
+    "hp": 60,
+    "stage": "Basic",
+    "category": "Pokemon",
+    "regulationMark": null,
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "scanSha256": "28a6fe70d8a56cb3942c1423736c255728aa60062ce0b16499dca24f84a723d1",
+      "sourceCardId": "2021swsh-11",
+      "sourceUrl": "https://images.pokemontcg.io/mcd21/11_hires.png"
+    }
+  },
+  {
+    "sourceCardId": "30th-100",
+    "setId": "30th",
+    "localId": "100",
+    "name": "Yveltal",
+    "hp": 120,
+    "stage": "Basic",
+    "category": "Pokemon",
+    "regulationMark": "J",
+    "provenance": {
+      "provider": "reviewed-printing",
+      "revision": "2026-10-04",
+      "sourceCardId": "30th-100",
+      "sourceUrl": "https://assets.tcgdex.net/en/me/30th/100/high.webp",
+      "scanSha256": "c7c1fed520f3e1265464b54ff4d6b186cbe5c0c2d669f89d4ce76920f1e4bf1d"
+    }
+  }
+]

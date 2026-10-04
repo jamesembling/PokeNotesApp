@@ -2,11 +2,11 @@ name: Refresh card definitions
 
 on:
   schedule:
-    - cron: "20 3 * * 1"
+    - cron: "20 3 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Validate full source snapshot without publishing"
+        description: "Validate upstream and retained Standard scope without publishing"
         type: boolean
         default: true
 
@@ -31,7 +31,7 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - name: Refresh complete public reference snapshot
+      - name: Refresh scoped public reference snapshot
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
