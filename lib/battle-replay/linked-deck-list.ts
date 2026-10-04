@@ -40,6 +40,7 @@ export function getLinkedReplayDefinitions(
   definitions: CardDefinitionEvidenceByName,
   officialCodesBySetId: Readonly<Record<string, string>>,
   declaredFormat?: string,
+  playedOn?: string,
 ): ReplayLinkedCardDefinitions {
   const inventory = new Map<string, typeof cards[number][]>();
   for (const card of cards) {
@@ -49,7 +50,7 @@ export function getLinkedReplayDefinitions(
     inventory.set(name, prints);
   }
   return Object.fromEntries(Object.entries(definitions).map(([name, found]) => {
-    const formatted = declaredFormat ? resolveCardDefinition(buildCardDefinitionIndex(found.candidates), { name, declaredFormat }, found.coverage, found.generation, found.sourceCoverage) : found;
+    const formatted = declaredFormat || playedOn || found.sourceCoverage ? resolveCardDefinition(buildCardDefinitionIndex(found.candidates), { name, declaredFormat, playedOn }, found.coverage, found.generation, found.sourceCoverage) : found;
     const listed = inventory.get(inventoryName(name)) ?? [];
     let complete = listed.length > 0;
     const ids = new Set<string>();
@@ -63,13 +64,18 @@ export function getLinkedReplayDefinitions(
       if (!matching.length) complete = false;
       matching.forEach((candidate) => ids.add(candidate.sourceCardId));
     }
-    const candidates = found.candidates.filter((candidate) => ids.has(candidate.sourceCardId));
-    // Association evidence names physical printings before format inference.
-    // Keep them as probable choices even when the saved format disagrees.
-    const resolved = resolveCardDefinition(buildCardDefinitionIndex(candidates), { name }, complete ? found.coverage : "incomplete", found.generation, found.sourceCoverage);
-    const formattedIds = new Set(formatted.candidates.map((candidate) => candidate.sourceCardId));
-    const conflict = candidates.some((candidate) => !formattedIds.has(candidate.sourceCardId));
+    const listedCandidates = found.candidates.filter((candidate) => ids.has(candidate.sourceCardId));
+    const legalIds = new Set(formatted.formatBasis?.legalPrintingIds ?? formatted.candidatePrintingIds);
+    const supported = formatted.formatBasis && formatted.formatBasis.status !== "unsupported";
+    const conflict = listedCandidates.some((candidate) => !formatted.candidates.some((printing) => printing.sourceCardId === candidate.sourceCardId));
+    const unverified = supported && listedCandidates.some((candidate) => !legalIds.has(candidate.sourceCardId));
+    // A current linked list cannot override saved-game legality or supply exact
+    // played-printing evidence. Refuse narrowing when any listed entry conflicts.
+    if (conflict || unverified) return [name, { ...formatted, coverage: "incomplete" as const,
+      ...(formatted.formatBasis ? { formatBasis: { ...formatted.formatBasis, ...(conflict ? { status: "conflicting" as const } : {}) } } : {}), evidenceBasis: "linked_deck_list" as const }];
+    const candidates = formatted.candidates.filter((candidate) => ids.has(candidate.sourceCardId));
+    const resolved = resolveCardDefinition(buildCardDefinitionIndex(candidates), { name, declaredFormat, playedOn }, complete ? found.coverage : "incomplete", found.generation, found.sourceCoverage);
     return [name, { ...resolved, ...(formatted.formatBasis ? { formatBasis: { ...formatted.formatBasis,
-      ...(conflict ? { status: "conflicting" as const } : {}) } } : {}), evidenceBasis: "linked_deck_list" as const }];
+      legalPrintingIds: formatted.formatBasis.legalPrintingIds?.filter((id) => ids.has(id)), unverifiedPrintingIds: [] } } : {}), evidenceBasis: "linked_deck_list" as const }];
   }));
 }

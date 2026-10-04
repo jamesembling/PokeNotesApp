@@ -679,7 +679,7 @@ async function verifyReplayCollection(db, userId, original) {
       { name: "Fixture Charm", hp: null, category: "Trainer", trainerType: "Tool", rules: ["The Pokémon this card is attached to gets +100 HP."] },
     ].map((card, index) => ({ source: "tcgdex", sourceCardId: `e2e-definition-${index}`, setId: "synthetic", localId: String(index),
       setReleaseDate: "2025-01-01", stage: card.category === "Pokemon" ? "Basic" : null, types: card.category === "Pokemon" ? ["Grass"] : null,
-      evolvesFrom: null, regulationMark: null, abilities: index === 0
+      evolvesFrom: null, regulationMark: "H", abilities: index === 0
         ? [{ name: "Fixture Glow", text: "Once during your turn, you may draw a card.", type: "Ability" }] : [],
       attacks: card.category === "Pokemon" ? [{ name: "Tap", text: null, damage: "10", cost: ["Grass"] }] : [], sourceUpdatedAt: null,
       sourceUrl: `https://api.tcgdex.net/v2/en/cards/e2e-definition-${index}`, syncedAt: new Date().toISOString(), ...card }));

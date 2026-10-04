@@ -1,23 +1,8 @@
+import siteFormatOptions from "./site-format-options.json";
+
 const FORMAT_CODE_PATTERN = /\b([A-Z0-9]{3}-[A-Z0-9]{3}(?:\/[A-Z0-9]{3})?)\b/g;
 
-export const SITE_FORMAT_OPTIONS = [
-  "TEF-30C",
-  "TEF-PBL",
-  "TEF-CRI",
-  "TEF-POR",
-  "SVI-ASC",
-  "SVI-PFL",
-  "SVI-MEG",
-  "SVI-WHT/BLK",
-  "SVI-DRI",
-  "SVI-JTG",
-  "BRS-PRE",
-  "BRS-SSP",
-  "BRS-SCR",
-  "Expanded",
-  "GLC",
-  "PTCG Pocket"
-] as const;
+export const SITE_FORMAT_OPTIONS: readonly string[] = siteFormatOptions;
 
 const NON_STANDARD_SITE_FORMATS = new Set<(typeof SITE_FORMAT_OPTIONS)[number]>([
   "Expanded",

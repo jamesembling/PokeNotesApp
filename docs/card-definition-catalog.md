@@ -8,9 +8,9 @@ The source is [TCGdex](https://tcgdex.dev/reference/card), a community-maintaine
 
 The source adapter retains printed HP, category, stage, types, evolution source, regulation mark, set release date, trainer effects and all supplied Ability/attack text, attack cost and damage. Every definition includes its source URL and collection timestamp. GraphQL currently omits the REST `updated` field, so `sourceUpdatedAt` is normally null rather than fabricated; a REST fallback retains the supplied update time. Generic Pokémon ex/ACE SPEC rule-box text is not generally supplied. Missing rules, HP and effect fields remain unknown; a missing effect name is retained as an empty name with its supplied text, and cannot exclude that candidate using observed effects.
 
-`coverage: complete` means every matching candidate from one completed **provider-listed English physical-card corpus** was loaded, with pagination/count validation. It does not claim every physical printing has been catalogued by the provider. `sourceCoverage` reports the explicit scope, listed-printing count and sets whose listing is shorter than their stated physical count. Pokémon TCG Pocket (`serie.id = tcgp`) is excluded because its identically named cards have different rules.
+`coverage: complete` means every relevant matching candidate within a completed generation’s declared scope was loaded, with pagination/count validation. Legacy generations declare the provider-listed English physical archive; retained generations declare supported Standard floors and omitted modern-printing diagnostics. It does not claim every physical printing has been catalogued by the provider. `sourceCoverage` reports the explicit scope, listed-printing count and sets whose listing is shorter than their stated physical count. Pokémon TCG Pocket (`serie.id = tcgp`) is excluded because its identically named cards have different rules.
 
-On 3 October 2026 the provider listed 21,290 physical printings across 205 sets. Six sets had incomplete listings: `wp` 0/7, `jumbo` 0/160, `sp` 0/10, `rc` 0/25, `tk-sm-l` 18/30 and `mfb` 34/48. These are source coverage gaps, not permission to infer missing printings. A missing candidate remains missing. Agreement and printed HP are statements about the available corpus and carry its provenance.
+In the read-only 4 October 2026 capture the provider listed 21,290 physical printings across 205 sets. Six sets had incomplete listings: `wp` 0/7, `jumbo` 0/160, `sp` 0/10, `rc` 0/25, `tk-sm-l` 18/30 and `mfb` 34/48. These are source coverage gaps, not permission to infer missing printings. A missing candidate remains missing. Agreement and printed HP are statements about the available corpus and carry its provenance.
 
 The unenriched provider audit also found 107 Pokémon printings with both effect lists empty, 35 printings with unnamed effects, and 27 Trainer definitions without supplied text. In that original data, Solrock `tk-xy-latio-12`/`tk-xy-latio-26` and Combusken `np-9` could not establish the absence of an HP-changing Ability. Exact-printing enrichment described below fills verified gaps; remaining incomplete records retain explicit uncertainty. A compatible incomplete printing can leave effective HP unknown even when printed HP agrees. The effect projection retains an uncertainty marker so dropping missing effects cannot manufacture a certain action classification or movement origin.
 
@@ -18,9 +18,78 @@ The unenriched provider audit also found 107 Pokémon printings with both effect
 
 Run `npm run sync:card-definitions -- --dry-run` to validate the entire source without any database writes. The sync reads a complete set/card-ID manifest, requests full card definitions in GraphQL alias batches of 100, and rechecks the manifest before publication. It uses the documented [GraphQL endpoint](https://tcgdex.dev/graphql) and the verified `card(id: "eq:<printing-id>")` field. The explicit equality operator is required: unqualified GraphQL IDs use substring matching (for example `g1-28` otherwise returns `g1-28a`). The provider's nested `set.cards` returns brief records and is not used as full card evidence. Source content is collected over a bounded run, not an upstream transactional snapshot.
 
-A write run stages one new generation. GraphQL schema failures scoped to a requested card alias are reread through that exact printing’s REST endpoint; the same identity and shape checks still apply. Any missing response, inconsistent identity, unrecoverable GraphQL error, changed manifest, database error or mismatched row count stops publication. A service-role-only invoker RPC validates the exact count and atomically publishes the generation pointer. Staged records are hidden from public clients. Completed rows and metadata cannot be changed; row locks serialize staging writes against publication. Retention keeps two completed snapshots and at least 24 hours for in-flight readers. Failed staging generations become eligible for cleanup only after another successful publication.
+A write run validates the full upstream privately, selects the retained Standard pool, then stages only that reduced generation. GraphQL schema failures scoped to a requested card alias are reread through that exact printing’s REST endpoint; the same identity and shape checks still apply. Any missing response, inconsistent identity, unrecoverable GraphQL error, changed manifest, database error or mismatched row count stops publication. A service-role-only invoker RPC validates the exact count and atomically publishes the generation pointer. Staged records are hidden from public clients. Completed rows and metadata cannot be changed; row locks serialize staging writes against publication. Retention keeps two completed snapshots and at least 24 hours for in-flight readers. Failed staging generations become eligible for cleanup only after another successful publication.
 
-The `Refresh card definitions` GitHub workflow runs weekly and supports a manual dry run (default). It requires the `Production` environment's `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, and only accepts `main`. It publishes reference rows, never DDL. The additive migration must first pass the controlled **Deploy production database** workflow. A saved workflow is not proof that the schedule, secrets or first publication work: verify a successful write run and its active-generation readback after deployment.
+The `Refresh card definitions` GitHub workflow runs daily at 03:20 UTC and supports a manual dry run (default). It requires the `Production` environment's `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, and only accepts `main`. It publishes reference rows, never DDL. The additive migration must first pass the controlled **Deploy production database** workflow. A saved workflow is not proof that the schedule, secrets or first publication work: verify a successful write run and its active-generation readback after deployment.
+
+## Stored Standard scope
+
+`retention.mjs` uses the same pure legality policy as Replay, with explicit
+`purpose: retention`. The current Standard comes from the first supported entry
+in the shared site-format configuration. The stored union also includes Standard
+floors required by saved games; publication pages only the saved `format` field
+and rechecks that inventory before staging and immediately before publication.
+The genuine September 2025 SVI games require G retention. September/October 2026
+games use the actual-date H rotation even when their expansion label is stale.
+
+Supported Basic Energy joins the union. Older printings are retained only when
+eligible under a retained floor; an older alias-admission path is not implemented
+here. Provider `Normal` alone is insufficient, and no older alias is admitted
+from equal fragments or a null wildcard. Unknown modern marks stay in
+compact per-floor/name/exact-set/date/named-effect diagnostics; they are not stored as
+selectable cards. Unknown older artwork does not add an operative family or
+weaken a known legal family. No manual deletion or broad archive fallback occurs.
+
+`source_coverage` retains the upstream manifest hash/count separately from the
+stored row count, versioned policy, retained formats/floors, unsupported saved
+formats, source listing gaps, and omitted-printing diagnostics. A name lookup
+preserves raw retained-union rows for exact recorded printing lookup. The resolver
+applies actual-date floor and observed-effect narrowing to contextual completeness.
+Non-exact name-domain completeness requires a valid game date no later than the
+UTC day of the valid `retainedOn` producer instant. Timestamped game queries use their UTC day; exact
+date-only values retain their calendar day. Invalid or timezone-free timestamps
+cannot borrow a sliced date prefix. Missing dates or later games leave a local coverage
+gap. This is a UTC-day horizon, not an intraday live-catalogue guarantee: same-day
+games remain within the reviewed day, while unseen provider changes after the
+capture instant carry no intraday guarantee. Known future launch exclusions remain
+indexed and block a later same-day query when they could have become available. A single retained exact set/collector match bypasses unrelated omitted
+same-name printings and this inventory horizon: later variants cannot change that
+immutable printing. Incomplete, unavailable or stale overall load coverage is
+never repaired by an exact identity. Unsupported/blank formats and unretained floors produce a local coverage
+gap. An exact recorded printing outside the retained union remains unavailable
+unless supplied separately with verified identity; the loader does not silently
+fetch or restore the full archive.
+
+A physical release date cannot prove a printing was unavailable in Pokémon TCG
+Live. Exact set and expected provider-date mappings use independently verified
+official digital launch instants; a date-only game on that launch day remains
+uncertain. Other same-day or future paper dates remain unverified. Omitted
+diagnostics include known future exclusions so a later game cannot silently lose
+them, and legacy diagnostics missing an exact set ID cannot borrow a launch map.
+
+Publication independently recomputes both retained rows and all scope metadata
+from the validated private upstream input. The producer passes its full capture
+instant for digital availability. Before staging, publication requires every
+upstream row to carry one identical valid timestamp, exactly matching
+`source_coverage.retainedOn`; a separately forged future horizon or mixed capture
+is rejected. Calendar-only legacy scope remains readable. `expected_count` is the reduced row
+count, while `source_manifest_hash` remains the full upstream identity manifest.
+The existing atomic RPC and immutable-generation lifecycle remain unchanged.
+The first reduced publication keeps the previous full generation as its backup;
+a later verified reduced publication may retire it through the normal two-snapshot
+and at-least-24-hour policy. Active rows and total stored rows must be measured
+separately. No DDL or manual cleanup is required.
+
+`--dry-run --output /tmp/retained.json` performs no database reads or writes and
+writes the reduced rows plus `/tmp/retained.json.generation.json` scope metadata.
+Optional `--upstream-output /tmp/private-upstream.json` preserves the validated full
+capture separately. Dry runs use the reviewed saved-format inventory; a write
+run obtains it live. All shared-definition consumers use the same public lookup;
+legacy full-archive generation metadata remains supported during rollout. The
+controlled reference workflow refreshes daily at 03:20 UTC so subsequent UTC
+days do not wait for a weekly refresh; failed or missing refreshes leave explicit
+local name-domain gaps and do not invalidate immutable printing facts. The
+separate effect and Pokémon-name catalogues are unchanged by this storage cut.
 
 ## Runtime and uncertainty
 
@@ -55,7 +124,7 @@ Resolution indexes names once, preserves every candidate and optionally narrows 
 
 The existing catalogue and replay tests own pure normalisation, candidate agreement, trainer projection and consumer behavior. `sql/verification/card-definition-catalog.sql` exercises staged visibility, public read-only grants, exact-count publication, rollback, completed immutability and retention against the actual migration. Run it through the disposable local migration rehearsal after committing the migration and verification file. A separate two-session test is required to prove concurrent staging/publication behavior; a single-session SQL result must not be described as concurrency evidence.
 
-Release evidence must separately name migration deployment, first full published generation, workflow success, refreshed public payload and consumer verification. Until those steps succeed, this is a locally implemented foundation, not an active production catalogue.
+Initial full-catalogue release evidence separately records the original migration deployment and first full published generation. This retained-generation release uses that existing schema and must separately verify its reduced publication, workflow success, active/total row counts under the normal retention policy, refreshed public scope/payload and consumer behavior. Local gates do not establish successful production publication.
 
 ### Exact-printing historical enrichment
 
@@ -95,6 +164,106 @@ set manifest and one cached request per set that needs enrichment. Unavailable
 secondary data stops that attempted publication; the previous complete generation
 remains active. Remaining source gaps and conflicting text stay unknown.
 
+### Rule field evidence
+
+`ruleEvidence` separates the Pokémon rules field from provider row coverage.
+Older generations and omitted metadata mean `unknown`; neither `rules: null`
+nor an unreviewed empty array proves there is no Rule Box. Primary or pinned
+historical nonempty text has `verified_present` with `scope: supplied_text` and
+exact provider, revision, printing ID and source URL. This proves the supplied
+field text only. It does not certify that every printed rule or passive effect
+was captured. Normalization does not accept a caller's completeness status.
+
+Pokémon rules can now be supplemented independently of attack/Ability gaps,
+after the same strict historical printing identity and existing effect checks.
+For example, the primary and historical `swsh4-44` Pikachu VMAX definitions agree
+on the exact ID, set, collector number, 310 HP, VMAX stage, release date and
+G-Max Volt Tackle text, damage and Energy cost. Its historical VMAX rule can be
+retained with field provenance while leaving the primary attack/Ability arrays
+and printed HP unchanged. `sv06-130` still cannot join historical `sv6-130`:
+there is no heuristic set/printing alias or same-name rule inheritance. Missing,
+empty, malformed or conflicting secondary fields remain unverified.
+
+`scope: printed_rule_box` requires an authored exact-printing scan registry,
+whose identity, full rule text/status, inspection date, source URL and image
+SHA256 are validated on read. The independently re-inspected Solrock scans at
+`https://static.dextcg.com/cards/tk8a/12.png` and
+`https://static.dextcg.com/cards/tk8a/26.png` establish `verified_absent` for only
+`tk-xy-latio-12` and `tk-xy-latio-26`: each shows Basic Solrock, 80 HP, the
+recorded attacks, the exact collector number and no Rule Box. No other printing
+inherits that absence. Their reviewed rule evidence is separate from the older
+attack supplement's provenance.
+
+`hasCompletePokemonRuleBoxEvidence` is an opt-in proof prerequisite. It requires
+complete provider candidate rows and reviewed complete Rule Box evidence for
+every compatible Pokémon printing; sourced fragments, stale data, legacy rows
+and a single unknown candidate fail closed. It certifies only the Rule Box
+field. Abilities, Ancient Traits, held-item text and any other printed passive
+fields still require their own completeness and semantic checks. It is not
+enabled as a broad replay guard, and unknown rules do not hide independently
+known printed HP. A fresh reference generation, readback, refreshed caches and
+real saved-log verification remain separate release steps; no production
+publication is implied by this foundation change.
+
+### Complete printed passive fields
+
+`reviewed-pokemon-rules.json` is the durable exact-printing registry. In addition
+to the two Rule Box-only Solrock reviews, 50 separately approved full operative
+card reviews retain literal Rule Boxes and the complete Ability name/text/type
+set, with independently verified absence of any additional Ancient Trait,
+held-item or other passive text. Twenty-five of these printings have a Rule Box
+and twenty-five do not. Each entry retains exact primary identity, printed HP
+and stage, scan URL, SHA256 and inspection date. The private review report,
+local file paths and images are not runtime inputs. The source review artifact
+was frozen as SHA256
+`92aa36f93f5bbc781216d5adc12c903519e0e79ff4eed9a3ffa2919f6f2e1a55`.
+
+Optional `additionalPassiveTraits` retains intrinsic printed trait name/text/type
+outside the Ability field. Omitted or null is unknown; supplied empty arrays alone
+prove no absence. An exact full operative scan with approved absence may add an
+empty inventory fingerprint. Present or conflicting traits are preserved and
+refuse an absence certificate. This field does not describe held items attached
+to the Pokémon during a game.
+
+Optional `passiveEvidence` has `status: verified_complete` and
+`scope: printed_passive_inventory` only when the current exact Rule Box and
+complete primary Ability set/text still match that reviewed entry and the scan independently confirms
+there are no additional intrinsic printed passive traits. Review admission never replaces
+the primary Ability array. Missing, contradictory or additional Abilities may
+retain separately verified Rule Box evidence but cannot obtain whole-passive
+completeness. Metadata absent from older rows remains unknown and does not hide
+independently known printed HP. A stale certificate is removed on reviewed
+application; shape-valid older rows still retain source facts for stale Rule Box
+and passive certificates, while trusted
+completeness checks independently reject mismatched provenance or field inventory.
+Malformed metadata remains invalid. Full-sync producers use the stronger
+`isProducedCardDefinition` validator, so a new generation cannot publish stale or
+forged certificates merely because their shapes are compatible.
+
+`hasCompletePokemonPassiveEvidence` requires complete candidate row coverage
+and independently admitted complete passive fields for every compatible
+printing. It is separate from Rule Box-only completeness, and certifies the
+intrinsic printed source-text inventory rather than modeled semantics of every
+supplied effect. It does not certify format legality or held-item/attached-card
+inventory and effects. Replay consumers must still understand each relevant prevention, HP modifier,
+attack permission or other clause before certifying a causal route. Neither
+predicate is enabled as a broad replay behavior change by this catalog update.
+
+Three individually approved exact source correspondences have separate mapping
+evidence; there is no padding rule, set-ID rewrite or inferred reprint family:
+
+| Primary printing | Exact scan/source correspondence | Evidence |
+| --- | --- | --- |
+| `mep-025` | [MEP 25](https://limitlesstcg.com/cards/MEP/25), printed MEP EN 025 | Exact name, 300 HP, Basic stage, Run Errand and native attack match the primary definition; full scan URL/hash are in the registry. |
+| `mep-056` | [MEP 56](https://limitlesstcg.com/cards/MEP/56), printed MEP EN 056 | Exact printed identity and every supplied native effect match the primary definition; full scan URL/hash are in the registry. |
+| `2021swsh-11` | Historical `mcd21-11` and its [exact 11/25 scan](https://images.pokemontcg.io/mcd21/11_hires.png) | The exact McDonald's Collection 2021 set manifest, collector 11, Torchic name, 60 HP, Basic stage and Ember clause were independently reconciled. The reviewed card manifest SHA256 is `66dff89417c2867903cec3941552824fb291b0be5bbc4be190d0d6d204e3df23`; set manifest SHA256 is `9df2f1e4de63037925ced583afc1fa7cf807e0f1240b21f292f0eea2782a3859`. |
+
+The lower-resolution `30th-100` Yveltal scan was initially withheld by its
+independent reviewer. Root separately inspected the original full image and
+read the operative Ability/attack regions and J/30C EN 100/128 collector before
+approving its field completeness. That review does not certify the readability
+of tiny copyright text. Unreadable or unmapped future scans stay unknown.
+
 Two further reviewed overlays supply only the missing rules for HS Trainer Kit
 Energy Switch `tk-hs-g-21` (Gyarados 21/30) and `tk-hs-r-29` (Raichu 29/30).
 The exact English scans linked from [Border City Games](https://www.bordercitygames.ca/products/energy-switch-gyarados-hgss-trainer-kit-gyarados-raichu)
@@ -117,6 +286,43 @@ the hand. The overlay checks the exact source ID, set, collector number, name,
 category, supplied Item subtype and missing rules, retains the primary artwork
 and identity, and records only `rules` as supplemented. It does not borrow text
 from another printing.
+
+### Exact printed regulation evidence
+
+`reviewed-regulation-marks.json` admits only six independently inspected exact
+mark fields, with full scan URL/hash and review date. Grookey `2021swsh-8` has D;
+Yveltal `30th-100` has J. Chikorita `2021swsh-2`, Torchic `2021swsh-11`, Mew ex
+`cel25cc-CC013` and Metagross `30th-c-003` have no printed regulation mark.
+This distinguishes actual printed absence from a provider null; it does not
+certify older-card legality or functional reprint equivalence.
+
+The authored McDonald's 2021 correspondences for collectors 2, 8 and 11 were
+verified against the exact historical set/card manifests and full printed
+collector/footer, name, HP, stage and native effects. The Mew correspondence
+`cel25cc-CC013` to historical `cel25c-88_A` was independently checked against
+printed 88/92 EX LM and the anniversary stamp plus Versatile/Power Move.
+Metagross uses its exact Illudex `30th-c-003` scan, showing the anniversary mark
+and printed 11/113 EX Delta Species. This is a mark-only review: missing primary
+Delta Control/dual-type traits remain missing and cannot obtain a whole-passive
+certificate. These enumerated correspondences do not enable generic ID or
+collector translation. The four-card review receipt was frozen as SHA256
+`3208f7c5accaf148e591ed1aba5b05d4344ebbf9443cdc6d52336ac858aef71d`.
+
+### Source Energy type and mark spelling
+
+Optional `energyType` retains the exact source `Normal`/`Special` discriminator;
+omitted or null remains unknown. It is not a complete Basic Energy certificate.
+The inspected source labels some cards with clearly supplied Special Energy
+effects as `Normal`, so retention and replay classification must also require
+compatible intrinsic printed identity and effects. Old plain Darkness/Metal
+Energy names do not establish Basic status by themselves.
+
+Single-letter regulation values are canonicalized to uppercase, retaining
+`rawRegulationMark` when their source spelling differs. This preserves an exact
+supplied mark rather than inferring one from a name, release date or another
+printing. Missing, `None` and unsupported values remain unknown. The exact
+`mep-051` REST record independently confirmed lowercase `j`; its canonical value
+is `J`, with the original spelling retained.
 
 ### Published artwork
 

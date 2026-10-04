@@ -2,7 +2,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { normalizeText } from "@/lib/log-import/normalization";
 import { buildCardDefinitionIndex, resolveCardDefinition } from "./resolve";
 import { isCardDefinition } from "./source.mjs";
-import type { CardDefinition, CardDefinitionCoverage, CardDefinitionEvidenceByName, CardDefinitionEvidence } from "./types";
+import type { CardDefinition, CardDefinitionCoverage, CardDefinitionEvidenceByName, CardDefinitionEvidence, CardDefinitionQuery } from "./types";
 
 const TTL_MS = 5 * 60 * 1000;
 const MAX_GENERATION_AGE_MS = 14 * 24 * 60 * 60 * 1000;
@@ -13,8 +13,11 @@ const MAX_BATCH_ROWS = 10000;
 const cache = new Map<string, { expires: number; rows: CardDefinition[] }>();
 let activeCache: { id: string; completedAt: string; sourceCoverage: CardDefinitionEvidence["sourceCoverage"]; expires: number } | null = null;
 
-/** Batched public reference lookup, independent of account data and artwork resolution. */
-export async function loadCardDefinitions(names: readonly string[], signal?: AbortSignal): Promise<CardDefinitionEvidenceByName> {
+/** Batched raw retained-row lookup, independent of account data and artwork.
+ * Preserve the complete union candidates for exact recorded identity lookup;
+ * the following resolver applies format/date/effect scope from sourceCoverage. */
+export async function loadCardDefinitions(names: readonly string[], signal?: AbortSignal, _context?: Pick<CardDefinitionQuery, "declaredFormat" | "playedOn">): Promise<CardDefinitionEvidenceByName> {
+  void _context; // Context belongs to resolution; raw exact-printing lookup preserves the retained union.
   const uniqueNames = [...new Set(names.map(normalizeText).filter(Boolean))].sort();
   const result: CardDefinitionEvidenceByName = {};
   const empty = buildCardDefinitionIndex([]);
@@ -42,7 +45,7 @@ export async function loadCardDefinitions(names: readonly string[], signal?: Abo
     const missing: string[] = [];
     for (const name of uniqueNames) {
       const hit = cache.get(`${generationId}:${name}`);
-      if (hit && hit.expires > Date.now()) result[name] = resolveCardDefinition(buildCardDefinitionIndex(hit.rows), { name }, "complete", generationId, active.sourceCoverage);
+      if (hit && hit.expires > Date.now()) result[name] = resolveCardDefinition(buildCardDefinitionIndex(hit.rows), { name }, "complete", generationId);
       else missing.push(name);
     }
     const batches: string[][] = [];
@@ -71,7 +74,7 @@ export async function loadCardDefinitions(names: readonly string[], signal?: Abo
       } catch { coverage = "unavailable"; }
       const index = buildCardDefinitionIndex(rows);
       for (const name of batch) {
-        result[name] = resolveCardDefinition(index, { name }, coverage, generationId, active.sourceCoverage);
+        result[name] = resolveCardDefinition(index, { name }, coverage, generationId);
         if (coverage === "complete") {
           cache.set(`${generationId}:${name}`, { expires: Date.now() + TTL_MS, rows: index.get(name) ?? [] });
           while (cache.size > MAX_CACHE_NAMES) cache.delete(cache.keys().next().value!);

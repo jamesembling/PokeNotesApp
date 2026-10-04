@@ -8,10 +8,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageWidth } from "@/components/ui/PageWidth";
 import { ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
-import { resolveBattleLogEffectCatalogEvidence, resolveBattleLogEffectEvidenceFromRows, createBattleLogEffectEvidenceResolver } from "@/lib/battle-log/effect-catalog";
-import { buildCardDefinitionIndex, definitionEffectRows, resolveCardDefinition } from "@/lib/card-definition-catalog/resolve";
+import { resolveBattleLogEffectCatalogEvidence } from "@/lib/battle-log/effect-catalog";
+import { createReplayEffectEvidenceResolver } from "@/lib/battle-replay/effect-evidence";
 import { loadCardDefinitions } from "@/lib/card-definition-catalog/server";
-import { normalizeText } from "@/lib/log-import/normalization";
 import { collectReplayDefinitionNames, collectReplayOwnerCardCounts, collectReplayOwnerCardNames } from "@/lib/battle-replay/metadata";
 import type { ReplayEffectKind } from "@/lib/battle-replay/types";
 import { compileBattleReplay } from "@/lib/battle-replay/compiler";
@@ -42,23 +41,14 @@ export default async function ReplayPage({ params, searchParams }: {
   const signal = AbortSignal.timeout(2500);
   const [legacyEvidence, loadedDefinitions, linkedDeckList] = await Promise.all([
     withinBounds ? resolveBattleLogEffectCatalogEvidence(rawLines, signal) : Promise.resolve({ rows: [] }),
-    loadCardDefinitions(definitionNames, signal),
+    loadCardDefinitions(definitionNames, signal, { declaredFormat: log.format, playedOn: log.date }),
     preliminary && preliminary.status !== "unsupported" && log.linkedDeckListId ? getDeckListById(user.id, log.linkedDeckListId, log.linkedDeckId) : Promise.resolve(null),
   ]);
-  const cardDefinitions = Object.fromEntries(Object.entries(loadedDefinitions).map(([name, evidence]) => [name,
-    resolveCardDefinition(buildCardDefinitionIndex(evidence.candidates), { name, declaredFormat: log.format }, evidence.coverage, evidence.generation, evidence.sourceCoverage)]));
   const linkedCompatibility = linkedDeckList && preliminary ? getReplayLinkedDeckListCompatibility(linkedDeckList.parsedCards,
     collectReplayOwnerCardNames(preliminary, "self"), collectReplayOwnerCardCounts(preliminary, "self")) : undefined;
   const selfCardDefinitions = linkedDeckList && linkedCompatibility?.status === "compatible" ? getLinkedReplayDefinitions(linkedDeckList.parsedCards, loadedDefinitions,
-    await loadReplaySetCodes(linkedDeckList.parsedCards, loadedDefinitions), log.format) : undefined;
-  const completeDefinitions = Object.values(cardDefinitions).filter((evidence) => evidence.coverage === "complete" && evidence.candidates.length);
-  const verifiedNames = new Set(completeDefinitions.flatMap((evidence) => evidence.candidates.map((card) => normalizeText(card.name))));
-  const rows = [
-    ...legacyEvidence.rows.filter((row) => !verifiedNames.has(normalizeText(row.normalized_card_name || row.card_name))),
-    ...definitionEffectRows(completeDefinitions.flatMap((evidence) => evidence.candidates)),
-  ];
-  const catalogEvidence = resolveBattleLogEffectEvidenceFromRows(rawLines, rows);
-  const effectResolver = createBattleLogEffectEvidenceResolver(rows);
+    await loadReplaySetCodes(linkedDeckList.parsedCards, loadedDefinitions), log.format, log.date) : undefined;
+  const effectResolver = createReplayEffectEvidenceResolver(loadedDefinitions, legacyEvidence.rows, { declaredFormat: log.format, playedOn: log.date });
   const supportedTags = new Set<string>(["ability", "attack", "item", "supporter", "tool", "stadium"]);
   const effectTags: Record<string, ReplayEffectKind> = {};
   const effectOrigins: Record<string, "hand" | "deck" | "discard"> = {};
@@ -72,8 +62,8 @@ export default async function ReplayPage({ params, searchParams }: {
     actionIndex++;
   }
   for (const rawLine of rawLines) {
-    const tag = catalogEvidence.tags.get(rawLine.trim());
-    const origin = catalogEvidence.origins.get(rawLine.trim());
+    const tag = effectResolver.tag(rawLine);
+    const origin = effectResolver.origin(rawLine);
     if (origin) effectOrigins[rawLine] = origin;
     if (tag && supportedTags.has(tag)) effectTags[rawLine] = tag as ReplayEffectKind;
   }
