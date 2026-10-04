@@ -48,6 +48,11 @@ export type CardDefinition = {
   evolvesFrom: string | null;
   regulationMark: string | null;
   regulationEvidence?: CardRegulationEvidence;
+  /** Exact same-provider REST field receipt; never certifies printed absence. */
+  regulationMarkProvenance?: {
+    provider: "tcgdex-rest"; sourceCardId: string; sourceUrl: string; payloadSha256: string;
+    fetchedAt: string; sourceUpdatedAt: string | null; originalRegulationMark: string | null; suppliedRegulationMark: string;
+  };
   /** Preserve explicitly supplied source spelling when a mark is canonicalized. */
   rawRegulationMark?: string;
   /** Exact source discriminator; omitted/null remains unknown. */

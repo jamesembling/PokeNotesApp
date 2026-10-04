@@ -1,3 +1,7 @@
 import type { CardDefinition, CardDefinitionSourceCoverage } from "./types";
+export type CardDefinitionPublicationRegression = {kind:string;sourceCardId?:string;fields?:string[];domain?:string;floor?:string;before?:number;after?:number};
+export type ReferencePublicationHold = {activeGenerationId:string;activeCompletedAt:string;activeRetainedOn:string|null;proposedRetainedOn:string;reasons:CardDefinitionPublicationRegression[]};
+export type ReferencePublicationHoldError = Error & {code:"REFERENCE_PUBLICATION_REGRESSION";referencePublication:ReferencePublicationHold};
 export function readSavedFormatInventory(client: unknown): Promise<string[]>;
+export function getCardDefinitionPublicationRegressions(active: {generationId?:string;sourceCoverage: CardDefinitionSourceCoverage;definitions:readonly CardDefinition[]}, proposal: {sourceCoverage:CardDefinitionSourceCoverage;definitions:readonly CardDefinition[];upstreamDefinitions?:readonly CardDefinition[]}): CardDefinitionPublicationRegression[];
 export function publishCardDefinitionGeneration(client: unknown, input: { generationId: string; sourceManifestHash: string; sourceCoverage: CardDefinitionSourceCoverage; definitions: readonly CardDefinition[]; upstreamDefinitions: readonly CardDefinition[]; expectedSavedFormats: readonly string[] }): Promise<{generationId:string;storedPrintings:number;readbackVerified:true}>;

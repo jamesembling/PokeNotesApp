@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { extractBattleLogActionCardCandidate } from "@/lib/battle-log/action-tags";
@@ -16,9 +20,10 @@ import { cardDefinitionAvailability, cardDefinitionPlayedDay, ptcglStandardRotat
 import { syntheticCardDefinition as definition } from "./fixtures/battle-replay-game";
 import { loadCardDefinitions } from "@/lib/card-definition-catalog/server";
 import { applyHistoricalEffectEnrichment, applyReviewedPrintingEffects, HISTORICAL_REVISION } from "@/lib/card-definition-catalog/enrichment.mjs";
+import { needsTcgdexRegulationMarkCompletion, applyTcgdexRegulationMarkCompletion } from "@/lib/card-definition-catalog/tcgdex-regulation.mjs";
 import { normalizeTcgdexCard, isCardDefinition, isCardRuleEvidence, isProducedCardDefinition } from "@/lib/card-definition-catalog/source.mjs";
 import { selectRetainedCardDefinitions, getCardDefinitionScopeCoverage, getCardDefinitionSnapshotCoverage, currentStandardFormat } from "@/lib/card-definition-catalog/retention.mjs";
-import { publishCardDefinitionGeneration } from "@/lib/card-definition-catalog/publication.mjs";
+import { publishCardDefinitionGeneration, getCardDefinitionPublicationRegressions, type ReferencePublicationHoldError } from "@/lib/card-definition-catalog/publication.mjs";
 import { applyReviewedRegulationMark, hasVerifiedPrintedRegulationMarkAbsence } from "@/lib/card-definition-catalog/regulation-evidence.mjs";
 import { applyReviewedPokemonRuleBox } from "@/lib/card-definition-catalog/rule-evidence.mjs";
 import { createReplayEffectEvidenceResolver } from "@/lib/battle-replay/effect-evidence";
@@ -252,6 +257,112 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   const rawEnergy = normalizeTcgdexCard({ id: "synthetic-3", localId: "3", name: "Basic Fire Energy", category: "Energy", energyType: "Normal", set: { id: "synthetic" } }, { id: "synthetic" }, crispin.syncedAt);
   assert.equal(rawEnergy.energyType, "Normal");
   assert.equal(isProducedCardDefinition(rawEnergy), true);
+  const markSet = { id: "synthetic", releaseDate: "2026-01-01" };
+  const missingMark = { id: "synthetic-2", localId: "2", name: "Seedling", category: "Pokemon", hp: 70,
+    stage: "Basic", types: ["Grass"], regulationMark: null, set: { id: "synthetic" },
+    attacks: [{ name: "Tap", effect: "", damage: "10", cost: ["Grass"] }] };
+  const restMarked = { ...missingMark, regulationMark: "j", attacks: [{ ...missingMark.attacks[0], damage: 10 }], updated: "2026-01-01T00:00:00Z" };
+  const completeMark = applyTcgdexRegulationMarkCompletion(missingMark, restMarked, markSet, crispin.syncedAt, normalizeTcgdexCard);
+  const completedMarkDefinition = normalizeTcgdexCard(completeMark, markSet, crispin.syncedAt);
+  assert.equal(completedMarkDefinition.regulationMark, "J");
+  assert.equal(completedMarkDefinition.rawRegulationMark, "j");
+  assert.equal(completedMarkDefinition.regulationMarkProvenance?.suppliedRegulationMark, "j");
+  assert.equal(completedMarkDefinition.regulationEvidence, undefined, "community source text is not reviewed scanned mark evidence");
+  assert.equal(isProducedCardDefinition(completedMarkDefinition), true);
+  assert.deepEqual(completedMarkDefinition.attacks, normalizeTcgdexCard(missingMark, markSet, crispin.syncedAt).attacks, "mark-only supplementation preserves primary operative facts");
+  assert.equal(missingMark.regulationMark, null, "completion preserves the original captured payload");
+  for (const regulationMark of ["h"]) assert.equal(needsTcgdexRegulationMarkCompletion({ ...missingMark, regulationMark }, markSet), false, "already supplied single-letter marks are preserved without unqueried disagreement claims");
+  for (const releaseDate of ["2020-02-06"]) assert.equal(needsTcgdexRegulationMarkCompletion(missingMark, { ...markSet, releaseDate }), false, "pre-mark historical rows are outside the completion request budget");
+  assert.equal(needsTcgdexRegulationMarkCompletion({ ...missingMark, category: "Energy", name: "Basic Grass Energy", energyType: "Normal", attacks: [] }, markSet), false);
+  for (const regulationMark of [null, "None"]) assert.equal(applyTcgdexRegulationMarkCompletion(missingMark, { ...restMarked, regulationMark }, markSet, crispin.syncedAt, normalizeTcgdexCard), missingMark, "missing REST marks remain unknown");
+  for (const regulationMark of ["invalid", "K", {}]) assert.throws(() => applyTcgdexRegulationMarkCompletion(missingMark, { ...restMarked, regulationMark }, markSet, crispin.syncedAt, normalizeTcgdexCard), /regulation mark/);
+  for (const mismatch of [{ id: "synthetic-3" }, { localId: "02" }, { set: { id: "other" } }, { name: "Seedling ex" }, { category: "Trainer" }, { hp: 80 }, { types: ["Fire"] }, { attacks: [{ ...restMarked.attacks[0], damage: 20 }] }, { attacks: [{ ...restMarked.attacks[0], effect: "Different supplied text." }] }]) {
+    assert.throws(() => applyTcgdexRegulationMarkCompletion(missingMark, { ...restMarked, ...mismatch }, markSet, crispin.syncedAt, normalizeTcgdexCard), /identity|Conflicting/);
+  }
+  assert.throws(() => applyTcgdexRegulationMarkCompletion({ ...missingMark, effect: "Supplied rules." }, { ...restMarked, rules: ["Contradictory rules."] }, markSet, crispin.syncedAt, normalizeTcgdexCard), /Conflicting/);
+  for (const provenance of [{ sourceCardId: "other-2" }, { sourceUrl: "https://untrusted.invalid/card" }, { payloadSha256: "bad" }, { fetchedAt: "invalid" }, { originalRegulationMark: "H" }, { suppliedRegulationMark: "I" }]) {
+    assert.equal(isProducedCardDefinition({ ...completedMarkDefinition, regulationMarkProvenance: { ...completedMarkDefinition.regulationMarkProvenance!, ...provenance } }), false, "completion receipts must bind field, printing and public source");
+  }
+  const captureDirectory = mkdtempSync(join(tmpdir(), "card-definition-source-"));
+  t.after(() => rmSync(captureDirectory, { recursive: true, force: true }));
+  const syncModule = new URL("../lib/card-definition-catalog/sync.mjs", import.meta.url);
+  const publicationStub = `data:text/javascript,${encodeURIComponent('export async function readSavedFormatInventory() { return ["SVI-JTG", ""]; } export async function publishCardDefinitionGeneration() {     if (process.env.CARD_DEFINITION_FIXTURE_PUBLISH === "true") return;     const error = new Error("Publication held by fixture guard");     if (process.env.CARD_DEFINITION_FIXTURE_METADATA) {       error.code = "REFERENCE_PUBLICATION_REGRESSION";       error.referencePublication = { activeGenerationId: "11111111-1111-4111-8111-111111111111", activeCompletedAt: "2026-10-04T00:00:00Z", activeRetainedOn: null,         proposedRetainedOn: "2026-10-04T01:00:00Z", reasons: [{ kind: "retained_printing_removed", sourceCardId: "synthetic-2", extra: "private-detail" }], extra: "private-detail" };       if (process.env.CARD_DEFINITION_FIXTURE_METADATA === "invalid") error.referencePublication.activeCompletedAt = "private-client-detail";     }     throw error;   }')}`;
+  const producerHook = `function resolve(specifier, context, nextResolve) {
+    if (context.parentURL === ${JSON.stringify(syncModule.href)} && specifier === "./publication.mjs") return { url: ${JSON.stringify(publicationStub)}, shortCircuit: true };
+    return nextResolve(specifier, context);
+  }`;
+  const producerPreload = `data:text/javascript,${encodeURIComponent(`import * as module from "node:module";
+    if (module.registerHooks) module.registerHooks({ resolve: ${producerHook} });
+    else module.register(${JSON.stringify(`data:text/javascript,${encodeURIComponent(`export ${producerHook}`)}`)}, ${JSON.stringify(syncModule.href)});`)}`;
+  for (const sourceMode of ["error", "transport", "conflict", "reviewed", "dry", "published", "metadata", "invalid-metadata"] as const) {
+    const upstreamPath = join(captureDirectory, `${sourceMode}-upstream.json`), retainedPath = join(captureDirectory, `${sourceMode}-retained.json`);
+    const producerRunner = `
+      import { syncCardDefinitionCatalog } from ${JSON.stringify(syncModule.href)};
+      const card = ${JSON.stringify(sourceMode)} === "reviewed" ? { ...${JSON.stringify(missingMark)}, id: "2021swsh-11", localId: "11", name: "Torchic", hp: 60, set: { id: "2021swsh" } } : ${JSON.stringify(missingMark)};
+      const rest = { ...card, regulationMark: "j" };
+      const set = { id: card.set.id, releaseDate: "2026-01-01", serie: { id: "me" }, cards: [{ id: card.id, name: card.name }], cardCount: { total: 1 } };
+      globalThis.fetch = async (url) => {
+        let body;
+        if (url.endsWith("/v2/en/sets")) body = [{ id: set.id }];
+        else if (url.endsWith("/v2/en/sets/" + set.id)) body = set;
+        else if (url.endsWith("/v2/graphql")) body = ${JSON.stringify(sourceMode)} === "error" ? { data: { c0: null }, errors: [{ path: ["c0"], message: "schema mismatch" }] } : { data: { c0: card } };
+        else if (url.endsWith("/v2/en/cards/" + card.id)) {
+          if (${JSON.stringify(sourceMode)} === "transport") throw new Error("Fixture REST transport unavailable");
+          body = ${JSON.stringify(sourceMode)} === "conflict" ? { ...rest, hp: 80 } : rest;
+        }
+        else if (url.endsWith("/sets/en.json")) body = [];
+        else throw new Error("Unexpected fixture network request: " + url);
+        return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+      };
+      try { await syncCardDefinitionCatalog({ dryRun: ${JSON.stringify(sourceMode === "dry")}, outputPath: ${JSON.stringify(retainedPath)}, upstreamOutputPath: ${JSON.stringify(upstreamPath)}, logger: { log() {} } }); console.log("CAPTURE_SUCCESS"); }
+      catch (error) {
+        if (${JSON.stringify(sourceMode)} === "transport" && error.message === "Fixture REST transport unavailable"
+          || ${JSON.stringify(sourceMode)} === "conflict" && error.message.startsWith("Conflicting TCGdex REST hp:")
+          || ${JSON.stringify(sourceMode)} === "reviewed" && error.message.startsWith("Conflicting reviewed regulation mark:")) console.log("REFUSED_BEFORE_VALIDATED_OUTPUT");
+        else { if (error.message !== "Publication held by fixture guard") throw error; console.log("CAPTURE_BEFORE_PUBLICATION_HOLD"); }
+      }
+    `;
+    const producer = spawnSync(process.execPath, ["--import", producerPreload, "--input-type=module", "--eval", producerRunner], {
+      encoding: "utf8", timeout: 10000, maxBuffer: 256 * 1024,
+      env: { ...process.env, NODE_OPTIONS: "", SUPABASE_URL: "https://synthetic.invalid", SUPABASE_SERVICE_ROLE_KEY: "fixture-unused", CARD_DEFINITION_FIXTURE_PUBLISH: sourceMode === "published" ? "true" : "false", CARD_DEFINITION_FIXTURE_METADATA: sourceMode === "metadata" ? "valid" : sourceMode === "invalid-metadata" ? "invalid" : "" }
+    });
+    assert.equal(producer.status, 0, producer.stderr);
+    if (sourceMode === "transport" || sourceMode === "conflict" || sourceMode === "reviewed") {
+      assert.match(producer.stdout, /REFUSED_BEFORE_VALIDATED_OUTPUT/);
+      assert.equal(existsSync(upstreamPath), false, "failed completion never emits a validated generation or reaches publication");
+      assert.equal(existsSync(retainedPath), false);
+      const failedCapture = JSON.parse(readFileSync(join(`${upstreamPath}.responses`, "capture.json"), "utf8"));
+      assert.equal(failedCapture.status, "failed");
+      assert.equal(failedCapture.failurePhase, "provider_cards");
+      assert.equal(failedCapture.errorClass, "Error");
+      assert.equal(failedCapture.message, undefined, "error capture does not serialize client messages or credentials");
+      continue;
+    }
+    assert.match(producer.stdout, sourceMode === "dry" || sourceMode === "published" ? /CAPTURE_SUCCESS/ : /CAPTURE_BEFORE_PUBLICATION_HOLD/);
+    const captured = JSON.parse(readFileSync(upstreamPath, "utf8"));
+    assert.equal(captured[0].regulationMark, "J");
+    assert.equal(isProducedCardDefinition(captured[0]), true);
+    assert.equal(existsSync(`${retainedPath}.generation.json`), true, "a rejected publisher leaves validated rows and scope inspectable");
+    const responses = `${upstreamPath}.responses`, index = JSON.parse(readFileSync(join(responses, "capture.json"), "utf8"));
+    assert.equal(index.status, sourceMode === "dry" ? "dry_run_validated" : sourceMode === "published" ? "published" : "failed");
+    if (sourceMode !== "dry" && sourceMode !== "published") {
+      assert.equal(index.failurePhase, sourceMode === "metadata" ? "pre_staging_guard" : "publication");
+      assert.equal(index.errorClass, "Error");
+      if (sourceMode === "metadata") {
+        assert.equal(index.referencePublication.activeGenerationId, "11111111-1111-4111-8111-111111111111");
+        assert.deepEqual(index.referencePublication.reasons, [{ kind: "retained_printing_removed", sourceCardId: "synthetic-2" }]);
+        assert.equal(index.referencePublication.extra, undefined);
+      } else assert.equal(index.referencePublication, undefined, "malformed or arbitrary error data stays out of the public capture");
+      assert.doesNotMatch(JSON.stringify(index), /private-detail|private-client-detail|fixture-unused/);
+    }
+    assert.equal(index.parsedJsonOnly, true);
+    const graph = JSON.parse(readFileSync(join(responses, "graphql-synthetic-2.json"), "utf8"));
+    if (sourceMode === "error") assert.equal(graph.payload.data.c0, null, "error fallback archives the failed alias without replacing it");
+    if (sourceMode === "metadata") assert.equal(graph.payload.data.c0.regulationMark, null, "raw sparse payload is archived before completion and remains available after the structured publication hold");
+    const responseBytes = readFileSync(join(responses, `rest-${sourceMode === "error" ? "error" : "mark"}-synthetic-2.json`));
+    assert.equal(JSON.parse(responseBytes.toString()).regulationMark, "j");
+    if (sourceMode !== "error") assert.equal(captured[0].regulationMarkProvenance.payloadSha256, createHash("sha256").update(responseBytes).digest("hex"), "field receipt binds the exact stored parsed payload bytes");
+  }
   const torchic = definition({ sourceCardId: "2021swsh-11", setId: "2021swsh", localId: "11", name: "Torchic", hp: 60, stage: "Basic", regulationMark: null, sourceUrl: "https://api.tcgdex.net/v2/en/cards/2021swsh-11" });
   const reviewedMark = applyReviewedRegulationMark(torchic);
   assert.equal(hasVerifiedPrintedRegulationMarkAbsence(torchic), false);
@@ -265,6 +376,11 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   assert.equal(isCardDefinition(forgedMark), true);
   assert.equal(isProducedCardDefinition(forgedMark), false);
   assert.equal(hasVerifiedPrintedRegulationMarkAbsence(forgedMark), false);
+  const workflow = readFileSync(new URL("../.github/workflows/sync-card-definitions.yml", import.meta.url), "utf8");
+  assert.match(workflow, /--upstream-output "\$RUNNER_TEMP\/card-definitions-upstream\.json" --output "\$RUNNER_TEMP\/card-definitions-retained\.json"/);
+  assert.match(workflow, /name: Retain validated public reference capture\s+if: always\(\)/);
+  assert.match(workflow, /card-definitions-upstream\.json\.responses/);
+  assert.match(workflow, /retention-days: 14/);
   const cli = new URL("../sync-card-definition-catalog.mjs", import.meta.url);
   const syncStub = `data:text/javascript,${encodeURIComponent('export async function syncCardDefinitionCatalog(options) { console.log("CLI_SYNC_ARGS:" + JSON.stringify(options)); }')}`;
   const resolveHook = `function resolve(specifier, context, nextResolve) {
@@ -354,17 +470,36 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   assert.equal(getCardDefinitionScopeCoverage(undefined, "Seedling"), "complete", "legacy full generations stay compatible");
   const withoutGaps = selectRetainedCardDefinitions([retainedCard, olderCard], { savedFormats: [currentStandardFormat()], retainedOn: retainedCard.syncedAt, sourceManifestHash: sourceHash });
   const calls: Array<{ table: string; data?: unknown }> = [];
+  const activeCompletedAt = "2026-10-04T00:03:00.000Z";
   let formatReads = 0, changedFormats = false;
+  let activeSnapshot: { generationId: string; sourceCoverage: typeof withoutGaps.sourceCoverage; definitions: ReturnType<typeof definition>[] } | null = null;
+  let pointerReads = 0, changedPointerAt = 0, pointerFailure = false, incompleteGeneration = false, rowCountChange = false, duplicateRows = false, truncatedPage = false, completedWithoutPointer = false;
   const client = {
     from(table: string) {
       return {
-        select() { return this; }, order() { return this; }, eq() { return this; },
-        async range() { formatReads++; return { data: [{ format: changedFormats && formatReads > 1 ? "SVI-POR" : currentStandardFormat() }], count: 1, error: null }; },
-        async single() { return { data: { generation_id: "retained-generation" }, error: null }; },
+        select() { return this; }, order() { return this; }, eq() { return this; }, not() { return this; },
+        async limit() { return { data: null, count: completedWithoutPointer ? 1 : 0, error: null }; },
+        async range(start: number, end: number) {
+          if (table === "logs") { formatReads++; return { data: [{ format: changedFormats && formatReads > 1 ? "SVI-POR" : currentStandardFormat() }], count: 1, error: null }; }
+          const definitions = activeSnapshot?.definitions ?? [];
+          return { data: definitions.slice(start, truncatedPage ? start + 1 : end + 1).map((card, index) => ({ generation_id: activeSnapshot?.generationId, source_card_id: duplicateRows && index ? definitions[0].sourceCardId : card.sourceCardId,
+            definition: duplicateRows && index ? definitions[0] : card })), count: definitions.length + (rowCountChange && start > 0 ? 1 : 0), error: null };
+        },
+        async maybeSingle() {
+          pointerReads++;
+          return { data: changedPointerAt === pointerReads ? { generation_id: "concurrent-generation" } : activeSnapshot ? { generation_id: activeSnapshot.generationId } : null,
+            error: pointerFailure ? { message: "pointer unavailable" } : null };
+        },
+        async single() {
+          return { data: table === "card_definition_active" ? { generation_id: activeSnapshot?.generationId } : {
+            id: activeSnapshot?.generationId, completed_at: incompleteGeneration ? null : activeCompletedAt,
+            expected_count: activeSnapshot?.definitions.length, source_coverage: activeSnapshot?.sourceCoverage,
+          }, error: null };
+        },
         async insert(data: unknown) { calls.push({ table, data }); return { error: null }; },
       };
     },
-    async rpc(name: string) { calls.push({ table: name }); return { error: null }; },
+    async rpc(name: string) { calls.push({ table: name }); activeSnapshot = { generationId: publishInput.generationId, sourceCoverage: publishInput.sourceCoverage, definitions: publishInput.definitions }; return { error: null }; },
   };
   const publishInput = { generationId: "retained-generation", sourceManifestHash: sourceHash, sourceCoverage: withoutGaps.sourceCoverage, definitions: withoutGaps.definitions, upstreamDefinitions: [retainedCard, olderCard], expectedSavedFormats: [currentStandardFormat()] };
   await publishCardDefinitionGeneration(client, publishInput);
@@ -391,6 +526,84 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   await assert.rejects(publishCardDefinitionGeneration(client, { ...publishInput, upstreamDefinitions: [retainedCard, { ...olderCard, syncedAt: "2026-10-04T00:01:00.000Z" }] }), /Invalid upstream generation capture/);
   await assert.rejects(publishCardDefinitionGeneration(client, { ...publishInput, upstreamDefinitions: [retainedCard, { ...olderCard, syncedAt: "2026-10-04T25:00:00Z" }] }), /Invalid upstream generation capture/);
   assert.equal(calls.length, writesBeforeInvalidCapture, "forged horizons and mixed source instants fail before staging");
+  changedFormats = false;
+  const baselineSnapshot = { generationId: "active-retained", sourceCoverage: withoutGaps.sourceCoverage, definitions: withoutGaps.definitions };
+  const proposalFor = (upstreamDefinitions: ReturnType<typeof definition>[], savedFormats = publishInput.expectedSavedFormats) => {
+    const selected = selectRetainedCardDefinitions(upstreamDefinitions, { savedFormats, retainedOn: retainedCard.syncedAt, sourceManifestHash: sourceHash });
+    return { ...publishInput, ...selected, upstreamDefinitions, expectedSavedFormats: savedFormats };
+  };
+  const noStaging = async (proposal = publishInput, expected: RegExp = /held before staging/) => {
+    calls.length = 0; formatReads = 0; pointerReads = 0;
+    await assert.rejects(publishCardDefinitionGeneration(client, proposal), expected);
+    assert.equal(calls.length, 0, "a failed baseline or regression check must stage no rows and call no publication RPC");
+  };
+  activeSnapshot = baselineSnapshot; pointerFailure = true;
+  await noStaging(publishInput, /pointer read failed/); pointerFailure = false;
+  activeSnapshot = null; completedWithoutPointer = true;
+  await noStaging(publishInput, /pointer is missing/); completedWithoutPointer = false; activeSnapshot = baselineSnapshot;
+  incompleteGeneration = true;
+  await noStaging(publishInput, /incomplete or malformed/); incompleteGeneration = false;
+  changedPointerAt = 2;
+  await noStaging(publishInput, /snapshot changed before staging/); changedPointerAt = 0;
+  calls.length = 0; formatReads = 0; pointerReads = 0;
+  await assert.rejects(publishCardDefinitionGeneration(client, proposalFor([retainedCard])), (error) => {
+    assert(error instanceof Error);
+    const hold = error as ReferencePublicationHoldError;
+    assert.equal(hold.code, "REFERENCE_PUBLICATION_REGRESSION");
+    assert.deepEqual(hold.referencePublication, {
+      activeGenerationId: baselineSnapshot.generationId,
+      activeCompletedAt,
+      activeRetainedOn: retainedCard.syncedAt,
+      proposedRetainedOn: retainedCard.syncedAt,
+      reasons: [{ kind: "upstream_count_shrink", before: 2, after: 1 }],
+    });
+    return true;
+  });
+  assert.equal(calls.length, 0, "structured public hold metadata does not stage rows or activate a generation");
+  await noStaging(proposalFor([{ ...retainedCard, sourceCardId: "replacement-printing", localId: "99" }, olderCard]), /retained_printing_removed/);
+  await noStaging(proposalFor([retainedCard, olderCard, unknownModern]), /diagnostic_domain_added/);
+  for (const withdrawn of [{ ...retainedCard, hp: null }, { ...retainedCard, hp: 90 }, { ...retainedCard, attacks: [{ ...retainedCard.attacks[0], name: "Different supplied attack" }] }])
+    await noStaging(proposalFor([withdrawn, olderCard]), /operative_field_regression/);
+  const manyDefinitions = Array.from({ length: 501 }, (_, index) => ({ ...retainedCard, sourceCardId: `synthetic-page-${index}`, localId: String(index + 1) }));
+  const manySelected = selectRetainedCardDefinitions(manyDefinitions, { savedFormats: publishInput.expectedSavedFormats, retainedOn: retainedCard.syncedAt, sourceManifestHash: sourceHash });
+  activeSnapshot = { generationId: "active-paginated", ...manySelected }; rowCountChange = true;
+  await noStaging(publishInput, /row inventory changed or failed/); rowCountChange = false;
+  duplicateRows = true;
+  await noStaging(publishInput, /malformed or duplicated/); duplicateRows = false;
+  truncatedPage = true;
+  await noStaging(publishInput, /pagination is incomplete/); truncatedPage = false;
+  activeSnapshot = baselineSnapshot; changedPointerAt = 3; calls.length = 0; formatReads = 0; pointerReads = 0;
+  await assert.rejects(publishCardDefinitionGeneration(client, publishInput), /Active reference changed.*remains unpublished/);
+  assert(calls.some((call) => call.table === "card_definition_catalog"));
+  assert.equal(calls.some((call) => call.table === "publish_card_definition_generation"), false, "a changed pointer after staging prevents activation"); changedPointerAt = 0;
+  const freeAttack = { ...retainedCard, attacks: [{ ...retainedCard.attacks[0], cost: [] }] };
+  activeSnapshot = { ...baselineSnapshot, definitions: [freeAttack] };
+  await noStaging(proposalFor([{ ...freeAttack, attacks: [{ ...freeAttack.attacks[0], cost: ["Fire"] }] }, olderCard]), /operative_field_regression/);
+  await noStaging(proposalFor([{ ...freeAttack, attacks: [{ ...freeAttack.attacks[0], cost: null }] }, olderCard]), /operative_field_regression/);
+  activeSnapshot = baselineSnapshot;
+  const knownAdditionAndEnrichment = proposalFor([{ ...retainedCard, attacks: [{ ...retainedCard.attacks[0], text: "Supplied previously missing card text." }],
+    abilities: [{ name: "Supplied Ability", text: "Supplied intrinsic text.", type: "Ability" }], sourceUpdatedAt: "2026-10-04", imageUrl: "https://assets.tcgdex.net/en/sv/synthetic/1/high.webp" },
+    olderCard, { ...retainedCard, sourceCardId: "new-legal-printing", localId: "99" }]);
+  assert.deepEqual(getCardDefinitionPublicationRegressions(baselineSnapshot, knownAdditionAndEnrichment), [], "legal additions, unknown intrinsic fields and omitted Ability inventory enrichment, and cosmetic/provenance updates are all allowed");
+  const legacyArchive = { definitions: [{ ...retainedCard, attacks: [] }, olderCard], sourceCoverage: { scope: "tcgdex-listed-en-physical" as const, listedPrintings: 2, unlistedSets: [] } };
+  assert.deepEqual(getCardDefinitionPublicationRegressions(legacyArchive, publishInput), [], "authorized archive-to-retained shrink excludes old physical aliases and allows enrichment of an omitted attack inventory");
+  const changedSuffix = { ...withoutGaps.sourceCoverage, retainedFormats: ["TEF-NEW"], unverifiedPrintingsByFormat: { "TEF-NEW": {} } };
+  assert.deepEqual(getCardDefinitionPublicationRegressions(baselineSnapshot, { ...publishInput, sourceCoverage: changedSuffix }), [], "advisory suffix changes preserve the same retained floor");
+  const historical = selectRetainedCardDefinitions([retainedCard, olderCard], { savedFormats: ["SVI-POR", currentStandardFormat()], retainedOn: retainedCard.syncedAt, sourceManifestHash: sourceHash });
+  assert(getCardDefinitionPublicationRegressions({ generationId: "active-historical", ...historical }, publishInput).some((reason) => reason.kind === "retained_floor_removed"), "saved historical floors cannot silently disappear");
+  if (scoped.sourceCoverage.scope === "tcgdex-retained-standard-en-physical") {
+    const widened = structuredClone(scoped.sourceCoverage);
+    for (const byName of Object.values(widened.unverifiedPrintingsByFormat)) for (const gaps of Object.values(byName)) for (const gap of gaps) gap.effectNames = null;
+    assert(getCardDefinitionPublicationRegressions({ definitions: scoped.definitions, sourceCoverage: scoped.sourceCoverage }, { definitions: scoped.definitions, sourceCoverage: widened }).some((reason) => reason.kind === "diagnostic_domain_changed"), "same-ID diagnostic loss is detected as well as new IDs");
+  }
+  const diagnosticBaseline = { ...proposalFor([retainedCard, olderCard, unknownModern]), generationId: "active-diagnostic" };
+  activeSnapshot = diagnosticBaseline;
+  await noStaging(proposalFor([retainedCard, olderCard, { ...olderCard, sourceCardId: "replacement-old-alias", localId: "99" }]), /diagnostic_printing_removed/);
+  for (const gapChanged of [{ ...unknownModern, attacks: [] }, { ...unknownModern, attacks: [...unknownModern.attacks, { ...unknownModern.attacks[0], name: "Additional supplied attack" }] }, { ...unknownModern, setReleaseDate: "2026-08-01" }])
+    await noStaging(proposalFor([retainedCard, olderCard, gapChanged]), /diagnostic_domain_changed/);
+  const resolvedGap = proposalFor([retainedCard, olderCard, { ...unknownModern, regulationMark: "J" }]);
+  assert.deepEqual(getCardDefinitionPublicationRegressions(diagnosticBaseline, resolvedGap), [], "fresh exact known-legal metadata resolves an existing gap without carrying forward old rows");
+  activeSnapshot = baselineSnapshot;
   const suppliedTrait = [{ name: "Additional printed trait", text: "Supplied intrinsic text.", type: "Ancient Trait" }];
   const withTrait = applyReviewedPokemonRuleBox({ ...drakloakReviewed, additionalPassiveTraits: suppliedTrait });
   assert.equal(withTrait.passiveEvidence, undefined);

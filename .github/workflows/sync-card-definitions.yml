@@ -32,13 +32,54 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Refresh scoped public reference snapshot
+        id: refresh
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
           if [ "$DRY_RUN" = "true" ]; then
-            node sync-card-definition-catalog.mjs --dry-run
+            node sync-card-definition-catalog.mjs --dry-run --upstream-output "$RUNNER_TEMP/card-definitions-upstream.json" --output "$RUNNER_TEMP/card-definitions-retained.json"
           else
-            node sync-card-definition-catalog.mjs
+            node sync-card-definition-catalog.mjs --upstream-output "$RUNNER_TEMP/card-definitions-upstream.json" --output "$RUNNER_TEMP/card-definitions-retained.json"
           fi
+      - name: Retain validated public reference capture
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: card-definition-reference-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/card-definitions-upstream.json
+            ${{ runner.temp }}/card-definitions-upstream.json.responses
+            ${{ runner.temp }}/card-definitions-retained.json
+            ${{ runner.temp }}/card-definitions-retained.json.generation.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Report refresh outcome
+        if: always()
+        env:
+          REFRESH_OUTCOME: ${{ steps.refresh.outcome }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFile, readFile } from 'node:fs/promises';
+          let capture;
+          try { capture = JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/card-definitions-upstream.json.responses/capture.json`, 'utf8')); } catch {}
+          const outcomes = new Set(['success', 'failure', 'cancelled', 'skipped']);
+          const outcome = outcomes.has(process.env.REFRESH_OUTCOME) ? process.env.REFRESH_OUTCOME : 'unavailable';
+          const count = (value) => Number.isSafeInteger(value) && value >= 0 ? value : 'unavailable';
+          const safe = (value) => String(value ?? 'unavailable').replace(/[&<>|`\r\n\u0000]/g, (char) => `&#${char.charCodeAt(0)};`);
+          const hold = capture?.referencePublication;
+          const dayAfter = (value) => {
+            const day = typeof value === 'string' ? value.slice(0, 10) : '';
+            const time = /^\d{4}-\d{2}-\d{2}$/.test(day) ? Date.parse(`${day}T00:00:00Z`) : NaN;
+            return Number.isFinite(time) ? new Date(time + 86400000).toISOString().slice(0, 10) : 'unavailable';
+          };
+          const completed = Date.parse(hold?.activeCompletedAt);
+          const staleAfter = Number.isFinite(completed) ? new Date(completed + 14 * 86400000).toISOString() : 'unavailable';
+          const reasons = Array.isArray(hold?.reasons) ? hold.reasons : [];
+          const table = reasons.length ? `\n| Hold kind | Printing or floor | Fields |\n| --- | --- | --- |\n${reasons.slice(0, 50).map((reason) => `| ${safe(reason.kind)} | ${safe(reason.sourceCardId ?? reason.domain?.split('\u0000').at(-1) ?? reason.floor)} | ${safe(Array.isArray(reason.fields) ? reason.fields.join(', ') : '')} |`).join('\n')}\n\n${reasons.length} reasons; the complete list is in the capture artifact.\n` : '';
+          const phase = hold ? 'pre-staging regression guard' : capture?.failurePhase ?? capture?.status;
+          const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Card definition refresh\n\nRefresh step: **${outcome}**. Phase: ${safe(phase)}.\n\nUpstream printings: ${count(capture?.upstreamPrintings)}; retained printings: ${count(capture?.retainedPrintings)}.\n\nActive generation at hold: ${safe(hold?.activeGenerationId)}; completed: ${safe(hold?.activeCompletedAt)}. First new-game day outside that capture: ${dayAfter(hold?.activeRetainedOn)}. Whole-generation stale deadline: ${staleAfter}.\n${table}\n[Run and public reference artifacts](${runUrl}) are retained for 14 days when available. James owns failure review; use existing GitHub workflow notifications. A held daily refresh is a same-day incident: new games can lose name-domain coverage before the 14-day stale deadline. Review the logs, exact proposal and active generation before retry.\n\n[Held refresh recovery](https://github.com/jamesembling/PokeNotesApp/blob/main/docs/card-definition-catalog.md#held-refresh-recovery)\n`);
+          if (outcome === 'failure') console.log('::error::Card definition refresh failed. Review the capture and active generation today; new games can lose coverage before the 14-day stale deadline.');
+          NODE
