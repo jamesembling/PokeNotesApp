@@ -143,9 +143,15 @@ export type ReplayState = {
 
 export type ReplayBoardProjection = {
   basis: "plausible";
+  /** Surviving modeled states, never a probability or a proof count. */
+  selection?: { rules: string[]; alternatives: number };
+  /** Complete validated Bench presentation order for this whole witness. */
+  benchOrder?: string[];
   cards: Array<{
     id: string; name: string; position: "active" | "bench";
     damage: number; energy: string[]; tool?: string; underlyingNames: string[];
+    /** Existing guaranteed native objects only; no synthetic layer metadata. */
+    underlyingIds?: string[];
     plausibleFields: ReplayPlausibleField[];
     /** An effective maximum from a different allocation is not reusable. */
     hpUncertain?: true;
@@ -244,4 +250,12 @@ export type ReplayProgram = {
   };
   status: "supported" | "partial" | "unsupported";
   cardResolutions?: Record<string, ReplayCardResolution>;
+  /** Display-only selection and conservative fallback measurements. */
+  displayDiagnostics?: {
+    attackKoOrderConvention: "enabled" | "disabled" | "counterexample_disabled";
+    factsPeakAlternatives: number; displayPeakAlternatives: number;
+    factsBoundedOut: boolean; displayBoundedOut: boolean;
+    segments: Array<{ actor: ReplayActor; endEvent: number; reason: "complete" | "barrier" | "cap" | "no_candidate" | "contradiction"; alternatives: number; rules: string[] }>;
+    refusals: Array<{ actor: ReplayActor; stage: "producer" | "materializer"; reason: string; count: number; exampleFrames: number[] }>;
+  };
 };

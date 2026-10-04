@@ -50,6 +50,7 @@ import {
   shouldShowTransactionEvolutionStack,
   resolveReplayCardPreviewDefinition,
   resolveReplayBoardDisplay,
+  resolveReplayDisplayEvent,
 } from "@/lib/battle-replay/preview";
 import styles from "./battle-replay.module.css";
 
@@ -222,7 +223,7 @@ function CardFace({
     >
       {knockedOut ? <span key={`ko-${effectKey}`} className={styles.knockoutStamp} role="status" aria-label={`${card.name} was Knocked Out`}>KO</span> : null}
       {attackName ? <div key={`attack-${effectKey}`} className={styles.boardAttack} aria-hidden="true"><span className={styles.attackPulse} /></div> : null}
-      {damageTaken > 0 ? <span key={`damage-${effectKey}`} className={styles.attackDamage} role="status" aria-label={`${card.name} ${plausibleDamage ? "plausibly " : ""}took ${damageTaken} damage`}>{plausibleDamage ? "≈" : ""}−{damageTaken}</span> : null}
+      {damageTaken > 0 ? <span key={`damage-${effectKey}`} className={styles.attackDamage} role="status" aria-label={`${card.name} ${plausibleDamage ? "best-guess recipient: " : ""}took ${damageTaken} damage`}>−{damageTaken}</span> : null}
       <div className={styles.cardSurface}>
       {!faceDown && toolName ? <button type="button" className={`${styles.attachedEnergyCard} ${styles.attachedToolCard}`}
         aria-label={`Preview ${card.plausibleFields?.includes("tool") ? "plausibly " : ""}attached ${toolName}, representative Tool artwork`}
@@ -241,7 +242,8 @@ function CardFace({
         })}
       </div> : null}
       <button
-        aria-label={faceDown ? "Face-down Pokémon" : `Preview ${card.name}${abilityUsed ? ", ability used this turn" : ""}`}
+        aria-label={faceDown ? "Face-down Pokémon" : `Preview ${card.name}${abilityUsed ? ", ability used this turn" : ""}${plausibleAssignment || probableHp ? ", includes best-guess details" : ""}`}
+        title={plausibleAssignment || probableHp ? "Includes best-guess details. Open the card to see how they were chosen." : undefined}
         disabled={faceDown}
         className={`${styles.cardFace} ${styles.cardPreviewTrigger}`}
         onClick={() => onPreview({ ...card, abilityUsed })}
@@ -252,10 +254,10 @@ function CardFace({
             <CardArtwork card={card} alt={`${card.name}, representative card artwork`} sizes={compact ? "80px" : "144px"} />
             {card.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.damageBadge}>?</span> : card.damage > 0 ? (
               <span
-                aria-label={`${plausibleDamage ? "Plausible " : ""}${card.damage} damage`}
+                aria-label={`${plausibleDamage ? "Best guess: " : ""}${card.damage} damage`}
                 className={styles.damageBadge}
               >
-                {plausibleDamage ? "≈" : ""}{card.damage}
+                {card.damage}
               </span>
             ) : null}
             {abilityUsed ? (
@@ -271,7 +273,7 @@ function CardFace({
       {card.instanceUncertain && !faceDown ? <span className={styles.copyUncertain} title="The log establishes this Pokémon, but does not identify which same-name physical copy it is.">Copy uncertain</span> : null}
       <div aria-hidden={faceDown} className={styles.healthStatus} data-tone={remainingHp === null ? "unknown" : healthTone}>
         {remainingHp !== null && card.hp !== null ? <div
-          aria-label={`${card.name}: ${plausibleAssignment ? "plausible " : probableHp ? "probably " : ""}${remainingHp} of ${card.hp} HP remaining`}
+          aria-label={`${card.name}: ${plausibleAssignment || probableHp ? "best guess: " : ""}${remainingHp} of ${card.hp} HP remaining`}
           aria-valuemax={card.hp}
           aria-valuemin={0}
           aria-valuenow={remainingHp}
@@ -280,7 +282,7 @@ function CardFace({
         >
           <span style={{ transform: `scaleX(${healthPercent / 100})` }} />
         </div> : null}
-        <strong title={plausibleAssignment ? "Plausible copy assignment: one complete history fits the log, but other assignments remain possible." : undefined}>{plausibleAssignment ? "≈" : ""}{remainingHp !== null ? `${remainingHp} HP` : card.hp !== null ? `${card.hp} max HP · damage ?` : card.baseHp ? `${card.baseHp} printed HP · max ?` : "HP ?"}</strong>
+        <strong title={plausibleAssignment || probableHp ? "Best guess consistent with the log. Open the card for details." : undefined}>{remainingHp !== null ? `${remainingHp} HP` : card.hp !== null ? `${card.hp} max HP · damage ?` : card.baseHp ? `${card.baseHp} printed HP · max ?` : "HP ?"}</strong>
         {card.hpModifierBasis === "unverified_attachment" ? <span className={styles.probableHp}>Attached effect unverified</span> : null}
       </div>
     </div>
@@ -436,7 +438,7 @@ function TransactionCards({ actor, onPreview, previousState, stage, state }: { a
           <CardArtwork card={boardCard} alt={`${card.name}, representative card artwork`} sizes="112px" />
         </button>
         <ConditionMarkers conditions={boardCard.conditions} />
-        {boardCard.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.transactionDamageCounter}>?</span> : boardCard.damage ? <span aria-label={`${boardCard.plausibleFields?.includes("damage") ? "Plausible " : ""}${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.plausibleFields?.includes("damage") ? "≈" : ""}{boardCard.damage}</span> : null}
+        {boardCard.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.transactionDamageCounter}>?</span> : boardCard.damage ? <span aria-label={`${boardCard.plausibleFields?.includes("damage") ? "Best guess: " : ""}${boardCard.damage} damage`} className={styles.transactionDamageCounter}>{boardCard.damage}</span> : null}
         {abilityUsed ? <AbilityUsedMarker className={styles.transactionAbilityUsedMarker} /> : null}
         {boardCard.energy?.length ? <EnergyOrbs energy={boardCard.energy} className={styles.transactionEnergyOrbs} /> : null}
         {boardCard.tool ? <span className={styles.transactionTool}>Tool · {boardCard.tool}</span> : null}
@@ -526,6 +528,7 @@ function BoardCardPools({ cards, onPreview, side }: {
       const resolution = resolveReplayCardPreviewDefinition(card, { cardResolutions });
       return resolution?.hpBasis === "known" && resolution.printedHp ? [`${card.name} · ${resolution.printedHp} printed HP`] : [];
     }))];
+    if (!pool.cards.length && !locationGroups.length) return null;
     return <div className={styles.boardPool} key={pool.id} role="group" aria-label={`${side.name} card assignment evidence`}>
       <strong>{pool.cards.length ? `In play · ${assignmentKnown ? `with ${members[0]}` : "copy assignment unknown"}` : locationGroups.length ? "Card location evidence" : "Recorded printing evidence"}</strong>
       {pool.cards.length && !assignmentKnown ? <p>On one of: {members.join(", ")}</p> : null}
@@ -806,37 +809,22 @@ export function BattleReplay({
   const replayFrames = useMemo(() => program.frames.map((frame) => resolveReplayBoardDisplay(frame, program.cardResolutions)), [program.frames, program.cardResolutions]);
   const replaySource = program.source;
   const state = replayFrames[actionIndex];
+  const inferredBoardCards = (["self", "opponent"] as const).flatMap((actor) =>
+    [state[actor].active, ...state[actor].bench, ...(state[actor].unplaced ?? [])]
+      .filter((card): card is ReplayCard => Boolean(card))
+      .filter((card) => card.plausibleFields?.length || card.hpBasis === "probable")
+      .map((card) => ({ actor, card })),
+  );
+  const selectionRules = [...new Set((["self", "opponent"] as const).flatMap((actor) => program.frames[actionIndex].boardProjection?.[actor]?.selection?.rules ?? []))];
+  const previewActor = inferredBoardCards.find(({ card }) => card.id === previewedCard?.id)?.actor;
+  const previewSelectionRules = previewActor ? program.frames[actionIndex].boardProjection?.[previewActor]?.selection?.rules ?? [] : [];
   const inspectedDiscardSide = inspectedDiscard ? state[inspectedDiscard] : null;
   const discardIdentityIncomplete = inspectedDiscardSide?.discardCount == null || inspectedDiscardSide?.uncertainZones?.includes("discard") ||
     (inspectedDiscardSide?.discardCount ?? 0) > (inspectedDiscardSide?.discard.length ?? 0);
   const previousState = replayFrames[Math.max(0, actionIndex - 1)];
   const currentEvent = useMemo(() => {
     const recorded = actionIndex > 0 ? replayEvents[actionIndex - 1] : null;
-    if (!recorded) return recorded;
-    let stages = [...(recorded.transaction?.stages ?? [])];
-    let changed = false;
-    for (const actor of ["self", "opponent"] as const) {
-      const recipients: Array<{ card: ReplayCard; amount: number }> = [];
-      for (const move of program.frames[actionIndex].boardProjection?.[actor]?.moves ?? []) {
-        if (move.kind !== "damage" || !move.amount) continue;
-        const card = [state[actor].active, ...state[actor].bench].find((candidate) => candidate?.id === move.cardId);
-        if (card?.plausibleFields?.includes("damage")) recipients.push({ card, amount: move.amount });
-      }
-      if (!recipients.length) continue;
-      changed = true;
-      // Recorded stages use the factual projection's copy IDs. Replace that
-      // namesake group's recipients with this witness's current source moves.
-      const names = new Set(recipients.map(({ card }) => card.name));
-      const ids = new Set([state[actor].active, ...state[actor].bench].filter((card): card is ReplayCard => Boolean(card && names.has(card.name))).map((card) => card.id));
-      stages = stages.flatMap((stage) => {
-        if (stage.kind !== "damage" || stage.actor !== actor) return [stage];
-        const cards = stage.cards.filter((card) => !ids.has(card.id));
-        return cards.length ? [{ ...stage, cards }] : [];
-      });
-      for (const { card, amount } of recipients) stages.push({ kind: "damage", label: `${amount} damage · plausible recipient`, cards: [card], actor });
-    }
-    return !changed ? recorded : { ...recorded,
-      transaction: { actor: recorded.actor, title: recorded.summary, ...recorded.transaction, stages } };
+    return resolveReplayDisplayEvent(recorded, program.frames[actionIndex], state);
   }, [actionIndex, program.frames, replayEvents, state]);
   const finalSetupIndex = replayEvents.findIndex((event) => event.turn > 0);
   const atOpeningReveal = finalSetupIndex > 0 && actionIndex === finalSetupIndex;
@@ -1151,7 +1139,14 @@ export function BattleReplay({
     <ArtworkContext.Provider value={artwork}>
     <div className={styles.replayContainer}>
     <div className={styles.replay}>
-      <p className={styles.artNote}>Reconstructed from the saved Battle Log. Unrecorded information stays unknown. Artwork may show a representative printing.</p>
+      <p className={styles.artNote}>Reconstructed from the saved Battle Log. Hidden cards stay face down. Artwork may show a representative printing.</p>
+      {inferredBoardCards.length ? <details className={styles.artNote}>
+        <summary>Best guesses used for {inferredBoardCards.length} {inferredBoardCards.length === 1 ? "card" : "cards"}</summary>
+        <p>The replay chooses a consistent history where the log leaves a choice. Later evidence takes priority. Open a card to inspect its inferred details.</p>
+        {selectionRules.includes("log-order convention") ? <p>For adjacent knockouts after an attack, the chosen history prefers the Active Pokémon first in the log. This observed ordering is a best guess.</p> : null}
+        {selectionRules.includes("stable presentation slot") ? <p>When evolution leaves a choice, the replay prefers to keep the card in its existing board slot. Later evidence can change that choice.</p> : null}
+        {selectionRules.includes("earliest-created source tie-break") ? <p>Remaining ties use the order cards first entered play.</p> : null}
+      </details> : null}
 
       <div className={styles.matchMeta}>
         <div><span>Matchup</span><strong>{replaySource.selfDeck} vs {replaySource.opponentDeck}</strong></div>
@@ -1260,7 +1255,7 @@ export function BattleReplay({
         {program.status === "partial" ? <details className={styles.replayDiagnostics}>
           <summary>Partial replay · {program.diagnostics.unresolvedMutations} unresolved {program.diagnostics.unresolvedMutations === 1 ? "change" : "changes"}</summary>
           <p>Recorded actions remain available. Unresolved changes are labelled in the timeline.</p>
-          {program.frames.some((frame) => frame.boardProjection) ? <p>≈ marks a plausible assignment from one consistent history. Other histories still fit the log; these choices are kept separate from proven facts.</p> : null}
+          {program.frames.some((frame) => frame.boardProjection) ? <p>Where the log leaves a choice, the board shows a consistent best guess. Open a card to inspect the inferred details.</p> : null}
           <ul>{program.diagnostics.messages.map((message, index) => <li key={index}>{message}</li>)}</ul>
         </details> : null}
 
@@ -1315,19 +1310,26 @@ export function BattleReplay({
               <div className={styles.cardPreviewImage}>
                 <CardArtwork card={previewedCard} alt={`${previewedCard.name}, enlarged representative card artwork`} sizes="340px" />
                 <ConditionMarkers conditions={previewedCard.conditions} />
-                {previewedCard.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.cardPreviewDamage}>?</span> : previewedCard.damage ? <span aria-label={`${previewedCard.plausibleFields?.includes("damage") ? "Plausible " : ""}${previewedCard.damage} damage`} className={styles.cardPreviewDamage}>{previewedCard.plausibleFields?.includes("damage") ? "≈" : ""}{previewedCard.damage}</span> : null}
+                {previewedCard.damageKnown === false ? <span aria-label="Accumulated damage unknown" className={styles.cardPreviewDamage}>?</span> : previewedCard.damage ? <span aria-label={`${previewedCard.plausibleFields?.includes("damage") ? "Best guess: " : ""}${previewedCard.damage} damage`} className={styles.cardPreviewDamage}>{previewedCard.damage}</span> : null}
                 {previewedCard.abilityUsed ? <AbilityUsedMarker className={styles.previewAbilityUsedMarker} /> : null}
                 {previewedCard.tool ? <span className={styles.cardPreviewTool}>Tool · {previewedCard.tool}</span> : null}
                 {previewedCard.energy?.length ? <EnergyOrbs energy={previewedCard.energy} className={styles.previewEnergyOrbs} /> : null}
               </div>
               {previewedCard.hp && previewedCard.damageKnown !== false ? <div className={styles.cardPreviewHealth} data-tone={previewHealthTone}>
-                <div aria-label={`${previewAssignmentIsPlausible ? "Plausible " : previewHpIsProbable ? "Probably " : ""}${Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} of ${previewedCard.hp} HP remaining`} aria-valuemax={previewedCard.hp} aria-valuemin={0} aria-valuenow={Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} role="progressbar">
+                <div aria-label={`${previewAssignmentIsPlausible || previewHpIsProbable ? "Best guess: " : ""}${Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} of ${previewedCard.hp} HP remaining`} aria-valuemax={previewedCard.hp} aria-valuemin={0} aria-valuenow={Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} role="progressbar">
                   <span style={{ width: `${Math.max(0, ((previewedCard.hp - (previewedCard.damage ?? 0)) / previewedCard.hp) * 100)}%` }} />
                 </div>
-                <strong>{previewAssignmentIsPlausible ? "Plausible " : previewHpIsProbable ? "Probably " : ""}{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
-              </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewHpIsProbable ? "Probably " : ""}{previewedCard.hp ? `${previewedCard.hp} maximum HP · damage ? · remaining HP ?` : previewedCard.baseHp ? `${previewedCard.baseHp} printed HP · maximum and remaining HP ?` : "HP ?"}</p> : null}
-              {previewedCard.hp === undefined && previewDefinition?.printedHp ? <p className={styles.previewUnknownHealth}>{previewDefinition.hpBasis === "probable" ? "Probably " : ""}{previewDefinition.printedHp} HP</p> : null}
-              {previewAssignmentIsPlausible ? <p className={styles.previewUnknownHealth}>Plausible copy assignment · other histories fit the log</p> : null}
+                <strong>{Math.max(0, previewedCard.hp - (previewedCard.damage ?? 0))} / {previewedCard.hp} HP</strong>
+              </div> : previewedCard.hp === null || previewedCard.damageKnown === false ? <p className={styles.previewUnknownHealth}>{previewedCard.hp ? `${previewedCard.hp} maximum HP · damage ? · remaining HP ?` : previewedCard.baseHp ? `${previewedCard.baseHp} printed HP · maximum and remaining HP ?` : "HP ?"}</p> : null}
+              {previewedCard.hp === undefined && previewDefinition?.printedHp ? <p className={styles.previewUnknownHealth}>{previewDefinition.printedHp} HP</p> : null}
+              {previewAssignmentIsPlausible || previewHpIsProbable || previewedCard.hp === undefined && previewDefinition?.hpBasis === "probable" ? <details className={styles.previewUnknownHealth}>
+                <summary>Best guess details</summary>
+                {previewAssignmentIsPlausible ? <p>Inferred: {previewedCard.plausibleFields?.map((field) => field === "position" ? "copy assignment" : field === "underlying" ? "evolution stack" : field === "energy" ? "Energy holder" : field === "tool" ? "Tool holder" : "damage").join(", ")}. One consistent history is shown; other choices also fit the log.</p> : null}
+                {previewAssignmentIsPlausible && previewSelectionRules.includes("log-order convention") ? <p>This history prefers the Active Pokémon first in adjacent knockout lines after an attack.</p> : null}
+                {previewAssignmentIsPlausible && previewSelectionRules.includes("stable presentation slot") ? <p>Ambiguous evolution prefers the existing board slot; later evidence can change the choice.</p> : null}
+                {previewAssignmentIsPlausible && previewSelectionRules.includes("earliest-created source tie-break") ? <p>Remaining ties use the order cards first entered play.</p> : null}
+                {previewHpIsProbable || previewedCard.hp === undefined && previewDefinition?.hpBasis === "probable" ? <p>HP: {previewDefinition?.probableHpBasis === "same_owner_witnessed_family" ? "uses a printing family seen for this player elsewhere in the game" : previewDefinition?.probableHpBasis === "linked_deck_list" ? "uses the linked Deck List" : "uses a compatible printing from the card catalogue"}.</p> : null}
+              </details> : null}
             </div> : null}
           </AppDialogContent>
         </Dialog>

@@ -7,7 +7,7 @@ import { collectMissingReplayArtworkNames, resolveReplayArtwork, selectReplayArt
 import { createReplayHpContext, replayCardDefinitionEvidence } from "@/lib/battle-replay/hp";
 import { selectExactReplayArtwork } from "@/lib/battle-replay/selected-artwork-server";
 import { collectReplayDefinitionNames } from "@/lib/battle-replay/metadata";
-import { resolveEnergyMarkers, resolveReplayCardPreviewDefinition, resolveReplayBoardDisplay } from "@/lib/battle-replay/preview";
+import { resolveEnergyMarkers, resolveReplayCardPreviewDefinition, resolveReplayBoardDisplay, resolveReplayDisplayEvent } from "@/lib/battle-replay/preview";
 import { collectReplayPrintingProofs } from "@/lib/battle-replay/printing-proofs";
 import { replayCopyKey, solveReplayCopyConstraints, type CopyFact, type CopyStep } from "@/lib/battle-replay/copy-constraints";
 import { canonicalReplayGame, expectedGameChanges, syntheticCardDefinition, type ExpectedSide } from "./fixtures/battle-replay-game";
@@ -907,6 +907,78 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     allocationStep(1, "ability", { effect: "Native effect", effectAllowed: (card) => card.id === "has-native-effect" }),
   ], "display");
   assert.equal(incompatibleNativeAllocation.projection.get(2)?.get("self")?.cards.find((copy) => copy.card.abilityUsed)?.card.id, "has-native-effect", "a plausible activation cannot be assigned to a source-proven incompatible printing family");
+  const oldestBench = allocationCard("action-1-card-0");
+  const newerActive = { ...allocationCard("action-2-card-0"), position: "active" as const };
+  const orderedSteps = [
+    allocationStep(0, "create", { cards: [newerActive, oldestBench] }),
+    allocationStep(1, "ko", { attackKoBatch: { id: "adjacent-attack", index: 0, last: false } }),
+    allocationStep(2, "ko", { attackKoBatch: { id: "adjacent-attack", index: 1, last: true } }),
+  ];
+  const orderEnabled = solveReplayCopyConstraints(orderedSteps, "display", { endFrame: 6 });
+  const orderDisabled = solveReplayCopyConstraints(orderedSteps, "display", { attackKoOrderConvention: false, endFrame: 6 });
+  assert.equal(orderEnabled.projection.get(2)?.get("self")?.cards[0].card.id, oldestBench.card.id, "the attack-only ordering convention ranks one whole surviving history");
+  assert.equal(orderDisabled.projection.get(2)?.get("self")?.cards[0].card.id, newerActive.card.id, "ablation returns to source creation order, independent of input array order");
+  assert.equal(orderEnabled.bindings.size, 0, "a display convention never becomes a source-proven binding");
+  assert.equal(orderEnabled.displaySegments[0].rules.includes("log-order convention"), true);
+  const tailHistory = solveReplayCopyConstraints([allocationStep(0, "create", { cards: [oldestBench] }), allocationStep(1, "damage", { amount: 30 })], "display", { endFrame: 6 });
+  assert.equal(tailHistory.projection.get(5)?.get("self")?.cards[0].card.damage, 30, "unchanged supported history covers trailing source frames");
+  const stoppedHistory = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [oldestBench] }), allocationStep(1, "damage", { amount: 30 }),
+    allocationStep(2, "barrier", { cards: [{ ...oldestBench, card: { ...oldestBench.card, damageKnown: false, instanceUncertain: true } }] }),
+  ], "display", { endFrame: 6 });
+  assert.equal(stoppedHistory.projection.get(2)?.get("self")?.cards[0].card.damage, 30);
+  assert.equal(stoppedHistory.projection.has(3), false, "the selected prefix ends before an unsupported identity boundary");
+  const localSnapshot = { ...oldestBench, card: { ...oldestBench.card, damageKnown: false, instanceUncertain: true } };
+  const localBarrierHistory = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [oldestBench] }), allocationStep(1, "damage", { amount: 30 }),
+    allocationStep(2, "barrier", { name: "Other", barrierNames: ["Other"], cards: [localSnapshot] }),
+    allocationStep(3, "damage", { amount: 10 }),
+  ], "display", { endFrame: 6 });
+  assert.equal(localBarrierHistory.projection.get(4)?.get("self")?.cards[0].card.damage, 40,
+    "a local unsupported operation retains the same chosen whole prefix on a source-unaffected domain");
+  const overlappingBarrierHistory = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [oldestBench] }), allocationStep(1, "damage", { amount: 30 }),
+    allocationStep(2, "barrier", { name: "Other", barrierNames: ["Other", "Copy"], cards: [localSnapshot] }),
+    allocationStep(3, "damage", { amount: 10 }),
+  ], "display", { endFrame: 6 });
+  assert.equal(overlappingBarrierHistory.projection.has(4), false, "an overlapping uncertain component domain cannot inherit the chosen allocation");
+  assert.equal(overlappingBarrierHistory.displaySegments.some((segment) => segment.reason === "no_candidate"), true,
+    "an erased snapshot domain is a coverage gap, not a claimed illegal-game contradiction");
+  const laterBarrierWitness = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [oldestBench, allocationCard("action-2-card-0")] }),
+    allocationStep(1, "damage", { amount: 30 }),
+    allocationStep(2, "barrier", { name: "Other", barrierNames: ["Other"], cards: [localSnapshot, { ...allocationCard("action-2-card-0"), card: { ...allocationCard("action-2-card-0").card, instanceUncertain: true } }] }),
+    allocationStep(3, "ko", { targetId: "action-2-card-0", lethal: (card) => card.damage >= 30 }),
+  ], "display");
+  assert.equal(laterBarrierWitness.projection.get(2)?.get("self")?.cards.find((copy) => copy.card.id === "action-2-card-0")?.card.damage, 30,
+    "later hard evidence selects an alternative whole prefix retained across a source-unaffected local barrier");
+  assert.equal(laterBarrierWitness.displaySegments.some((segment) => segment.reason === "contradiction"), false);
+  const checkpointHistory = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [localSnapshot] }), allocationStep(1, "damage", { amount: 30 }),
+    allocationStep(2, "checkpoint", { cards: [{ ...oldestBench, card: { ...oldestBench.card, damage: 30 } }] }),
+    allocationStep(3, "damage", { amount: 10 }),
+  ], "display");
+  assert.equal(checkpointHistory.projection.has(2), false, "complete factual recovery does not backfill an erased interval");
+  assert.equal(checkpointHistory.projection.get(4)?.get("self")?.cards[0].card.damage, 40);
+  const temporalCheckpoint = solveReplayCopyConstraints([
+    allocationStep(0, "create", { cards: [{ ...oldestBench, entered: 0 }] }),
+    allocationStep(1, "evolve", { newName: "Evolved", timing: true }),
+    allocationStep(2, "checkpoint", { cards: [{ ...oldestBench, card: { ...oldestBench.card, name: "Evolved", underlying: [{ id: "source-layer", name: "Copy", imageUrl: "" }] } }] }),
+    allocationStep(3, "evolve", { name: "Evolved", newName: "Twice", timing: true }),
+  ], "display");
+  assert.equal(temporalCheckpoint.projection.get(3)?.get("self")?.cards[0].evolved, 1,
+    "compatible certainty snapshots cannot erase a surviving world's known evolution section");
+  assert.equal(temporalCheckpoint.displaySegments.some((segment) => segment.endEvent === 3 && segment.reason === "no_candidate"), true,
+    "a missing canonical snapshot timestamp cannot permit a second same-turn evolution");
+  const slotSteps = [allocationStep(0, "create", { cards: [{ ...oldestBench, card: { ...oldestBench.card, damage: 10 } }, allocationCard("action-2-card-0")] }),
+    allocationStep(1, "evolve", { newName: "Evolved", preferredId: "action-2-card-0" })];
+  const stableSlot = solveReplayCopyConstraints(slotSteps, "display");
+  assert.equal(stableSlot.projection.get(2)?.get("self")?.cards.find((copy) => copy.card.name === "Evolved")?.card.damage, 0,
+    "an evidence-tied evolution can prefer a stable presentation slot without preferring the oldest physical copy");
+  const overriddenSlot = solveReplayCopyConstraints([...slotSteps, allocationStep(2, "witness", { name: "Evolved", targetId: oldestBench.card.id, effect: "Native" })], "display");
+  assert.equal(overriddenSlot.projection.get(2)?.get("self")?.cards.find((copy) => copy.card.name === "Evolved")?.card.id, oldestBench.card.id,
+    "later hard evidence overrides the soft presentation-slot preference");
+  assert.equal(stableSlot.bindings.size, 0);
   const displayFrame = structuredClone(threeCopyRecon.frames[16]);
   displayFrame.self.bench.forEach((card) => { card.damageKnown = false; });
   const displayMembers = displayFrame.self.bench.map((card) => card.id);
@@ -919,10 +991,37 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   const boardDisplay = resolveReplayBoardDisplay(displayFrame);
   assert.equal(JSON.stringify(displayFrame), displayBefore, "materializing a plausible board never mutates its factual frame");
   assert.equal(boardDisplay.self.active, displayFrame.self.active, "unpatched known Pokémon and donor facts are preserved");
+  const orderedDisplay = structuredClone(displayFrame);
+  orderedDisplay.boardProjection!.self!.benchOrder = [...orderedDisplay.self.bench.map((card) => card.id)].reverse();
+  assert.deepEqual(resolveReplayBoardDisplay(orderedDisplay).self.bench.map((card) => card.id), orderedDisplay.boardProjection!.self!.benchOrder,
+    "a complete display Bench order carries selected lineage slots without rewriting native presentation identities");
+  orderedDisplay.boardProjection!.self!.benchOrder = [orderedDisplay.self.bench[0].id, orderedDisplay.self.bench[0].id];
+  assert.equal(resolveReplayBoardDisplay(orderedDisplay).self, orderedDisplay.self, "duplicate or incomplete Bench orders refuse");
   assert.deepEqual(boardDisplay.self.bench.map((card) => card.damage), [30, 0]);
   assert.ok(boardDisplay.self.bench.every((card) => card.plausibleFields?.includes("damage")));
   assert.equal(boardDisplay.self.bench.filter((card) => card.tool === "Brave Bangle").length, 1);
   assert.equal(boardDisplay.self.boardPools?.flatMap((pool) => pool.cards).length, 0, "the one materialized Tool is not also displayed as a second pooled copy");
+  const pooledLayerDisplay = structuredClone(displayFrame);
+  const nativeLayerIds = pooledLayerDisplay.self.bench.map((card) => card.underlying.map((layer) => layer.id));
+  const nativeLayerNames = pooledLayerDisplay.self.bench.map((card) => card.underlying.map((layer) => layer.name));
+  const nativeLayerObjects = pooledLayerDisplay.self.bench.flatMap((card) => card.underlying.map((layer) => ({ ...layer, boardRole: "evolution" as const })));
+  assert.ok(nativeLayerObjects.length > 0, "this allocation guard reuses real earlier native layer objects");
+  pooledLayerDisplay.self.boardPools = [{ id: "guaranteed-native-layers", memberIds: displayMembers, cards: nativeLayerObjects }];
+  pooledLayerDisplay.self.bench.forEach((card) => { card.underlying = []; card.instanceUncertain = true; });
+  pooledLayerDisplay.boardProjection!.self!.cards.forEach((patch, index) => {
+    delete patch.tool; patch.underlyingIds = nativeLayerIds[index]; patch.underlyingNames = nativeLayerNames[index];
+  });
+  const nativeLayerDisplay = resolveReplayBoardDisplay(pooledLayerDisplay);
+  assert.deepEqual(nativeLayerDisplay.self.bench.map((card) => card.underlying.map((layer) => layer.id)), nativeLayerIds,
+    "a complete allocation restores existing pooled native evolution objects exactly once");
+  assert.equal(nativeLayerDisplay.self.bench[0].underlying[0], nativeLayerObjects[0], "layer assignment preserves the original native metadata object");
+  assert.equal(nativeLayerDisplay.self.bench[0].plausibleFields?.includes("underlying"), true);
+  const duplicatedLayers = structuredClone(pooledLayerDisplay);
+  duplicatedLayers.boardProjection!.self!.cards[1].underlyingIds = nativeLayerIds[0];
+  assert.equal(resolveReplayBoardDisplay(duplicatedLayers).self, duplicatedLayers.self, "two projected stacks cannot reuse one physical native layer");
+  const inventedLayer = structuredClone(pooledLayerDisplay);
+  inventedLayer.boardProjection!.self!.cards[0].underlyingIds = ["not-an-existing-native-object"];
+  assert.equal(resolveReplayBoardDisplay(inventedLayer).self, inventedLayer.self, "names alone cannot mint an evolution metadata object");
   const partialPoolDisplay = structuredClone(displayFrame);
   partialPoolDisplay.boardProjection!.self!.cards = partialPoolDisplay.boardProjection!.self!.cards.slice(0, 1);
   const partialPoolBefore = JSON.stringify(partialPoolDisplay);
@@ -952,6 +1051,38 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   extraActiveDisplay.self.bench.forEach((card) => { card.instanceUncertain = true; });
   extraActiveDisplay.boardProjection!.self!.cards[0].position = "active";
   assert.equal(resolveReplayBoardDisplay(extraActiveDisplay).self, extraActiveDisplay.self, "a plausible position assignment cannot add a second Active Pokémon");
+  const partialDamageDisplay = structuredClone(displayFrame);
+  partialDamageDisplay.self.bench.forEach((card) => { card.instanceUncertain = true; });
+  partialDamageDisplay.self.bench[0].damage = 30;
+  partialDamageDisplay.self.bench[0].damageKnown = true;
+  assert.deepEqual(resolveReplayBoardDisplay(partialDamageDisplay).self.bench.map((card) => card.damage), [30, 0],
+    "a complete allocation retains each partially known damage value");
+  partialDamageDisplay.boardProjection!.self!.cards[0].damage = 0;
+  partialDamageDisplay.boardProjection!.self!.cards[1].damage = 60;
+  assert.equal(resolveReplayBoardDisplay(partialDamageDisplay).self, partialDamageDisplay.self,
+    "unknown damage on a namesake cannot erase an established 30-damage member value");
+  const mixedNameDamage = structuredClone(partialDamageDisplay);
+  mixedNameDamage.self.bench[1].name = "Other copy";
+  mixedNameDamage.boardProjection!.self!.cards[1].name = "Other copy";
+  mixedNameDamage.boardProjection!.self!.cards[1].damage = 30;
+  assert.equal(resolveReplayBoardDisplay(mixedNameDamage).self, mixedNameDamage.self,
+    "a connected component pool cannot preserve recorded damage on a different Pokémon name");
+  const unknownActiveDisplay = structuredClone(displayFrame);
+  const unplacedActive = unknownActiveDisplay.self.active!;
+  unknownActiveDisplay.self.active = null;
+  unknownActiveDisplay.self.activeUncertain = true;
+  unknownActiveDisplay.self.unplaced = [unplacedActive];
+  unknownActiveDisplay.boardProjection!.self!.cards.push({ id: unplacedActive.id, name: unplacedActive.name, position: "active", damage: unplacedActive.damage,
+    energy: [...unplacedActive.energy], underlyingNames: unplacedActive.underlying.map((card) => card.name), plausibleFields: ["position"] });
+  const remainingActive = resolveReplayBoardDisplay(unknownActiveDisplay).self;
+  assert.equal(remainingActive.active?.id, unplacedActive.id, "an evidenced unplaced survivor may occupy an unresolved Active slot in the complete witness");
+  assert.equal(remainingActive.activeUncertain, false);
+  assert.ok(remainingActive.active?.plausibleFields?.includes("position"));
+  unknownActiveDisplay.self.activeUncertain = false;
+  assert.equal(resolveReplayBoardDisplay(unknownActiveDisplay).self, unknownActiveDisplay.self, "a confirmed empty knockout interval cannot acquire a guessed Active");
+  unknownActiveDisplay.self.activeUncertain = true;
+  unknownActiveDisplay.self.unplaced = [];
+  assert.equal(resolveReplayBoardDisplay(unknownActiveDisplay).self, unknownActiveDisplay.self, "an unresolved Active slot cannot invent a surviving physical top");
   for (const frame of threeCopyRecon.frames) for (const actor of ["self", "opponent"] as const) {
     const side = frame[actor];
     assert.equal(side.deckCount! + side.handCount! + side.prizesRemaining! + side.inPlayCount! + side.discardCount!, 60);
@@ -1438,6 +1569,24 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(benchOnlyCounters.frames[5].opponent.active?.damage, 200);
   assert.notEqual(benchOnlyCounters.frames[5].opponent.active?.damageKnown, false, "Bench-only counter copy ambiguity cannot erase independently recorded Active attack damage");
   assert.ok(benchOnlyCounters.frames[5].opponent.bench.every((card) => card.damageKnown === false));
+  const counterFrame = benchOnlyCounters.frames[5];
+  const counterDisplay = resolveReplayBoardDisplay(counterFrame, benchOnlyCounters.cardResolutions);
+  const originalCounterEvent = JSON.stringify(benchOnlyCounters.events[4]);
+  const counterEvent = resolveReplayDisplayEvent(benchOnlyCounters.events[4], counterFrame, counterDisplay)!;
+  assert.equal(JSON.stringify(benchOnlyCounters.events[4]), originalCounterEvent, "display recipient remapping leaves the recorded transaction unchanged");
+  assert.ok(counterEvent.transaction!.stages.some((stage) => stage.kind === "damage" && stage.label === "200 damage"
+    && stage.cards.some((card) => card.id === counterFrame.opponent.active!.id)), "the independently known Active recipient survives a same-name plausible Bench recipient");
+  assert.equal(counterEvent.transaction!.stages.filter((stage) => stage.kind === "damage" && stage.label === "60 damage · plausible recipient").length, 1);
+  const ambiguousCounterEvent = structuredClone(benchOnlyCounters.events[4]);
+  ambiguousCounterEvent.transaction!.stages.push({ kind: "damage", label: "60 damage", cards: [counterFrame.opponent.bench[0]], actor: "opponent", targetResolved: false });
+  const replacedCounterEvent = resolveReplayDisplayEvent(ambiguousCounterEvent, counterFrame, counterDisplay)!;
+  assert.equal(replacedCounterEvent.transaction!.stages.filter((stage) => stage.kind === "damage").length, 2,
+    "only the matching unresolved increment is replaced; the known namesake's separate source increment remains");
+  const knownCounterEvent = structuredClone(counterEvent);
+  const knownRecipient = knownCounterEvent.transaction!.stages.find((stage) => stage.label === "60 damage · plausible recipient")!;
+  knownRecipient.label = "60 damage";
+  assert.equal(resolveReplayDisplayEvent(knownCounterEvent, counterFrame, counterDisplay), knownCounterEvent,
+    "an already resolved matching target and amount does not receive a duplicate projected increment");
 
 
   // Username-substituted source excerpt; unrelated actions are omitted. The

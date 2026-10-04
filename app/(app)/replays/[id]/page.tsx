@@ -86,7 +86,7 @@ export default async function ReplayPage({ params, searchParams }: {
     <PageHeader
       action={<PageActions><Button asChild variant="outline"><Link href={logHref} prefetch={false}>View Battle Log</Link></Button><Button asChild variant="outline"><Link href="/replays" prefetch={false}>Choose another game</Link></Button></PageActions>}
       breadcrumb={[{ label: "Poke Notes", href: "/dashboard" }, { label: "Battle Replay", href: "/replays" }, { label: "Replay" }]}
-      subtitle="Beta · Follow the recorded actions. Hidden information and unresolved events remain labelled."
+      subtitle="Beta · Replay the game from its saved Battle Log."
       title="Battle Replay"
     />
     {linkedCompatibility && linkedCompatibility.status !== "compatible" ? <p className="mb-4 text-sm text-muted-foreground" role="status">

@@ -2060,13 +2060,13 @@ button.pile:disabled {
 .attachedEnergyCards { position: absolute; inset: 0; z-index: 1; }
 .attachedEnergyCard {
   position: absolute;
-  z-index: calc(3 - var(--energy-layer));
+  z-index: calc(3 - var(--energy-layer, 0));
   inset: 0;
   width: 100%;
   aspect-ratio: 0.714;
   border-radius: 0.4rem;
   overflow: hidden;
-  transform: translateX(calc(var(--energy-exposure, 0.45rem) + var(--energy-layer) * var(--energy-layer-gap, 0.2rem)));
+  transform: translateX(calc(var(--energy-exposure, 0.45rem) + var(--energy-layer, 0) * var(--energy-layer-gap, 0.2rem)));
   box-shadow: 0 1px 4px color-mix(in oklab, var(--foreground) 20%, transparent);
 }
 .attachedEnergyCard:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
