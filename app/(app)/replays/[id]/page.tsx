@@ -89,9 +89,6 @@ export default async function ReplayPage({ params, searchParams }: {
       subtitle="Beta · Replay the game from its saved Battle Log."
       title="Battle Replay"
     />
-    {linkedCompatibility && linkedCompatibility.status !== "compatible" ? <p className="mb-4 text-sm text-muted-foreground" role="status">
-      The Deck List selected for this game {linkedCompatibility.status === "conflicting" ? "does not match its recorded cards" : "does not contain a valid 60-card list"}. Select the list you played in the <Link className="underline underline-offset-4" href={logHref} prefetch={false}>Battle Log</Link> to resolve your card details.
-    </p> : null}
     {program.status === "unsupported" ? <section className="flex flex-col items-start gap-3 border-t border-border py-6" aria-label="Replay unavailable">
       <ItemTitle as="h2">This Battle Log cannot be replayed yet</ItemTitle>
       <p className="max-w-prose text-sm text-muted-foreground">Its saved actions do not contain enough supported information. You can still read the original Battle Log.</p>
