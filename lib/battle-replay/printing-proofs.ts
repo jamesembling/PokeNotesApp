@@ -99,7 +99,7 @@ export function collectReplayPrintingProofs(
       // An identified native Ability may return its own stack to the deck in
       // the same source action. Its transaction is the surviving observation;
       // absence from the final board is not absence of printing evidence.
-      const staged = event?.transaction?.stages.filter((stage) => stage.targetResolved !== false)
+      const staged = event?.transaction?.stages.filter((stage) => stage.targetResolved !== false && !stage.collective)
         .flatMap((stage) => stage.cards.filter((card) => card.physicalCardId
           && (stage.actor === actor || !stage.actor && card.definitionOwner === actor)
           && (!card.definitionOwner || card.definitionOwner === actor))) ?? [];
@@ -162,7 +162,7 @@ function collectActivePrintingProofs(program: ReplayProgram, resolve: ResolvePri
       } else episodes.set(key, { actor, card, start: frameIndex, last: frameIndex, proofAt: frameIndex, effects: new Map(), rejected: false });
     }
     for (const stage of program.events[frameIndex - 1]?.transaction?.stages ?? []) {
-      if (!stage.actor || stage.targetResolved === false || !["attack", "ability"].includes(stage.kind)) continue;
+      if (!stage.actor || stage.targetResolved === false || stage.collective || !["attack", "ability"].includes(stage.kind)) continue;
       for (const card of stage.cards) {
         if (!card.activeEpisodeId || card.definitionOwner && card.definitionOwner !== stage.actor) continue;
         const episode = episodes.get(JSON.stringify([stage.actor, card.activeEpisodeId]));

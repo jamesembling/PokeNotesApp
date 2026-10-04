@@ -150,6 +150,8 @@ export type ReplayBoardProjection = {
   cards: Array<{
     id: string; name: string; position: "active" | "bench";
     damage: number; energy: string[]; tool?: string; underlyingNames: string[];
+    /** Whole-witness usage assignment, never a factual copy-use proof. */
+    abilityUsed?: boolean;
     /** Existing guaranteed native objects only; no synthetic layer metadata. */
     underlyingIds?: string[];
     plausibleFields: ReplayPlausibleField[];
@@ -158,7 +160,7 @@ export type ReplayBoardProjection = {
   }>;
   moves?: Array<{ sourceKey: string; kind: "damage" | "counters" | "attach" | "promote"; cardId: string; amount?: number }>;
 };
-export type ReplayPlausibleField = "damage" | "position" | "energy" | "tool" | "underlying";
+export type ReplayPlausibleField = "damage" | "position" | "energy" | "tool" | "underlying" | "abilityUsed";
 
 export type ReplayTransactionStage = {
   kind: "play" | "ability" | "attack" | "before" | "damage" | "discard" | "find" | "draw" | "attach" | "move" | "shuffle" | "bench" | "evolve" | "return" | "heal" | "stadium";
@@ -166,6 +168,8 @@ export type ReplayTransactionStage = {
   cards: ReplayZoneCard[];
   hiddenCount?: number;
   detail?: string;
+  /** Universal completion marker, not a simultaneous activation or native effect observation. */
+  collective?: true;
   damageModifier?: {
     kind: "weakness";
     type: string;

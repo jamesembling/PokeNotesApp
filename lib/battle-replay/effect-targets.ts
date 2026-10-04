@@ -2,7 +2,7 @@ import { normalizeText } from "@/lib/log-import/normalization";
 import type { CardDefinition, CardDefinitionEvidence } from "@/lib/card-definition-catalog/types";
 import type { ReplayEffectKind } from "./types";
 
-export type ReplayEffectOperation = "put_counters" | "move_counters" | "return_energy" | "stadium_activation" | "devolve" | "attach_energy" | "move_energy";
+export type ReplayEffectOperation = "put_counters" | "move_counters" | "return_energy" | "stadium_activation" | "devolve" | "attach_energy" | "move_energy" | "heal";
 export type ReplayEffectTarget = {
   /** Relative to the controller of the effect, never the log detail's possessive. */
   owner: "effect_actor" | "opponent" | "either" | "trigger";
@@ -22,6 +22,7 @@ export type ReplayEffectConstraint =
   | { status: "known"; operation: "devolve"; target: ReplayEffectTarget; pokemonType?: string; origin: "board"; destination: "hand"; layers: "evolution_suffix"; quantity: "any" }
   | { status: "known"; operation: "attach_energy"; target: ReplayEffectTarget; origin: "deck"; destination: "board"; basicEnergyType: string; quantity: CounterQuantity }
   | { status: "known"; operation: "move_energy"; from: ReplayEffectTarget; to: ReplayEffectTarget; origin: "board"; destination: "board"; basicOnly: true; quantity: CounterQuantity; distinctTargets: true }
+  | { status: "known"; operation: "heal"; target: ReplayEffectTarget; amount: number; afterAttachment?: { basicEnergyType: string; origin: "hand" } }
   | { status: "neutral" | "unmodelled" | "unavailable"; operation: ReplayEffectOperation };
 
 const cleanText = (text: string) => text.normalize("NFC").replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
@@ -51,6 +52,18 @@ function quantity(text: string): CounterQuantity | null {
  * records execution. Alternate target branches and unsupported selectors do. */
 function fromText(raw: string, operation: ReplayEffectOperation): ReplayEffectConstraint {
   const text = cleanText(raw);
+  if (operation === "heal") {
+    const attachment = /^Once during your turn, you may attach a Basic \{([A-Z])\} Energy card from your hand to 1 of your Pok[eé]mon\. If you attached Energy to a Pok[eé]mon in this way, heal (\d+) damage from that Pok[eé]mon\.$/i.exec(text);
+    const fixed = /^Heal (\d+) damage from (.+?)\.$/i.exec(text);
+    const amount = Number(attachment?.[2] ?? fixed?.[1]);
+    if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 6000) return unknown(operation);
+    if (attachment && pokemonTypes[attachment[1].toUpperCase()]) return { status: "known", operation,
+      target: { owner: "effect_actor", zone: "board" }, amount,
+      afterAttachment: { basicEnergyType: pokemonTypes[attachment[1].toUpperCase()], origin: "hand" },
+    };
+    const selected = fixed && target(fixed[2]);
+    return selected ? { status: "known", operation, target: selected, amount } : unknown(operation);
+  }
   if (operation === "move_energy") {
     return basicEnergyMovement(text) ? { status: "known", operation, origin: "board", destination: "board", basicOnly: true, quantity: { kind: "exact", value: 1 }, distinctTargets: true,
       from: { owner: "effect_actor", zone: "board" }, to: { owner: "effect_actor", zone: "board" },
@@ -96,10 +109,14 @@ function fromText(raw: string, operation: ReplayEffectOperation): ReplayEffectCo
   if (operation === "put_counters") {
     const clauses = [...text.matchAll(/\b(?:put|place) (up to \d+|\d+|a|all) damage counters? on (.+?)(?=\.|$)/gi)];
     if (!clauses.length) return /damage counters?/i.test(text) ? unknown(operation) : { status: "neutral", operation };
-    if (clauses.length !== 1 || /\bif (?:heads|tails)\b|\botherwise\b|\bfor each\b/i.test(text)) return unknown(operation);
+    if (clauses.length !== 1 || /\bif (?:heads|tails)\b|\botherwise\b/i.test(text)) return unknown(operation);
     const clause = clauses[0];
-    const suffix = clause[2].replace(/ in any way you like$/i, "");
-    const amount = quantity(clause[1]);
+    const multiplier = / for each (?:card in your hand|\{[DFGLMPRWYNC]\} Energy attached to (?:this Pok[eé]mon|all of your Pok[eé]mon))$/i.exec(clause[2]);
+    // One understood multiplier changes quantity only; the recorded number
+    // supplies that quantity. Branches and unknown selectors remain unmodelled.
+    if (/\bfor each\b/i.test(text) && (!multiplier || text.slice(0, clause.index).trim() !== "" || text.slice(clause.index! + clause[0].length).replace(/^\./, "").trim() !== "")) return unknown(operation);
+    const suffix = (multiplier ? clause[2].slice(0, multiplier.index) : clause[2]).replace(/ in any way you like$/i, "");
+    const amount = multiplier ? { kind: "any" as const } : quantity(clause[1]);
     if (!amount) return unknown(operation);
     if (/^each /i.test(suffix)) amount.perTarget = true;
     const selected = target(suffix);
