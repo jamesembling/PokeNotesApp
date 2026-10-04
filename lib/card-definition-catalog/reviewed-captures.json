@@ -1,0 +1,42 @@
+[
+  {
+    "id": "tcgdex-en-20261004-211538",
+    "source": "tcgdex",
+    "sha256": "91c2540b1bc1a3c159503437d48e19ab7710f482b7be5b7ef51617a62c9a89ce",
+    "bytes": 16929428,
+    "printings": 21290,
+    "syncedAt": "2026-10-04T21:15:38.682Z",
+    "expiresAt": "2026-10-05T21:15:38.682Z",
+    "sourceManifestHash": "e01b3abb2e5eb32656b2f33333c4f177ffc4dc952224963ae825a2bb1ef6c71f",
+    "acceptance": {
+      "savedFormats": ["", "SVI-ASC", "SVI-JTG", "SVI-PFL", "SVI-POR", "TEF-30C", "TEF-CRI", "TEF-PBL", "TEF-POR"],
+      "retainedSha256": "f69ce2bc197273f72760599cad081add74bf8fe57f9d4d96e0905df2788569e4",
+      "sourceCoverageSha256": "da18855b7e1fc3db2388567c153e4e5ffc1ff8d6badb4c1e67a9b59ba01c7b6e"
+    },
+    "unlistedSets": [
+      { "setId": "wp", "listed": 0, "physicalTotal": 7 },
+      { "setId": "jumbo", "listed": 0, "physicalTotal": 160 },
+      { "setId": "sp", "listed": 0, "physicalTotal": 10 },
+      { "setId": "rc", "listed": 0, "physicalTotal": 25 },
+      { "setId": "tk-sm-l", "listed": 18, "physicalTotal": 30 },
+      { "setId": "mfb", "listed": 34, "physicalTotal": 48 }
+    ],
+    "approval": {
+      "receiptSha256": "4346f76193337f9e84b14641368703eb92ad5759a9a0b654ee7960e7f59e07cf",
+      "sourceClosurePinSha256": "eb1795f033dfd1140c8a213eff32dba5ae9f8f8556c24e3240feb1163d4742bb",
+      "rawCaptureIndexSha256": "6221bf3e675de2331eb75c8e125e9b286b1756603fdb53cf5ac36786c5274c19",
+      "upstreamRepository": "tcgdex/cards-database",
+      "upstreamRevision": "c5c0a8a63fe81746d05b9c95e8f51ed6931f7e78",
+      "upstream191ComparisonSha256": "35aad4a05c9f2d0b1dd9ee201f883a836952140a8914948b790b7e8b2ba1954f",
+      "primarySourceVerificationSha256": "c709244a91482c1d2a150efbc177ef94f476dc0cc9b9dc49f9ceb2f47b6c4390",
+      "controlledCaptureComparisonSha256": "ab73ccd15eae4cb7dea39048f677368791edaa6ba694df028acde890cd2f1567"
+    },
+    "asset": {
+      "repository": "jamesembling/PokeNotesApp",
+      "id": 610830267,
+      "releaseId": 403237253,
+      "releaseTag": "codex-card-reference-20261004-211538",
+      "name": "upstream.json"
+    }
+  }
+]
