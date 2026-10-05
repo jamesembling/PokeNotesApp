@@ -702,28 +702,45 @@ async function verifyReplayCollection(db, userId, original) {
       "Card previews show artwork and HP without printed Ability prose.");
     assert.equal(await definitionDialog.getByText("Tap", { exact: true }).count(), 0,
       "Card previews show artwork and HP without printed attack prose.");
-    for (const width of [1280, 390]) {
-      await page.setViewportSize({ width, height: 844 });
-      await until(() => printedDetails.evaluate(element => {
-        const bounds = element.getBoundingClientRect();
-        return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
-      }));
-      const geometry = await printedDetails.evaluate(element => ({
-        top: element.getBoundingClientRect().top, bottom: element.getBoundingClientRect().bottom,
-        viewportHeight: window.innerHeight,
-      }));
-      assert.ok(geometry.top >= 0 && geometry.bottom <= geometry.viewportHeight,
-        "Card artwork and HP must stay in the viewport at desktop and mobile widths.");
-      const hpBounds = await definitionDialog.getByText("170 / 170 HP", { exact: true }).boundingBox();
-      const regionBounds = await printedDetails.boundingBox();
-      assert.ok(hpBounds && regionBounds && hpBounds.y >= regionBounds.y &&
-        hpBounds.y + hpBounds.height <= regionBounds.y + regionBounds.height,
-        "HP must remain visible beneath the enlarged card.");
+    const previewGeometry = () => printedDetails.evaluate(element => {
+      const hp = element.querySelector('[role="progressbar"]')?.parentElement?.querySelector("strong");
+      const bounds = node => {
+        if (!node) return null;
+        const rect = node.getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height,
+          visible: getComputedStyle(node).visibility === "visible" };
+      };
+      // Sample the artwork, HP and scroll viewport in the same browser frame.
+      // Separate boundingBox calls can straddle a resize or the dialog's zoom.
+      return {
+        region: bounds(element), image: bounds(element.firstElementChild), hp: bounds(hp), hpText: hp?.textContent,
+        viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
+        animating: element.closest('[role="dialog"]').getAnimations()
+          .some(animation => animation.playState === "running"),
+      };
+    });
+    for (const [width, height] of [[1280, 844], [390, 844], [1280, 900]]) {
+      await page.setViewportSize({ width, height });
+      let geometry;
+      await until(async () => {
+        geometry = await previewGeometry();
+        return geometry.viewportWidth === width && geometry.viewportHeight === height && !geometry.animating;
+      });
+      const diagnostic = ` (${width}×${height}: ${JSON.stringify(geometry)})`;
+      for (const [name, bounds] of [["preview", geometry.region], ["artwork", geometry.image], ["HP", geometry.hp]]) {
+        assert.ok(bounds?.visible && bounds.width > 0 && bounds.height > 0,
+          `The ${name} must be visible and have positive dimensions.` + diagnostic);
+      }
+      assert.equal(geometry.hpText, "170 / 170 HP", "The measured HP must match the published definition." + diagnostic);
+      assert.ok(geometry.region.top >= 0 && geometry.region.bottom <= geometry.viewportHeight,
+        "Card artwork and HP must stay in the viewport at desktop and mobile widths." + diagnostic);
+      assert.ok(geometry.image && geometry.image.top >= geometry.region.top &&
+        geometry.image.bottom <= geometry.region.bottom,
+        "The enlarged card must remain inside its visible preview." + diagnostic);
+      assert.ok(geometry.hp && geometry.hp.top >= geometry.image.bottom &&
+        geometry.hp.bottom <= geometry.region.bottom,
+        "HP must remain visible beneath the enlarged card." + diagnostic);
     }
-    await page.setViewportSize({ width: 1280, height: 900 });
-    const restoredPreview = await printedDetails.boundingBox();
-    assert.ok(restoredPreview && restoredPreview.y >= 0 && restoredPreview.y + restoredPreview.height <= 900,
-      "The details preview must remain in the viewport after restoring desktop size.");
     await captureReplay("battle-replay-verified-hp", false);
     await page.keyboard.press("Escape");
     await page.getByRole("link", { name: "Choose another game", exact: true }).click();
