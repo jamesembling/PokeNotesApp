@@ -991,7 +991,7 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
       "This attack does 60 damage to each of 2 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
       "This attack does 50 damage to 2 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
       "This attack does 30 damage to 3 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
-      "Flip a coin. If heads, this attack does 10 damage to 1 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
+      "This attack does 10 damage for each Pokémon in your discard pile that has the United Wings attack to 1 of your opponent's Benched Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
     ].map((text) => ({ ...ordinaryAttacker.attacks[0], text })),
   ]) {
     const candidates = buildCardDefinitionIndex([ordinaryAttacker, { ...ordinaryAttacker, sourceCardId: "other-attacker", attacks: [unsupportedAttack] }]);
@@ -1014,7 +1014,7 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(incompleteAttack.frames[5].opponent.bench[0].damage, 0);
   assert.ok(incompleteAttack.cardResolutions);
   assert.equal(incompleteAttack.cardResolutions[incompleteAttack.frames[5].self.active!.definitionKey!].coverage, "incomplete");
-  const secondaryAttack = { ...ordinaryAttacker, attacks: [{ ...ordinaryAttacker.attacks[0], text: "This attack also does 20 damage to 1 of your opponent's Benched Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)" }] };
+  const secondaryAttack = { ...ordinaryAttacker, attacks: [{ ...ordinaryAttacker.attacks[0], text: "This attack also does 90 damage to 1 of your opponent's Benched Pokémon that has any damage counters on it. (Don't apply Weakness and Resistance for Benched Pokémon.)" }] };
   const secondaryDamage = compileBattleReplay({ ...ordinaryAttackInput, cardDefinitions: { ...ordinaryContext, attacker: resolveCardDefinition(buildCardDefinitionIndex([secondaryAttack]), { name: "Attacker" }) } });
   assert.equal(secondaryDamage.frames[5].opponent.active?.damage, 10, "a printed secondary Bench effect does not move the recorded primary damage away from the Active");
   assert.equal(secondaryDamage.frames[5].opponent.bench[0].damage, 0, "secondary damage needs its own recorded execution");

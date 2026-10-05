@@ -619,9 +619,10 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       if (normalizeText(attack.name) !== normalizeText(effect) || attack.text === null) return false;
       // An explicitly additional Bench receipt does not redirect the base
       // attack. Remove only that clause before checking every other selector,
-      // including those after a cost, conjunction or conditional prefix.
-      const primary = attack.text.replace(/\bthis attack also does [^.]*? damage to [^.]*?Pok[eé]mon\./gi, "");
-      return /\bdamage to (?:(?:[1-9]\d*|one|any|both|each(?: of (?:[1-9]\d*|one|any))?)(?: of)? your opponent['’]s (?:Benched )?Pok[eé]mon|your opponent['’]s Benched Pok[eé]mon)|\bchoose\b[^.]*?your opponent['’]s (?:Benched )?Pok[eé]mon(?!['’]s attacks)/i.test(primary);
+      // including those after a cost, conjunction or conditional prefix. A
+      // secondary clause cannot consume another explicit attack clause.
+      const primary = attack.text.replace(/\bthis attack also does (?:(?!\bthis attack\b)[^.])*?\bdamage\b(?:(?!\bthis attack\b)[^.])*?\bto (?:(?!\bthis attack\b)[^.])*?Pok[eé]mon(?: that (?:(?!\bthis attack\b)[^.])*?)?\./gi, "");
+      return /\bdamage\b[^.]*?\bto (?:(?:[1-9]\d*|one|any|both|each(?: of (?:[1-9]\d*|one|any))?)(?: of)? your opponent['’]s (?:Benched )?Pok[eé]mon|your opponent['’]s Benched Pok[eé]mon)|\bchoose\b[^.]*?your opponent['’]s (?:Benched )?Pok[eé]mon(?!['’]s attacks)/i.test(primary);
     }));
   };
   const ordinaryAttackTargetsActive = (attacker: ReplayCard, effect: string, state: ReplayState) => {
