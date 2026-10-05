@@ -2,7 +2,7 @@ import { normalizeText } from "@/lib/log-import/normalization";
 import type { CardDefinition, CardDefinitionEvidence } from "@/lib/card-definition-catalog/types";
 import type { ReplayEffectKind } from "./types";
 
-export type ReplayEffectOperation = "put_counters" | "move_counters" | "return_energy" | "stadium_activation" | "devolve" | "attach_energy" | "move_energy" | "heal";
+export type ReplayEffectOperation = "put_counters" | "move_counters" | "return_energy" | "stadium_activation" | "devolve" | "attach_energy" | "move_energy" | "heal" | "discard_cards" | "evolve" | "return_attached_energy";
 export type ReplayEffectTarget = {
   /** Relative to the controller of the effect, never the log detail's possessive. */
   owner: "effect_actor" | "opponent" | "either" | "trigger";
@@ -23,6 +23,9 @@ export type ReplayEffectConstraint =
   | { status: "known"; operation: "attach_energy"; target: ReplayEffectTarget; origin: "deck"; destination: "board"; basicEnergyType: string; quantity: CounterQuantity }
   | { status: "known"; operation: "move_energy"; from: ReplayEffectTarget; to: ReplayEffectTarget; origin: "board"; destination: "board"; basicOnly: true; quantity: CounterQuantity; distinctTargets: true }
   | { status: "known"; operation: "heal"; target: ReplayEffectTarget; amount: number; afterAttachment?: { basicEnergyType: string; origin: "hand" } }
+  | { status: "known"; operation: "discard_cards"; owner: "effect_actor" | "opponent"; origin: "deck"; destination: "discard"; selection: "top"; quantity: CounterQuantity }
+  | { status: "known"; operation: "evolve"; target: ReplayEffectTarget; origin: "deck"; destination: "board"; evolvesFrom: "source"; quantity: { kind: "exact"; value: 1 }; shuffleDeck: true }
+  | { status: "known"; operation: "return_attached_energy"; target: ReplayEffectTarget; origin: "board"; destination: "hand" | "deck"; quantity: CounterQuantity; optional: true; energyType?: string }
   | { status: "neutral" | "unmodelled" | "unavailable"; operation: ReplayEffectOperation };
 
 const cleanText = (text: string) => text.normalize("NFC").replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
@@ -52,6 +55,31 @@ function quantity(text: string): CounterQuantity | null {
  * records execution. Alternate target branches and unsupported selectors do. */
 function fromText(raw: string, operation: ReplayEffectOperation): ReplayEffectConstraint {
   const text = cleanText(raw);
+  if (operation === "return_attached_energy") {
+    // These optional recipes prove a movement domain, not that the player chose
+    // it or that its damage consequence occurred. Execution needs a log receipt.
+    const hand = /^You may put a \{([A-Z])\} Energy attached to this Pok[eé]mon into your hand and have this attack do (\d+) more damage\.$/i.exec(text);
+    const deck = /^You may shuffle (\d+) Energy attached to this Pok[eé]mon into your deck\. If you do, this attack also does (\d+) damage to 1 of your opponent's Benched Pok[eé]mon\. \(Don't apply Weakness and Resistance for Benched Pok[eé]mon\.\)$/i.exec(text);
+    const bonus = Number(hand?.[2] ?? deck?.[2]);
+    if (!Number.isSafeInteger(bonus) || bonus <= 0 || bonus > 6000) return unknown(operation);
+    const energyType = hand && pokemonTypes[hand[1].toUpperCase()];
+    const amount = hand ? { kind: "exact" as const, value: 1 } : deck && quantity(deck[1]);
+    return amount && (deck || energyType) ? { status: "known", operation, target: { owner: "effect_actor", zone: "board", subject: "source" },
+      origin: "board", destination: hand ? "hand" : "deck", quantity: amount, optional: true, ...(energyType ? { energyType } : {}) } : unknown(operation);
+  }
+  if (operation === "discard_cards") {
+    // A complete recipe proves the zone, owner and recorded quantity together.
+    // Conditional or additional clauses require their own model.
+    const match = /^Discard the top (a|\d+) cards? of (your|your opponent's) deck\.$/i.exec(text);
+    const amount = match && quantity(match[1]);
+    return match && amount ? { status: "known", operation, owner: match[2].toLowerCase() === "your" ? "effect_actor" : "opponent",
+      origin: "deck", destination: "discard", selection: "top", quantity: amount } : unknown(operation);
+  }
+  if (operation === "evolve") {
+    return /^Search your deck for a card that evolves from this Pok[eé]mon and put it onto this Pok[eé]mon to evolve it\. Then, shuffle your deck\.$/i.test(text)
+      ? { status: "known", operation, target: { owner: "effect_actor", zone: "board", subject: "source" }, origin: "deck", destination: "board", evolvesFrom: "source", quantity: { kind: "exact", value: 1 }, shuffleDeck: true }
+      : unknown(operation);
+  }
   if (operation === "heal") {
     const attachment = /^Once during your turn, you may attach a Basic \{([A-Z])\} Energy card from your hand to 1 of your Pok[eé]mon\. If you attached Energy to a Pok[eé]mon in this way, heal (\d+) damage from that Pok[eé]mon\.$/i.exec(text);
     const fixed = /^Heal (\d+) damage from (.+?)\.$/i.exec(text);
@@ -169,6 +197,7 @@ export function resolveReplayEffectConstraint(
 ): ReplayEffectConstraint {
   if (!evidence || evidence.coverage !== "complete" || !evidence.candidates.length) return { status: "unavailable", operation };
   const plans = evidence.candidates.map((card) => {
+    if ((operation === "evolve" || operation === "return_attached_energy") && card.category !== "Pokemon") return unknown(operation);
     if (operation === "stadium_activation" && (card.category !== "Trainer" || normalizeText(card.trainerType ?? "") !== "stadium")) return unknown(operation);
     const text = effectText(card, effectName, kind);
     return text === null ? { status: "unavailable" as const, operation } : fromText(text, operation);

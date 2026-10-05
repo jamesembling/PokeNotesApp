@@ -57,7 +57,7 @@ export function supportsReplayActiveAbilityPredicate(input: {
   activeEvidence: CardDefinitionEvidence | undefined; sourceEvidence: CardDefinitionEvidence | undefined;
 }): boolean {
   const { active, activeUncertain, sourceName, ability, activeEvidence, sourceEvidence } = input;
-  if (!active || !active.physicalCardId || activeUncertain || active.instanceUncertain || normalizeText(active.name) === normalizeText(sourceName)) return false;
+  if (!active || activeUncertain || normalizeText(active.name) === normalizeText(sourceName)) return false;
   return activeEvidence?.coverage === "complete" && activeEvidence.candidates.length > 0
     && activeEvidence.candidates.every((candidate) => candidate.abilities.every((effect) => effect.text !== null))
     && activeEvidence.candidates.some((candidate) => candidate.abilities.some((effect) => normalizeText(effect.name) === normalizeText(ability) && effect.text !== null))
@@ -87,7 +87,25 @@ export function isReplaySelfAttackPermission(raw: string, sourceName: string): b
 
 /** Passive permissions can override a native once-per-copy limit. This is
  * an absence guard, not an interpreter for repeat/reset/suppression effects. */
-export function isReplayAbilityLimitContextNeutral(raw: string, localSource: boolean, effectName: string): boolean {
+export function isReplayAbilityLimitContextNeutral(raw: string, localSource: boolean, effectName: string, targetEvidence?: CardDefinitionEvidence): boolean {
+  const completeText = raw.normalize("NFC").replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
+  // Printed types do not establish effective types after a relevant type
+  // change. A self-only change on another Pokémon does not affect this cohort.
+  // Match the Pokémon subject directly so Weakness and Energy-provision text
+  // cannot accidentally become Pokémon type changes.
+  const typePredicate = "(?:is|are|becomes?) (?:now )?(?:the same type|each of those types|all types|[A-Za-z, {}]+type|(?:a |an )?(?:Grass|Fire|Water|Lightning|Psychic|Fighting|Darkness|Metal|Fairy|Dragon|Colorless|\\{[DFGLMPRWYNC]\\}) Pok[eé]mon)";
+  const selfTypeChange = new RegExp(`\\bthis Pok[eé]mon(?:['’]s type)? ${typePredicate}`, "i");
+  const otherTypeChange = new RegExp(`\\b(?:the Defending Pok[eé]mon|(?:all |each |any )?Pok[eé]mon in play(?: \\(both yours and your opponent['’]s\\))?|(?:your|your opponent['’]s) (?:(?:Active|Benched) )?Pok[eé]mon) ${typePredicate}`, "i");
+  if (otherTypeChange.test(completeText) || localSource && selfTypeChange.test(completeText)) return false;
+  // This complete printed selector suppresses Colorless Pokémon only. The
+  // entire native target domain must exclude that type; a chosen illustration
+  // or a missing type field cannot establish contextual neutrality.
+  if (/^\{C\} Pok[eé]mon in play \(both yours and your opponent's\) have no Abilities\.$/i.test(completeText)) {
+    const knownTypes = /^(?:Grass|Fire|Water|Lightning|Psychic|Fighting|Darkness|Metal|Fairy|Dragon|Colorless)$/i;
+    return targetEvidence?.coverage === "complete" && targetEvidence.candidates.length > 0
+      && targetEvidence.candidates.every((candidate) => candidate.category === "Pokemon" && Array.isArray(candidate.types) && candidate.types.length > 0
+        && candidate.types.every((type) => knownTypes.test(type) && normalizeText(type) !== "colorless"));
+  }
   const text = raw.replace(/\s+/g, " ").trim().replace(/^Once during your turn, /i, "")
     .replace(/You can['’]t use more than 1 (.+?) Ability (?:each turn|during your turn)\./gi, (clause, limited: string) => limited.toLowerCase() === effectName.toLowerCase() ? clause : "")
     .replace(/You can['’]t use more than 1 Ability that has ["“](.+?)["”] in its name each turn\./gi, (clause, limited: string) => effectName.toLowerCase().includes(limited.toLowerCase()) ? clause : "");

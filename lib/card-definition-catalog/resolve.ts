@@ -70,6 +70,37 @@ function agreedFacts(candidates: CardDefinition[], usable: boolean): CardDefinit
   return result;
 }
 
+/** Conditional printed category agreement across the entire possible domain.
+ * Unknown availability does not change a supplied category, but never grants
+ * eligibility or absence of an exception in a missing rules field. */
+export function getCardDefinitionTrainerFieldAgreement(evidence: CardDefinitionEvidence | undefined): {
+  category: "Trainer";
+  trainerType: "item" | "supporter" | "stadium" | "tool";
+  candidatePrintingIds: string[];
+  candidateRules: Array<{ sourceCardId: string; rules: string[] | null }>;
+} | null {
+  const agreement = evidence?.fieldAgreement;
+  if (!evidence || evidence.coverage !== "incomplete" || agreement?.scope !== "trainer_classification" || agreement.coverage !== "complete"
+    || !agreement.query || typeof agreement.query.name !== "string" || typeof agreement.query.declaredFormat !== "string" || typeof agreement.query.playedOn !== "string"
+    || !Array.isArray(agreement.candidatePrintingIds) || agreement.candidatePrintingIds.some((id) => typeof id !== "string")
+    || !standardFormatFloor(agreement.query.declaredFormat) || !cardDefinitionPlayedDay(agreement.query.playedOn)
+    || getCardDefinitionScopeCoverage(evidence.sourceCoverage, agreement.query.name, agreement.query) !== "complete") return null;
+  const domain = [...evidence.candidates, ...(evidence.unverifiedCandidates ?? [])];
+  const ids = domain.map((card) => card.sourceCardId).sort();
+  if (!ids.length || new Set(ids).size !== ids.length || JSON.stringify(ids) !== JSON.stringify([...agreement.candidatePrintingIds].sort())
+    || domain.some((card) => normalizeText(card.name) !== normalizeText(agreement.query.name))) return null;
+  const partition = formatCandidates(domain, agreement.query.declaredFormat, agreement.query.playedOn);
+  if (!partition.candidates.length || !partition.basis?.minimumRegulationMark
+    || partition.candidates.length + partition.unverified.length !== domain.length
+    || partition.unverified.some((card) => !/^[A-Z]$/.test(card.regulationMark ?? "") || card.regulationMark! < partition.basis!.minimumRegulationMark!
+      || !partition.basis!.reasons?.some((reason) => reason.sourceCardId === card.sourceCardId && reason.reason === "unverified_ptcgl_availability"))) return null;
+  const kind = normalizeText(domain[0].trainerType ?? "");
+  if (!["item", "supporter", "stadium", "tool"].includes(kind)
+    || domain.some((card) => card.category !== "Trainer" || normalizeText(card.trainerType ?? "") !== kind)) return null;
+  return { category: "Trainer", trainerType: kind as "item" | "supporter" | "stadium" | "tool", candidatePrintingIds: ids,
+    candidateRules: domain.map((card) => ({ sourceCardId: card.sourceCardId, rules: card.rules })) };
+}
+
 export function selectCardDefinitionPrinting(candidates: readonly CardDefinition[]): CardDefinition | null {
   // Prefer a surviving print whose artwork is available; deterministic within the same evidence.
   return [...candidates].sort((left, right) => Number(verifiedArtwork(right)) - Number(verifiedArtwork(left))
@@ -118,6 +149,20 @@ export function resolveCardDefinition(
     ? candidates[0].hp : null;
   const agrees = usable && candidates.every((card) => functionalKey(card) === functionalKey(candidates[0]));
   const exact = usable && Boolean(query.setId && query.localId) && candidates.length === 1;
+  // Only availability caused this contextual downgrade: the loaded name domain
+  // itself must remain complete, with an eligible witness and every possible row.
+  const fieldDomain = [...candidates, ...unverifiedCandidates];
+  const trainerKind = normalizeText(fieldDomain[0]?.trainerType ?? "");
+  const fieldAgreement: CardDefinitionEvidence["fieldAgreement"] = coverage === "complete" && unverified && candidates.length > 0
+    && !query.setId && !query.localId && !query.effectNames?.length
+    && Boolean(standardFormatFloor(query.declaredFormat)) && Boolean(cardDefinitionPlayedDay(query.playedOn)) && Boolean(formatted.basis?.minimumRegulationMark)
+    && unverifiedCandidates.every((card) => /^[A-Z]$/.test(card.regulationMark ?? "") && card.regulationMark! >= formatted.basis!.minimumRegulationMark!
+      && formatted.basis!.reasons?.some((reason) => reason.sourceCardId === card.sourceCardId && reason.reason === "unverified_ptcgl_availability"))
+    && new Set(fieldDomain.map((card) => card.sourceCardId)).size === fieldDomain.length
+    && ["item", "supporter", "stadium", "tool"].includes(trainerKind)
+    && fieldDomain.every((card) => card.category === "Trainer" && normalizeText(card.trainerType ?? "") === trainerKind)
+      ? { scope: "trainer_classification", coverage: "complete", candidatePrintingIds: fieldDomain.map((card) => card.sourceCardId),
+        query: { name: query.name, declaredFormat: query.declaredFormat!, playedOn: query.playedOn! } } : undefined;
   const legalIds = new Set(formatted.basis?.legalPrintingIds ?? []);
   const displayCandidates = !exactIdentity && formatted.basis && formatted.basis.status !== "unsupported" ? candidates.filter((card) => legalIds.has(card.sourceCardId)) : candidates;
   const selected = selectCardDefinitionPrinting(displayCandidates);
@@ -130,6 +175,7 @@ export function resolveCardDefinition(
     selectedPrinting: selected ? { source: selected.source, sourceCardId: selected.sourceCardId, setId: selected.setId, localId: selected.localId, sourceUrl: selected.sourceUrl, ...(verifiedArtwork(selected) ? { imageUrl: selected.imageUrl } : {}) } : null,
     displayBasis: selected ? exact ? "played_evidence" : "representative" : "unavailable",
     agreedFacts: agreedFacts(candidates, usable),
+    ...(fieldAgreement ? { fieldAgreement } : {}),
     ...(formatted.basis ? { formatBasis: { ...formatted.basis, legalPrintingIds: formatted.basis.legalPrintingIds?.filter((id) => candidates.some((card) => card.sourceCardId === id)), unverifiedPrintingIds: exactIdentity ? formatted.basis.unverifiedPrintingIds?.filter((id) => candidates.some((card) => card.sourceCardId === id)) : unverifiedCandidates.map((card) => card.sourceCardId), ...(conflict ? { status: "conflicting" as const } : {}) } } : {}),
   };
 }

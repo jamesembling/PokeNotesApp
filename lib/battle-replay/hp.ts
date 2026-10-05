@@ -14,7 +14,10 @@ type ModifierScope = "attachment" | "stadium";
 export type ReplayAttackRouteContext = { card: ReplayZoneCard; effect?: string; kind: "trainer" | "ability" | "attack" };
 
 function appliesTo(selector: string, card: CardDefinition): boolean | null {
-  const selected = normalizeText(selector);
+  // Catalogue rules spell types either as names or printed Energy symbols.
+  // Expand only recognized symbols; unsupported predicates remain unknown.
+  const symbols: Record<string, string> = { D: "Darkness", F: "Fighting", G: "Grass", L: "Lightning", M: "Metal", P: "Psychic", R: "Fire", W: "Water", Y: "Fairy", N: "Dragon", C: "Colorless" };
+  const selected = normalizeText(selector.replace(/\{([DFGLMPRWYNC])\}/gi, (_, symbol: string) => symbols[symbol.toUpperCase()]));
   if (selected === "pokemon") return true;
   const stage = /^(basic|stage [12]) pokemon$/.exec(selected);
   if (stage) return card.stage === null ? null : normalizeText(card.stage).replaceAll(" ", "") === stage[1].replaceAll(" ", "");
