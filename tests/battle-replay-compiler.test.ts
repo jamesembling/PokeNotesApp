@@ -984,6 +984,15 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   for (const unsupportedAttack of [
     { ...ordinaryAttacker.attacks[0], text: "This attack does 10 damage to 1 of your opponent's Benched Pokémon." },
     { ...ordinaryAttacker.attacks[0], text: "Choose 1 of your opponent's Pokémon. This attack does 10 damage to it." },
+    // Printed selectors include conditional and mid-sentence attack clauses.
+    ...[
+      "Discard 3 Energy from this Pokémon, and this attack does 280 damage to 1 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
+      "Shuffle all Energy attached to this Pokémon into your deck, and this attack does 220 damage to 1 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
+      "This attack does 60 damage to each of 2 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
+      "This attack does 50 damage to 2 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
+      "This attack does 30 damage to 3 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
+      "Flip a coin. If heads, this attack does 10 damage to 1 of your opponent's Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)",
+    ].map((text) => ({ ...ordinaryAttacker.attacks[0], text })),
   ]) {
     const candidates = buildCardDefinitionIndex([ordinaryAttacker, { ...ordinaryAttacker, sourceCardId: "other-attacker", attacks: [unsupportedAttack] }]);
     const uncertainAttack = compileBattleReplay({ ...ordinaryAttackInput, cardDefinitions: { ...ordinaryContext, attacker: resolveCardDefinition(candidates, { name: "Attacker" }) } });
@@ -1005,6 +1014,10 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(incompleteAttack.frames[5].opponent.bench[0].damage, 0);
   assert.ok(incompleteAttack.cardResolutions);
   assert.equal(incompleteAttack.cardResolutions[incompleteAttack.frames[5].self.active!.definitionKey!].coverage, "incomplete");
+  const secondaryAttack = { ...ordinaryAttacker, attacks: [{ ...ordinaryAttacker.attacks[0], text: "This attack also does 20 damage to 1 of your opponent's Benched Pokémon. (Don't apply Weakness and Resistance for Benched Pokémon.)" }] };
+  const secondaryDamage = compileBattleReplay({ ...ordinaryAttackInput, cardDefinitions: { ...ordinaryContext, attacker: resolveCardDefinition(buildCardDefinitionIndex([secondaryAttack]), { name: "Attacker" }) } });
+  assert.equal(secondaryDamage.frames[5].opponent.active?.damage, 10, "a printed secondary Bench effect does not move the recorded primary damage away from the Active");
+  assert.equal(secondaryDamage.frames[5].opponent.bench[0].damage, 0, "secondary damage needs its own recorded execution");
 
   // Exact public clauses used by the original corpus; this unit seam varies
   // only the recorded amount to ensure domain proof never recomputes damage.
@@ -1045,6 +1058,11 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   const resistedInput = structuredClone(ordinaryAttackInput);
   resistedInput.sections![0].actions[4].title = "PlayerOne's Attacker used Pollen on PlayerTwo's Twin for 0 damage. Twin took 10 less damage because of Grass Resistance.";
   assert.deepEqual(compileBattleReplay({ ...resistedInput, cardDefinitions: ordinaryContext }).diagnostics.unresolvedActions, []);
+  resistedInput.sections![0].actions[4].title = "PlayerOne's Attacker used Pollen on PlayerTwo's Twin for 0 damage. Twin took -10 less damage because of Grass Resistance.";
+  const signedResistance = compileBattleReplay({ ...resistedInput, cardDefinitions: ordinaryContext });
+  assert.deepEqual(signedResistance.diagnostics.unresolvedActions, [], "a signed recorded Resistance explanation remains an annotation of the literal attack total");
+  assert.equal(signedResistance.frames[5].opponent.active?.damage, 0, "Resistance is not subtracted a second time");
+  assert.ok(signedResistance.events[4].transaction?.stages.some((stage) => stage.kind === "attack"), "the zero-damage attack is still an attack action");
 
   const powerfulText = "Place 2 damage counters on your opponent's Active Pokémon for each card in your hand.";
   const powerfulCard = syntheticCardDefinition({ name: "Alakazam", attacks: [{ name: "Powerful Hand", damage: null, cost: null, text: powerfulText }] });
@@ -1181,6 +1199,12 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(threeCopyRecon.events[15].transaction?.stages.find((entry) => entry.kind === "ability")?.label, "Recon Directive");
   assert.deepEqual(threeCopyRecon.events.slice(13, 16).map((event) => event.unresolved), [undefined, undefined, undefined], "order-only ambiguity does not turn the recorded individual uses into errors");
   assert.ok(threeCopyRecon.events.slice(13, 16).every((event) => event.label === "Ability" && event.transaction?.stages.filter((entry) => entry.kind === "ability").every((entry) => !entry.detail && !entry.cards.length)), "recorded activations keep the literal effect and no invented cohort narration or simultaneous activation");
+  const evolutionAfterUses = structuredClone(threeCopyReconInput);
+  evolutionAfterUses.sections![3].actions.push(action("PlayerOne evolved Drakloak to Dragapult ex on the Bench."));
+  const evolvedUsedCopies = compileBattleReplay(evolutionAfterUses).frames.at(-1)!.self;
+  const remainingUsedCopies = [evolvedUsedCopies.active, ...evolvedUsedCopies.bench, ...(evolvedUsedCopies.unplaced ?? [])].filter((card): card is ReplayCard => Boolean(card));
+  assert.ok(remainingUsedCopies.filter((card) => card.name === "Drakloak").every((card) => card.abilityUsed === true), "an ambiguous evolution cannot erase the unchanged copies' shared known Ability use");
+  assert.equal(remainingUsedCopies.find((card) => card.name === "Dragapult ex")?.abilityUsed, false, "the newly evolved top resets its own Ability marker");
   for (const text of ["Your Pokémon can use the Abilities of your Benched Pokémon.", "This Pokémon gains the following Ability.",
     "This Pokémon may use another Pokémon's Ability as its own.", "Your Pokémon may use their Abilities again.", "Remove all Ability-used markers from your Pokémon.",
     "Your Pokémon have no Abilities."]) assert.equal(isReplayAbilityLimitContextNeutral(text, false, "Recon Directive"), false);
@@ -1200,9 +1224,14 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   const unchangedPredicate = JSON.stringify(predicateInput);
   assert.equal(supportsReplayActiveAbilityPredicate(predicateInput), true);
   assert.equal(JSON.stringify(predicateInput), unchangedPredicate, "the recorded predicate does not seed native Active effects or identify a source copy");
-  assert.equal(supportsReplayActiveAbilityPredicate({ ...predicateInput, active: { ...predicateActive, physicalCardId: undefined } }), false);
+  assert.equal(supportsReplayActiveAbilityPredicate({ ...predicateInput, active: { ...predicateActive, physicalCardId: undefined } }), true, "the known Active slot's operational predicate does not depend on its physical-copy identity");
   assert.equal(supportsReplayActiveAbilityPredicate({ ...predicateInput, activeUncertain: true }), false);
-  assert.equal(supportsReplayActiveAbilityPredicate({ ...predicateInput, active: { ...predicateActive, instanceUncertain: true } }), false);
+  assert.equal(supportsReplayActiveAbilityPredicate({ ...predicateInput, active: { ...predicateActive, instanceUncertain: true } }), true, "copy ambiguity does not erase a recorded operational predicate for the known Active");
+  const pooledPredicate = { ...predicateInput, active: { ...predicateActive, physicalCardId: undefined, instanceUncertain: true },
+    activeEvidence: resolveCardDefinition(buildCardDefinitionIndex([predicateDefinitions[0], { ...predicateDefinitions[0], sourceCardId: "other-dipplin", abilities: [] }]), { name: "Dipplin" }) };
+  const beforePooledPredicate = JSON.stringify(pooledPredicate);
+  assert.equal(supportsReplayActiveAbilityPredicate(pooledPredicate), true);
+  assert.equal(JSON.stringify(pooledPredicate), beforePooledPredicate, "execution proves the predicate without choosing a printing or changing its HP evidence");
   assert.equal(supportsReplayActiveAbilityPredicate({ ...predicateInput, sourceName: "Dipplin" }), false);
   assert.equal(supportsReplayActiveAbilityPredicate({ ...predicateInput, activeEvidence: { ...predicateInput.activeEvidence, coverage: "incomplete" } }), false);
   const noPredicate = resolveCardDefinition(buildCardDefinitionIndex([syntheticCardDefinition({ name: "Dipplin", abilities: [] })]), { name: "Dipplin" });

@@ -614,8 +614,15 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
     // Source damage defaults to the defending Active (§6). A known printed
     // choice/Bench selector overrides that default; missing prose proves no
     // effect or printing, but does not erase the source's ordinary target.
-    return !evidence?.candidates.some((card) => card.attacks.some((attack) => normalizeText(attack.name) === normalizeText(effect)
-      && attack.text !== null && /(?:^|[.!]\s+)(?:This attack does [^.]+ damage to (?:(?:1 of |each of )your opponent['’]s (?:Benched )?Pok[eé]mon|your opponent['’]s Benched Pok[eé]mon)|Choose (?:1|one) of your opponent['’]s (?:Benched )?Pok[eé]mon)/i.test(attack.text.trim())));
+    const possible = [...(evidence?.candidates ?? []), ...(evidence?.unverifiedCandidates ?? [])];
+    return !possible.some((card) => card.attacks.some((attack) => {
+      if (normalizeText(attack.name) !== normalizeText(effect) || attack.text === null) return false;
+      // An explicitly additional Bench receipt does not redirect the base
+      // attack. Remove only that clause before checking every other selector,
+      // including those after a cost, conjunction or conditional prefix.
+      const primary = attack.text.replace(/\bthis attack also does [^.]*? damage to [^.]*?Pok[eé]mon\./gi, "");
+      return /\bdamage to (?:(?:[1-9]\d*|one|any|both|each(?: of (?:[1-9]\d*|one|any))?)(?: of)? your opponent['’]s (?:Benched )?Pok[eé]mon|your opponent['’]s Benched Pok[eé]mon)|\bchoose\b[^.]*?your opponent['’]s (?:Benched )?Pok[eé]mon(?!['’]s attacks)/i.test(primary);
+    }));
   };
   const ordinaryAttackTargetsActive = (attacker: ReplayCard, effect: string, state: ReplayState) => {
     const route = attackPrintingEvidence(attacker, effect, state);
@@ -1072,7 +1079,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       card.instanceUncertain = true; card.damageKnown = false; card.energy = []; card.underlying = []; delete card.tool;
       card.conditions = []; delete card.abilityUsed;
     };
-    const uncertainCopies = (actor: ReplayActor, cards: ReplayCard[]) => {
+    const uncertainCopies = (actor: ReplayActor, cards: ReplayCard[], preserveSharedUsage = false) => {
       const memberIds = cards.map((card) => card.id);
       for (const retained of retainedTops.values()) if (retained.actor === actor && retained.memberIds.some((id) => memberIds.includes(id))) {
         retained.memberIds = [...new Set([...retained.memberIds, ...memberIds])];
@@ -1087,6 +1094,9 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
       const size = common && cards.map((card) => exactStackSize(next[actor], card));
       const sharedSize = size?.every((value) => value !== null && value === size[0]) ? size[0] ?? undefined : undefined;
       const sharedDamage = common && cards.every((card) => card.damageKnown !== false && card.damage === common.damage);
+      // Every carrier already used an Ability this turn. A permutation cannot
+      // erase that shared fact; mixed/unused markers remain unidentified.
+      const sharedUsed = preserveSharedUsage && cards.length > 0 && cards.every((card) => card.abilityUsed === true);
       const sharedEnergy = common && same((card) => [...card.energy].sort());
       const sharedLayers = common && same((card) => card.underlying.map((item) => [item.name, item.setId, item.localId, item.observedEffects]));
       const sharedTool = common && same((card) => card.tool);
@@ -1118,6 +1128,7 @@ function compileReplayPass(input: ReplayLogSource, proof: { trace?: CopyStep[]; 
         if (!sameSet) { delete card.setId; delete card.localId; }
         if (sharedSize !== undefined) card.knownStackSize = sharedSize; else delete card.knownStackSize;
         if (sharedDamage) { card.damage = common.damage; card.damageKnown = true; }
+        if (sharedUsed) card.abilityUsed = true;
         if (sharedEnergy) card.energy = [...common.energy];
         if (sharedLayers) card.underlying = originalLayers[index];
         if (sharedTool && common.tool) card.tool = common.tool;
@@ -2122,9 +2133,9 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
         // missing attack prose to be treated as empty or prove native printing.
         const targetPosition = actor !== targetActor && next[targetActor].active?.name === match[5] && !next[targetActor].activeUncertain && sourceAttackTargetsActive(attacker, match[3], next) ? "Active Spot"
           : actor !== targetActor && printingEvidence.status !== "unmodelled" && (ordinaryAttackTargetsActive(attacker, match[3], next)
-            || match[7] && /^.+? took \d+ more damage because of .+? Weakness$/i.test(match[7]) && weaknessTargetsActive(next, definitionCard, match[3])) ? "Active Spot" : undefined;
+            || match[7] && /^.+? took [−+-]?\d+ more damage because of .+? Weakness$/i.test(match[7]) && weaknessTargetsActive(next, definitionCard, match[3])) ? "Active Spot" : undefined;
         const target = findCard(next[targetActor], match[5], targetPosition);
-        if (match[7] && !/^.+? took \d+ (?:more damage because of .+? Weakness|less damage because of .+? Resistance)$/i.test(match[7])) return false;
+        if (match[7] && !/^.+? took [−+-]?\d+ (?:more damage because of .+? Weakness|less damage because of .+? Resistance)$/i.test(match[7])) return false;
         if (printingEvidence.status !== "unmodelled" && printingEvidence.observedEffect) observeEffect(attacker, printingEvidence.observedEffect);
         else if (printingEvidence.status === "unmodelled" && hp.resolve(attacker)?.coverage === "complete") { next.partial = true; errors.push("The executed attack is recorded, but its native or copied printing provenance is not established."); }
         target.damage += attackDamage; damageApplied.set(target.id, attackDamage);
@@ -2517,9 +2528,12 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
         // The source rule sends a used Item/Supporter to discard. This
         // classification certificate does not assert missing prose is empty;
         // a known printed or recorded different disposition still overrides it.
+        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const selfReturn = new RegExp(`(?:return|shuffle|put)[^.]*\\bthis (?:card|${escapedName})\\b[^.]*\\b(?:hand|deck)\\b`, "i");
         const classifiedDefault = fieldAgreement && ["item", "supporter"].includes(fieldAgreement.trainerType)
           && !fieldAgreement.candidateRules.some((candidate) => candidate.rules?.some((rule) =>
-            /(?:play|put|place|remain)[^.]*\b(?:Bench|Active Spot|in play)\b|(?:return|shuffle|put)[^.]*\bthis card\b[^.]*\b(?:hand|deck)\b/i.test(rule)));
+            /instead of discarding|play this card as if it were|(?:play|put|place|remain)[^.]*\b(?:Bench|Active Spot|in play)\b/i.test(rule)
+            || selfReturn.test(rule)));
         const playedEvidence = removeHand(next[actor], [match[2]], 1, kind === "tool" ? "board" : "discard")[0];
         next.playedCard = { actor, card: { ...zoneCard(id(), match[2]), ...playedEvidence } };
         stage("play", "Play", [next.playedCard.card], actor);
@@ -2822,7 +2836,7 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
             candidates.forEach((card) => { if (!/^Basic .+ Energy$/i.test(name)) card.instanceUncertain = true; delete card.knownStackSize; });
             const boardRole = /Energy$/i.test(name) ? "energy" as const : "tool" as const;
             addBoardPool(actor, candidates, [{ ...zoneCard(id(), name), boardRole }]);
-          } else uncertainCopies(actor, candidates);
+          } else uncertainCopies(actor, candidates, true);
           let evolvedTop: ReplayCard | undefined;
           if (evolution && candidates.length) {
             const target = candidates[0];

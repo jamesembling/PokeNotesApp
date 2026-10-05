@@ -57,7 +57,7 @@ export function supportsReplayActiveAbilityPredicate(input: {
   activeEvidence: CardDefinitionEvidence | undefined; sourceEvidence: CardDefinitionEvidence | undefined;
 }): boolean {
   const { active, activeUncertain, sourceName, ability, activeEvidence, sourceEvidence } = input;
-  if (!active || !active.physicalCardId || activeUncertain || active.instanceUncertain || normalizeText(active.name) === normalizeText(sourceName)) return false;
+  if (!active || activeUncertain || normalizeText(active.name) === normalizeText(sourceName)) return false;
   return activeEvidence?.coverage === "complete" && activeEvidence.candidates.length > 0
     && activeEvidence.candidates.every((candidate) => candidate.abilities.every((effect) => effect.text !== null))
     && activeEvidence.candidates.some((candidate) => candidate.abilities.some((effect) => normalizeText(effect.name) === normalizeText(ability) && effect.text !== null))
