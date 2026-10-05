@@ -113,6 +113,14 @@ export type CardDefinitionEvidence = {
   /** A selected representative never establishes which physical printing was played. */
   displayBasis?: "played_evidence" | "representative" | "unavailable";
   agreedFacts?: Partial<CardDefinitionFacts>;
+  /** Complete loaded category/subtype domain before availability uncertainty.
+   * This does not certify eligibility, full functionality or printed rule absence. */
+  fieldAgreement?: {
+    scope: "trainer_classification";
+    coverage: "complete";
+    candidatePrintingIds: string[];
+    query: { name: string; declaredFormat: string; playedOn: string };
+  };
   formatBasis?: { declared: string; status: "applied" | "partial" | "unsupported" | "conflicting"; minimumRegulationMark?: string; declaredMinimumRegulationMark?: string; rotationSourceUrl?: string; rotationDay?: string; rotationAvailableOn?: string; rotationAvailabilitySourceUrl?: string; declaredLatestSetReleaseDate?: string; latestReleaseDate?: string; playedDate?: string; releaseSourceUrl?: string; banEvidence?: { reviewedOn: string; bannedSourceCardIds: readonly string[]; sourceUrl: string; historicalSourceUrl: string; historicalAnnouncementDate: string }; /** Candidates contain eligible logical families; unresolved modern printings remain separate proof blockers. */ legalPrintingIds?: string[]; unverifiedPrintingIds?: string[]; aliasPrintingIds?: string[]; excludedPrintingIds?: string[]; reasons?: Array<{ sourceCardId: string; reason: string }> };
 };
 export type CardDefinitionEvidenceByName = Record<string, CardDefinitionEvidence>;

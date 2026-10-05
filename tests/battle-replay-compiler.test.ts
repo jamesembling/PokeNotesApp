@@ -16,7 +16,7 @@ import { canonicalReplayGame, expectedGameChanges, syntheticCardDefinition, type
 
 import { getLinkedReplayDefinitions, getReplayLinkedDeckListCompatibility } from "@/lib/battle-replay/linked-deck-list";
 import { selectRetainedCardDefinitions } from "@/lib/card-definition-catalog/retention.mjs";
-import { buildCardDefinitionIndex, resolveCardDefinition } from "@/lib/card-definition-catalog/resolve";
+import { buildCardDefinitionIndex, getCardDefinitionTrainerFieldAgreement, resolveCardDefinition } from "@/lib/card-definition-catalog/resolve";
 
 const action = (title: string, details: string[] = []): LogAction => ({ title, details });
 const section = (player: string, actions: LogAction[]): LogSection => ({
@@ -136,6 +136,31 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.equal(datedAfterSnapshot.resolve({ name: "Seedling" })?.coverage, "incomplete", "HP name-domain inference refuses games after the retained snapshot");
   assert.equal(datedAfterSnapshot.resolve({ name: "Seedling", setId: scopedPrint.setId, localId: scopedPrint.localId })?.hp, scopedPrint.hp, "an exact immutable printing may bypass a later snapshot name-domain horizon");
   assert.equal(getLinkedReplayDefinitions([linkedCards[0]], scopedRaw, { synthetic: "TST" }, "TEF-30C", "2026-10-05").seedling.coverage, "incomplete", "current linked preference cannot fill a later snapshot name-domain gap");
+  const itemRule = "Search your deck for a Pokémon that doesn't have a Rule Box, reveal it, and put it into your hand. Then, shuffle your deck. (Pokémon ex, Pokémon V, etc. have Rule Boxes.)";
+  const eligibleItem = syntheticCardDefinition({ name: "Poké Pad", sourceCardId: "me03-081", setId: "me03", localId: "081", setReleaseDate: "2026-03-27",
+    category: "Trainer", trainerType: "Item", hp: null, stage: null, types: null, attacks: [], rules: [itemRule], regulationMark: "J" });
+  const boundaryItem = { ...eligibleItem, sourceCardId: "30th-126", setId: "30th", localId: "126", setReleaseDate: "2026-09-16" };
+  const itemPool = selectRetainedCardDefinitions([eligibleItem, boundaryItem], { savedFormats: ["TEF-PBL"], retainedOn: "2026-10-04" });
+  const itemQuery = { name: "Poké Pad", declaredFormat: "TEF-PBL", playedOn: "2026-09-16" };
+  const boundaryEvidence = resolveCardDefinition(buildCardDefinitionIndex(itemPool.definitions), itemQuery, "complete", null, itemPool.sourceCoverage);
+  assert.equal(boundaryEvidence.coverage, "incomplete", "same-day digital availability remains unverified");
+  assert.deepEqual(boundaryEvidence.agreedFacts, {}, "classification does not promote full printing agreement");
+  assert.equal(getCardDefinitionTrainerFieldAgreement(boundaryEvidence)?.trainerType, "item", "all possible availability candidates still agree on supplied Trainer subtype");
+  const nullableRules = structuredClone(boundaryEvidence);
+  nullableRules.unverifiedCandidates![0].rules = null;
+  assert.equal(getCardDefinitionTrainerFieldAgreement(nullableRules)?.candidateRules.find((card) => card.sourceCardId === boundaryItem.sourceCardId)?.rules, null, "missing rule text remains available as a disposition-proof blocker");
+  const conflictingSubtype = structuredClone(boundaryEvidence);
+  conflictingSubtype.unverifiedCandidates![0].trainerType = "Tool";
+  assert.equal(getCardDefinitionTrainerFieldAgreement(conflictingSubtype), null, "a conflicting possible subtype cannot borrow Item classification");
+  assert.equal(getCardDefinitionTrainerFieldAgreement(resolveCardDefinition(buildCardDefinitionIndex(itemPool.definitions), itemQuery, "incomplete", null, itemPool.sourceCoverage)), null, "an incomplete loaded name domain cannot certify subtype agreement");
+  const usedItemIndex = buildCardDefinitionIndex([eligibleItem, { ...boundaryItem, rules: null }]);
+  const usedItem = compileBattleReplay({ ...source([section("PlayerOne", [action("PlayerOne played Poké Pad.")])]),
+    format: itemQuery.declaredFormat, date: itemQuery.playedOn,
+    cardDefinitions: { "poke pad": { ...resolveCardDefinition(usedItemIndex, { name: itemQuery.name }), sourceCoverage: itemPool.sourceCoverage } } });
+  assert.deepEqual(usedItem.frames[1].self.discard.map((card) => card.name), ["Poké Pad"], "a completed known Item use follows the owner-discard rule even when possible printing prose is missing");
+  assert.deepEqual(usedItem.diagnostics.unresolvedActions, []);
+  assert.ok(usedItem.cardResolutions);
+  assert.equal(usedItem.cardResolutions[usedItem.frames[1].self.discard[0].definitionKey!].coverage, "incomplete", "ordinary disposition does not certify printing legality or complete card text");
   const livePrint = { ...scopedPrint, setId: "me03", regulationMark: "J", setReleaseDate: "2026-03-27" };
   const liveRaw = { seedling: resolveCardDefinition(buildCardDefinitionIndex([livePrint]), { name: "Seedling" }) };
   const liveList = getLinkedReplayDefinitions([{ ...linkedCards[0], set: "POR" }], liveRaw, { me03: "POR" }, "TEF-POR", "2026-03-26T18:00:00Z");
@@ -706,6 +731,28 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   assert.equal(gravityReplay.frames[8].self.active?.remainingHp, 200);
   assert.equal(gravityReplay.frames[8].opponent.active?.maxHp, 100, "a Stage 2 Stadium modifier leaves Basic Pokémon unaffected");
 
+  // Exact catalogue wording from Growing Grass Energy (me03-086): the typed
+  // attachment predicate must work with printed symbols as well as type names.
+  const grassEnergy = syntheticCardDefinition({ name: "Growing Grass Energy", hp: null, category: "Energy", attacks: [],
+    rules: ["As long as this card is attached to a Pokémon, it provides {G} Energy.\nThe {G} Pokémon this card is attached to gets +20 HP."] });
+  const typedDefinitions = [...definitions.map((card) => ({ ...card, types: [card.name === "Rival" ? "Fire" : "Grass"] })), grassEnergy];
+  const typedIndex = buildCardDefinitionIndex(typedDefinitions);
+  const typedContext = createReplayHpContext(Object.fromEntries([...typedIndex.keys()].map((name) => [name, resolveCardDefinition(typedIndex, { name })])));
+  const typedState = structuredClone(hpReplay.frames[6]);
+  typedState.self.active!.energy = ["Growing Grass Energy", "Growing Grass Energy"];
+  typedState.opponent.active!.energy = ["Growing Grass Energy"];
+  typedContext.update(typedState);
+  assert.equal(typedState.self.active?.maxHp, 190, "both applicable typed attachments add their HP bonuses");
+  assert.equal(typedState.opponent.active?.maxHp, 100, "the same printed symbol predicate does not boost another type");
+  const unknownTypeIndex = buildCardDefinitionIndex(typedDefinitions.map((card) => card.name === "Sprout" ? { ...card, types: null } : card));
+  createReplayHpContext(Object.fromEntries([...unknownTypeIndex.keys()].map((name) => [name, resolveCardDefinition(unknownTypeIndex, { name })]))).update(typedState);
+  assert.equal(typedState.self.active?.maxHp, null, "missing target type cannot prove the typed HP adjustment");
+  assert.equal(typedState.opponent.active?.maxHp, 100, "unknown type remains local to the affected recipient");
+  const conflictingTypeIndex = buildCardDefinitionIndex([...typedDefinitions,
+    { ...typedDefinitions.find((card) => card.name === "Sprout")!, sourceCardId: "sprout-other-type", types: ["Dragon"] }]);
+  createReplayHpContext(Object.fromEntries([...conflictingTypeIndex.keys()].map((name) => [name, resolveCardDefinition(conflictingTypeIndex, { name })]))).update(typedState);
+  assert.equal(typedState.self.active?.maxHp, null, "conflicting printing types cannot prove whether the typed HP bonus applies");
+  assert.equal(typedState.opponent.active?.maxHp, 100, "a conflicting recipient type does not affect the other player");
 
   const lunarDefinitions = [
     syntheticCardDefinition(), syntheticCardDefinition({ name: "Lunatone", hp: 90 }),
@@ -937,8 +984,6 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   for (const unsupportedAttack of [
     { ...ordinaryAttacker.attacks[0], text: "This attack does 10 damage to 1 of your opponent's Benched Pokémon." },
     { ...ordinaryAttacker.attacks[0], text: "Choose 1 of your opponent's Pokémon. This attack does 10 damage to it." },
-    { ...ordinaryAttacker.attacks[0], text: null },
-    { ...ordinaryAttacker.attacks[0], damage: "10+" },
   ]) {
     const candidates = buildCardDefinitionIndex([ordinaryAttacker, { ...ordinaryAttacker, sourceCardId: "other-attacker", attacks: [unsupportedAttack] }]);
     const uncertainAttack = compileBattleReplay({ ...ordinaryAttackInput, cardDefinitions: { ...ordinaryContext, attacker: resolveCardDefinition(candidates, { name: "Attacker" }) } });
@@ -946,7 +991,20 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
     assert.equal(uncertainAttack.frames[5].opponent.active?.damage, 0);
     assert.equal(uncertainAttack.frames[5].opponent.bench[0].damage, 0);
   }
-  assert.deepEqual(compileBattleReplay({ ...ordinaryAttackInput, cardDefinitions: { ...ordinaryContext, attacker: { ...ordinaryAttackEvidence, coverage: "incomplete" } } }).diagnostics.unresolvedActions, [4]);
+  for (const partialAttack of [
+    { ...ordinaryAttacker.attacks[0], text: null },
+    { ...ordinaryAttacker.attacks[0], damage: "10+" },
+  ]) {
+    const index = buildCardDefinitionIndex([ordinaryAttacker, { ...ordinaryAttacker, sourceCardId: "other-attacker", attacks: [partialAttack] }]);
+    const recordedAttack = compileBattleReplay({ ...ordinaryAttackInput, cardDefinitions: { ...ordinaryContext, attacker: resolveCardDefinition(index, { name: "Attacker" }) } });
+    assert.equal(recordedAttack.frames[5].opponent.active?.damage, 10, "the source damage receipt uses the default defending Active despite incomplete prose or a variable printed amount");
+    assert.equal(recordedAttack.frames[5].opponent.bench[0].damage, 0, "the same-name Bench copy is not the default attack recipient");
+  }
+  const incompleteAttack = compileBattleReplay({ ...ordinaryAttackInput, cardDefinitions: { ...ordinaryContext, attacker: { ...ordinaryAttackEvidence, coverage: "incomplete" } } });
+  assert.equal(incompleteAttack.frames[5].opponent.active?.damage, 10, "source target evidence does not certify missing catalogue coverage");
+  assert.equal(incompleteAttack.frames[5].opponent.bench[0].damage, 0);
+  assert.ok(incompleteAttack.cardResolutions);
+  assert.equal(incompleteAttack.cardResolutions[incompleteAttack.frames[5].self.active!.definitionKey!].coverage, "incomplete");
 
   // Exact public clauses used by the original corpus; this unit seam varies
   // only the recorded amount to ensure domain proof never recomputes damage.
@@ -973,15 +1031,17 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   const grantedAttack = compileBattleReplay({ ...grantedInput, cardDefinitions: { ...ordinaryContext,
     "granting item": resolveCardDefinition(buildCardDefinitionIndex([persistentGrant]), { name: "Granting Item" }) } });
   assert.ok(grantedAttack.events[5].unresolved?.length, "a recorded prior Trainer grant cannot disappear when playedCard is cleared for the next action");
-  assert.equal(grantedAttack.frames[6].opponent.active?.damage, 0, "an unmodelled grant route cannot establish a namesake Active target");
+  assert.equal(grantedAttack.frames[6].opponent.active?.damage, 10, "unknown native or granted provenance does not erase the source damage receipt's default Active target");
+  assert.equal(grantedAttack.frames[6].opponent.bench[0].damage, 0);
   const refusedAttackInput = structuredClone(ordinaryAttackInput);
   refusedAttackInput.sections![0].actions.splice(4, 0, action("PlayerOne's Attacker used Unmodelled on PlayerTwo's Twin for 10 damage."));
   const refusedAttackDefinition = { ...ordinaryAttacker, attacks: [...ordinaryAttacker.attacks, { ...ordinaryAttacker.attacks[0], name: "Unmodelled", text: null }] };
   const refusedAttack = compileBattleReplay({ ...refusedAttackInput, cardDefinitions: { ...ordinaryContext,
     attacker: resolveCardDefinition(buildCardDefinitionIndex([refusedAttackDefinition]), { name: "Attacker" }) } });
-  assert.ok(!refusedAttack.events[4].transaction?.stages.some((entry) => entry.kind === "attack"), "the ambiguous first target prevents an attack stage");
-  assert.ok(refusedAttack.events[5].unresolved?.length, "a recorded attack without a stage still preserves missing-text route uncertainty");
-  assert.equal(refusedAttack.frames[6].opponent.active?.damage, 0);
+  assert.ok(refusedAttack.events[4].transaction?.stages.some((entry) => entry.kind === "attack"), "the literal attack receipt remains visible despite missing card prose");
+  assert.ok(refusedAttack.events[5].unresolved?.length, "the earlier missing-text attack still preserves granted-route uncertainty");
+  assert.equal(refusedAttack.frames[6].opponent.active?.damage, 20, "both literal damage receipts reach the defending Active");
+  assert.equal(refusedAttack.frames[6].opponent.bench[0].damage, 0);
   const resistedInput = structuredClone(ordinaryAttackInput);
   resistedInput.sections![0].actions[4].title = "PlayerOne's Attacker used Pollen on PlayerTwo's Twin for 0 damage. Twin took 10 less damage because of Grass Resistance.";
   assert.deepEqual(compileBattleReplay({ ...resistedInput, cardDefinitions: ordinaryContext }).diagnostics.unresolvedActions, []);
@@ -1186,6 +1246,23 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(isReplayAbilityLimitContextNeutral("You can't use more than 1 Fan Call Ability during your turn.", false, "Recon Directive"), true);
   assert.equal(isReplayAbilityLimitContextNeutral("You can't use more than 1 Fan Call Ability during your turn.", true, "Fan Call"), false);
   assert.equal(isReplayAbilityLimitContextNeutral("You can't use more than 1 Ability that has \"Last-Ditch\" in its name each turn.", false, "Recon Directive"), true);
+  const typedSuppression = "{C} Pokémon in play (both yours and your opponent's) have no Abilities.";
+  const dragonTarget = syntheticCardDefinition({ name: "Drakloak", types: ["Dragon"], stage: "Stage1" });
+  const dragonEvidence = resolveCardDefinition(buildCardDefinitionIndex([dragonTarget]), { name: "Drakloak" });
+  assert.equal(isReplayAbilityLimitContextNeutral(typedSuppression, false, "Recon Directive", dragonEvidence), true, "the exact Colorless suppression clause cannot affect a proven Dragon cohort");
+  assert.equal(isReplayAbilityLimitContextNeutral(typedSuppression, false, "Recon Directive"), false, "typed suppression cannot be ignored without the target domain");
+  assert.equal(isReplayAbilityLimitContextNeutral(typedSuppression, false, "Recon Directive", { ...dragonEvidence, coverage: "incomplete" }), false);
+  assert.equal(isReplayAbilityLimitContextNeutral(typedSuppression, false, "Recon Directive", resolveCardDefinition(buildCardDefinitionIndex([{ ...dragonTarget, types: null }]), { name: "Drakloak" })), false);
+  assert.equal(isReplayAbilityLimitContextNeutral(typedSuppression, false, "Recon Directive", resolveCardDefinition(buildCardDefinitionIndex([dragonTarget, { ...dragonTarget, sourceCardId: "other-target", types: ["Colorless"] }]), { name: "Drakloak" })), false, "one affected candidate prevents cohort neutrality");
+  assert.equal(isReplayAbilityLimitContextNeutral(`${typedSuppression} Your Pokémon may use their Abilities again.`, false, "Recon Directive", dragonEvidence), false, "a recognized clause cannot hide an additional limit-changing sentence");
+  const typeChanges = [
+    "As long as this Pokémon is your Active Pokémon, this Pokémon is the same type as your opponent’s Active Pokémon.",
+    "This Pokémon is the same type as any basic Energy attached to it. (If it has 2 or more different types of basic Energy attached, this Pokémon is each of those types.)",
+  ];
+  for (const text of typeChanges) {
+    assert.equal(isReplayAbilityLimitContextNeutral(text, true, "Recon Directive", dragonEvidence), false, "a target's printed type cannot certify immunity after its own type-changing effect");
+    assert.equal(isReplayAbilityLimitContextNeutral(text, false, "Recon Directive", dragonEvidence), true, "a self-only type change on another Pokémon does not change this cohort's type");
+  }
   for (const rules of [["Your Pokémon may use their Abilities again."], ["Your Pokémon can use the Abilities of your Benched Pokémon."], null]) {
     const permission = syntheticCardDefinition({ name: "Permission Stadium", category: "Trainer", trainerType: "Stadium", hp: null, rules, abilities: [], attacks: [] });
     const permissionInput = structuredClone(threeCopyReconInput);
