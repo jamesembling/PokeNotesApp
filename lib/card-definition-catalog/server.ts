@@ -5,7 +5,6 @@ import { isCardDefinition } from "./source.mjs";
 import type { CardDefinition, CardDefinitionCoverage, CardDefinitionEvidenceByName, CardDefinitionEvidence, CardDefinitionQuery } from "./types";
 
 const TTL_MS = 5 * 60 * 1000;
-const MAX_GENERATION_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_CACHE_NAMES = 512;
 const BATCH_NAMES = 40;
 const PAGE_SIZE = 500;
@@ -37,7 +36,9 @@ export async function loadCardDefinitions(names: readonly string[], signal?: Abo
       activeCache = active;
     }
     const age = Date.now() - Date.parse(active.completedAt);
-    if (!Number.isFinite(age) || age < 0 || age > MAX_GENERATION_AGE_MS) {
+    // Publication age does not invalidate supplied card text or HP. Retain the
+    // last published data while refreshes catch up; reject invalid provenance.
+    if (!Number.isFinite(age) || age < 0) {
       for (const name of uniqueNames) result[name] = { ...resolveCardDefinition(empty, { name }, "stale", active.id), sourceCoverage: active.sourceCoverage };
       return result;
     }

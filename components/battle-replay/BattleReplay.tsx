@@ -821,6 +821,7 @@ function trainerBoardAction(event: ReplayEvent | null, previous: ReplayState, st
     if (matches && [...energy].sort().join("\0") === [...before.energy].sort().join("\0")) attachments.set(stage, { actor, targetId: target.id });
   }
   let delay = 550;
+  let presentation: { phase: string; pile: string; delay: number } | undefined;
   const handled = !event.unresolved?.length && stages.every((stage, index) =>
     (["play", "draw", "discard", "bench", "return", "shuffle", "before", "evolve"].includes(stage.kind)
       || stage.kind === "attach" && attachments.has(stage)
@@ -849,11 +850,20 @@ function trainerBoardAction(event: ReplayEvent | null, previous: ReplayState, st
         drawn.reveal = Boolean(drawn.card);
         continue;
       }
-      const reveal = Boolean(entry) && pile !== "Hand" && (actor === "self" || destination !== "hand"
-        || pile === "Deck" && /\breveal\b/i.test(rules));
+      const reveal = Boolean(entry) && (destination === "discard" || pile !== "Hand" && (actor === "self" || destination !== "hand"
+        || pile === "Deck" && /\breveal\b/i.test(rules)));
+      let flightDelay = delay;
+      if (reveal) {
+        const phase = pile === "Deck" ? "search" : `${pile}:${destination}`;
+        if (presentation?.phase !== phase || presentation.pile !== pile) presentation = { phase, pile, delay };
+        flightDelay = presentation.delay;
+        delay = Math.max(delay, flightDelay + 2100);
+      } else {
+        presentation = undefined;
+        delay += pile === "Hand" ? 120 : 180;
+      }
       flights.push({ card: entry, actor, pile, destination, evolution: stage.kind === "evolve", targetId: attachment?.targetId ?? target?.id, reveal,
-        faceUp: Boolean(entry) && (Boolean(attachment) || pile === "Hand" && (actor === "self" || destination === "discard" || destination === "bench")), delay });
-      delay += reveal ? 2100 : pile === "Hand" ? 120 : 180;
+        faceUp: Boolean(entry) && (Boolean(attachment) || pile === "Hand" && (actor === "self" || destination === "discard" || destination === "bench")), delay: flightDelay });
     }
     if (stage.kind === "shuffle") {
       shuffles.push({ actor, delay: delay + 450 });
@@ -1341,9 +1351,21 @@ export function BattleReplay({
         ?? slots[0]?.getBoundingClientRect()
         : entry.pile ? actorSide.querySelector<HTMLElement>(`[data-pile-face="${entry.pile}"]`)?.getBoundingClientRect() : pileOrigin;
       if (!origin?.width) { arrive(index); return; }
-      const revealScale = Math.min(180, board.clientWidth * (cardDraw.kind === "prize" ? 0.3 : 0.55)) / origin.width;
-      const revealX = frameRect.left + frameRect.width / 2 - origin.width * revealScale / 2 - origin.left;
-      const revealY = centreY - origin.height * revealScale / 2 - origin.top;
+      const group = cardDraw.flights.filter((flight) => flight.reveal && flight.delay === entry.delay);
+      const groupIndex = Math.max(0, group.indexOf(entry));
+      const columns = Math.min(group.length || 1, Math.ceil(Math.sqrt((group.length || 1) * 1.4)));
+      const rows = Math.ceil((group.length || 1) / columns);
+      const gap = 12;
+      const revealWidth = Math.min(180, board.clientWidth * (cardDraw.kind === "prize" ? 0.3 : 0.55),
+        (board.clientWidth - 24 - (columns - 1) * gap) / columns,
+        (Math.min(board.clientHeight - 32, window.innerHeight * 0.6) - (rows - 1) * gap) / (rows * 1.4));
+      const revealScale = revealWidth / origin.width;
+      const row = Math.floor(groupIndex / columns);
+      const rowCards = Math.min(columns, (group.length || 1) - row * columns);
+      const rowWidth = rowCards * revealWidth + (rowCards - 1) * gap;
+      const groupHeight = rows * revealWidth * 1.4 + (rows - 1) * gap;
+      const revealX = frameRect.left + frameRect.width / 2 - rowWidth / 2 + groupIndex % columns * (revealWidth + gap) - origin.left;
+      const revealY = centreY - groupHeight / 2 + row * (revealWidth * 1.4 + gap) - origin.top;
       const card = entry.card;
       const slot = card ? slots.find((element) => element.dataset.handCardId === card.id) : undefined;
       const handEntries = cardDraw.flights.filter((entry) => entry.destination === "hand" && (entry.actor ?? cardDraw.actor) === actor);
@@ -1357,7 +1379,7 @@ export function BattleReplay({
       if (!destination || !origin.width) { arrive(index); return; }
       const reveal = entry.reveal;
       const delay = entry.delay;
-      const duration = entry.evolution ? 700 : entry.pile === "Board" ? 650 : entry.destination === "attach" ? 850 : reveal ? 1900 : entry.pile === "Hand" ? 450 : 1000;
+      const duration = reveal ? 1900 : entry.evolution ? 700 : entry.pile === "Board" ? 650 : entry.destination === "attach" ? 850 : entry.pile === "Hand" ? 450 : 1000;
       const scale = entry.destination === "attach" ? 0.28 : destination.width / origin.width;
       const destinationX = entry.destination === "attach" ? destination.left + destination.width / 2 - origin.width * scale / 2 : destination.left;
       const destinationY = entry.destination === "attach" ? destination.bottom - origin.height * scale : destination.top;
@@ -1381,11 +1403,11 @@ export function BattleReplay({
       animation.onfinish = () => { flight.style.visibility = "hidden"; animation.cancel(); arrive(index); };
       animations.push(animation);
       const flipper = flight.querySelector<HTMLElement>(`.${styles.prizeFlightFlipper}`);
-      if (reveal && flipper) animations.push(flipper.animate([
+      if (reveal && !entry.faceUp && flipper) animations.push(flipper.animate([
         { transform: "perspective(700px) rotateY(180deg)" }, { transform: "perspective(700px) rotateY(0deg)" },
       ], { id: `replay-${cardDraw.kind}-reveal`, delay: delay + 300, duration: 350, fill: "forwards", easing: "ease-out" }));
       const arrivingCard = cardDraw.kind === "retreat" || entry.evolution || entry.destination === "attach" || entry.destination === "deck" ? null : entry.destination === "discard"
-        ? card && state[actor].discard[0]?.id === card.id ? destinationCard?.querySelector<HTMLElement>("img") : null
+        ? !trainerAction && card && state[actor].discard[0]?.id === card.id ? destinationCard?.querySelector<HTMLElement>("img") : null
         : destinationCard;
       if (arrivingCard) {
         const appear = arrivingCard.animate([{ opacity: 0 }, { opacity: 0, offset: 0.99 }, { opacity: 1 }],
@@ -1871,7 +1893,7 @@ export function BattleReplay({
           </div>
           {damageTransfer ? Array.from({ length: damageTransfer.count }, (_, index) => <span className={`${styles.damageBadge} ${styles.boardDamageFlight}`} data-counter-flight={index} key={`${actionIndex}-counter-${index}`} aria-hidden="true">10</span>) : null}
           {cardDraw ? cardDraw.flights.map((entry, index) => <div className={styles.boardPrizeFlight} data-draw-flight={index} data-draw-kind={cardDraw.kind} data-draw-actor={entry.actor ?? cardDraw.actor} data-draw-destination={entry.destination} key={`${actionIndex}-draw-${index}`} aria-hidden="true">
-            {entry.reveal && entry.card ? <div className={styles.prizeFlightFlipper}>
+            {entry.reveal && entry.card ? <div className={styles.prizeFlightFlipper} style={entry.faceUp ? { transform: "perspective(700px) rotateY(0deg)" } : undefined}>
               <div className={styles.prizeFlightFront}><CardArtwork card={entry.card} alt="" sizes="180px" eager /></div>
               <div className={styles.prizeFlightBack}><div className={styles.cardBack} /></div>
             </div> : entry.faceUp && entry.card ? <CardArtwork card={entry.card} alt="" sizes="100px" eager /> : <div className={styles.cardBack} />}

@@ -133,9 +133,9 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   const scopedHp = createReplayHpContext(scopedRaw, "TEF-30C", scopedLinked, "2026-09-27");
   assert.equal(scopedHp.resolve({ name: "Seedling", definitionOwner: "self", observedEffects: ["Tap"] })?.coverage, "complete", "later linked effect resolution preserves saved format and date");
   const datedAfterSnapshot = createReplayHpContext(scopedRaw, "TEF-30C", undefined, "2026-10-05");
-  assert.equal(datedAfterSnapshot.resolve({ name: "Seedling" })?.coverage, "incomplete", "HP name-domain inference refuses games after the retained snapshot");
+  assert.equal(datedAfterSnapshot.resolve({ name: "Seedling" })?.coverage, "complete", "existing catalogue facts remain usable for games after the snapshot");
   assert.equal(datedAfterSnapshot.resolve({ name: "Seedling", setId: scopedPrint.setId, localId: scopedPrint.localId })?.hp, scopedPrint.hp, "an exact immutable printing may bypass a later snapshot name-domain horizon");
-  assert.equal(getLinkedReplayDefinitions([linkedCards[0]], scopedRaw, { synthetic: "TST" }, "TEF-30C", "2026-10-05").seedling.coverage, "incomplete", "current linked preference cannot fill a later snapshot name-domain gap");
+  assert.equal(getLinkedReplayDefinitions([linkedCards[0]], scopedRaw, { synthetic: "TST" }, "TEF-30C", "2026-10-05").seedling.coverage, "complete", "linked retained printings remain usable after catalogue capture");
   const itemRule = "Search your deck for a Pokémon that doesn't have a Rule Box, reveal it, and put it into your hand. Then, shuffle your deck. (Pokémon ex, Pokémon V, etc. have Rule Boxes.)";
   const eligibleItem = syntheticCardDefinition({ name: "Poké Pad", sourceCardId: "me03-081", setId: "me03", localId: "081", setReleaseDate: "2026-03-27",
     category: "Trainer", trainerType: "Item", hp: null, stage: null, types: null, attacks: [], rules: [itemRule], regulationMark: "J" });
@@ -1320,9 +1320,11 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.deepEqual(triggered.frames[5].self.bench.find((card) => card.id === freshTop.id)?.underlying.map((card) => card.name), ["Kadabra"]);
   const handEvolutionRule = "Choose 1 of your Basic Pokémon in play. If you have a Stage 2 card in your hand that evolves from that Pokémon, put that card on the Basic Pokémon. (This counts as evolving that Pokémon.) You can’t use this card during your first turn or on a Basic Pokémon that was put into play this turn.";
   const handItem = syntheticCardDefinition({ name: "Rare Candy", category: "Trainer", trainerType: "Item", hp: null, abilities: [], rules: [handEvolutionRule] });
+  const retainedHandItem = selectRetainedCardDefinitions([handItem], { savedFormats: ["TEF-30C"], retainedOn: "2026-10-04" });
   const itemEvolution = { ...triggerInput, sections: [section("", [action("PlayerOne played Seedling to the Active Spot."), action("PlayerOne played Alakazam to the Bench."), action("PlayerOne played Abra to the Bench.")]),
     section("PlayerOne", [action("PlayerOne played Rare Candy.", ["- PlayerOne evolved Abra to Alakazam on the Bench."]), action(psychicTitle, ["- PlayerOne drew 3 cards."])])],
-    cardDefinitions: { ...triggerInput.cardDefinitions, "rare candy": resolveCardDefinition(buildCardDefinitionIndex([handItem]), { name: "Rare Candy" }) } };
+    date: "2026-10-06", format: "TEF-30C",
+    cardDefinitions: { ...triggerInput.cardDefinitions, "rare candy": { ...resolveCardDefinition(buildCardDefinitionIndex(retainedHandItem.definitions), { name: "Rare Candy" }), sourceCoverage: retainedHandItem.sourceCoverage } } };
   const itemTriggered = compileBattleReplay(itemEvolution);
   assert.equal(itemTriggered.frames[5].self.bench.find((card) => card.physicalCardId === "action-3-physical-0")?.abilityUsed, true, "verified Hand origin plus counts-as-evolving permits the same native trigger");
   const unsupportedItem = compileBattleReplay({ ...itemEvolution, cardDefinitions: { ...itemEvolution.cardDefinitions, "rare candy": resolveCardDefinition(buildCardDefinitionIndex([{ ...handItem, rules: null }]), { name: "Rare Candy" }) } });

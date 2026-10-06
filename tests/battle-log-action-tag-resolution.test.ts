@@ -427,11 +427,11 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
   assert.equal(resolveCardDefinition(buildCardDefinitionIndex(scoped.definitions), exactRetained, "complete", "retained", scoped.sourceCoverage).coverage, "complete", "a retained exact identity is not tainted by omitted unknown printings of the same name");
   assert.equal(resolveCardDefinition(buildCardDefinitionIndex(scoped.definitions), exactRetained, "stale", "retained", scoped.sourceCoverage).coverage, "stale", "exact identity cannot repair stale load coverage");
   assert.equal(getCardDefinitionScopeCoverage(scoped.sourceCoverage, "Independent name", { declaredFormat: currentStandardFormat(), playedOn: "2026-10-04" }), "complete", "an unrelated metadata gap does not taint every card");
-  assert.equal(getCardDefinitionScopeCoverage(scoped.sourceCoverage, "Independent name", { declaredFormat: currentStandardFormat(), playedOn: "2026-10-05" }), "incomplete", "a reduced name inventory cannot certify printings appearing after its capture day");
+  assert.equal(getCardDefinitionScopeCoverage(scoped.sourceCoverage, "Independent name", { declaredFormat: currentStandardFormat(), playedOn: "2026-10-05" }), "complete", "a later game date does not invalidate unrelated retained card information");
   assert.equal(getCardDefinitionScopeCoverage(scoped.sourceCoverage, "Independent name", { declaredFormat: currentStandardFormat() }), "incomplete", "an undated name-domain query cannot prove snapshot freshness");
   assert.equal(getCardDefinitionSnapshotCoverage({ ...scoped.sourceCoverage, retainedOn: "invalid" }, "2026-10-04"), "incomplete");
   assert.equal(getCardDefinitionSnapshotCoverage(scoped.sourceCoverage, "2026-02-30"), "incomplete");
-  assert.equal(getCardDefinitionSnapshotCoverage(scoped.sourceCoverage, "2026-10-04T23:00:00-12:00"), "incomplete", "timestamped game queries use UTC day beyond the retained capture");
+  assert.equal(getCardDefinitionSnapshotCoverage(scoped.sourceCoverage, "2026-10-04T23:00:00-12:00"), "complete", "valid later UTC game dates remain supported by retained information");
   assert.equal(getCardDefinitionSnapshotCoverage(scoped.sourceCoverage, "2026-10-04T01:00:00+02:00"), "complete", "UTC conversion does not hide a game within the captured inventory");
   assert.equal(getCardDefinitionSnapshotCoverage(scoped.sourceCoverage, "2026-10-04T25:00:00Z"), "incomplete", "invalid timestamps cannot borrow their sliced calendar prefix");
   assert.equal(getCardDefinitionSnapshotCoverage(scoped.sourceCoverage, "2026-10-04T12:00:00"), "incomplete", "timezone-free timestamps cannot establish the query day");
@@ -660,7 +660,7 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
       const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
       if (definitionScenario) {
         const generationId = `synthetic-${definitionScenario}`;
-        if (url.pathname.endsWith("card_definition_active")) return response(definitionScenario === "unavailable" ? null : { generation_id: generationId, generation: { id: generationId, completed_at: new Date(now - (definitionScenario === "stale" ? 15 * 86400000 : 1000)).toISOString(), source_coverage: { scope: "tcgdex-listed-en-physical", listedPrintings: 501, unlistedSets: [] } } });
+        if (url.pathname.endsWith("card_definition_active")) return response(definitionScenario === "unavailable" ? null : { generation_id: generationId, generation: { id: generationId, completed_at: new Date(now - (definitionScenario === "old" ? 15 * 86400000 : 1000)).toISOString(), source_coverage: { scope: "tcgdex-listed-en-physical", listedPrintings: 501, unlistedSets: [] } } });
         assert.ok(url.pathname.endsWith("card_definition_catalog"));
         definitionRequests++;
         if (definitionScenario === "capped") return response([{ definition: definition() }], 2);
@@ -690,13 +690,13 @@ test("card effect catalog resolves trainer tags from card name only", async (t) 
     const cached = await loadCardDefinitions(["Seedling"]);
     assert.equal(cached.seedling.hp, 70);
     assert.equal(definitionRequests, 2, "a complete generation/name lookup can reuse its cache");
-    for (const scenario of ["capped", "malformed", "stale", "unavailable"]) {
+    for (const scenario of ["capped", "malformed", "old", "unavailable"]) {
       now += 6 * 60 * 1000; // Expire both generation and name caches between independent provider states.
       definitionScenario = scenario;
       const unavailable = await loadCardDefinitions(["Seedling"]);
-      assert.equal(unavailable.seedling.hp, null, `${scenario} provider data cannot establish HP`);
-      assert.equal(unavailable.seedling.definition, null);
-      assert.equal(unavailable.seedling.coverage, scenario === "capped" || scenario === "malformed" ? "incomplete" : scenario);
+      assert.equal(unavailable.seedling.hp, scenario === "old" ? 70 : null, "catalogue age alone cannot erase existing HP; failed or incomplete loads cannot establish it");
+      assert.equal(Boolean(unavailable.seedling.definition), scenario === "old");
+      assert.equal(unavailable.seedling.coverage, scenario === "capped" || scenario === "malformed" ? "incomplete" : scenario === "old" ? "complete" : scenario);
     }
   } finally {
     t.mock.restoreAll();

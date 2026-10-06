@@ -114,6 +114,7 @@ Card effects can override these limits. For example, Festival Lead lets Dipplin 
 ## 8. Card information (HP, artwork, text)
 
 - Use the card catalogue for HP, artwork, attacks and Abilities.
+- The catalogue informs the replay; its capture date and age must not disable existing card information or recorded actions in newer games. Missing cards, conflicting printings and unavailable rules affect only the relevant information. Keep format and release checks scoped to the card being resolved.
 - If every printing of a card has the same HP, show that HP as **known**.
 - If printings differ, choose in this order:
   1. the printing in the player's linked deck list
@@ -153,6 +154,8 @@ These, and only these, should normally show as unknown:
 - **Animate the recorded movement, across card types.** Items and Supporters share the same board sequence; choose behavior from the transaction and catalogue classification rather than the card's name.
 - **Show the cause while its effect resolves.** A played Item or Supporter travels from Hand to the reserved spot beside its owner's Active, stays there during resolution, then travels to Discard. Pokémon Abilities use the shared banner on their source Pokémon; Stadiums and Tools retain their own board positions.
 - **Resolve in source order.** Show recorded discard costs and hand returns before the following search or draw. Shuffle the Deck after recorded returns and before subsequent draws.
+- **Present every card in each step together.** A two-card discard shows both cards, sends both to Discard, then shows the following draw. Multiple cards searched from Deck share a presentation before separating to their recorded destinations, including a Hand draw and an Energy attachment from the same search.
+- **Hand → reveal → Discard.** Present named discarded cards on the board before they reach Discard, including an opponent's publicly discarded cards. Finish that presentation before the following draw begins. Already visible Hand cards stay face up during the presentation.
 - **Deck → reveal → destination.** Visible cards pulled from Deck are presented on the board before travelling to the recorded Hand, Bench, attachment or Discard destination. Hidden cards stay face down; never invent an identity to fill the reveal.
 - **Change the visible recipient on arrival.** Keep the previous evolution and attachments until their incoming card lands. Drawn Hand cards appear when their flight arrives.
 - **Keep controls responsive.** Autoplay waits for the sequence to finish. Seeking or resizing clears transient flights; reduced motion settles the recorded result immediately.
