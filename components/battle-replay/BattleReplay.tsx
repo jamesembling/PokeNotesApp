@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -150,6 +151,36 @@ function ConditionMarkers({ conditions }: { conditions?: ReplayCard["conditions"
   </div>;
 }
 
+function EvolutionReveal({ anchor }: { anchor: { current: HTMLDivElement | null } }) {
+  const [placement, setPlacement] = useState<{ frame: HTMLElement; left: number; top: number; width: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const card = anchor.current?.querySelector<HTMLElement>("[data-card-artwork-frame]");
+    const frame = anchor.current?.closest<HTMLElement>("[data-replay-board-frame]");
+    if (!card || !frame) return;
+    const source = card.getBoundingClientRect();
+    const bounds = frame.getBoundingClientRect();
+    setPlacement({ frame, left: source.left - bounds.left - source.width / 2, top: source.top - bounds.top - source.height / 2, width: source.width * 2, height: source.height * 2 });
+    const settle = () => setPlacement(null);
+    window.addEventListener("resize", settle);
+    return () => window.removeEventListener("resize", settle);
+  }, [anchor]);
+  if (!placement) return null;
+  return createPortal(<div aria-hidden="true" data-evolution-reveal className={styles.evolutionReveal}
+    style={{ left: placement.left, top: placement.top, width: placement.width, height: placement.height }}
+    onAnimationEnd={(event) => { if (event.target === event.currentTarget) setPlacement(null); }}>
+    <div className={styles.evolutionRadiance} />
+    <div className={styles.evolutionSheen} />
+    <svg className={styles.evolutionSparks} viewBox="-100 -140 200 280" fill="none">
+      <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+        <path d="M-42-64-66-99M42-64 66-99M-48 0H-82M48 0H82M-42 64-66 99M42 64 66 99M0-72V-113M0 72V113" />
+      </g>
+      <g fill="currentColor">
+        <path d="m-61-48 2-8 2 8 8 2-8 2-2 8-2-8-8-2Zm120 108 2-8 2 8 8 2-8 2-2 8-2-8-8-2Zm-95 43 1.5-6 1.5 6 6 1.5-6 1.5-1.5 6-1.5-6-6-1.5Zm63-195 1.5-6 1.5 6 6 1.5-6 1.5-1.5 6-1.5-6-6-1.5Z" />
+      </g>
+    </svg>
+  </div>, placement.frame);
+}
+
 function CardFace({
   card,
   actor,
@@ -216,6 +247,7 @@ function CardFace({
       data-reveal-instant={instantReveal || undefined}
     >
       <div className={styles.cardSurface}>
+      {motion === "evolve" ? <EvolutionReveal key={`${effectKey}-${card.name}`} anchor={stackRef} /> : null}
       {knockedOut ? <span key={`ko-${effectKey}`} className={styles.knockoutStamp} role="status" aria-label={`${card.name} was Knocked Out`}>KO</span> : null}
       {damageTaken > 0 ? <span key={`damage-${effectKey}`} className={styles.attackDamage} role="status" aria-label={`${card.name} took ${damageTaken} damage`}>−{damageTaken}</span> : null}
       {bannerName ? <span className={styles.boardActionBanner} data-card-banner={bannerName}>{bannerName}</span> : null}
@@ -225,8 +257,9 @@ function CardFace({
         <CardArtwork card={{ name: toolName, imageUrl: toolImageUrl }} alt={`${toolName}, attached Tool artwork`} sizes="144px" />
       </button> : null}
       <div className={styles.cardHolder}>
-        <div className={styles.cardArtworkFrame}>
+        <div className={styles.cardArtworkFrame} data-card-artwork-frame>
         <button
+          key={card.name}
           aria-label={faceDown ? "Face-down Pokémon" : `Preview ${card.name}${abilityUsed ? ", ability used this turn" : ""}`}
           disabled={faceDown}
           className={`${styles.cardFace} ${styles.cardPreviewTrigger}`}
@@ -537,8 +570,10 @@ function PlayerBoard({
   const previousActive = side.active
     ? [previousSide.active, ...previousSide.bench].find((card) => card?.id === side.active?.id)
     : undefined;
+  const isEvolution = (card: ReplayCard, previous?: ReplayCard | null) => previous && previous.name !== card.name
+    && currentEvent?.transaction?.stages.some((stage) => stage.kind === "evolve" && stage.actor === actor && stage.cards.some((entry) => entry.id === card.id));
   const activeMotion = side.active && isCurrentActor
-    ? currentEvent?.label === "Evolve" && previousActive?.name !== side.active.name
+    ? isEvolution(side.active, previousActive)
       ? "evolve"
       : previousSide.active?.id !== side.active.id
         ? "promote"
@@ -629,7 +664,7 @@ function PlayerBoard({
                 : undefined;
               const wasActive = benchCard && previousSide.active?.id === benchCard.id;
               const isNew = benchCard && !previousSide.bench.some((card) => card.id === benchCard.id);
-              const motion = benchCard && isCurrentActor && currentEvent?.label === "Evolve" && previousCard?.name !== benchCard.name
+              const motion = benchCard && isCurrentActor && isEvolution(benchCard, previousCard)
                 ? "evolve"
                 : wasActive ? "retreat" : isNew ? "bench" : undefined;
               return (
@@ -744,9 +779,27 @@ function boardAbilityActivations(event: ReplayEvent | null, previous: ReplayStat
 
 type DeckAbilityCard = { card?: ReplayZoneCard; destination: "hand" | "bench" | "discard" | "deck" | "attach"; evolution?: boolean; sourceId?: string; targetId?: string; actor?: ReplayActor; pile?: "Deck" | "Discard" | "Hand" | "Board"; faceUp?: boolean };
 type BoardDrawAction = {
-  actor: ReplayActor; pile: "Deck" | "Prizes" | "Discard" | "Hand"; kind: "ability" | "prize" | "item" | "retreat";
+  actor: ReplayActor; pile: "Deck" | "Prizes" | "Discard" | "Hand"; kind: "ability" | "prize" | "item" | "retreat" | "evolution";
   flights: Array<DeckAbilityCard & { delay: number; reveal: boolean }>;
 };
+
+function evolutionBoardAction(event: ReplayEvent | null, previous: ReplayState, state: ReplayState) {
+  if (event?.label !== "Evolve" || !event.transaction || event.unresolved?.length) return null;
+  if (event.transaction.stages.some((stage) => !["before", "evolve"].includes(stage.kind)
+    || stage.targetResolved === false || stage.hiddenCount || stage.scope === "both")) return null;
+  const flights: BoardDrawAction["flights"] = [];
+  for (const stage of event.transaction.stages.filter((stage) => stage.kind === "evolve")) {
+    const actor = stage.actor ?? event.actor;
+    for (const card of stage.cards) {
+      const target = [state[actor].active, ...state[actor].bench].find((target) => target?.id === card.id && target.name === card.name);
+      const before = [previous[actor].active, ...previous[actor].bench].find((before) => before?.id === target?.id);
+      if (!target || !before || before.name === card.name) return null;
+      flights.push({ actor, card, targetId: target.id, pile: "Hand", destination: "bench", evolution: true,
+        faceUp: true, reveal: false, delay: 100 + flights.length * 180 });
+    }
+  }
+  return flights.length ? { actor: event.actor, flights, duration: flights.at(-1)!.delay + 700 + 1000 } : null;
+}
 
 function itemBoardAction(event: ReplayEvent | null, state: ReplayState, program: ReplayProgram) {
   const play = event?.transaction?.stages.find((stage) => stage.kind === "play");
@@ -792,7 +845,7 @@ function itemBoardAction(event: ReplayEvent | null, state: ReplayState, program:
     } else if (stage.kind === "discard" || stage.kind === "evolve") delay += 450;
     else if (cards.length) delay += 850;
   }
-  const finish = Math.max(handled ? 1000 : 1900, ...flights.map((flight) => flight.delay + (flight.reveal ? 1900 : flight.pile === "Hand" ? 450 : 1000)), ...shuffles.map((shuffle) => shuffle.delay + DECK_SHUFFLE_MS)) + 200;
+  const finish = Math.max(handled ? 1000 : 1900, ...flights.map((flight) => flight.delay + (flight.evolution ? 1600 : flight.reveal ? 1900 : flight.pile === "Hand" ? 450 : 1000)), ...shuffles.map((shuffle) => shuffle.delay + DECK_SHUFFLE_MS)) + 200;
   return { actor: event.actor, card, flights, shuffles, finish, duration: finish + 650, handled };
 }
 
@@ -1022,9 +1075,10 @@ export function BattleReplay({
   const abilityAttachment = useMemo(() => abilityAttachmentBoardAction(currentEvent, previousState, state, program), [currentEvent, previousState, state, program]);
   const retreatAction = useMemo(() => retreatBoardAction(currentEvent, previousState, state), [currentEvent, previousState, state]);
   const itemAction = useMemo(() => itemBoardAction(currentEvent, state, program), [currentEvent, state, program]);
+  const evolutionAction = useMemo(() => evolutionBoardAction(currentEvent, previousState, state), [currentEvent, previousState, state]);
   const deckShuffles = useMemo(() => handRefresh ? [{ actor: handRefresh.actor, delay: handRefresh.drawStart - DECK_SHUFFLE_MS }] : itemAction?.shuffles ?? [], [handRefresh, itemAction]);
   const [completedItemIndex, setCompletedItemIndex] = useState<number | null>(null);
-  const cardDraw = useMemo<BoardDrawAction | null>(() => itemAction ? { ...itemAction, pile: "Deck", kind: "item" } : abilityDraw ? { ...abilityDraw, pile: "Deck", kind: "ability" } : abilityAttachment ? { ...abilityAttachment, kind: "ability" } : retreatAction ? { ...retreatAction, pile: "Discard", kind: "retreat" } : prizeDraw ? { actor: prizeDraw.actor, pile: "Prizes", kind: "prize", flights: Array.from({ length: prizeDraw.count }, (_, index) => ({ card: prizeDraw.cards[index], destination: "hand" as const, targetId: undefined, reveal: prizeDraw.actor === "self" && Boolean(prizeDraw.cards[index]), delay: index * (prizeDraw.actor === "self" ? 2100 : 180) })) } : null, [abilityAttachment, abilityDraw, itemAction, prizeDraw, retreatAction]);
+  const cardDraw = useMemo<BoardDrawAction | null>(() => itemAction ? { ...itemAction, pile: "Deck", kind: "item" } : evolutionAction ? { ...evolutionAction, pile: "Deck", kind: "evolution" } : abilityDraw ? { ...abilityDraw, pile: "Deck", kind: "ability" } : abilityAttachment ? { ...abilityAttachment, kind: "ability" } : retreatAction ? { ...retreatAction, pile: "Discard", kind: "retreat" } : prizeDraw ? { actor: prizeDraw.actor, pile: "Prizes", kind: "prize", flights: Array.from({ length: prizeDraw.count }, (_, index) => ({ card: prizeDraw.cards[index], destination: "hand" as const, targetId: undefined, reveal: prizeDraw.actor === "self" && Boolean(prizeDraw.cards[index]), delay: index * (prizeDraw.actor === "self" ? 2100 : 180) })) } : null, [abilityAttachment, abilityDraw, evolutionAction, itemAction, prizeDraw, retreatAction]);
   const damageTransfer = useMemo(() => damageTransferBoardAction(currentEvent, previousState, state), [currentEvent, previousState, state]);
   const [pendingAttackIndex, setPendingAttackIndex] = useState<number | null>(null);
   const attackDamageAmounts = useMemo(() => {
@@ -1101,7 +1155,7 @@ export function BattleReplay({
   const resultOnlyCoinFlip = resolveResultOnlyCoinFlip(currentEvent);
   const coinFlipResult = coinToss?.result ?? resultOnlyCoinFlip?.result ?? null;
   const coinPhase = useCoinFlipPhase(currentEvent);
-  const autoplayDelay = itemAction ? itemAction.duration : abilityDraw ? abilityDraw.duration : abilityAttachment ? abilityAttachment.duration : retreatAction ? retreatAction.duration : prizeDraw ? prizeDraw.duration : damageTransfer ? damageTransfer.duration : handRefresh ? handRefresh.duration : atOpeningReveal ? 1800 : currentEvent?.label === "KO" ? 2000 : currentEvent?.label === "Attack" ? 2400 : coinToss ? 4400 : resultOnlyCoinFlip ? 2800 : resolveOpeningTurnChoice(currentEvent) ? 2400 : currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
+  const autoplayDelay = itemAction ? itemAction.duration : evolutionAction ? evolutionAction.duration : abilityDraw ? abilityDraw.duration : abilityAttachment ? abilityAttachment.duration : retreatAction ? retreatAction.duration : prizeDraw ? prizeDraw.duration : damageTransfer ? damageTransfer.duration : handRefresh ? handRefresh.duration : atOpeningReveal ? 1800 : currentEvent?.label === "KO" ? 2000 : currentEvent?.label === "Attack" ? 2400 : coinToss ? 4400 : resultOnlyCoinFlip ? 2800 : resolveOpeningTurnChoice(currentEvent) ? 2400 : currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
   const maxIndex = replayFrames.length - 1;
   const turnStops = useMemo(() => replayEvents.reduce<Array<{ sourceSectionIndex: number; index: number }>>(
     (stops, event, index) => {
@@ -1314,7 +1368,7 @@ export function BattleReplay({
     const pileOrigin = pile.getBoundingClientRect();
     const frameRect = frame.getBoundingClientRect();
     const snapshot = boardSnapshotRef.current;
-    if (cardDraw.kind === "retreat" && snapshot?.index !== actionIndex - 1) {
+    if ((cardDraw.kind === "retreat" || cardDraw.kind === "evolution") && snapshot?.index !== actionIndex - 1) {
       setArrivedFlights(completed); return;
     }
     const oldHands = new Map((["self", "opponent"] as const).map((actor) => [actor,
@@ -1351,12 +1405,12 @@ export function BattleReplay({
         ? [...actorSide.querySelectorAll<HTMLElement>("[data-board-card]")].find((element) => element.dataset.boardCard === entry.targetId)
         : entry.destination === "discard" || entry.destination === "deck" ? actorSide.querySelector<HTMLElement>(`[data-pile-face="${entry.destination === "deck" ? "Deck" : "Discard"}"]`)
           : slot ?? slots[Math.max(0, slots.length - handEntries.length + handIndex)];
-      const destination = (entry.destination === "attach"
+      const destination = (entry.destination === "attach" || entry.evolution
         ? destinationCard?.querySelector<HTMLElement>(`.${styles.cardArtworkFrame}`) : destinationCard)?.getBoundingClientRect();
       if (!destination || !origin.width) { arrive(index); return; }
       const reveal = entry.reveal;
       const delay = entry.delay;
-      const duration = entry.pile === "Board" ? 650 : entry.destination === "attach" ? 850 : reveal ? 1900 : entry.pile === "Hand" ? 450 : 1000;
+      const duration = entry.evolution ? 700 : entry.pile === "Board" ? 650 : entry.destination === "attach" ? 850 : reveal ? 1900 : entry.pile === "Hand" ? 450 : 1000;
       const scale = entry.destination === "attach" ? 0.28 : destination.width / origin.width;
       const destinationX = entry.destination === "attach" ? destination.left + destination.width / 2 - origin.width * scale / 2 : destination.left;
       const destinationY = entry.destination === "attach" ? destination.bottom - origin.height * scale : destination.top;
@@ -1366,6 +1420,10 @@ export function BattleReplay({
         { transform: "none", opacity: 1, offset: 0, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
         { transform: `translate(${revealX}px, ${revealY}px) scale(${revealScale})`, opacity: 1, offset: 0.24 },
         { transform: `translate(${revealX}px, ${revealY}px) scale(${revealScale})`, opacity: 1, offset: 0.76, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
+        { transform: finishTransform, opacity: 1, offset: 1 },
+      ] : entry.evolution ? [
+        { transform: "none", opacity: 1, offset: 0 },
+        { transform: `translate(${(destinationX - origin.left) * 0.6}px, ${(destinationY - origin.top) * 0.6 - 24}px) scale(${1 + (scale - 1) * 0.8}) rotate(-5deg)`, opacity: 1, offset: 0.65 },
         { transform: finishTransform, opacity: 1, offset: 1 },
       ] : entry.pile === "Board" ? [
         { transform: "none", opacity: 0, offset: 0 },
@@ -1467,7 +1525,7 @@ export function BattleReplay({
     const board = boardRef.current;
     const snapshot = boardSnapshotRef.current;
     boardSnapshotRef.current = null;
-    if (!board || !snapshot || snapshot.index + 1 !== actionIndex || currentEvent?.label === "KO" || handRefresh || abilityDraw || abilityAttachment || itemAction?.handled) {
+    if (!board || !snapshot || snapshot.index + 1 !== actionIndex || currentEvent?.label === "KO" || handRefresh || abilityDraw || abilityAttachment || evolutionAction || itemAction?.handled) {
       setPendingAttackIndex(null);
       return;
     }
@@ -1608,7 +1666,7 @@ export function BattleReplay({
     const settle = () => { cancel(); setPendingAttackIndex(null); };
     window.addEventListener("resize", settle);
     return () => { cancel(); window.removeEventListener("resize", settle); };
-  }, [actionIndex, abilityAttachment, abilityDraw, currentEvent, handRefresh, itemAction, movingOnBoard, retreatAction, routineAction]);
+  }, [actionIndex, abilityAttachment, abilityDraw, currentEvent, evolutionAction, handRefresh, itemAction, movingOnBoard, retreatAction, routineAction]);
 
   const advanceTo = useCallback((nextIndex: number) => {
     captureBoard();
@@ -1824,7 +1882,7 @@ export function BattleReplay({
       </div>
 
       <div className={styles.replayStage} ref={stageRef}>
-        <div className={styles.boardFrame} data-transaction={popupTransaction && !inlineTransaction || undefined}>
+        <div className={styles.boardFrame} data-replay-board-frame data-transaction={popupTransaction && !inlineTransaction || undefined}>
           <div className={styles.board} ref={boardRef}>
             <PlayerBoard openingRevealed={openingRevealed} instantReveal={!atOpeningReveal || !animateOpeningReveal} controls={playbackControls} coinPhase={coinPhase} actor="opponent" abilities={abilityActivations} attackDamagePending={pendingAttackIndex === actionIndex} playedSupporter={handRefresh?.actor === "opponent" ? handRefresh.card : undefined} playedItem={itemAction?.actor === "opponent" && completedItemIndex !== actionIndex ? itemAction.card : undefined} currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={boardState.opponent} stadium={state.stadium} />
             {attackAnnouncement ? <div aria-hidden="true" className={styles.attackAnnouncementAnchor}>
