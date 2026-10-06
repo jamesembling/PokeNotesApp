@@ -116,7 +116,9 @@ const componentScopedTokens = new Set([
   "cell-radius",
   "cell-size",
   "radius-md",
-  "replay-pile-card-width",
+  // Pile-preview offsets are supplied by the React style prop.
+  "pile-depth",
+  "pile-offset",
   "sidebar-width",
   "sidebar-width-icon",
   "skeleton-width"
@@ -148,6 +150,13 @@ for (const [name, nextName] of [
 for (const filePath of files) {
   const relativePath = path.relative(root, filePath);
   const content = fs.readFileSync(filePath, "utf8");
+  // CSS-module declarations and registered properties belong to this file,
+  // not the global token registry. Ignore comments when discovering them.
+  const localCss = path.extname(filePath) === ".css" ? content.replace(/\/\*[\s\S]*?\*\//g, "") : "";
+  const localTokens = new Set([
+    ...[...localCss.matchAll(/--([a-zA-Z0-9-]+)\s*:/g)].map(match => match[1]),
+    ...[...localCss.matchAll(/@property\s+--([a-zA-Z0-9-]+)/g)].map(match => match[1]),
+  ]);
 
   for (const { pattern, message } of disallowedPatterns) {
     const match = pattern.exec(content);
@@ -194,7 +203,7 @@ for (const filePath of files) {
     const tokenName = match[1];
     const isDynamicToken = dynamicTokenPrefixes.some((prefix) => tokenName.startsWith(prefix));
     const isComponentScopedToken = componentScopedTokens.has(tokenName);
-    if (!definedTokens.has(tokenName) && !isDynamicToken && !isComponentScopedToken) {
+    if (!definedTokens.has(tokenName) && !localTokens.has(tokenName) && !isDynamicToken && !isComponentScopedToken) {
       failures.push(`${relativePath}:${getLineNumber(content, match.index)} Undefined CSS token --${tokenName}.`);
     }
   }

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -21,6 +23,38 @@ test("CI runs the repository design-system audit", () => {
   assert.match(databaseWorkflow, /include-hidden-files: true/);
   assert.match(databaseWorkflow, /retention-days: 3/);
   assert.doesNotMatch(databaseWorkflow, /secrets\.|--linked|\.env\.e2e\.local\s*$/m);
+
+  const fixture = mkdtempSync(join(tmpdir(), "pokenotes-design-audit-"));
+  try {
+    mkdirSync(join(fixture, "app"));
+    mkdirSync(join(fixture, "components", "ui"), { recursive: true });
+    writeFileSync(join(fixture, "app", "globals.css"), source("app/globals.css"));
+    writeFileSync(join(fixture, "components", "ui", "AppDialog.tsx"), source("components/ui/AppDialog.tsx"));
+    const cssPath = join(fixture, "components", "sample.module.css");
+    writeFileSync(cssPath, `
+      .sample { --local-size: 2rem; width: var(--local-size); color: var(--foreground); }
+      @property --local-angle { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+      .sample { rotate: var(--local-angle); }
+    `);
+    const audit = () => spawnSync(process.execPath, [join(process.cwd(), "scripts/design-system-audit.mjs")],
+      { cwd: fixture, encoding: "utf8" });
+    const declared = audit();
+    assert.equal(declared.status, 0, declared.stderr);
+
+    writeFileSync(join(fixture, "components", "other.module.css"), ".other { --foreign-size: 1rem; }");
+    writeFileSync(cssPath, `
+      /* --comment-size: 1rem; @property --comment-angle {} */
+      .sample { width: var(--foreign-size); height: var(--comment-size); rotate: var(--comment-angle); color: #123456; }
+    `);
+    const undeclared = audit();
+    assert.equal(undeclared.status, 1);
+    for (const name of ["foreign-size", "comment-size", "comment-angle"]) {
+      assert.ok(undeclared.stderr.includes(`Undefined CSS token --${name}.`), undeclared.stderr);
+    }
+    assert.ok(undeclared.stderr.includes("Use CSS tokens instead of raw color literals."));
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
 });
 
 test("CI uses the minimum Node runtime supported by Supabase", () => {

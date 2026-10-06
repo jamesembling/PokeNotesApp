@@ -12,7 +12,6 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { chromium } from "playwright";
 import { parse as parseEnv } from "dotenv";
-import sharp from "sharp";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const baseUrl = "http://localhost:3010";
@@ -379,17 +378,16 @@ async function verifyBattleReplay(db, userId, logId) {
       "The timeline must preserve each saved source action exactly once.");
   }
   await page.getByText("Hidden cards stay face down.", { exact: false }).waitFor();
-  assert.ok(await page.getByLabel("Deck count unknown", { exact: true }).count() === 2);
-  assert.ok(await page.getByLabel("Prize cards remaining unknown", { exact: true }).count() === 2);
-  const diagnostics = page.locator("details").filter({ has: page.locator("summary", { hasText: /^Partial replay/ }) });
-  assert.equal(await diagnostics.count(), 1, "Replay limitations must remain available beside the board.");
-  await diagnostics.locator("summary").click();
-  assert.equal(await diagnostics.getAttribute("open"), "");
-  const diagnosticText = diagnostics.getByText("Recorded actions remain available.", { exact: false });
-  await diagnosticText.waitFor();
-  const diagnosticBox = await diagnosticText.boundingBox();
-  assert.ok(diagnosticBox && diagnosticBox.width >= 200, "Expanded diagnostics must have readable line width.");
-  await diagnostics.locator("summary").click();
+  const decks = page.getByLabel("Deck", { exact: true });
+  const prizes = page.getByLabel("Prize cards", { exact: true });
+  assert.equal(await decks.count(), 2);
+  assert.equal(await prizes.count(), 2);
+  for (const pile of [...await decks.all(), ...await prizes.all()]) {
+    assert.equal(await pile.locator("strong").innerText(), "",
+      "Before setup, unavailable counts must be omitted rather than invented.");
+  }
+  assert.equal(await page.locator("summary", { hasText: /^Partial replay/ }).count(), 0,
+    "Reconstruction diagnostics stay internal under the replay presentation policy.");
 
   checkpoint("step, seek, play, pause and reload the saved replay");
   await page.getByRole("button", { name: "Next action", exact: true }).click();
@@ -505,19 +503,8 @@ async function verifyReplayLayouts(scrubber) {
         `Replay must fit ${label} width in ${theme} mode.`);
       await captureReplay(`battle-replay-${label}-${theme}`);
     }
-    if (label === "desktop" || label === "mobile") {
-      const diagnostics = page.locator("details").filter({ has: page.locator("summary", { hasText: /^Partial replay/ }) });
-      assert.equal(await page.locator("summary", { hasText: /^Recorded source/ }).count(), 0,
-        "Recorded source must not take space beneath the board.");
-      await diagnostics.locator("summary").click();
-      for (const detail of [diagnostics]) {
-        const box = await detail.boundingBox();
-        assert.ok(box && box.width >= 200 && box.x >= 0 && box.x + box.width <= width + 1,
-          `Expanded ${label} replay evidence must stay readable within the viewport.`);
-      }
-      await captureReplay(`battle-replay-${label}-diagnostics-expanded`);
-      await diagnostics.locator("summary").click();
-    }
+    assert.equal(await page.locator("summary", { hasText: /^(Partial replay|Recorded source)/ }).count(), 0,
+      "The board keeps reconstruction diagnostics internal and source access in View Battle Log.");
     const geometry = await page.getByRole("button", { name: "Preview Dreepy", exact: true }).boundingBox();
     console.log(`[import-check] replay ${label} ${width}px: Active card ${Math.round(geometry.width)}×${Math.round(geometry.height)}px`);
   }
@@ -537,48 +524,20 @@ async function captureReplay(name, fullPage = true) {
   return pixels;
 }
 
-async function verifyPreviewLabel(dialog, name) {
-  const label = dialog.getByText("HP ?", { exact: true });
-  await label.waitFor();
+async function verifyCardPreview(dialog, name) {
+  const details = dialog.getByRole("region", { name: "Card preview details", exact: true });
+  await details.waitFor();
+  assert.equal(await dialog.getByText(/HP\s*\?/).count(), 0,
+    "Card previews must omit unavailable HP rather than display uncertainty copy.");
+  await until(() => dialog.evaluate(element => !element.getAnimations()
+    .some(animation => animation.playState === "running")));
+  const box = await details.boundingBox();
+  const viewport = page.viewportSize();
   await captureReplay(name, false);
-  const pixels = await label.screenshot({ animations: "disabled" });
-  const surface = await label.evaluate(element => {
-    const style = getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    const context = document.createElement("canvas").getContext("2d");
-    const rgba = color => {
-      context.clearRect(0, 0, 1, 1);
-      context.fillStyle = color;
-      context.fillRect(0, 0, 1, 1);
-      return [...context.getImageData(0, 0, 1, 1).data];
-    };
-    const probe = document.createElement("span");
-    probe.style.color = "var(--card-foreground)";
-    probe.style.backgroundColor = "var(--card)";
-    element.appendChild(probe);
-    const card = getComputedStyle(probe);
-    const expected = { foreground: rgba(card.color), background: rgba(card.backgroundColor) };
-    probe.remove();
-    return { theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
-      foreground: rgba(style.color), background: rgba(style.backgroundColor), expected,
-      opacity: style.opacity, fontSize: style.fontSize,
-      bounds: { left: rect.left, top: rect.top, width: rect.width, height: rect.height } };
-  });
-  assert.equal(surface.background[3], 255, "The unknown-HP label must have an opaque surface.");
-  assert.equal(surface.opacity, "1");
-  assert.deepEqual(surface.foreground, surface.expected.foreground, "The label must use the card foreground.");
-  assert.deepEqual(surface.background, surface.expected.background, "The label must use the card surface.");
-  const luminance = channels => channels.slice(0, 3).map(value => {
-    const channel = value / 255;
-    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
-  const foreground = luminance(surface.foreground), background = luminance(surface.background);
-  const contrast = (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
-  assert.ok(contrast >= 4.5, "The unknown-HP label must meet normal-text contrast in each theme.");
-  const pixel = [...await sharp(pixels).extract({ left: 8, top: Math.floor(pixels.readUInt32BE(20) / 2), width: 1, height: 1 }).ensureAlpha().raw().toBuffer()];
-  const capturedBackground = luminance(pixel);
-  const capturedContrast = (Math.max(foreground, capturedBackground) + 0.05) / (Math.min(foreground, capturedBackground) + 0.05);
-  console.log(`[import-check] preview label ${JSON.stringify({ ...surface, contrast, pixel, capturedContrast })}`);
+  assert.ok(box && box.width > 0 && box.height > 0 && box.x >= 0 && box.y >= 0 &&
+    box.x + box.width <= viewport.width + 1 && box.y + box.height <= viewport.height + 1,
+    `Card previews must remain visible inside the viewport: ${JSON.stringify({ box, viewport })}`);
+
 }
 
 async function verifyReplayCollection(db, userId, original) {
@@ -638,28 +597,28 @@ async function verifyReplayCollection(db, userId, original) {
     await preview.click();
     const cardDialog = page.getByRole("dialog", { name: "Dreepy", exact: true });
     await cardDialog.waitFor();
-    await page.getByText("HP ?", { exact: true }).last().waitFor();
+    assert.equal(await cardDialog.getByText("HP ?", { exact: true }).count(), 0);
     for (let tab = 0; tab < 8; tab++) {
       await page.keyboard.press("Tab");
       assert.ok(await cardDialog.evaluate(element => element.contains(document.activeElement)),
         "Keyboard focus must remain inside the card preview.");
     }
-    await verifyPreviewLabel(cardDialog, "battle-replay-card-preview-conditions");
+    await verifyCardPreview(cardDialog, "battle-replay-card-preview-conditions");
     checkpoint("restore card preview focus after Escape");
     await page.keyboard.press("Escape");
     await requireRestoredFocus(preview, "Preview Dreepy");
     await page.getByRole("button", { name: "Switch to dark mode", exact: true }).click();
     await preview.click();
     await cardDialog.waitFor();
-    await verifyPreviewLabel(cardDialog, "battle-replay-card-preview-conditions-dark");
+    await verifyCardPreview(cardDialog, "battle-replay-card-preview-conditions-dark");
     await page.keyboard.press("Escape");
     await requireRestoredFocus(preview, "Preview Dreepy");
     await page.getByRole("button", { name: "Switch to light mode", exact: true }).click();
-    const discard = page.locator('section[data-actor="self"]').getByRole("button", { name: "View discard, total count unknown", exact: true });
+    const discard = page.locator('section[data-actor="self"]').getByRole("button", { name: "View discard", exact: true });
     await discard.click();
     const gallery = page.getByRole("dialog", { name: "Your discard pile", exact: true });
     await gallery.waitFor();
-    await gallery.getByText("1 known card · total unknown · identified cards, newest first", { exact: true }).waitFor();
+    await gallery.getByText("Newest first", { exact: true }).waitFor();
     const discardedCard = gallery.getByRole("button", { name: "Preview Basic Fire Energy", exact: true });
     await discardedCard.waitFor();
     await captureReplay("battle-replay-discard-gallery", false);
@@ -670,7 +629,7 @@ async function verifyReplayCollection(db, userId, original) {
     await requireRestoredFocus(discardedCard, "Preview Basic Fire Energy in discard gallery");
     checkpoint("restore discard gallery focus after Escape");
     await page.keyboard.press("Escape");
-    await requireRestoredFocus(discard, "View discard, total count unknown");
+    await requireRestoredFocus(discard, "View discard");
     await verifyReplayLayouts(scrubber);
     checkpoint("verify published card definitions reach replay HP and card preview");
     const syntheticDefinitions = [
@@ -695,25 +654,25 @@ async function verifyReplayCollection(db, userId, original) {
     assert.equal(await page.getByRole("meter", { name: "Rival: 80 of 80 HP remaining", exact: true }).count(), 1,
       "An attached Tool must affect only its recorded physical target.");
     await page.getByLabel(`${rows[2].self_deck_name} Active Spot`, { exact: true }).getByRole("button", { name: "Preview Seedling", exact: true }).click();
-    await page.getByRole("dialog", { name: "Seedling", exact: true }).getByText("170 / 170 HP", { exact: true }).waitFor();
+    await page.getByRole("dialog", { name: "Seedling", exact: true }).waitFor();
     const definitionDialog = page.getByRole("dialog", { name: "Seedling", exact: true });
     const printedDetails = definitionDialog.getByRole("region", { name: "Card preview details", exact: true });
     assert.equal(await definitionDialog.getByText("Fixture Glow", { exact: true }).count(), 0,
-      "Card previews show artwork and HP without printed Ability prose.");
+      "Card previews show artwork without printed Ability prose.");
     assert.equal(await definitionDialog.getByText("Tap", { exact: true }).count(), 0,
-      "Card previews show artwork and HP without printed attack prose.");
+      "Card previews show artwork without printed attack prose.");
     const previewGeometry = () => printedDetails.evaluate(element => {
-      const hp = element.querySelector('[role="progressbar"]')?.parentElement?.querySelector("strong");
+      const artwork = element.querySelector('[data-selected] > div');
       const bounds = node => {
         if (!node) return null;
         const rect = node.getBoundingClientRect();
         return { top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height,
           visible: getComputedStyle(node).visibility === "visible" };
       };
-      // Sample the artwork, HP and scroll viewport in the same browser frame.
+      // Sample the artwork and scroll viewport in the same browser frame.
       // Separate boundingBox calls can straddle a resize or the dialog's zoom.
       return {
-        region: bounds(element), image: bounds(element.firstElementChild), hp: bounds(hp), hpText: hp?.textContent,
+        region: bounds(element), image: bounds(artwork),
         viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
         animating: element.closest('[role="dialog"]').getAnimations()
           .some(animation => animation.playState === "running"),
@@ -727,19 +686,17 @@ async function verifyReplayCollection(db, userId, original) {
         return geometry.viewportWidth === width && geometry.viewportHeight === height && !geometry.animating;
       });
       const diagnostic = ` (${width}×${height}: ${JSON.stringify(geometry)})`;
-      for (const [name, bounds] of [["preview", geometry.region], ["artwork", geometry.image], ["HP", geometry.hp]]) {
+      for (const [name, bounds] of [["preview", geometry.region], ["artwork", geometry.image]]) {
         assert.ok(bounds?.visible && bounds.width > 0 && bounds.height > 0,
           `The ${name} must be visible and have positive dimensions.` + diagnostic);
       }
-      assert.equal(geometry.hpText, "170 / 170 HP", "The measured HP must match the published definition." + diagnostic);
+      assert.equal(await definitionDialog.getByRole("progressbar").count(), 0,
+        "Card previews remain artwork-only; published HP is verified on the board." + diagnostic);
       assert.ok(geometry.region.top >= 0 && geometry.region.bottom <= geometry.viewportHeight,
-        "Card artwork and HP must stay in the viewport at desktop and mobile widths." + diagnostic);
+        "Card artwork must stay in the viewport at desktop and mobile widths." + diagnostic);
       assert.ok(geometry.image && geometry.image.top >= geometry.region.top &&
         geometry.image.bottom <= geometry.region.bottom,
         "The enlarged card must remain inside its visible preview." + diagnostic);
-      assert.ok(geometry.hp && geometry.hp.top >= geometry.image.bottom &&
-        geometry.hp.bottom <= geometry.region.bottom,
-        "HP must remain visible beneath the enlarged card." + diagnostic);
     }
     await captureReplay("battle-replay-verified-hp", false);
     await page.keyboard.press("Escape");
