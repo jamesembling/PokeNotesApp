@@ -20,6 +20,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Notion issues:** Before reading, creating, triaging, or updating an issue or specification, read `docs/agents/issue-tracker.md`.
 - **Database migrations:** Before authoring, reviewing, or releasing a Supabase schema change, read `docs/migration-release.md`. Local hooks validate; only the controlled production workflow deploys.
 - **Reference data:** Before changing a catalog or cached reference dataset, read `docs/agents/reference-data.md`.
+- **Battle Replay:** Before changing Battle Replay reconstruction, display, card information or its tests, read `docs/agents/battle-replay-rules.md`. It is James's authoritative game-rule contract and overrides any earlier "never infer" guidance, including the prototype's productisation note. Measure success against real saved logs, never invented log wording.
 - **Deck-list ordering:** Before changing a deck-list sort, snapshot, share, or `sortedCards` path, read `docs/agents/deck-list-ordering.md`.
 - **Performance:** Before making or reporting a performance claim, read `docs/performance-targets.md` and identify the measurement source.
 - **Authenticated browser checks:** When a PokeNotes page reaches a login wall, use the `pokenotes-browser-auth` skill when available; otherwise follow README **Authenticated local testing**.

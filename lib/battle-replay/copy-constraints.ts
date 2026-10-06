@@ -35,7 +35,7 @@ export function resolveReplayKnockoutHpInventory(side: ReplaySide, copies: reado
 }
 export type CopyStep = {
   key: string; event: number; section: number; actor: ReplayActor;
-  kind: "create" | "evolve" | "attach" | "promote" | "retreat" | "ability" | "damage" | "counters" | "remove_energy" | "ko" | "heal" | "barrier" | "witness" | "checkpoint";
+  kind: "turn" | "create" | "evolve" | "attach" | "promote" | "retreat" | "ability" | "damage" | "counters" | "remove_energy" | "ko" | "heal" | "barrier" | "witness" | "checkpoint";
   name: string; position?: "active" | "bench"; newName?: string; cards?: CopyFact[];
   energy?: string; amount?: number; once?: boolean; timing?: boolean;
   requiredEnergy?: string;
@@ -243,7 +243,7 @@ export function solveReplayCopyConstraints(steps: readonly CopyStep[], mode: "fa
       // An erased snapshot is an alternative, not evidence that its copy is
       // ineligible. Refuse local attribution instead of proving uniqueness by
       // removing that competitor. Complete symbolic worlds remain usable.
-      if (mode !== "display" && !["barrier", "create", "checkpoint"].includes(step.kind)
+      if (mode !== "display" && !["turn", "barrier", "create", "checkpoint"].includes(step.kind)
         && worlds.some((world) => world.copies.some((copy) => copy.card.instanceUncertain && copy.card.name === step.name
           && (!step.targetId || copy.card.id === step.targetId)
           && (!step.position || copy.position === step.position || copy.positionKnown === false)
@@ -251,6 +251,15 @@ export function solveReplayCopyConstraints(steps: readonly CopyStep[], mode: "fa
         step = { ...step, kind: "barrier" };
       }
       if (step.section !== section) { worlds.forEach((world) => { world.copies = world.copies.map((copy) => ({ ...copy, card: { ...copy.card, abilityUsed: false } })); }); section = step.section; }
+      if (step.kind === "turn") {
+        // The display path needs its own boundary even when the new turn only
+        // draws a card and makes no operation on a Pokémon yet.
+        worlds.forEach((world) => {
+          world.copies = world.copies.map((copy) => ({ ...copy, card: { ...copy.card, abilityUsed: false } }));
+          if (mode !== "facts") world.witness = { previous: world.witness, event: step.event, cards: world.copies };
+        });
+        continue;
+      }
       if (step.kind === "checkpoint" && mode === "display") {
         const snapshots = step.cards ?? [];
         const consistent = worlds.filter((world) => world.projectionValid !== false && world.copies.length === snapshots.length && world.copies.every((copy) => {

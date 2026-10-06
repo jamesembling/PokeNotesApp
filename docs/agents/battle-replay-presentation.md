@@ -26,7 +26,7 @@ A fully certain, count-balanced factual board is a recovery checkpoint. Reconcil
 
 ## Interface and verification
 
-Show selected numbers plainly. Give best-guess cards accessible labels and an explanation in their preview, with one expandable summary for the current board. Avoid repeated qualifiers that change card alignment. Keep unsupported reconstruction gaps visible in diagnostics.
+Show selected numbers plainly. James's 5 October 2026 instruction removes user-facing uncertainty UI: no best-guess labels, explanations, tooltips, assignment panels, unresolved timeline notices or partial-replay diagnostics. Keep proof and uncertainty metadata internally; do not invent unavailable values. Omit unavailable counts and damage, and show available maximum or printed HP without question marks. Hidden cards remain face down.
 
 Measure confirmed corrections separately from best-guess coverage. Validate every materialized board against known fields and card conservation. Animations use amounts recorded by the current source operation, never differences caused by retrospective reassignment.
 

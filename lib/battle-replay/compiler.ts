@@ -252,6 +252,13 @@ function anchorCompleteDisplayBoards(trace: CopyStep[], program: ReplayProgram) 
       && cards.reduce((sum, card) => sum + 1 + card.underlying.length + card.energy.length + Number(Boolean(card.tool)), 0) + Number(state.stadium?.actor === actor) === side.inPlayCount;
   };
   const additions: CopyStep[] = [];
+  for (const [event, action] of program.events.entries()) {
+    if (action.turn > 0 && action.sourceSectionIndex !== program.events[event - 1]?.sourceSectionIndex) {
+      const actor = action.turnActor ?? action.actor;
+      additions.push({ key: JSON.stringify([event, actor, "turn-start"]), actor, event,
+        section: action.sourceSectionIndex, name: "*", kind: "turn" });
+    }
+  }
   for (const actor of ["self", "opponent"] as const) {
     const entered = new Map<string, number>(); const evolved = new Map<string, number>();
     let wasComplete = complete(program.frames[0], actor);
@@ -279,7 +286,8 @@ function anchorCompleteDisplayBoards(trace: CopyStep[], program: ReplayProgram) 
     }
   }
   trace.push(...additions);
-  trace.sort((a, b) => a.event - b.event || Number(a.kind === "checkpoint") - Number(b.kind === "checkpoint"));
+  trace.sort((a, b) => a.event - b.event || Number(b.kind === "turn") - Number(a.kind === "turn")
+    || Number(a.kind === "checkpoint") - Number(b.kind === "checkpoint"));
 }
 
 /** An observed ordering convention is eligible only in an adjacent attack

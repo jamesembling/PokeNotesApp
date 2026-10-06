@@ -1393,6 +1393,18 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   const cohortSteps: CopyStep[] = [allocationStep(0, "create", { cards: cohortCards }),
     ...[1, 2, 3].map((event) => allocationStep(event, "ability", { once: true, effect: "Native once-copy", cohortMembers: ["one", "two", "three"], cards: cohortCards }))];
   assert.equal(solveReplayCopyConstraints(cohortSteps.slice(0, 3), "facts").cohorts.length, 0, "intermediate use order cannot mark every copy used prematurely");
+  const turnReset = solveReplayCopyConstraints([...cohortSteps,
+    allocationStep(4, "turn", { section: 2, name: "*" }),
+  ], "display", { endFrame: 8 });
+  assert.equal(turnReset.projection.get(4)?.get("self")?.cards.filter((copy) => copy.card.abilityUsed).length, 3,
+    "completed recorded Ability uses remain visible before the next turn");
+  for (const frame of [5, 6, 7]) {
+    const copies = turnReset.projection.get(frame)?.get("self")?.cards;
+    assert.equal(copies?.length, 3, "a turn reset preserves all board copies even without a later board operation");
+    assert.equal(copies?.filter((copy) => copy.card.abilityUsed).length, 0,
+      "the new turn draw cannot inherit previous-turn usage through a projected witness");
+  }
+
   const outsiders = Array.from({ length: 129 }, (_, index) => ({ ...allocationCard(`other-${index}`), card: { ...allocationCard(`other-${index}`).card, name: "Other" } }));
   const retainedCohort = solveReplayCopyConstraints([...cohortSteps,
     allocationStep(4, "create", { name: "", cards: outsiders }),

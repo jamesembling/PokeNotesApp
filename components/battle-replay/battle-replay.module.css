@@ -1,4 +1,4 @@
-.replayContainer { container-type: inline-size; container-name: replay; min-width: 0; }
+.replayContainer { --replay-board-card-width: 6.3rem; container-type: inline-size; container-name: replay; min-width: 0; }
 .unavailableArtwork { display: flex; width: 100%; height: 100%; flex-direction: column; justify-content: center; gap: 0.25rem; padding: 0.3rem; background: var(--muted); color: var(--foreground); overflow-wrap: anywhere; text-align: center; font-size: 0.65rem; }
 .unavailableArtwork span { font-size: 0.55rem; }
 .healthStatus[data-tone="unknown"] { color: var(--muted-foreground); }
@@ -193,6 +193,7 @@
 }
 
 .playerBoard {
+  position: relative;
   --replay-player-tint: var(--color-loss);
   --replay-pile-card-width: 4.4rem;
   display: grid;
@@ -202,6 +203,30 @@
     "hand";
   padding: 0.8rem;
   background: color-mix(in oklab, var(--replay-player-tint) 5%, var(--card));
+}
+
+@property --replay-turn-angle { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+.boardTurnBorder { position: absolute; inset: 2px; z-index: 4; border-radius: 0.75rem; pointer-events: none; animation: board-turn-flow 12s linear infinite; }
+.boardTurnBorder::before,
+.boardTurnBorder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--replay-turn-angle),
+    color-mix(in oklab, var(--primary) 35%, transparent),
+    var(--primary) 12%, #fecaca 22%, var(--primary) 32%,
+    color-mix(in oklab, var(--primary) 35%, transparent) 46%,
+    var(--primary) 62%, #fecaca 72%, var(--primary) 82%,
+    color-mix(in oklab, var(--primary) 35%, transparent));
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+.boardTurnBorder::before { filter: blur(4px); opacity: 0.45; }
+@keyframes board-turn-flow { from { --replay-turn-angle: 0deg; } to { --replay-turn-angle: 360deg; } }
+@media (prefers-reduced-motion: reduce) {
+  .boardTurnBorder { animation: none; }
 }
 
 .playerBoard[data-actor="self"] {
@@ -473,7 +498,7 @@ button.pile:disabled {
 .benchSlot {
   display: flex;
   width: 100%;
-  max-width: 4.2rem;
+  max-width: var(--replay-board-card-width);
   aspect-ratio: 0.714;
   align-items: center;
   justify-self: center;
@@ -491,6 +516,7 @@ button.pile:disabled {
 
 .benchSlot[data-populated] {
   aspect-ratio: auto;
+  border: 0;
 }
 
 .zoneLabel {
@@ -527,12 +553,12 @@ button.pile:disabled {
 
 .cardStack {
   position: relative;
-  width: 6.3rem;
+  width: var(--replay-board-card-width);
   isolation: isolate;
 }
 
 .cardStack[data-compact] {
-  width: min(100%, 4.2rem);
+  width: var(--replay-board-card-width);
 }
 
 .cardFace {
@@ -611,13 +637,43 @@ button.pile:disabled {
   z-index: 12;
   display: grid;
   gap: 0.12rem;
-  margin-top: 0.28rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  padding: 0.2rem 0.1rem 0;
+  color: white;
 }
 
+/* The frame keeps artwork and HP aligned regardless of attachments. */
+.cardHolder {
+  position: relative;
+  z-index: 10;
+  padding: 0.15rem;
+  border: 1px solid #52565d;
+  border-radius: 0.35rem;
+  background: #17191d;
+}
+.cardArtworkFrame > .cardFace { display: block; box-shadow: none; }
+.cardArtworkFrame { position: relative; }
+.cardArtworkFrame::after {
+  content: "";
+  position: absolute;
+  z-index: 11;
+  inset: auto 0 0;
+  height: 25%;
+  background: linear-gradient(to top, rgb(0 0 0 / 80%), transparent);
+  pointer-events: none;
+}
+.cardStack[data-face-down] .cardArtworkFrame::after { display: none; }
+.healthLabel { font-size: 0.5rem; font-weight: 700; line-height: 1; }
+.healthStatus .probableHp { grid-column: 1 / -1; color: inherit; }
+.cardHolder .healthStatus[data-tone="unknown"] { color: white; }
+
 .healthTrack {
-  height: 0.38rem;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: 0.25rem;
   overflow: hidden;
-  border-radius: 0.2rem;
+  border-radius: 0.1rem;
   background: color-mix(in oklab, var(--muted-foreground) 22%, transparent);
 }
 
@@ -649,7 +705,7 @@ button.pile:disabled {
 }
 
 .healthStatus strong {
-  color: var(--card-foreground);
+  color: inherit;
   font-size: 0.5rem;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -661,43 +717,33 @@ button.pile:disabled {
 .cardPreviewDamage {
   position: absolute;
   z-index: 4;
-  top: 30%;
-  right: -0.38rem;
+  top: 28%;
+  right: -0.3rem;
   display: grid;
-  width: 1.45rem;
+  width: 1.9rem;
   aspect-ratio: 1;
   place-items: center;
-  border: 2px solid color-mix(in oklab, var(--color-warning) 72%, black);
+  border: 2px solid #cf8b32;
   border-radius: 50%;
-  background: radial-gradient(
-    circle at 34% 28%,
-    color-mix(in oklab, var(--color-warning) 42%, white) 0 13%,
-    var(--color-warning) 58%,
-    color-mix(in oklab, var(--color-warning) 76%, black) 100%
-  );
-  color: white;
-  font-size: 0.5rem;
+  background: #efa643;
+  color: #fffdf3;
+  font-family: "Arial Narrow", Arial, sans-serif;
+  font-size: 1.1rem;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   paint-order: stroke fill;
-  box-shadow: 0 0.18rem 0.4rem color-mix(in oklab, black 42%, transparent);
-  text-shadow: 0 0.08rem 0.06rem black;
-  transform: translateY(-50%) rotate(-5deg);
-  -webkit-text-stroke: 0.055rem black;
+  letter-spacing: -0.055em;
+  box-shadow: inset 0 0 0 1px #ffd18d, 0 1px 3px #75551d66;
+  text-shadow: 0 1px 0 #665537;
+  transform: translateY(-50%);
+  -webkit-text-stroke: 0.12em #3d3525;
 }
 
 .damageBadge {
   z-index: 1;
 }
-
-.cardStack:not([data-compact]) .damageBadge {
-  top: 38%;
-  right: -0.8rem;
-  width: 2.35rem;
-  font-size: 0.9rem;
-  box-shadow: 0 0.28rem 0.58rem color-mix(in oklab, black 45%, transparent);
-}
+.damageBadge[data-digits="3"] { font-size: 0.85rem; }
 
 .cardStack:not([data-compact]) .damageBadge + .boardAbilityUsedMarker {
   top: 68%;
@@ -743,7 +789,8 @@ button.pile:disabled {
   width: 1rem;
 }
 
-.stadiumSpot {
+.stadiumSpot,
+.boardSupporter {
   display: grid;
   grid-column: 1;
   grid-row: 1;
@@ -753,6 +800,7 @@ button.pile:disabled {
 }
 
 .stadiumSpot > span,
+.boardSupporter > span,
 .handLabel span {
   color: var(--muted-foreground);
   font-size: 0.56rem;
@@ -770,14 +818,6 @@ button.pile:disabled {
   box-shadow: 0 0.35rem 0.8rem color-mix(in oklab, var(--foreground) 20%, transparent);
 }
 
-.stadiumName {
-  width: 100%;
-  overflow-wrap: anywhere;
-  color: var(--card-foreground);
-  font-size: 0.58rem;
-  line-height: 1.2;
-  text-align: center;
-}
 
 .handArea {
   display: grid;
@@ -829,7 +869,7 @@ button.pile:disabled {
 .handCard:has(> .cardPreviewTrigger:focus-visible) {
   z-index: 30;
   box-shadow: 0 0.5rem 1rem color-mix(in oklab, var(--foreground) 28%, transparent);
-  transform: translateY(-0.35rem) scale(1.12);
+  transform: scale(1.03);
 }
 
 .handCard + .handCard {
@@ -948,7 +988,7 @@ button.pile:disabled {
 }
 
 .cardPreviewDialog > button {
-  z-index: 1;
+  z-index: 64;
   top: 0.4rem;
   right: 0.4rem;
   color: white;
@@ -956,6 +996,8 @@ button.pile:disabled {
 }
 
 .cardPreviewStage {
+  --preview-card-width: min(70vw, 20rem, 44dvh);
+  position: relative;
   display: grid;
   justify-items: center;
   width: min(78vw, 22rem, 55dvh);
@@ -965,21 +1007,21 @@ button.pile:disabled {
   padding: 1rem;
   margin: -1rem;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   overscroll-behavior: contain;
 }
+.cardPreviewStage[data-pile] { width: min(92vw, 64rem); }
 .cardPreviewStage:focus-visible { outline: 2px solid var(--ring); outline-offset: 0.2rem; }
 
 .cardPreviewImage { position: relative; width: 100%; aspect-ratio: 0.714; filter: drop-shadow(0 1.25rem 1.5rem color-mix(in oklab, var(--foreground) 30%, transparent)); }
 .cardPreviewImage > img { border-radius: 0.75rem; object-fit: contain; }
 .cardPreviewTool { position: absolute; z-index: 1; color: white; font-size: 0.72rem; font-weight: 800; line-height: 1; box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 28%, transparent); }
 .cardPreviewDamage {
-  top: 38%;
-  right: -0.8rem;
-  width: 2.35rem;
-  font-size: 0.9rem;
-  box-shadow: 0 0.35rem 0.9rem color-mix(in oklab, black 38%, transparent);
+  width: 23%;
+  border-width: 2px;
+  font-size: calc(var(--preview-card-width) * 0.14);
 }
+.cardPreviewDamage[data-digits="3"] { font-size: calc(var(--preview-card-width) * 0.11); }
 .previewAbilityUsedMarker {
   top: 50%;
   right: -0.9rem;
@@ -1230,11 +1272,10 @@ button.pile:disabled {
 .transactionHiddenCards { position: relative; display: flex; align-items: center; }
 .transactionHiddenCards .transactionCard { width: clamp(6rem, 9vw, 7.25rem); }
 .transactionDamageCounter {
-  right: -0.7rem;
   width: 1.8rem;
-  font-size: 0.68rem;
-  box-shadow: 0 0.22rem 0.45rem color-mix(in oklab, black 45%, transparent);
+  font-size: 0.85rem;
 }
+.transactionDamageCounter[data-digits="3"] { font-size: 0.75rem; }
 .transactionAbilityUsedMarker {
   top: 50%;
   right: -0.58rem;
@@ -1404,11 +1445,11 @@ button.pile:disabled {
   .bench[data-capacity="8"] { width: 100%; grid-template-columns: repeat(8, minmax(0, 2.2rem)); gap: 0.25rem; }
 
   .cardStack {
-    width: 4.2rem;
+    width: var(--replay-board-card-width);
   }
 
   .cardStack[data-compact] {
-    width: 2.55rem;
+    width: var(--replay-board-card-width);
   }
 
 
@@ -1436,7 +1477,6 @@ button.pile:disabled {
     width: 3.5rem;
   }
 
-  .stadiumName { font-size: 0.5rem; }
 
   .transactionOverlay { grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.4rem; padding: 0.65rem 0.4rem; }
   .transactionHeading strong { font-size: 0.78rem; }
@@ -1671,7 +1711,6 @@ button.pile:disabled {
   }
   .active { grid-column: 2; grid-row: 1; }
   .stadiumSpot { grid-column: 1; grid-row: 1; }
-  .stadiumName { width: 100%; }
   .active { width: 5.8rem; min-height: 8.8rem; }
   .cardStack { width: 5.5rem; }
   .cardStack[data-compact] { width: min(100%, 3.4rem); }
@@ -1697,18 +1736,17 @@ button.pile:disabled {
 
 
 /* Attack feedback stays anchored to the Pokémon involved. */
-.boardAttack {
+.attackImpactBurst {
   position: absolute;
-  inset: 0;
-  z-index: 5;
+  z-index: 56;
+  visibility: hidden;
   pointer-events: none;
+  color: #fff2cc;
+  background: radial-gradient(ellipse at center, #fff9e299, #f7cb6440 22%, transparent 52%);
 }
-.attackPulse {
-  position: absolute;
-  inset: -0.3rem -0.3rem 1.4rem;
-  border: 2px solid var(--primary);
-  border-radius: 0.5rem;
-  animation: attack-pulse 700ms ease-out 2;
+.attackImpactBurst > svg { display: block; width: 100%; height: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  .attackImpactBurst { display: none; }
 }
 .attackDamage {
   position: absolute;
@@ -1723,27 +1761,22 @@ button.pile:disabled {
   font-size: 1.4rem;
   font-weight: 800;
   transform: translate(-50%, -50%);
-  animation: attack-damage-in 420ms 1194ms ease-out both;
+  animation: attack-damage-in 420ms ease-out both;
 }
 .cardStack[data-compact] .attackDamage { font-size: 1rem; }
-@keyframes attack-pulse {
-  0% { opacity: 0.5; scale: 0.98; }
-  40% { opacity: 1; scale: 1.04; }
-  100% { opacity: 0.7; scale: 1; }
-}
 @keyframes attack-damage-in {
   from { opacity: 0; translate: 0 0.6rem; scale: 0.85; }
   to { opacity: 1; translate: 0 0; scale: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .attackPulse, .attackDamage { animation: none; }
+  .attackDamage { animation: none; }
 }
 
 
 .attackAnnouncementAnchor {
   position: relative;
   height: 0;
-  z-index: 40;
+  z-index: 60;
   pointer-events: none;
 }
 .attackAnnouncement {
@@ -1893,20 +1926,22 @@ button.pile:disabled {
   box-shadow: inset 0 0 0 1px color-mix(in oklab, white 33%, transparent), inset -0.15rem -0.25rem 0.3rem color-mix(in oklab, black 33%, transparent);
 }
 .boardEnergyOrbs {
-  --energy-orb-size: 0.75rem;
-  --energy-orb-count-size: 0.48rem;
+  --energy-orb-size: 1.3rem;
+  --energy-orb-count-size: 0.7rem;
   position: absolute;
   z-index: 16;
-  bottom: 0;
-  transform: translateY(50%);
+  bottom: 0.1rem;
   left: 0;
   width: 100%;
+  padding-inline: 0.1rem;
+  flex-direction: row;
+  flex-wrap: wrap;
 }
-.cardStack[data-has-energy] .healthStatus { margin-top: 0.6rem; }
-.cardStack:not([data-compact]) .boardEnergyOrbs { --energy-orb-size: 1rem; --energy-orb-count-size: 0.58rem; }
-.cardStack:not([data-compact])[data-has-energy] .healthStatus { margin-top: 0.72rem; }
-.cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.55rem; --energy-orb-count-size: 0.4rem; }
-.cardStack[data-compact][data-has-energy] .healthStatus { margin-top: 0.5rem; }
+.cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.9rem; --energy-orb-count-size: 0.55rem; }
+@container replay (max-width: 40rem) {
+  .cardStack .boardEnergyOrbs { --energy-orb-size: 0.9rem; --energy-orb-count-size: 0.55rem; }
+  .cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.55rem; --energy-orb-count-size: 0.4rem; }
+}
 .transactionEnergyOrbs { position: absolute; z-index: 16; bottom: 0; left: 0; width: 100%; transform: translateY(50%); --energy-orb-size: 0.625rem; --energy-orb-count-size: 0.42rem; }
 .previewEnergyOrbs { position: absolute; z-index: 16; bottom: 0; left: 0; width: 100%; transform: translateY(50%); --energy-orb-size: 1.5rem; --energy-orb-count-size: 0.72rem; }
 @keyframes energy-orb-arrive {
@@ -1919,17 +1954,19 @@ button.pile:disabled {
 .cardSurface > button, .transactionCardState > button { display: block; }
 .cardPreviewImage:has(.previewEnergyOrbs) { margin-bottom: 0.85rem; }
 
-/* Scale the card and attached orbs together. */
+/* Keep artwork, banners, counters and attachments in one lifted stack. */
+.cardStack:has(.cardArtworkFrame > .cardPreviewTrigger:hover),
+.cardStack:has(.cardArtworkFrame > .cardPreviewTrigger:focus-visible) { z-index: 30; }
 .cardSurface {
   transition: transform 180ms ease-out;
 }
-.cardSurface:has(> .cardPreviewTrigger:hover),
-.cardSurface:has(> .cardPreviewTrigger:focus-visible) {
+.cardSurface:has(.cardArtworkFrame > .cardPreviewTrigger:hover),
+.cardSurface:has(.cardArtworkFrame > .cardPreviewTrigger:focus-visible) {
   z-index: 30;
-  transform: scale(1.12);
+  transform: scale(1.03);
 }
-.cardSurface > .cardPreviewTrigger:hover,
-.cardSurface > .cardPreviewTrigger:focus-visible {
+.cardArtworkFrame > .cardPreviewTrigger:hover,
+.cardArtworkFrame > .cardPreviewTrigger:focus-visible {
   transform: none;
   z-index: 10;
 }
@@ -2013,20 +2050,6 @@ button.pile:disabled {
   .boardFrame[data-transaction] > .transactionOverlay { inset-block-start: 8rem; }
 }
 
-/* Opening hands stay separate and readable; hidden cards remain card backs. */
-.handArea[data-opening] .handCards {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.4rem;
-  width: min(100%, 37rem);
-  margin-inline: auto;
-  overflow: visible;
-}
-.handArea[data-opening] .handCard {
-  width: 100%;
-  margin: 0;
-  transform: none;
-}
 .cardStack[data-reveal-instant] .cardFlipper { transition: none; }
 .boardCardFlight {
   position: absolute;
@@ -2060,25 +2083,23 @@ button.pile:disabled {
   transform: translateY(-50%);
 }
 .boardRoutineAnnouncement > span { font-size: 0.6rem; color: var(--muted-foreground); }
-.attachedEnergyCards { position: absolute; inset: 0; z-index: 1; }
-.attachedEnergyCard {
+.attachedToolCard {
   position: absolute;
-  z-index: calc(3 - var(--energy-layer, 0));
-  inset: 0;
-  width: 100%;
+  z-index: 1;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: calc(100% - 0.3rem);
   aspect-ratio: 0.714;
-  border-radius: 0.4rem;
   overflow: hidden;
-  transform: translateX(calc(var(--energy-exposure, 0.45rem) + var(--energy-layer, 0) * var(--energy-layer-gap, 0.2rem)));
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translateX(calc(-1 * var(--tool-exposure, 0.45rem)));
   box-shadow: 0 1px 4px color-mix(in oklab, var(--foreground) 20%, transparent);
 }
-.attachedEnergyCard:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.attachedToolCard {
-  z-index: 1;
-  transform: translateX(calc(-1 * var(--energy-exposure, 0.45rem)));
-}
+.attachedToolCard:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 @container replay (min-width: 40.001rem) {
-  .cardStack { --energy-exposure: 1.4rem; --energy-layer-gap: 0.4rem; }
+  .cardStack { --tool-exposure: 1.4rem; }
   .bench {
     width: min(100%, 32rem);
     gap: 1.8rem;
@@ -2096,14 +2117,7 @@ button.pile:disabled {
   }
   .playArea:has(.bench:is([data-capacity="6"], [data-capacity="7"], [data-capacity="8"])) .field { display: contents; }
   .playArea:has(.bench:is([data-capacity="6"], [data-capacity="7"], [data-capacity="8"])) .activeRow { grid-area: field; }
-  .bench .cardStack { --energy-exposure: 0.4rem; --energy-layer-gap: 0.45rem; }
-}
-.cardStack:not([data-compact]) .boardEnergyOrbs { --energy-orb-size: 1.3rem; --energy-orb-count-size: 0.7rem; }
-.cardStack[data-compact] .boardEnergyOrbs { --energy-orb-size: 0.9rem; --energy-orb-count-size: 0.55rem; }
-.cardStack:not([data-compact])[data-has-energy] .healthStatus,
-.cardStack[data-compact][data-has-energy] .healthStatus { margin-top: 1.05rem; }
-@container (max-width: 40rem) {
-  .handArea[data-opening] .handCards { grid-template-columns: repeat(4, minmax(0, 1fr)); width: min(100%, 18rem); gap: 0.5rem; }
+  .bench .cardStack { --tool-exposure: 0.4rem; }
 }
 
 /* Preserve the complete scanned artwork, including its original card corners. */
@@ -2118,7 +2132,141 @@ button.pile:disabled {
 .transactionCard,
 .transactionEvolutionStack > span,
 .boardCardFlight,
-.attachedEnergyCard,
+.attachedToolCard,
 .poolCard > span:first-child,
 .cardPreviewImage > img { border-radius: 0; }
 .cardArtwork { object-fit: contain; }
+
+/* The Active and Bench share a centreline; expanded Benches use two rows. */
+.playerBoard { padding-block: 0.5rem; }
+.playerHeader { margin-bottom: 0.4rem; }
+.playArea {
+  grid-template-areas: "prizes field piles" "bench bench bench";
+  grid-template-columns: var(--replay-pile-card-width) minmax(0, 1fr) var(--replay-pile-card-width);
+  row-gap: 0.5rem;
+  padding-block: 0;
+}
+.playerBoard[data-actor="opponent"] .playArea {
+  grid-template-areas: "bench bench bench" "prizes field piles";
+}
+.field { display: contents; }
+.zonePiles { grid-row: 1 / -1; }
+.activeRow { grid-area: field; align-self: end; }
+.active { align-self: end; }
+.playerBoard[data-actor="opponent"] .activeRow,
+.playerBoard[data-actor="opponent"] .active { align-self: start; }
+.bench,
+.bench[data-capacity="8"] {
+  grid-column: 2;
+  width: 100%;
+  height: auto;
+  grid-template-columns: repeat(5, var(--replay-board-card-width));
+  justify-content: safe center;
+  align-items: start;
+  overflow-x: auto;
+  gap: 0.5rem;
+  padding-inline: 0.5rem;
+  padding-block: 0.5rem;
+}
+.handArea { padding-block: 0.25rem 0.15rem; }
+.handCards,
+.playerBoard[data-actor="opponent"] .handCards { padding-block: 0.5rem 0.1rem; }
+.bench[data-capacity="8"] { grid-template-columns: repeat(4, var(--replay-board-card-width)); }
+.benchSlot { max-width: var(--replay-board-card-width); }
+.cardStack,
+.cardStack[data-compact] { width: var(--replay-board-card-width); }
+@container replay (max-width: 40rem) {
+  .replay { --replay-board-card-width: 5.5rem; }
+}
+
+.previewPileStack { position: relative; width: 100%; height: calc(var(--preview-card-width) * 1.55); margin-top: 1rem; }
+.previewPileCard {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--preview-card-width);
+  transform-origin: center;
+  transform: translate(calc(-50% + var(--pile-offset) * var(--preview-card-width) * 0.48), calc(var(--pile-depth) * 0.65rem)) rotate(calc(var(--pile-offset) * 1.5deg)) scale(calc(1 - var(--pile-depth) * 0.045));
+  transition: transform 220ms ease-out;
+  pointer-events: none;
+}
+.previewPileCard .cardPreviewImage { filter: none; }
+.previewPileControls { position: absolute; top: 0; bottom: 0; left: 1.25rem; right: 1.25rem; display: flex; align-items: center; justify-content: space-between; pointer-events: none; z-index: 60; }
+.previewPileControls > button { width: 3rem; height: 3rem; border-radius: 50%; border: 3px solid white; color: #343434; background: #eeeeee; box-shadow: 0 0.2rem 0.5rem #00000040; pointer-events: auto; }
+.previewPileControls > button:hover:not(:disabled) { background: white; transform: scale(1.06); }
+.previewPileControls > button:disabled { opacity: 0.3; }
+.previewPileControls > button:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; }
+.previewPileControls > button svg { width: 1.75rem; height: 1.75rem; stroke-width: 3; }
+@media (min-width: 40rem) {
+  .cardPreviewStage[data-pile] { --preview-card-width: min(36vw, 22rem, 44dvh); }
+}
+@media (max-width: 40rem) {
+  .cardPreviewStage[data-pile] { --preview-card-width: min(60vw, 44dvh); }
+  .previewPileControls { left: 1rem; right: 1rem; }
+  .previewPileControls > button { width: 2.75rem; height: 2.75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .previewPileCard { transition: none; }
+}
+
+.boardSupporter {
+  grid-column: 3;
+}
+.boardSupporter > button { transform-origin: top left; }
+.boardRefreshFlight { position: absolute; z-index: 55; visibility: hidden; pointer-events: none; transform-origin: top left; }
+.boardRefreshFlight > img { object-fit: contain; }
+.boardShuffleCard { position: absolute; visibility: hidden; pointer-events: none; transform-origin: center; box-shadow: 0 2px 3px #00000045; }
+@media (prefers-reduced-motion: reduce) {
+  .boardShuffleCard { display: none; }
+}
+.boardPrizeFlight { position: absolute; z-index: 55; visibility: hidden; pointer-events: none; transform-origin: top left; filter: drop-shadow(0 0.4rem 0.6rem #00000045); }
+.prizeFlightFlipper { position: absolute; inset: 0; transform-style: preserve-3d; transform: perspective(700px) rotateY(180deg); }
+.prizeFlightFront, .prizeFlightBack { position: absolute; inset: 0; backface-visibility: hidden; }
+.prizeFlightBack { transform: rotateY(180deg); }
+.prizeFlightFront > img { object-fit: contain; }
+.boardDamageFlight { z-index: 55; visibility: hidden; pointer-events: none; width: 1.6rem; font-size: 1rem; right: auto; }
+.cardStack:has(.boardActionBanner) { z-index: 21; }
+.boardActionBanner {
+  position: absolute;
+  z-index: 20;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% + 1.75rem);
+  padding: 0.55rem 0.85rem;
+  background: linear-gradient(90deg, #420a12e8, #941d2cf2 48%, #420a12e8);
+  color: var(--primary-foreground);
+  clip-path: polygon(6% 0, 94% 0, 100% 50%, 94% 100%, 6% 100%, 0 50%);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 1px 2px #24030a80;
+  pointer-events: none;
+  animation: board-ability-appear 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.boardActionBanner::before,
+.boardActionBanner::after {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ffb3ba99, transparent);
+}
+.boardActionBanner::before { top: 0; }
+.boardActionBanner::after { bottom: 0; opacity: 0.55; }
+@keyframes board-ability-appear {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.94); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boardActionBanner { animation: none; }
+}
+@container replay (max-width: 28rem) {
+  .boardSupporter { grid-area: field; justify-self: center; transform: translateX(5rem); width: 3.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boardRefreshFlight { display: none; }
+}
