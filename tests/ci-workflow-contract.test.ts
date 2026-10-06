@@ -28,13 +28,14 @@ test("CI runs the repository design-system audit", () => {
   try {
     mkdirSync(join(fixture, "app"));
     mkdirSync(join(fixture, "components", "ui"), { recursive: true });
+    mkdirSync(join(fixture, "components", "battle-replay"));
     writeFileSync(join(fixture, "app", "globals.css"), source("app/globals.css"));
     writeFileSync(join(fixture, "components", "ui", "AppDialog.tsx"), source("components/ui/AppDialog.tsx"));
-    const cssPath = join(fixture, "components", "sample.module.css");
+    const cssPath = join(fixture, "components", "battle-replay", "battle-replay.module.css");
     writeFileSync(cssPath, `
-      .sample { --local-size: 2rem; width: var(--local-size); color: var(--foreground); }
-      @property --local-angle { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
-      .sample { rotate: var(--local-angle); }
+      .sample { --replay-board-card-width: 2rem; width: var(--replay-board-card-width); color: var(--foreground); }
+      @property --replay-turn-angle { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+      .sample { rotate: var(--replay-turn-angle); translate: calc(var(--pile-offset) * 1rem); }
     `);
     const audit = () => spawnSync(process.execPath, [join(process.cwd(), "scripts/design-system-audit.mjs")],
       { cwd: fixture, encoding: "utf8" });
@@ -43,12 +44,14 @@ test("CI runs the repository design-system audit", () => {
 
     writeFileSync(join(fixture, "components", "other.module.css"), ".other { --foreign-size: 1rem; }");
     writeFileSync(cssPath, `
-      /* --comment-size: 1rem; @property --comment-angle {} */
-      .sample { width: var(--foreign-size); height: var(--comment-size); rotate: var(--comment-angle); color: #123456; }
+      /* --preview-card-width: 1rem; @property --replay-turn-angle {} */
+      .first { --sibling-size: 2rem; }
+      .second { width: var(--sibling-size); }
+      .sample { width: var(--foreign-size); height: var(--preview-card-width); rotate: var(--replay-turn-angle); color: #123456; }
     `);
     const undeclared = audit();
     assert.equal(undeclared.status, 1);
-    for (const name of ["foreign-size", "comment-size", "comment-angle"]) {
+    for (const name of ["foreign-size", "sibling-size", "preview-card-width", "replay-turn-angle"]) {
       assert.ok(undeclared.stderr.includes(`Undefined CSS token --${name}.`), undeclared.stderr);
     }
     assert.ok(undeclared.stderr.includes("Use CSS tokens instead of raw color literals."));
