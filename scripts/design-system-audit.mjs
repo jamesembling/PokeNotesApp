@@ -116,11 +116,20 @@ const componentScopedTokens = new Set([
   "cell-radius",
   "cell-size",
   "radius-md",
-  "replay-pile-card-width",
   "sidebar-width",
   "sidebar-width-icon",
   "skeleton-width"
 ]);
+// CSS Modules scope class names, not custom-property inheritance. Only these
+// intentional replay variables may use declarations outside the global registry.
+const replayCssPath = "components/battle-replay/battle-replay.module.css";
+const replayCssTokens = new Set([
+  "replay-pile-card-width",
+  "replay-board-card-width",
+  "replay-turn-angle",
+  "preview-card-width",
+]);
+const replayInlineTokens = new Set(["pile-depth", "pile-offset"]);
 const failures = [];
 
 if (
@@ -148,6 +157,13 @@ for (const [name, nextName] of [
 for (const filePath of files) {
   const relativePath = path.relative(root, filePath);
   const content = fs.readFileSync(filePath, "utf8");
+  // Intentional local variables still need their declaration or registration.
+  // A declaration in another selector does not admit arbitrary token names.
+  const localCss = path.extname(filePath) === ".css" ? content.replace(/\/\*[\s\S]*?\*\//g, "") : "";
+  const localTokens = new Set([
+    ...[...localCss.matchAll(/--([a-zA-Z0-9-]+)\s*:/g)].map(match => match[1]),
+    ...[...localCss.matchAll(/@property\s+--([a-zA-Z0-9-]+)/g)].map(match => match[1]),
+  ]);
 
   for (const { pattern, message } of disallowedPatterns) {
     const match = pattern.exec(content);
@@ -193,7 +209,9 @@ for (const filePath of files) {
   for (const match of content.matchAll(/var\(--([a-zA-Z0-9-]+)\)/g)) {
     const tokenName = match[1];
     const isDynamicToken = dynamicTokenPrefixes.some((prefix) => tokenName.startsWith(prefix));
-    const isComponentScopedToken = componentScopedTokens.has(tokenName);
+    const isComponentScopedToken = componentScopedTokens.has(tokenName) ||
+      relativePath === replayCssPath && (replayInlineTokens.has(tokenName) ||
+        replayCssTokens.has(tokenName) && localTokens.has(tokenName));
     if (!definedTokens.has(tokenName) && !isDynamicToken && !isComponentScopedToken) {
       failures.push(`${relativePath}:${getLineNumber(content, match.index)} Undefined CSS token --${tokenName}.`);
     }

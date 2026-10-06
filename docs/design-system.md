@@ -21,6 +21,7 @@ Use semantic tokens:
 - `--dialog-*` for app modal shells
 - `--log-entry-*` and `--deck-card-*` for rollover behavior
 - `--action-*` for battle-log action dots
+- `--replay-*` for the fixed artwork, damage-counter, and animation-effect palette; card effects retain their colours in both themes. Layout variables stay scoped to the replay CSS module.
 
 Do not add raw page-level colors for common states. If a new repeated state is needed, add a semantic token first.
 

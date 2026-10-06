@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -21,6 +23,41 @@ test("CI runs the repository design-system audit", () => {
   assert.match(databaseWorkflow, /include-hidden-files: true/);
   assert.match(databaseWorkflow, /retention-days: 3/);
   assert.doesNotMatch(databaseWorkflow, /secrets\.|--linked|\.env\.e2e\.local\s*$/m);
+
+  const fixture = mkdtempSync(join(tmpdir(), "pokenotes-design-audit-"));
+  try {
+    mkdirSync(join(fixture, "app"));
+    mkdirSync(join(fixture, "components", "ui"), { recursive: true });
+    mkdirSync(join(fixture, "components", "battle-replay"));
+    writeFileSync(join(fixture, "app", "globals.css"), source("app/globals.css"));
+    writeFileSync(join(fixture, "components", "ui", "AppDialog.tsx"), source("components/ui/AppDialog.tsx"));
+    const cssPath = join(fixture, "components", "battle-replay", "battle-replay.module.css");
+    writeFileSync(cssPath, `
+      .sample { --replay-board-card-width: 2rem; width: var(--replay-board-card-width); color: var(--foreground); }
+      @property --replay-turn-angle { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+      .sample { rotate: var(--replay-turn-angle); translate: calc(var(--pile-offset) * 1rem); }
+    `);
+    const audit = () => spawnSync(process.execPath, [join(process.cwd(), "scripts/design-system-audit.mjs")],
+      { cwd: fixture, encoding: "utf8" });
+    const declared = audit();
+    assert.equal(declared.status, 0, declared.stderr);
+
+    writeFileSync(join(fixture, "components", "other.module.css"), ".other { --foreign-size: 1rem; }");
+    writeFileSync(cssPath, `
+      /* --preview-card-width: 1rem; @property --replay-turn-angle {} */
+      .first { --sibling-size: 2rem; }
+      .second { width: var(--sibling-size); }
+      .sample { width: var(--foreign-size); height: var(--preview-card-width); rotate: var(--replay-turn-angle); color: #123456; }
+    `);
+    const undeclared = audit();
+    assert.equal(undeclared.status, 1);
+    for (const name of ["foreign-size", "sibling-size", "preview-card-width", "replay-turn-angle"]) {
+      assert.ok(undeclared.stderr.includes(`Undefined CSS token --${name}.`), undeclared.stderr);
+    }
+    assert.ok(undeclared.stderr.includes("Use CSS tokens instead of raw color literals."));
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
 });
 
 test("CI uses the minimum Node runtime supported by Supabase", () => {

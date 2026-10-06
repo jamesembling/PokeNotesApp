@@ -216,11 +216,11 @@
   border-radius: inherit;
   background: conic-gradient(from var(--replay-turn-angle),
     color-mix(in oklab, var(--primary) 35%, transparent),
-    var(--primary) 12%, #fecaca 22%, var(--primary) 32%,
+    var(--primary) 12%, var(--replay-turn-highlight) 22%, var(--primary) 32%,
     color-mix(in oklab, var(--primary) 35%, transparent) 46%,
-    var(--primary) 62%, #fecaca 72%, var(--primary) 82%,
+    var(--primary) 62%, var(--replay-turn-highlight) 72%, var(--primary) 82%,
     color-mix(in oklab, var(--primary) 35%, transparent));
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(var(--replay-card-edge) 0 0) content-box, linear-gradient(var(--replay-card-edge) 0 0);
   mask-composite: exclude;
 }
 .boardTurnBorder::before { filter: blur(4px); opacity: 0.45; }
@@ -635,13 +635,13 @@ button.pile:disabled {
   position: absolute;
   z-index: 54;
   pointer-events: none;
-  color: #ffe3a0;
+  color: var(--replay-evolution-spark);
   animation: evolution-reveal 900ms linear both;
 }
 .evolutionRadiance {
   position: absolute;
   inset: 6%;
-  background: radial-gradient(ellipse, #fff7da 0%, #efb95880 23%, #efa64326 42%, transparent 68%);
+  background: var(--replay-evolution-radiance);
   animation: evolution-radiance 850ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .evolutionSheen {
@@ -654,7 +654,7 @@ button.pile:disabled {
   content: "";
   position: absolute;
   inset: -35%;
-  background: linear-gradient(115deg, transparent 32%, #ffe6a052 42%, #fffbeaee 48%, #ffe6a052 54%, transparent 64%);
+  background: var(--replay-evolution-sheen);
   animation: evolution-sheen 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .evolutionSparks {
@@ -698,9 +698,9 @@ button.pile:disabled {
   position: relative;
   z-index: 10;
   padding: 0.15rem;
-  border: 1px solid #52565d;
+  border: 1px solid var(--replay-card-frame-border);
   border-radius: 0.35rem;
-  background: #17191d;
+  background: var(--replay-card-frame-bg);
 }
 .cardArtworkFrame > .cardFace { display: block; box-shadow: none; }
 .cardArtworkFrame { position: relative; }
@@ -710,7 +710,7 @@ button.pile:disabled {
   z-index: 11;
   inset: auto 0 0;
   height: 25%;
-  background: linear-gradient(to top, rgb(0 0 0 / 80%), transparent);
+  background: linear-gradient(to top, var(--replay-card-shade), transparent);
   pointer-events: none;
 }
 .cardStack[data-face-down] .cardArtworkFrame::after { display: none; }
@@ -773,10 +773,10 @@ button.pile:disabled {
   width: 1.9rem;
   aspect-ratio: 1;
   place-items: center;
-  border: 2px solid #cf8b32;
+  border: 2px solid var(--replay-damage-border);
   border-radius: 50%;
-  background: #efa643;
-  color: #fffdf3;
+  background: var(--replay-damage-bg);
+  color: var(--replay-damage-text);
   font-family: "Arial Narrow", Arial, sans-serif;
   font-size: 1.1rem;
   font-weight: 900;
@@ -784,10 +784,10 @@ button.pile:disabled {
   line-height: 1;
   paint-order: stroke fill;
   letter-spacing: -0.055em;
-  box-shadow: inset 0 0 0 1px #ffd18d, 0 1px 3px #75551d66;
-  text-shadow: 0 1px 0 #665537;
+  box-shadow: var(--replay-damage-shadow);
+  text-shadow: var(--replay-damage-text-shadow);
   transform: translateY(-50%);
-  -webkit-text-stroke: 0.12em #3d3525;
+  -webkit-text-stroke: 0.12em var(--replay-damage-text-stroke);
 }
 
 .damageBadge {
@@ -1791,8 +1791,8 @@ button.pile:disabled {
   z-index: 56;
   visibility: hidden;
   pointer-events: none;
-  color: #fff2cc;
-  background: radial-gradient(ellipse at center, #fff9e299, #f7cb6440 22%, transparent 52%);
+  color: var(--replay-impact-spark);
+  background: var(--replay-impact-radiance);
 }
 .attackImpactBurst > svg { display: block; width: 100%; height: 100%; }
 @media (prefers-reduced-motion: reduce) {
@@ -2240,8 +2240,8 @@ button.pile:disabled {
 }
 .previewPileCard .cardPreviewImage { filter: none; }
 .previewPileControls { position: absolute; top: 0; bottom: 0; left: 1.25rem; right: 1.25rem; display: flex; align-items: center; justify-content: space-between; pointer-events: none; z-index: 60; }
-.previewPileControls > button { width: 3rem; height: 3rem; border-radius: 50%; border: 3px solid white; color: #343434; background: #eeeeee; box-shadow: 0 0.2rem 0.5rem #00000040; pointer-events: auto; }
-.previewPileControls > button:hover:not(:disabled) { background: white; transform: scale(1.06); }
+.previewPileControls > button { width: 3rem; height: 3rem; border-radius: 50%; border: 3px solid var(--replay-card-edge); color: var(--replay-preview-control-text); background: var(--replay-preview-control-bg); box-shadow: var(--replay-preview-control-shadow); pointer-events: auto; }
+.previewPileControls > button:hover:not(:disabled) { background: var(--replay-card-edge); transform: scale(1.06); }
 .previewPileControls > button:disabled { opacity: 0.3; }
 .previewPileControls > button:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; }
 .previewPileControls > button svg { width: 1.75rem; height: 1.75rem; stroke-width: 3; }
@@ -2261,11 +2261,11 @@ button.pile:disabled {
   grid-column: 3;
 }
 .boardSupporter > button { transform-origin: top left; }
-.boardShuffleCard { position: absolute; visibility: hidden; pointer-events: none; transform-origin: center; box-shadow: 0 2px 3px #00000045; }
+.boardShuffleCard { position: absolute; visibility: hidden; pointer-events: none; transform-origin: center; box-shadow: var(--replay-shuffle-shadow); }
 @media (prefers-reduced-motion: reduce) {
   .boardShuffleCard { display: none; }
 }
-.boardPrizeFlight { position: absolute; z-index: 55; visibility: hidden; pointer-events: none; transform-origin: top left; filter: drop-shadow(0 0.4rem 0.6rem #00000045); }
+.boardPrizeFlight { position: absolute; z-index: 55; visibility: hidden; pointer-events: none; transform-origin: top left; filter: drop-shadow(var(--replay-prize-shadow)); }
 .prizeFlightFlipper { position: absolute; inset: 0; transform-style: preserve-3d; transform: perspective(700px) rotateY(180deg); }
 .prizeFlightFront, .prizeFlightBack { position: absolute; inset: 0; backface-visibility: hidden; }
 .prizeFlightBack { transform: rotateY(180deg); }
@@ -2280,7 +2280,7 @@ button.pile:disabled {
   transform: translate(-50%, -50%);
   width: calc(100% + 1.75rem);
   padding: 0.55rem 0.85rem;
-  background: linear-gradient(90deg, #420a12e8, #941d2cf2 48%, #420a12e8);
+  background: var(--replay-action-banner-bg);
   color: var(--primary-foreground);
   clip-path: polygon(6% 0, 94% 0, 100% 50%, 94% 100%, 6% 100%, 0 50%);
   font-size: 0.8rem;
@@ -2288,7 +2288,7 @@ button.pile:disabled {
   line-height: 1.2;
   text-align: center;
   text-wrap: balance;
-  text-shadow: 0 1px 2px #24030a80;
+  text-shadow: var(--replay-action-banner-text-shadow);
   pointer-events: none;
   animation: board-ability-appear 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -2299,7 +2299,7 @@ button.pile:disabled {
   left: 6%;
   right: 6%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #ffb3ba99, transparent);
+  background: var(--replay-action-banner-edge);
 }
 .boardActionBanner::before { top: 0; }
 .boardActionBanner::after { bottom: 0; opacity: 0.55; }
