@@ -148,6 +148,16 @@ These, and only these, should normally show as unknown:
 
 ---
 
+## Replay presentation principles
+
+- **Animate the recorded movement, across card types.** Items and Supporters share the same board sequence; choose behavior from the transaction and catalogue classification rather than the card's name.
+- **Show the cause while its effect resolves.** A played Item or Supporter travels from Hand to the reserved spot beside its owner's Active, stays there during resolution, then travels to Discard. Pokémon Abilities use the shared banner on their source Pokémon; Stadiums and Tools retain their own board positions.
+- **Resolve in source order.** Show recorded discard costs and hand returns before the following search or draw. Shuffle the Deck after recorded returns and before subsequent draws.
+- **Deck → reveal → destination.** Visible cards pulled from Deck are presented on the board before travelling to the recorded Hand, Bench, attachment or Discard destination. Hidden cards stay face down; never invent an identity to fill the reveal.
+- **Change the visible recipient on arrival.** Keep the previous evolution and attachments until their incoming card lands. Drawn Hand cards appear when their flight arrives.
+- **Keep controls responsive.** Autoplay waits for the sequence to finish. Seeking or resizing clears transient flights; reduced motion settles the recorded result immediately.
+- **Preserve unhandled context.** A supported draw still animates when the action contains an additional unsupported effect. Keep the remaining context available, and do not invent its missing movement or target.
+
 ## Appendix: real PTCGL wording to support
 
 ```text

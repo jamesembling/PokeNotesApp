@@ -2261,8 +2261,6 @@ button.pile:disabled {
   grid-column: 3;
 }
 .boardSupporter > button { transform-origin: top left; }
-.boardRefreshFlight { position: absolute; z-index: 55; visibility: hidden; pointer-events: none; transform-origin: top left; }
-.boardRefreshFlight > img { object-fit: contain; }
 .boardShuffleCard { position: absolute; visibility: hidden; pointer-events: none; transform-origin: center; box-shadow: 0 2px 3px #00000045; }
 @media (prefers-reduced-motion: reduce) {
   .boardShuffleCard { display: none; }
@@ -2313,8 +2311,10 @@ button.pile:disabled {
   .boardActionBanner { animation: none; }
 }
 @container replay (max-width: 28rem) {
-  .boardSupporter { grid-area: field; justify-self: center; transform: translateX(5rem); width: 3.5rem; }
+  .playerBoard { --replay-pile-card-width: 3rem; }
+  .boardSupporter { grid-area: field; justify-self: center; transform: translateX(4.6rem); width: 3.5rem; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .boardRefreshFlight { display: none; }
+@container replay (max-width: 22rem) {
+  .stadium { width: 2rem; }
+  .boardSupporter { transform: translateX(3.85rem); width: 2rem; }
 }

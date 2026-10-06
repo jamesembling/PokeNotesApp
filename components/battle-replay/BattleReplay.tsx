@@ -691,7 +691,7 @@ function PlayerBoard({
             count={side.discardCount ?? null}
             label="Discard"
             onInspect={() => onInspectDiscard(actor)}
-            topCard={playedItem ? previousSide.discard[0] : side.discardCount == null || side.uncertainZones?.includes("discard") || side.discardCount > side.discard.length ? undefined : side.discard[0]}
+            topCard={playedItem || playedSupporter ? previousSide.discard[0] : side.discardCount == null || side.uncertainZones?.includes("discard") || side.discardCount > side.discard.length ? undefined : side.discard[0]}
           />
         </div>
       </div>
@@ -713,19 +713,6 @@ function boardChanged(previous: ReplayState, current: ReplayState) {
       .map((card) => card ? `${card.id}:${card.name}` : null);
     return JSON.stringify(positions(previous[actor])) !== JSON.stringify(positions(current[actor]));
   });
-}
-
-function handRefreshBoardAction(event: ReplayEvent | null, previous: ReplayState, state: ReplayState) {
-  if (!event?.transaction || event.unresolved?.length) return null;
-  const [play, shuffle, draw] = event.transaction.stages;
-  if (event.transaction.stages.length !== 3 || play?.kind !== "play" || play.cards.length !== 1
-    || play.cards[0].name !== "Lillie's Determination" || shuffle?.kind !== "shuffle"
-    || draw?.kind !== "draw" || event.transaction.stages.some((stage) => stage.scope === "both" || stage.targetResolved === false || stage.actor !== event.actor)) return null;
-  const returnedCount = shuffle.cards.length + (shuffle.hiddenCount ?? 0);
-  const drawnCount = draw.cards.length + (draw.hiddenCount ?? 0);
-  if (previous[event.actor].handCount !== returnedCount + 1 || state[event.actor].handCount !== drawnCount) return null;
-  const drawStart = 800 + DECK_SHUFFLE_MS + returnedCount * 60;
-  return { actor: event.actor, card: play.cards[0], returned: shuffle.cards, returnedCount, drawnCount, drawStart, duration: drawStart + drawnCount * 90 + 650 };
 }
 
 function damageTransferBoardAction(event: ReplayEvent | null, previous: ReplayState, state: ReplayState) {
@@ -779,7 +766,7 @@ function boardAbilityActivations(event: ReplayEvent | null, previous: ReplayStat
 
 type DeckAbilityCard = { card?: ReplayZoneCard; destination: "hand" | "bench" | "discard" | "deck" | "attach"; evolution?: boolean; sourceId?: string; targetId?: string; actor?: ReplayActor; pile?: "Deck" | "Discard" | "Hand" | "Board"; faceUp?: boolean };
 type BoardDrawAction = {
-  actor: ReplayActor; pile: "Deck" | "Prizes" | "Discard" | "Hand"; kind: "ability" | "prize" | "item" | "retreat" | "evolution";
+  actor: ReplayActor; pile: "Deck" | "Prizes" | "Discard" | "Hand"; kind: "ability" | "prize" | "trainer" | "retreat" | "evolution";
   flights: Array<DeckAbilityCard & { delay: number; reveal: boolean }>;
 };
 
@@ -801,28 +788,56 @@ function evolutionBoardAction(event: ReplayEvent | null, previous: ReplayState, 
   return flights.length ? { actor: event.actor, flights, duration: flights.at(-1)!.delay + 700 + 1000 } : null;
 }
 
-function itemBoardAction(event: ReplayEvent | null, state: ReplayState, program: ReplayProgram) {
+function trainerBoardAction(event: ReplayEvent | null, previous: ReplayState, state: ReplayState, program: ReplayProgram) {
   const play = event?.transaction?.stages.find((stage) => stage.kind === "play");
   if (!event || play?.kind !== "play" || play.cards.length !== 1) return null;
   const card = play.cards[0];
   const definition = resolveReplayCardPreviewDefinition(card, program);
-  if ((definition?.agreedFacts?.trainerType ?? definition?.selectedDefinition?.trainerType) !== "Item") return null;
+  const type = definition?.agreedFacts?.trainerType ?? definition?.selectedDefinition?.trainerType;
+  if (type !== "Item" && type !== "Supporter") return null;
   const flights: BoardDrawAction["flights"] = [];
   const shuffles: Array<{ actor: ReplayActor; delay: number }> = [];
+  const stages = event.transaction!.stages;
+  const rules = (definition?.agreedFacts?.rules ?? definition?.selectedDefinition?.rules ?? []).join(" ");
+  const origins = new Set([...rules.matchAll(/\b(?:from|search) your (discard pile|deck|hand)\b/gi)].map((match) => match[1].toLowerCase()));
+  const attachmentOrigin = /\battach\b/i.test(rules) && origins.size === 1 ? [...origins][0] : undefined;
+  const attachmentPile = attachmentOrigin === "deck" ? "Deck" : attachmentOrigin === "discard pile" ? "Discard" : attachmentOrigin === "hand" ? "Hand" : undefined;
+  const attachments = new Map<ReplayTransactionStage, { actor: ReplayActor; targetId: string }>();
+  for (const [index, stage] of stages.entries()) {
+    if (stage.kind !== "attach" || !attachmentPile || !stage.cards.length || stage.hiddenCount) continue;
+    const actor = stage.actor ?? event.actor;
+    const move = stages[index + 1];
+    if (move?.kind !== "move" || move.cards.length !== 1 || (move.actor ?? event.actor) !== actor) continue;
+    const target = [state[actor].active, ...state[actor].bench].find((card) => card?.id === move.cards[0].id);
+    const before = [previous[actor].active, ...previous[actor].bench].find((card) => card?.id === target?.id);
+    if (!target || !before) continue;
+    const energy = [...target.energy];
+    const matches = stage.cards.every((card) => {
+      if (!/Energy$/i.test(card.name)) return false;
+      const index = energy.indexOf(card.name.replace(/^Basic (.+) Energy$/i, "$1"));
+      if (index < 0) return false;
+      energy.splice(index, 1); return true;
+    });
+    if (matches && [...energy].sort().join("\0") === [...before.energy].sort().join("\0")) attachments.set(stage, { actor, targetId: target.id });
+  }
   let delay = 550;
-  const handled = !event.unresolved?.length && event.transaction!.stages.every((stage) =>
-    ["play", "draw", "discard", "bench", "return", "shuffle", "before", "evolve"].includes(stage.kind)
+  const handled = !event.unresolved?.length && stages.every((stage, index) =>
+    (["play", "draw", "discard", "bench", "return", "shuffle", "before", "evolve"].includes(stage.kind)
+      || stage.kind === "attach" && attachments.has(stage)
+      || stage.kind === "move" && attachments.has(stages[index - 1]))
     && (stage.kind !== "return" || stage.label === "To hand")
     && stage.targetResolved !== false && stage.scope !== "both");
-  if (handled) for (const stage of event.transaction!.stages) {
+  for (const stage of handled ? stages : stages.filter((stage) => stage.kind === "draw" && stage.targetResolved !== false && stage.scope !== "both")) {
     const actor = stage.actor ?? event.actor;
     const cards = [...stage.cards, ...Array.from({ length: stage.hiddenCount ?? 0 }, () => undefined)];
     if (stage.kind === "before") continue;
     if (stage.kind === "play") continue;
+    if (stage.kind === "move") continue;
+    const attachment = attachments.get(stage);
     for (const entry of cards) {
-      const destination = stage.kind === "shuffle" ? "deck" : stage.kind === "discard" ? "discard"
+      const destination = attachment ? "attach" : stage.kind === "shuffle" ? "deck" : stage.kind === "discard" ? "discard"
         : stage.kind === "bench" || stage.kind === "evolve" ? "bench" : "hand";
-      const pile = stage.kind === "discard" || stage.kind === "shuffle" || stage.kind === "evolve" ? "Hand"
+      const pile = attachment ? attachmentPile! : stage.kind === "discard" || stage.kind === "shuffle" || stage.kind === "evolve" ? "Hand"
         : stage.kind === "return" ? "Discard" : "Deck";
       const target = destination === "bench" ? [state[actor].active, ...state[actor].bench].find((target) => target && entry && target.id === entry.id) : undefined;
       const drawn = entry && (stage.kind === "bench" || stage.kind === "discard") ? flights.find((flight) =>
@@ -834,9 +849,10 @@ function itemBoardAction(event: ReplayEvent | null, state: ReplayState, program:
         drawn.reveal = Boolean(drawn.card);
         continue;
       }
-      const reveal = Boolean(entry) && pile !== "Hand" && (actor === "self" || destination === "bench");
-      flights.push({ card: entry, actor, pile, destination, evolution: stage.kind === "evolve", targetId: target?.id, reveal,
-        faceUp: Boolean(entry) && pile === "Hand" && (actor === "self" || destination === "discard" || destination === "bench"), delay });
+      const reveal = Boolean(entry) && pile !== "Hand" && (actor === "self" || destination !== "hand"
+        || pile === "Deck" && /\breveal\b/i.test(rules));
+      flights.push({ card: entry, actor, pile, destination, evolution: stage.kind === "evolve", targetId: attachment?.targetId ?? target?.id, reveal,
+        faceUp: Boolean(entry) && (Boolean(attachment) || pile === "Hand" && (actor === "self" || destination === "discard" || destination === "bench")), delay });
       delay += reveal ? 2100 : pile === "Hand" ? 120 : 180;
     }
     if (stage.kind === "shuffle") {
@@ -846,7 +862,7 @@ function itemBoardAction(event: ReplayEvent | null, state: ReplayState, program:
     else if (cards.length) delay += 850;
   }
   const finish = Math.max(handled ? 1000 : 1900, ...flights.map((flight) => flight.delay + (flight.evolution ? 1600 : flight.reveal ? 1900 : flight.pile === "Hand" ? 450 : 1000)), ...shuffles.map((shuffle) => shuffle.delay + DECK_SHUFFLE_MS)) + 200;
-  return { actor: event.actor, card, flights, shuffles, finish, duration: finish + 650, handled };
+  return { actor: event.actor, type, card, flights, shuffles, finish, duration: finish + 650, handled };
 }
 
 function deckAbilityBoardAction(event: ReplayEvent | null, state: ReplayState) {
@@ -1068,17 +1084,16 @@ export function BattleReplay({
   const atOpeningReveal = finalSetupIndex > 0 && actionIndex === finalSetupIndex;
   const openingRevealed = finalSetupIndex > 0 && actionIndex >= finalSetupIndex && !openingRevealPending;
   const routineAction = useMemo(() => routineBoardAction(currentEvent, previousState, state, replayEvents[actionIndex - 2]), [actionIndex, currentEvent, previousState, replayEvents, state]);
-  const handRefresh = useMemo(() => handRefreshBoardAction(currentEvent, previousState, state), [currentEvent, previousState, state]);
   const prizeDraw = useMemo(() => prizeBoardAction(currentEvent), [currentEvent]);
   const abilityActivations = useMemo(() => boardAbilityActivations(currentEvent, previousState, state), [currentEvent, previousState, state]);
   const abilityDraw = useMemo(() => deckAbilityBoardAction(currentEvent, state), [currentEvent, state]);
   const abilityAttachment = useMemo(() => abilityAttachmentBoardAction(currentEvent, previousState, state, program), [currentEvent, previousState, state, program]);
   const retreatAction = useMemo(() => retreatBoardAction(currentEvent, previousState, state), [currentEvent, previousState, state]);
-  const itemAction = useMemo(() => itemBoardAction(currentEvent, state, program), [currentEvent, state, program]);
+  const trainerAction = useMemo(() => trainerBoardAction(currentEvent, previousState, state, program), [currentEvent, previousState, state, program]);
   const evolutionAction = useMemo(() => evolutionBoardAction(currentEvent, previousState, state), [currentEvent, previousState, state]);
-  const deckShuffles = useMemo(() => handRefresh ? [{ actor: handRefresh.actor, delay: handRefresh.drawStart - DECK_SHUFFLE_MS }] : itemAction?.shuffles ?? [], [handRefresh, itemAction]);
-  const [completedItemIndex, setCompletedItemIndex] = useState<number | null>(null);
-  const cardDraw = useMemo<BoardDrawAction | null>(() => itemAction ? { ...itemAction, pile: "Deck", kind: "item" } : evolutionAction ? { ...evolutionAction, pile: "Deck", kind: "evolution" } : abilityDraw ? { ...abilityDraw, pile: "Deck", kind: "ability" } : abilityAttachment ? { ...abilityAttachment, kind: "ability" } : retreatAction ? { ...retreatAction, pile: "Discard", kind: "retreat" } : prizeDraw ? { actor: prizeDraw.actor, pile: "Prizes", kind: "prize", flights: Array.from({ length: prizeDraw.count }, (_, index) => ({ card: prizeDraw.cards[index], destination: "hand" as const, targetId: undefined, reveal: prizeDraw.actor === "self" && Boolean(prizeDraw.cards[index]), delay: index * (prizeDraw.actor === "self" ? 2100 : 180) })) } : null, [abilityAttachment, abilityDraw, evolutionAction, itemAction, prizeDraw, retreatAction]);
+  const deckShuffles = useMemo(() => trainerAction?.shuffles ?? [], [trainerAction]);
+  const [completedTrainerIndex, setCompletedTrainerIndex] = useState<number | null>(null);
+  const cardDraw = useMemo<BoardDrawAction | null>(() => trainerAction ? { ...trainerAction, pile: "Deck", kind: "trainer" } : evolutionAction ? { ...evolutionAction, pile: "Deck", kind: "evolution" } : abilityDraw ? { ...abilityDraw, pile: "Deck", kind: "ability" } : abilityAttachment ? { ...abilityAttachment, kind: "ability" } : retreatAction ? { ...retreatAction, pile: "Discard", kind: "retreat" } : prizeDraw ? { actor: prizeDraw.actor, pile: "Prizes", kind: "prize", flights: Array.from({ length: prizeDraw.count }, (_, index) => ({ card: prizeDraw.cards[index], destination: "hand" as const, targetId: undefined, reveal: prizeDraw.actor === "self" && Boolean(prizeDraw.cards[index]), delay: index * (prizeDraw.actor === "self" ? 2100 : 180) })) } : null, [abilityAttachment, abilityDraw, evolutionAction, trainerAction, prizeDraw, retreatAction]);
   const damageTransfer = useMemo(() => damageTransferBoardAction(currentEvent, previousState, state), [currentEvent, previousState, state]);
   const [pendingAttackIndex, setPendingAttackIndex] = useState<number | null>(null);
   const attackDamageAmounts = useMemo(() => {
@@ -1139,12 +1154,12 @@ export function BattleReplay({
   // Effect-driven placements (for example Poffin searching the deck) need the
   // selection context. Direct hand placements and moves are shown on the board.
   const effectPlacement = currentEvent?.label !== "Pokémon" && currentEvent?.transaction?.stages.some((stage) => stage.kind === "bench");
-  const inlineTransaction = Boolean(itemAction) || abilityActivations.length > 0 || movingOnBoard && !effectPlacement;
+  const inlineTransaction = Boolean(trainerAction) || abilityActivations.length > 0 || movingOnBoard && !effectPlacement;
   const visibleTransaction = currentEvent?.transaction ? {
     ...currentEvent.transaction,
     stages: currentEvent.transaction.stages.filter((stage) => !(stage.kind === "draw" && stage.label === "Opening hand")),
   } : null;
-  const popupTransaction = visibleTransaction?.stages.length && !routineAction && !handRefresh && !damageTransfer && !(itemAction?.handled || cardDraw && !itemAction) && currentEvent?.label !== "Attack" && currentEvent?.label !== "KO"
+  const popupTransaction = visibleTransaction?.stages.length && !routineAction && !damageTransfer && !(trainerAction?.handled || cardDraw && !trainerAction) && currentEvent?.label !== "Attack" && currentEvent?.label !== "KO"
     ? inlineTransaction
       ? visibleTransaction.stages.some((stage) => ["find", "draw", "shuffle", "return"].includes(stage.kind))
         ? { ...visibleTransaction, stages: visibleTransaction.stages.filter((stage) => !["before", "bench", "evolve", "move"].includes(stage.kind)) }
@@ -1155,7 +1170,7 @@ export function BattleReplay({
   const resultOnlyCoinFlip = resolveResultOnlyCoinFlip(currentEvent);
   const coinFlipResult = coinToss?.result ?? resultOnlyCoinFlip?.result ?? null;
   const coinPhase = useCoinFlipPhase(currentEvent);
-  const autoplayDelay = itemAction ? itemAction.duration : evolutionAction ? evolutionAction.duration : abilityDraw ? abilityDraw.duration : abilityAttachment ? abilityAttachment.duration : retreatAction ? retreatAction.duration : prizeDraw ? prizeDraw.duration : damageTransfer ? damageTransfer.duration : handRefresh ? handRefresh.duration : atOpeningReveal ? 1800 : currentEvent?.label === "KO" ? 2000 : currentEvent?.label === "Attack" ? 2400 : coinToss ? 4400 : resultOnlyCoinFlip ? 2800 : resolveOpeningTurnChoice(currentEvent) ? 2400 : currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
+  const autoplayDelay = trainerAction ? trainerAction.duration : evolutionAction ? evolutionAction.duration : abilityDraw ? abilityDraw.duration : abilityAttachment ? abilityAttachment.duration : retreatAction ? retreatAction.duration : prizeDraw ? prizeDraw.duration : damageTransfer ? damageTransfer.duration : atOpeningReveal ? 1800 : currentEvent?.label === "KO" ? 2000 : currentEvent?.label === "Attack" ? 2400 : coinToss ? 4400 : resultOnlyCoinFlip ? 2800 : resolveOpeningTurnChoice(currentEvent) ? 2400 : currentEvent?.transaction && currentEvent.transaction.stages.length > 1 ? 1900 : 1100;
   const maxIndex = replayFrames.length - 1;
   const turnStops = useMemo(() => replayEvents.reduce<Array<{ sourceSectionIndex: number; index: number }>>(
     (stops, event, index) => {
@@ -1246,109 +1261,41 @@ export function BattleReplay({
     boardSnapshotRef.current = { index: actionIndex, cards, hands, decks };
   }, [actionIndex]);
 
-  useLayoutEffect(() => {
-    const board = boardRef.current;
-    if (!board || !handRefresh || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const frame = board.parentElement!;
-    const actorBoard = board.querySelector<HTMLElement>(`section[data-actor="${handRefresh.actor}"]`)!;
-    const hand = actorBoard.querySelector<HTMLElement>("[data-replay-hand]")!;
-    const deck = actorBoard.querySelector<HTMLElement>('[data-pile-face="Deck"]')!;
-    const supporter = actorBoard.querySelector<HTMLElement>("[data-played-supporter] button")!;
-    const drawnCards = [...hand.querySelectorAll<HTMLElement>("[data-hand-index]")];
-    const snapshot = boardSnapshotRef.current;
-    const oldHand = snapshot && snapshot.index + 1 === actionIndex ? snapshot.hands.get(handRefresh.actor) : undefined;
-    const handRect = hand.getBoundingClientRect();
-    const cardWidth = drawnCards[0]?.getBoundingClientRect().width ?? 54;
-    const overlap = drawnCards[1] ? parseFloat(getComputedStyle(drawnCards[1]).marginLeft) : -16;
-    const oldCount = handRefresh.returnedCount + 1;
-    const fallbackSlots = Array.from({ length: oldCount }, (_, index) => ({
-      rect: new DOMRect(handRect.left + (handRect.width - (cardWidth + (oldCount - 1) * (cardWidth + overlap))) / 2 + index * (cardWidth + overlap), drawnCards[0]?.getBoundingClientRect().top ?? handRect.top, cardWidth, cardWidth / 0.714),
-      name: undefined as string | undefined,
-    }));
-    const slots = [...(oldHand?.slots ?? fallbackSlots)];
-    const supporterIndex = Math.max(0, slots.findIndex((slot) => slot.name === handRefresh.card.name));
-    const supporterOrigin = slots.splice(supporterIndex, 1)[0]?.rect;
-    const animations: Animation[] = [];
-    const fly = (element: HTMLElement, origin: DOMRect, destination: DOMRect, delay: number, disappear: boolean, id: string, reveal = false) => {
-      const target = element.getBoundingClientRect();
-      const animation = element.animate([
-        { transform: `translate(${origin.left - target.left}px, ${origin.top - target.top}px) scale(${origin.width / target.width})`, opacity: reveal ? 0 : 1 },
-        { opacity: 1, offset: 0.1 },
-        { transform: `translate(${destination.left - target.left}px, ${destination.top - target.top}px) scale(${destination.width / target.width})`, opacity: 1, offset: 0.85 },
-        { transform: `translate(${destination.left - target.left}px, ${destination.top - target.top}px) scale(${destination.width / target.width})`, opacity: disappear ? 0 : 1 },
-      ], { id, delay, duration: 450, fill: "both", easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
-      animation.onfinish = () => {
-        if (disappear) element.style.visibility = "hidden";
-        animation.cancel();
-      };
-      animations.push(animation);
-    };
-    if (supporterOrigin) fly(supporter, supporterOrigin, supporter.getBoundingClientRect(), 0, false, "replay-supporter-play");
-    const frameRect = frame.getBoundingClientRect();
-    const deckRect = deck.getBoundingClientRect();
-    frame.querySelectorAll<HTMLElement>("[data-refresh-return]").forEach((card, index) => {
-      const name = handRefresh.returned[index]?.name;
-      const slotIndex = name ? slots.findIndex((slot) => slot.name === name) : -1;
-      const origin = slots.splice(slotIndex >= 0 ? slotIndex : 0, 1)[0]?.rect;
-      if (!origin) return;
-      Object.assign(card.style, { visibility: "visible", left: `${origin.left - frameRect.left}px`, top: `${origin.top - frameRect.top}px`, width: `${origin.width}px`, height: `${origin.height}px` });
-      fly(card, origin, deckRect, 400 + index * 60, true, "replay-hand-return");
-    });
-    const drawFlights = [...frame.querySelectorAll<HTMLElement>("[data-refresh-draw]")];
-    drawnCards.forEach((card, index) => {
-      const flight = drawFlights[index];
-      if (!flight) return;
-      const delay = handRefresh.drawStart + index * 90;
-      Object.assign(flight.style, { visibility: "visible", left: `${deckRect.left - frameRect.left}px`, top: `${deckRect.top - frameRect.top}px`, width: `${deckRect.width}px`, height: `${deckRect.height}px` });
-      // Flights live outside the scrollable hand; its cards only fade in on arrival.
-      fly(flight, deckRect, card.getBoundingClientRect(), delay, true, "replay-hand-draw", true);
-      const arrival = card.animate([{ opacity: 0 }, { opacity: 0, offset: 0.99 }, { opacity: 1 }],
-        { id: "replay-hand-draw-arrival", duration: delay + 450, fill: "both" });
-      arrival.onfinish = () => arrival.cancel();
-      animations.push(arrival);
-    });
-    const cancel = () => {
-      animations.forEach((animation) => animation.cancel());
-      frame.querySelectorAll<HTMLElement>("[data-refresh-return], [data-refresh-draw]").forEach((card) => { card.style.visibility = "hidden"; });
-    };
-    window.addEventListener("resize", cancel);
-    return () => { cancel(); window.removeEventListener("resize", cancel); };
-  }, [actionIndex, handRefresh]);
 
   useLayoutEffect(() => {
     const board = boardRef.current;
-    const side = board?.querySelector<HTMLElement>(`section[data-actor="${itemAction?.actor}"]`);
-    const played = side?.querySelector<HTMLElement>("[data-played-item]");
+    const side = board?.querySelector<HTMLElement>(`section[data-actor="${trainerAction?.actor}"]`);
+    const played = side?.querySelector<HTMLElement>("[data-played-item], [data-played-supporter]");
     const face = played?.querySelector<HTMLElement>("button");
     const discard = side?.querySelector<HTMLElement>('[data-pile-face="Discard"]');
-    if (!itemAction || !played || !face || !discard) return;
+    if (!trainerAction || !played || !face || !discard) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setCompletedItemIndex(actionIndex);
+      setCompletedTrainerIndex(actionIndex);
       return;
     }
     const snapshot = boardSnapshotRef.current;
-    const oldHand = snapshot?.index === actionIndex - 1 ? snapshot.hands.get(itemAction.actor) : undefined;
-    const origin = oldHand?.slots.find((slot) => slot.name === itemAction.card.name)?.rect ?? oldHand?.slots[0]?.rect
+    const oldHand = snapshot?.index === actionIndex - 1 ? snapshot.hands.get(trainerAction.actor) : undefined;
+    const origin = oldHand?.slots.find((slot) => slot.name === trainerAction.card.name)?.rect ?? oldHand?.slots[0]?.rect
       ?? side?.querySelector<HTMLElement>("[data-hand-index]")?.getBoundingClientRect();
     const target = face.getBoundingClientRect();
     const animations: Animation[] = [];
     if (origin && target.width) animations.push(face.animate([
       { transform: `translate(${origin.left - target.left}px, ${origin.top - target.top}px) scale(${Math.min(origin.width, 80) / target.width})` },
       { transform: "none" },
-    ], { id: "replay-item-play", duration: 450, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }));
+    ], { id: "replay-trainer-play", duration: 450, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }));
     const destination = discard.getBoundingClientRect();
     const finish = face.animate([
       { transform: "none", opacity: 1 },
       { transform: `translate(${destination.left - target.left}px, ${destination.top - target.top}px) scale(${destination.width / target.width})`, opacity: 1, offset: 0.85 },
       { transform: `translate(${destination.left - target.left}px, ${destination.top - target.top}px) scale(${destination.width / target.width})`, opacity: 0 },
-    ], { id: "replay-item-discard", delay: itemAction.finish, duration: 450, fill: "forwards", easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
-    finish.onfinish = () => setCompletedItemIndex(actionIndex);
+    ], { id: "replay-trainer-discard", delay: trainerAction.finish, duration: 450, fill: "forwards", easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+    finish.onfinish = () => setCompletedTrainerIndex(actionIndex);
     animations.push(finish);
     const cancel = () => animations.forEach((animation) => animation.cancel());
-    const settle = () => { cancel(); setCompletedItemIndex(actionIndex); };
+    const settle = () => { cancel(); setCompletedTrainerIndex(actionIndex); };
     window.addEventListener("resize", settle);
     return () => { cancel(); window.removeEventListener("resize", settle); };
-  }, [actionIndex, itemAction]);
+  }, [actionIndex, trainerAction]);
 
   useLayoutEffect(() => {
     const board = boardRef.current;
@@ -1373,9 +1320,9 @@ export function BattleReplay({
     }
     const oldHands = new Map((["self", "opponent"] as const).map((actor) => [actor,
       [...(snapshot?.index === actionIndex - 1 ? snapshot.hands.get(actor)?.slots ?? [] : [])]]));
-    if (itemAction) {
-      const slots = oldHands.get(itemAction.actor)!;
-      const index = slots.findIndex((slot) => slot.name === itemAction.card.name);
+    if (trainerAction) {
+      const slots = oldHands.get(trainerAction.actor)!;
+      const index = slots.findIndex((slot) => slot.name === trainerAction.card.name);
       slots.splice(Math.max(0, index), 1);
     }
     const activeRects = [...board.querySelectorAll<HTMLElement>(`.${styles.active}`)].map((element) => element.getBoundingClientRect());
@@ -1459,7 +1406,7 @@ export function BattleReplay({
     const settle = () => { cancel(); setArrivedFlights(completed); };
     window.addEventListener("resize", settle);
     return () => { cancel(); window.removeEventListener("resize", settle); };
-  }, [actionIndex, abilityActivations, cardDraw, itemAction, state]);
+  }, [actionIndex, abilityActivations, cardDraw, trainerAction, state]);
 
   useLayoutEffect(() => {
     if (!damageTransfer) return;
@@ -1525,7 +1472,7 @@ export function BattleReplay({
     const board = boardRef.current;
     const snapshot = boardSnapshotRef.current;
     boardSnapshotRef.current = null;
-    if (!board || !snapshot || snapshot.index + 1 !== actionIndex || currentEvent?.label === "KO" || handRefresh || abilityDraw || abilityAttachment || evolutionAction || itemAction?.handled) {
+    if (!board || !snapshot || snapshot.index + 1 !== actionIndex || currentEvent?.label === "KO" || abilityDraw || abilityAttachment || evolutionAction || trainerAction?.handled) {
       setPendingAttackIndex(null);
       return;
     }
@@ -1666,11 +1613,11 @@ export function BattleReplay({
     const settle = () => { cancel(); setPendingAttackIndex(null); };
     window.addEventListener("resize", settle);
     return () => { cancel(); window.removeEventListener("resize", settle); };
-  }, [actionIndex, abilityAttachment, abilityDraw, currentEvent, evolutionAction, handRefresh, itemAction, movingOnBoard, retreatAction, routineAction]);
+  }, [actionIndex, abilityAttachment, abilityDraw, currentEvent, evolutionAction, trainerAction, movingOnBoard, retreatAction, routineAction]);
 
   const advanceTo = useCallback((nextIndex: number) => {
     captureBoard();
-    setCompletedItemIndex(null);
+    setCompletedTrainerIndex(null);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const nextAttack = replayEvents[nextIndex - 1]?.label === "Attack" && replayEvents[nextIndex - 1]?.transaction?.stages.some((stage) => stage.kind === "attack");
     setPendingAttackIndex(nextIndex === actionIndex + 1 && nextAttack && !reducedMotion ? nextIndex : null);
@@ -1884,7 +1831,7 @@ export function BattleReplay({
       <div className={styles.replayStage} ref={stageRef}>
         <div className={styles.boardFrame} data-replay-board-frame data-transaction={popupTransaction && !inlineTransaction || undefined}>
           <div className={styles.board} ref={boardRef}>
-            <PlayerBoard openingRevealed={openingRevealed} instantReveal={!atOpeningReveal || !animateOpeningReveal} controls={playbackControls} coinPhase={coinPhase} actor="opponent" abilities={abilityActivations} attackDamagePending={pendingAttackIndex === actionIndex} playedSupporter={handRefresh?.actor === "opponent" ? handRefresh.card : undefined} playedItem={itemAction?.actor === "opponent" && completedItemIndex !== actionIndex ? itemAction.card : undefined} currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={boardState.opponent} stadium={state.stadium} />
+            <PlayerBoard openingRevealed={openingRevealed} instantReveal={!atOpeningReveal || !animateOpeningReveal} controls={playbackControls} coinPhase={coinPhase} actor="opponent" abilities={abilityActivations} attackDamagePending={pendingAttackIndex === actionIndex} playedSupporter={trainerAction?.actor === "opponent" && trainerAction.type === "Supporter" && completedTrainerIndex !== actionIndex ? trainerAction.card : undefined} playedItem={trainerAction?.actor === "opponent" && trainerAction.type === "Item" && completedTrainerIndex !== actionIndex ? trainerAction.card : undefined} currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={boardState.opponent} stadium={state.stadium} />
             {attackAnnouncement ? <div aria-hidden="true" className={styles.attackAnnouncementAnchor}>
               <div key={`${program.id}-${actionIndex}`} className={styles.attackAnnouncement}>
                 <span>{currentEvent?.actor === "self" ? "Your attack" : "Opponent’s attack"}</span>
@@ -1903,11 +1850,11 @@ export function BattleReplay({
                 </div>
               </div> : null}
             </div> : null}
-            {routineAction || handRefresh || abilityDraw || itemAction || atOpeningReveal ? <div className={styles.boardRoutineAnnouncement} aria-hidden="true" key={actionIndex}>
-              <span>{atOpeningReveal ? "Setup complete" : (routineAction ?? handRefresh ?? abilityDraw ?? itemAction)?.actor === "self" ? "Your action" : "Opponent action"}</span>
+            {routineAction || abilityDraw || trainerAction || atOpeningReveal ? <div className={styles.boardRoutineAnnouncement} aria-hidden="true" key={actionIndex}>
+              <span>{atOpeningReveal ? "Setup complete" : (routineAction ?? abilityDraw ?? trainerAction)?.actor === "self" ? "Your action" : "Opponent action"}</span>
               <strong>{atOpeningReveal ? "Opening Pokémon revealed" : currentEvent?.summary}</strong>
             </div> : null}
-            <PlayerBoard openingRevealed={openingRevealed} instantReveal={!atOpeningReveal || !animateOpeningReveal} coinPhase={coinPhase} actor="self" abilities={abilityActivations} attackDamagePending={pendingAttackIndex === actionIndex} playedSupporter={handRefresh?.actor === "self" ? handRefresh.card : undefined} playedItem={itemAction?.actor === "self" && completedItemIndex !== actionIndex ? itemAction.card : undefined} currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={boardState.self} stadium={state.stadium} />
+            <PlayerBoard openingRevealed={openingRevealed} instantReveal={!atOpeningReveal || !animateOpeningReveal} coinPhase={coinPhase} actor="self" abilities={abilityActivations} attackDamagePending={pendingAttackIndex === actionIndex} playedSupporter={trainerAction?.actor === "self" && trainerAction.type === "Supporter" && completedTrainerIndex !== actionIndex ? trainerAction.card : undefined} playedItem={trainerAction?.actor === "self" && trainerAction.type === "Item" && completedTrainerIndex !== actionIndex ? trainerAction.card : undefined} currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.self} side={boardState.self} stadium={state.stadium} />
           </div>
           <div className={styles.boardCardFlight} ref={boardGhostRef} aria-hidden="true" data-board-flight={routineAction?.kind}>
             {routineAction?.card ? <CardArtwork card={routineAction.card} alt="" sizes="100px" /> : <div className={styles.cardBack} />}
@@ -1922,12 +1869,6 @@ export function BattleReplay({
               <path d="m0-24 5 17 18-6-14 14 15 10-19-4-5 17-5-17-19 4 15-10-14-14 18 6Z" fill="currentColor" />
             </svg>
           </div>
-          {handRefresh ? Array.from({ length: handRefresh.returnedCount }, (_, index) => <div className={styles.boardRefreshFlight} data-refresh-return={index} key={`${actionIndex}-return-${index}`} aria-hidden="true">
-            {handRefresh.actor === "self" && handRefresh.returned[index] ? <CardArtwork card={handRefresh.returned[index]} alt="" sizes="80px" eager /> : <div className={styles.cardBack} />}
-          </div>) : null}
-          {handRefresh ? Array.from({ length: handRefresh.drawnCount }, (_, index) => <div className={styles.boardRefreshFlight} data-refresh-draw={index} key={`${actionIndex}-refresh-draw-${index}`} aria-hidden="true">
-            {handRefresh.actor === "self" && state.self.knownHand[index] ? <CardArtwork card={state.self.knownHand[index]} alt="" sizes="80px" eager /> : <div className={styles.cardBack} />}
-          </div>) : null}
           {damageTransfer ? Array.from({ length: damageTransfer.count }, (_, index) => <span className={`${styles.damageBadge} ${styles.boardDamageFlight}`} data-counter-flight={index} key={`${actionIndex}-counter-${index}`} aria-hidden="true">10</span>) : null}
           {cardDraw ? cardDraw.flights.map((entry, index) => <div className={styles.boardPrizeFlight} data-draw-flight={index} data-draw-kind={cardDraw.kind} data-draw-actor={entry.actor ?? cardDraw.actor} data-draw-destination={entry.destination} key={`${actionIndex}-draw-${index}`} aria-hidden="true">
             {entry.reveal && entry.card ? <div className={styles.prizeFlightFlipper}>
