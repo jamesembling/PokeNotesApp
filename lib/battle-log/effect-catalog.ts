@@ -3,6 +3,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import type { BattleLogActionTag } from "@/lib/battle-log/display";
 import type { CardEffectCatalogRow, CardEffectKind } from "@/lib/log-import/types";
 import { compactMap } from "@/lib/array";
+import { stripLogCardIdentifiers } from "./card-identifiers";
 
 const TRAINER_TAGS = new Set<CardEffectKind>(["supporter", "item", "tool", "stadium"]);
 const EFFECT_TAGS = new Set<CardEffectKind>(["ability", "attack"]);
@@ -23,7 +24,7 @@ type CardEffectCatalogIndex = {
 };
 
 function normalizeLogText(value: string | null | undefined) {
-  return normalizeText(value || "");
+  return normalizeText(stripLogCardIdentifiers(value || ""));
 }
 
 function buildEffectKey(cardName: string, effectName: string) {

@@ -51,6 +51,7 @@ import {
   resolveReplayCardPreviewDefinition,
   resolveReplayBoardDisplay,
   resolveReplayDisplayEvent,
+  replayAttachmentCards,
 } from "@/lib/battle-replay/preview";
 import styles from "./battle-replay.module.css";
 
@@ -1056,11 +1057,11 @@ export function BattleReplay({
       const definition = Object.entries(program.cardResolutions ?? {}).find(([, resolution]) => resolution.name === name && resolution.selectedPrinting?.imageUrl);
       return { id, name, imageUrl: definition?.[1].selectedPrinting?.imageUrl ?? artwork[name] ?? "", definitionKey: definition?.[0] };
     };
-    const attachments = (previewedCard.energy ?? []).map((energy, index) => {
-      const name = /Energy$/.test(energy) ? energy : `Basic ${energy} Energy`;
-      return attachmentCard(name, `${previewedCard.id}-energy-${index}`);
+    const attachments = replayAttachmentCards({ ...previewedCard, energy: previewedCard.energy ?? [] }).map((card) => {
+      if (card.definitionKey || card.imageUrl) return card;
+      const fallback = attachmentCard(card.name, card.id);
+      return { ...fallback, ...card, imageUrl: fallback.imageUrl };
     });
-    if (previewedCard.tool) attachments.push(attachmentCard(previewedCard.tool, `${previewedCard.id}-tool`));
     return [previewedCard, ...(previewedCard.underlying ?? []).toReversed(), ...attachments];
   }, [artwork, previewedCard, program.cardResolutions]);
   const previewPileCard = previewPile[previewPileIndex] ?? previewedCard;

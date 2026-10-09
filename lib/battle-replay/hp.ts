@@ -7,6 +7,7 @@ import { resolveReplayEffectConstraint, resolveReplayTrainerDisposition, type Re
 import type { ReplayLinkedCardDefinitions } from "./linked-deck-list";
 import { applyReplayPrintingProofs, applyReplayPrintingProofToCard, type ReplayPrintingProof } from "./printing-proofs";
 import { isReplaySelfAttackPermission } from "./ability-eligibility";
+import { replayAttachmentCards } from "./preview";
 
 const hasHp = (text: string) => /\bHP\b/i.test(text);
 
@@ -130,7 +131,11 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
   const modifierCandidates = (found: CardDefinitionEvidence | undefined) => found?.candidates.length ? found.candidates : null;
   const attachmentRulesUnverified = (found: CardDefinitionEvidence | undefined) =>
     !found?.candidates.length || found.coverage !== "complete" || found.candidates.some((printing) => printing.rules === null);
-  const resolveAttachment = (name: string, owner?: "self" | "opponent") => resolve({ name, definitionOwner: owner });
+  const resolveAttachment = (name: string, owner?: "self" | "opponent", holder?: ReplayCard) => {
+    const recorded = holder ? replayAttachmentCards(holder).filter((card) => card.name === name) : [];
+    const printing = recorded.length && recorded.every((card) => card.setId === recorded[0].setId && card.localId === recorded[0].localId) ? recorded[0] : undefined;
+    return resolve({ ...printing, name, definitionOwner: owner });
+  };
   type HpSelection = { hp: number | null; basis: "known" | "probable" | "unknown"; selected: CardDefinition | null; preferredFamily?: boolean; probableBasis?: "linked_deck_list" | "latest_format_candidate" | "same_owner_witnessed_family" };
   let selectionCache = new WeakMap<CardDefinitionEvidence, Map<string, HpSelection>>();
   // Populated only after semantic reconstruction. No execution lookup sees
@@ -270,10 +275,10 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
     return result;
   };
   const abilityTextsCache = new Map<string, string[] | null>();
-  const abilityTexts = (name: string, effect: string, definitionOwner?: "self" | "opponent"): string[] | null => {
-    const key = JSON.stringify([normalize(name), normalize(effect), definitionOwner ?? null]);
+  const abilityTexts = (name: string, effect: string, definitionOwner?: "self" | "opponent", identity?: Pick<ReplayZoneCard, "setId" | "localId">): string[] | null => {
+    const key = JSON.stringify([normalize(name), normalize(effect), definitionOwner ?? null, identity?.setId, identity?.localId]);
     if (abilityTextsCache.has(key)) return abilityTextsCache.get(key)!;
-    const found = resolve({ name, observedEffects: [effect], definitionOwner });
+    const found = resolve({ name, observedEffects: [effect], definitionOwner, ...identity });
     const options = candidates(found);
     if (!options) { abilityTextsCache.set(key, null); return null; }
     const texts = options.map((definition) => definition.abilities.find((ability) => normalize(ability.name) === normalize(effect))?.text);
@@ -291,10 +296,10 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
         card.definitionOwner = actor;
         return { actor, card, found: resolve(displayCard(card)) };
       }));
-    const stadiumCandidates = state.stadium ? modifierCandidates(resolve({ name: state.stadium.name, definitionOwner: state.stadium.actor })) : null;
+    const stadiumCandidates = state.stadium ? modifierCandidates(resolve({ ...state.stadium, definitionOwner: state.stadium.actor })) : null;
     const stadiumToolSuppression = toolsSuppressed(stadiumCandidates);
     const otherToolSuppression = board.some((origin) => possibleToolSuppression(modifierCandidates(origin.found), false)
-      || Boolean(origin.card.tool && possibleToolSuppression(modifierCandidates(resolveAttachment(origin.card.tool, origin.actor)), true)));
+      || Boolean(origin.card.tool && possibleToolSuppression(modifierCandidates(resolveAttachment(origin.card.tool, origin.actor, origin.card)), true)));
     const toolSuppression = stadiumToolSuppression === true ? true : stadiumToolSuppression === null || otherToolSuppression ? null : false;
     const suppressions = [
       ...candidateSuppressions(stadiumCandidates),
@@ -326,7 +331,7 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
         : state.stadium ? modifier(stadiumCandidates, targets, "stadium") : 0;
       let unverifiedAttachment = false;
       for (const attachment of [...(card.tool ? [card.tool] : []), ...card.energy.filter((energy) => /Energy$/i.test(energy) && !/^Basic /i.test(energy))]) {
-        const attachmentFound = resolveAttachment(attachment, actor);
+        const attachmentFound = resolveAttachment(attachment, actor, card);
         if (!(attachment === card.tool && toolSuppression === true) && attachmentRulesUnverified(attachmentFound)) unverifiedAttachment = true;
         const printedAddition = modifier(modifierCandidates(attachmentFound), targets, "attachment");
         const addition = attachment === card.tool && toolSuppression !== false && printedAddition !== 0
@@ -392,6 +397,11 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       card.definitionOwner = actor;
       decorateCard(card);
       card.underlying?.forEach((underlying) => visit(underlying, actor));
+      if ("energy" in card) {
+        const top = card as ReplayCard;
+        if (top.attachmentCards) top.attachmentCards = replayAttachmentCards(top);
+        top.attachmentCards?.forEach((attachment) => visit(attachment, actor));
+      }
     };
     for (const actor of ["self", "opponent"] as const) {
       if (state[actor].active) visit(state[actor].active!, actor);
@@ -448,15 +458,15 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
       const side = state[actor];
       const passiveSources: Array<{ source: CardDefinition[] | null; executor: boolean }> = tops(actor).map((top) => ({ source: candidates(resolve(top)), executor: actor === owner && top.id === card.id }));
       for (const top of tops(actor)) {
-        if (top.tool) passiveSources.push({ source: candidates(resolveAttachment(top.tool, actor)), executor: false });
-        for (const energy of top.energy.filter((name) => /Energy$/i.test(name) && !/^Basic /i.test(name))) passiveSources.push({ source: candidates(resolveAttachment(energy, actor)), executor: false });
+        if (top.tool) passiveSources.push({ source: candidates(resolveAttachment(top.tool, actor, top)), executor: false });
+        for (const energy of top.energy.filter((name) => /Energy$/i.test(name) && !/^Basic /i.test(name))) passiveSources.push({ source: candidates(resolveAttachment(energy, actor, top)), executor: false });
       }
       for (const pool of side.boardPools ?? []) if (pool.memberIds.length) {
         const conditional = [...(pool.possiblyReturnedCards ?? []), ...(pool.uncertainCards ?? []).flatMap((group) => group.cards)];
         if (conditional.some((component) => component.boardRole !== "evolution" && !/^Basic .+ Energy$/i.test(component.name))) return { status: "unmodelled" };
         for (const component of pool.cards) if (component.boardRole !== "evolution" && !/^Basic .+ Energy$/i.test(component.name)) passiveSources.push({ source: candidates(resolveAttachment(component.name, actor)), executor: false });
       }
-      if (state.stadium?.actor === actor) passiveSources.push({ source: candidates(resolve({ name: state.stadium.name, definitionOwner: actor })), executor: false });
+      if (state.stadium?.actor === actor) passiveSources.push({ source: candidates(resolve({ ...state.stadium, definitionOwner: actor })), executor: false });
       for (const { source, executor } of passiveSources) {
         if (!source) return { status: "unmodelled" };
         for (const printing of source) {
@@ -467,6 +477,8 @@ export function createReplayHpContext(evidence: CardDefinitionEvidenceByName | u
             const irrelevantLimit = namedUseLimit && options.every((candidate) => candidate.abilities.every((ability) => !normalize(ability.name).includes(normalize(namedUseLimit[1])) || !copyLike(ability.text ?? "")));
             if (hasCopyPermission && !irrelevantLimit && !selfKnockoutOnly && /\b(?:lose|has no|have no|ignore all)\b[^.]*\b(?:Abilit(?:y|ies)|Pok[eé]-BODY|Pok[eé]-POWER)\b|\b(?:can't|cannot) use (?!more than)[^.]*\bAbilit(?:y|ies)\b|\bAbilit(?:y|ies)\b[^.]*\b(?:no effect|stop working)\b/i.test(text)) return { status: "unmodelled" };
             if (!copyLike(text)) continue;
+            // This owner-only permission cannot lend an attack across sides.
+            if (actor !== owner && /^Each of your evolved Pok[eé]mon can use any attack from its previous Evolutions\.(?: \(You still need the necessary Energy to use each attack\.\))?$/i.test(text)) continue;
             // A different Pokémon's self-contained native permission doesn't
             // grant attacks to this executor. Every other permission is held.
             if (normalize(printing.category ?? "") === "pokemon" && !executor && isReplaySelfAttackPermission(text, printing.name)) continue;

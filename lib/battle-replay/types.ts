@@ -72,6 +72,8 @@ export type ReplayCard = {
   activePrintingEffects?: { episodeId: string; effects: string[] };
   conditions?: ReplayCondition[];
   energy: string[];
+  /** Printing evidence for recorded attachments; the Energy/Tool fields own counts. */
+  attachmentCards?: ReplayZoneCard[];
   underlying: ReplayZoneCard[];
   tool?: string;
   definitionKey?: string;
@@ -134,7 +136,7 @@ export type ReplayState = {
   partial?: boolean;
   self: ReplaySide;
   opponent: ReplaySide;
-  stadium: { name: string; imageUrl: string; actor: ReplayActor; definitionKey?: string } | null;
+  stadium: Omit<ReplayZoneCard, "id"> & { actor: ReplayActor } | null;
   playedCard: {
     actor: ReplayActor;
     card: ReplayZoneCard;

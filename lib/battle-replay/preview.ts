@@ -15,6 +15,20 @@ export function resolveReplayCardPreviewDefinition(card: Pick<ReplayZoneCard, "d
     ? program.cardResolutions![card.definitionKey] : undefined;
 }
 
+/** Preserve exact attachment printings only while their local multiset agrees.
+ * A partial removal of mixed printings cannot arbitrarily pick the survivor. */
+export function replayAttachmentCards(card: Pick<ReplayCard, "id" | "energy" | "tool" | "attachmentCards">): ReplayZoneCard[] {
+  const names = [...card.energy.map((energy) => /Energy$/i.test(energy) ? energy : `Basic ${energy} Energy`), ...(card.tool ? [card.tool] : [])];
+  const used = new Map<string, number>();
+  return names.map((name, index) => {
+    const recorded = (card.attachmentCards ?? []).filter((attachment) => attachment.name === name);
+    const ordinal = used.get(name) ?? 0; used.set(name, ordinal + 1);
+    if (recorded.length === names.filter((other) => other === name).length) return recorded[ordinal];
+    const samePrinting = recorded.length > 0 && recorded.every((attachment) => attachment.setId === recorded[0].setId && attachment.localId === recorded[0].localId);
+    return { id: `${card.id}-attachment-${index}`, name, imageUrl: "", ...(samePrinting ? { setId: recorded[0].setId, localId: recorded[0].localId } : {}) };
+  });
+}
+
 const boardStateStageKinds = new Set<ReplayTransactionStage["kind"]>([
   "ability",
   "attack",
@@ -32,6 +46,7 @@ export type ReplayCardPreview = ReplayZoneCard & {
   damage?: number;
   damageKnown?: boolean;
   energy?: string[];
+  attachmentCards?: ReplayCard["attachmentCards"];
   hp?: number | null;
   underlying?: ReplayZoneCard[];
   tool?: string;

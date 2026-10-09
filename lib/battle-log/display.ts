@@ -1,3 +1,5 @@
+import { stripLogCardIdentifiers } from "./card-identifiers";
+
 export {
   getBattleLogDeckDisplayName,
   getBattleLogOpponentDisplayName,
@@ -39,7 +41,7 @@ const BATTLE_LOG_ACTION_TAG_LABELS: Record<BattleLogActionTag, string> = {
 };
 
 function normalizeBattleLogActionTitle(title: string) {
-  return String(title || "")
+  return stripLogCardIdentifiers(String(title || ""))
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()

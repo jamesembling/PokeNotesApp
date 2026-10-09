@@ -2,6 +2,7 @@ import { classifyBattleLogActionTitle, type BattleLogActionTag } from "@/lib/bat
 import { resolveBattleLogEffectCatalogTags } from "@/lib/battle-log/effect-catalog";
 import type { LogSection } from "@/types/index";
 import { compactMap } from "@/lib/array";
+import { stripLogCardIdentifiers } from "@/lib/battle-log/card-identifiers";
 
 const RESOLVABLE_TAGS = new Set<BattleLogActionTag>(["supporter", "item", "tool", "stadium"]);
 
@@ -59,7 +60,7 @@ function isResolvableActionTitle(title: string) {
 }
 
 export function extractBattleLogActionCardCandidate(title: string) {
-  const trimmed = String(title || "").trim();
+  const trimmed = stripLogCardIdentifiers(String(title || "")).trim();
   if (!trimmed) {
     return null;
   }

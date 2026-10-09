@@ -17,6 +17,12 @@ import { canonicalReplayGame, expectedGameChanges, syntheticCardDefinition, type
 import { getLinkedReplayDefinitions, getReplayLinkedDeckListCompatibility } from "@/lib/battle-replay/linked-deck-list";
 import { selectRetainedCardDefinitions } from "@/lib/card-definition-catalog/retention.mjs";
 import { buildCardDefinitionIndex, getCardDefinitionTrainerFieldAgreement, resolveCardDefinition } from "@/lib/card-definition-catalog/resolve";
+import { identifiedBattleLog, identifiedCardDefinitions } from "./fixtures/battle-log-card-identifiers";
+import { parseBattleLog } from "@/lib/log-import/parser";
+import { logCardIdentity, stripLogCardIdentifiers } from "@/lib/battle-log/card-identifiers";
+import { createReplayEffectEvidenceResolver } from "@/lib/battle-replay/effect-evidence";
+import { replayAttachmentCards } from "@/lib/battle-replay/preview";
+import type { IdentificationCatalog } from "@/lib/log-import/types";
 
 const action = (title: string, details: string[] = []): LogAction => ({ title, details });
 const section = (player: string, actions: LogAction[]): LogSection => ({
@@ -70,6 +76,62 @@ test("saved Battle Log actions compile into deterministic source-faithful frames
   });
   assert.deepEqual(complete.diagnostics.unresolvedActions, []);
   assert.deepEqual(complete, compileBattleReplay(canonicalReplayGame));
+
+  // The real PTCGL export protects the importer -> compiler boundary for both
+  // tokenized printings and the existing name-only form, without rewriting raw evidence.
+  const catalog: IdentificationCatalog = {
+    pokemon: { bySlug: new Map(), normalizedNameToSlug: new Map(["Relicanth", "Totodile", "Croconaw", "Metang"].map((name) => [name.toLowerCase(), name.toLowerCase()])), slugToAncestors: new Map(), slugToFamilyRoot: new Map(), maxNameTokens: 1 },
+    archetypes: { byId: new Map(), normalizedLabelToIds: new Map(), spriteToCandidateArchetypes: new Map(), familyRootToCandidateArchetypes: new Map() },
+  };
+  const importAndReplay = (rawLog: string, exact = true) => {
+    const parsed = parseBattleLog({ rawLog, ptcglUsername: "JammerUK1993", catalog });
+    const rows = [...identifiedCardDefinitions];
+    // A different gameplay printing must not displace the source's exact ID.
+    if (exact) rows.push({ ...rows.find((card) => card.name === "Totodile")!, setId: "sv03", localId: "038", sourceCardId: "sv03-038", hp: 120 });
+    const index = buildCardDefinitionIndex(rows);
+    const definitions = Object.fromEntries([...index.keys()].map((name) => [name, resolveCardDefinition(index, { name })]));
+    // This export supplies no format; don't impose Standard rotation on Jacq.
+    const resolver = createReplayEffectEvidenceResolver(definitions, [], { playedOn: "2026-10-09" });
+    const effectTags = Object.fromEntries(parsed.sections.flatMap((section) => section.actions.flatMap((action) => [action.title, ...action.details]))
+      .flatMap((line) => { const tag = resolver.tag(line); return tag === "supporter" || tag === "item" || tag === "tool" || tag === "stadium" || tag === "ability" || tag === "attack" ? [[line, tag]] : []; }));
+    return { parsed, program: compileBattleReplay({ ...canonicalReplayGame, ...parsed.players, date: "2026-10-09", format: "", sections: parsed.sections, cardDefinitions: definitions, effectTags }) };
+  };
+  const identified = importAndReplay(identifiedBattleLog);
+  assert.equal(identified.parsed.rawLog, identifiedBattleLog);
+  assert.ok(identified.parsed.sections.some((section) => section.actions.some((action) => action.title.includes("(sv5_84) Relicanth"))));
+  assert.deepEqual(identified.parsed.stats, { winner: "tyDspen", result: "Loss", totalTurns: 2, coinTossWon: false, goOrder: "Second", selfPrizesTaken: 0, opponentPrizesTaken: 0, selfAttackDamage: 0, opponentAttackDamage: 30, selfMulligans: 0, opponentMulligans: 0, reason: "Concede" });
+  assert.deepEqual(identified.program.diagnostics.unresolvedActions, []);
+  const final = identified.program.frames.at(-1)!;
+  assert.deepEqual([final.self.handCount, final.self.deckCount, final.self.discardCount, final.self.inPlayCount], [4, 44, 4, 2]);
+  assert.deepEqual([final.opponent.handCount, final.opponent.deckCount, final.opponent.discardCount, final.opponent.inPlayCount], [6, 43, 1, 4]);
+  assert.deepEqual([final.self.active?.name, final.self.active?.setId, final.self.active?.localId, final.self.active?.baseHp, final.self.active?.damage, final.self.active?.remainingHp], ["Totodile", "sv05", "39", 70, 30, 40]);
+  assert.equal(resolveReplayCardPreviewDefinition(final.self.active!, identified.program)?.selectedPrinting?.sourceCardId, "sv05-039");
+  assert.deepEqual([final.opponent.active?.name, final.opponent.active?.setId, final.opponent.active?.localId, final.opponent.active?.baseHp], ["Croconaw", "sv05", "40", 90]);
+  assert.deepEqual(final.opponent.active?.underlying.map((card) => [card.name, card.setId, card.localId]), [["Totodile", "sv05", "39"]]);
+  assert.deepEqual(replayAttachmentCards(final.opponent.active!).map((card) => [card.name, card.setId, card.localId]), [["Basic Water Energy", "sve", "3"], ["Basic Water Energy", "sve", "3"]]);
+  assert.deepEqual(final.self.discard.map((card) => [card.name, card.setId, card.localId]).sort(), [["Ultra Ball", "sv01", "196"], ...Array.from({ length: 3 }, () => ["Basic Fighting Energy", "sve", "6"])].sort());
+  assert.deepEqual(final.self.bench.map((card) => [card.name, card.baseHp, card.energy]), [["Relicanth", 100, []]]);
+  assert.deepEqual(final.opponent.knownHand.map((card) => [card.name, card.setId, card.localId]), [["Metang", "sv05", "114"]]);
+  const legacy = importAndReplay(stripLogCardIdentifiers(identifiedBattleLog), false);
+  assert.deepEqual(legacy.parsed.stats, identified.parsed.stats);
+  for (const actor of ["self", "opponent"] as const) {
+    assert.deepEqual(legacy.parsed.pokemonEvidence[actor].mentionCounts, identified.parsed.pokemonEvidence[actor].mentionCounts);
+    assert.equal(legacy.parsed.pokemonEvidence[actor].normalizedText, identified.parsed.pokemonEvidence[actor].normalizedText);
+  }
+  assert.deepEqual(legacy.program.frames.map((frame) => [projectSide(frame.self), projectSide(frame.opponent)]), identified.program.frames.map((frame) => [projectSide(frame.self), projectSide(frame.opponent)]));
+  const missing = importAndReplay(identifiedBattleLog.replaceAll("(sv5_39)", "(unknown_999)"));
+  assert.equal(missing.program.frames.at(-1)!.self.active?.damage, 30, "missing exact catalogue entries never erase recorded damage or the board");
+  assert.equal(missing.program.frames.at(-1)!.self.bench[0].baseHp, 100, "a missing printing stays local");
+  const mixedEnergyPrintings = importAndReplay(identifiedBattleLog
+    .replace("(sv1_196) Ultra Ball, (sve_6) Basic Fighting Energy", "(sv1_196) Ultra Ball, (sve_16) Basic Fighting Energy")
+    .replace("attached (sve_6) Basic Fighting Energy to (sv5_84)", "attached (sve_16) Basic Fighting Energy to (sv5_84)")
+    .replace("(sve_6) Basic Fighting Energy was discarded", "(sve_16) Basic Fighting Energy was discarded"));
+  assert.deepEqual(mixedEnergyPrintings.program.diagnostics.unresolvedActions, []);
+  assert.deepEqual(mixedEnergyPrintings.program.frames.at(-1)!.self.discard.filter((card) => card.name === "Basic Fighting Energy").map((card) => card.localId).sort(), ["16", "6", "6"], "same-name cards keep their distinct printing multiset through removal and retreat");
+  assert.deepEqual(logCardIdentity("(sv4pt5_001) Pikachu", "Pikachu"), { setId: "sv04.5", localId: "1" });
+  const namesakeAttack = "tyDspen's (sv5_39) Totodile used Scratch on JammerUK1993’s (sv3_38) Totodile for 10 damage.";
+  assert.deepEqual(logCardIdentity(namesakeAttack, "Totodile", "tyDspen", ["tyDspen", "JammerUK1993"]), { setId: "sv05", localId: "39" });
+  assert.deepEqual(logCardIdentity(namesakeAttack, "Totodile", "JammerUK1993", ["tyDspen", "JammerUK1993"]), { setId: "sv03", localId: "38" });
   const serialized = JSON.parse(JSON.stringify(complete));
   for (const position of [34, 0, 22, 7, 26, 34, 1]) assert.deepEqual(serialized.frames[position], complete.frames[position], "seeking never recomputes or changes the immutable recorded frame");
   assert.equal(complete.frames[7].self.active?.abilityUsed, true);

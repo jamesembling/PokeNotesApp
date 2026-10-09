@@ -1,6 +1,7 @@
 import type { Language } from "@/types/index";
 import { normalizeText } from "@/lib/log-import/normalization";
 import type { IdentificationCatalog, PlayerPokemonEvidence } from "@/lib/log-import/types";
+import { stripLogCardIdentifiers } from "@/lib/battle-log/card-identifiers";
 
 function getRelevantIdentificationLines(lines: string[], playerName: string, language: Language) {
   if (language === "en") {
@@ -57,7 +58,7 @@ function getRelevantIdentificationLines(lines: string[], playerName: string, lan
 }
 
 function tokenizeLine(line: string) {
-  return normalizeText(line)
+  return normalizeText(stripLogCardIdentifiers(line))
     .replace(/\b[a-z0-9 .-]+'s\b/g, "")
     .split(" ")
     .filter(Boolean);
@@ -97,7 +98,7 @@ export function extractPlayerPokemonMentions(args: {
 
   return {
     lines: relevantLines,
-    normalizedText: normalizeText(relevantLines.join(" ")),
+    normalizedText: normalizeText(stripLogCardIdentifiers(relevantLines.join(" "))),
     mentionCounts
   };
 }

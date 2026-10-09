@@ -3,6 +3,7 @@ import { buildCardDefinitionIndex, definitionEffectRows, resolveCardDefinition }
 import type { CardDefinitionEvidence, CardDefinitionQuery } from "@/lib/card-definition-catalog/types";
 import { normalizeText } from "@/lib/log-import/normalization";
 import { resolveReplayEffectConstraint } from "./effect-targets";
+import { logCardIdentity, stripLogCardIdentifiers } from "@/lib/battle-log/card-identifiers";
 
 /** Route effect evidence is scoped to one literal used effect. Different copies
  * with the same name can have different effects, so their observations must not
@@ -26,15 +27,18 @@ export function createReplayEffectEvidenceResolver(
   ]);
   const usedResolvers = new Map<string, ReturnType<typeof createBattleLogEffectEvidenceResolver>>();
   const usedEvidence = new Map<string, CardDefinitionEvidence>();
+  const evidenceKey = (title: string, name: string, effect?: string) => JSON.stringify([name, effect, logCardIdentity(title, name)]);
   const forTitle = (title: string) => {
     const used = extractUsedEffectCandidate(title);
-    const entry = used && entries.get(used.cardName);
-    if (!used || !entry) return base;
-    const key = `${used.cardName}\u0000${used.effectName}`;
+    const name = used?.cardName ?? normalizeText(stripLogCardIdentifiers(title).match(/\bplayed\s+(.+?)\.?$/i)?.[1] ?? "");
+    const identity = logCardIdentity(title, name);
+    const entry = entries.get(name);
+    if (!entry || !used && !identity) return base;
+    const key = evidenceKey(title, name, used?.effectName);
     let resolver = usedResolvers.get(key);
     if (!resolver) {
       const { evidence, index } = entry;
-      const resolved = resolveCardDefinition(index, { name: used.cardName, ...context, effectNames: [used.effectName] },
+      const resolved = resolveCardDefinition(index, { name, ...identity, ...context, ...(used ? { effectNames: [used.effectName] } : {}) },
         evidence.coverage, evidence.generation, evidence.sourceCoverage);
       resolver = createBattleLogEffectEvidenceResolver(resolved.coverage === "complete" ? definitionEffectRows(resolved.candidates) : []);
       usedResolvers.set(key, resolver);
@@ -51,7 +55,7 @@ export function createReplayEffectEvidenceResolver(
       // Legacy text can retain its existing origin evidence, but only contextual
       // definition agreement supplies the new complete movement recipes.
       if (used && entry && (kind === "attack" || kind === "ability")) {
-        const resolved = usedEvidence.get(`${used.cardName}\u0000${used.effectName}`);
+        const resolved = usedEvidence.get(evidenceKey(title, used.cardName, used.effectName));
         const operations = detail === undefined ? ["discard_cards", "evolve"] as const
           : /\bevolved\b/i.test(detail) ? ["evolve"] as const : /\bdiscarded\b/i.test(detail) ? ["discard_cards"] as const : [];
         for (const operation of operations) {

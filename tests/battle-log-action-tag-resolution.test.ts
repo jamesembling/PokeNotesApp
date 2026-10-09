@@ -67,6 +67,7 @@ const rows: CardEffectLookupRow[] = [
 ];
 
 test("extractBattleLogActionCardCandidate finds likely card names in played and attached lines", () => {
+  assert.equal(extractBattleLogActionCardCandidate("JammerUK1993 played (sv1_196) Ultra Ball."), "Ultra Ball");
   assert.equal(
     extractBattleLogActionCardCandidate("Played Boss's Orders -> gusted Gabite into the Active Spot."),
     "Boss's Orders"

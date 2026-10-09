@@ -1,6 +1,7 @@
 import { extractUsedEffectCandidate } from "@/lib/battle-log/effect-catalog";
 import { normalizeText } from "@/lib/log-import/normalization";
 import type { ReplayActor, ReplayProgram } from "./types";
+import { stripLogCardIdentifiers } from "@/lib/battle-log/card-identifiers";
 
 /** Named identities actually evidenced for one player, independent of which
  * player controlled the action. Used to check a selected Deck List's claims. */
@@ -71,7 +72,8 @@ export function collectReplayDefinitionNames(program: ReplayProgram, lines: read
   };
   visit(program.frames);
   visit(program.events.map((event) => event.transaction));
-  for (const line of lines) {
+  for (const raw of lines) {
+    const line = stripLogCardIdentifiers(raw);
     const used = extractUsedEffectCandidate(line)?.cardName;
     if (used && !players.has(normalizeText(used))) add(used);
     add(line.match(/\bplayed\s+(.+?)(?=\s+(?:to|into)\s+(?:the\s+)?(?:Active Spot|Bench|Stadium spot)\b|\s*(?:->|→)\s*|\.$|$)/i)?.[1]);
