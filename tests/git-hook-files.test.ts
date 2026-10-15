@@ -68,31 +68,34 @@ function newBranchInput(localSha: string) {
   return `refs/heads/feature ${localSha} refs/heads/feature ${ZERO_SHA}\n`;
 }
 
-function runHook(cwd: string, input: string) {
+function runHook(cwd: string, input: string, failScript?: string) {
   const fakeBin = join(cwd, "fake-bin");
   const commandLog = join(cwd, "hook-commands.log");
-  mkdirSync(fakeBin);
+  mkdirSync(fakeBin, { recursive: true });
+  writeFileSync(commandLog, "");
 
   for (const command of ["npm", "node"]) {
     const path = join(fakeBin, command);
     writeFileSync(
       path,
-      `#!/bin/sh\nprintf '${command}:%s\\n' "$*" >> "$HOOK_COMMAND_LOG"\n`
+      `#!/bin/sh\nprintf '${command}:%s\\n' "$*" >> "$HOOK_COMMAND_LOG"\nif [ "$2" = "$HOOK_FAIL_SCRIPT" ]; then exit 23; fi\n`
     );
     chmodSync(path, 0o755);
   }
 
-  const stdout = execFileSync(process.execPath, [HOOK_SCRIPT, "pre-push", "."], {
+  const result = spawnSync(process.execPath, [HOOK_SCRIPT, "pre-push", "."], {
     cwd,
     encoding: "utf8",
     input,
     env: isolatedGitEnv({
       HOOK_COMMAND_LOG: commandLog,
+      HOOK_FAIL_SCRIPT: failScript ?? "",
       PATH: `${fakeBin}:${process.env.PATH ?? ""}`
     })
   });
 
-  return { stdout, commands: readFileSync(commandLog, "utf8") };
+  assert.equal(result.status, failScript ? 23 : 0, `${result.stdout}${result.stderr}`);
+  return { stdout: result.stdout, commands: readFileSync(commandLog, "utf8") };
 }
 
 function installPrePushHook(cwd: string) {
@@ -133,7 +136,7 @@ test("an existing branch push excludes unchanged SQL inherited by a rebase onto 
   assert.deepEqual(result.pushedFiles, ["sql/inherited.sql"]);
 });
 
-test("the pre-push hook does not deploy inherited SQL from an existing branch push", (t) => {
+test("the pre-push quality gate audits design first and never deploys inherited SQL", (t) => {
   const { cwd, base, main } = fixture();
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
 
@@ -151,10 +154,20 @@ test("the pre-push hook does not deploy inherited SQL from an existing branch pu
 
   assert.match(stdout, /Running pre-push quality gate/);
   assert.doesNotMatch(stdout, /SQL files changed/);
-  assert.match(commands, /npm:run lint/);
-  assert.match(commands, /npm:run typecheck/);
-  assert.match(commands, /npm:run test/);
+  assert.deepEqual(commands.trim().split("\n"), [
+    "npm:run design:audit --",
+    "npm:run lint --",
+    "npm:run typecheck --",
+    "npm:run test --"
+  ]);
   assert.doesNotMatch(commands, /node:scripts\/deploy-changed-sql\.mjs/);
+
+  const failed = runHook(
+    cwd,
+    `refs/heads/feature ${localSha} refs/heads/feature ${remoteSha}\n`,
+    "design:audit"
+  );
+  assert.equal(failed.commands, "npm:run design:audit --\n");
 });
 
 test("the pre-push hook validates modified SQL without deploying it", (t) => {

@@ -1,0 +1,19 @@
+# Generated files, dependencies and build/runtime artifacts are never authored input.
+**/*.sql
+types/supabase.ts
+next-env.d.ts
+package-lock.json
+.git/
+node_modules/
+.next/
+.next-e2e/
+out/
+dist/
+build/
+coverage/
+logs/
+.vercel/
+.agent-browser/
+tests/e2e/supabase/.branches/
+tests/e2e/supabase/.temp/
+tests/e2e/supabase/migrations/

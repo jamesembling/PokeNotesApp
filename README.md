@@ -154,6 +154,8 @@ Run `npm run` for the complete script list. Common commands are:
 - `npm run dev:reset` clears `.next` and starts the dev server again
 - `npm run clean` removes local Next.js build output
 - `npm run lint` runs ESLint
+- `npm run format -- path/to/file.ts` formats explicitly named authored files with pinned Prettier
+- `npm run format:check -- path/to/file.ts` checks those files without writing; exits nonzero on drift
 - `npm run typecheck` runs Next type generation and TypeScript checks
 - `npm run test` runs the test suite
 - `npm run build` creates a production build
@@ -172,6 +174,13 @@ Run `npm run` for the complete script list. Common commands are:
 - `npm run perf:prod:auth` opens an attended Google login and saves host-filtered production auth state
 - `npm run perf:prod` replays the authenticated production route journey
 - `npm run sync:pokemon-catalog` runs the Pokemon catalog sync manually
+
+Formatting accepts explicit repository-relative JS/JSX/MJS/CJS, TS/TSX, CSS, Markdown/MDX,
+JSON and YAML file paths. Quote paths containing spaces or parentheses. Directories, globs,
+outside/symlink paths, generated `types/supabase.ts`, SQL, lockfiles, ignored files and build
+artifacts are rejected. The whole batch is validated and parsed before writing. Name only
+files changed for the task; baseline formatting is a separate reviewed change. The command
+never defaults to formatting the repository, and is not an automatic commit hook.
 
 ## Documentation Map
 
