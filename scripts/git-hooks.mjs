@@ -162,6 +162,7 @@ if (mode === "pre-push") {
 
   console.log("");
   console.log("Running pre-push quality gate.");
+  runNpmScript("design:audit");
   runNpmScript("lint");
   runNpmScript("typecheck");
   runNpmScript("test");
