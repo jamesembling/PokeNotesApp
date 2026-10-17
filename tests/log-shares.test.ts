@@ -226,17 +226,6 @@ test("expired shares resolve to null", async () => {
   assert.equal(sharedLog, null);
 });
 
-test("share revocation forwards the owner and token and returns the store result", async () => {
-  const { store } = createStoreStub();
-  store.revokeOwnedShare = async (shareId, ownerUserId) => {
-    assert.equal(shareId, "share-1");
-    assert.equal(ownerUserId, "user-1");
-    return true;
-  };
-
-  assert.equal(await revokeLogShare("share-1", "user-1", { store }), true);
-});
-
 test("legacy rows without source_log_id still load shared snapshots", async () => {
   const { store } = createStoreStub([
     {

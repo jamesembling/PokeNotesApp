@@ -94,7 +94,7 @@ test("match notes trim outer whitespace, preserve line breaks, and normalize emp
   assert.equal(normalizeMatchNotes(null), null);
 });
 
-test("owner-scoped persistence trims and replaces the exact owned log", async () => {
+test("owner-scoped persistence trims, replaces and clears the exact owned log", async () => {
   const harness = createMatchNotesClient({ initialValue: "Original note" });
 
   const saved = await persistOwnerMatchNotes(harness.client as never, {
@@ -115,19 +115,13 @@ test("owner-scoped persistence trims and replaces the exact owned log", async ()
     { args: ["id", "log-1"], method: "eq" },
     { args: ["id,match_notes"], method: "select" }
   ]);
-});
 
-test("owner-scoped persistence normalizes empty input to null", async () => {
-  const harness = createMatchNotesClient();
-
-  const saved = await persistOwnerMatchNotes(harness.client as never, {
-    logId: "log-1",
-    userId: "owner-1",
-    value: " \n\t "
-  });
-
-  assert.equal(saved, null);
-  assert.equal(harness.updatedValue, null);
+  const cleared = createMatchNotesClient({ initialValue: "Original note" });
+  assert.equal(
+    await persistOwnerMatchNotes(cleared.client as never, { logId: "log-1", userId: "owner-1", value: " \n\t " }),
+    null
+  );
+  assert.equal(cleared.updatedValue, null);
 });
 
 test("owner-scoped persistence rejects another owner", async () => {

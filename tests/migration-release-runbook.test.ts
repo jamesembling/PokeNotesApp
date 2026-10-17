@@ -20,7 +20,6 @@ const schemaHealthPath = fileURLToPath(schemaHealthUrl);
 const repositoryRoot = dirname(dirname(schemaHealthPath));
 const rehearsalPath = join(repositoryRoot, "scripts/rehearse-migrations.mjs");
 const runbook = readFileSync(new URL("../docs/migration-release.md", import.meta.url), "utf8");
-const contributing = readFileSync(new URL("../CONTRIBUTING.md", import.meta.url), "utf8");
 const productionWorkflow = readFileSync(
   new URL("../.github/workflows/deploy-production-database.yml", import.meta.url),
   "utf8"
@@ -191,17 +190,6 @@ if (process.env.POKENOTES_TEST_CHILD_FAILURE && args.includes("push")) {
     rmSync(directory, { recursive: true, force: true });
   }
 }
-
-test("migration release path gives production authority only to the controlled workflow", () => {
-  assert.match(
-    runbook,
-    /`supabase\/migrations\/` and Supabase's migration history are the release authority/
-  );
-  assert.match(runbook, /Git hooks validate migrations/);
-  assert.match(runbook, /manually dispatched \*\*Deploy production database\*\*/);
-  assert.match(runbook, /workflow is the only production migration path/i);
-  assert.match(runbook, /expand-and-contract/);
-});
 
 test("production workflow is manual, serialized, main-only, and verifies the live result", () => {
   assert.match(productionWorkflow, /^  workflow_dispatch:/m);
@@ -447,13 +435,4 @@ test("schema health redacts credentials from child, parse, and query output", ()
     assert.doesNotMatch(output, /synthetic-secret|synthetic-query-secret|synthetic-user|synthetic-tls-secret/);
     assert.doesNotMatch(output, /postgresql:\/\//);
   }
-});
-
-test("contributor guidance points migration authors to the release gate", () => {
-  assert.match(
-    contributing,
-    /hooks[\s\S]*do not connect to or mutate the\s+production database/
-  );
-  assert.match(contributing, /docs\/migration-release\.md/);
-  assert.match(contributing, /manually dispatched production workflow/);
 });

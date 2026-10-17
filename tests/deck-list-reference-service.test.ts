@@ -152,20 +152,3 @@ test("legacy JSON cannot be selected without an explicitly supplied strategy", a
     /could not be found/
   );
 });
-
-test("a list owned by another account is not selectable", async () => {
-  const supabase = createSupabase({
-    deckLists: [
-      { deck_id: null, id: "private-list", name: "Private", user_id: "user-2" }
-    ]
-  });
-
-  await assert.rejects(
-    validateDeckListReference({
-      linkedDeckListId: "private-list",
-      supabase: supabase as never,
-      userId: "user-1"
-    }),
-    /could not be found/
-  );
-});

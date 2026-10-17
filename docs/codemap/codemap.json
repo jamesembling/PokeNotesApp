@@ -58,7 +58,7 @@
       "path": "app/(app)/logs/actions.ts",
       "role": "Parses, imports, edits, links, annotates, paginates, deletes, and shares PTCGL battle logs.",
       "entrypoints": ["parseLogAction", "importLogAction", "updateLogAction", "createLogShareAction"],
-      "tests": ["tests/logs-regression.test.ts", "tests/log-summary-stats.test.ts", "tests/match-notes.test.ts"],
+      "tests": ["tests/logs-read-model.test.ts", "tests/log-summary-stats.test.ts", "tests/match-notes.test.ts"],
       "constraints": ["Every mutation is scoped to the authenticated user.", "Parsed sections are runtime-validated before storage."],
       "evidence": [{"path": "app/(app)/logs/actions.ts", "symbol": "importLogAction"}]
     },
@@ -166,7 +166,7 @@
       "path": "lib/supabase/server.ts",
       "role": "Constructs cookie-aware server, anonymous public, and service-role Supabase clients; lib/db groups typed queries behind product functions.",
       "entrypoints": ["createClient", "createPublicClient", "createAdminClient", "lib/db query functions"],
-      "tests": ["tests/api-auth.test.ts", "tests/logs-regression.test.ts"],
+      "tests": ["tests/api-auth.test.ts", "tests/logs-read-model.test.ts"],
       "constraints": ["Service-role client is server-only.", "Server client requires public URL and anonymous key environment variables."],
       "evidence": [{"path": "lib/supabase/server.ts", "symbol": "createClient"}, {"path": "lib/supabase/admin.ts", "symbol": "createAdminClient"}]
     },

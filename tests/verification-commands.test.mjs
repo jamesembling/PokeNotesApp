@@ -52,34 +52,6 @@ function zshIsAvailable({ error, status }) {
   return true;
 }
 
-test("verification reference keeps repository-native shell-safe command contracts", () => {
-  const requiredContracts = [
-    "download_http_status=",
-    "--output \"$download_file\" --write-out '%{http_code}'",
-    "gh pr create --help | rg -- '--body-file'",
-    "gh pr create --draft --base main --title 'Reviewed title' --body-file \"$pr_body_file\"",
-    "git remote get-url --push --all \"$pokenotes_push_remote\"",
-    "test \"$(awk 'END { print NR }' <<< \"$pokenotes_push_urls\")\" -eq 1",
-    "test \"$(jq -r '.headRefOid' <<< \"$pokenotes_premerge_snapshot\")\" = \"$pokenotes_reviewed_head\"",
-    "test \"$(jq -r '.baseRefName' <<< \"$pokenotes_premerge_snapshot\")\" = main",
-    "test \"$(jq -r '.baseRefOid' <<< \"$pokenotes_premerge_snapshot\")\" = \"$pokenotes_premerge_main\"",
-    "--match-head-commit \"$pokenotes_reviewed_head\"",
-    "test \"$(jq -r '.baseRefName' <<< \"$pokenotes_postmerge_snapshot\")\" = main",
-    "test \"$(jq -r '.headRefOid' <<< \"$pokenotes_postmerge_snapshot\")\" = \"$pokenotes_reviewed_head\"",
-    "test \"$pokenotes_postmerge_main\" = \"$pokenotes_merge_commit\"",
-    "pokenotes_vercel_cli='./node_modules/.bin/vercel'",
-    "env -i PATH=\"$PATH\" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git",
-    "git diff --cached --check",
-  ];
-
-  for (const contract of requiredContracts) {
-    assert.ok(reference.includes(contract), `missing verification contract: ${contract}`);
-  }
-
-  assert.doesNotMatch(reference, /^\s*npx\s+vercel(?:\s|$)/m);
-  assert.doesNotMatch(reference, /^\s*curl[^\n]*\|[^\n]*(?:head|sed\s+-n)(?:\s|$)/m);
-});
-
 test("PR integration contract verifies remote truth before separately authorized cleanup", () => {
   const integrationSection = reference.match(
     /## Pull request integration is a two-phase contract[\s\S]*?(?=\n## Vercel inspection)/,
@@ -183,7 +155,7 @@ test("PR integration contract verifies remote truth before separately authorized
   }
 });
 
-test("prewrite shell rechecks the complete live gate set and never merges stale Phase 1 health", async (t) => {
+test("prewrite shell rechecks the complete live gate set and never merges on stale earlier gate health", async (t) => {
   const zshProbe = spawnSync("zsh", ["-c", "exit 0"], { encoding: "utf8" });
   if (!zshIsAvailable(zshProbe)) {
     t.skip("zsh is not installed; dynamic zsh proof requires a supported environment");

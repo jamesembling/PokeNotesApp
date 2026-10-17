@@ -80,10 +80,6 @@ test("evolution-card setup probability uses the joint target-and-Basic event", (
   assert.ok(probability < probabilityAtLeastOne(4) / probabilityAtLeastOne(8));
 });
 
-test("setup probability is zero when the deck contains no Basic Pokemon", () => {
-  assert.equal(probabilityCardInPlayableOpeningHand(4, 0, 0), 0);
-});
-
 test("deck analysis applies playable-hand conditioning to Basic and evolution rows", () => {
   const analysis = analyzeDecklist(`Pokemon: 12
 4 Pikachu MEW 25
@@ -119,6 +115,7 @@ Trainer: 56
 
   assert.equal(analysis.basicPokemonCount, 0);
   assert.equal(analysis.setupRows[0]?.inStartingSeven, 0);
+  assert.equal(probabilityCardInPlayableOpeningHand(4, 0, 0), 0);
 });
 
 function choose(n: number, k: number) {
