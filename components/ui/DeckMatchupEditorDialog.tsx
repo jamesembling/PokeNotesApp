@@ -75,6 +75,7 @@ export function DeckMatchupEditorDialog({
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const viewedVersionRef = useRef(matchup?.updatedAt ?? "");
   const archetypeName = useMemo(
     () => getArchetypeName(selectedSprites, pokemonOptions),
     [pokemonOptions, selectedSprites]
@@ -111,6 +112,7 @@ export function DeckMatchupEditorDialog({
   }
 
   function resetFormState() {
+    viewedVersionRef.current = matchup?.updatedAt ?? "";
     setSelectedSprites(matchup?.deckPokemon ?? []);
     setSelectedFormat(matchup?.format || defaultFormat);
     setGoPreference(matchup?.goPreference ?? "");
@@ -136,6 +138,9 @@ export function DeckMatchupEditorDialog({
   async function handleSubmit(formData: FormData) {
     setActionError("");
     setSaveState("saving");
+    if (isEditing) {
+      formData.set("expectedUpdatedAt", viewedVersionRef.current);
+    }
 
     try {
       const result = await (isEditing

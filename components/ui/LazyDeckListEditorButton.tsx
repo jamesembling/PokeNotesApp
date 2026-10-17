@@ -34,6 +34,7 @@ export function LazyDeckListEditorButton({
   defaultFormat,
   defaultListName,
   extraHiddenFields,
+  expectedUpdatedAt,
   saveAction,
   simplePasteMode,
   triggerClassName,
@@ -87,6 +88,7 @@ export function LazyDeckListEditorButton({
           defaultFormat={defaultFormat}
           defaultListName={defaultListName}
           extraHiddenFields={extraHiddenFields}
+          expectedUpdatedAt={expectedUpdatedAt}
           initialOpen={dialogOpen}
           saveAction={saveAction}
           simplePasteMode={simplePasteMode}

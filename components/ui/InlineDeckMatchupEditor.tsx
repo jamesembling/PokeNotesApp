@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { updateDeckMatchupPlanAction } from "@/app/(app)/decks/actions";
+import { useMatchupViewedVersion } from "@/components/hooks/useMatchupViewedVersion";
 import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
@@ -117,6 +118,7 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
   const initialState = buildMatchupWorkspaceState(matchup);
   const [workspace, setWorkspace] = useState(initialState);
   const workspaceRef = useRef(workspace);
+  const { commitSerially, viewedVersionRef } = useMatchupViewedVersion(matchup.updatedAt);
   const recordKeyRef = useRef(`${deckId}:${matchup.id}`);
   const [dialogCategory, setDialogCategory] = useState<NoteCollection | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -148,7 +150,11 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
         })
       );
 
-      await updateDeckMatchupPlanAction(formData);
+      await commitSerially(async (expectedVersion) => {
+        formData.set("expectedUpdatedAt", expectedVersion);
+        const result = await updateDeckMatchupPlanAction(formData);
+        return result.updatedAt;
+      });
     }
   });
 
@@ -159,12 +165,13 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
     }
 
     recordKeyRef.current = nextRecordKey;
+    viewedVersionRef.current = matchup.updatedAt;
     const nextState = buildMatchupWorkspaceState(matchup);
     workspaceRef.current = nextState;
     setWorkspace(nextState);
     resetSavedValue(nextState);
     setExpandedCategories(new Set(["earlyGame", "strategyNotes"]));
-  }, [deckId, matchup, resetSavedValue]);
+  }, [deckId, matchup, resetSavedValue, viewedVersionRef]);
 
   function commitWorkspace(nextState: MatchupWorkspaceState) {
     workspaceRef.current = nextState;

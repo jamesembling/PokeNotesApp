@@ -59,7 +59,8 @@ Inspect these current anchors before assuming the previous release workflow is u
   `lib/pokemon-catalog/contract.ts`, `lib/pokemon/sprites.ts`,
   `lib/db/pokemon.ts`, `seed-pokemon.mjs`, and the Pokémon catalogue tests.
 - Card effects: `lib/card-effect-catalog/sync.mjs`, `sync-card-effect-catalog.mjs`,
-  `lib/log-import/identifier/catalog.ts`, and `tests/safe-json-fetch.test.mjs`.
+  `lib/log-import/identifier/catalog.ts`, `tests/catalog-sync.test.mjs`, and
+  `tests/safe-json-fetch.test.mjs`.
 - Commands and supported entry points: `package.json`.
 
 Compare repo definitions, upstream results, live Supabase rows, and caches. Produce an explicit gap
@@ -112,7 +113,7 @@ npm test -- tests/pokemon-special-forms.test.ts
 npm test -- tests/pokemon-sprites.test.ts
 npm test -- tests/pokemon-search.test.ts
 npm test -- tests/pokemon-catalog-contract.test.ts
-npm test -- tests/safe-json-fetch.test.mjs
+npm test -- tests/catalog-sync.test.mjs tests/safe-json-fetch.test.mjs
 npm run lint
 npm run typecheck
 ```

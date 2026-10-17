@@ -25,7 +25,7 @@ import {
   toTournamentCommandError,
   type TournamentCommandStatus
 } from "@/lib/tournaments/metadata-workflow";
-import { getTournamentRoundCreationIdentity } from "@/lib/tournaments/round-workflow";
+import { commitNewTournamentRound } from "@/lib/tournaments/round-workflow";
 import { parseTournamentMetadataCommand } from "@/lib/tournaments/metadata-command";
 import {
   TOURNAMENT_ROUND_GAME_RESULT_OPTIONS,
@@ -796,29 +796,18 @@ export async function saveTournamentRoundAction(formData: FormData): Promise<Sav
         );
       }
     } else {
-      const { creationKey, roundId: newRoundId } = getTournamentRoundCreationIdentity(formData);
-      const { data: idempotentResult, error: idempotentError } = await supabase.rpc(
-        "create_tournament_round_idempotent",
-        {
-          p_creation_key: creationKey,
-          p_notes: payload.notes,
-          p_opponent_deck_name: payload.opponent_deck_name,
-          p_opponent_deck_sprites: payload.opponent_deck_sprites,
-          p_result: payload.result,
-          p_round_id: newRoundId,
-          p_tournament_id: tournamentId
-        }
-      );
-
-      if (idempotentError) {
-        throw toUserFacingDatabaseError(idempotentError);
-      }
-
-      const result = idempotentResult as { status?: string } | null;
-      if (result?.status !== "committed" && result?.status !== "idempotent") {
-        throw new Error("Tournament round commit returned an unexpected result.");
-      }
-      roundStatus = result.status;
+      roundStatus = await commitNewTournamentRound({
+        formData,
+        mapError: toUserFacingDatabaseError,
+        round: {
+          notes: payload.notes,
+          opponentDeckName: payload.opponent_deck_name,
+          opponentDeckSprites: payload.opponent_deck_sprites,
+          result: payload.result
+        },
+        supabase,
+        tournamentId
+      });
     }
 
     revalidateTournamentWorkspace(tournamentId);

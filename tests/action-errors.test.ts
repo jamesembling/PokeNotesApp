@@ -6,7 +6,7 @@ import {
 } from "@/lib/server/action-errors";
 import { getSafeRedirectPath, withRefreshToken } from "@/lib/server/action-redirect";
 
-test("user-facing action errors carry stable machine metadata separately from copy", () => {
+test("user-facing action errors carry optional machine metadata separately from copy", () => {
   const error = userFacingActionError("Copy can change without changing transport semantics.", {
     code: "RATE_LIMIT",
     httpStatus: 429
@@ -16,13 +16,10 @@ test("user-facing action errors carry stable machine metadata separately from co
   assert.equal(error.code, "RATE_LIMIT");
   assert.equal(error.httpStatus, 429);
   assert.equal(error.message, "Copy can change without changing transport semantics.");
-});
 
-test("ordinary user-facing action errors keep the existing default metadata", () => {
-  const error = userFacingActionError("Try again.");
-
-  assert.equal(error.code, undefined);
-  assert.equal(error.httpStatus, undefined);
+  const ordinary = userFacingActionError("Try again.");
+  assert.equal(ordinary.code, undefined);
+  assert.equal(ordinary.httpStatus, undefined);
 });
 
 test("action redirects stay inside the application", () => {

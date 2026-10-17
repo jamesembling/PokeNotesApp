@@ -1,4 +1,4 @@
-export const ROUTE_REPORTER_VERSION = 8;
+export const ROUTE_REPORTER_VERSION = 9;
 export const APP_ROUTE_MIN_OBSERVATION_MS = 800;
 export const APP_ROUTE_QUIET_WINDOW_MS = 200;
 export const APP_ROUTE_MAX_OBSERVATION_MS = 1500;
@@ -9,9 +9,12 @@ const TRACKED_ROUTE_ROOTS = [
   "/dashboard",
   "/deck-lists",
   "/decks",
+  "/friends",
   "/logs",
   "/logs-canary",
+  "/players",
   "/profile",
+  "/replays",
   "/stats",
   "/tournaments"
 ] as const;
@@ -56,5 +59,27 @@ export function getNavigationReportDecision({
     stabilizationMs: shouldReport
       ? Math.max(0, totalDurationMs - (candidateCompletedAt - startedAt))
       : null
+  };
+}
+
+/** Marker timestamps use the document clock; each navigation has its own origin. */
+export function routeTimingSince(timestamp: number | null, startedAt: number) {
+  return timestamp !== null && timestamp >= startedAt
+    ? Math.max(0, Math.round(timestamp - startedAt))
+    : null;
+}
+
+export function getRouteDataTiming(args: {
+  startedAt: number;
+  measuredAt: number;
+  paintedAt: number | null;
+  parsedAt: number | null;
+}) {
+  const paintedMs = routeTimingSince(args.paintedAt, args.startedAt);
+  const parsedMs = routeTimingSince(args.parsedAt, args.startedAt);
+  return {
+    durationMs: paintedMs ?? parsedMs ?? Math.max(0, Math.round(args.measuredAt - args.startedAt)),
+    paintedMs,
+    parsedMs
   };
 }

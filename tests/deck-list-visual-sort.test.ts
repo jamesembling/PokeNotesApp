@@ -9,6 +9,7 @@ import {
   CANONICAL_DECK_LIST_SORT_VERSION,
   shouldRebuildDeckListVisualSort
 } from "@/lib/deck-lists/version";
+import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import type { DeckCard } from "@/types/index";
 
 const cards: DeckCard[] = [
@@ -56,8 +57,39 @@ test("legacy mixed-category stored deck visuals are detected as non-canonical", 
   assert.equal(hasCanonicalDeckListVisualGrouping(cards), false);
 });
 
-test("local visual sort restores grouped deck ordering for stale stored arrays", () => {
+test("local visual sort restores grouped deck ordering for stale stored arrays", async (context) => {
   const sorted = sortDeckListCardsLocally(cards);
+  const trainers = [
+    { name: "Iono", count: 1, set: "PAL", number: "185", type: "supporter" },
+    { name: "Ultra Ball", count: 2, set: "SVI", number: "196", type: "item" },
+    { name: "Air Balloon", count: 3, set: "SSH", number: "156", type: "tool" },
+    { name: "Festival Grounds", count: 4, set: "TWM", number: "149", type: "stadium" }
+  ];
+  context.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    const selected = trainers.find(
+      (card) =>
+        (url.searchParams.get("q") || "").startsWith(card.name) ||
+        url.searchParams.get("id") === card.name
+    );
+    return new Response(
+      JSON.stringify(
+        !selected
+          ? []
+          : url.pathname.endsWith("/search")
+            ? [{ ...selected, id: selected.name, card_type: "trainer" }]
+            : [{ ...selected, data_id: selected.name, card_type: "trainer" }]
+      )
+    );
+  });
+  const providerSorted = await sortDeckListCards(
+    [...trainers].reverse().map(({ type, ...card }) => ({ ...card, category: "Trainer" }))
+  );
+  assert.deepEqual(
+    providerSorted.map((card) => [card.name, card.trainerType]),
+    trainers.map((card) => [card.name, card.type]),
+    "resolved subtype survives persistence across deliberately conflicting counts"
+  );
 
   assert.deepEqual(
     sorted.map((card) => `${card.category}:${card.name}`),

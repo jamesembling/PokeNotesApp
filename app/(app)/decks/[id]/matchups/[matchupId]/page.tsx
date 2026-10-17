@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
+import { MatchupViewedVersionProvider } from "@/components/hooks/useMatchupViewedVersion";
 import { InlineDeckMatchupHeaderControls } from "@/components/ui/InlineDeckMatchupHeaderControls";
 import { InlineDeckMatchupEditor } from "@/components/ui/InlineDeckMatchupEditor";
 import { LazyDeckMatchupEditorButton } from "@/components/ui/LazyDeckMatchupEditorButton";
@@ -121,8 +122,10 @@ export default async function DeckMatchupPage({ params }: DeckMatchupPageProps) 
         </LazyDeckMatchupEditorButton>
       </section>
 
-      <InlineDeckMatchupHeaderControls deckId={id} matchup={matchup} />
-      <InlineDeckMatchupEditor deckId={id} matchup={matchup} />
+      <MatchupViewedVersionProvider initialVersion={matchup.updatedAt} key={`${id}:${matchup.id}`}>
+        <InlineDeckMatchupHeaderControls deckId={id} matchup={matchup} />
+        <InlineDeckMatchupEditor deckId={id} matchup={matchup} />
+      </MatchupViewedVersionProvider>
     </PageWidth>
   );
 }

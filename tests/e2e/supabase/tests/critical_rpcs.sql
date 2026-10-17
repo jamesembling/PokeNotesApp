@@ -19,6 +19,17 @@ insert into public.tournaments (id, user_id, name, date_from, date_to) values
 insert into public.logs (id, user_id, date, result) values
   ('rpc-log-a', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', current_date, 'Win');
 
+-- Complete synthetic reference generation for the existing snapshot journey.
+insert into public.card_definition_generations (id, source, expected_count, source_manifest_hash, source_coverage)
+values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'tcgdex', 4, 'rpc-trainer-fixture', '{}');
+insert into public.card_definition_catalog (generation_id, source_card_id, normalized_card_name, definition)
+select 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', name, lower(name),
+  jsonb_build_object('sourceCardId', name, 'name', name, 'category', 'Trainer', 'trainerType', kind)
+from (values ('Iono', 'Supporter'), ('Ultra Ball', 'Item'), ('Air Balloon', 'Tool'), ('Festival Grounds', 'Stadium')) as fixture(name, kind);
+update public.card_definition_generations set completed_at = now() where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+insert into public.card_definition_active (singleton, generation_id) values (true, 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee')
+on conflict (singleton) do update set generation_id = excluded.generation_id;
+
 create temporary table rpc_payloads (name text primary key, payload jsonb not null) on commit drop;
 grant select on rpc_payloads to authenticated;
 insert into rpc_payloads values
@@ -26,6 +37,11 @@ insert into rpc_payloads values
   ('first-class', '{"id":"rpc-list-a","creationKey":"rpc-list-a","name":"A list","format":"Standard","date":"2026-09-24","createdBy":"Fixture","rawList":"4 Mew ex","parsedCards":[{"name":"Mew ex","count":4,"category":"Pokemon"}],"sortedCards":[{"name":"Mew ex","count":4,"category":"Pokemon"}],"sortedCardsVersion":2}'),
   ('snapshot', '{"id":"rpc-snapshot-list-a","creationKey":"rpc-snapshot-list-a","name":"Tournament list","format":"Standard","date":"2026-09-24","createdBy":"Fixture","rawList":"4 Mew ex","parsedCards":[{"name":"Mew ex","count":4,"category":"Pokemon"}],"sortedCards":[{"name":"Mew ex","count":4,"category":"Pokemon"}],"sortedCardsVersion":2}'),
   ('share', '{"version":"v1","log":{"id":"rpc-log-a","sections":[]},"linkedStrategyLabel":"A deck"}');
+
+update rpc_payloads set payload = payload || jsonb_build_object(
+  'parsedCards', '[{"name":"Festival Grounds","count":4,"category":"Trainer"},{"name":"Air Balloon","count":3,"category":"Trainer"},{"name":"Ultra Ball","count":2,"category":"Trainer"},{"name":"Iono","count":1,"category":"Trainer"}]'::jsonb,
+  'sortedCards', '[{"name":"Festival Grounds","count":4,"category":"Trainer","trainerType":"Supporter"}]'::jsonb
+) where name = 'snapshot';
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', true);
@@ -89,8 +105,12 @@ select is(
     'A deck', '["mew-ex"]'
   ) ->> 'status', 'committed', 'Tournament Deck List captures a snapshot'
 );
-select is((select count(*) from public.tournament_deck_list_snapshots where tournament_id = 'rpc-tournament-a'),
-  1::bigint, 'Tournament Deck List has exactly one snapshot');
+select ok((select count(*) = 1 and bool_and(
+    (select jsonb_agg(card ->> 'name' order by ordinal) from jsonb_array_elements(sorted_cards) with ordinality as cards(card, ordinal))
+      = '["Iono","Ultra Ball","Air Balloon","Festival Grounds"]'::jsonb
+    and sorted_cards_version = 2
+  ) from public.tournament_deck_list_snapshots where tournament_id = 'rpc-tournament-a'),
+  'Tournament Deck List preserves one complete snapshot in trusted Trainer order despite conflicting counts');
 select is(
   public.commit_tournament_deck_list(
     'rpc-tournament-a', 'rpc-snapshot-key-a', (select payload from rpc_payloads where name = 'snapshot'),

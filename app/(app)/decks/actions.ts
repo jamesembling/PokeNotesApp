@@ -6,6 +6,7 @@ import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import { deleteOwnedDeck } from "@/lib/decks/delete-service";
 import { parseLines } from "@/lib/decks/deck-list-parse";
 import { saveDeckList } from "@/lib/decks/deck-list-service";
+import { commitDeckStrategy } from "@/lib/decks/strategy-service";
 import {
   createDeckMatchup,
   updateDeckMatchupHeader,
@@ -42,6 +43,8 @@ type SaveActionResult = {
   ok: true;
   redirectTo: string;
 };
+
+type VersionedSaveActionResult = SaveActionResult & { updatedAt: string };
 
 type MatchupSaveActionResult = SaveActionResult | FailedActionResult;
 
@@ -192,7 +195,7 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
   }
 }
 
-export async function updateDeckStrategyAction(formData: FormData): Promise<SaveActionResult> {
+export async function updateDeckStrategyAction(formData: FormData): Promise<VersionedSaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
 
@@ -201,32 +204,14 @@ export async function updateDeckStrategyAction(formData: FormData): Promise<Save
       throw userFacingActionError("Deck id is required.");
     }
 
-    const { data: updatedDeck, error } = await supabase
-      .from("decks")
-      .update({
-        go_preference: parseGoPreference(formData.get("goPreference")),
-        core_strategy: String(formData.get("coreStrategy") || ""),
-        general_notes: String(formData.get("generalNotes") || ""),
-        setup_goals: parseLines(String(formData.get("setupGoals") || "")),
-        resource_plan: String(formData.get("resourcePlan") || ""),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", deckId)
-      .eq("user_id", user.id)
-      .select("id")
-      .maybeSingle();
-
-    if (error) {
-      throw error;
-    }
-
-    assertSingleMutationResult(updatedDeck, "Deck could not be found.");
+    const { updatedAt } = await commitDeckStrategy({ deckId, formData, supabase, userId: user.id });
 
     revalidateDeckAndLogWorkspace();
     revalidatePath(`/decks/${deckId}`, "page");
 
     return {
       ok: true,
+      updatedAt,
       redirectTo: withRefreshToken(`/decks/${deckId}`)
     };
   } catch (error) {
@@ -386,7 +371,7 @@ export async function updateDeckMatchupAction(
 
 export async function updateDeckMatchupPlanAction(
   formData: FormData
-): Promise<SaveActionResult> {
+): Promise<VersionedSaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
   const matchupId = String(formData.get("matchupId") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
@@ -400,6 +385,7 @@ export async function updateDeckMatchupPlanAction(
 
     return {
       ok: true,
+      updatedAt: result.updatedAt,
       redirectTo: withRefreshToken(`/decks/${result.deckId}/matchups/${result.matchupId}`)
     };
   } catch (error) {
@@ -415,7 +401,7 @@ export async function updateDeckMatchupPlanAction(
 
 export async function updateDeckMatchupHeaderAction(
   formData: FormData
-): Promise<SaveActionResult> {
+): Promise<VersionedSaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
   const matchupId = String(formData.get("matchupId") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
@@ -429,6 +415,7 @@ export async function updateDeckMatchupHeaderAction(
 
     return {
       ok: true,
+      updatedAt: result.updatedAt,
       redirectTo: withRefreshToken(`/decks/${result.deckId}/matchups/${result.matchupId}`)
     };
   } catch (error) {

@@ -9,6 +9,7 @@ import {
   useState,
   type ReactElement
 } from "react";
+import { useLogsRefresh } from "@/components/ui/LogsRefreshContext";
 import { usePathname, useRouter } from "next/navigation";
 import type { SaveActionResult } from "@/app/(app)/logs/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
@@ -100,6 +101,7 @@ export function EditLogDialog({
   userDecks
 }: EditLogDialogProps) {
   const router = useRouter();
+  const refreshLogs = useLogsRefresh();
   const pathname = usePathname();
   const { options: siteFormatOptions } = useSiteFormats();
   const [isOpen, setIsOpen] = useState(initialOpen);
@@ -275,7 +277,8 @@ export function EditLogDialog({
           resetEditorState();
 
           if (normalizeRedirectPath(result.redirectTo) === pathname) {
-            router.refresh();
+            if (refreshLogs) void refreshLogs().catch(() => undefined);
+            else router.refresh();
             return;
           }
 

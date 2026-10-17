@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { updateDeckMatchupHeaderAction } from "@/app/(app)/decks/actions";
+import { useMatchupViewedVersion } from "@/components/hooks/useMatchupViewedVersion";
 import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { Button } from "@/components/shadcn/button";
@@ -46,6 +47,7 @@ export function InlineDeckMatchupHeaderControls({
   const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const [headerState, setHeaderState] = useState<HeaderState>(() => buildHeaderState(matchup));
   const recordKeyRef = useRef(`${deckId}:${matchup.id}`);
+  const { commitSerially, viewedVersionRef } = useMatchupViewedVersion(matchup.updatedAt);
   const {
     errorMessage,
     queueSave: saveHeader,
@@ -62,7 +64,11 @@ export function InlineDeckMatchupHeaderControls({
       formData.set("goPreference", nextState.goPreference);
       formData.set("matchupFavor", nextState.matchupFavor);
 
-      await updateDeckMatchupHeaderAction(formData);
+      await commitSerially(async (expectedVersion) => {
+        formData.set("expectedUpdatedAt", expectedVersion);
+        const result = await updateDeckMatchupHeaderAction(formData);
+        return result.updatedAt;
+      });
     }
   });
 
@@ -73,10 +79,11 @@ export function InlineDeckMatchupHeaderControls({
     }
 
     recordKeyRef.current = nextRecordKey;
+    viewedVersionRef.current = matchup.updatedAt;
     const nextState = buildHeaderState(matchup);
     setHeaderState(nextState);
     resetSavedValue(nextState);
-  }, [deckId, matchup, resetSavedValue]);
+  }, [deckId, matchup, resetSavedValue, viewedVersionRef]);
 
   const statusLabel = useMemo(() => {
     if (saveStatus === "saving") {

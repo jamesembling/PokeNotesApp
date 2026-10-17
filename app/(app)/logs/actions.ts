@@ -1,5 +1,6 @@
 "use server";
 
+import { completeBulkLogMutation, type BulkLogMutationResult } from "@/lib/battle-log/bulk-mutation";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -410,6 +411,13 @@ export async function importLogAction(
       userId: user.id
     });
 
+    // A completed retry needs only its receipt. Its parser/editable payload may
+    // already have been pruned, and learning must not run a second time.
+    if (result.status === "replay") {
+      invalidateInitialLogsCache(user.id, invalidationContext);
+      return { ok: true, redirectTo: `/logs/${result.battleLogId}` };
+    }
+
     const selfSelectionChanged = Boolean(
       draft && joinSprites(draft.editable.selfDeckSprites) !== joinSprites(selectedSelfSprites)
     );
@@ -592,7 +600,7 @@ export async function bulkAssignDeckListAction(input: {
   logIds: string[];
   linkedDeckId?: string | null;
   linkedDeckListId: string;
-}): Promise<void> {
+}): Promise<BulkLogMutationResult> {
   const logIds = Array.from(
     new Set(
       compactMap(input.logIds ?? [], (value) => String(value || "").trim())
@@ -632,10 +640,10 @@ export async function bulkAssignDeckListAction(input: {
       throw error;
     }
 
-    assertMutatedRows(updatedLogs, logIds.length, "Some selected battle logs could not be found.");
-
-    invalidateInitialLogsCache(user.id);
-    revalidateDeckAndLogWorkspace();
+    return completeBulkLogMutation(logIds, updatedLogs, () => {
+      invalidateInitialLogsCache(user.id);
+      revalidateDeckAndLogWorkspace();
+    });
   } catch (error) {
     throw resolveActionFailure(error, {
       action: "bulkAssignDeckList",
@@ -656,7 +664,7 @@ export async function loadMoreLogsAction(cursor?: string) {
   return hydrateLogWindowDeckListNames(user.id, window);
 }
 
-export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
+export async function deleteLogsAction(logIdsInput: string[]): Promise<BulkLogMutationResult> {
   const logIds = Array.from(
     new Set(
       compactMap(logIdsInput ?? [], (value) => String(value || "").trim())
@@ -680,10 +688,10 @@ export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
       throw error;
     }
 
-    assertMutatedRows(deletedLogs, logIds.length, "Some selected battle logs could not be found.");
-
-    invalidateInitialLogsCache(user.id);
-    revalidateDeckAndLogWorkspace();
+    return completeBulkLogMutation(logIds, deletedLogs, () => {
+      invalidateInitialLogsCache(user.id);
+      revalidateDeckAndLogWorkspace();
+    });
   } catch (error) {
     throw resolveActionFailure(error, {
       action: "deleteLogs",
@@ -694,7 +702,7 @@ export async function deleteLogsAction(logIdsInput: string[]): Promise<void> {
   }
 }
 
-export async function deleteLogAction(logIdInput: string): Promise<void> {
+export async function deleteLogAction(logIdInput: string): Promise<BulkLogMutationResult> {
   await requireAuth();
 
   const logId = String(logIdInput || "").trim();
@@ -703,7 +711,7 @@ export async function deleteLogAction(logIdInput: string): Promise<void> {
     throw userFacingActionError("Missing battle log ID.");
   }
 
-  await deleteLogsAction([logId]);
+  return deleteLogsAction([logId]);
 }
 
 export async function createLogShareAction(logId: string): Promise<{

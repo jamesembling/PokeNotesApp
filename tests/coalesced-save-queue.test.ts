@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createBoundedSaveScheduler,
   createCoalescedSaveQueue,
+  createSerialVersionChannel,
   type CoalescedSaveStatus
 } from "@/lib/client/coalesced-save-queue";
 
@@ -128,6 +129,38 @@ test("continues with a newer queued revision when an obsolete save fails", async
 
   assert.deepEqual(saves, ["revision-b", "revision-c"]);
   assert.deepEqual(statuses, ["saving", "saved"]);
+});
+
+test("editors sharing a record version commit in turn against the latest committed version", async () => {
+  const channel = createSerialVersionChannel("v1");
+  const seen: string[] = [];
+  let releaseHeader!: () => void;
+  const headerReleased = new Promise<void>((resolve) => {
+    releaseHeader = resolve;
+  });
+
+  const header = channel.commit(async (expected) => {
+    seen.push(`header:${expected}`);
+    await headerReleased;
+    return "v2";
+  });
+  const notes = channel.commit(async (expected) => {
+    seen.push(`notes:${expected}`);
+    throw new Error("notes rejected");
+  });
+  const retry = channel.commit(async (expected) => {
+    seen.push(`retry:${expected}`);
+    return "v3";
+  });
+
+  await Promise.resolve();
+  assert.deepEqual(seen, ["header:v1"]);
+  releaseHeader();
+  await header;
+  await assert.rejects(notes, /notes rejected/);
+  await retry;
+  assert.deepEqual(seen, ["header:v1", "notes:v2", "retry:v2"]);
+  assert.equal(channel.version.current, "v3");
 });
 
 test("bounded scheduling saves the latest text after the trailing delay", () => {

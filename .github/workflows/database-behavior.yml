@@ -57,8 +57,10 @@ jobs:
                       'scripts/local-e2e.mjs', 'scripts/local-e2e-readiness.mjs',
                       'scripts/seed-local-e2e.ts',
                       'scripts/verify-local-import.mjs',
+                      'scripts/verify-local-social.mjs',
                       'scripts/rehearse-tournament-deck-list.mjs',
                       'scripts/verify-battle-log-import-draft.ts',
+                      'scripts/verify-deck-strategy-concurrency.ts',
                       'proxy.ts', 'tests/proxy-auth.test.ts',
                       'lib/auth.ts', 'lib/server/api-auth.ts',
                       'lib/server/auth-claim-header.ts',
@@ -127,6 +129,10 @@ jobs:
         if: steps.changes.outputs.relevant == 'true'
         run: npm run verify:battle-log-import-draft
 
+      - name: Verify Deck Strategy concurrency
+        if: steps.changes.outputs.relevant == 'true'
+        run: npm run verify:deck-strategy-concurrency
+
       - name: Install pinned Playwright Chromium
         if: steps.changes.outputs.relevant == 'true'
         run: timeout 10m node_modules/.bin/playwright install --with-deps chromium
@@ -138,6 +144,10 @@ jobs:
       - name: Verify import after session refresh
         if: steps.changes.outputs.relevant == 'true'
         run: timeout 10m npm run e2e:local:import -- --expired-session
+
+      - name: Verify social privacy and avatar upload journey
+        if: steps.changes.outputs.relevant == 'true'
+        run: timeout 10m npm run e2e:local:social
 
       - name: Upload redacted browser failure diagnostics
         if: failure() && steps.changes.outputs.relevant == 'true'

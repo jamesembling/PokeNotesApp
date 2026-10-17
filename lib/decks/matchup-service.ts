@@ -54,6 +54,7 @@ export async function updateDeckMatchup(args: {
 
   return createWriter({ supabase, user }).updateMatchup({
     ...getBaseCommand(formData),
+    expectedUpdatedAt: String(formData.get("expectedUpdatedAt") || ""),
     matchupId: String(formData.get("matchupId") || ""),
     matchupPlan: String(formData.get("matchupPlan") || "")
   });
@@ -68,6 +69,7 @@ export async function updateDeckMatchupPlan(args: {
 
   return createWriter({ supabase, user }).updateMatchupFields({
     deckId: String(formData.get("deckId") || ""),
+    expectedUpdatedAt: String(formData.get("expectedUpdatedAt") || ""),
     fields: {
       idealBench: String(formData.get("idealBench") || ""),
       matchupPlan: String(formData.get("matchupPlan") || ""),
@@ -87,6 +89,7 @@ export async function updateDeckMatchupHeader(args: {
 
   return createWriter({ supabase, user }).updateMatchupFields({
     deckId: String(formData.get("deckId") || ""),
+    expectedUpdatedAt: String(formData.get("expectedUpdatedAt") || ""),
     fields: {
       format: String(formData.get("format") || ""),
       goPreference: parseGoPreference(formData.get("goPreference")),

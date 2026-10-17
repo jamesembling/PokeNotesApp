@@ -2,6 +2,7 @@ import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
 import { sortDeckListCards } from "@/lib/deck-lists/sort";
 import { CANONICAL_DECK_LIST_SORT_VERSION } from "@/lib/deck-lists/version";
 import { interpretDeckList } from "@/lib/decks/deck-list-parse";
+import { requireViewedVersion } from "@/lib/server/viewed-version";
 import { userFacingActionError } from "@/lib/server/action-errors";
 
 type TournamentDeckListReference = {
@@ -80,6 +81,7 @@ export async function saveTournamentDeckListAtomically(input: {
     throw userFacingActionError("Tournament id is required.");
   }
 
+  const expectedUpdatedAt = requireViewedVersion(input.formData.get("expectedUpdatedAt"), "Tournament");
   const tournament = await input.adapter.loadTournament(input.userId, tournamentId);
   if (!tournament) {
     throw userFacingActionError("Tournament could not be found.");
@@ -112,7 +114,7 @@ export async function saveTournamentDeckListAtomically(input: {
     return input.adapter.commit({
       tournamentId,
       requestId,
-      expectedTournamentUpdatedAt: tournament.updatedAt,
+      expectedTournamentUpdatedAt: expectedUpdatedAt,
       deckName,
       deckSprites,
       payload: {
@@ -171,7 +173,7 @@ export async function saveTournamentDeckListAtomically(input: {
   return input.adapter.commit({
     tournamentId,
     requestId,
-    expectedTournamentUpdatedAt: tournament.updatedAt,
+    expectedTournamentUpdatedAt: expectedUpdatedAt,
     deckName,
     deckSprites,
     payload,

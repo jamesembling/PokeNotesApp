@@ -647,6 +647,9 @@ export async function sortDeckListCards(cards: DeckCard[]) {
       specialKey,
       labels,
       ...card
-    }) => card
+    }) => ({
+      ...card,
+      ...(resolvedTrainerType ? { trainerType: resolvedTrainerType } : {})
+    })
   );
 }

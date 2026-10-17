@@ -1,0 +1,133 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  assertUsableCardCatalog,
+  normalizeCardCatalogSetId,
+  recordUniqueCardIds
+} from "../lib/card-effect-catalog/sync.mjs";
+import {
+  assertEvolutionStageMapContains,
+  assertSpeciesPayloadIdentity,
+  assertUsablePokemonCatalog,
+  recordUniqueSpeciesSummaries
+} from "../lib/pokemon-catalog/sync.mjs";
+
+test("blocks destructive card-catalog publication for empty or incomplete runs", () => {
+  assert.throws(
+    () => assertUsableCardCatalog({ cardCount: 0, expectedCardCount: 0, prepared: 0 }),
+    /destructive publication was stopped/
+  );
+  assert.throws(
+    () => assertUsableCardCatalog({ cardCount: 25, expectedCardCount: 25, prepared: 0 }),
+    /destructive publication was stopped/
+  );
+  assert.throws(
+    () => assertUsableCardCatalog({ cardCount: 24, expectedCardCount: 25, prepared: 8 }),
+    /destructive publication was stopped/
+  );
+  assert.doesNotThrow(() =>
+    assertUsableCardCatalog({ cardCount: 25, expectedCardCount: 25, prepared: 8 })
+  );
+});
+
+test("catalog completeness counts unique valid card identities rather than page entries", () => {
+  const seenCardIds = new Set();
+  recordUniqueCardIds(
+    [
+      { id: "sv1-1", name: "Card One" },
+      { id: "sv1-2", name: "Card Two" }
+    ],
+    seenCardIds
+  );
+
+  assert.deepEqual([...seenCardIds], ["sv1-1", "sv1-2"]);
+  assert.throws(
+    () => recordUniqueCardIds([{ id: "sv1-1", name: "Repeated" }], seenCardIds),
+    /missing or repeated/
+  );
+  assert.throws(
+    () => recordUniqueCardIds([{ id: "", name: "Missing id" }], new Set()),
+    /missing or repeated/
+  );
+  assert.throws(
+    () => recordUniqueCardIds([{ id: "sv1-3", name: "" }], new Set()),
+    /missing or repeated/
+  );
+});
+
+test("set-scoped card catalog sync accepts only canonical set ids", () => {
+  assert.equal(normalizeCardCatalogSetId(" ME5 "), "me5");
+  assert.equal(normalizeCardCatalogSetId(""), null);
+  assert.throws(() => normalizeCardCatalogSetId("me5*"), /letters and numbers/);
+});
+
+test("retains the current Pokemon catalog when an upstream run has no usable species", () => {
+  assert.throws(
+    () => assertUsablePokemonCatalog({ speciesCount: 0, preparedSpeciesCount: 0 }),
+    /existing catalog was retained/
+  );
+  assert.throws(
+    () => assertUsablePokemonCatalog({ speciesCount: 25, preparedSpeciesCount: 0 }),
+    /existing catalog was retained/
+  );
+  assert.doesNotThrow(() =>
+    assertUsablePokemonCatalog({ speciesCount: 25, preparedSpeciesCount: 24 })
+  );
+});
+
+test("Pokemon catalog pages require unique complete species identities", () => {
+  const names = new Set();
+  const urls = new Set();
+  recordUniqueSpeciesSummaries(
+    [
+      { name: "bulbasaur", url: "https://pokeapi.co/api/v2/pokemon-species/1/" },
+      { name: "ivysaur", url: "https://pokeapi.co/api/v2/pokemon-species/2/" }
+    ],
+    names,
+    urls
+  );
+
+  assert.equal(names.size, 2);
+  assert.throws(
+    () =>
+      recordUniqueSpeciesSummaries(
+        [{ name: "bulbasaur", url: "https://pokeapi.co/api/v2/pokemon-species/1/" }],
+        names,
+        urls
+      ),
+    /missing or repeated/
+  );
+  assert.throws(
+    () => recordUniqueSpeciesSummaries([{ name: "", url: "" }], new Set(), new Set()),
+    /missing or repeated/
+  );
+});
+
+test("Pokemon catalog candidates reject malformed evolution-chain payloads", () => {
+  assert.doesNotThrow(() =>
+    assertEvolutionStageMapContains(new Map([["bulbasaur", { stage: "Basic" }]]), "bulbasaur")
+  );
+  assert.throws(
+    () => assertEvolutionStageMapContains(new Map(), "bulbasaur"),
+    /invalid evolution-chain payload/
+  );
+});
+
+test("Pokemon species details must match their list identity", () => {
+  const summary = {
+    name: "bulbasaur",
+    url: "https://pokeapi.co/api/v2/pokemon-species/1/"
+  };
+
+  assert.doesNotThrow(() =>
+    assertSpeciesPayloadIdentity(summary, { id: 1, name: "bulbasaur" })
+  );
+  assert.throws(
+    () => assertSpeciesPayloadIdentity(summary, { id: 2, name: "ivysaur" }),
+    /identities did not match/
+  );
+  assert.throws(
+    () => assertSpeciesPayloadIdentity(summary, { id: 2, name: "bulbasaur" }),
+    /identities did not match/
+  );
+});

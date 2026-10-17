@@ -16,6 +16,8 @@ import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
 import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
 import { DropdownMenuItem } from "@/components/shadcn/dropdown-menu";
 import { LogRow } from "@/components/ui/LogRow";
+import { useLogsRefresh } from "@/components/ui/LogsRefreshContext";
+import type { BulkLogMutationResult } from "@/lib/battle-log/bulk-mutation";
 import { useLogsManagementMode } from "@/components/ui/LogsWorkspaceFrame";
 import { ItemTitle } from "@/components/ui/Typography";
 import { formatDayDate } from "@/lib/client/date-format";
@@ -42,7 +44,7 @@ type LogGroup = {
 };
 
 type ActionNotice = {
-  kind: "error";
+  kind: "error" | "info";
   message: string;
 };
 
@@ -52,6 +54,7 @@ type DeletePrompt = {
 };
 
 export type LogsManagerProps = {
+  onLoadedWindowChange?: (oldestLog: BattleLogSummary | null) => void;
   initialCanLoadMore: boolean;
   initialLogs: BattleLogSummary[];
   initialNextWindowEndDate: string;
@@ -227,6 +230,7 @@ function attachLinkedDeckListNames(
 export function LogsManager({
   initialCanLoadMore,
   initialLogs,
+  onLoadedWindowChange,
   initialNextWindowEndDate,
   initialWindowEndDate,
   initialWindowStartDate,
@@ -234,6 +238,7 @@ export function LogsManager({
   initialUserDecks = []
 }: LogsManagerProps) {
   const router = useRouter();
+  const refreshLogs = useLogsRefresh();
   const { isManagementMode } = useLogsManagementMode();
   const pendingDetailRouteWarm = useRef<{
     href: string;
@@ -313,27 +318,19 @@ export function LogsManager({
   const deletePromptCount = deletePrompt?.ids.length ?? 0;
 
   useEffect(() => {
-    setVisibleLogs(
-      userDecks.length > 0 || userDeckLists.length > 0
-        ? attachLinkedDeckListNames(initialLogs, userDecks, userDeckLists)
-        : initialLogs
-    );
+    setVisibleLogs(initialLogs);
     setCanLoadMore(initialCanLoadMore);
     nextWindowEndDateRef.current = initialNextWindowEndDate;
     windowStartDateRef.current = initialWindowStartDate;
     windowEndDateRef.current = initialWindowEndDate;
     setLoadMoreError("");
-    setActionNotice(null);
     setDeletePrompt(null);
-    setOpenGroupDates(initialLogs.length > 0 ? [initialLogs[0].date] : []);
   }, [
     initialCanLoadMore,
     initialLogs,
     initialNextWindowEndDate,
     initialWindowEndDate,
-    initialWindowStartDate,
-    userDeckLists,
-    userDecks
+    initialWindowStartDate
   ]);
 
   useEffect(() => {
@@ -440,7 +437,7 @@ export function LogsManager({
     }
 
     setVisibleLogs((current) => attachLinkedDeckListNames(current, userDecks, userDeckLists));
-  }, [userDeckLists, userDecks]);
+  }, [initialLogs, userDeckLists, userDecks]);
 
   useEffect(() => {
     if (!managementModeActive && selectedLogIds.length > 0) {
@@ -511,24 +508,43 @@ export function LogsManager({
     });
   }
 
+  useEffect(() => {
+    onLoadedWindowChange?.(visibleLogs[visibleLogs.length - 1] ?? null);
+  }, [onLoadedWindowChange, visibleLogs]);
+
+  function reportBulkResult(result: BulkLogMutationResult, verb: string) {
+    if (result.missingIds.length) {
+      setActionNotice({
+        kind: "info",
+        message: `${result.affectedIds.length} battle log${result.affectedIds.length === 1 ? "" : "s"} ${verb}. ${result.missingIds.length} selected log${result.missingIds.length === 1 ? " is" : "s are"} no longer available.`
+      });
+    }
+    const completed = new Set([...result.affectedIds, ...result.missingIds]);
+    setSelectedLogIds((current) => current.filter((id) => !completed.has(id)));
+  }
+
   function runAsyncAction(work: () => Promise<void>) {
     setActionNotice(null);
     startMutationTransition(async () => {
       try {
         await work();
-        router.refresh();
+        if (refreshLogs) await refreshLogs();
+        else router.refresh();
       } catch (error) {
         console.error(error);
         setActionNotice({
           kind: "error",
-          message: "We could not finish that action. Please try again."
+          message:
+            error instanceof Error
+              ? error.message
+              : "We could not finish that action. Please try again."
         });
       }
     });
   }
 
   function handleLoadMore() {
-    if (isLoadingMore || !canLoadMore) {
+    if (isLoadingMore || isMutating || !canLoadMore) {
       return;
     }
 
@@ -552,12 +568,12 @@ export function LogsManager({
 
   function handleApplyDeckList() {
     runAsyncAction(async () => {
-      await bulkAssignDeckListAction({
+      const result = await bulkAssignDeckListAction({
         logIds: selectedLogIds,
         linkedDeckId: selectedDeckId,
         linkedDeckListId: selectedDeckListId
       });
-      setSelectedLogIds([]);
+      reportBulkResult(result, "updated");
     });
   }
 
@@ -591,17 +607,16 @@ export function LogsManager({
     const idsToDelete = deletePrompt.ids;
     setDeletePrompt(null);
     runAsyncAction(async () => {
-      if (idsToDelete.length === 1) {
-        await deleteLogAction(idsToDelete[0]);
-      } else {
-        await deleteLogsAction(idsToDelete);
-      }
-      setSelectedLogIds((current) => current.filter((id) => !idsToDelete.includes(id)));
+      const result =
+        idsToDelete.length === 1
+          ? await deleteLogAction(idsToDelete[0])
+          : await deleteLogsAction(idsToDelete);
+      reportBulkResult(result, "deleted");
     });
   }
 
   return (
-    <div className={`flex flex-col ${managementModeActive ? "pb-36 md:pb-20" : ""}`}>
+    <div className={`flex flex-col ${managementModeActive ? "pb-72 md:pb-20" : ""}`}>
       {deletePrompt ? (
         <DynamicDeleteConfirmDialog
           confirmLabel={`Delete${deletePromptCount > 1 ? ` ${deletePromptCount} Logs` : " Log"}`}
@@ -620,10 +635,16 @@ export function LogsManager({
       {actionNotice ? (
         <Alert
           aria-live="polite"
-          className="border-loss-border bg-loss-bg text-loss-strong"
-          variant="destructive"
+          className={
+            actionNotice.kind === "error"
+              ? "border-loss-border bg-loss-bg text-loss-strong"
+              : undefined
+          }
+          variant={actionNotice.kind === "error" ? "destructive" : "default"}
         >
-          <AlertTitle className="ui-eyebrow">Action Failed</AlertTitle>
+          <AlertTitle>
+            {actionNotice.kind === "error" ? "Action failed" : "Logs updated"}
+          </AlertTitle>
           <AlertDescription>{actionNotice.message}</AlertDescription>
         </Alert>
       ) : null}
@@ -734,7 +755,11 @@ export function LogsManager({
             {loadMoreError ? (
               <p className="text-sm font-medium text-loss-strong">{loadMoreError}</p>
             ) : null}
-            <Button disabled={isLoadingMore} onClick={handleLoadMore} variant="outline">
+            <Button
+              disabled={isLoadingMore || isMutating}
+              onClick={handleLoadMore}
+              variant="outline"
+            >
               {isLoadingMore ? "Loading Older Logs..." : "Load More Logs"}
             </Button>
           </div>

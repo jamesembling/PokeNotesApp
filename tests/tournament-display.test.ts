@@ -30,31 +30,26 @@ function buildRound(
   };
 }
 
-test("special round results map to the right record tokens", () => {
+test("special round results are detected for display and map to record tokens", () => {
   assert.deepEqual(getRoundResultGameTokens("BYE"), ["W"]);
   assert.deepEqual(getRoundResultGameTokens("ID"), ["T"]);
   assert.deepEqual(getRoundResultGameTokens("NO SHOW"), ["W"]);
-});
-
-test("special round results are detected for row display", () => {
   assert.equal(getRoundSpecialResult("BYE"), "BYE");
   assert.equal(getRoundSpecialResult("ID"), "ID");
   assert.equal(getRoundSpecialResult("NO SHOW"), "NO SHOW");
   assert.equal(getRoundSpecialResult("WL"), null);
 });
 
-test("tournament record counts match outcomes instead of individual games", () => {
-  const record = getTournamentRecord([
+test("tournament records count one outcome per round, including ties and special results", () => {
+  const matchRecord = getTournamentRecord([
     buildRound({ id: "round-1", roundNumber: 1, result: "WLW" }),
     buildRound({ id: "round-2", roundNumber: 2, result: "WW" }),
     buildRound({ id: "round-3", roundNumber: 3, result: "LWW" }),
     buildRound({ id: "round-4", roundNumber: 4, result: "WLL" })
   ]);
 
-  assert.equal(record, "3-1");
-});
+  assert.equal(matchRecord, "3-1");
 
-test("tournament record counts tied and special round outcomes once per round", () => {
   const record = getTournamentRecord([
     buildRound({ id: "round-1", roundNumber: 1, result: "BYE" }),
     buildRound({ id: "round-2", roundNumber: 2, result: "ID" }),
@@ -63,6 +58,9 @@ test("tournament record counts tied and special round outcomes once per round", 
   ]);
 
   assert.equal(record, "2-0-2");
+});
+
+test("tournament participation, judge roles and competition badges fall back safely", () => {
   assert.equal(parseTournamentParticipation(null), "player");
   assert.equal(parseTournamentParticipation("invalid"), "player");
   assert.equal(parseTournamentParticipation("judge"), "judge");

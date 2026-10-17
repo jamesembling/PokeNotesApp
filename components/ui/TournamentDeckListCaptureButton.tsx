@@ -7,10 +7,12 @@ import { Button } from "@/components/shadcn/button";
 
 export function TournamentDeckListCaptureButton({
   tournamentId,
+  expectedUpdatedAt,
   sourceDeckId,
   sourceDeckListId
 }: {
   tournamentId: string;
+  expectedUpdatedAt: string;
   sourceDeckId: string | null;
   sourceDeckListId: string;
 }) {
@@ -24,6 +26,7 @@ export function TournamentDeckListCaptureButton({
     setError("");
     const formData = new FormData();
     formData.set("tournamentId", tournamentId);
+    formData.set("expectedUpdatedAt", expectedUpdatedAt);
     formData.set("sourceDeckId", sourceDeckId ?? "");
     formData.set("sourceDeckListId", sourceDeckListId);
     formData.set("associateStrategy", "false");

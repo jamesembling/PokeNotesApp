@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useLogsRefresh } from "@/components/ui/LogsRefreshContext";
 import { usePathname, useRouter } from "next/navigation";
 import {
   type ParseLogActionResult,
@@ -97,6 +98,7 @@ export function ImportLogDialog({
   triggerLabel = "Import PTCGL Log"
 }: ImportLogDialogProps) {
   const router = useRouter();
+  const refreshLogs = useLogsRefresh();
   const pathname = usePathname();
   const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const {
@@ -445,7 +447,8 @@ export function ImportLogDialog({
 
         if (normalizeRedirectPath(result.redirectTo) === pathname) {
           setIsOpen(false);
-          router.refresh();
+          if (refreshLogs) void refreshLogs().catch(() => undefined);
+          else router.refresh();
           onClose?.();
           resetImportState();
           return;

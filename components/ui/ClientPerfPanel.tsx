@@ -57,7 +57,12 @@ export function ClientPerfPanel({
       return false;
     }
 
-    return searchParams.get("perf") === "1" || window.localStorage.getItem("poke-notes:perf") === "1";
+    if (searchParams.get("perf") === "1") return true;
+    try {
+      return window.localStorage.getItem("poke-notes:perf") === "1";
+    } catch {
+      return false;
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -65,13 +70,17 @@ export function ClientPerfPanel({
       return;
     }
 
-    if (searchParams.get("perf") === "1") {
-      window.localStorage.setItem("poke-notes:perf", "1");
-      return;
-    }
+    try {
+      if (searchParams.get("perf") === "1") {
+        window.localStorage.setItem("poke-notes:perf", "1");
+        return;
+      }
 
-    if (searchParams.get("perf") === "0") {
-      window.localStorage.removeItem("poke-notes:perf");
+      if (searchParams.get("perf") === "0") {
+        window.localStorage.removeItem("poke-notes:perf");
+      }
+    } catch {
+      // A diagnostic preference must not block the workspace when storage is denied.
     }
   }, [searchParams]);
 

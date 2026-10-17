@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Runtime dependency advisory gate
+        run: node scripts/audit-runtime-dependencies.mjs
+
       - name: Lint
         run: npm run lint
 

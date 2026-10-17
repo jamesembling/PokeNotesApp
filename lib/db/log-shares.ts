@@ -255,10 +255,19 @@ export function mapSharedLogSnapshot(
   };
 }
 
-async function createSupabaseLogShareStore(): Promise<LogShareStore> {
-  const supabase = await createClient();
-  const publicSupabase = createPublicClient();
+type LogShareClients = {
+  publicSupabase: ReturnType<typeof createPublicClient>;
+  supabase: Awaited<ReturnType<typeof createClient>>;
+};
 
+async function createSupabaseLogShareStore(): Promise<LogShareStore> {
+  return buildSupabaseLogShareStore({
+    publicSupabase: createPublicClient(),
+    supabase: await createClient()
+  });
+}
+
+export function buildSupabaseLogShareStore({ publicSupabase, supabase }: LogShareClients): LogShareStore {
   return {
     async getOrCreate(row) {
       const { data, error } = await supabase.rpc("create_log_share", {

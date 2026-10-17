@@ -4,11 +4,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
   getNavigationReportDecision,
+  getRouteDataTiming,
+  routeTimingSince,
   isTrackedPerformancePath,
   ROUTE_REPORTER_VERSION
 } from "@/lib/performance/route-performance";
 
 type PendingNavigation = {
+  navigationType: "app-route" | "back_forward";
   fromPath: string;
   loadingEndedAt: number | null;
   loadingStartedAt: number | null;
@@ -158,21 +161,31 @@ type ClientTimingPhase =
 
 function getClientTiming(phase: ClientTimingPhase) {
   const markers = document.querySelectorAll<HTMLElement>(`[data-route-client-timing="${phase}"]`);
-  const marker = markers.item(markers.length - 1);
-  const duration = Number(marker?.dataset.routeClientTimingMs);
+  const marker = Array.from(markers)
+    .filter((entry) => entry.dataset.routeClientPath === window.location.pathname)
+    .at(-1);
+  const duration =
+    marker?.dataset.routeClientTimingMs === undefined
+      ? NaN
+      : Number(marker.dataset.routeClientTimingMs);
 
   return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null;
 }
 
 function getClientTimingSince(phase: ClientTimingPhase, startedAt: number) {
   const timing = getClientTiming(phase);
-  return timing === null ? null : Math.max(0, Math.round(timing - startedAt));
+  return routeTimingSince(timing, startedAt);
 }
 
 function getClientPaintTiming(phase: ClientTimingPhase) {
   const markers = document.querySelectorAll<HTMLElement>(`[data-route-client-timing="${phase}"]`);
-  const marker = markers.item(markers.length - 1);
-  const duration = Number(marker?.dataset.routeClientPaintMs);
+  const marker = Array.from(markers)
+    .filter((entry) => entry.dataset.routeClientPath === window.location.pathname)
+    .at(-1);
+  const duration =
+    marker?.dataset.routeClientPaintMs === undefined
+      ? NaN
+      : Number(marker.dataset.routeClientPaintMs);
 
   return Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : null;
 }
@@ -425,6 +438,12 @@ export function RoutePerformanceReporter() {
   const longTaskStatsRef = useRef({ maxLongTaskMs: 0, totalBlockingTimeMs: 0 });
   const pendingNavigationRef = useRef<PendingNavigation | null>(null);
   const scheduleNavigationCheckRef = useRef<() => void>(() => {});
+  const routeObservationRef = useRef<{
+    path: string;
+    startedAt: number;
+    fromPath: string | null;
+    navigationType: string;
+  } | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -518,8 +537,7 @@ export function RoutePerformanceReporter() {
       const responseEndMs = nav && nav.responseEnd > 0 ? Math.round(nav.responseEnd) : null;
       const responseStartMs = nav && nav.responseStart > 0 ? Math.round(nav.responseStart) : null;
       const navigationPhases = getNavigationPhaseSnapshot(nav);
-      const responseBodyStartMs =
-        navigationPhases.finalResponseHeadersStartMs ?? responseStartMs;
+      const responseBodyStartMs = navigationPhases.finalResponseHeadersStartMs ?? responseStartMs;
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
@@ -600,14 +618,41 @@ export function RoutePerformanceReporter() {
   }, []);
 
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !isTrackedPerformancePath(getCurrentPath()) ||
-      getPerformanceVariant() === null
-    ) {
+    if (typeof window === "undefined") {
       return;
     }
 
+    const previous = routeObservationRef.current;
+    const pending =
+      pendingNavigationRef.current?.toPath === getCurrentPath()
+        ? pendingNavigationRef.current
+        : null;
+    if (!pending) pendingNavigationRef.current = null;
+    const isDocumentLoad =
+      previous === null ||
+      (previous.path === pathname && previous.startedAt === 0 && previous.fromPath === null);
+    const observation = {
+      path: pathname,
+      startedAt: isDocumentLoad
+        ? 0
+        : pending?.toPath === getCurrentPath()
+          ? pending.startedAt
+          : performance.now(),
+      fromPath: isDocumentLoad ? null : (pending?.fromPath ?? normalizePath(previous.path)),
+      navigationType: isDocumentLoad
+        ? (getNavigationTiming()?.type ?? "unknown")
+        : (pending?.navigationType ?? "app-route")
+    };
+    routeObservationRef.current = observation;
+    if (!isTrackedPerformancePath(getCurrentPath()) || getPerformanceVariant() === null) {
+      return;
+    }
+    const clientTiming = (phase: ClientTimingPhase) =>
+      routeTimingSince(getClientTiming(phase), observation.startedAt);
+    const clientPaintTiming = (phase: ClientTimingPhase) =>
+      routeTimingSince(getClientPaintTiming(phase), observation.startedAt);
+    const parserTiming = (phase: "route-data-parsed" | "route-shell-parsed") =>
+      isDocumentLoad ? getParserTiming(phase) : null;
     let outcomeReported = false;
     let parsedFallbackId = 0;
     let timeoutId = 0;
@@ -615,12 +660,12 @@ export function RoutePerformanceReporter() {
     function reportRouteDataOutcome(
       reason: "data-parsed" | "data-seen" | "data-timeout" | "page-hidden"
     ) {
-      if (outcomeReported) {
+      if (outcomeReported || routeObservationRef.current !== observation) {
         return;
       }
 
-      const dataPaintedMs = getClientPaintTiming("route-data-visible");
-      const dataParsedMs = getParserTiming("route-data-parsed");
+      const dataPaintedMs = clientPaintTiming("route-data-visible");
+      const dataParsedMs = parserTiming("route-data-parsed");
       if (reason === "data-seen" && dataPaintedMs === null) {
         return;
       }
@@ -631,31 +676,35 @@ export function RoutePerformanceReporter() {
       outcomeReported = true;
       window.clearTimeout(parsedFallbackId);
       window.clearTimeout(timeoutId);
-      const nav = getNavigationTiming();
+      const nav = isDocumentLoad ? getNavigationTiming() : undefined;
       const measuredAt = performance.now();
       const responseEndMs = nav && nav.responseEnd > 0 ? Math.round(nav.responseEnd) : null;
       const responseStartMs = nav && nav.responseStart > 0 ? Math.round(nav.responseStart) : null;
       const navigationPhases = getNavigationPhaseSnapshot(nav);
-      const responseBodyStartMs =
-        navigationPhases.finalResponseHeadersStartMs ?? responseStartMs;
+      const responseBodyStartMs = navigationPhases.finalResponseHeadersStartMs ?? responseStartMs;
 
       sendPerformanceEvent({
         ...getDeviceSnapshot(),
         ...navigationPhases,
         ...getServerDiagnosticsSnapshot(),
-        ...getServerTimingSnapshot(0, measuredAt, nav),
+        ...getServerTimingSnapshot(observation.startedAt, measuredAt, nav),
         documentDecodedBodySizeBytes: nav?.decodedBodySize ?? null,
         documentEncodedBodySizeBytes: nav?.encodedBodySize ?? null,
         documentTransferSizeBytes: nav?.transferSize ?? null,
-        durationMs: Math.round(dataPaintedMs ?? dataParsedMs ?? measuredAt),
+        durationMs: getRouteDataTiming({
+          startedAt: observation.startedAt,
+          measuredAt,
+          paintedAt: getClientPaintTiming("route-data-visible"),
+          parsedAt: dataParsedMs
+        }).durationMs,
         eventType: "route-data",
         firstContentfulPaintMs: getPaintEntryStartTime("first-contentful-paint"),
-        fromPath: null,
+        fromPath: observation.fromPath,
         hydrationResourcesEndMs: getHydrationResourcesEndMs(),
-        navigationType: nav?.type ?? "unknown",
+        navigationType: observation.navigationType,
         nextHopProtocol: nav?.nextHopProtocol ?? null,
-        parserDataMs: getParserTiming("route-data-parsed"),
-        parserShellMs: getParserTiming("route-shell-parsed"),
+        parserDataMs: parserTiming("route-data-parsed"),
+        parserShellMs: parserTiming("route-shell-parsed"),
         performanceVariant: getPerformanceVariant(),
         requestCorrelationId: getRequestCorrelationId(),
         responseEndMs,
@@ -663,11 +712,11 @@ export function RoutePerformanceReporter() {
           responseEndMs !== null && responseBodyStartMs !== null
             ? Math.max(0, responseEndMs - responseBodyStartMs)
             : null,
-        routeContentVisibleMs: getClientTiming("route-content-visible"),
+        routeContentVisibleMs: clientTiming("route-content-visible"),
         routeDataPaintedMs: dataPaintedMs,
-        routeDataVisibleMs: getClientTiming("route-data-visible"),
-        routeShellPaintedMs: getClientPaintTiming("route-shell-visible"),
-        routeShellVisibleMs: getClientTiming("route-shell-visible"),
+        routeDataVisibleMs: clientTiming("route-data-visible"),
+        routeShellPaintedMs: clientPaintTiming("route-shell-visible"),
+        routeShellVisibleMs: clientTiming("route-shell-visible"),
         submissionReason: reason,
         toPath: getCurrentPath(),
         ttfbMs: navigationPhases.finalResponseHeadersStartMs ?? responseStartMs,
@@ -690,11 +739,7 @@ export function RoutePerformanceReporter() {
     }
 
     function scheduleParsedFallback() {
-      if (
-        outcomeReported ||
-        parsedFallbackId !== 0 ||
-        getParserTiming("route-data-parsed") === null
-      ) {
+      if (outcomeReported || parsedFallbackId !== 0 || parserTiming("route-data-parsed") === null) {
         return;
       }
 
@@ -717,7 +762,7 @@ export function RoutePerformanceReporter() {
     );
 
     window.requestAnimationFrame(() => {
-      if (getClientPaintTiming("route-data-visible") !== null) {
+      if (clientPaintTiming("route-data-visible") !== null) {
         reportRouteDataOutcome("data-seen");
       } else {
         scheduleParsedFallback();
@@ -821,7 +866,7 @@ export function RoutePerformanceReporter() {
             ? Math.round(candidateCompletedAt - pendingNavigation.loadingStartedAt)
             : null,
         maxLongTaskMs: Math.round(longTaskSnapshot.maxLongTaskMs),
-        navigationType: "app-route",
+        navigationType: pendingNavigation.navigationType,
         nextHopProtocol: null,
         performanceVariant: getPerformanceVariant(),
         responseEndMs: null,
@@ -878,6 +923,7 @@ export function RoutePerformanceReporter() {
       const startedAt = performance.now();
 
       pendingNavigationRef.current = {
+        navigationType: "app-route",
         fromPath,
         loadingEndedAt: null,
         loadingStartedAt: getLoadingElement() ? startedAt : null,
@@ -890,6 +936,32 @@ export function RoutePerformanceReporter() {
       scheduleNavigationCheck();
     }
 
+    function handlePopState() {
+      const startedAt = performance.now();
+      const currentPath = getCurrentPath();
+      const observation = routeObservationRef.current;
+      // A router subscriber can synchronously commit before this window listener.
+      // Correct that observation before its asynchronous paint report is emitted.
+      const alreadyObserved = observation?.path === window.location.pathname;
+      if (alreadyObserved) observation.navigationType = "back_forward";
+      pendingNavigationRef.current = {
+        navigationType: "back_forward",
+        fromPath: normalizePath(
+          alreadyObserved ? (observation.fromPath ?? observation.path) : (observation?.path ?? "/")
+        ),
+        loadingEndedAt: null,
+        loadingStartedAt: null,
+        pathReadyAt: null,
+        resourceStartedAt: startedAt,
+        sawLoading: false,
+        startedAt,
+        toPath: currentPath
+      };
+      scheduleNavigationCheck();
+    }
+    // Establish the navigation origin before the router's bubble-phase
+    // subscription can commit a new pathname and run its observation effect.
+    window.addEventListener("popstate", handlePopState, { capture: true });
     const mutationObserver = new MutationObserver(() => scheduleNavigationCheck());
     mutationObserver.observe(document.body, { childList: true, subtree: true });
 
@@ -927,6 +999,7 @@ export function RoutePerformanceReporter() {
       }
       scheduleNavigationCheckRef.current = () => {};
       document.removeEventListener("click", handleClick, { capture: true });
+      window.removeEventListener("popstate", handlePopState, { capture: true });
       mutationObserver.disconnect();
       resourceObserver?.disconnect();
     };
