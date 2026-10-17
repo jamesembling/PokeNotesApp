@@ -23,13 +23,13 @@ On each wake after that request, re-fetch the PR on its current head and merge o
 2. Both `verify` and `Database behavior` are present on the head commit.
 3. There is no merge conflict and no unresolved review thread waiting on a reply.
 
-Merge with **squash**, keeping the PR title and number as the commit subject. Then tell James it merged, in one line.
+Merge with **squash**, keeping the PR title and number as the commit subject, and pin the merge to the head SHA you just checked (`expectedHeadSha`, or `gh pr merge --match-head-commit`) so a later push cannot slip in. Treat the merge call's result as a diagnostic: confirm with a separate read that the PR is merged at that SHA before telling James, in one line, and never retry a merge on the call's result alone. See `docs/verification-commands.md` **Pull request integration is a two-phase contract**.
 
-If the head changes after James's request because someone else pushed, re-check against the new head; do not merge commits James has not seen without saying so first.
+James's request covers the head he asked about. If the head changes afterwards, whether from someone else's push or your own fix, do not merge it on the old request: tell James what changed and wait for him to approve the new head.
 
 ## When a check fails
 
-- Failure caused by the PR: fix, validate locally, push, and keep waiting.
+- Failure caused by the PR: fix, validate locally, push, and keep waiting. The new head needs James's approval before it merges.
 - Failure unrelated to the PR (red on `main` too, or an external service the diff does not touch): do not merge. Tell James what failed and why it is not this PR's, then wait for his call.
 - Re-run a job at most once, and only after writing down why the failure looks unrelated or flaky.
 
