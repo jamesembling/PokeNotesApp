@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import test from "node:test";
 import {
+  buildSupabaseLogShareStore,
   getOrCreateLogShareSnapshot,
   getSharedLogSnapshot,
   isLogShare24HourLimitError,
@@ -16,11 +15,29 @@ import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
 import { projectPublicBattleLogDetail } from "@/lib/battle-log/detail-projection";
 import type { BattleLog } from "@/types/index";
 
-const logSharesSource = readFileSync(join(import.meta.dirname, "../lib/db/log-shares.ts"), "utf8");
+test("share revocation runs only the atomic RPC and surfaces its failure without a direct delete", async () => {
+  const rpcCalls: Array<[string, unknown]> = [];
+  const rpcFailure = { code: "P0001", message: "revocation failed" };
+  const client = {
+    async rpc(name: string, args: unknown) {
+      rpcCalls.push([name, args]);
+      return rpcCalls.length === 1 ? { data: true, error: null } : { data: null, error: rpcFailure };
+    },
+    from(table: string) {
+      throw new Error(`Unexpected direct table access: ${table}`);
+    }
+  };
+  const store = buildSupabaseLogShareStore({
+    publicSupabase: client,
+    supabase: client
+  } as unknown as Parameters<typeof buildSupabaseLogShareStore>[0]);
 
-test("share revocation requires the atomic RPC and has no direct-delete fallback", () => {
-  assert.match(logSharesSource, /supabase\.rpc\("revoke_log_share"/i);
-  assert.doesNotMatch(logSharesSource, /from\("log_shares"\)\s*\.delete\(/i);
+  assert.equal(await store.revokeOwnedShare("share-1", "user-1"), true);
+  await assert.rejects(store.revokeOwnedShare("share-2", "user-1"), (error) => error === rpcFailure);
+  assert.deepEqual(rpcCalls, [
+    ["revoke_log_share", { p_share_id: "share-1" }],
+    ["revoke_log_share", { p_share_id: "share-2" }]
+  ]);
 });
 
 function buildBattleLog(id = "log-1"): BattleLog {
