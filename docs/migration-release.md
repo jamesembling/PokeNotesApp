@@ -91,3 +91,26 @@ Database work is complete when all applicable evidence is green:
 5. monitoring and the rollback or forward-fix owner are recorded.
 
 If production deployment was not requested or could not run, report it as outstanding and keep the database work incomplete.
+
+## Import Draft retention release
+
+`20261017174723_bound_import_draft_retention.sql` schedules hourly batches of at
+most 500 expired previews and 500 consumed payloads. Abandoned drafts retain a
+24-hour grace period after expiry. Consumed drafts retain parser payloads for
+24 hours after save, then keep the existing fingerprint, save identity, Battle
+Log reference and minimal `selfDeckSprites` compatibility metadata. Compact
+receipts cascade when their saved Battle Log or account is deleted. Receipt
+replay remains available after payload pruning and does not create another log.
+
+The minimal compatibility field keeps the previous application release safe
+during deployment overlap or rollback. The new application skips learning and
+parser reads for a completed retry. Pruning uses row locks with `SKIP LOCKED`;
+a racing save or cleanup cannot clear the payload of an unconsumed draft.
+
+Use `sql/verification/import-draft-retention-and-grants.sql` on the disposable
+stack after applying the actual migrations. The controlled production workflow
+also checks the explicit catalogue/Matchup grants through `schema:health`.
+After release, inspect aggregate counts of abandoned drafts older than the grace
+period and consumed drafts with nonempty `immutable_facts` older than 24 hours,
+plus the named `cron.job`/`cron.job_run_details` status. A single hourly run is
+bounded; a backlog can require multiple runs. Do not print draft payloads.

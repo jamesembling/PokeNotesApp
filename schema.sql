@@ -6065,10 +6065,55 @@ alter table public.tournament_deck_list_commands
 -- misordered or stale sorted_cards array into immutable evidence.
 create or replace function public.canonicalize_deck_list_cards(p_cards jsonb)
 returns jsonb
-language sql
-immutable
+language plpgsql
+stable
+security invoker
 set search_path = pg_catalog, public
 as $function$
+declare
+  v_cards jsonb := '[]'::jsonb;
+  v_card jsonb;
+  v_type text;
+  v_generation uuid;
+  v_result jsonb;
+begin
+  if jsonb_typeof(p_cards) is distinct from 'array' then
+    raise exception using errcode = '22023', message = 'Complete parsed Deck List evidence is required.';
+  end if;
+
+  select active.generation_id into v_generation
+  from public.card_definition_active active
+  join public.card_definition_generations generation on generation.id = active.generation_id
+  where active.singleton and generation.completed_at is not null;
+
+  for v_card in select value from jsonb_array_elements(p_cards) loop
+    if jsonb_typeof(v_card) is distinct from 'object'
+      or nullif(btrim(v_card ->> 'name'), '') is null
+      or coalesce(v_card ->> 'count', '') !~ '^[1-9][0-9]*$'
+      or lower(coalesce(v_card ->> 'category', '')) not in ('pokemon', 'trainer', 'energy')
+    then
+      raise exception using errcode = '22023', message = 'Complete parsed Deck List evidence is required.';
+    end if;
+    if lower(v_card ->> 'category') = 'trainer' then
+      -- Use every matching printing in the published corpus. Missing fields or
+      -- disagreement invalidate the claim, including a supplied client subtype.
+      select case when count(*) > 0 and bool_and(
+          coalesce(definition ->> 'category', '') = 'Trainer'
+          and lower(coalesce(definition ->> 'trainerType', '')) in ('supporter', 'item', 'tool', 'stadium')
+        ) and count(distinct lower(definition ->> 'trainerType')) = 1
+        then min(lower(definition ->> 'trainerType')) end
+      into v_type
+      from public.card_definition_catalog
+      where generation_id = v_generation
+        and lower(btrim(replace(definition ->> 'name', '’', '''')))
+          = lower(btrim(replace(v_card ->> 'name', '’', '''')));
+      if v_type is null then
+        raise exception using errcode = '22023', message = 'Complete trusted Trainer ordering metadata is unavailable; refresh-and-retry after the card catalog is available.';
+      end if;
+      v_card := (v_card - 'trainer_type') || jsonb_build_object('trainerType', v_type);
+    end if;
+    v_cards := v_cards || jsonb_build_array(v_card);
+  end loop;
   select coalesce(
     jsonb_agg(item.value order by
       case lower(coalesce(item.value ->> 'category', ''))
@@ -6098,9 +6143,12 @@ as $function$
     ),
     '[]'::jsonb
   )
+  into v_result
   from jsonb_array_elements(
-    case when jsonb_typeof(p_cards) = 'array' then p_cards else '[]'::jsonb end
+    case when jsonb_typeof(v_cards) = 'array' then v_cards else '[]'::jsonb end
   ) with ordinality as item(value, ordinality);
+  return v_result;
+end;
 $function$;
 revoke all on function public.canonicalize_deck_list_cards(jsonb) from public, anon;
 grant execute on function public.canonicalize_deck_list_cards(jsonb) to authenticated;
@@ -6555,9 +6603,6 @@ begin
   if p_deck_sprites is null or jsonb_typeof(p_deck_sprites) is distinct from 'array' then
     raise exception using errcode = '22023', message = 'Tournament deck sprites are invalid.';
   end if;
-  v_canonical_sorted := public.canonicalize_deck_list_cards(
-    coalesce(p_payload -> 'parsedCards', p_payload -> 'parsed_cards')
-  );
 
   -- Serialize request identity before the first-writer row exists.
   perform pg_advisory_xact_lock(
@@ -6650,6 +6695,10 @@ begin
     then
       raise exception using errcode = '22023', message = 'Complete Deck List evidence is required.';
     end if;
+
+  v_canonical_sorted := public.canonicalize_deck_list_cards(
+    coalesce(p_payload -> 'parsedCards', p_payload -> 'parsed_cards')
+  );
 
     select * into v_list
     from public.deck_lists
@@ -7357,3 +7406,77 @@ $$;
 revoke all on function public.publish_card_definition_generation(uuid) from public, anon, authenticated;
 grant execute on function public.publish_card_definition_generation(uuid) to service_role;
 comment on table public.card_definition_catalog is 'English TCGdex printing definitions. Only a complete atomically published source snapshot supports candidate agreement. Missing provider fields remain unknown.';
+
+set local lock_timeout = '5s';
+set local statement_timeout = '60s';
+
+-- Expired previews get a 24-hour grace period. Consumed parser payloads are
+-- removed after 24 hours; their compact receipt survives until the saved log
+-- or account is deleted, so completed save retries remain idempotent.
+create index if not exists battle_log_import_drafts_abandoned_expiry
+  on public.battle_log_import_drafts (expires_at)
+  where consumed_at is null;
+create index if not exists battle_log_import_drafts_payload_retention
+  on public.battle_log_import_drafts (consumed_at)
+  where consumed_at is not null and immutable_facts <> '{}'::jsonb;
+
+create or replace function private.prune_battle_log_import_drafts(p_limit integer default 500)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $function$
+declare
+  v_deleted integer;
+  v_cleared integer;
+begin
+  if p_limit is null or p_limit < 1 or p_limit > 5000 then
+    raise exception using errcode = '22023', message = 'Cleanup batch size must be between 1 and 5000.';
+  end if;
+  with candidates as (
+    select id from public.battle_log_import_drafts
+    where consumed_at is null and expires_at < statement_timestamp() - interval '24 hours'
+    order by expires_at, id limit p_limit for update skip locked
+  )
+  delete from public.battle_log_import_drafts d using candidates c where d.id = c.id;
+  get diagnostics v_deleted = row_count;
+
+  with candidates as (
+    select id from public.battle_log_import_drafts
+    where consumed_at < statement_timestamp() - interval '24 hours'
+      and immutable_facts <> '{}'::jsonb
+    order by consumed_at, id limit p_limit for update skip locked
+  )
+  update public.battle_log_import_drafts d
+  set immutable_facts = '{}'::jsonb,
+      -- Previous application releases read this one field on a completed retry.
+      -- Preserve it during rolling deployment/rollback; no raw parser text stays.
+      initial_editable = jsonb_build_object(
+        'selfDeckSprites', coalesce(d.initial_editable -> 'selfDeckSprites', '[]'::jsonb)
+      )
+  from candidates c where d.id = c.id;
+  get diagnostics v_cleared = row_count;
+  return jsonb_build_object('deletedDrafts', v_deleted, 'clearedPayloads', v_cleared);
+end;
+$function$;
+revoke all on function private.prune_battle_log_import_drafts(integer) from public, anon, authenticated;
+comment on function private.prune_battle_log_import_drafts(integer) is
+  'Hourly bounded cleanup: 24-hour expiry grace and consumed payload retention; compact save receipts retain idempotency and cascade with the saved log/account.';
+
+select cron.schedule(
+  'prune-battle-log-import-drafts', '17 * * * *',
+  'select private.prune_battle_log_import_drafts();'
+);
+
+set local lock_timeout = '5s';
+set local statement_timeout = '60s';
+
+-- Default privilege changes do not repair existing table grants. Reconcile
+-- these objects explicitly with the fresh-installation contract, preserving RLS.
+revoke all privileges on table public.card_effect_catalog from public, anon, authenticated;
+grant select on table public.card_effect_catalog to anon, authenticated;
+grant all privileges on table public.card_effect_catalog to service_role;
+
+revoke all privileges on table public.deck_matchups from public, anon, authenticated;
+grant select, insert, update, delete on table public.deck_matchups to authenticated;
+grant all privileges on table public.deck_matchups to service_role;

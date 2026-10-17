@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { updateDeckMatchupPlanAction } from "@/app/(app)/decks/actions";
+import { useMatchupViewedVersion } from "@/components/hooks/useMatchupViewedVersion";
 import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
@@ -117,6 +118,7 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
   const initialState = buildMatchupWorkspaceState(matchup);
   const [workspace, setWorkspace] = useState(initialState);
   const workspaceRef = useRef(workspace);
+  const viewedVersionRef = useMatchupViewedVersion(matchup.updatedAt);
   const recordKeyRef = useRef(`${deckId}:${matchup.id}`);
   const [dialogCategory, setDialogCategory] = useState<NoteCollection | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -137,6 +139,7 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
     async save(nextState) {
       const formData = new FormData();
       formData.set("deckId", deckId);
+      formData.set("expectedUpdatedAt", viewedVersionRef.current);
       formData.set("matchupId", matchup.id);
       formData.set("idealBench", serializeStrategyNotes(nextState.lanes.idealBench));
       formData.set("techsNeeded", serializeStrategyNotes(nextState.lanes.techsNeeded));
@@ -148,7 +151,8 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
         })
       );
 
-      await updateDeckMatchupPlanAction(formData);
+      const result = await updateDeckMatchupPlanAction(formData);
+      viewedVersionRef.current = result.updatedAt;
     }
   });
 
@@ -159,6 +163,7 @@ export function InlineDeckMatchupEditor({ deckId, matchup }: InlineDeckMatchupEd
     }
 
     recordKeyRef.current = nextRecordKey;
+    viewedVersionRef.current = matchup.updatedAt;
     const nextState = buildMatchupWorkspaceState(matchup);
     workspaceRef.current = nextState;
     setWorkspace(nextState);

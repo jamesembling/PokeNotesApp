@@ -36,6 +36,7 @@ test("Tournament detail displays a standalone Deck List after its Strategy is de
 test("adding a Tournament Deck List creates a standalone list without a hidden Strategy", async () => {
   const formData = new FormData();
   formData.set("tournamentId", "tournament-1");
+  formData.set("expectedUpdatedAt", "2026-09-20T00:00:00.000Z");
   formData.set("creationKey", "attempt-1");
   formData.set("deckId", "stale-client-strategy");
   formData.set("name", "Regional list");
@@ -91,6 +92,7 @@ test("adding a Tournament Deck List creates a standalone list without a hidden S
 test("replaying the same Tournament Deck List FormData keeps the action payload identity stable", async () => {
   const formData = new FormData();
   formData.set("tournamentId", "tournament-1");
+  formData.set("expectedUpdatedAt", "2026-09-20T00:00:00.000Z");
   formData.set("creationKey", "capture-attempt-1");
   formData.set("name", "Regional list");
   formData.set("format", "Standard");
@@ -106,10 +108,11 @@ test("replaying the same Tournament Deck List FormData keeps the action payload 
         format: "Standard",
         linkedDeckId: null,
         linkedDeckListId: committed ? "capture-attempt-1" : null,
-        updatedAt: "2026-09-20T00:00:00.000Z"
+        updatedAt: committed ? "2026-09-20T00:05:00.000Z" : "2026-09-20T00:00:00.000Z"
       };
     },
     async commit(input: { payload: Record<string, unknown>; [key: string]: unknown }) {
+      assert.equal(input.expectedTournamentUpdatedAt, "2026-09-20T00:00:00.000Z");
       commits.push(input.payload);
       const result = {
         deckListId: "capture-attempt-1",
@@ -160,6 +163,7 @@ test("replaying the same Tournament Round FormData uses one stable creation iden
 test("existing-list capture rejects legacy-only identities and carries rebuilt ordering without changing Strategy links", async () => {
   const formData = new FormData();
   formData.set("tournamentId", "tournament-1");
+  formData.set("expectedUpdatedAt", "2026-09-20T00:00:00.000Z");
   formData.set("creationKey", "source-capture-1");
   formData.set("sourceDeckId", "strategy-1");
   formData.set("sourceDeckListId", "legacy-list-1");
@@ -252,4 +256,36 @@ test("existing-list capture rejects legacy-only identities and carries rebuilt o
     sortedCards: [{ name: "Dragapult ex" }],
     sortedCardsVersion: 3
   });
+
+  // An editor showing the old snapshot must not receive the server's newer version.
+  const sourceAdapter = {
+    async loadTournament() {
+      return {
+        deckSprites: ["dragapult"], format: "Standard", linkedDeckId: null,
+        linkedDeckListId: "newer-snapshot", updatedAt: "2026-09-20T00:05:00.000Z"
+      };
+    },
+    async loadSourceDeckList() {
+      return {
+        id: "relational-list-1", name: "Source", format: "Standard", date: "2026-09-20",
+        createdBy: "Fixture", notes: "", rawList: "canonical", parsedCards: [], sortedCards: [],
+        updatedAt: "2026-09-20T00:00:00.000Z"
+      };
+    },
+    async commit(input: { expectedTournamentUpdatedAt: string; allowReplace: boolean }) {
+      assert.equal(input.expectedTournamentUpdatedAt, "2026-09-20T00:00:00.000Z");
+      assert.equal(input.allowReplace, true);
+      throw new Error("Tournament changed in another tab");
+    }
+  };
+  formData.set("replaceDeckList", "true");
+  await assert.rejects(saveTournamentDeckListAtomically({
+    adapter: sourceAdapter, formData, userId: "user-1", defaultCreatedBy: "Fixture"
+  }), /changed in another tab/);
+  for (const invalid of ["", "invalid-date"]) {
+    formData.set("expectedUpdatedAt", invalid);
+    await assert.rejects(saveTournamentDeckListAtomically({
+      adapter: sourceAdapter, formData, userId: "user-1", defaultCreatedBy: "Fixture"
+    }), /Refresh this Tournament/);
+  }
 });

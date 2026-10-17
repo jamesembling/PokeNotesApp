@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 export type ClientTimingPhase =
   | "route-content-visible"
@@ -10,6 +11,7 @@ export type ClientTimingPhase =
   | "shell-visible";
 
 export function ClientRouteTimingMarker({ phase }: { phase: ClientTimingPhase }) {
+  const pathname = usePathname();
   const markerRef = useRef<HTMLSpanElement>(null);
 
   useLayoutEffect(() => {
@@ -18,12 +20,15 @@ export function ClientRouteTimingMarker({ phase }: { phase: ClientTimingPhase })
       return;
     }
 
+    let cancelled = false;
+    marker.dataset.routeClientPath = pathname;
+    delete marker.dataset.routeClientPaintMs;
     marker.dataset.routeClientTimingMs = String(Math.max(0, Math.round(performance.now())));
     window.dispatchEvent(new CustomEvent("pokenotes:route-client-timing", { detail: { phase } }));
 
     let recorded = false;
     const recordPostPaint = () => {
-      if (recorded || !marker.isConnected) {
+      if (cancelled || recorded || !marker.isConnected) {
         return;
       }
       recorded = true;
@@ -36,8 +41,12 @@ export function ClientRouteTimingMarker({ phase }: { phase: ClientTimingPhase })
         recordPostPaint();
       });
     });
-    window.setTimeout(recordPostPaint, 100);
-  }, [phase]);
+    const timeout = window.setTimeout(recordPostPaint, 100);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [phase, pathname]);
 
   return <span aria-hidden="true" data-route-client-timing={phase} hidden ref={markerRef} />;
 }

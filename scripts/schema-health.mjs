@@ -615,6 +615,18 @@ const [securityContract = {}] = runSupabaseJson(`
         'public.set_deck_list_association(text,text,timestamptz,timestamptz)'
       )
     ), false) as association_uses_authoritative_timestamp,
+    (
+      not has_table_privilege('anon', 'public.card_effect_catalog', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+      and not has_table_privilege('authenticated', 'public.card_effect_catalog', 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+      and has_table_privilege('anon', 'public.card_effect_catalog', 'SELECT')
+      and has_table_privilege('authenticated', 'public.card_effect_catalog', 'SELECT')
+      and not has_table_privilege('anon', 'public.deck_matchups', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+      and not has_table_privilege('authenticated', 'public.deck_matchups', 'TRUNCATE,REFERENCES,TRIGGER')
+      and has_table_privilege('authenticated', 'public.deck_matchups', 'SELECT')
+      and has_table_privilege('authenticated', 'public.deck_matchups', 'INSERT')
+      and has_table_privilege('authenticated', 'public.deck_matchups', 'UPDATE')
+      and has_table_privilege('authenticated', 'public.deck_matchups', 'DELETE')
+    ) as catalog_matchup_grants_match_bootstrap,
     not has_column_privilege('authenticated', 'public.profiles', 'role', 'INSERT')
       as authenticated_cannot_insert_profile_role,
     not has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE')

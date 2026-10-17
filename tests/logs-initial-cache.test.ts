@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { completeBulkLogMutation } from "@/lib/battle-log/bulk-mutation";
 import {
   getInitialLogsCacheTag,
   invalidateInitialLogsCache,
@@ -23,6 +24,21 @@ test("initial logs cache keys and invalidation remain user scoped", (t) => {
   invalidateInitialLogsCache("user-a");
 
   assert.deepEqual(invalidatedTags, [getInitialLogsCacheTag("user-a")]);
+
+  // The first selected row vanished in another session. The second committed.
+  const partial = completeBulkLogMutation(["gone", "saved"], [{ id: "saved" }], () =>
+    invalidateInitialLogsCache("user-a")
+  );
+  assert.deepEqual(partial, { affectedIds: ["saved"], missingIds: ["gone"] });
+  assert.deepEqual(invalidatedTags, [
+    getInitialLogsCacheTag("user-a"),
+    getInitialLogsCacheTag("user-a")
+  ]);
+  const retry = completeBulkLogMutation(["gone", "saved"], [], () =>
+    invalidateInitialLogsCache("user-a")
+  );
+  assert.deepEqual(retry, { affectedIds: [], missingIds: ["gone", "saved"] });
+  assert.equal(invalidatedTags.length, 3);
 });
 
 test("failed initial read models cannot poison the shared logs cache", () => {

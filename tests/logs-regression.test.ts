@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { refreshLoadedLogsWindow } from "@/lib/client/logs-refresh";
 import {
   getArchetypeMatchupStats,
   getAllLogsByDeck,
@@ -463,6 +464,58 @@ test("getLogsWindow returns the next same-date page after a cursor", async (t) =
 
   assert.deepEqual(firstPage.logs.map((log) => log.id), ["log-c"]);
   assert.deepEqual(secondPage.logs.map((log) => log.id), ["log-a"]);
+
+  // Refreshing a viewed older page must cross the old boundary even when new
+  // records shift that boundary into a later page.
+  const makeWindow = (ids: string[], hasMore: boolean, cursor: string) => ({
+    hasMore,
+    nextWindowEndDate: cursor,
+    windowEndDate: "2026-04-28",
+    windowStartDate: "2026-04-22",
+    logs: ids.map(
+      (id) =>
+        ({
+          id,
+          date: "2026-04-28",
+          importedAt: `2026-04-28T10:00:0${id}.000Z`
+        }) as import("@/types/index").BattleLogSummary
+    )
+  });
+  const fresh = makeWindow(["5", "4"], true, "page-2");
+  const requests: string[] = [];
+  const refreshed = await refreshLoadedLogsWindow(
+    fresh,
+    makeWindow(["2"], false, "").logs[0],
+    async (cursor) => {
+      requests.push(cursor);
+      return cursor === "page-2"
+        ? makeWindow(["3"], true, "page-3")
+        : makeWindow(["2", "1"], false, "");
+    }
+  );
+  assert.deepEqual(requests, ["page-2", "page-3"]);
+  assert.deepEqual(
+    refreshed.logs.map((log) => log.id),
+    ["5", "4", "3", "2", "1"]
+  );
+  assert.equal(refreshed.hasMore, false);
+  assert.equal(refreshed.nextWindowEndDate, "");
+  const missingOldest = await refreshLoadedLogsWindow(
+    fresh,
+    makeWindow(["0"], false, "").logs[0],
+    async () => makeWindow(["1"], false, "")
+  );
+  assert.deepEqual(
+    missingOldest.logs.map((log) => log.id),
+    ["5", "4", "1"]
+  );
+  await assert.rejects(
+    () =>
+      refreshLoadedLogsWindow(fresh, makeWindow(["0"], false, "").logs[0], async () =>
+        makeWindow(["3"], true, "page-2")
+      ),
+    /did not advance/
+  );
 });
 
 test("getLogsWindow reanchors a sparse date cursor and exhausts Load More", async (t) => {

@@ -94,22 +94,39 @@ function shouldCountDamageCounterDetails(title: string, baseDamage: number) {
   return String(title || "").trim().toLowerCase().includes("used powerful hand");
 }
 
-function getAttackDamageFromAction(action: { title: string; details: string[] }) {
+function getAttackDamageFromAction(
+  action: { title: string; details: string[] },
+  playerNames: string[]
+) {
+  // Ability actions such as Festival Lead contain a recorded attack in their
+  // details. Read attack records, not the explanatory damage breakdown.
   const title = String(action.title || "").trim();
-  const baseDamage = getAttackDamageFromLine(title);
-  const detailDamage = title.includes(" used ")
+  const records = [title, ...action.details.map((detail) => detail.replace(/^\s*-\s*/, "").trim())];
+  const nestedAttacks = records.slice(1).filter((line) => getAttackDamageFromLine(line) > 0);
+  // A title repeated in its details is one record. Repeated nested lines can
+  // represent two real attacks (Festival Lead) and must each retain their damage.
+  const attacks = nestedAttacks.length > 0 ? [...nestedAttacks] : [title];
+  if (nestedAttacks.length > 0 && getAttackDamageFromLine(title) > 0 && !nestedAttacks.includes(title)) {
+    attacks.unshift(title);
+  }
+  const supplementalDamage = title.includes(" used ")
     ? action.details.reduce((total, detail) => total + getDamageTakenFromLine(detail), 0)
     : 0;
 
-  if (!shouldCountDamageCounterDetails(title, baseDamage)) {
-    return baseDamage + detailDamage;
-  }
-
-  return (
-    baseDamage +
-    detailDamage +
-    action.details.reduce((total, detail) => total + getDamageCountersPlacedFromLine(detail) * 10, 0)
-  );
+  return attacks.map((line, index) => {
+    const baseDamage = getAttackDamageFromLine(line);
+    const counterDamage =
+      index === 0 && shouldCountDamageCounterDetails(line, baseDamage)
+        ? action.details.reduce(
+            (total, detail) => total + getDamageCountersPlacedFromLine(detail) * 10,
+            0
+          )
+        : 0;
+    return {
+      player: getLeadingPlayerFromLine(line, playerNames),
+      damage: baseDamage + counterDamage + (index === 0 ? supplementalDamage : 0)
+    };
+  });
 }
 
 export function determineWinner(lines: string[], language: Language) {
@@ -267,17 +284,14 @@ export function buildStats({
         }
       });
 
-      if (!playerStats) {
-        return;
-      }
-
-      if (isPrizeTakenLine(line, language)) {
+      if (playerStats && isPrizeTakenLine(line, language)) {
         playerStats.prizesTaken += getPrizesTakenFromLine(line, language);
       }
 
-      const attackDamage = getAttackDamageFromAction(action);
-      if (attackDamage > 0) {
-        playerStats.attackDamage += attackDamage;
+      for (const attack of getAttackDamageFromAction(action, playerNames)) {
+        if (attack.player && attack.damage > 0) {
+          statsByName[attack.player].attackDamage += attack.damage;
+        }
       }
     });
   });

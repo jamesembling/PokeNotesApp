@@ -139,7 +139,11 @@ export function clearLastKnownLogsSnapshot(storage: StorageLike | null = getBrow
 }
 
 function getBrowserStorage() {
-  return typeof window === "undefined" ? null : window.localStorage;
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

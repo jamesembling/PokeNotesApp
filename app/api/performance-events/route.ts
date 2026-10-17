@@ -236,7 +236,10 @@ function normalizeNavigationType(
   eventType: "app-route" | "hard-load" | "route-data",
   value: unknown
 ) {
-  if (eventType === "app-route") {
+  if (
+    (eventType === "app-route" && value !== "back_forward") ||
+    (eventType === "route-data" && value === "app-route")
+  ) {
     return "app-route";
   }
 
@@ -424,9 +427,7 @@ export async function POST(request: NextRequest) {
       void removedAdminUsers;
       void removedAuthRefreshed;
       void removedRouteEntered;
-      ({ error } = await supabase
-        .from("route_performance_events")
-        .insert(legacyPerformanceEvent));
+      ({ error } = await supabase.from("route_performance_events").insert(legacyPerformanceEvent));
     }
 
     if (

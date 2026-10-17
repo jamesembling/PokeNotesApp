@@ -72,3 +72,13 @@ npm run perf:probe
 ```
 
 The local probe separates HTML page routes from JSON APIs and reports payload/parse information where applicable. Localhost timings are useful for regression diagnosis, but they are not the production benchmark.
+
+### Route-data reporter cohorts
+
+Reporter version 9 scopes markers and durations to each navigation, including
+client history transitions. Use `reporter_version >= 9` for route-data analysis;
+older client-transition route-data samples can measure document age and must not
+be combined with this cohort. Keep hard loads, client transitions and history
+transitions separate. Marker timestamps earlier than the navigation start or
+belonging to another route are discarded. Clock-controlled local browser checks
+verify measurement semantics; they are not production latency benchmarks.

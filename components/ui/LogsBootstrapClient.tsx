@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
@@ -8,11 +8,11 @@ import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker
 import { LogsStats } from "@/components/ui/LogsStats";
 import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { LogsWorkspaceFrame } from "@/components/ui/LogsWorkspaceFrame";
-import {
-  LogsStatsSkeleton,
-  LogsWorkspaceSkeleton
-} from "@/components/ui/LogsWorkspaceSkeleton";
+import { LogsStatsSkeleton, LogsWorkspaceSkeleton } from "@/components/ui/LogsWorkspaceSkeleton";
 import type { BattleLogSummary } from "@/types/index";
+import { loadMoreLogsAction } from "@/app/(app)/logs/actions";
+import { LogsRefreshContext } from "@/components/ui/LogsRefreshContext";
+import { refreshLoadedLogsWindow } from "@/lib/client/logs-refresh";
 import { loadLogsBootstrap } from "@/lib/client/logs-bootstrap";
 
 type BootstrapDiagnostics = {
@@ -69,6 +69,39 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<BootstrapState>({ status: "loading" });
   const startedAttemptRef = useRef(-1);
+  const oldestLoadedLogRef = useRef<BattleLogSummary | null>(null);
+  const [refreshError, setRefreshError] = useState("");
+  const refresh = useCallback(async () => {
+    try {
+      const result = await loadLogsBootstrap(false);
+      if (!result.ok) {
+        if (result.status === 401) window.location.replace("/login");
+        throw new Error(
+          "Your change was saved, but battle logs could not be refreshed. Try again."
+        );
+      }
+      const payload = result.payload as BootstrapPayload;
+      const refreshedWindow = await refreshLoadedLogsWindow(
+        payload.window,
+        oldestLoadedLogRef.current,
+        loadMoreLogsAction
+      );
+      setState({
+        parsedAtMs: result.parsedAtMs,
+        payload: { ...payload, window: refreshedWindow },
+        status: "ready"
+      });
+      setRefreshError("");
+    } catch (error) {
+      setRefreshError(
+        error instanceof Error ? error.message : "Battle logs could not be refreshed."
+      );
+      throw error;
+    }
+  }, []);
+  const trackLoadedWindow = useCallback((oldestLog: BattleLogSummary | null) => {
+    oldestLoadedLogRef.current = oldestLog;
+  }, []);
 
   useLayoutEffect(() => {
     delete document.documentElement.dataset.logsBootstrapSettled;
@@ -132,40 +165,56 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
     );
 
   return (
-    <LogsWorkspaceFrame
-      isLoading={state.status !== "ready"}
-      performanceVariant={performanceVariant}
-      stats={stats}
-    >
-      {state.status === "loading" ? <LogsWorkspaceSkeleton /> : null}
-      {state.status === "error" ? (
-        <Card className="gap-4">
+    <LogsRefreshContext.Provider value={refresh}>
+      <LogsWorkspaceFrame
+        isLoading={state.status !== "ready"}
+        performanceVariant={performanceVariant}
+        stats={stats}
+      >
+        {refreshError ? (
           <Alert variant="destructive">
-            <AlertDescription>{state.message}</AlertDescription>
-          </Alert>
-          <div className="flex flex-wrap gap-3">
-            {state.unauthorized ? (
-              <Button asChild>
-                <a href="/login">Sign in</a>
+            <AlertDescription>
+              {refreshError}{" "}
+              <Button variant="outline" onClick={() => void refresh().catch(() => undefined)}>
+                Refresh logs
               </Button>
-            ) : (
-              <Button onClick={() => setAttempt((current) => current + 1)}>Try again</Button>
-            )}
-          </div>
-        </Card>
-      ) : null}
-      {state.status === "ready" ? (
-        <>
-          <BootstrapTimingMarkers
-            diagnostics={state.payload.diagnostics}
-            parsedAtMs={state.parsedAtMs}
-          />
-          <LogsWorkspaceClient stats={state.payload.stats} window={state.payload.window} />
-          <ClientRouteTimingMarker phase="route-content-visible" />
-          <ClientRouteTimingMarker phase="route-data-visible" />
-        </>
-      ) : null}
-    </LogsWorkspaceFrame>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {state.status === "loading" ? <LogsWorkspaceSkeleton /> : null}
+        {state.status === "error" ? (
+          <Card className="gap-4">
+            <Alert variant="destructive">
+              <AlertDescription>{state.message}</AlertDescription>
+            </Alert>
+            <div className="flex flex-wrap gap-3">
+              {state.unauthorized ? (
+                <Button asChild>
+                  <a href="/login">Sign in</a>
+                </Button>
+              ) : (
+                <Button onClick={() => setAttempt((current) => current + 1)}>Try again</Button>
+              )}
+            </div>
+          </Card>
+        ) : null}
+        {state.status === "ready" ? (
+          <>
+            <BootstrapTimingMarkers
+              diagnostics={state.payload.diagnostics}
+              parsedAtMs={state.parsedAtMs}
+            />
+            <LogsWorkspaceClient
+              stats={state.payload.stats}
+              window={state.payload.window}
+              onLoadedWindowChange={trackLoadedWindow}
+            />
+            <ClientRouteTimingMarker phase="route-content-visible" />
+            <ClientRouteTimingMarker phase="route-data-visible" />
+          </>
+        ) : null}
+      </LogsWorkspaceFrame>
+    </LogsRefreshContext.Provider>
   );
 }
 

@@ -95,7 +95,7 @@ test("last-known logs reject expired, malformed, or internally inconsistent snap
   );
 });
 
-test("last-known logs can be persisted, read, and cleared without browser globals", () => {
+test("last-known logs can be persisted, read, and cleared without browser globals", (t) => {
   const storage = memoryStorage();
   const input = {
     logs: [battleLog()],
@@ -109,4 +109,21 @@ test("last-known logs can be persisted, read, and cleared without browser global
 
   clearLastKnownLogsSnapshot(storage);
   assert.equal(readLastKnownLogsSnapshot(storage), null);
+
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  t.after(() => {
+    if (originalWindow) Object.defineProperty(globalThis, "window", originalWindow);
+    else Reflect.deleteProperty(globalThis, "window");
+  });
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      get localStorage() {
+        throw new Error("Storage denied");
+      }
+    }
+  });
+  assert.equal(readLastKnownLogsSnapshot(), null);
+  assert.doesNotThrow(() => writeLastKnownLogsSnapshot(input));
+  assert.doesNotThrow(() => clearLastKnownLogsSnapshot());
 });

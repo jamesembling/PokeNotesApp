@@ -299,6 +299,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
                     />
                     {!tournament.deckListSnapshot && tournament.linkedDeckListId && resolvedTournamentDeckList && "storage" in resolvedTournamentDeckList && resolvedTournamentDeckList.storage === "relational" ? (
                       <TournamentDeckListCaptureButton
+                        expectedUpdatedAt={tournament.updatedAt}
                         sourceDeckId={tournament.linkedDeckId ?? null}
                         sourceDeckListId={tournament.linkedDeckListId}
                         tournamentId={tournament.id}
@@ -317,6 +318,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
                       defaultCreatedBy={defaultCreatedBy}
                       defaultFormat={tournament.format}
                       defaultListName={resolvedTournamentDeckList.name}
+                      expectedUpdatedAt={tournament.updatedAt}
                       extraHiddenFields={
                         <>
                           <input name="tournamentId" type="hidden" value={tournament.id} />
@@ -341,6 +343,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
                       defaultCreatedBy={defaultCreatedBy}
                       defaultFormat={tournament.format}
                       defaultListName={tournamentDeckName}
+                      expectedUpdatedAt={tournament.updatedAt}
                       extraHiddenFields={
                         <input name="tournamentId" type="hidden" value={tournament.id} />
                       }

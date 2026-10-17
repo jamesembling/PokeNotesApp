@@ -325,6 +325,18 @@ async function verifyAvatarJourney(currentPage) {
   await currentPage.reload();
   await until(() => open.locator("img").evaluateAll(images => images.length === 1 && images[0].src.endsWith("/profile-icons/poke-ball-icon-blue.svg") && images[0].complete && images[0].naturalWidth > 0));
 
+  checkpoint("invalid avatar bytes are rejected without changing the saved picture");
+  for (const bytes of [Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>'), Buffer.from("not a PNG")]) {
+    const rejected = await currentPage.request.post(`${baseUrl}/api/profile/avatar`, {
+      headers: { origin: baseUrl },
+      multipart: { file: { name: "synthetic-invalid.png", mimeType: "image/png", buffer: bytes } }
+    });
+    assert.equal(rejected.status(), 400, "Declared PNG MIME must not allow SVG or malformed bytes.");
+    const profile = await db.from("profiles").select("avatar_path").eq("id", ownerUserId).single();
+    if (profile.error) throw profile.error;
+    assert.equal(profile.data.avatar_path, null, "Rejected uploads must preserve the saved preset.");
+  }
+
   checkpoint("custom avatar upload failure is visible and retry persists");
   const fixture = resolve(artifacts, "synthetic-avatar.png");
   await sharp({ create: { width: 24, height: 24, channels: 3, background: { r: 28, g: 91, b: 160 } } }).png().toFile(fixture);

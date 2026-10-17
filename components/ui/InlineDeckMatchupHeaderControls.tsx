@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { updateDeckMatchupHeaderAction } from "@/app/(app)/decks/actions";
+import { useMatchupViewedVersion } from "@/components/hooks/useMatchupViewedVersion";
 import { useCoalescedAutosave } from "@/components/hooks/useCoalescedAutosave";
 import { AppSelect } from "@/components/shadcn/app-select";
 import { Button } from "@/components/shadcn/button";
@@ -46,6 +47,7 @@ export function InlineDeckMatchupHeaderControls({
   const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const [headerState, setHeaderState] = useState<HeaderState>(() => buildHeaderState(matchup));
   const recordKeyRef = useRef(`${deckId}:${matchup.id}`);
+  const viewedVersionRef = useMatchupViewedVersion(matchup.updatedAt);
   const {
     errorMessage,
     queueSave: saveHeader,
@@ -57,12 +59,14 @@ export function InlineDeckMatchupHeaderControls({
     async save(nextState) {
       const formData = new FormData();
       formData.set("deckId", deckId);
+      formData.set("expectedUpdatedAt", viewedVersionRef.current);
       formData.set("matchupId", matchup.id);
       formData.set("format", String(nextState.format || "").trim() || defaultFormat);
       formData.set("goPreference", nextState.goPreference);
       formData.set("matchupFavor", nextState.matchupFavor);
 
-      await updateDeckMatchupHeaderAction(formData);
+      const result = await updateDeckMatchupHeaderAction(formData);
+      viewedVersionRef.current = result.updatedAt;
     }
   });
 
@@ -73,6 +77,7 @@ export function InlineDeckMatchupHeaderControls({
     }
 
     recordKeyRef.current = nextRecordKey;
+    viewedVersionRef.current = matchup.updatedAt;
     const nextState = buildHeaderState(matchup);
     setHeaderState(nextState);
     resetSavedValue(nextState);

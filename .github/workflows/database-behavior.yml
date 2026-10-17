@@ -139,6 +139,10 @@ jobs:
         if: steps.changes.outputs.relevant == 'true'
         run: timeout 10m npm run e2e:local:import -- --expired-session
 
+      - name: Verify social privacy and avatar upload journey
+        if: steps.changes.outputs.relevant == 'true'
+        run: timeout 10m npm run e2e:local:social
+
       - name: Upload redacted browser failure diagnostics
         if: failure() && steps.changes.outputs.relevant == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -20,15 +20,21 @@ type LogsWorkspaceClientProps = {
     wins: number;
   };
   window: LogsWindowPayload;
+  onLoadedWindowChange?: (oldestLog: BattleLogSummary | null) => void;
 };
 
-export function LogsWorkspaceClient({ stats, window }: LogsWorkspaceClientProps) {
+export function LogsWorkspaceClient({
+  stats,
+  window,
+  onLoadedWindowChange
+}: LogsWorkspaceClientProps) {
   useEffect(() => {
     writeLastKnownLogsSnapshot({ logs: window.logs, stats });
   }, [stats, window.logs]);
 
   return (
     <LogsManager
+      onLoadedWindowChange={onLoadedWindowChange}
       initialCanLoadMore={window.hasMore}
       initialLogs={window.logs}
       initialNextWindowEndDate={window.nextWindowEndDate}

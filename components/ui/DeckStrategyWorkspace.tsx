@@ -66,6 +66,7 @@ type StrategyDeck = Pick<
   | "id"
   | "resourcePlan"
   | "setupGoals"
+  | "updatedAt"
 >;
 
 type DeckStrategyWorkspaceProps = {
@@ -109,6 +110,7 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
   const initialState = useMemo(() => getInitialState(deck), [deck]);
   const [workspace, setWorkspace] = useState<StrategyWorkspaceState>(initialState);
   const workspaceRef = useRef(workspace);
+  const viewedVersionRef = useRef(deck.updatedAt);
   const quickCaptureRef = useRef<HTMLInputElement | null>(null);
   const [quickCategory, setQuickCategory] = useState<StrategyCategory>("unsorted");
   const [quickNote, setQuickNote] = useState("");
@@ -141,12 +143,14 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
     async save(nextState) {
       const formData = new FormData();
       formData.set("deckId", deck.id);
+      formData.set("expectedUpdatedAt", viewedVersionRef.current);
       formData.set("goPreference", nextState.goPreference);
       formData.set("coreStrategy", serializeStrategyNotes(nextState.lanes.gamePlan));
       formData.set("setupGoals", serializeStrategyNotes(nextState.lanes.benchPlan));
       formData.set("resourcePlan", serializeStrategyNotes(nextState.lanes.tech));
       formData.set("generalNotes", serializeStrategyNotes(nextState.lanes.unsorted));
-      await updateDeckStrategyAction(formData);
+      const result = await updateDeckStrategyAction(formData);
+      viewedVersionRef.current = result.updatedAt;
     }
   });
 

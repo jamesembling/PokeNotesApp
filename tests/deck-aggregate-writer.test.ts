@@ -141,6 +141,7 @@ function updateMatchupCommand(
 ): UpdateDeckMatchupCommand {
   return {
     ...createMatchupCommand({ matchupId: "matchup-existing" }),
+    expectedUpdatedAt: "2026-07-10T12:00:00.000Z",
     matchupPlan: "  Preserve plan whitespace  ",
     ...overrides
   };
@@ -543,6 +544,7 @@ test("matchup plan autosaves preserve header fields outside the plan patch", asy
   const harness = createHarness({ matchups: [existing] });
 
   await harness.writer.updateMatchupFields({
+    expectedUpdatedAt: "2026-07-10T12:00:00.000Z",
     deckId: "deck-2",
     fields: {
       idealBench: "New bench",
@@ -579,6 +581,7 @@ test("matchup header autosaves preserve the newest planning fields", async () =>
   const harness = createHarness({ matchups: [existing] });
 
   await harness.writer.updateMatchupFields({
+    expectedUpdatedAt: "2026-07-10T12:00:00.000Z",
     deckId: "deck-2",
     fields: {
       format: "Expanded",
@@ -598,63 +601,47 @@ test("matchup header autosaves preserve the newest planning fields", async () =>
   });
 });
 
-test("a stale planning-field patch reloads before retrying", async () => {
-  const initial = {
+test("stale Matchup lane edits retain the viewed version and never retry over a newer save", async () => {
+  const viewedVersion = "2026-07-10T12:00:00.000Z";
+  const savedByTabA = {
     id: "matchup-existing",
     deckName: "Charizard",
-    deckPokemon: ["charizard", "pidgeot"],
+    deckPokemon: ["charizard"],
     format: "SVI-ASC",
     goPreference: "First",
     matchupFavor: "Even",
-    idealBench: "Old bench",
-    techsNeeded: "Old tech",
-    matchupPlan: "Old plan",
-    updatedAt: "2026-07-10T12:00:00.000Z"
-  };
-  const afterHeaderCommit = {
-    ...initial,
-    format: "Expanded",
-    goPreference: "Second",
-    matchupFavor: "Slightly Favoured",
+    idealBench: "Original bench",
+    techsNeeded: "Original tech",
+    matchupPlan: "Note saved by tab A",
     updatedAt: "2026-07-11T17:59:00.000Z"
   };
-  const harness = createHarness({
-    commitResults: ["conflict", "committed"],
-    matchupReads: [[initial], [afterHeaderCommit]]
-  });
-
-  await harness.writer.updateMatchupFields({
-    deckId: "deck-2",
-    fields: {
-      idealBench: "New bench",
-      matchupPlan: "New plan",
-      techsNeeded: "New tech"
-    },
-    matchupId: "matchup-existing",
-    scope: "plan"
-  });
-
-  assert.deepEqual(harness.calls, [
-    "load:matchup:deck-2",
-    "commit:matchup:update",
-    "load:matchup:deck-2",
-    "commit:matchup:update"
-  ]);
-  assert.equal(
-    harness.commitPlans[0]?.expectedChildUpdatedAt,
-    "2026-07-10T12:00:00.000Z"
-  );
-  assert.deepEqual(harness.commitPlans[1]?.child, {
-    ...afterHeaderCommit,
-    idealBench: "New bench",
-    matchupPlan: "New plan",
-    techsNeeded: "New tech",
-    updatedAt: NOW
-  });
-  assert.equal(
-    harness.commitPlans[1]?.expectedChildUpdatedAt,
-    "2026-07-11T17:59:00.000Z"
-  );
+  // Different-lane and same-lane edits both submit a full planning state from tab B.
+  for (const fields of [
+    { idealBench: "Tab B bench", techsNeeded: "Original tech", matchupPlan: "Original plan" },
+    { idealBench: "Original bench", techsNeeded: "Original tech", matchupPlan: "Tab B plan" }
+  ]) {
+    const harness = createHarness({ matchups: [savedByTabA], commitResults: ["conflict", "committed"] });
+    await assert.rejects(harness.writer.updateMatchupFields({
+      deckId: "deck-2",
+      matchupId: "matchup-existing",
+      expectedUpdatedAt: viewedVersion,
+      scope: "plan",
+      fields
+    }), /changed in another tab/);
+    assert.deepEqual(harness.calls, ["load:matchup:deck-2", "commit:matchup:update"]);
+    assert.equal(harness.commitPlans[0].expectedChildUpdatedAt, viewedVersion);
+    assert.equal(savedByTabA.matchupPlan, "Note saved by tab A");
+    assert.deepEqual(fields, harness.commitPlans[0].child && {
+      idealBench: harness.commitPlans[0].child.idealBench,
+      techsNeeded: harness.commitPlans[0].child.techsNeeded,
+      matchupPlan: harness.commitPlans[0].child.matchupPlan
+    });
+  }
+  for (const expectedUpdatedAt of ["", "invalid-date"]) {
+    const harness = createHarness({ matchups: [savedByTabA] });
+    await assert.rejects(harness.writer.updateMatchup(updateMatchupCommand({ expectedUpdatedAt })), /Refresh this Matchup/);
+    assert.deepEqual(harness.calls, []);
+  }
 });
 
 test("a full matchup edit fails closed instead of reapplying stale fields after conflict", async () => {

@@ -54,14 +54,17 @@ export function LogsWorkspaceFrame({
       <ClientRouteTimingMarker phase="route-shell-visible" />
       <PageHeader
         action={
-          !isLoading ? <PageActions className="hidden sm:flex">
-            <Button
-              className="w-full justify-center sm:w-auto sm:self-start sm:min-w-[5.5rem]"
-              onClick={toggleManagementMode}
-            >
-              {isManagementMode ? "Done" : "Edit logs"}
-            </Button>
-          </PageActions> : null
+          !isLoading ? (
+            <PageActions className="hidden sm:flex">
+              <Button
+                className="w-full justify-center sm:w-auto sm:self-start sm:min-w-[5.5rem]"
+                aria-pressed={isManagementMode}
+                onClick={toggleManagementMode}
+              >
+                {isManagementMode ? "Done" : "Edit logs"}
+              </Button>
+            </PageActions>
+          ) : null
         }
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Battle Logs" }]}
         meta={stats}
@@ -70,6 +73,13 @@ export function LogsWorkspaceFrame({
 
       {!isLoading ? (
         <PageActions className="sm:hidden" mobile="stack">
+          <Button
+            aria-pressed={isManagementMode}
+            className="min-h-11 w-full justify-center"
+            onClick={toggleManagementMode}
+          >
+            {isManagementMode ? "Done" : "Edit logs"}
+          </Button>
           <LazyImportLogButton className="w-full justify-center" />
         </PageActions>
       ) : null}

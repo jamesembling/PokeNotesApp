@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  use,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState
-} from "react";
+import { createContext, use, useCallback, useEffect, useMemo, useState } from "react";
 
 type Theme = "light" | "dark";
 
@@ -29,7 +22,11 @@ function applyTheme(theme: Theme) {
 }
 
 function persistTheme(theme: Theme) {
-  window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // Theme changes remain usable when browser storage is denied.
+  }
   document.cookie = `${THEME_COOKIE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`;
 }
 
@@ -52,7 +49,12 @@ export function ThemeProvider({
   const [theme, setTheme] = useState<Theme>(initialTheme);
 
   useEffect(() => {
-    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    let storedTheme: string | null = null;
+    try {
+      storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    } catch {
+      // Keep the system/server preference when browser storage is denied.
+    }
     const nextTheme: Theme =
       storedTheme === "dark" || storedTheme === "light"
         ? storedTheme

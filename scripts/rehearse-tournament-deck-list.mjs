@@ -19,6 +19,19 @@ if (!["localhost", "127.0.0.1"].includes(parsedUrl.hostname) || parsedUrl.port !
 const service = createClient(url, serviceKey);
 const users = [];
 const tournaments = [];
+const generationId = crypto.randomUUID();
+let previousGeneration;
+const trainerFixtures = [
+  { name: "Boss's Orders", count: 1, type: "Supporter" },
+  { name: "Ultra Ball", count: 2, type: "Item" },
+  { name: "Air Balloon", count: 3, type: "Tool" },
+  { name: "Festival Grounds", count: 4, type: "Stadium" }
+];
+const trainerCards = trainerFixtures.map(({ name, count }) => ({
+  name,
+  count,
+  category: "Trainer"
+}));
 
 async function makeUser(label) {
   const email = `tournament-rehearsal-${label}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}@example.test`;
@@ -79,6 +92,69 @@ const metadataTournamentId = crypto.randomUUID();
 tournaments.push(metadataTournamentId);
 
 try {
+  const previous = await service
+    .from("card_definition_active")
+    .select("generation_id")
+    .maybeSingle();
+  if (previous.error) throw previous.error;
+  previousGeneration = previous.data?.generation_id;
+  const generation = await service.from("card_definition_generations").insert({
+    id: generationId,
+    source: "tcgdex",
+    expected_count: trainerFixtures.length,
+    source_manifest_hash: "synthetic-tournament-ordering",
+    source_coverage: {
+      scope: "tcgdex-listed-en-physical",
+      listedPrintings: trainerFixtures.length,
+      unlistedSets: []
+    }
+  });
+  if (generation.error) throw generation.error;
+  const definitions = await service.from("card_definition_catalog").insert(
+    trainerFixtures.map((card, index) => ({
+      generation_id: generationId,
+      source_card_id: `synthetic-trainer-${index}`,
+      normalized_card_name: card.name.toLowerCase(),
+      definition: {
+        sourceCardId: `synthetic-trainer-${index}`,
+        name: card.name,
+        category: "Trainer",
+        trainerType: card.type
+      }
+    }))
+  );
+  if (definitions.error) throw definitions.error;
+  const complete = await service
+    .from("card_definition_generations")
+    .update({ completed_at: new Date().toISOString() })
+    .eq("id", generationId);
+  if (complete.error) throw complete.error;
+  const activate = await service
+    .from("card_definition_active")
+    .upsert({ singleton: true, generation_id: generationId });
+  if (activate.error) throw activate.error;
+
+  const trusted = await primary.client.rpc("canonicalize_deck_list_cards", {
+    p_cards: [...trainerCards].reverse().map((card) => ({ ...card, trainerType: "Item" }))
+  });
+  if (
+    trusted.error ||
+    JSON.stringify(trusted.data.map((card) => card.name)) !==
+      JSON.stringify(trainerFixtures.map((card) => card.name))
+  ) {
+    throw (
+      trusted.error ||
+      new Error(
+        "Trusted subtype ordering did not override deliberately false caller evidence and conflicting counts."
+      )
+    );
+  }
+  const missing = await primary.client.rpc("canonicalize_deck_list_cards", {
+    p_cards: [{ name: "Missing Trainer", count: 1, category: "Trainer", trainerType: "Supporter" }]
+  });
+  if (!missing.error || missing.error.code !== "22023")
+    throw new Error("Missing trusted Trainer metadata was certified as current ordering.");
+
   const requestId = crypto.randomUUID();
   const payload = {
     id: requestId,
@@ -158,15 +234,16 @@ try {
     date: "2026-09-19",
     createdBy: "Fixture",
     notes: "source",
-    rawList: "4 Mew ex\n4 Boss's Orders\n8 Basic Fire Energy",
+    rawList:
+      "4 Mew ex\n1 Boss's Orders\n2 Ultra Ball\n3 Air Balloon\n4 Festival Grounds\n8 Basic Fire Energy",
     parsedCards: [
       { name: "Basic Fire Energy", count: 8, category: "Energy" },
-      { name: "Boss's Orders", count: 4, category: "Trainer", trainerType: "Supporter" },
+      ...[...trainerCards].reverse(),
       { name: "Mew ex", count: 4, category: "Pokemon" }
     ],
     sortedCards: [
       { name: "Basic Fire Energy", count: 8, category: "Energy" },
-      { name: "Boss's Orders", count: 4, category: "Trainer", trainerType: "Supporter" },
+      ...[...trainerCards].reverse(),
       { name: "Mew ex", count: 4, category: "Pokemon" }
     ],
     sortedCardsVersion: 1
@@ -208,16 +285,36 @@ try {
       coreStrategy: "Changed strategy"
     }
   });
-  if (!strategyConflict.error || strategyConflict.error.code !== "23505") throw strategyConflict.error || new Error("Strategy creation identity accepted a conflicting payload.");
-  const strategyMirror = await assertOne(service.from("decks").select("deck_lists").eq("id", strategyArgs.p_deck_id), "Strategy mirror was not persisted.");
+  if (!strategyConflict.error || strategyConflict.error.code !== "23505")
+    throw (
+      strategyConflict.error ||
+      new Error("Strategy creation identity accepted a conflicting payload.")
+    );
+  const strategyMirror = await assertOne(
+    service.from("decks").select("deck_lists").eq("id", strategyArgs.p_deck_id),
+    "Strategy mirror was not persisted."
+  );
   if (
-    strategyMirror.deck_lists?.[0]?.sortedCardsVersion !== 2
-    || strategyMirror.deck_lists?.[0]?.sortedCards?.[0]?.name !== "Mew ex"
-  ) throw new Error("Strategy legacy mirror did not persist rebuilt canonical ordering.");
-  const linkedSource = await assertOne(service.from("deck_lists").select("deck_id,updated_at").eq("id", sourceListId), "Strategy did not claim source list.");
-  if (linkedSource.deck_id !== strategyArgs.p_deck_id) throw new Error("Strategy-from-list did not associate the existing list.");
-  const strategyCountAfterConflict = await service.from("decks").select("id", { count: "exact", head: true }).eq("id", strategyArgs.p_deck_id).eq("user_id", primary.id);
-  if (strategyCountAfterConflict.error || strategyCountAfterConflict.count !== 1) throw strategyCountAfterConflict.error || new Error("Conflicting Strategy replay changed the existing Strategy count.");
+    strategyMirror.deck_lists?.[0]?.sortedCardsVersion !== 2 ||
+    strategyMirror.deck_lists?.[0]?.sortedCards?.[0]?.name !== "Mew ex"
+  )
+    throw new Error("Strategy legacy mirror did not persist rebuilt canonical ordering.");
+  const linkedSource = await assertOne(
+    service.from("deck_lists").select("deck_id,updated_at").eq("id", sourceListId),
+    "Strategy did not claim source list."
+  );
+  if (linkedSource.deck_id !== strategyArgs.p_deck_id)
+    throw new Error("Strategy-from-list did not associate the existing list.");
+  const strategyCountAfterConflict = await service
+    .from("decks")
+    .select("id", { count: "exact", head: true })
+    .eq("id", strategyArgs.p_deck_id)
+    .eq("user_id", primary.id);
+  if (strategyCountAfterConflict.error || strategyCountAfterConflict.count !== 1)
+    throw (
+      strategyCountAfterConflict.error ||
+      new Error("Conflicting Strategy replay changed the existing Strategy count.")
+    );
   const sourceCapture = await primary.client.rpc("commit_tournament_deck_list", {
     p_tournament_id: sourceTournamentId,
     p_request_id: crypto.randomUUID(),
@@ -244,17 +341,46 @@ try {
     p_create_deck_list: false
   });
   if (sourceCapture.error) throw sourceCapture.error;
-  const sourceSnapshot = await assertOne(service.from("tournament_deck_list_snapshots").select("source_deck_list_id,raw_list").eq("tournament_id", sourceTournamentId), "Existing source snapshot was not captured.");
-  if (sourceSnapshot.source_deck_list_id !== sourceListId || sourceSnapshot.raw_list !== sourcePayload.rawList) throw new Error("Existing source capture was incomplete.");
-  const sourceTournament = await assertOne(service.from("tournaments").select("linked_deck_id,linked_deck_list_id").eq("id", sourceTournamentId), "Source Tournament was not retained.");
-  if (sourceTournament.linked_deck_id !== null || sourceTournament.linked_deck_list_id !== sourceListId) throw new Error("Existing source capture overwrote the independent Tournament Strategy link.");
-  const sourceSnapshotCards = await assertOne(service.from("tournament_deck_list_snapshots").select("sorted_cards,sorted_cards_version").eq("tournament_id", sourceTournamentId), "Source ordering snapshot was not persisted.");
+  const sourceSnapshot = await assertOne(
+    service
+      .from("tournament_deck_list_snapshots")
+      .select("source_deck_list_id,raw_list")
+      .eq("tournament_id", sourceTournamentId),
+    "Existing source snapshot was not captured."
+  );
   if (
-    sourceSnapshotCards.sorted_cards_version !== 2
-    || sourceSnapshotCards.sorted_cards[0]?.name !== "Mew ex"
-    || sourceSnapshotCards.sorted_cards[1]?.name !== "Boss's Orders"
-    || sourceSnapshotCards.sorted_cards[2]?.category !== "Energy"
-  ) throw new Error("Existing source capture did not persist rebuilt canonical ordering.");
+    sourceSnapshot.source_deck_list_id !== sourceListId ||
+    sourceSnapshot.raw_list !== sourcePayload.rawList
+  )
+    throw new Error("Existing source capture was incomplete.");
+  const sourceTournament = await assertOne(
+    service
+      .from("tournaments")
+      .select("linked_deck_id,linked_deck_list_id")
+      .eq("id", sourceTournamentId),
+    "Source Tournament was not retained."
+  );
+  if (
+    sourceTournament.linked_deck_id !== null ||
+    sourceTournament.linked_deck_list_id !== sourceListId
+  )
+    throw new Error("Existing source capture overwrote the independent Tournament Strategy link.");
+  const sourceSnapshotCards = await assertOne(
+    service
+      .from("tournament_deck_list_snapshots")
+      .select("sorted_cards,sorted_cards_version")
+      .eq("tournament_id", sourceTournamentId),
+    "Source ordering snapshot was not persisted."
+  );
+  if (
+    sourceSnapshotCards.sorted_cards_version !== 2 ||
+    sourceSnapshotCards.sorted_cards[0]?.name !== "Mew ex" ||
+    sourceSnapshotCards.sorted_cards[1]?.name !== "Boss's Orders" ||
+    JSON.stringify(sourceSnapshotCards.sorted_cards.slice(1, 5).map((card) => card.name)) !==
+      JSON.stringify(trainerFixtures.map((card) => card.name)) ||
+    sourceSnapshotCards.sorted_cards[5]?.category !== "Energy"
+  )
+    throw new Error("Existing source capture did not persist rebuilt canonical ordering.");
   const sourceRemove = await primary.client.rpc("remove_tournament_deck_list", {
     p_tournament_id: sourceTournamentId,
     p_expected_tournament_updated_at: await tournamentVersion(sourceTournamentId),
@@ -432,7 +558,11 @@ try {
     p_request_id: metadataTournamentId,
     p_payload: metadataPayload
   });
-  if (metadataAfterDeleteReplay.error || metadataAfterDeleteReplay.data.status !== "idempotent") throw metadataAfterDeleteReplay.error || new Error("Metadata identity was lost after Tournament deletion.");
+  if (metadataAfterDeleteReplay.error || metadataAfterDeleteReplay.data.status !== "idempotent")
+    throw (
+      metadataAfterDeleteReplay.error ||
+      new Error("Metadata identity was lost after Tournament deletion.")
+    );
 
   const linkedMetadataId = crypto.randomUUID();
   tournaments.push(linkedMetadataId);
@@ -452,10 +582,24 @@ try {
     p_request_id: linkedMetadataId,
     p_payload: linkedMetadataPayload
   });
-  if (linkedMetadataReplay.error || linkedMetadataReplay.data.status !== "idempotent") throw linkedMetadataReplay.error || new Error("Linked metadata replay was blocked after linked-record deletion.");
+  if (linkedMetadataReplay.error || linkedMetadataReplay.data.status !== "idempotent")
+    throw (
+      linkedMetadataReplay.error ||
+      new Error("Linked metadata replay was blocked after linked-record deletion.")
+    );
 
   console.log("Tournament Deck List rehearsal passed: standalone replay/conflict, replace/remove history, existing source capture and Strategy independence, stale rollback, round replay/CAS/concurrency, metadata delete-replay, RLS isolation, and cascade.");
 } finally {
+  if (previousGeneration) {
+    const restore = await service
+      .from("card_definition_active")
+      .upsert({ singleton: true, generation_id: previousGeneration });
+    if (restore.error) throw restore.error;
+  } else {
+    await service.from("card_definition_active").delete().eq("generation_id", generationId);
+  }
+  const cleanup = await service.from("card_definition_generations").delete().eq("id", generationId);
+  if (cleanup.error) throw cleanup.error;
   for (const id of tournaments) await service.from("tournaments").delete().eq("id", id);
   for (const id of users) await service.auth.admin.deleteUser(id);
 }

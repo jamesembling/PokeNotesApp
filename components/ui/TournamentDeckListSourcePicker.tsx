@@ -38,6 +38,7 @@ export function TournamentDeckListSourcePicker({
     setError("");
     const formData = new FormData();
     formData.set("tournamentId", tournamentId);
+    formData.set("expectedUpdatedAt", expectedUpdatedAt);
     formData.set("sourceDeckId", selected.deckId ?? "");
     formData.set("sourceDeckListId", selected.id);
     formData.set("associateStrategy", "false");

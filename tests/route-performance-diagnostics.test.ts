@@ -4,6 +4,8 @@ import {
   APP_ROUTE_MAX_OBSERVATION_MS,
   APP_ROUTE_MIN_OBSERVATION_MS,
   getNavigationReportDecision,
+  getRouteDataTiming,
+  routeTimingSince,
   isTrackedPerformancePath
 } from "@/lib/performance/route-performance";
 
@@ -40,6 +42,31 @@ test("navigation report decisions wait for bounded observation and quiet windows
     startedAt: 0
   });
   assert.equal(bounded.shouldReport, true);
+
+  // The same 195ms route in a twenty-minute-old tab must stay a 195ms route.
+  assert.deepEqual(
+    getRouteDataTiming({
+      startedAt: 1_200_000,
+      measuredAt: 1_200_300,
+      paintedAt: 1_200_195,
+      parsedAt: 120
+    }),
+    { durationMs: 195, paintedMs: 195, parsedMs: null }
+  );
+  assert.equal(
+    getRouteDataTiming({ startedAt: 0, measuredAt: 300, paintedAt: 195, parsedAt: 120 }).durationMs,
+    195
+  );
+  assert.equal(
+    getRouteDataTiming({
+      startedAt: 1_200_000,
+      measuredAt: 1_200_300,
+      paintedAt: 195,
+      parsedAt: 120
+    }).durationMs,
+    300
+  );
+  assert.equal(routeTimingSince(195, 1_200_000), null);
 });
 
 test("navigation report path allowlist covers product surfaces only", () => {
@@ -54,6 +81,9 @@ test("navigation report path allowlist covers product surfaces only", () => {
     "/stats",
     "/calculator",
     "/profile",
+    "/friends",
+    "/players/123",
+    "/replays/123",
     "/admin/dashboard"
   ]) {
     assert.equal(isTrackedPerformancePath(path), true, path);

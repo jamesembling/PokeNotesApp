@@ -34,6 +34,7 @@ export type DeckListEditorDialogProps = {
   defaultFormat?: string;
   defaultCreatedBy: string;
   extraHiddenFields?: ReactNode;
+  expectedUpdatedAt?: string;
   initialOpen?: boolean;
   saveAction?: (formData: FormData) => Promise<DeckListSaveActionResult>;
   simplePasteMode?: boolean;
@@ -99,6 +100,7 @@ export function DeckListEditorDialog({
   defaultFormat,
   defaultCreatedBy,
   extraHiddenFields,
+  expectedUpdatedAt,
   initialOpen = false,
   saveAction = saveDeckListAction,
   simplePasteMode = false,
@@ -128,6 +130,7 @@ export function DeckListEditorDialog({
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const viewedVersionRef = useRef(expectedUpdatedAt);
 
   const interpretation = useMemo(() => interpretDeckList(rawList), [rawList]);
   const summary = interpretation.summary;
@@ -191,6 +194,7 @@ export function DeckListEditorDialog({
   }
 
   function openDialog() {
+    viewedVersionRef.current = expectedUpdatedAt;
     clearCloseTimer();
     clearNavigationTimer();
     setSaveError("");
@@ -230,6 +234,9 @@ export function DeckListEditorDialog({
 
     setSaveError("");
     setSaveState("saving");
+    if (viewedVersionRef.current !== undefined) {
+      formData.set("expectedUpdatedAt", viewedVersionRef.current);
+    }
 
     try {
       const result = await saveAction(formData);

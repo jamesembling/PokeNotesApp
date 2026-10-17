@@ -51,6 +51,50 @@ test("buildStats counts Mirage Barrage damage listed in action details", () => {
 
   assert.equal(stats.selfAttackDamage, 240);
   assert.equal(stats.opponentAttackDamage, 0);
+
+  // Real PTCGL appendix: the breakdown precedes the nested Festival Lead attack.
+  const sections = divideIntoSections({
+    language: "en",
+    playerNames: ["Self", "Opponent"],
+    getPrizesTakenFromLine,
+    isPrizeTakenLine,
+    lines: [
+      "Turn # 1 - Self's Turn",
+      "Opponent's Dipplin used Festival Lead.",
+      "- Damage breakdown:",
+      "• 5 Benched Pokémon: 100 damage",
+      "- Opponent's Dipplin used Do the Wave on Self's Munkidori for 100 damage.",
+      "- Opponent chose Do the Wave"
+    ]
+  });
+  assert.equal(sections[0]?.actions[0]?.title, "Opponent's Dipplin used Festival Lead.");
+  const nested = buildStats({
+    lines: [". Self wins."],
+    sections,
+    language: "en",
+    selfPlayerName: "Self",
+    opponentPlayerName: "Opponent"
+  });
+  assert.equal(nested.selfAttackDamage, 0);
+  assert.equal(nested.opponentAttackDamage, 100, "the recorded actor wins over the enclosing turn");
+
+  const attack = "Self's Dipplin used Do the Wave on Opponent's Munkidori for 100 damage.";
+  const duplicated = buildStats({
+    lines: [". Self wins."],
+    language: "en",
+    selfPlayerName: "Self",
+    opponentPlayerName: "Opponent",
+    sections: buildSections([
+      [{ title: attack, details: [`- ${attack}`, "• 5 Benched Pokémon: 100 damage"] }],
+      []
+    ])
+  });
+  assert.equal(duplicated.selfAttackDamage, 100, "a repeated nested attack record counts once");
+  const repeated = buildStats({
+    lines: [". Self wins."], language: "en", selfPlayerName: "Self", opponentPlayerName: "Opponent",
+    sections: buildSections([[{ title: "Self's Dipplin used Festival Lead.", details: [`- ${attack}`, `- ${attack}`] }], []])
+  });
+  assert.equal(repeated.selfAttackDamage, 200, "two recorded Festival Lead attacks remain two attacks");
 });
 
 test("buildStats adds Mirage Barrage title damage and benched damage details", () => {
