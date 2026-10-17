@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(76);
+select plan(82);
 
 -- These records are deliberately valid and visible to B before testing A.
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
@@ -226,6 +226,13 @@ select results_eq(
   $$select id from public.get_active_log_share('not-a-real-share-token')$$,
   array[]::text[], 'Invalid share token reveals no row'
 );
+
+reset role;
+-- Command ledgers hold replay identities; only the security-definer RPCs may touch them.
+select table_privs_are('public', ledger, client_role, array[]::text[],
+  client_role || ' has no direct privileges on ' || ledger)
+from unnest(array['tournament_deck_list_commands', 'tournament_metadata_commands', 'deck_strategy_commands']) as ledger
+cross join unnest(array['anon', 'authenticated']) as client_role;
 
 reset role;
 set local role service_role;

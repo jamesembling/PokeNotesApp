@@ -1,23 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useRef, type MutableRefObject, type ReactNode } from "react";
+import { createContext, useContext, useRef, type ReactNode } from "react";
+import { createSerialVersionChannel, type SerialVersionChannel } from "@/lib/client/coalesced-save-queue";
 
-type MatchupWriteChannel = {
-  pendingWrite: MutableRefObject<Promise<void>>;
-  version: MutableRefObject<string>;
-};
-
-/** A Matchup write receives the version it must match and resolves to the version it committed. */
-type MatchupWrite = (expectedVersion: string) => Promise<string>;
-
-const MatchupViewedVersionContext = createContext<MatchupWriteChannel | null>(null);
-
-function createMatchupWriteChannel(initialVersion: string): MatchupWriteChannel {
-  return {
-    pendingWrite: { current: Promise.resolve() },
-    version: { current: initialVersion }
-  };
-}
+const MatchupViewedVersionContext = createContext<SerialVersionChannel | null>(null);
 
 /**
  * Header and note editors share only versions acknowledged by this page's own saves,
@@ -30,9 +16,9 @@ export function MatchupViewedVersionProvider({
   children: ReactNode;
   initialVersion: string;
 }) {
-  const channel = useRef<MatchupWriteChannel | null>(null);
+  const channel = useRef<SerialVersionChannel | null>(null);
   if (channel.current === null) {
-    channel.current = createMatchupWriteChannel(initialVersion);
+    channel.current = createSerialVersionChannel(initialVersion);
   }
   return (
     <MatchupViewedVersionContext.Provider value={channel.current}>
@@ -43,22 +29,10 @@ export function MatchupViewedVersionProvider({
 
 export function useMatchupViewedVersion(initialVersion: string) {
   const sharedChannel = useContext(MatchupViewedVersionContext);
-  const localChannel = useRef<MatchupWriteChannel | null>(null);
+  const localChannel = useRef<SerialVersionChannel | null>(null);
   if (sharedChannel === null && localChannel.current === null) {
-    localChannel.current = createMatchupWriteChannel(initialVersion);
+    localChannel.current = createSerialVersionChannel(initialVersion);
   }
   const channel = sharedChannel ?? localChannel.current!;
-
-  const commitSerially = useCallback(
-    (write: MatchupWrite) => {
-      const commit = channel.pendingWrite.current.then(async () => {
-        channel.version.current = await write(channel.version.current);
-      });
-      channel.pendingWrite.current = commit.catch(() => undefined);
-      return commit;
-    },
-    [channel]
-  );
-
-  return { commitSerially, viewedVersionRef: channel.version };
+  return { commitSerially: channel.commit, viewedVersionRef: channel.version };
 }

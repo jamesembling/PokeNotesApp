@@ -157,3 +157,28 @@ export function createCoalescedSaveQueue<T>({
     }
   };
 }
+
+/** A versioned write receives the version it must match and resolves to the version it committed. */
+export type VersionedWrite = (expectedVersion: string) => Promise<string>;
+
+export type SerialVersionChannel = {
+  commit(write: VersionedWrite): Promise<void>;
+  version: { current: string };
+};
+
+/** Editors sharing one record version commit one at a time, each against the latest committed version. */
+export function createSerialVersionChannel(initialVersion: string): SerialVersionChannel {
+  const version = { current: initialVersion };
+  let pendingWrite: Promise<void> = Promise.resolve();
+
+  return {
+    commit(write) {
+      const commit = pendingWrite.then(async () => {
+        version.current = await write(version.current);
+      });
+      pendingWrite = commit.catch(() => undefined);
+      return commit;
+    },
+    version
+  };
+}

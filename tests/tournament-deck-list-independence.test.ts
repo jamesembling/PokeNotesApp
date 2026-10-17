@@ -5,7 +5,7 @@ import {
   saveTournamentDeckListAtomically,
   saveTournamentDeckListForTournament
 } from "@/lib/tournaments/deck-list-workflow";
-import { getTournamentRoundCreationIdentity } from "@/lib/tournaments/round-workflow";
+import { commitNewTournamentRound } from "@/lib/tournaments/round-workflow";
 
 test("Tournament detail displays a standalone Deck List after its Strategy is deleted", async () => {
   const calls: Array<{ deckId: string | null; deckListId: string; userId: string }> = [];
@@ -146,18 +146,36 @@ test("replaying the same Tournament Deck List FormData keeps the action payload 
   assert.deepEqual(withoutVolatileFields(commits[0]), withoutVolatileFields(commits[1]));
 });
 
-test("replaying the same Tournament Round FormData uses one stable creation identity", () => {
+test("replaying the same Tournament Round FormData commits once through the idempotent round RPC", async () => {
   const formData = new FormData();
   formData.set("creationKey", "round-attempt-1");
+  const rpcCalls: Array<[string, Record<string, unknown>]> = [];
+  const statuses = ["committed", "idempotent", "unexpected"];
+  const supabase = {
+    async rpc(name: string, args: Record<string, unknown>) {
+      rpcCalls.push([name, args]);
+      return { data: { status: statuses[rpcCalls.length - 1] }, error: null };
+    },
+    from(table: string) {
+      throw new Error(`Unexpected direct table write: ${table}`);
+    }
+  } as unknown as Parameters<typeof commitNewTournamentRound>[0]["supabase"];
+  const commit = () =>
+    commitNewTournamentRound({
+      formData,
+      mapError: (error) => new Error(error.message),
+      round: { notes: "Close game", opponentDeckName: "", opponentDeckSprites: ["mew-ex"], result: "Win" },
+      supabase,
+      tournamentId: "tournament-1"
+    });
 
-  assert.deepEqual(getTournamentRoundCreationIdentity(formData), {
-    creationKey: "round-attempt-1",
-    roundId: "round-attempt-1"
-  });
-  assert.deepEqual(getTournamentRoundCreationIdentity(formData), {
-    creationKey: "round-attempt-1",
-    roundId: "round-attempt-1"
-  });
+  assert.equal(await commit(), "committed");
+  assert.equal(await commit(), "idempotent");
+  await assert.rejects(commit(), /unexpected result/);
+  assert.deepEqual(new Set(rpcCalls.map(([name]) => name)), new Set(["create_tournament_round_idempotent"]));
+  assert.deepEqual(new Set(rpcCalls.map(([, args]) => `${args.p_creation_key}:${args.p_round_id}`)), new Set([
+    "round-attempt-1:round-attempt-1"
+  ]));
 });
 
 test("existing-list capture rejects legacy-only identities and carries rebuilt ordering without changing Strategy links", async () => {

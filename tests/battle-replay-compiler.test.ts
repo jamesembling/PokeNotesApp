@@ -954,7 +954,9 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   assert.equal(twins.frames[6].self.active?.abilityUsed, true, "the explicit Ability itself remains evidenced");
   assert.deepEqual(twins.frames[6].self.active?.energy, []);
   assert.deepEqual(twins.frames[6].self.knownHand.map((card) => card.name), ["Supply"], "a later independent draw survives an unsupported attachment detail");
+});
 
+test("bare copies with different histories stay indistinguishable", () => {
   // The first copy has passed through Active and a turn reset; the second
   // arrived later. Those histories do not distinguish their present bare state.
   const interchangeable = compileBattleReplay(source([
@@ -981,7 +983,9 @@ test("unsupported details and ambiguous targets preserve evidence and expose unc
   ]));
   assert.deepEqual(timedEvolution.diagnostics.unresolvedActions, [], "normal evolution timing identifies the older eligible physical copy");
   assert.deepEqual(timedEvolution.frames[7].self.bench.map((card) => ({ name: card.name, energy: card.energy })), [{ name: "Drakloak", energy: ["Psychic"] }, { name: "Dreepy", energy: [] }]);
+});
 
+test("ambiguous placements, recorded damage and copy allocation keep proof boundaries", () => {
   // Anonymized actual placement/attachment/evolution grammar; the altered
   // future consumers below are refusal-boundary inputs, not saved-game evidence.
   const irrelevantHistory = source([

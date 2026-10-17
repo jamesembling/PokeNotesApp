@@ -60,6 +60,7 @@ jobs:
                       'scripts/verify-local-social.mjs',
                       'scripts/rehearse-tournament-deck-list.mjs',
                       'scripts/verify-battle-log-import-draft.ts',
+                      'scripts/verify-deck-strategy-concurrency.ts',
                       'proxy.ts', 'tests/proxy-auth.test.ts',
                       'lib/auth.ts', 'lib/server/api-auth.ts',
                       'lib/server/auth-claim-header.ts',
@@ -127,6 +128,10 @@ jobs:
       - name: Verify Battle Log import drafts
         if: steps.changes.outputs.relevant == 'true'
         run: npm run verify:battle-log-import-draft
+
+      - name: Verify Deck Strategy concurrency
+        if: steps.changes.outputs.relevant == 'true'
+        run: npm run verify:deck-strategy-concurrency
 
       - name: Install pinned Playwright Chromium
         if: steps.changes.outputs.relevant == 'true'

@@ -48,6 +48,7 @@
     "verify:deck-list-release": "node scripts/verify-deck-list-release.mjs",
     "verify:log-share-atomicity": "node scripts/rehearse-log-share-atomicity.mjs",
     "verify:battle-log-import-draft": "tsx scripts/verify-battle-log-import-draft.ts",
+    "verify:deck-strategy-concurrency": "tsx scripts/verify-deck-strategy-concurrency.ts",
     "verify:tournament-deck-list": "node scripts/rehearse-tournament-deck-list.mjs",
     "types:supabase": "supabase --agent=no gen types typescript --linked --schema public > types/supabase.ts",
     "sync:card-definitions": "node sync-card-definition-catalog.mjs",
@@ -79,6 +80,9 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "20.14.5",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
     "@types/node": "^20.19.39",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
