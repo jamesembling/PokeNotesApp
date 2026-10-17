@@ -508,10 +508,14 @@ async function searchControlHeights(currentPage) {
 
 async function readyImages(currentPage) {
   const images = currentPage.locator("main img");
-  for (const image of await images.all()) {
-    if (await image.isVisible()) await image.scrollIntoViewIfNeeded();
-  }
-  await until(() => images.evaluateAll(elements => elements.every(image => image.complete && image.naturalWidth > 0)));
+  // Images can be replaced during streamed hydration or viewport changes.
+  // Resolve, inspect and scroll the current DOM in one operation; never hold an
+  // element across an awaited visibility/scroll pair. Poll each lazy image in turn.
+  await until(() => images.evaluateAll(elements => {
+    const pending = elements.find(image => !image.complete && image.getClientRects().length > 0);
+    pending?.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    return elements.every(image => image.complete && image.naturalWidth > 0);
+  }));
   await currentPage.evaluate(() => window.scrollTo(0, 0));
 }
 
