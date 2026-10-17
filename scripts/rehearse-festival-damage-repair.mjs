@@ -19,9 +19,30 @@ assert.ok(head && tail, "The migration must keep its repair-rows markers.");
 
 const users = ["44444444-4444-4444-8444-444444444441", "44444444-4444-4444-8444-444444444442"];
 const logs = [
-  { id: "festival-rehearsal-a1", user: users[0], self: 300, opponent: 120, addSelf: 200, addOpponent: 0 },
-  { id: "festival-rehearsal-a2", user: users[0], self: 80, opponent: 410, addSelf: 0, addOpponent: 410 },
-  { id: "festival-rehearsal-b1", user: users[1], self: 270, opponent: 220, addSelf: 120, addOpponent: 440 }
+  {
+    id: "festival-rehearsal-a1",
+    user: users[0],
+    self: 300,
+    opponent: 120,
+    addSelf: 200,
+    addOpponent: 0
+  },
+  {
+    id: "festival-rehearsal-a2",
+    user: users[0],
+    self: 80,
+    opponent: 410,
+    addSelf: 0,
+    addOpponent: 410
+  },
+  {
+    id: "festival-rehearsal-b1",
+    user: users[1],
+    self: 270,
+    opponent: 220,
+    addSelf: 120,
+    addOpponent: 440
+  }
 ];
 const idList = logs.map((log) => `'${log.id}'`).join(", ");
 const userList = users.map((user) => `'${user}'`).join(", ");
@@ -29,7 +50,21 @@ const userList = users.map((user) => `'${user}'`).join(", ");
 function psql(sql) {
   const result = spawnSync(
     "docker",
-    ["exec", "-i", container, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-At", "-F", "\t"],
+    [
+      "exec",
+      "-i",
+      container,
+      "psql",
+      "-U",
+      "postgres",
+      "-d",
+      "postgres",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-At",
+      "-F",
+      "\t"
+    ],
     { input: sql, encoding: "utf8" }
   );
   return { ok: result.status === 0, out: result.stdout.trim(), err: result.stderr.trim() };
@@ -68,25 +103,35 @@ function currentRows({ forward = true, tamper = {} } = {}) {
     const from = forward ? original : repaired;
     const to = forward ? repaired : original;
     return {
-      id, user, updatedAt, rawSha, sectionsSha,
-      oldSelf: from.self + (tamper[id] ?? 0), oldOpponent: from.opponent,
-      newSelf: to.self, newOpponent: to.opponent,
-      storedSelf: Number(self), storedOpponent: Number(opponent)
+      id,
+      user,
+      updatedAt,
+      rawSha,
+      sectionsSha,
+      oldSelf: from.self + (tamper[id] ?? 0),
+      oldOpponent: from.opponent,
+      newSelf: to.self,
+      newOpponent: to.opponent,
+      storedSelf: Number(self),
+      storedOpponent: Number(opponent)
     };
   });
 }
 
 function damage() {
   return Object.fromEntries(
-    query(`select id, self_attack_damage, opponent_attack_damage from public.logs where id in (${idList}) order by id;`)
-      .map(([id, self, opponent]) => [id, [Number(self), Number(opponent)]])
+    query(
+      `select id, self_attack_damage, opponent_attack_damage from public.logs where id in (${idList}) order by id;`
+    ).map(([id, self, opponent]) => [id, [Number(self), Number(opponent)]])
   );
 }
 
 function untouchedColumnsDigest() {
   return query(`
     select id, md5((to_jsonb(log) - 'self_attack_damage' - 'opponent_attack_damage' - 'updated_at')::text)
-    from public.logs as log where id in (${idList}) order by id;`).map((row) => row.join(":")).join(",");
+    from public.logs as log where id in (${idList}) order by id;`)
+    .map((row) => row.join(":"))
+    .join(",");
 }
 
 function stats() {
@@ -95,8 +140,18 @@ function stats() {
       select s.user_id, s.attack_damage, s.opponent_attack_damage, s.tracked_damage,
         (select coalesce(sum(self_attack_damage), 0) from public.logs l where l.user_id = s.user_id),
         (select coalesce(sum(opponent_attack_damage), 0) from public.logs l where l.user_id = s.user_id)
-      from public.user_log_stats s where s.user_id in (${userList}) order by 1;`)
-      .map(([user, attack, opponent, tracked, logSelf, logOpponent]) => [user, { attack: Number(attack), opponent: Number(opponent), tracked: Number(tracked), logSelf: Number(logSelf), logOpponent: Number(logOpponent) }])
+      from public.user_log_stats s where s.user_id in (${userList}) order by 1;`).map(
+      ([user, attack, opponent, tracked, logSelf, logOpponent]) => [
+        user,
+        {
+          attack: Number(attack),
+          opponent: Number(opponent),
+          tracked: Number(tracked),
+          logSelf: Number(logSelf),
+          logOpponent: Number(logOpponent)
+        }
+      ]
+    )
   );
 }
 
@@ -135,7 +190,11 @@ try {
   const originalStats = stats();
   const untouched = untouchedColumnsDigest();
   for (const user of users) {
-    assert.equal(originalStats[user].attack, originalStats[user].logSelf, "baseline stats agree with logs");
+    assert.equal(
+      originalStats[user].attack,
+      originalStats[user].logSelf,
+      "baseline stats agree with logs"
+    );
   }
 
   step("the committed rows leave a database without candidates unchanged", () => {
@@ -166,13 +225,26 @@ try {
     spawn(
       "docker",
       [
-        "exec", container, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
+        "exec",
+        container,
+        "psql",
+        "-U",
+        "postgres",
+        "-d",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
         `begin; update public.logs set match_notes = 'concurrent edit' where id = '${logs[0].id}'; select pg_sleep(4); commit;`
       ],
       { stdio: "ignore" }
     );
     const lockDeadline = Date.now() + 15000;
-    while (!query(`select 1 from pg_stat_activity where state = 'active' and query like '%pg_sleep(4)%' and query not like '%pg_stat_activity%';`).length) {
+    while (
+      !query(
+        `select 1 from pg_stat_activity where state = 'active' and query like '%pg_sleep(4)%' and query not like '%pg_stat_activity%';`
+      ).length
+    ) {
       assert.ok(Date.now() < lockDeadline, "the concurrent editor took its row lock");
       spawnSync("sleep", ["0.2"]);
     }
@@ -182,7 +254,9 @@ try {
     assert.equal(result.ok, false);
     assert.match(result.err, /3 of 3 rows present, 2 match/);
     assert.deepEqual(damage(), original);
-    assert.deepEqual(query(`select match_notes from public.logs where id = '${logs[0].id}';`), [["concurrent edit"]]);
+    assert.deepEqual(query(`select match_notes from public.logs where id = '${logs[0].id}';`), [
+      ["concurrent edit"]
+    ]);
     query(`update public.logs set match_notes = null where id = '${logs[0].id}';`);
   });
 
@@ -203,7 +277,11 @@ try {
       assert.equal(after[user].opponent, originalStats[user].opponent + addOpponent);
       assert.equal(after[user].tracked, originalStats[user].tracked + addSelf + addOpponent);
       assert.equal(after[user].attack, after[user].logSelf, "incremental stats agree with logs");
-      assert.equal(after[user].opponent, after[user].logOpponent, "incremental stats agree with logs");
+      assert.equal(
+        after[user].opponent,
+        after[user].logOpponent,
+        "incremental stats agree with logs"
+      );
     }
   });
 
