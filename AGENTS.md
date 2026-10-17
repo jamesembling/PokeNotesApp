@@ -8,6 +8,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Quick start
+
+- Stack: Next.js 16, React 19, Supabase, Tailwind 3, TypeScript; Node 22+ with npm.
+- If `node_modules` is missing, run `npm ci` first. The Next.js guides referenced above live there.
+- Core checks: `npm run lint`, `npm run typecheck`, `npm test`, `npm run format:check`. See `docs/verification-commands.md` for targeted commands.
+
 ## Merging
 
 - Merge a PR only when every CI check has passed, including Database behavior. A check skipped because no relevant files changed counts as passed; a pending or failed check does not.
@@ -24,5 +30,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Deck-list ordering:** Before changing a deck-list sort, snapshot, share, or `sortedCards` path, read `docs/agents/deck-list-ordering.md`.
 - **Performance:** Before making or reporting a performance claim, read `docs/performance-targets.md` and identify the measurement source.
 - **Authenticated browser checks:** When a PokeNotes page reaches a login wall, use the `pokenotes-browser-auth` skill when available; otherwise follow README **Authenticated local testing**.
-- **Local database and browser E2E:** Before starting or resetting local Supabase, changing browser fixtures, or running authenticated state-changing UI checks, read `docs/agents/local-e2e.md`. Use the committed synthetic fixtures and fixed local-only commands; production data and hosted databases stay outside this workflow. If Docker is unavailable, run `open -a Docker` and wait for `docker info` to succeed before treating the fixture environment as blocked.
-- **Tests:** Before adding, renaming, consolidating, or reviewing tests, read `docs/agents/testing.md`. Tests are owned by durable behavior and production seams, not by PRs, review rounds, fixes, or implementation phases. Refactors, telemetry, performance work, loading states, and visual polish must finish with zero or negative net executed-case growth unless James explicitly approves growth; never use `.ts`/`.tsx` source regexes as runtime evidence. Count nested/generated cases, report the exact delta, and score every net-new case before handoff.
+- **Local database and browser E2E:** Before starting or resetting local Supabase, changing browser fixtures, or running authenticated state-changing UI checks, read `docs/agents/local-e2e.md`. Use the committed synthetic fixtures and fixed local-only commands; production data and hosted databases stay outside this workflow. If Docker is unavailable on macOS, run `open -a Docker` and wait for `docker info` to succeed before treating the fixture environment as blocked.
+- **Tests:** Before adding, renaming, consolidating, or reviewing tests, read `docs/agents/testing.md`. It sets the zero-growth default for non-feature work and the before-handoff consolidation report.
