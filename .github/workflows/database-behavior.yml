@@ -57,6 +57,7 @@ jobs:
                       'scripts/local-e2e.mjs', 'scripts/local-e2e-readiness.mjs',
                       'scripts/seed-local-e2e.ts',
                       'scripts/verify-local-import.mjs',
+                      'scripts/verify-local-social.mjs',
                       'scripts/rehearse-tournament-deck-list.mjs',
                       'scripts/verify-battle-log-import-draft.ts',
                       'proxy.ts', 'tests/proxy-auth.test.ts',

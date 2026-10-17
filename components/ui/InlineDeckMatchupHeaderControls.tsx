@@ -47,7 +47,7 @@ export function InlineDeckMatchupHeaderControls({
   const { defaultFormat, options: siteFormatOptions } = useSiteFormats();
   const [headerState, setHeaderState] = useState<HeaderState>(() => buildHeaderState(matchup));
   const recordKeyRef = useRef(`${deckId}:${matchup.id}`);
-  const viewedVersionRef = useMatchupViewedVersion(matchup.updatedAt);
+  const { commitSerially, viewedVersionRef } = useMatchupViewedVersion(matchup.updatedAt);
   const {
     errorMessage,
     queueSave: saveHeader,
@@ -59,14 +59,16 @@ export function InlineDeckMatchupHeaderControls({
     async save(nextState) {
       const formData = new FormData();
       formData.set("deckId", deckId);
-      formData.set("expectedUpdatedAt", viewedVersionRef.current);
       formData.set("matchupId", matchup.id);
       formData.set("format", String(nextState.format || "").trim() || defaultFormat);
       formData.set("goPreference", nextState.goPreference);
       formData.set("matchupFavor", nextState.matchupFavor);
 
-      const result = await updateDeckMatchupHeaderAction(formData);
-      viewedVersionRef.current = result.updatedAt;
+      await commitSerially(async (expectedVersion) => {
+        formData.set("expectedUpdatedAt", expectedVersion);
+        const result = await updateDeckMatchupHeaderAction(formData);
+        return result.updatedAt;
+      });
     }
   });
 
@@ -81,7 +83,7 @@ export function InlineDeckMatchupHeaderControls({
     const nextState = buildHeaderState(matchup);
     setHeaderState(nextState);
     resetSavedValue(nextState);
-  }, [deckId, matchup, resetSavedValue]);
+  }, [deckId, matchup, resetSavedValue, viewedVersionRef]);
 
   const statusLabel = useMemo(() => {
     if (saveStatus === "saving") {

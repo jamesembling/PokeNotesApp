@@ -111,6 +111,13 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
   const [workspace, setWorkspace] = useState<StrategyWorkspaceState>(initialState);
   const workspaceRef = useRef(workspace);
   const viewedVersionRef = useRef(deck.updatedAt);
+  const savedStrategyRef = useRef<Record<string, string>>({
+    coreStrategy: deck.coreStrategy,
+    generalNotes: deck.generalNotes,
+    goPreference: deck.goPreference,
+    resourcePlan: deck.resourcePlan,
+    setupGoals: deck.setupGoals.join("\n")
+  });
   const quickCaptureRef = useRef<HTMLInputElement | null>(null);
   const [quickCategory, setQuickCategory] = useState<StrategyCategory>("unsorted");
   const [quickNote, setQuickNote] = useState("");
@@ -144,13 +151,23 @@ export function DeckStrategyWorkspace({ deck }: DeckStrategyWorkspaceProps) {
       const formData = new FormData();
       formData.set("deckId", deck.id);
       formData.set("expectedUpdatedAt", viewedVersionRef.current);
-      formData.set("goPreference", nextState.goPreference);
-      formData.set("coreStrategy", serializeStrategyNotes(nextState.lanes.gamePlan));
-      formData.set("setupGoals", serializeStrategyNotes(nextState.lanes.benchPlan));
-      formData.set("resourcePlan", serializeStrategyNotes(nextState.lanes.tech));
-      formData.set("generalNotes", serializeStrategyNotes(nextState.lanes.unsorted));
+      const nextStrategy = {
+        coreStrategy: serializeStrategyNotes(nextState.lanes.gamePlan),
+        generalNotes: serializeStrategyNotes(nextState.lanes.unsorted),
+        goPreference: nextState.goPreference,
+        resourcePlan: serializeStrategyNotes(nextState.lanes.tech),
+        setupGoals: serializeStrategyNotes(nextState.lanes.benchPlan)
+      };
+      for (const [name, value] of Object.entries(nextStrategy)) {
+        formData.set(name, value);
+      }
+      // Lets the server tell a Deck List or Matchup save apart from a Strategy edit elsewhere.
+      for (const [name, value] of Object.entries(savedStrategyRef.current)) {
+        formData.set(`expected${name[0].toUpperCase()}${name.slice(1)}`, value);
+      }
       const result = await updateDeckStrategyAction(formData);
       viewedVersionRef.current = result.updatedAt;
+      savedStrategyRef.current = nextStrategy;
     }
   });
 

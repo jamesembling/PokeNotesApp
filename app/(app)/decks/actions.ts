@@ -195,6 +195,45 @@ export async function updateDeckAction(formData: FormData): Promise<SaveActionRe
   }
 }
 
+type StrategyFields = {
+  go_preference: string;
+  core_strategy: string;
+  general_notes: string;
+  setup_goals: string[];
+  resource_plan: string;
+};
+
+function readStrategyFields(formData: FormData, prefix: "" | "expected"): StrategyFields {
+  const read = (name: string) =>
+    formData.get(prefix ? `${prefix}${name[0].toUpperCase()}${name.slice(1)}` : name);
+  return {
+    go_preference: parseGoPreference(read("goPreference")),
+    core_strategy: String(read("coreStrategy") || ""),
+    general_notes: String(read("generalNotes") || ""),
+    setup_goals: parseLines(String(read("setupGoals") || "")),
+    resource_plan: String(read("resourcePlan") || "")
+  };
+}
+
+function storedStrategyMatches(
+  stored: {
+    go_preference: string | null;
+    core_strategy: string | null;
+    general_notes: string | null;
+    setup_goals: unknown;
+    resource_plan: string | null;
+  },
+  expected: StrategyFields
+) {
+  return (
+    (stored.go_preference ?? "") === expected.go_preference &&
+    (stored.core_strategy ?? "") === expected.core_strategy &&
+    (stored.general_notes ?? "") === expected.general_notes &&
+    (stored.resource_plan ?? "") === expected.resource_plan &&
+    JSON.stringify(stored.setup_goals ?? []) === JSON.stringify(expected.setup_goals)
+  );
+}
+
 export async function updateDeckStrategyAction(formData: FormData): Promise<VersionedSaveActionResult> {
   const deckId = String(formData.get("deckId") || "").trim();
   const [user, supabase] = await Promise.all([requireAuth(), createClient()]);
@@ -205,24 +244,41 @@ export async function updateDeckStrategyAction(formData: FormData): Promise<Vers
     }
 
     const expectedUpdatedAt = requireViewedVersion(formData.get("expectedUpdatedAt"), "Strategy");
-    const { data: updatedDeck, error } = await supabase
-      .from("decks")
-      .update({
-        go_preference: parseGoPreference(formData.get("goPreference")),
-        core_strategy: String(formData.get("coreStrategy") || ""),
-        general_notes: String(formData.get("generalNotes") || ""),
-        setup_goals: parseLines(String(formData.get("setupGoals") || "")),
-        resource_plan: String(formData.get("resourcePlan") || ""),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", deckId)
-      .eq("user_id", user.id)
-      .eq("updated_at", expectedUpdatedAt)
-      .select("id,updated_at")
-      .maybeSingle();
+    const nextStrategy = readStrategyFields(formData, "");
+    const writeStrategy = (deckVersion: string) =>
+      supabase
+        .from("decks")
+        .update({ ...nextStrategy, updated_at: new Date().toISOString() })
+        .eq("id", deckId)
+        .eq("user_id", user.id)
+        .eq("updated_at", deckVersion)
+        .select("id,updated_at")
+        .maybeSingle();
 
+    let { data: updatedDeck, error } = await writeStrategy(expectedUpdatedAt);
     if (error) {
       throw error;
+    }
+
+    // Deck List and Matchup commits also advance the Deck timestamp. Retry against the
+    // current timestamp only when the Strategy this editor last saved is still stored.
+    if (!updatedDeck?.id && formData.has("expectedCoreStrategy")) {
+      const { data: currentDeck, error: readError } = await supabase
+        .from("decks")
+        .select("updated_at,go_preference,core_strategy,general_notes,setup_goals,resource_plan")
+        .eq("id", deckId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (readError) {
+        throw readError;
+      }
+
+      if (currentDeck && storedStrategyMatches(currentDeck, readStrategyFields(formData, "expected"))) {
+        ({ data: updatedDeck, error } = await writeStrategy(currentDeck.updated_at));
+        if (error) {
+          throw error;
+        }
+      }
     }
 
     if (!updatedDeck?.id) {
