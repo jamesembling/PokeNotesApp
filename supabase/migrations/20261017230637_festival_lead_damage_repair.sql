@@ -6,6 +6,11 @@
 -- raw log and saved sections. A database without these rows is left unchanged; any
 -- partial or mismatched set aborts the whole repair. Only the two damage columns
 -- are written. The statement-level log trigger applies the user_log_stats deltas.
+
+-- Contention on a candidate row or an account statistics lock fails promptly.
+set local lock_timeout = '5s';
+set local statement_timeout = '60s';
+
 do $repair$
 declare
   v_expected integer;

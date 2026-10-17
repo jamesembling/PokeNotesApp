@@ -104,7 +104,9 @@ missing or mismatched row aborts the whole repair. Only the two damage columns a
 written (the `set_logs_updated_at` trigger advances `updated_at`). The existing
 statement-level trigger applies the `user_log_stats` deltas, so aggregates are not
 incremented separately. A database without the rows, or one already corrected, is
-left unchanged with a notice.
+left unchanged with a notice. A 5-second `lock_timeout` and 60-second
+`statement_timeout` make contention on a candidate row or an account statistics
+lock fail promptly instead of holding the deployment job.
 
 Before release, a read-only production preflight of the committed rows reported 38
 present, 38 matching and 10,050 damage to add, with each account's `user_log_stats`
@@ -114,9 +116,10 @@ was already running the parser fix.
 Rehearsal evidence:
 
 - `node scripts/rehearse-festival-damage-repair.mjs` runs the committed migration
-  text against the local E2E database, replacing only the rows block with synthetic
-  rows. It proves the no-candidate no-op, all-or-nothing abort on a mismatched or
-  missing row, abort on an edit committed while the repair waits on its row lock,
+  text in a transaction against the local E2E database, replacing only the rows
+  block with synthetic rows. It proves the no-candidate no-op, all-or-nothing abort on a mismatched or
+  missing row, abort on an edit committed while the repair waits on its row lock, a prompt
+  lock-timeout failure when a row lock outlasts 5 seconds,
   exact statistics deltas with all other columns unchanged, no delta on repeat, and
   a swapped forward repair restoring the original values and statistics.
 - `npm run migration:rehearse:local -- --from origin/main --through 20261017230637

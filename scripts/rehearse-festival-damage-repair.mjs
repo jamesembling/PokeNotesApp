@@ -163,6 +163,49 @@ function cleanup() {
     delete from auth.users where id in (${userList});`);
 }
 
+// Commits an edit to the first log after holding its row lock for `seconds`.
+function holdRowLock(seconds) {
+  const marker = `pg_sleep(${seconds})`;
+  spawn(
+    "docker",
+    [
+      "exec",
+      container,
+      "psql",
+      "-U",
+      "postgres",
+      "-d",
+      "postgres",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-c",
+      `begin; update public.logs set match_notes = 'concurrent edit' where id = '${logs[0].id}'; select ${marker}; commit;`
+    ],
+    { stdio: "ignore" }
+  );
+  const deadline = Date.now() + 15000;
+  while (!editorActive(marker)) {
+    assert.ok(Date.now() < deadline, "the concurrent editor took its row lock");
+    spawnSync("sleep", ["0.2"]);
+  }
+  return () => {
+    while (editorActive(marker)) spawnSync("sleep", ["0.2"]);
+  };
+}
+
+function editorActive(marker) {
+  return (
+    query(
+      `select 1 from pg_stat_activity where state = 'active' and query like '%${marker}%' and query not like '%pg_stat_activity%';`
+    ).length > 0
+  );
+}
+
+// supabase db push runs each migration in a transaction, which scopes its set local timeouts.
+function migrate(sql) {
+  return psql(`begin;\n${sql}\ncommit;`);
+}
+
 function step(name, fn) {
   fn();
   console.log(`ok - ${name}`);
@@ -198,14 +241,14 @@ try {
   }
 
   step("the committed rows leave a database without candidates unchanged", () => {
-    const result = psql(migration);
+    const result = migrate(migration);
     assert.ok(result.ok, result.err);
     assert.match(result.err, /no candidate rows present/);
     assert.deepEqual(damage(), original);
   });
 
   step("a single mismatched guard aborts every row", () => {
-    const result = psql(variant(currentRows({ tamper: { [logs[1].id]: 10 } })));
+    const result = migrate(variant(currentRows({ tamper: { [logs[1].id]: 10 } })));
     assert.equal(result.ok, false);
     assert.match(result.err, /3 of 3 rows present, 2 match/);
     assert.deepEqual(damage(), original);
@@ -214,7 +257,7 @@ try {
   step("a reviewed row missing from the database aborts every row", () => {
     const rows = currentRows();
     rows.push({ ...rows[0], id: "festival-rehearsal-missing" });
-    const result = psql(variant(rows));
+    const result = migrate(variant(rows));
     assert.equal(result.ok, false);
     assert.match(result.err, /3 of 4 rows present/);
     assert.deepEqual(damage(), original);
@@ -222,34 +265,9 @@ try {
 
   step("an edit committed while the repair waits on its row lock aborts the repair", () => {
     const rows = currentRows();
-    spawn(
-      "docker",
-      [
-        "exec",
-        container,
-        "psql",
-        "-U",
-        "postgres",
-        "-d",
-        "postgres",
-        "-v",
-        "ON_ERROR_STOP=1",
-        "-c",
-        `begin; update public.logs set match_notes = 'concurrent edit' where id = '${logs[0].id}'; select pg_sleep(4); commit;`
-      ],
-      { stdio: "ignore" }
-    );
-    const lockDeadline = Date.now() + 15000;
-    while (
-      !query(
-        `select 1 from pg_stat_activity where state = 'active' and query like '%pg_sleep(4)%' and query not like '%pg_stat_activity%';`
-      ).length
-    ) {
-      assert.ok(Date.now() < lockDeadline, "the concurrent editor took its row lock");
-      spawnSync("sleep", ["0.2"]);
-    }
+    holdRowLock(4);
     const started = Date.now();
-    const result = psql(variant(rows));
+    const result = migrate(variant(rows));
     assert.ok(Date.now() - started >= 1000, "the repair waited for the editor's row lock");
     assert.equal(result.ok, false);
     assert.match(result.err, /3 of 3 rows present, 2 match/);
@@ -260,8 +278,25 @@ try {
     query(`update public.logs set match_notes = null where id = '${logs[0].id}';`);
   });
 
+  step("a row lock held past the lock timeout fails the repair promptly", () => {
+    const rows = currentRows();
+    const editorFinished = holdRowLock(12);
+    const started = Date.now();
+    const result = migrate(variant(rows));
+    const waited = Date.now() - started;
+    assert.equal(result.ok, false);
+    assert.match(result.err, /lock timeout/);
+    assert.ok(
+      waited >= 4000 && waited < 10000,
+      `the repair stopped at its lock timeout (${waited}ms)`
+    );
+    assert.deepEqual(damage(), original);
+    editorFinished();
+    query(`update public.logs set match_notes = null where id = '${logs[0].id}';`);
+  });
+
   step("a matching repair changes only both damage columns and the account statistics", () => {
-    const result = psql(variant(currentRows()));
+    const result = migrate(variant(currentRows()));
     assert.ok(result.ok, result.err);
     const repaired = damage();
     for (const log of logs) {
@@ -289,7 +324,7 @@ try {
     const before = damage();
     const beforeStats = stats();
     const rows = currentRows().map((row) => ({ ...row, updatedAt: "2000-01-01 00:00:00+00" }));
-    const result = psql(variant(rows));
+    const result = migrate(variant(rows));
     assert.ok(result.ok, result.err);
     assert.match(result.err, /already corrected/);
     assert.deepEqual(damage(), before);
@@ -297,7 +332,7 @@ try {
   });
 
   step("a swapped forward repair restores the original values and statistics", () => {
-    const result = psql(variant(currentRows({ forward: false })));
+    const result = migrate(variant(currentRows({ forward: false })));
     assert.ok(result.ok, result.err);
     assert.deepEqual(damage(), original);
     const restored = stats();
