@@ -2,11 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { refreshLoadedLogsWindow } from "@/lib/client/logs-refresh";
 import {
+  getAllLogsForDeck,
   getArchetypeMatchupStats,
-  getAllLogsByDeck,
-  getDeckLogSnapshots,
-  getDeckStatsForIndex,
-  getLatestLogsForDeck,
   getLogById,
   getLogDamageTimeline,
   getInitialLogsPageData,
@@ -771,28 +768,16 @@ test("getArchetypeMatchupStats maps opponent matchup rows", async (t) => {
   ]);
 });
 
-test("getAllLogsByDeck pages and groups explicit and legacy-unlinked logs", async (t) => {
+test("getAllLogsForDeck pages through every log linked to the deck", async (t) => {
   const originalCreateClient = logsDbTestHooks.createClient;
-  const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
+  const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b")];
   const explicitRows = Array.from({ length: 501 }, (_, index) =>
     buildLogRow({ id: `explicit-${index}`, linked_deck_id: "deck-b" })
-  );
-  const unlinkedRows = Array.from({ length: 501 }, (_, index) =>
-    buildLogRow({
-      id: `unlinked-${index}`,
-      linked_deck_id: null,
-      self_deck_name: "Deck deck-b",
-      self_deck_sprites: ""
-    })
   );
   const { client } = createFakeSupabaseClient((ctx) => {
     const hasExplicitDeckFilter = ctx.operations.some(
       (op) => op.method === "in" && op.args[0] === "linked_deck_id"
     );
-    const hasUnlinkedFilter = ctx.operations.some(
-      (op) => op.method === "is" && op.args[0] === "linked_deck_id"
-    );
-
     const range = ctx.operations.find((op) => op.method === "range")?.args;
     assert.ok(range, "deck-log queries must request bounded pages");
     const [from, to] = range as number[];
@@ -804,13 +789,6 @@ test("getAllLogsByDeck pages and groups explicit and legacy-unlinked logs", asyn
       };
     }
 
-    if (hasUnlinkedFilter) {
-      return {
-        data: unlinkedRows.slice(from, to + 1),
-        error: null
-      };
-    }
-
     throw new Error(`Unexpected query: ${JSON.stringify(ctx.operations)}`);
   });
 
@@ -819,135 +797,9 @@ test("getAllLogsByDeck pages and groups explicit and legacy-unlinked logs", asyn
     logsDbTestHooks.createClient = originalCreateClient;
   });
 
-  const logsByDeck = await getAllLogsByDeck("user-1", decks);
+  const logs = await getAllLogsForDeck("user-1", "deck-b", decks);
 
-  const deckBLogIds = new Set((logsByDeck.get("deck-b") ?? []).map((log) => log.id));
-  assert.equal(deckBLogIds.size, 1002);
-  assert.ok(deckBLogIds.has("explicit-500"));
-  assert.ok(deckBLogIds.has("unlinked-500"));
-});
-
-test("getDeckLogSnapshots preserves grouped stats parity for explicit and legacy-unlinked logs", async (t) => {
-  const originalCreateClient = logsDbTestHooks.createClient;
-  const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
-  const { client } = createFakeSupabaseClient((ctx) => {
-    const hasExplicitDeckFilter = ctx.operations.some(
-      (op) => op.method === "in" && op.args[0] === "linked_deck_id"
-    );
-    const hasUnlinkedFilter = ctx.operations.some(
-      (op) => op.method === "is" && op.args[0] === "linked_deck_id"
-    );
-
-    if (hasExplicitDeckFilter) {
-      return {
-        data: [
-          buildLogRow({
-            id: "deck-b-explicit",
-            imported_at: "2026-04-15T11:00:00.000Z",
-            linked_deck_id: "deck-b",
-            result: "Win"
-          })
-        ],
-        error: null
-      };
-    }
-
-    if (hasUnlinkedFilter) {
-      return {
-        data: [
-          buildLogRow({
-            id: "deck-b-legacy",
-            linked_deck_id: null,
-            self_deck_name: "Deck deck-b",
-            self_deck_sprites: "",
-            result: "Loss"
-          })
-        ],
-        error: null
-      };
-    }
-
-    throw new Error(`Unexpected query: ${JSON.stringify(ctx.operations)}`);
-  });
-
-  logsDbTestHooks.createClient = async () => client as never;
-  t.after(() => {
-    logsDbTestHooks.createClient = originalCreateClient;
-  });
-
-  const snapshots = await getDeckLogSnapshots("user-1", decks);
-  const deckBSnapshot = snapshots.get("deck-b");
-
-  assert.equal(deckBSnapshot?.stats.total, 2);
-  assert.equal(deckBSnapshot?.stats.wins, 1);
-  assert.equal(deckBSnapshot?.stats.losses, 1);
-  assert.deepEqual(
-    deckBSnapshot?.logs.map((log) => log.id),
-    ["deck-b-explicit", "deck-b-legacy"]
-  );
-});
-
-test("getDeckStatsForIndex maps read-model rows and initializes missing decks", async (t) => {
-  const originalCreateClient = logsDbTestHooks.createClient;
-  const decks = [buildDeckSummary("deck-a"), buildDeckSummary("deck-b"), buildDeckSummary("deck-c")];
-  const { client } = createFakeSupabaseClient((ctx) => {
-    const hasDeckStatsFilter = ctx.operations.some(
-      (op) => op.method === "in" && op.args[0] === "deck_id"
-    );
-
-    if (hasDeckStatsFilter) {
-      return {
-        data: [{ deck_id: "deck-b", games_played: 3, games_won: 2, games_lost: 1 }],
-        error: null
-      };
-    }
-
-    throw new Error(`Unexpected query: ${JSON.stringify(ctx.operations)}`);
-  });
-
-  logsDbTestHooks.createClient = async () => client as never;
-  t.after(() => {
-    logsDbTestHooks.createClient = originalCreateClient;
-  });
-
-  const statsByDeck = await getDeckStatsForIndex("user-1", decks);
-  const deckBStats = statsByDeck.get("deck-b");
-
-  assert.deepEqual(deckBStats, {
-    total: 3,
-    wins: 2,
-    losses: 1
-  });
-  assert.deepEqual(statsByDeck.get("deck-c"), {
-    total: 0,
-    wins: 0,
-    losses: 0
-  });
-});
-
-test("getLatestLogsForDeck returns linked-log preview rows", async (t) => {
-  const originalCreateClient = logsDbTestHooks.createClient;
-  const { client } = createFakeSupabaseClient((ctx) => {
-    const hasLinkedDeckFilter = ctx.operations.some(
-      (op) => op.method === "eq" && op.args[0] === "linked_deck_id"
-    );
-
-    if (hasLinkedDeckFilter) {
-      return {
-        data: [buildLogRow({ id: "deck-b-latest", linked_deck_id: "deck-b" })],
-        error: null
-      };
-    }
-
-    throw new Error(`Unexpected query: ${JSON.stringify(ctx.operations)}`);
-  });
-
-  logsDbTestHooks.createClient = async () => client as never;
-  t.after(() => {
-    logsDbTestHooks.createClient = originalCreateClient;
-  });
-
-  const logs = await getLatestLogsForDeck("user-1", "deck-b", 5);
-
-  assert.deepEqual(logs.map((log) => log.id), ["deck-b-latest"]);
+  assert.equal(new Set(logs.map((log) => log.id)).size, 501);
+  assert.ok(logs.some((log) => log.id === "explicit-500"));
+  assert.deepEqual(await getAllLogsForDeck("user-1", "deck-z", decks), []);
 });

@@ -73,11 +73,6 @@ export type SharedBattleLogSnapshot = {
 export type LogShareStore = {
   getOrCreate: (row: LogShareInsertRow) => Promise<LogShareLookupRow>;
   revokeOwnedShare: (shareId: string, ownerUserId: string) => Promise<boolean>;
-  findActiveByOwnerLog: (
-    ownerUserId: string,
-    sourceLogId: string,
-    nowIso: string
-  ) => Promise<LogShareRow | null>;
   findByToken: (token: string) => Promise<PublicLogShareRow | null>;
   listActiveByOwnerLog: (
     ownerUserId: string,
@@ -298,23 +293,6 @@ export function buildSupabaseLogShareStore({ publicSupabase, supabase }: LogShar
 
       return data;
     },
-    async findActiveByOwnerLog(ownerUserId, sourceLogId, nowIso) {
-      const { data, error } = await supabase
-        .from("log_shares")
-        .select("id,owner_user_id,source_log_id,payload,expires_at,created_at,updated_at")
-        .eq("owner_user_id", ownerUserId)
-        .eq("source_log_id", sourceLogId)
-        .gt("expires_at", nowIso)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (error) {
-        throw error;
-      }
-
-      const [row] = (((data ?? []) as unknown) as LogShareRow[]);
-      return row ?? null;
-    },
     async findByToken(token) {
       const { data, error } = await publicSupabase.rpc("get_active_log_share", {
         p_token: token
@@ -384,22 +362,6 @@ async function getOrCreateShareRow(
   }
 
   throw new Error("Could not allocate a unique share token.");
-}
-
-export async function getActiveShareForLog(
-  ownerUserId: string,
-  sourceLogId: string,
-  options: LogShareQueryOptions = {}
-): Promise<ActiveLogShare | null> {
-  const store = await getLogShareStore(options.store);
-  const now = getEffectiveNow(options.now);
-  const row = await store.findActiveByOwnerLog(
-    ownerUserId,
-    sourceLogId,
-    now.toISOString()
-  );
-
-  return mapActiveLogShare(row, now.getTime());
 }
 
 export async function getOrCreateLogShareSnapshot(

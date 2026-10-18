@@ -197,10 +197,6 @@ export function interpretDeckList(rawList: string): DeckListInterpretation {
   };
 }
 
-export function summarizeDeckList(rawList: string) {
-  return interpretDeckList(rawList).summary;
-}
-
 export function parseDeckList(rawList: string): DeckCard[] {
   return interpretDeckList(rawList).cards;
 }

@@ -297,17 +297,3 @@ export function resolveLinkedDeck(
 ) {
   return resolveLinkedDeckFromIndex(buildDeckLinkCandidateIndex(decks), log);
 }
-
-export async function linkDeckConservatively(args: {
-  userId: string;
-  identifiedDeckName: string;
-  identifiedDeckSlug: string;
-  identifiedSprites: string[];
-}) {
-  const candidates = await getDeckLinkCandidates(args.userId);
-  return resolveConservativeDeckLink(candidates, {
-    deckName: args.identifiedDeckName,
-    deckSlug: args.identifiedDeckSlug,
-    sprites: args.identifiedSprites
-  });
-}
