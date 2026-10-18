@@ -1,4 +1,4 @@
-import type { Language, LogAction, LogSection, Result } from "@/types/index";
+import type { Language, LogSection, Result } from "@/types/index";
 
 export type ParsedTurnSection = LogSection;
 
@@ -125,36 +125,6 @@ export type DeckSpriteSelection = {
   selectionSource: "archetype" | "fallback";
 };
 
-export type ImportLogRecord = {
-  id: string;
-  date: string;
-  result: Result;
-  format: string;
-  go_order: "First" | "Second" | "";
-  self_player_name: string;
-  self_deck_name: string;
-  self_deck_slug: string;
-  self_deck_sprites: string;
-  opponent_player_name: string;
-  opponent_deck_name: string;
-  opponent_deck_slug: string;
-  opponent_deck_sprites: string;
-  total_turns: number;
-  coin_toss_won: boolean | null;
-  self_prizes_taken: number;
-  opponent_prizes_taken: number;
-  self_attack_damage: number;
-  opponent_attack_damage: number;
-  self_mulligans: number;
-  opponent_mulligans: number;
-  linked_deck_id: string | null;
-  linked_deck_list_id: string | null;
-  match_notes: string | null;
-  reason: string;
-  raw_log: string;
-  sections: ParsedTurnSection[];
-};
-
 export type ImportLogValidationErrorCode =
   | "EMPTY_INPUT"
   | "UNKNOWN_LOG"
@@ -170,5 +140,3 @@ export class ImportLogValidationError extends Error {
     this.code = code;
   }
 }
-
-export type TurnAction = LogAction;

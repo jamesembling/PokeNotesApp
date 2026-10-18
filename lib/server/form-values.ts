@@ -1,4 +1,4 @@
-import type { GoPreference, Result } from "@/types/index";
+import type { GoPreference } from "@/types/index";
 import { compactMap } from "@/lib/array";
 
 export function normalizeSelectedSprites(values: FormDataEntryValue[], limit = 2) {
@@ -33,22 +33,6 @@ export function parseJsonOrRepeatedSprites(args: {
 
 export function parseGoPreference(value: FormDataEntryValue | null): GoPreference {
   return value === "First" || value === "Second" ? value : "";
-}
-
-export function parseBoolean(value: FormDataEntryValue | null): boolean | null {
-  if (value === "true") {
-    return true;
-  }
-
-  if (value === "false") {
-    return false;
-  }
-
-  return null;
-}
-
-export function parseResult(value: FormDataEntryValue | null): Result {
-  return value === "Loss" ? "Loss" : "Win";
 }
 
 export function parseStringArray(values: FormDataEntryValue[]): string[] {

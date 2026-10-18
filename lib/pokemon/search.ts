@@ -94,15 +94,6 @@ function getPokemonSearchEntryRank(
   return null;
 }
 
-export function getPokemonSearchRank(option: PokemonOption, normalizedQuery: string) {
-  const index = buildPokemonSearchIndex([option]);
-  return getPokemonSearchEntryRank(
-    index.entries[0],
-    normalizedQuery,
-    compactPokemonSearchValue(normalizedQuery)
-  );
-}
-
 export function findPokemonSearchMatches(options: PokemonOption[], query: string, limit = 8) {
   return findPokemonSearchMatchesInIndex(buildPokemonSearchIndex(options), query, limit);
 }

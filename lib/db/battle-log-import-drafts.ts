@@ -2,11 +2,9 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  buildBattleLogImportReviewProjection,
   createBattleLogImportDraft,
   type BattleLogImportDraft,
-  type BattleLogImportEditableFields,
-  type BattleLogImportReviewProjection
+  type BattleLogImportEditableFields
 } from "@/lib/log-import/import-draft";
 import type { Json } from "@/types/supabase";
 import type { ParsedLogReview } from "@/types/index";
@@ -176,10 +174,4 @@ export async function commitPersistedBattleLogImportDraft(args: {
   }
 
   return result as CommitBattleLogImportDraftResult;
-}
-
-export function buildPersistedBattleLogImportReviewProjection(
-  draft: BattleLogImportDraft
-): BattleLogImportReviewProjection {
-  return buildBattleLogImportReviewProjection(draft);
 }

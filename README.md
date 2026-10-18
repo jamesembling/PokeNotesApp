@@ -124,7 +124,7 @@ Copy the keys from `.env.example`. The running application needs:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-Migration and seed utilities also use:
+Seed and catalog utilities also use:
 
 - `NEW_SUPABASE_URL`
 - `NEW_SUPABASE_SERVICE_KEY`
@@ -132,8 +132,6 @@ Migration and seed utilities also use:
 Optional variables:
 
 - `POKENOTES_AUTH_CLAIMS_SECRET` (dedicated HMAC key for forwarded auth claims; falls back to the Supabase service key)
-- `OLD_SUPABASE_URL`
-- `OLD_SUPABASE_SERVICE_KEY`
 - `CRON_SECRET`
 - `LIMITLESS_SYNC_SECRET` (production hourly Limitless sync)
 - `POKEMON_TCG_API_KEY` (optional upstream rate-limit allowance for card-effect sync)

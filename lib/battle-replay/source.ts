@@ -48,21 +48,3 @@ export function flattenReplaySourceActions(
     });
   });
 }
-
-export type DamageCounterPlacement = {
-  counters: number;
-  targetName: string;
-};
-
-export function getDamageCounterPlacements(details: string[]): DamageCounterPlacement[] {
-  return details.flatMap((detail) => {
-    const match = String(detail || "").trim().match(
-      /^[-•]?\s*(?:[\p{L}\p{N}_.-]+\s+)?put\s+(a|\d+)\s+damage counters?\s+on\s+(?:[\p{L}\p{N}_.-]+['’]s\s+)?(.+?)\.?$/iu,
-    );
-    if (!match?.[1] || !match[2]) return [];
-    return [{
-      counters: match[1].toLowerCase() === "a" ? 1 : Number(match[1]),
-      targetName: match[2],
-    }];
-  });
-}

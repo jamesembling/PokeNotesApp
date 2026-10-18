@@ -34,5 +34,3 @@ export async function loadInitialLogsPageData(userId: string) {
     window: hydratedWindow
   };
 }
-
-export type InitialLogsPageData = Awaited<ReturnType<typeof loadInitialLogsPageData>>;

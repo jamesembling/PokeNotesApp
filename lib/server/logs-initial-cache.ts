@@ -39,10 +39,6 @@ export function getInitialLogsCacheTag(userId: string) {
   return `initial-logs:${userId}`;
 }
 
-export async function getCachedInitialLogsPageData(userId: string) {
-  return (await getCachedInitialLogsPageDataWithDiagnostics(userId)).value;
-}
-
 export async function getCachedInitialLogsPageDataWithDiagnostics(userId: string) {
   const supabase = await createClient();
   const source: {

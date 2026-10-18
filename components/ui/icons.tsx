@@ -70,26 +70,6 @@ export function CalendarIcon({ className = "h-5 w-5" }: { className?: string }) 
   );
 }
 
-export function ClockIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className={className}
-      width="20"
-      height="20"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-    >
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 8v4l2.5 1.5" />
-    </svg>
-  );
-}
-
 export function MapPinIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg

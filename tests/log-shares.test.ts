@@ -88,7 +88,6 @@ function createStoreStub(initialRows: LogShareRow[] = []) {
       return created;
     },
     revokeOwnedShare: unexpectedCall,
-    findActiveByOwnerLog: unexpectedCall,
     async findByToken(token) {
       return rows.find((row) => row.id === token) ?? null;
     },

@@ -83,70 +83,8 @@ export async function ProxyAuthTimingMarker({
   );
 }
 
-export async function RouteDataTimingMarker({
-  cacheKeyVersion,
-  cacheLookupMs,
-  cacheOutcome,
-  durationMs,
-  endedAtEpochMs,
-  mappingMs,
-  resultBytes,
-  resultRows,
-  startedAtEpochMs,
-  supabaseMs
-}: {
-  cacheKeyVersion: string;
-  cacheLookupMs: number;
-  cacheOutcome:
-    | "fallback-cache-error"
-    | "fallback-invalid-payload"
-    | "fallback-rpc-error"
-    | "hit"
-    | "miss";
-  durationMs: number;
-  endedAtEpochMs: number;
-  mappingMs: number | null;
-  resultBytes: number | null;
-  resultRows: number | null;
-  startedAtEpochMs: number;
-  supabaseMs: number | null;
-}) {
-  const requestHeaders = await headers();
-  const requestStartedAt = parseOptionalNumber(requestHeaders.get(REQUEST_STARTED_HEADER));
-
-  return (
-    <span
-      aria-hidden="true"
-      data-route-cache-key-version={cacheKeyVersion}
-      data-route-cache-lookup-ms={safeDuration(cacheLookupMs)}
-      data-route-cache-outcome={cacheOutcome}
-      data-route-data-ended-ms={
-        requestStartedAt === null ? undefined : safeOffset(endedAtEpochMs - requestStartedAt)
-      }
-      data-route-data-started-ms={
-        requestStartedAt === null ? undefined : safeOffset(startedAtEpochMs - requestStartedAt)
-      }
-      data-route-mapping-ms={safeNullableDuration(mappingMs)}
-      data-route-result-bytes={safeNullableSize(resultBytes)}
-      data-route-result-rows={safeNullableSize(resultRows)}
-      data-route-server-timing="route-data"
-      data-route-server-timing-ms={safeDuration(durationMs)}
-      data-route-supabase-ms={safeNullableDuration(supabaseMs)}
-      hidden
-    />
-  );
-}
-
 function safeDuration(value: number) {
   return Math.max(0, Math.min(600_000, Math.round(value)));
-}
-
-function safeNullableDuration(value: number | null) {
-  return value === null ? undefined : safeDuration(value);
-}
-
-function safeNullableSize(value: number | null) {
-  return value === null ? undefined : Math.max(0, Math.min(100_000_000, Math.round(value)));
 }
 
 function safeOffset(value: number | null) {
