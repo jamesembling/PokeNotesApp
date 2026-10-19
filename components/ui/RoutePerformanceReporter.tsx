@@ -53,6 +53,7 @@ const LONG_TASK_ENTRY_RETENTION_MS = 300000;
 const HARD_LOAD_FALLBACK_MS = 10000;
 const ROUTE_DATA_PARSED_GRACE_MS = 1000;
 const ROUTE_DATA_OUTCOME_TIMEOUT_MS = 5000;
+const LOGS_DATA_PAINT_GRACE_MS = 1000;
 const UUID_SEGMENT_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -492,13 +493,16 @@ export function RoutePerformanceReporter() {
 
     let hardLoadReported = false;
     let waitingForLogsBootstrap = false;
+    const documentPath = getCurrentPath();
 
     function reportHardLoad() {
       if (hardLoadReported) {
         return;
       }
 
-      if (!isTrackedPerformancePath(getCurrentPath())) {
+      // A client navigation before the report would attribute this document
+      // load to the destination route; drop it rather than mix cohorts.
+      if (getCurrentPath() !== documentPath || !isTrackedPerformancePath(documentPath)) {
         hardLoadReported = true;
         return;
       }
@@ -509,7 +513,7 @@ export function RoutePerformanceReporter() {
       ) {
         if (!waitingForLogsBootstrap) {
           waitingForLogsBootstrap = true;
-          window.addEventListener("pokenotes:logs-bootstrap-settled", reportHardLoad, {
+          window.addEventListener("pokenotes:logs-bootstrap-settled", reportAfterLogsDataPaint, {
             once: true
           });
         }
@@ -586,6 +590,25 @@ export function RoutePerformanceReporter() {
       });
     }
 
+    // The logs list can commit after the bootstrap settles. Wait for its data
+    // paint so slow loads keep their data timings; failed loads never paint.
+    let logsDataPaintTimeoutId: number | undefined;
+    function handleLogsDataPaint(event: Event) {
+      const detail = (event as CustomEvent<{ phase?: string }>).detail;
+      if (detail?.phase === "route-data-visible") {
+        reportHardLoad();
+      }
+    }
+    function reportAfterLogsDataPaint() {
+      if (getClientPaintTiming("route-data-visible") !== null) {
+        reportHardLoad();
+        return;
+      }
+
+      window.addEventListener("pokenotes:route-client-paint", handleLogsDataPaint);
+      logsDataPaintTimeoutId = window.setTimeout(reportHardLoad, LOGS_DATA_PAINT_GRACE_MS);
+    }
+
     const hardLoadTimeoutId = window.setTimeout(reportHardLoad, HARD_LOAD_FALLBACK_MS);
     const reportHardLoadAfterLoad = () => {
       window.requestAnimationFrame(reportHardLoad);
@@ -606,12 +629,14 @@ export function RoutePerformanceReporter() {
 
     return () => {
       window.clearTimeout(hardLoadTimeoutId);
+      window.clearTimeout(logsDataPaintTimeoutId);
+      window.removeEventListener("pokenotes:route-client-paint", handleLogsDataPaint);
       window.removeEventListener("load", reportHardLoadAfterLoad);
       window.removeEventListener(
         "pokenotes:route-client-paint",
         reportHardLoadAfterAdminShellPaint
       );
-      window.removeEventListener("pokenotes:logs-bootstrap-settled", reportHardLoad);
+      window.removeEventListener("pokenotes:logs-bootstrap-settled", reportAfterLogsDataPaint);
       largestContentfulPaintObserver?.disconnect();
       longTaskObserver?.disconnect();
     };

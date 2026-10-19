@@ -136,8 +136,6 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
         };
       })
       .then(({ parsedAtMs, payload }) => {
-        document.documentElement.dataset.logsBootstrapSettled = "true";
-        window.dispatchEvent(new CustomEvent("pokenotes:logs-bootstrap-settled"));
         setState({ parsedAtMs, payload, status: "ready" });
       })
       .catch((error: Error & { unauthorized?: boolean }) => {
@@ -153,6 +151,18 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
         }
       });
   }, [attempt]);
+
+  // Announce settlement only after React commits the result, so listeners can
+  // read the rendered timing markers. Failures settle too: the sidebar and the
+  // hard-load reporter must not wait forever on an errored bootstrap.
+  useEffect(() => {
+    if (state.status === "loading") {
+      return;
+    }
+
+    document.documentElement.dataset.logsBootstrapSettled = "true";
+    window.dispatchEvent(new CustomEvent("pokenotes:logs-bootstrap-settled"));
+  }, [state.status]);
 
   const stats =
     state.status === "ready" ? (
