@@ -25,6 +25,10 @@ Move uncommitted work with git, never by copying files. Re-creating edits in ano
 - To land another session's or worktree's work, commit it there first, then bring the commit over with `git cherry-pick` or push that branch.
 - Keep a note of every worktree the work passed through, for **Clean up leftover edits** below.
 
+## Opening the PR
+
+When you open a PR James asked for, add the `merge-when-green` label (`gh pr create --label merge-when-green`, or `gh pr edit <n> --add-label merge-when-green`). Leave it off a draft or a PR he asked you to hold. The **Merge when green** GitHub workflow then merges the PR once it is green, even if no session is awake when CI finishes. It applies the same three conditions as **Merge when green** below and also waits for a running Codex review. Remove the label (`gh pr edit <n> --remove-label merge-when-green`) if you hit a stop condition under **When to stop and ask**.
+
 ## Waiting on CI
 
 - Never loop on `gh pr checks`, `sleep`, or repeated status fetches. Subscribe to the PR and end the turn; check results arrive as events.
@@ -34,7 +38,7 @@ Move uncommitted work with git, never by copying files. Re-creating edits in ano
 
 ## Merge when green
 
-On each wake, re-fetch the PR on its current head and merge only when all of these hold:
+If you are awake when the PR goes green, merge it yourself rather than waiting for the workflow. Either way the merge is the same. On each wake, re-fetch the PR on its current head and merge only when all of these hold:
 
 1. Every check on the head commit is successful or skipped. Pending, failed, cancelled, or timed-out checks block the merge.
 2. Both `verify` and `Database behavior` are present on the head commit.
@@ -44,7 +48,7 @@ Merge with **squash**, keeping the PR title and number as the commit subject, an
 
 ## Update local main
 
-After confirming the merge, bring James's local `main` up to date with `origin/main`. Fast-forward only, and never discard local work:
+After confirming the merge (yours, or the workflow's when you next wake), bring James's local `main` up to date with `origin/main`. Fast-forward only, and never discard local work:
 
 - Run `git fetch origin`, then `git worktree list` to see whether any checkout has `main` checked out.
 - If a checkout has `main` checked out and its tree is clean, run `git -C <that path> merge --ff-only origin/main`.

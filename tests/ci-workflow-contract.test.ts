@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { assessRuntimeAudit } from "../scripts/audit-runtime-dependencies.mjs";
+import { decideMerge, normalizeCheck, readCodexReview } from "../scripts/merge-when-green.mjs";
 
 function source(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -139,4 +140,73 @@ test("GitHub workflows pin their Node action releases", () => {
     /actions\/(?:checkout|setup-node)@v4|# v4/
   );
   assert.doesNotMatch(databaseWorkflow, /supabase\/setup-cli@.*# v1/);
+});
+
+test("merge-when-green merges only labelled PRs whose head is fully green", () => {
+  const head = "a".repeat(40);
+  const green = {
+    pr: {
+      baseRefName: "main",
+      headRefOid: head,
+      isDraft: false,
+      labels: ["merge-when-green"],
+      mergeable: "MERGEABLE",
+      state: "OPEN"
+    },
+    checks: [
+      normalizeCheck({
+        __typename: "CheckRun",
+        name: "verify",
+        status: "COMPLETED",
+        conclusion: "SUCCESS"
+      }),
+      { name: "Database behavior", result: "SKIPPED" },
+      normalizeCheck({ __typename: "StatusContext", context: "Vercel", state: "SUCCESS" }),
+      { name: "Merge when green", result: "PENDING" }
+    ],
+    unresolvedThreads: 0,
+    codexReview: { commitSha: "b".repeat(40), status: "running" }
+  };
+  const mergesWith = (change: Partial<typeof green>, pr: Partial<typeof green.pr> = {}) =>
+    decideMerge({ ...green, ...change, pr: { ...green.pr, ...pr } }).merge;
+
+  assert.equal(decideMerge(green).merge, true);
+  assert.equal(mergesWith({}, { labels: [] }), false);
+  assert.equal(mergesWith({}, { isDraft: true }), false);
+  assert.equal(mergesWith({}, { mergeable: "CONFLICTING" }), false);
+  assert.equal(mergesWith({ checks: green.checks.slice(1) }), false);
+  assert.equal(
+    mergesWith({
+      checks: [
+        ...green.checks,
+        normalizeCheck({
+          __typename: "CheckRun",
+          name: "lint",
+          status: "IN_PROGRESS",
+          conclusion: null
+        })
+      ]
+    }),
+    false
+  );
+  assert.equal(
+    mergesWith({ checks: [...green.checks, { name: "e2e", result: "FAILURE" }] }),
+    false
+  );
+  assert.equal(mergesWith({ unresolvedThreads: 1 }), false);
+  assert.equal(mergesWith({ codexReview: { commitSha: head, status: "running" } }), false);
+
+  const state = (status: string) =>
+    `<!-- codex-review-state:v1 {"code_review":{"commit_sha":"${head}","status":"${status}"}} -->`;
+  assert.deepEqual(
+    readCodexReview([
+      { user: { login: "chatgpt-codex-connector[bot]" }, body: state("running") },
+      { user: { login: "someone-else" }, body: state("completed") }
+    ]),
+    { commitSha: head, status: "running" }
+  );
+
+  const workflow = source(".github/workflows/merge-when-green.yml");
+  assert.match(workflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.match(workflow, /actions\/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\.0\.1/);
 });
