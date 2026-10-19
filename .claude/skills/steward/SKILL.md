@@ -51,6 +51,7 @@ Merge with **squash**, keeping the PR title and number as the commit subject, an
 After confirming the merge (yours, or the workflow's when you next wake), bring James's local `main` up to date with `origin/main`. Fast-forward only, and never discard local work:
 
 - Run `git fetch origin`, then `git worktree list` to see whether any checkout has `main` checked out.
+- If a checkout is still on the merged PR's branch and its tree is clean, move it off first: `git switch main` there, or `git switch --detach origin/main` if another worktree already has `main`. Then delete the local branch with `git branch -D <branch>`, but only if its tip is the PR's merged head. A checkout left on a squash-merged branch shows that branch's whole diff as if it were unfinished work.
 - If a checkout has `main` checked out and its tree is clean, run `git -C <that path> merge --ff-only origin/main`.
 - If no checkout has `main` checked out, run `git fetch origin main:main`, which fast-forwards the branch without switching to it.
 - If the fast-forward is refused (uncommitted changes, or local commits on `main` that aren't on `origin/main`), don't force, reset or stash. Tell James why `main` wasn't updated.
