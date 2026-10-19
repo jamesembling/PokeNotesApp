@@ -493,13 +493,16 @@ export function RoutePerformanceReporter() {
 
     let hardLoadReported = false;
     let waitingForLogsBootstrap = false;
+    const documentPath = getCurrentPath();
 
     function reportHardLoad() {
       if (hardLoadReported) {
         return;
       }
 
-      if (!isTrackedPerformancePath(getCurrentPath())) {
+      // A client navigation before the report would attribute this document
+      // load to the destination route; drop it rather than mix cohorts.
+      if (getCurrentPath() !== documentPath || !isTrackedPerformancePath(documentPath)) {
         hardLoadReported = true;
         return;
       }
