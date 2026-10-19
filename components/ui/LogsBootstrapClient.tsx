@@ -5,15 +5,17 @@ import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
 import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker";
+import { LogsLastKnownContent, LogsLastKnownStats } from "@/components/ui/LogsLastKnownState";
 import { LogsStats } from "@/components/ui/LogsStats";
 import { LogsWorkspaceClient } from "@/components/ui/LogsWorkspaceClient";
 import { LogsWorkspaceFrame } from "@/components/ui/LogsWorkspaceFrame";
-import { LogsStatsSkeleton, LogsWorkspaceSkeleton } from "@/components/ui/LogsWorkspaceSkeleton";
+import { LogsStatsSkeleton } from "@/components/ui/LogsWorkspaceSkeleton";
 import type { BattleLogSummary } from "@/types/index";
 import { loadMoreLogsAction } from "@/app/(app)/logs/actions";
 import { LogsRefreshContext } from "@/components/ui/LogsRefreshContext";
 import { refreshLoadedLogsWindow } from "@/lib/client/logs-refresh";
 import { loadLogsBootstrap } from "@/lib/client/logs-bootstrap";
+import { clearLastKnownLogsSnapshot } from "@/lib/client/logs-last-known";
 
 type BootstrapDiagnostics = {
   authEndedMs: number;
@@ -75,7 +77,10 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
     try {
       const result = await loadLogsBootstrap(false);
       if (!result.ok) {
-        if (result.status === 401) window.location.replace("/login");
+        if (result.status === 401) {
+          clearLastKnownLogsSnapshot();
+          window.location.replace("/login");
+        }
         throw new Error(
           "Your change was saved, but battle logs could not be refreshed. Try again."
         );
@@ -119,6 +124,9 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
       .then((result) => {
         if (!result.ok) {
           const unauthorized = result.status === 401;
+          if (unauthorized) {
+            clearLastKnownLogsSnapshot();
+          }
           throw Object.assign(
             new Error(
               unauthorized
@@ -170,6 +178,8 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
         total={state.payload.stats.total}
         wins={state.payload.stats.wins}
       />
+    ) : state.status === "loading" ? (
+      <LogsLastKnownStats />
     ) : (
       <LogsStatsSkeleton />
     );
@@ -191,7 +201,7 @@ export function LogsBootstrapClient({ performanceVariant }: LogsBootstrapClientP
             </AlertDescription>
           </Alert>
         ) : null}
-        {state.status === "loading" ? <LogsWorkspaceSkeleton /> : null}
+        {state.status === "loading" ? <LogsLastKnownContent /> : null}
         {state.status === "error" ? (
           <Card className="gap-4">
             <Alert variant="destructive">

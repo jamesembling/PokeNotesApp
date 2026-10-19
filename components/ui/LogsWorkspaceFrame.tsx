@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { Button } from "@/components/shadcn/button";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import { ClientRouteTimingMarker } from "@/components/ui/ClientRouteTimingMarker";
 import { ParserRouteTimingMarker } from "@/components/ui/ParserRouteTimingMarker";
 import { LazyImportLogButton } from "@/components/ui/LazyImportLogButton";
@@ -54,8 +55,9 @@ export function LogsWorkspaceFrame({
       <ClientRouteTimingMarker phase="route-shell-visible" />
       <PageHeader
         action={
-          !isLoading ? (
-            <PageActions className="hidden sm:flex">
+          // Kept while loading so the header spacing matches the loaded page.
+          <PageActions className="hidden sm:flex">
+            {!isLoading ? (
               <Button
                 className="w-full justify-center sm:w-auto sm:self-start sm:min-w-[5.5rem]"
                 aria-pressed={isManagementMode}
@@ -63,15 +65,21 @@ export function LogsWorkspaceFrame({
               >
                 {isManagementMode ? "Done" : "Edit logs"}
               </Button>
-            </PageActions>
-          ) : null
+            ) : null}
+          </PageActions>
         }
         breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Battle Logs" }]}
         meta={stats}
         title="Battle Logs"
       />
 
-      {!isLoading ? (
+      {isLoading ? (
+        // Reserves the mobile actions' height so the list does not jump when they appear.
+        <div aria-hidden="true" className="flex flex-col gap-2 sm:hidden">
+          <Skeleton className="h-11 rounded-lg" />
+          <Skeleton className="h-[2.645rem] rounded-lg" />
+        </div>
+      ) : (
         <PageActions className="sm:hidden" mobile="stack">
           <Button
             aria-pressed={isManagementMode}
@@ -82,7 +90,7 @@ export function LogsWorkspaceFrame({
           </Button>
           <LazyImportLogButton className="w-full justify-center" />
         </PageActions>
-      ) : null}
+      )}
 
       {children}
     </div>
