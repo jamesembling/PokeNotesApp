@@ -10,6 +10,11 @@ on:
   # pull_request_target runs main's copy of this workflow, never the PR's code.
   pull_request_target:
     types: [labeled]
+  # Third-party checks (such as Vercel) finish as commit statuses or app check
+  # suites. GitHub Actions' own suites never fire check_suite; workflow_run covers them.
+  status:
+  check_suite:
+    types: [completed]
   # Codex edits its summary comment when a review finishes.
   issue_comment:
     types: [created, edited]
@@ -32,6 +37,8 @@ jobs:
     name: Merge when green
     if: >-
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'status' && github.event.state == 'success') ||
+      (github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'success') ||
       (github.event_name == 'pull_request_target' && github.event.label.name == 'merge-when-green') ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
         github.event.comment.user.login == 'chatgpt-codex-connector[bot]') ||

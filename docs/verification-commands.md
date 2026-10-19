@@ -473,8 +473,9 @@ test -z "$pokenotes_remote_branch_after"
 `.github/workflows/merge-when-green.yml` squash-merges an open PR labelled `merge-when-green` once
 every check on its head is green, both `verify` and `Database behavior` have reported, no review
 thread is unresolved and no Codex review is running on the head. It re-checks the PR whenever CI or
-Database behavior completes, the label is added, or Codex updates its review summary, and it pins
-each merge to the head it checked. The decision lives in `scripts/merge-when-green.mjs`.
+Database behavior completes, a third-party check such as Vercel succeeds, the label is added, or
+Codex updates its review summary. It pins each merge to the head it checked and refuses to judge a
+PR with more than one page of checks or review threads. The decision lives in `scripts/merge-when-green.mjs`.
 
 Merges made with the workflow's default token do not start the `push` runs of CI and Database
 behavior on `main`. To keep those runs, store a fine-grained personal access token as the repository

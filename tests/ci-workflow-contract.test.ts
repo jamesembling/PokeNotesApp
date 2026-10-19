@@ -165,7 +165,8 @@ test("merge-when-green merges only labelled PRs whose head is fully green", () =
       { name: "Merge when green", result: "PENDING" }
     ],
     unresolvedThreads: 0,
-    codexReview: { commitSha: "b".repeat(40), status: "running" }
+    codexReview: { commitSha: "b".repeat(40), status: "running" },
+    truncated: false
   };
   const mergesWith = (change: Partial<typeof green>, pr: Partial<typeof green.pr> = {}) =>
     decideMerge({ ...green, ...change, pr: { ...green.pr, ...pr } }).merge;
@@ -194,6 +195,7 @@ test("merge-when-green merges only labelled PRs whose head is fully green", () =
     false
   );
   assert.equal(mergesWith({ unresolvedThreads: 1 }), false);
+  assert.equal(mergesWith({ truncated: true }), false);
   assert.equal(mergesWith({ codexReview: { commitSha: head, status: "running" } }), false);
 
   const state = (status: string) =>

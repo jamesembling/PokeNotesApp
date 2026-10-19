@@ -12,6 +12,7 @@ type MergeSnapshot = {
   checks: CheckResult[];
   unresolvedThreads: number;
   codexReview: CodexReview;
+  truncated: boolean;
 };
 export const MERGE_LABEL: string;
 export function decideMerge(snapshot: MergeSnapshot): { merge: boolean; reason: string };

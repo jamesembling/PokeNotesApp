@@ -13,12 +13,16 @@ const CODEX_BOT = "chatgpt-codex-connector[bot]";
 
 // Decide from a read-only snapshot whether a PR may merge now. Anything not
 // clearly green waits: a later check, review or label event re-runs this.
-export function decideMerge({ pr, checks, unresolvedThreads, codexReview }) {
+export function decideMerge({ pr, checks, unresolvedThreads, codexReview, truncated }) {
   if (pr.state !== "OPEN") return { merge: false, reason: `PR is ${pr.state.toLowerCase()}.` };
   if (pr.isDraft) return { merge: false, reason: "PR is a draft." };
   if (pr.baseRefName !== "main") return { merge: false, reason: "PR does not target main." };
   if (!pr.labels.includes(MERGE_LABEL)) {
     return { merge: false, reason: `PR has no ${MERGE_LABEL} label.` };
+  }
+
+  if (truncated) {
+    return { merge: false, reason: "Too many checks or review threads to read in one page." };
   }
 
   const relevant = checks.filter((check) => check.name !== OWN_CHECK);
@@ -78,16 +82,20 @@ function ghJson(args) {
   return JSON.parse(gh(args));
 }
 
+function openPullRequestsFor(repo, sha) {
+  return ghJson(["api", `repos/${repo}/commits/${sha}/pulls`])
+    .filter((pr) => pr.state === "open")
+    .map((pr) => pr.number);
+}
+
 function candidatePullRequests(repo, eventName, event) {
   if (eventName === "workflow_dispatch") return [Number(event.inputs.pr_number)];
   if (eventName === "pull_request_target") return [event.pull_request.number];
   if (eventName === "issue_comment") return event.issue.pull_request ? [event.issue.number] : [];
-  if (eventName === "workflow_run") {
-    const sha = event.workflow_run.head_sha;
-    return ghJson(["api", `repos/${repo}/commits/${sha}/pulls`])
-      .filter((pr) => pr.state === "open")
-      .map((pr) => pr.number);
-  }
+  if (eventName === "workflow_run") return openPullRequestsFor(repo, event.workflow_run.head_sha);
+  // Third-party checks (such as Vercel) report as commit statuses or app check suites.
+  if (eventName === "status") return openPullRequestsFor(repo, event.sha);
+  if (eventName === "check_suite") return openPullRequestsFor(repo, event.check_suite.head_sha);
   return [];
 }
 
@@ -106,14 +114,19 @@ function snapshot(repo, number) {
     `query=query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){
       state isDraft baseRefName headRefOid mergeable title
       labels(first:50){nodes{name}}
-      reviewThreads(first:100){nodes{isResolved}}
-      commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100){nodes{
+      reviewThreads(first:100){pageInfo{hasNextPage} nodes{isResolved}}
+      commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100){pageInfo{hasNextPage} nodes{
         __typename ... on CheckRun{name status conclusion} ... on StatusContext{context state}
       }}}}}}
     }}}`
   ]).data.repository.pullRequest;
   const rollup = data.commits.nodes[0]?.commit.statusCheckRollup;
-  const comments = ghJson(["api", "--paginate", `repos/${repo}/issues/${number}/comments`]);
+  const comments = ghJson([
+    "api",
+    "--paginate",
+    "--slurp",
+    `repos/${repo}/issues/${number}/comments`
+  ]).flat();
   return {
     pr: {
       baseRefName: data.baseRefName,
@@ -126,7 +139,11 @@ function snapshot(repo, number) {
     },
     checks: (rollup?.contexts.nodes ?? []).map(normalizeCheck),
     unresolvedThreads: data.reviewThreads.nodes.filter((thread) => !thread.isResolved).length,
-    codexReview: readCodexReview(comments)
+    codexReview: readCodexReview(comments),
+    // A later page could hide a failing check or an open thread, so never judge a partial read.
+    truncated: Boolean(
+      rollup?.contexts.pageInfo.hasNextPage || data.reviewThreads.pageInfo.hasNextPage
+    )
   };
 }
 
