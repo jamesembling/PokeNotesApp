@@ -54,6 +54,10 @@ remains present on every PR; documentation-only changes can skip its expensive
 steps. The weekly schedule and manual workflow dispatch run the full synthetic
 gate without path filtering. Its read-only GitHub token and disposable local
 database do not require production secrets. Each journey resets its fixtures.
+The job sets `POKENOTES_E2E_HEADLESS=1`, so its stack starts without Studio or
+Mailpit, and pulls Supabase images from `ghcr.io`. It starts Supabase in the
+background while Playwright installs Chromium, and leaves the stack running when
+the job ends because the runner is discarded.
 
 On browser failure, the runner writes the failed checkpoint and sanitized server
 log/ARIA snapshot to ignored `.agent-browser/import-check/<variant>/`. CI uploads
