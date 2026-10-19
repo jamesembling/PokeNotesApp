@@ -75,6 +75,7 @@ Before reporting the merge, run `git status --short` in every worktree the work 
 
 - Fix red-circle and blocking findings, validate locally, push, reply in the thread, and resolve it. The new head merges once it is green.
 - Optional (yellow) findings: reply once with the decision and resolve. Carry correct ones into a push that already changes the PR's files.
+- Resolving a thread does not trigger the **Merge when green** workflow. If you resolved threads without pushing and the checks are already green, re-run it: `gh workflow run merge-when-green.yml -f pr_number=<n>`.
 
 ## When to stop and ask
 
