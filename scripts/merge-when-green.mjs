@@ -74,8 +74,8 @@ export function readCodexReview(comments) {
   return null;
 }
 
-function gh(args) {
-  return execFileSync("gh", args, { encoding: "utf8" });
+function gh(args, token = process.env.GH_TOKEN) {
+  return execFileSync("gh", args, { encoding: "utf8", env: { ...process.env, GH_TOKEN: token } });
 }
 
 function ghJson(args) {
@@ -154,19 +154,23 @@ function mergeWhenGreen(repo, number) {
   if (!decision.merge) return;
 
   // Pin to the head we just judged, so a push after the snapshot cannot merge unchecked.
+  // Only the merge uses MERGE_TOKEN: fine-grained personal tokens cannot read check runs.
   try {
-    gh([
-      "pr",
-      "merge",
-      String(number),
-      "--repo",
-      repo,
-      "--squash",
-      "--match-head-commit",
-      current.pr.headRefOid,
-      "--subject",
-      `${current.pr.title} (#${number})`
-    ]);
+    gh(
+      [
+        "pr",
+        "merge",
+        String(number),
+        "--repo",
+        repo,
+        "--squash",
+        "--match-head-commit",
+        current.pr.headRefOid,
+        "--subject",
+        `${current.pr.title} (#${number})`
+      ],
+      process.env.MERGE_TOKEN || process.env.GH_TOKEN
+    );
   } catch (error) {
     console.log(`Merge call failed: ${error.message.split("\n")[0]}`);
   }

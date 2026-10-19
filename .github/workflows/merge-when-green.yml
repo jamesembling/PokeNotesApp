@@ -52,14 +52,16 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
-      # Merges made with the default token do not start CI on main, so a
-      # personal token is preferred. See docs/verification-commands.md.
+      # Reads use the workflow token, which can see check runs. Merges made with
+      # it do not start CI on main, so the merge itself prefers a personal token.
+      # See docs/verification-commands.md.
       - name: Merge eligible pull requests
         env:
-          GH_TOKEN: ${{ secrets.MERGE_WHEN_GREEN_TOKEN || github.token }}
-          HAS_MERGE_TOKEN: ${{ secrets.MERGE_WHEN_GREEN_TOKEN != '' }}
+          GH_TOKEN: ${{ github.token }}
+          MERGE_TOKEN: ${{ secrets.POKENOTES_MERGE_WHEN_GREEN }}
+          HAS_MERGE_TOKEN: ${{ secrets.POKENOTES_MERGE_WHEN_GREEN != '' }}
         run: |
           if [ "$HAS_MERGE_TOKEN" != "true" ]; then
-            echo "::warning::MERGE_WHEN_GREEN_TOKEN is not set; merges use the default token and will not start CI on main."
+            echo "::warning::POKENOTES_MERGE_WHEN_GREEN is not set; merges use the default token and will not start CI on main."
           fi
           node scripts/merge-when-green.mjs
