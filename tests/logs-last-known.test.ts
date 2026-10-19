@@ -5,6 +5,7 @@ import {
   createLastKnownLogsSnapshot,
   parseLastKnownLogsSnapshot,
   readLastKnownLogsSnapshot,
+  readSessionUserId,
   writeLastKnownLogsSnapshot
 } from "@/lib/client/logs-last-known";
 import type { BattleLogSummary } from "@/types/index";
@@ -53,7 +54,8 @@ test("last-known logs retain only bounded read-only presentation data", () => {
   const snapshot = createLastKnownLogsSnapshot(
     {
       logs: Array.from({ length: 10 }, (_, index) => battleLog({ id: `private-${index}` })),
-      stats: { losses: 4, total: 10, wins: 6 }
+      stats: { losses: 4, total: 10, wins: 6 },
+      userId: "user-a"
     },
     now
   );
@@ -74,41 +76,57 @@ test("last-known logs retain only bounded read-only presentation data", () => {
   }
 });
 
-test("last-known logs reject expired, malformed, or internally inconsistent snapshots", () => {
+test("last-known logs reject expired, malformed, inconsistent, or other users' snapshots", () => {
   const valid = createLastKnownLogsSnapshot(
-    { logs: [battleLog()], stats: { losses: 1, total: 3, wins: 2 } },
+    { logs: [battleLog()], stats: { losses: 1, total: 3, wins: 2 }, userId: "user-a" },
     now
   );
 
-  assert.deepEqual(parseLastKnownLogsSnapshot(JSON.stringify(valid), now), valid);
+  assert.deepEqual(parseLastKnownLogsSnapshot(JSON.stringify(valid), "user-a", now), valid);
+  assert.equal(parseLastKnownLogsSnapshot(JSON.stringify(valid), "user-b", now), null);
+  assert.equal(parseLastKnownLogsSnapshot(JSON.stringify(valid), null, now), null);
   assert.equal(
-    parseLastKnownLogsSnapshot(JSON.stringify(valid), now + 8 * 24 * 60 * 60 * 1000),
+    parseLastKnownLogsSnapshot(JSON.stringify(valid), "user-a", now + 8 * 24 * 60 * 60 * 1000),
     null
   );
-  assert.equal(parseLastKnownLogsSnapshot("not json", now), null);
+  assert.equal(parseLastKnownLogsSnapshot("not json", "user-a", now), null);
   assert.equal(
     parseLastKnownLogsSnapshot(
       JSON.stringify({ ...valid, stats: { losses: 2, total: 1, wins: 1 } }),
+      "user-a",
       now
     ),
     null
   );
 });
 
-test("last-known logs can be persisted, read, and cleared without browser globals", (t) => {
+test("last-known logs are bound to the session cookie's user and cleared without browser globals", (t) => {
+  const session = Buffer.from(JSON.stringify({ user: { id: "user-a" } })).toString("base64url");
+  const cookie = `theme=dark; sb-ref-auth-token=base64-${session}`;
+  const chunkedCookie = `sb-ref-auth-token.1=${session.slice(20)}; sb-ref-auth-token.0=base64-${session.slice(0, 20)}`;
+  assert.equal(readSessionUserId(cookie), "user-a");
+  assert.equal(readSessionUserId(chunkedCookie), "user-a");
+  assert.equal(readSessionUserId("theme=dark"), null);
+  assert.equal(readSessionUserId("sb-ref-auth-token=base64-not-json"), null);
+
   const storage = memoryStorage();
   const input = {
     logs: [battleLog()],
     stats: { losses: 1, total: 3, wins: 2 }
   };
 
-  writeLastKnownLogsSnapshot(input, storage);
-  const snapshot = readLastKnownLogsSnapshot(storage);
+  writeLastKnownLogsSnapshot(input, storage, null);
+  assert.equal(storage.values.size, 0);
+  writeLastKnownLogsSnapshot(input, storage, readSessionUserId(cookie));
+  const snapshot = readLastKnownLogsSnapshot(storage, "user-a");
   assert.equal(snapshot?.logs.length, 1);
   assert.deepEqual(snapshot?.stats, input.stats);
+  assert.equal(readLastKnownLogsSnapshot(storage, "user-b"), null);
+  assert.equal(storage.values.size, 0);
 
+  writeLastKnownLogsSnapshot(input, storage, "user-a");
   clearLastKnownLogsSnapshot(storage);
-  assert.equal(readLastKnownLogsSnapshot(storage), null);
+  assert.equal(readLastKnownLogsSnapshot(storage, "user-a"), null);
 
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   t.after(() => {

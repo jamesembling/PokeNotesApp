@@ -16,12 +16,36 @@ const OPAQUE_MOUNT_HTML = { __html: "" };
 const FALLBACK_CLASS_NAME = "[[data-last-known-mount]:not(:empty)~&]:hidden";
 
 const FILL_LAST_KNOWN_LOGS_SCRIPT = String.raw`(()=>{
+const readUserId=()=>{
+  const sessions=new Map();
+  for(const part of document.cookie.split(";")){
+    const separator=part.indexOf("=");
+    const name=part.slice(0,separator).trim();
+    const match=separator>0?/^sb-.+-auth-token(?:\.(\d+))?$/.exec(name):null;
+    if(!match){continue}
+    const baseName=match[1]===undefined?name:name.slice(0,name.lastIndexOf("."));
+    const chunks=sessions.get(baseName)||[];
+    chunks[match[1]===undefined?0:Number(match[1])]=part.slice(separator+1).trim();
+    sessions.set(baseName,chunks);
+  }
+  for(const chunks of sessions.values()){
+    try{
+      const value=chunks.join("");
+      const json=value.startsWith("base64-")?new TextDecoder().decode(Uint8Array.from(atob(value.slice(7).replace(/-/g,"+").replace(/_/g,"/")),(character)=>character.charCodeAt(0))):decodeURIComponent(value);
+      const id=JSON.parse(json)?.user?.id;
+      if(typeof id==="string"&&id&&id.length<=200){return id}
+    }catch{}
+  }
+  return null;
+};
 const readSnapshot=()=>{
   try {
+    const userId=readUserId();
+    if(!userId){return null}
     const value=localStorage.getItem("poke-notes:logs:last-known:v1");
     const snapshot=value?JSON.parse(value):null;
     const now=Date.now();
-    if(!snapshot||snapshot.version!==1||!Number.isFinite(snapshot.savedAt)||snapshot.savedAt>now+60000||now-snapshot.savedAt>604800000||!snapshot.stats||!Array.isArray(snapshot.logs)||snapshot.logs.length>8){return null}
+    if(!snapshot||snapshot.version!==2||snapshot.userId!==userId||!Number.isFinite(snapshot.savedAt)||snapshot.savedAt>now+60000||now-snapshot.savedAt>604800000||!snapshot.stats||!Array.isArray(snapshot.logs)||snapshot.logs.length>8){return null}
     const counts=[snapshot.stats.total,snapshot.stats.wins,snapshot.stats.losses];
     if(!counts.every((count)=>Number.isInteger(count)&&count>=0)||snapshot.stats.wins+snapshot.stats.losses>snapshot.stats.total){return null}
     return snapshot;

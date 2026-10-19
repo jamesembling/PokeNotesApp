@@ -1,9 +1,10 @@
 import type { BattleLogSummary, GoOrder, Result } from "@/types/index";
 
 const LAST_KNOWN_LOGS_KEY = "poke-notes:logs:last-known:v1";
-const LAST_KNOWN_LOGS_VERSION = 1;
+const LAST_KNOWN_LOGS_VERSION = 2;
 const LAST_KNOWN_LOGS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const LAST_KNOWN_LOGS_LIMIT = 8;
+const SESSION_COOKIE_PATTERN = /^sb-.+-auth-token(?:\.(\d+))?$/;
 
 type StorageLike = Pick<Storage, "getItem" | "removeItem" | "setItem">;
 
@@ -24,6 +25,7 @@ export type LastKnownLogsSnapshot = {
     total: number;
     wins: number;
   };
+  userId: string;
   version: typeof LAST_KNOWN_LOGS_VERSION;
 };
 
@@ -33,7 +35,7 @@ type CreateLastKnownLogsSnapshotInput = {
 };
 
 export function createLastKnownLogsSnapshot(
-  input: CreateLastKnownLogsSnapshotInput,
+  input: CreateLastKnownLogsSnapshotInput & { userId: string },
   savedAt = Date.now()
 ): LastKnownLogsSnapshot {
   return {
@@ -51,21 +53,29 @@ export function createLastKnownLogsSnapshot(
       total: input.stats.total,
       wins: input.stats.wins
     },
+    userId: input.userId,
     version: LAST_KNOWN_LOGS_VERSION
   };
 }
 
+// The /logs shell paints before the server confirms the session, so a snapshot
+// only belongs to the user whose session cookie is currently present.
 export function parseLastKnownLogsSnapshot(
   value: string | null,
+  userId: string | null,
   now = Date.now()
 ): LastKnownLogsSnapshot | null {
-  if (!value) {
+  if (!value || !userId) {
     return null;
   }
 
   try {
     const candidate = JSON.parse(value) as unknown;
-    if (!isRecord(candidate) || candidate.version !== LAST_KNOWN_LOGS_VERSION) {
+    if (
+      !isRecord(candidate) ||
+      candidate.version !== LAST_KNOWN_LOGS_VERSION ||
+      candidate.userId !== userId
+    ) {
       return null;
     }
 
@@ -89,6 +99,7 @@ export function parseLastKnownLogsSnapshot(
       logs: logs as LastKnownLog[],
       savedAt: candidate.savedAt,
       stats: candidate.stats,
+      userId,
       version: LAST_KNOWN_LOGS_VERSION
     };
   } catch {
@@ -98,6 +109,7 @@ export function parseLastKnownLogsSnapshot(
 
 export function readLastKnownLogsSnapshot(
   storage: StorageLike | null = getBrowserStorage(),
+  userId: string | null = readSessionUserId(),
   now = Date.now()
 ) {
   if (!storage) {
@@ -105,7 +117,7 @@ export function readLastKnownLogsSnapshot(
   }
 
   try {
-    const snapshot = parseLastKnownLogsSnapshot(storage.getItem(LAST_KNOWN_LOGS_KEY), now);
+    const snapshot = parseLastKnownLogsSnapshot(storage.getItem(LAST_KNOWN_LOGS_KEY), userId, now);
     if (!snapshot) {
       storage.removeItem(LAST_KNOWN_LOGS_KEY);
     }
@@ -117,14 +129,18 @@ export function readLastKnownLogsSnapshot(
 
 export function writeLastKnownLogsSnapshot(
   input: CreateLastKnownLogsSnapshotInput,
-  storage: StorageLike | null = getBrowserStorage()
+  storage: StorageLike | null = getBrowserStorage(),
+  userId: string | null = readSessionUserId()
 ) {
-  if (!storage) {
+  if (!storage || !userId) {
     return;
   }
 
   try {
-    storage.setItem(LAST_KNOWN_LOGS_KEY, JSON.stringify(createLastKnownLogsSnapshot(input)));
+    storage.setItem(
+      LAST_KNOWN_LOGS_KEY,
+      JSON.stringify(createLastKnownLogsSnapshot({ ...input, userId }))
+    );
   } catch {
     // Browsers can deny local storage in private or constrained contexts.
   }
@@ -135,6 +151,60 @@ export function clearLastKnownLogsSnapshot(storage: StorageLike | null = getBrow
     storage?.removeItem(LAST_KNOWN_LOGS_KEY);
   } catch {
     // Signing out must continue even if the browser denies local storage access.
+  }
+}
+
+// Reads the user id from the Supabase SSR session cookie, which is readable by
+// scripts and may be split into numbered chunks.
+export function readSessionUserId(cookieHeader: string | null = getDocumentCookie()) {
+  if (!cookieHeader) {
+    return null;
+  }
+
+  const sessions = new Map<string, string[]>();
+  for (const part of cookieHeader.split(";")) {
+    const separator = part.indexOf("=");
+    const name = part.slice(0, separator).trim();
+    const match = separator > 0 ? SESSION_COOKIE_PATTERN.exec(name) : null;
+    if (!match) {
+      continue;
+    }
+
+    const baseName = match[1] === undefined ? name : name.slice(0, name.lastIndexOf("."));
+    const chunks = sessions.get(baseName) ?? [];
+    chunks[match[1] === undefined ? 0 : Number(match[1])] = part.slice(separator + 1).trim();
+    sessions.set(baseName, chunks);
+  }
+
+  for (const chunks of sessions.values()) {
+    try {
+      const value = chunks.join("");
+      const json = value.startsWith("base64-")
+        ? decodeBase64Url(value.slice("base64-".length))
+        : decodeURIComponent(value);
+      const session = JSON.parse(json) as unknown;
+      const user = isRecord(session) ? session.user : null;
+      if (isRecord(user) && isBoundedString(user.id, 200) && user.id) {
+        return user.id;
+      }
+    } catch {
+      // A malformed cookie is treated as no session.
+    }
+  }
+
+  return null;
+}
+
+function decodeBase64Url(value: string) {
+  const binary = atob(value.replace(/-/g, "+").replace(/_/g, "/"));
+  return new TextDecoder().decode(Uint8Array.from(binary, (character) => character.charCodeAt(0)));
+}
+
+function getDocumentCookie() {
+  try {
+    return typeof document === "undefined" ? null : document.cookie;
+  } catch {
+    return null;
   }
 }
 
