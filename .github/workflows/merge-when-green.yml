@@ -1,0 +1,65 @@
+name: Merge when green
+
+# Squash-merges an open PR labelled merge-when-green once every check on its
+# head is green, no review thread is open and no Codex review is running.
+# Every trigger re-reads the PR, so whichever event arrives last does the merge.
+on:
+  workflow_run:
+    workflows: ["CI", "Database behavior"]
+    types: [completed]
+  # pull_request_target runs main's copy of this workflow, never the PR's code.
+  pull_request_target:
+    types: [labeled]
+  # Third-party checks (such as Vercel) finish as commit statuses or app check
+  # suites. GitHub Actions' own suites never fire check_suite; workflow_run covers them.
+  status:
+  check_suite:
+    types: [completed]
+  # Codex edits its summary comment when a review finishes.
+  issue_comment:
+    types: [created, edited]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to re-check
+        required: true
+        type: string
+
+permissions:
+  checks: read
+  contents: write
+  issues: read
+  pull-requests: write
+  statuses: read
+
+jobs:
+  merge:
+    name: Merge when green
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'status' && github.event.state == 'success') ||
+      (github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'success') ||
+      (github.event_name == 'pull_request_target' && github.event.label.name == 'merge-when-green') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+        github.event.comment.user.login == 'chatgpt-codex-connector[bot]') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      # Merges made with the default token do not start CI on main, so a
+      # personal token is preferred. See docs/verification-commands.md.
+      - name: Merge eligible pull requests
+        env:
+          GH_TOKEN: ${{ secrets.MERGE_WHEN_GREEN_TOKEN || github.token }}
+          HAS_MERGE_TOKEN: ${{ secrets.MERGE_WHEN_GREEN_TOKEN != '' }}
+        run: |
+          if [ "$HAS_MERGE_TOKEN" != "true" ]; then
+            echo "::warning::MERGE_WHEN_GREEN_TOKEN is not set; merges use the default token and will not start CI on main."
+          fi
+          node scripts/merge-when-green.mjs
