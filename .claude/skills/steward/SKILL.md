@@ -17,6 +17,14 @@ The authorization covers every head you push to that PR yourself: fixes for fail
 - a head that changed from a push you did not make — stop and tell James what changed;
 - the stop conditions under **When to stop and ask** below.
 
+## Moving work onto a PR branch
+
+Move uncommitted work with git, never by copying files. Re-creating edits in another checkout or session leaves the originals behind, uncommitted, after the PR merges.
+
+- To put a worktree's edits on a new branch, run `git switch -c <branch> origin/main` in that same worktree; uncommitted changes come along. If the switch is refused because they conflict with `main`, run `git switch -c <branch>` (it starts at the current commit, so it always succeeds), commit there, then `git rebase origin/main`. Never commit the edits on `main` or on another session's branch.
+- To land another session's or worktree's work, commit it there first, then bring the commit over with `git cherry-pick` or push that branch.
+- Keep a note of every worktree the work passed through, for **Clean up leftover edits** below.
+
 ## Waiting on CI
 
 - Never loop on `gh pr checks`, `sleep`, or repeated status fetches. Subscribe to the PR and end the turn; check results arrive as events.
@@ -44,6 +52,15 @@ After confirming the merge, bring James's local `main` up to date with `origin/m
 - If the fast-forward is refused (uncommitted changes, or local commits on `main` that aren't on `origin/main`), don't force, reset or stash. Tell James why `main` wasn't updated.
 
 Confirm with `git rev-parse main origin/main` that both point at the merge commit before reporting.
+
+## Clean up leftover edits
+
+Before reporting the merge, run `git status --short` in every worktree the work passed through: your own, any side session's that drafted part of it, and the checkout the PR branch came from. Worktrees the work never touched are not yours to clean.
+
+- If a worktree still has uncommitted edits to the PR's files, compare each one with `main` (`git diff origin/main -- <file>`, and check that deleted files are gone from `main` too).
+- If `main` already has every edit, or a newer version of it, discard them with `git restore --staged --worktree -- <files>` (and `rm` for untracked files identical to `main`'s copy) and tell James in one line.
+- If any edit is not on `main`, leave the worktree alone and tell James which worktree it is and which files.
+- Never use `git stash`, `git clean`, or `git reset --hard` for this.
 
 ## When a check fails
 
