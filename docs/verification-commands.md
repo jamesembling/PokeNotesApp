@@ -479,8 +479,9 @@ PR with more than one page of checks or review threads. The decision lives in `s
 
 Merges made with the workflow's default token do not start the `push` runs of CI and Database
 behavior on `main`. To keep those runs, store a fine-grained personal access token as the repository
-secret `MERGE_WHEN_GREEN_TOKEN`, scoped to this repository only, with **Contents: Read and write**
-and **Pull requests: Read and write**. Without it the workflow still merges and logs a warning.
+secret `POKENOTES_MERGE_WHEN_GREEN`, scoped to this repository only, with **Contents: Read and write**,
+**Pull requests: Read and write** and **Commit statuses: Read-only**. Without it the workflow still
+merges and logs a warning.
 
 To re-check a PR by hand, run the workflow with its PR number:
 

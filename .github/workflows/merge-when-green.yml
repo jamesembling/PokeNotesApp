@@ -56,10 +56,10 @@ jobs:
       # personal token is preferred. See docs/verification-commands.md.
       - name: Merge eligible pull requests
         env:
-          GH_TOKEN: ${{ secrets.MERGE_WHEN_GREEN_TOKEN || github.token }}
-          HAS_MERGE_TOKEN: ${{ secrets.MERGE_WHEN_GREEN_TOKEN != '' }}
+          GH_TOKEN: ${{ secrets.POKENOTES_MERGE_WHEN_GREEN || github.token }}
+          HAS_MERGE_TOKEN: ${{ secrets.POKENOTES_MERGE_WHEN_GREEN != '' }}
         run: |
           if [ "$HAS_MERGE_TOKEN" != "true" ]; then
-            echo "::warning::MERGE_WHEN_GREEN_TOKEN is not set; merges use the default token and will not start CI on main."
+            echo "::warning::POKENOTES_MERGE_WHEN_GREEN is not set; merges use the default token and will not start CI on main."
           fi
           node scripts/merge-when-green.mjs
