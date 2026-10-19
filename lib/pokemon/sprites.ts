@@ -19,7 +19,7 @@ const EXPLICIT_NAME_TO_SLUG: Record<string, string> = {
   "zoroark hisui": "zoroark-hisui"
 };
 
-const CUSTOM_SPRITE_URLS: Record<string, string> = {
+export const CUSTOM_SPRITE_URLS: Record<string, string> = {
   "crushing-hammer": "/pixelated-hammer-sprite-transparent.png",
   "darkrai-mega": "https://r2.limitlesstcg.net/pokemon/gen9/darkrai.png",
   "zeraora-mega": "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"
@@ -222,8 +222,13 @@ export function resolvePokemonSpriteSlug(name: string, pokemonOptions?: PokemonO
 }
 
 export function buildPokemonSpriteUrlFromSlug(slug: string) {
-  const normalizedSlug = String(slug || "").trim().toLowerCase();
-  return CUSTOM_SPRITE_URLS[normalizedSlug] ?? `https://r2.limitlesstcg.net/pokemon/gen9/${normalizedSlug}.png`;
+  const normalizedSlug = String(slug || "")
+    .trim()
+    .toLowerCase();
+  return (
+    CUSTOM_SPRITE_URLS[normalizedSlug] ??
+    `https://r2.limitlesstcg.net/pokemon/gen9/${normalizedSlug}.png`
+  );
 }
 
 export function buildSelectableSpriteOptions(pokemonOptions: PokemonOption[]) {
