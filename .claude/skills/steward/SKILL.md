@@ -21,7 +21,7 @@ The authorization covers every head you push to that PR yourself: fixes for fail
 
 Move uncommitted work with git, never by copying files. Re-creating edits in another checkout or session leaves the originals behind, uncommitted, after the PR merges.
 
-- To put a worktree's edits on a new branch, run `git switch -c <branch> origin/main` in that same worktree; uncommitted changes come along. If the switch is refused because they conflict with `main`, commit them on the current branch and cherry-pick that commit onto the new branch.
+- To put a worktree's edits on a new branch, run `git switch -c <branch> origin/main` in that same worktree; uncommitted changes come along. If the switch is refused because they conflict with `main`, run `git switch -c <branch>` (it starts at the current commit, so it always succeeds), commit there, then `git rebase origin/main`. Never commit the edits on `main` or on another session's branch.
 - To land another session's or worktree's work, commit it there first, then bring the commit over with `git cherry-pick` or push that branch.
 - Keep a note of every worktree the work passed through, for **Clean up leftover edits** below.
 
