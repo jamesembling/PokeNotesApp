@@ -16,6 +16,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Merging
 
+- When James asks for a PR, he wants it merged into `main`. Once it is green, squash-merge it without asking again, including after you push fixes for failed checks or review findings. Don't merge if he asked for a draft or a hold, or if someone else pushed to the PR. Claude sessions follow the `steward` skill for the full procedure.
+- After a merge, fast-forward local `main` to `origin/main`. Never force, reset or stash to do it; if the fast-forward is refused, tell James why.
 - Merge a PR only when every CI check has passed, including Database behavior. A check skipped because no relevant files changed counts as passed; a pending or failed check does not.
 - Explain why a check failed before rerunning it. Never bypass a failure by rerunning until green without that explanation.
 - If a check fails for a reason unrelated to the PR, stop and tell James instead of merging.
