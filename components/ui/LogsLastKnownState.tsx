@@ -1,8 +1,19 @@
+"use client";
+
+import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { LogsStats } from "@/components/ui/LogsStats";
 import { LogsStatsSkeleton, LogsWorkspaceSkeleton } from "@/components/ui/LogsWorkspaceSkeleton";
-import { LogsWorkspaceFrame } from "@/components/ui/LogsWorkspaceFrame";
 
-const READ_LAST_KNOWN_SNAPSHOT_SCRIPT = String.raw`
+// React never hydrates or diffs the children of an element that sets
+// dangerouslySetInnerHTML, so the parser-time script below can fill these
+// mounts before hydration without a mismatch. A stable object keeps React from
+// resetting the injected content on later renders.
+const OPAQUE_MOUNT_HTML = { __html: "" };
+
+// Hides the skeleton after a mount once the snapshot has filled it.
+const FALLBACK_CLASS_NAME = "[[data-last-known-mount]:not(:empty)~&]:hidden";
+
+const FILL_LAST_KNOWN_LOGS_SCRIPT = String.raw`(()=>{
 const readSnapshot=()=>{
   try {
     const value=localStorage.getItem("poke-notes:logs:last-known:v1");
@@ -15,22 +26,20 @@ const readSnapshot=()=>{
   } catch {
     return null;
   }
-};`;
-
-const LAST_KNOWN_BOOTSTRAP_SCRIPT = `(()=>{${READ_LAST_KNOWN_SNAPSHOT_SCRIPT}
-const applyStats=(root,snapshot)=>{
-const content=root.querySelector("[data-last-known-stats-content]");
-if(!(content instanceof HTMLElement)){return}
+};
+const fillStats=(mount,snapshot)=>{
+const template=document.querySelector("[data-last-known-stats-template]")?.firstElementChild;
+if(!template){return}
+const content=template.cloneNode(true);
 const values={total:snapshot.stats.total,wins:snapshot.stats.wins,losses:snapshot.stats.losses};
 for(const [name,value] of Object.entries(values)){
   const target=content.querySelector('[data-log-stat="'+name+'"]');
   if(target){target.textContent=String(value)}
 }
 content.setAttribute("aria-label",snapshot.stats.total+" total battle logs, "+snapshot.stats.wins+" wins, "+snapshot.stats.losses+" losses");
-root.replaceChildren(content);
-content.hidden=false;
+mount.append(content);
 };
-const applyContent=(root,snapshot)=>{
+const fillLogs=(mount,snapshot)=>{
 const make=(tag,className,text)=>{const element=document.createElement(tag);if(className){element.className=className}if(text!==undefined){element.textContent=String(text)}return element};
 const formatDate=(date)=>{try{return new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"long",weekday:"long",year:"numeric",timeZone:"Europe/London"}).format(new Date(date+"T12:00:00Z"))}catch{return date}};
 const addSprites=(parent,sprites,side)=>{
@@ -60,7 +69,7 @@ if(snapshot.logs.length===0){
 }else{
   const groups=new Map();
   for(const log of snapshot.logs){
-    if(!log||typeof log.date!=="string"||!/^\\d{4}-\\d{2}-\\d{2}$/.test(log.date)||!(log.result==="Win"||log.result==="Loss")||typeof log.opponentDeckName!=="string"){continue}
+    if(!log||typeof log.date!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(log.date)||!(log.result==="Win"||log.result==="Loss")||typeof log.opponentDeckName!=="string"){continue}
     const group=groups.get(log.date)||{logs:[],wins:0,losses:0};
     group.logs.push(log);
     group[log.result==="Win"?"wins":"losses"]+=1;
@@ -77,7 +86,7 @@ if(snapshot.logs.length===0){
     const rows=make("div","space-y-2");
     for(const log of group.logs){
       const tone=log.result==="Win"?"bg-win-bg":"bg-loss-bg";
-      const row=make("div","grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1.5 rounded-[10px] border border-border p-3 text-left "+tone+" sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4");
+      const row=make("div","grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1.5 rounded-[10px] border border-border p-3 text-left "+tone+" sm:grid-cols-[4.25rem_minmax(0,1fr)_3.5rem_4.25rem] sm:gap-3 sm:px-4 sm:py-4 lg:grid-cols-[5rem_minmax(0,1fr)_4rem_5rem] lg:gap-4 lg:px-5");
       row.setAttribute("aria-disabled","true");
       addSprites(row,log.selfDeckSprites,"start");
       const copy=make("div","min-w-0 text-center sm:text-left");
@@ -93,58 +102,78 @@ if(snapshot.logs.length===0){
   }
   content.append(list);
 }
-root.replaceChildren(content);
+mount.append(content);
 };
-const apply=()=>{
-  const snapshot=readSnapshot();
-  if(!snapshot){return}
-  for(const root of document.querySelectorAll("[data-last-known-stats-root]:not([data-last-known-applied])")){
-    root.setAttribute("data-last-known-applied","");
-    applyStats(root,snapshot);
-  }
-  for(const root of document.querySelectorAll("[data-last-known-content-root]:not([data-last-known-applied])")){
-    root.setAttribute("data-last-known-applied","");
-    applyContent(root,snapshot);
-  }
-};
-window.__pokenotesLogsLastKnownObserver?.disconnect?.();
-const observer=new MutationObserver(apply);
-window.__pokenotesLogsLastKnownObserver=observer;
-observer.observe(document.documentElement,{childList:true,subtree:true});
-apply();
+const snapshot=readSnapshot();
+if(!snapshot){return}
+const statsMount=document.querySelector('[data-last-known-mount="stats"]');
+if(statsMount&&!statsMount.hasChildNodes()){fillStats(statsMount,snapshot)}
+const logsMount=document.querySelector('[data-last-known-mount="logs"]');
+if(logsMount&&!logsMount.hasChildNodes()){fillLogs(logsMount,snapshot)}
 })()`;
 
-export function LogsLastKnownState() {
-  return (
-    <LogsWorkspaceFrame
-      isLoading
-      performanceVariant="logs-narrow-suspense"
-      stats={<LogsLastKnownStats />}
-    >
-      <LogsLastKnownContent />
-    </LogsWorkspaceFrame>
-  );
-}
+const subscribeToNothing = () => () => undefined;
 
-export function LogsLastKnownBootstrapScript() {
-  return <script dangerouslySetInnerHTML={{ __html: LAST_KNOWN_BOOTSTRAP_SCRIPT }} />;
+// True for client-only renders; false on the server and while hydrating.
+function useIsClientRender() {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false
+  );
 }
 
 export function LogsLastKnownStats() {
   return (
-    <div data-last-known-stats-root>
-      <LogsStatsSkeleton />
-      <div data-last-known-stats-content hidden>
+    <div>
+      <div
+        dangerouslySetInnerHTML={OPAQUE_MOUNT_HTML}
+        data-last-known-mount="stats"
+        suppressHydrationWarning
+      />
+      <div className={FALLBACK_CLASS_NAME}>
+        <LogsStatsSkeleton />
+      </div>
+      <div data-last-known-stats-template hidden>
         <LogsStats losses={0} total={0} wins={0} />
       </div>
     </div>
   );
 }
 
+// Render after LogsLastKnownStats so the stats mount is parsed before the
+// script runs. On a hard load the inline script paints the snapshot before
+// JavaScript loads; client renders never execute it, so they fill the mounts
+// from a layout effect instead.
 export function LogsLastKnownContent() {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const isClientRender = useIsClientRender();
+
+  useLayoutEffect(() => {
+    if (mountRef.current?.hasChildNodes()) {
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.text = FILL_LAST_KNOWN_LOGS_SCRIPT;
+    document.head.append(script);
+    script.remove();
+  }, []);
+
   return (
-    <div data-last-known-content-root>
-      <LogsWorkspaceSkeleton />
+    <div>
+      <div
+        dangerouslySetInnerHTML={OPAQUE_MOUNT_HTML}
+        data-last-known-mount="logs"
+        ref={mountRef}
+        suppressHydrationWarning
+      />
+      {isClientRender ? null : (
+        <script dangerouslySetInnerHTML={{ __html: FILL_LAST_KNOWN_LOGS_SCRIPT }} />
+      )}
+      <div className={FALLBACK_CLASS_NAME}>
+        <LogsWorkspaceSkeleton />
+      </div>
     </div>
   );
 }
