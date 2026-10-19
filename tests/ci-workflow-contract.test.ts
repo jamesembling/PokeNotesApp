@@ -20,6 +20,19 @@ test("CI runs the repository design-system audit", () => {
   assert.match(databaseWorkflow, /permissions:\s+contents: read/);
   assert.match(databaseWorkflow, /'lib\/', 'app\/', 'components\/', 'types\/'/);
   assert.match(databaseWorkflow, /playwright install --with-deps chromium/);
+  const step = (name: string) => {
+    const index = databaseWorkflow.indexOf(`- name: ${name}\n`);
+    assert.ok(index >= 0, `Missing Database behavior step ${name}.`);
+    return index;
+  };
+  assert.ok(
+    step("Start disposable local Supabase in the background") <
+      step("Install pinned Playwright Chromium") &&
+      step("Install pinned Playwright Chromium") <
+        step("Finish starting disposable local Supabase") &&
+      step("Finish starting disposable local Supabase") < step("Reset and seed synthetic database"),
+    "Chromium installs while Supabase starts, and database checks wait for the stack."
+  );
   assert.match(databaseWorkflow, /run: timeout 10m npm run e2e:local:import\n/);
   assert.match(databaseWorkflow, /run: timeout 10m npm run e2e:local:import -- --expired-session/);
   assert.match(databaseWorkflow, /run: timeout 10m npm run e2e:local:social/);

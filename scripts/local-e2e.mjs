@@ -27,6 +27,16 @@ const nextBin = resolve(rootDir, "node_modules/.bin/next");
 const dockerBinDir = "/Applications/Docker.app/Contents/Resources/bin";
 const command = process.argv[2] || "status";
 const localSupabaseArgs = ["--workdir", "tests/e2e"];
+const excludedServices = [
+  "realtime",
+  "imgproxy",
+  "edge-runtime",
+  "logflare",
+  "vector",
+  "supavisor",
+  // CI never opens Studio or reads mail; skipping them avoids pulling about 1.3 GB of images.
+  ...(process.env.POKENOTES_E2E_HEADLESS === "1" ? ["studio", "mailpit"] : [])
+];
 
 const commands = {
   setup,
@@ -131,12 +141,10 @@ async function start() {
   ensureDependencies();
   ensureDocker();
   prepareSchema();
-  supabase([
-    "start",
-    "--exclude",
-    "realtime,imgproxy,edge-runtime,logflare,vector,supavisor"
-  ], { capture: true });
-  console.log("Local Supabase stack is running at http://127.0.0.1:54321 (Studio: http://127.0.0.1:54323)." );
+  supabase(["start", "--exclude", excludedServices.join(",")], { capture: true });
+  console.log(excludedServices.includes("studio")
+    ? "Local Supabase stack is running at http://127.0.0.1:54321 without Studio."
+    : "Local Supabase stack is running at http://127.0.0.1:54321 (Studio: http://127.0.0.1:54323).");
 }
 
 async function setup() {
@@ -223,7 +231,7 @@ async function status() {
   const currentStatus = stackStatus();
   const apiUrl = requireLocalStatusValue(currentStatus, ["API_URL"]);
   assertLocalUrl(apiUrl);
-  const studioUrl = requireLocalStatusValue(currentStatus, ["STUDIO_URL"]);
+  const studioUrl = currentStatus.STUDIO_URL ? String(currentStatus.STUDIO_URL) : "not started";
   console.log(`Local E2E Supabase is running. API: ${apiUrl}; Studio: ${studioUrl}.`);
 }
 
