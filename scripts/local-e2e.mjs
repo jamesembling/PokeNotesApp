@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import {
   chmodSync,
@@ -37,6 +37,34 @@ const excludedServices = [
   // CI never opens Studio or reads mail; skipping them avoids pulling about 1.3 GB of images.
   ...(process.env.POKENOTES_E2E_HEADLESS === "1" ? ["studio", "mailpit"] : [])
 ];
+const dbContainer = "supabase_db_pokenotes-e2e";
+// The container's /tmp holds the data of the freshly migrated, unseeded database.
+const pristineDir = "/tmp/pokenotes-e2e-pristine";
+// Every table the app, seed and checks write lives here; cron, net and vault are left as they are.
+const fixtureSchemas = ["public", "private", "auth", "storage"];
+const restorePristineSql = `
+set lock_timeout = '10s';
+set session_replication_role = replica;
+do $$
+declare
+  fixture_tables text;
+begin
+  select string_agg(c.oid::regclass::text, ', ')
+  into fixture_tables
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname in (${fixtureSchemas.map((name) => `'${name}'`).join(", ")})
+    and c.relkind in ('r', 'p')
+    and not c.relispartition
+    and not exists (
+      select 1 from pg_depend d
+      where d.classid = 'pg_class'::regclass and d.objid = c.oid and d.deptype = 'e'
+    );
+  execute 'truncate table ' || fixture_tables || ' restart identity';
+end $$;
+\\i ${pristineDir}/data.sql
+notify pgrst, 'reload schema';
+`;
 
 const commands = {
   setup,
@@ -67,7 +95,9 @@ function run(binary, args, options = {}) {
     cwd: rootDir,
     env: options.env || localEnvironment(),
     encoding: "utf8",
-    stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit"
+    input: options.input,
+    maxBuffer: 64 * 1024 * 1024,
+    stdio: options.capture ? [options.input === undefined ? "ignore" : "pipe", "pipe", "pipe"] : "inherit"
   });
 
   if (result.error) {
@@ -137,11 +167,77 @@ function assertLocalUrl(value) {
   }
 }
 
+function dbExec(args, input) {
+  return run("docker", ["exec", "-i", dbContainer, ...args], { capture: true, input });
+}
+
+function pgDump(args) {
+  // A fixed restrict key keeps repeated dumps byte-identical.
+  return dbExec(["pg_dump", "-U", "supabase_admin", "-d", "postgres", "--restrict-key=pokenotese2e", ...args]);
+}
+
+function dumpFixtureData() {
+  return pgDump(["--data-only", ...fixtureSchemas.map((name) => `--schema=${name}`)]);
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function pristineManifest(data) {
+  return {
+    schema: sha256(readFileSync(generatedMigration)),
+    catalog: sha256(pgDump(["--schema-only"])),
+    data: sha256(data)
+  };
+}
+
+// Call only while the database is freshly migrated and unseeded.
+function capturePristineSnapshot() {
+  const data = dumpFixtureData();
+  dbExec(["sh", "-c", `rm -rf ${pristineDir} && mkdir -p ${pristineDir} && cat > ${pristineDir}/data.sql`], data);
+  dbExec(["sh", "-c", `cat > ${pristineDir}/manifest.json`], JSON.stringify(pristineManifest(data)));
+}
+
+// Returns why the full CLI reset is needed, or null after restoring the pristine data.
+function restorePristineSnapshot() {
+  let expected;
+  try {
+    expected = JSON.parse(dbExec(["cat", `${pristineDir}/manifest.json`]));
+  } catch {
+    return "no pristine snapshot";
+  }
+  if (expected.schema !== sha256(readFileSync(generatedMigration))) return "schema.sql differs from the snapshot";
+  if (expected.catalog !== sha256(pgDump(["--schema-only"]))) return "the database schema changed";
+  try {
+    dbExec(
+      ["psql", "-U", "supabase_admin", "-d", "postgres", "-X", "-q", "-v", "ON_ERROR_STOP=1", "--single-transaction", "-f", "-"],
+      restorePristineSql
+    );
+  } catch (error) {
+    const lines = String(error.message).split("\n");
+    return `restoring the snapshot failed: ${lines.find((line) => line.includes("ERROR:")) || lines.at(-1)}`;
+  }
+  if (sha256(dumpFixtureData()) !== expected.data) return "restored data differs from the snapshot";
+  return null;
+}
+
+function dbVolumeExists() {
+  // The CLI names the database volume after its container.
+  return spawnSync("docker", ["volume", "inspect", dbContainer], {
+    env: localEnvironment(),
+    stdio: "ignore"
+  }).status === 0;
+}
+
 async function start() {
   ensureDependencies();
   ensureDocker();
   prepareSchema();
+  const freshDatabase = !dbVolumeExists();
   supabase(["start", "--exclude", excludedServices.join(",")], { capture: true });
+  // Seeding is disabled, so a newly created database is already in its pristine state.
+  if (freshDatabase) capturePristineSnapshot();
   console.log(excludedServices.includes("studio")
     ? "Local Supabase stack is running at http://127.0.0.1:54321 without Studio."
     : "Local Supabase stack is running at http://127.0.0.1:54321 (Studio: http://127.0.0.1:54323).");
@@ -163,7 +259,14 @@ async function setup() {
 
 async function reset() {
   await start();
-  supabase(["db", "reset", "--local", "--no-seed"]);
+  // Truncating and restoring the pristine data avoids recreating the database and restarting containers.
+  const fullResetReason = restorePristineSnapshot();
+  if (fullResetReason) {
+    console.log(`Recreating the local database: ${fullResetReason}.`);
+    supabase(["db", "reset", "--local", "--no-seed"]);
+  } else {
+    console.log("Restored the pristine local database without restarting containers.");
+  }
 
   const currentStatus = stackStatus();
   const apiUrl = requireLocalStatusValue(currentStatus, ["API_URL"]);
@@ -188,6 +291,7 @@ async function reset() {
 
   console.log("Waiting for the recreated local schema to become readable through PostgREST.");
   await waitForLocalSchema(apiUrl, serviceRoleKey);
+  if (fullResetReason) capturePristineSnapshot();
   run(tsxBin, ["scripts/seed-local-e2e.ts"], { env: seedEnvironment });
 
   const contents = [

@@ -53,7 +53,8 @@ shared UI, library, schema, fixture, and runtime configuration changes. The chec
 remains present on every PR; documentation-only changes can skip its expensive
 steps. The weekly schedule and manual workflow dispatch run the full synthetic
 gate without path filtering. Its read-only GitHub token and disposable local
-database do not require production secrets. Each journey resets its fixtures.
+database do not require production secrets. Each journey resets its fixtures,
+restoring the snapshot taken when the fresh stack started.
 The job sets `POKENOTES_E2E_HEADLESS=1`, so its stack starts without Studio or
 Mailpit, and pulls Supabase images from `ghcr.io`. It starts Supabase in the
 background while Playwright installs Chromium, and leaves the stack running when
@@ -74,7 +75,19 @@ Reset before a full browser run or whenever a previous run mutated fixture state
 npm run e2e:local:reset
 ```
 
-After the CLI reset completes, the local runner waits up to 45 seconds for a
+A reset normally keeps the containers running. When the stack's database was
+created from scratch (by `start` on a missing volume, or by a full CLI reset),
+the runner saves that unseeded data inside the database container. Later resets
+truncate every table in `public`, `private`, `auth` and `storage`, restore the
+saved rows and sequence values in one transaction, and ask PostgREST to reload
+its schema cache. They run the full `supabase db reset` instead, and save a new
+snapshot, when there is no snapshot, `schema.sql` or the live database schema
+differs from the snapshot's, the restore fails (for example on a 10-second lock
+wait), or the restored data does not hash to the saved data. The output names
+which path ran and why. Rows in other schemas, such as `cron` run history, are
+left as they are.
+
+After either reset path, the local runner waits up to 45 seconds for a
 read-only `profiles` request to confirm PostgREST has reloaded the schema before
 seeding. Missing-schema/cache and temporary gateway failures are polled; permission
 errors fail immediately. Fixture writes are never retried after a partial seed.
