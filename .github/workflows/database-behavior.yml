@@ -12,6 +12,11 @@ on:
 permissions:
   contents: read
 
+# Only PRs supersede earlier runs. Preserve every main push, schedule and manual run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'pull_request' && 'latest' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   database-behavior:
     name: Database behavior
@@ -62,6 +67,7 @@ jobs:
                       'scripts/seed-local-e2e.ts',
                       'scripts/verify-local-import.mjs',
                       'scripts/verify-local-social.mjs',
+                      'scripts/collect-social-failure-diagnostics.mjs',
                       'scripts/rehearse-tournament-deck-list.mjs',
                       'scripts/verify-battle-log-import-draft.ts',
                       'scripts/verify-deck-strategy-concurrency.ts',
@@ -161,7 +167,13 @@ jobs:
 
       - name: Verify social privacy and avatar upload journey
         if: steps.changes.outputs.relevant == 'true'
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: timeout 10m npm run e2e:local:social
+
+      - name: Collect redacted social failure diagnostics
+        if: failure() && steps.changes.outputs.relevant == 'true'
+        run: node scripts/collect-social-failure-diagnostics.mjs
 
       - name: Upload redacted browser failure diagnostics
         if: failure() && steps.changes.outputs.relevant == 'true'
@@ -172,6 +184,9 @@ jobs:
             .agent-browser/import-check/*/summary.json
             .agent-browser/import-check/*/server.log
             .agent-browser/import-check/*/browser.txt
+            .agent-browser/social-check/*/server.log
+            .agent-browser/social-check/*/owner-browser.txt
+            .agent-browser/social-check/*/friend-browser.txt
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 3

@@ -4,8 +4,12 @@ on:
   push:
     branches:
       - main
-      - codex/**
   pull_request:
+
+# PRs supply branch feedback; keep every main push in its own group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'pull_request' && 'latest' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
