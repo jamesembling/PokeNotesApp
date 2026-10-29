@@ -1,21 +1,43 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { assessRuntimeAudit } from "../scripts/audit-runtime-dependencies.mjs";
+import { collectSocialFailureDiagnostics } from "../scripts/collect-social-failure-diagnostics.mjs";
 import { decideMerge, normalizeCheck, readCodexReview } from "../scripts/merge-when-green.mjs";
 
 function source(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-test("CI runs the repository design-system audit", () => {
+test("CI preserves PR checks, event isolation, diagnostics and the design-system audit", () => {
   const workflow = source(".github/workflows/ci.yml");
   const databaseWorkflow = source(".github/workflows/database-behavior.yml");
 
   assert.match(workflow, /- name: Design system audit\s+run: npm run design:audit/);
+  for (const definition of [workflow, databaseWorkflow]) {
+    assert.match(definition, /on:\n(?:  pull_request:\n)?  push:\n    branches:\n      - main\n/);
+    assert.match(definition, /^  pull_request:$/m);
+    assert.doesNotMatch(definition, /codex\/\*\*/);
+    assert.match(
+      definition,
+      /group: \$\{\{ github.workflow \}\}-\$\{\{ github.event_name \}\}-\$\{\{ github.event.pull_request.number \|\| github.ref \}\}-\$\{\{ github.event_name == 'pull_request' && 'latest' \|\| github.run_id \}\}/
+    );
+    assert.match(definition, /cancel-in-progress: \$\{\{ github.event_name == 'pull_request' \}\}/);
+  }
+  assert.match(workflow, /jobs:\n  verify:/);
+  assert.match(databaseWorkflow, /name: Database behavior/);
+  assert.match(databaseWorkflow, /cron: "23 4 \* \* 1"/);
   assert.match(databaseWorkflow, /workflow_dispatch:/);
   assert.match(databaseWorkflow, /permissions:\s+contents: read/);
   assert.match(databaseWorkflow, /'lib\/', 'app\/', 'components\/', 'types\/'/);
@@ -36,12 +58,72 @@ test("CI runs the repository design-system audit", () => {
   assert.match(databaseWorkflow, /run: timeout 10m npm run e2e:local:import\n/);
   assert.match(databaseWorkflow, /run: timeout 10m npm run e2e:local:import -- --expired-session/);
   assert.match(databaseWorkflow, /run: timeout 10m npm run e2e:local:social/);
+  assert.match(databaseWorkflow, /TMPDIR: \$\{\{ runner.temp \}\}/);
+  assert.match(
+    databaseWorkflow,
+    /Collect redacted social failure diagnostics\n\s+if: failure\(\) && steps.changes.outputs.relevant == 'true'\n\s+run: node scripts\/collect-social-failure-diagnostics.mjs/
+  );
+  for (const name of ["server.log", "owner-browser.txt", "friend-browser.txt"]) {
+    assert.ok(databaseWorkflow.includes(`.agent-browser/social-check/*/${name}`));
+  }
+  assert.doesNotMatch(databaseWorkflow, /path:[\s\S]*runner.temp/);
   assert.match(databaseWorkflow, /include-hidden-files: true/);
   assert.match(databaseWorkflow, /retention-days: 3/);
   assert.doesNotMatch(databaseWorkflow, /secrets\.|--linked|\.env\.e2e\.local\s*$/m);
 
   const fixture = mkdtempSync(join(tmpdir(), "pokenotes-design-audit-"));
   try {
+    const tempRoot = join(fixture, "temp");
+    const social = join(tempRoot, "pokenotes-social-fixture");
+    const outputRoot = join(fixture, "diagnostics");
+    const environmentPath = join(fixture, ".env.e2e.local");
+    mkdirSync(social, { recursive: true });
+    writeFileSync(
+      environmentPath,
+      "SUPABASE_SERVICE_ROLE_KEY=synthetic-service-secret\nPOKE_NOTES_LOCAL_LOGIN_CODE=synthetic-pairing-code\n"
+    );
+    const sensitive = [
+      "useful startup failure",
+      "synthetic-service-secret synthetic-pairing-code Local-social-random_password!9",
+      "eyJheader.payload.signature",
+      "Authorization: Bearer synthetic-bearer",
+      '"access_token": "synthetic-access"',
+      "Set-Cookie: session=synthetic-cookie"
+    ].join("\n");
+    for (const name of ["server.log", "owner-browser.txt", "friend-browser.txt"]) {
+      writeFileSync(join(social, name), sensitive);
+    }
+    writeFileSync(join(social, ".env"), "never upload");
+    writeFileSync(join(social, "screenshot.png"), "never upload");
+    const unrelated = join(tempRoot, "unrelated");
+    mkdirSync(unrelated);
+    writeFileSync(join(unrelated, "server.log"), "never upload");
+    symlinkSync(unrelated, join(tempRoot, "pokenotes-social-symlink"));
+    const linkedFile = join(tempRoot, "pokenotes-social-linked-file");
+    mkdirSync(linkedFile);
+    symlinkSync(environmentPath, join(linkedFile, "server.log"));
+    assert.equal(collectSocialFailureDiagnostics({ tempRoot, outputRoot, environmentPath }), 3);
+    assert.deepEqual(readdirSync(outputRoot), ["pokenotes-social-fixture"]);
+    assert.deepEqual(readdirSync(join(outputRoot, "pokenotes-social-fixture")).sort(), [
+      "friend-browser.txt",
+      "owner-browser.txt",
+      "server.log"
+    ]);
+    for (const name of ["server.log", "owner-browser.txt", "friend-browser.txt"]) {
+      const redacted = readFileSync(join(outputRoot, "pokenotes-social-fixture", name), "utf8");
+      assert.match(redacted, /useful startup failure/);
+      assert.doesNotMatch(redacted, /synthetic-|Local-social-|eyJheader|session=/);
+    }
+    // Early startup failure may have no environment file or social artifacts yet.
+    assert.equal(
+      collectSocialFailureDiagnostics({
+        tempRoot: unrelated,
+        outputRoot,
+        environmentPath: join(fixture, "missing.env")
+      }),
+      0
+    );
+
     mkdirSync(join(fixture, "app"));
     mkdirSync(join(fixture, "components", "ui"), { recursive: true });
     mkdirSync(join(fixture, "components", "battle-replay"));
@@ -189,6 +271,18 @@ test("merge-when-green merges only labelled PRs whose head is fully green", () =
   assert.equal(mergesWith({}, { isDraft: true }), false);
   assert.equal(mergesWith({}, { mergeable: "CONFLICTING" }), false);
   assert.equal(mergesWith({ checks: green.checks.slice(1) }), false);
+  assert.equal(
+    mergesWith({ checks: green.checks.filter((check) => check.name !== "Database behavior") }),
+    false
+  );
+  assert.equal(
+    mergesWith({
+      checks: green.checks.map((check) =>
+        check.name === "verify" ? { ...check, result: "CANCELLED" } : check
+      )
+    }),
+    false
+  );
   assert.equal(
     mergesWith({
       checks: [
