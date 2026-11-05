@@ -9,7 +9,7 @@ import {
 const LIMITLESS_STANDARD_TOURNAMENTS_URL =
   "https://play.limitlesstcg.com/api/tournaments?game=PTCG&format=STANDARD";
 const SAMPLE_TOURNAMENT_COUNT = 20;
-const SITE_FORMATS_CACHE_VERSION = "v6";
+const SITE_FORMATS_CACHE_VERSION = "v7";
 const SITE_FORMATS_REVALIDATE_SECONDS = 60 * 60 * 6;
 
 type LimitlessTournamentSummary = {
@@ -87,12 +87,15 @@ async function fetchRecentFormatCodesFromLimitless() {
 
   const pages = await Promise.all(
     tournaments.map(async (tournament) => {
-      const response = await fetch(`https://play.limitlesstcg.com/tournament/${tournament.id}/details`, {
-        next: {
-          revalidate: SITE_FORMATS_REVALIDATE_SECONDS,
-          tags: [CACHE_TAGS.siteFormats]
+      const response = await fetch(
+        `https://play.limitlesstcg.com/tournament/${tournament.id}/details`,
+        {
+          next: {
+            revalidate: SITE_FORMATS_REVALIDATE_SECONDS,
+            tags: [CACHE_TAGS.siteFormats]
+          }
         }
-      });
+      );
 
       if (!response.ok) {
         return "";

@@ -13,20 +13,22 @@ type PokemonOptionRow = {
   sprite_url: string;
 };
 
-const POKEMON_OPTIONS_CACHE_VERSION = "v7";
+const POKEMON_OPTIONS_CACHE_VERSION = "v8";
 
 const getPokemonOptionsCached = unstable_cache(
   async (): Promise<PokemonOption[]> => {
     const supabase = createPublicClient();
 
-    const data = await measureServerCall("db.pokemon.options", async () =>
-      await fetchAllRows<PokemonOptionRow>((from, to) =>
-        supabase
-          .from("pokemon_catalog")
-          .select("slug,label,sprite_url")
-          .order("label", { ascending: true })
-          .range(from, to)
-      )
+    const data = await measureServerCall(
+      "db.pokemon.options",
+      async () =>
+        await fetchAllRows<PokemonOptionRow>((from, to) =>
+          supabase
+            .from("pokemon_catalog")
+            .select("slug,label,sprite_url")
+            .order("label", { ascending: true })
+            .range(from, to)
+        )
     );
 
     const options = ((data ?? []) as PokemonOptionRow[])

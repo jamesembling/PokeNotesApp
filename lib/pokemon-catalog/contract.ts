@@ -23,7 +23,7 @@ const REQUIRED_ALIASES_BY_SLUG: Record<string, string[]> = {
   "floette-mega": ["Mega Floette", "Floette Mega"],
   "gallade-mega": ["Mega Gallade", "Gallade Mega"],
   "greninja-mega": ["Mega Greninja", "Greninja Mega"],
-  "ogerpon": ["Teal Mask Ogerpon"],
+  ogerpon: ["Teal Mask Ogerpon"],
   "ogerpon-cornerstone": ["Cornerstone Mask Ogerpon"],
   "ogerpon-hearthflame": ["Hearthflame Mask Ogerpon"],
   "ogerpon-wellspring": ["Wellspring Mask Ogerpon"],
@@ -52,6 +52,31 @@ export const DISALLOWED_POKEMON_OPTION_LABELS = [
 ] as const;
 
 export const SEARCH_QUERY_EXPECTATIONS: SearchQueryExpectation[] = [
+  {
+    bestMatch: "rotom-heat",
+    expectedSlugs: ["rotom-heat"],
+    query: "Heat Rotom"
+  },
+  {
+    bestMatch: "golisopod-mega",
+    expectedSlugs: ["golisopod-mega"],
+    query: "Mega Golisopod"
+  },
+  {
+    bestMatch: "golurk-mega",
+    expectedSlugs: ["golurk-mega"],
+    query: "Mega Golurk"
+  },
+  {
+    bestMatch: "malamar-mega",
+    expectedSlugs: ["malamar-mega"],
+    query: "Malamar Mega"
+  },
+  {
+    bestMatch: "rayquaza-mega",
+    expectedSlugs: ["rayquaza-mega"],
+    query: "Mega Rayquaza"
+  },
   {
     bestMatch: "greninja-mega",
     expectedSlugs: ["greninja-mega"],
@@ -114,12 +139,7 @@ export const SEARCH_QUERY_EXPECTATIONS: SearchQueryExpectation[] = [
   },
   {
     bestMatch: "ogerpon",
-    expectedSlugs: [
-      "ogerpon",
-      "ogerpon-cornerstone",
-      "ogerpon-hearthflame",
-      "ogerpon-wellspring"
-    ],
+    expectedSlugs: ["ogerpon", "ogerpon-cornerstone", "ogerpon-hearthflame", "ogerpon-wellspring"],
     query: "ogerpon"
   },
   {

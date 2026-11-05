@@ -4,6 +4,8 @@ const normalizedPokemonOptionLookupCache = new WeakMap<PokemonOption[], Map<stri
 const pokemonOptionsBySlugCache = new WeakMap<PokemonOption[], Map<string, PokemonOption>>();
 
 const EXPLICIT_NAME_TO_SLUG: Record<string, string> = {
+  "heat rotom": "rotom-heat",
+  "rotom heat": "rotom-heat",
   "teal mask ogerpon": "ogerpon",
   "cornerstone mask ogerpon": "ogerpon-cornerstone",
   "wellspring mask ogerpon": "ogerpon-wellspring",
@@ -22,6 +24,8 @@ const EXPLICIT_NAME_TO_SLUG: Record<string, string> = {
 export const CUSTOM_SPRITE_URLS: Record<string, string> = {
   "crushing-hammer": "/pixelated-hammer-sprite-transparent.png",
   "darkrai-mega": "https://r2.limitlesstcg.net/pokemon/gen9/darkrai.png",
+  "golisopod-mega": "https://play.pokemonshowdown.com/sprites/gen5/golisopod-mega.png",
+  "golurk-mega": "https://play.pokemonshowdown.com/sprites/gen5/golurk-mega.png",
   "zeraora-mega": "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"
 };
 
