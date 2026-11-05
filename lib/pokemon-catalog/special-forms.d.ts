@@ -16,14 +16,13 @@ declare module "@/lib/pokemon-catalog/special-forms.mjs" {
     last_synced_at: string;
   };
 
-  export function getSpecialPokemonForms(args?: {
-    category?: SpecialPokemonFormCategory;
-  }): Array<{
+  export function getSpecialPokemonForms(args?: { category?: SpecialPokemonFormCategory }): Array<{
     slug: string;
     label: string;
     stage: string;
     evolves_from: string | null;
     category: SpecialPokemonFormCategory;
+    sprite_url?: string;
   }>;
 
   export function buildSpecialPokemonCatalogRows(args?: {

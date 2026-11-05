@@ -21,6 +21,8 @@ test("resolvePokemonSpriteSlug applies the trainer, standard, and variant decisi
 
 test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => {
   const cases: Array<[string, string]> = [
+    ["Heat Rotom ex", "rotom-heat"],
+    ["Rotom Heat", "rotom-heat"],
     ["Cornerstone Mask Ogerpon ex", "ogerpon-cornerstone"],
     ["Wellspring Mask Ogerpon ex", "ogerpon-wellspring"],
     ["Hearthflame Mask Ogerpon ex", "ogerpon-hearthflame"],
@@ -47,6 +49,10 @@ test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => 
     ["Mega Kangaskhan", "kangaskhan-mega"],
     ["Mega Latias", "latias-mega"],
     ["Mega Mawile", "mawile-mega"],
+    ["Mega Golisopod ex", "golisopod-mega"],
+    ["Mega Golurk ex", "golurk-mega"],
+    ["Mega Malamar ex", "malamar-mega"],
+    ["Mega Rayquaza ex", "rayquaza-mega"],
     ["Mega Pyroar", "pyroar-mega"],
     ["Mega Floette", "floette-mega"],
     ["Mega Dragalge", "dragalge-mega"],
@@ -56,7 +62,7 @@ test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => 
     ["Mega Zeraora", "zeraora-mega"],
     ["Pyroar Mega", "pyroar-mega"],
     ["Floette Mega", "floette-mega"],
-    ["Dragalge Mega", "dragalge-mega"],
+    ["Dragalge Mega", "dragalge-mega"]
   ];
 
   cases.forEach(([name, slug]) => {
@@ -67,9 +73,41 @@ test("resolvePokemonSpriteSlug resolves special forms and Mega variants", () => 
 test("curated sprite assets resolve directly and appear in selectable options", () => {
   const urlCases = [
     ["lowercase curated asset slug", "crushing-hammer", "/pixelated-hammer-sprite-transparent.png"],
-    ["case-insensitive curated asset slug", "Crushing-Hammer", "/pixelated-hammer-sprite-transparent.png"],
-    ["Mega Darkrai sprite asset", "darkrai-mega", "https://r2.limitlesstcg.net/pokemon/gen9/darkrai.png"],
-    ["Mega Zeraora sprite asset", "zeraora-mega", "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"]
+    [
+      "case-insensitive curated asset slug",
+      "Crushing-Hammer",
+      "/pixelated-hammer-sprite-transparent.png"
+    ],
+    [
+      "Mega Darkrai sprite asset",
+      "darkrai-mega",
+      "https://r2.limitlesstcg.net/pokemon/gen9/darkrai.png"
+    ],
+    [
+      "Mega Golisopod sprite asset",
+      "golisopod-mega",
+      "https://play.pokemonshowdown.com/sprites/gen5/golisopod-mega.png"
+    ],
+    [
+      "Mega Golurk sprite asset",
+      "golurk-mega",
+      "https://play.pokemonshowdown.com/sprites/gen5/golurk-mega.png"
+    ],
+    [
+      "Mega Malamar sprite asset",
+      "malamar-mega",
+      "https://r2.limitlesstcg.net/pokemon/gen9/malamar-mega.png"
+    ],
+    [
+      "Mega Rayquaza sprite asset",
+      "rayquaza-mega",
+      "https://r2.limitlesstcg.net/pokemon/gen9/rayquaza-mega.png"
+    ],
+    [
+      "Mega Zeraora sprite asset",
+      "zeraora-mega",
+      "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"
+    ]
   ] as const;
 
   for (const [name, slug, expectedUrl] of urlCases) {
@@ -88,5 +126,8 @@ test("curated sprite assets resolve directly and appear in selectable options", 
     options.map((option) => option.slug),
     ["dragapult", "crushing-hammer"]
   );
-  assert.equal(options.find((option) => option.slug === "crushing-hammer")?.label, "Crushing Hammer");
+  assert.equal(
+    options.find((option) => option.slug === "crushing-hammer")?.label,
+    "Crushing Hammer"
+  );
 });

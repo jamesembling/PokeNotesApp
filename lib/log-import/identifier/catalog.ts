@@ -16,7 +16,7 @@ type CachedIdentificationCatalogRows = {
   pokemonRows: PokemonCatalogRow[];
 };
 
-const IDENTIFICATION_CATALOG_CACHE_VERSION = "v13";
+const IDENTIFICATION_CATALOG_CACHE_VERSION = "v14";
 
 type ArchetypeRowsClient = {
   from(table: "archetype_catalog"): unknown;
@@ -127,7 +127,10 @@ function buildPokemonIndex(rows: PokemonCatalogRow[]) {
   };
 }
 
-function buildArchetypeIndex(rows: ArchetypeCatalogRow[], pokemonIndex: ReturnType<typeof buildPokemonIndex>) {
+function buildArchetypeIndex(
+  rows: ArchetypeCatalogRow[],
+  pokemonIndex: ReturnType<typeof buildPokemonIndex>
+) {
   const includedRows = compactMap(rows, (row) => {
     if (row.is_excluded) {
       return null;
@@ -198,7 +201,9 @@ async function loadArchetypeRows(supabase: ArchetypeRowsClient) {
   try {
     const rows = await fetchAllRows<ArchetypeCatalogRow>((from, to) =>
       archetypeTable<ArchetypeCatalogRow>(supabase)
-        .select("id,canonical_id,label,sprites,detection_sprites,required_match_groups,is_excluded,source,user_id,learned_match_count")
+        .select(
+          "id,canonical_id,label,sprites,detection_sprites,required_match_groups,is_excluded,source,user_id,learned_match_count"
+        )
         .eq("is_excluded", false)
         .range(from, to)
     );
@@ -217,10 +222,12 @@ async function loadArchetypeRows(supabase: ArchetypeRowsClient) {
           .range(from, to)
       );
 
-      return normalizeArchetypeRows(rows.map((row) => ({
-        ...row,
-        required_match_groups: []
-      })) as ArchetypeCatalogRow[]);
+      return normalizeArchetypeRows(
+        rows.map((row) => ({
+          ...row,
+          required_match_groups: []
+        })) as ArchetypeCatalogRow[]
+      );
     } catch (detectionSchemaError) {
       try {
         const rows = await fetchAllRows<
@@ -240,11 +247,13 @@ async function loadArchetypeRows(supabase: ArchetypeRowsClient) {
             .range(from, to)
         );
 
-        return normalizeArchetypeRows(rows.map((row) => ({
-          ...row,
-          detection_sprites: row.sprites,
-          required_match_groups: []
-        })) as ArchetypeCatalogRow[]);
+        return normalizeArchetypeRows(
+          rows.map((row) => ({
+            ...row,
+            detection_sprites: row.sprites,
+            required_match_groups: []
+          })) as ArchetypeCatalogRow[]
+        );
       } catch {
         throw fullSchemaError instanceof Error
           ? fullSchemaError
@@ -268,7 +277,9 @@ export async function loadLearnedArchetypeRows(args: {
   try {
     const rows = await fetchAllRows<ArchetypeCatalogRow>((from, to) =>
       archetypeTable<ArchetypeCatalogRow>(args.supabase)
-        .select("id,canonical_id,label,sprites,detection_sprites,required_match_groups,is_excluded,source,user_id,learned_match_count")
+        .select(
+          "id,canonical_id,label,sprites,detection_sprites,required_match_groups,is_excluded,source,user_id,learned_match_count"
+        )
         .eq("is_excluded", false)
         .eq("source", "learned")
         .eq("user_id", normalizedUserId)
