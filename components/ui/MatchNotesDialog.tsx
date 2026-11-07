@@ -23,8 +23,16 @@ export type MatchNotesDialogProps = {
   returnFocusRef: RefObject<HTMLButtonElement | null>;
 };
 
+// Each opening starts a fresh editor from the saved notes, but the closed
+// dialog stays mounted so its exit animation and focus return still run.
 export function MatchNotesDialog(props: MatchNotesDialogProps) {
-  return props.open ? <MatchNotesEditor key={props.logId} {...props} /> : null;
+  const [session, setSession] = useState(0);
+  const [wasOpen, setWasOpen] = useState(props.open);
+  if (props.open !== wasOpen) {
+    setWasOpen(props.open);
+    if (props.open) setSession((current) => current + 1);
+  }
+  return <MatchNotesEditor key={`${props.logId}:${session}`} {...props} />;
 }
 
 function MatchNotesEditor({
