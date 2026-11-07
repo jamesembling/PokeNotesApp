@@ -1,4 +1,5 @@
 -- Keep the current RPC signature compatible with both application versions.
+begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
 
@@ -132,3 +133,4 @@ grant execute on function public.create_tournament_round_idempotent(
 ) to authenticated;
 
 notify pgrst, 'reload schema';
+commit;
