@@ -40,6 +40,7 @@ import type {
   DeckSelectionOption,
   PokemonOption
 } from "@/types/index";
+import { normalizeRedirectPath } from "@/lib/client/redirect-path";
 
 export type EditLogDialogProps = {
   hideTrigger?: boolean;
@@ -85,10 +86,6 @@ function SaveButton({
       {isSaving ? "Saving..." : isSuccess ? "Saved" : "Save Changes"}
     </Button>
   );
-}
-
-function normalizeRedirectPath(value: string) {
-  return value.split("?")[0] || value;
 }
 
 export function EditLogDialog({

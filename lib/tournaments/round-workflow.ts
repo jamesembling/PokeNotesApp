@@ -4,7 +4,7 @@ import type { TournamentRoundResult } from "@/types/index";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
-export function getTournamentRoundCreationIdentity(formData: FormData, fallbackId = crypto.randomUUID()) {
+function getTournamentRoundCreationIdentity(formData: FormData, fallbackId = crypto.randomUUID()) {
   const creationKey = String(formData.get("creationKey") || "").trim() || fallbackId;
 
   return {

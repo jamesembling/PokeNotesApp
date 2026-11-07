@@ -34,6 +34,7 @@ import type {
   TournamentJudgeRole,
   TournamentParticipation
 } from "@/types/index";
+import { normalizeRedirectPath } from "@/lib/client/redirect-path";
 
 export type TournamentEditorDialogProps = {
   initialOpen?: boolean;
@@ -91,10 +92,6 @@ function getPlacementOptionsForCategory(category: string): SelectOption[] {
 
     return filteredOptions;
   }, []);
-}
-
-function normalizeRedirectPath(value: string) {
-  return value.split("?")[0] || value;
 }
 
 function SaveButton({

@@ -82,7 +82,7 @@ export async function refreshUpcomingLimitlessSnapshot(mode: UpcomingRefreshMode
     const events = await fetchUpcomingEvents();
     const { error } = await supabase.from("limitless_event_feed").upsert({
       feed_key: FEED_KEY,
-      events: events as unknown as Json,
+      events: events as Json,
       refreshed_at: new Date().toISOString()
     });
     if (error) throw error;
@@ -96,7 +96,7 @@ export async function refreshUpcomingLimitlessSnapshot(mode: UpcomingRefreshMode
     const { data: saved, error: saveError } = await supabase
       .from("limitless_event_feed")
       .update({
-        events: events as unknown as Json,
+        events: events as Json,
         refreshed_at: new Date().toISOString(),
         refresh_claim_token: null,
         refresh_lease_until: null

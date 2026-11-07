@@ -3,7 +3,7 @@ function normalizeSpriteSlug(value: string) {
   return String(value || "").trim().toLowerCase();
 }
 
-export function normalizeDeckArchetypeSprites(values: string[]) {
+function normalizeDeckArchetypeSprites(values: string[]) {
   return Array.from(
     new Set(
       compactMap(values, (value) => normalizeSpriteSlug(value))

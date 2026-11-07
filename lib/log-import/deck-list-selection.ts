@@ -44,7 +44,7 @@ export function parseDeckListSelectionKey(
   }
 }
 
-export function getDeckListSelectionKey(option: DeckListSelectionOption): string {
+function getDeckListSelectionKey(option: DeckListSelectionOption): string {
   return option.selectionKey ?? makeDeckListSelectionKey({
     deckId: option.deckId,
     deckListId: option.id

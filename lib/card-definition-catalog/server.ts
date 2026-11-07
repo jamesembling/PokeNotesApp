@@ -66,7 +66,7 @@ export async function loadCardDefinitions(names: readonly string[], signal?: Abo
             coverage = "incomplete"; break;
           }
           expected = count;
-          rows.push(...data.map((row) => row.definition as unknown as CardDefinition));
+          rows.push(...data.map((row) => row.definition as CardDefinition));
           if (rows.length === expected) break;
           if (data.length !== PAGE_SIZE) { coverage = "incomplete"; break; }
         }

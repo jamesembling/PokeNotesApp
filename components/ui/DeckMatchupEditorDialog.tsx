@@ -14,6 +14,7 @@ import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { prettifyPokemonSlug } from "@/lib/pokemon/sprites";
 import type { DeckMatchup, GoPreference, MatchupFavorability, PokemonOption } from "@/types/index";
+import { normalizeRedirectPath } from "@/lib/client/redirect-path";
 
 type DeckMatchupEditorDialogProps = {
   children?: ReactNode;
@@ -37,10 +38,6 @@ const MATCHUP_FAVOR_OPTIONS: MatchupFavorability[] = [
   "Slightly Unfavoured",
   "Heavily Unfavoured"
 ];
-
-function normalizeRedirectPath(value: string) {
-  return value.split("?")[0] || value;
-}
 
 function getArchetypeName(sprites: string[], pokemonOptions: PokemonOption[]) {
   const labelsBySlug = new Map(pokemonOptions.map((option) => [option.slug, option.label]));

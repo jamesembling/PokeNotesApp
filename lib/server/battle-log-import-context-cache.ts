@@ -13,7 +13,7 @@ type ProfileImportIdentityRow = {
   ptcgl_username_aliases: string[];
 };
 
-export function getBattleLogImportContextCacheTag(userId: string) {
+function getBattleLogImportContextCacheTag(userId: string) {
   return `battle-log-import-context:${userId}`;
 }
 

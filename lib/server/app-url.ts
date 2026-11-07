@@ -114,7 +114,7 @@ export function buildAppOriginFromHeaders(
   throw new Error("No approved application origin is configured for this request.");
 }
 
-export async function getAppOrigin() {
+async function getAppOrigin() {
   const requestHeaders = await headers();
   return buildAppOriginFromHeaders(requestHeaders);
 }

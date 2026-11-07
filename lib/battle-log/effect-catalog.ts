@@ -214,7 +214,7 @@ async function fetchCandidateRows(args: {
 
       // A capped or incomplete response cannot establish agreement across printings.
       if (error || !Array.isArray(data) || !Number.isInteger(count) || count !== data.length) return [];
-      return data as unknown as CardEffectLookupRow[];
+      return data as CardEffectLookupRow[];
     }
     return [];
   }
@@ -229,7 +229,7 @@ async function fetchCandidateRows(args: {
 
       // A capped or incomplete response cannot establish agreement across printings.
       if (error || !Array.isArray(data) || !Number.isInteger(count) || count !== data.length) return [];
-      return data as unknown as CardEffectLookupRow[];
+      return data as CardEffectLookupRow[];
     }
     return [];
   }
@@ -253,7 +253,7 @@ export async function resolveBattleLogEffectCatalogEvidence(titles: string[], si
 }
 
 /** Resolve all titles against one complete candidate set without more network work. */
-export function resolveBattleLogEffectEvidenceFromRows(titles: string[], rows: CardEffectLookupRow[]) {
+function resolveBattleLogEffectEvidenceFromRows(titles: string[], rows: CardEffectLookupRow[]) {
   const uniqueTitles = Array.from(new Set(titles.map((title) => title.trim()).filter(Boolean)));
   const resolvedByTitle = new Map<string, BattleLogActionTag>();
   const origins = new Map<string, EffectOrigin>();

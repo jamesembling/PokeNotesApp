@@ -2,17 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { buildAppOriginFromHeaders } from "@/lib/server/app-url";
 import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
-
-function getSupabaseEnv() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables.");
-  }
-
-  return { supabaseUrl, supabaseAnonKey };
-}
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
 async function startGoogleSignIn(request: NextRequest) {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();

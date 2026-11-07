@@ -12,9 +12,9 @@ import {
 import { getPokemonSpriteUrl as getSharedPokemonSpriteUrl } from "@/lib/pokemon/sprites";
 import type { PokemonOption } from "@/types/index";
 
-export const DECK_SIZE = 60;
-export const OPENING_HAND = 7;
-export const PRIZE_COUNT = 6;
+const DECK_SIZE = 60;
+const OPENING_HAND = 7;
+const PRIZE_COUNT = 6;
 const EXPECTED_STAGE_COUNT = 1025;
 const logFactorialCache = [0];
 

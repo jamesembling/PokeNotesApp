@@ -29,7 +29,7 @@ export const CUSTOM_SPRITE_URLS: Record<string, string> = {
   "zeraora-mega": "https://r2.limitlesstcg.net/pokemon/gen9/zeraora.png"
 };
 
-export const CUSTOM_SPRITE_OPTIONS: PokemonOption[] = [
+const CUSTOM_SPRITE_OPTIONS: PokemonOption[] = [
   {
     slug: "crushing-hammer",
     label: "Crushing Hammer",

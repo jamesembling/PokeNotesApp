@@ -276,7 +276,7 @@ export const getAdminAccessContext = cache(async () => {
     .select(profileAvatarColumns("role,display_name,email,avatar_color,avatar_path", includeAvatar))
     .eq("id", user.id)
     .single());
-  const data = row as unknown as { role: string; display_name: string; email: string; avatar_color: string; avatar_path?: string | null } | null;
+  const data = row as { role: string; display_name: string; email: string; avatar_color: string; avatar_path?: string | null } | null;
 
   if (error) {
     throw error;
@@ -339,7 +339,7 @@ export async function getAdminDashboardOverview(): Promise<AdminDashboardOvervie
   };
 }
 
-export async function getAdminUserSummary(): Promise<AdminUserSummary> {
+async function getAdminUserSummary(): Promise<AdminUserSummary> {
   await requireAdminAccess();
 
   return await measureServerCall("db.admin.userSummary", async () => {
@@ -524,7 +524,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
   });
 }
 
-export async function getCatalogHealth(): Promise<CatalogHealth> {
+async function getCatalogHealth(): Promise<CatalogHealth> {
   await requireAdminAccess();
 
   return await measureServerCall("db.admin.catalogHealth", async () => {

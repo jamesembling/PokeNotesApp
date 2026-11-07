@@ -135,7 +135,7 @@ function getPlayerTurnCounts(log: BattleLog) {
   return getFallbackTurnCounts(log);
 }
 
-export function IconCircle({
+function IconCircle({
   children,
   className = ""
 }: {
@@ -156,7 +156,7 @@ export function IconCircle({
   );
 }
 
-export function ProgressBar({
+function ProgressBar({
   leftColor,
   leftValue,
   max,
@@ -193,7 +193,7 @@ export function ProgressBar({
   );
 }
 
-export function StatRow({ stat }: { stat: SummaryStat }) {
+function StatRow({ stat }: { stat: SummaryStat }) {
   const userTone = STAT_TONE_STYLES.win;
   const opponentTone = STAT_TONE_STYLES.loss;
 

@@ -6,7 +6,7 @@ export {
   getBattleLogSpriteDisplayName,
   prettifyPokemonSlug
 } from "@/lib/battle-log/deck-display";
-export const BATTLE_LOG_ACTION_TAGS = [
+const BATTLE_LOG_ACTION_TAGS = [
   "draw",
   "bench",
   "evolve",

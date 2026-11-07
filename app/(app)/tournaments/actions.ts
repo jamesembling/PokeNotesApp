@@ -499,7 +499,7 @@ export async function saveTournamentDeckListAction(formData: FormData): Promise<
             p_payload: input.payload as Json,
             p_expected_tournament_updated_at: input.expectedTournamentUpdatedAt,
             p_deck_name: input.deckName,
-            p_deck_sprites: input.deckSprites as unknown as Json,
+            p_deck_sprites: input.deckSprites as Json,
             p_source_deck_id: input.sourceDeckId,
             p_source_deck_list_id: input.sourceDeckListId,
             p_create_deck_list: input.createDeckList,
@@ -584,7 +584,7 @@ export async function createDeckStrategyFromTournamentListAction(
         setupGoals: [],
         resourcePlan: "",
         matchups: []
-      } as unknown as Json,
+      } as Json,
       p_expected_deck_list_updated_at: expectedDeckListUpdatedAt,
       p_tournament_id: tournamentId,
       p_expected_tournament_updated_at: expectedTournamentUpdatedAt

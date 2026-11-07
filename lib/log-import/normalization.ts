@@ -13,7 +13,7 @@ export function normalizeText(value: string) {
     .trim();
 }
 
-export function normalizeWhitespace(value: string) {
+function normalizeWhitespace(value: string) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 

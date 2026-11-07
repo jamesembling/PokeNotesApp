@@ -40,6 +40,7 @@ import type {
 import type { PersistedBattleLogImportReview } from "@/lib/db/battle-log-import-drafts";
 import { loadPokemonOptions } from "@/lib/pokemon/use-pokemon-options";
 import { pokemonOptionsClientCache } from "@/lib/client/editor-option-cache";
+import { normalizeRedirectPath } from "@/lib/client/redirect-path";
 
 export type ImportLogDialogProps = {
   className?: string;
@@ -83,10 +84,6 @@ function SaveButton({
       {isSaving ? "Saving..." : isSuccess ? "Saved" : "Save Log"}
     </Button>
   );
-}
-
-function normalizeRedirectPath(value: string) {
-  return value.split("?")[0] || value;
 }
 
 export function ImportLogDialog({

@@ -5,7 +5,7 @@ import { partitionCardDefinitionsForFormat, standardFormatFloor, cardDefinitionP
 import { hasVerifiedPrintedRegulationMarkAbsence } from "./regulation-evidence.mjs";
 import { getCardDefinitionScopeCoverage } from "./retention.mjs";
 import { isCardRuleEvidence, isCardPassiveEvidence } from "./source.mjs";
-export { partitionCardDefinitionsForFormat, validCardDefinitionDay } from "./legality.mjs";
+export { partitionCardDefinitionsForFormat } from "./legality.mjs";
 
 type CardDefinitionIndex = Map<string, CardDefinition[]>;
 

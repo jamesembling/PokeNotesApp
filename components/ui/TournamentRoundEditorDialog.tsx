@@ -30,6 +30,7 @@ import {
 } from "@/lib/tournaments/round-result-selection";
 import { cn } from "@/lib/utils";
 import type { PokemonOption, TournamentRound, TournamentRoundSpecialResult } from "@/types/index";
+import { normalizeRedirectPath } from "@/lib/client/redirect-path";
 
 type TournamentRoundEditorDialogProps = {
   initialOpen?: boolean;
@@ -94,10 +95,6 @@ function getGameResultButtonClassName(option: string, isSelected: boolean) {
       "bg-warning-bg text-warning-strong shadow-[inset_0_0_0_2px_var(--color-warning-strong)] hover:bg-warning-bg hover:text-warning-strong",
     !isSelected && "bg-transparent text-card-foreground hover:bg-muted hover:text-card-foreground"
   );
-}
-
-function normalizeRedirectPath(value: string) {
-  return value.split("?")[0] || value;
 }
 
 export function TournamentRoundEditorDialog({

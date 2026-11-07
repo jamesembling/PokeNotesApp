@@ -35,7 +35,7 @@ function normalizeSearchValue(value: string) {
     .trim();
 }
 
-export function extractUkCity(address: string) {
+function extractUkCity(address: string) {
   const parts = address
     .replace(/,?\s*(?:GB|UK)\s*$/i, "")
     .split(",")
@@ -65,7 +65,7 @@ export function extractUkCity(address: string) {
   return "";
 }
 
-export function buildPlayStoreLabel(store: PlayStoreRecord) {
+function buildPlayStoreLabel(store: PlayStoreRecord) {
   const city = extractUkCity(store.address);
   const normalizedName = normalizeSearchValue(store.name);
   const normalizedCity = normalizeSearchValue(city);

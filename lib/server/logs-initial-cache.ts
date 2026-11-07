@@ -4,13 +4,13 @@ import { reportError } from "@/lib/server/report-error";
 import { createClient } from "@/lib/supabase/server";
 
 const INITIAL_LOGS_CACHE_SECONDS = 30;
-export const INITIAL_LOGS_CACHE_KEY_VERSION = "v2";
+const INITIAL_LOGS_CACHE_KEY_VERSION = "v2";
 
 type InitialLogsReadDiagnostics = Awaited<
   ReturnType<typeof getInitialLogsPageDataWithClientDiagnostics>
 >;
 
-export class InitialLogsCacheFillError extends Error {
+class InitialLogsCacheFillError extends Error {
   constructor(
     readonly reason: "invalid-payload" | "rpc-error",
     cause: unknown
