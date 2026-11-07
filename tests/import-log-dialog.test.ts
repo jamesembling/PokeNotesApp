@@ -143,6 +143,10 @@ test("Battle Log review discards abandoned requests and saves a draft once", asy
       target: { value: rawLog }
     });
     await waitFor(() => assert.equal(reviews.length, 3));
+    // A whitespace-only edit leaves the reviewed log unchanged.
+    fireEvent.change(screen.getByRole("textbox", { name: "Battle log" }), {
+      target: { value: `${rawLog}\n ` }
+    });
     await act(async () => {
       reviews[2].resolve(Response.json(review));
     });

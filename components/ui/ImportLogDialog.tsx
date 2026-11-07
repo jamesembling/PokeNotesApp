@@ -862,8 +862,12 @@ export function ImportLogDialog({
                         shouldAutoParseImmediatelyRef.current = true;
                       }}
                       onChange={(event) => {
-                        autoParseRequestIdRef.current += 1;
                         const nextRawLog = event.target.value;
+                        // Only a change to the reviewed (trimmed) log supersedes a
+                        // pending review; the auto-review effect reschedules on it.
+                        if (nextRawLog.trim() !== trimmedRawLog) {
+                          autoParseRequestIdRef.current += 1;
+                        }
                         if (nextRawLog.length - rawLog.length >= BULK_PASTE_CHARACTER_THRESHOLD) {
                           shouldAutoParseImmediatelyRef.current = true;
                         }
