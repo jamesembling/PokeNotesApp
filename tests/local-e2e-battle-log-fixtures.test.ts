@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { identifiedBattleLog } from "./fixtures/battle-log-card-identifiers";
 import { decodeLogSections } from "@/lib/battle-log/runtime-validation";
 import { buildLocalE2EBattleLogFixture } from "@/scripts/local-e2e-battle-log-fixture";
 
@@ -20,6 +21,19 @@ test("local battle-log fixtures build renderable parsed sections and matching su
       totalTurns: 3,
     },
   ] as const;
+
+  const unnumbered = buildLocalE2EBattleLogFixture({
+    rawLog: identifiedBattleLog,
+    ptcglUsername: "JammerUK1993"
+  });
+  assert.equal(
+    unnumbered.totalTurns,
+    4,
+    "unnumbered exports count the same player turns as numbered exports"
+  );
+  assert.equal(unnumbered.goOrder, "Second");
+  assert.equal(unnumbered.coinTossWon, false);
+  assert.equal(unnumbered.opponentAttackDamage, 30);
 
   for (const expected of cases) {
     const fixture = buildLocalE2EBattleLogFixture({

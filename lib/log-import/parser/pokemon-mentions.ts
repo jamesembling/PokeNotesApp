@@ -7,11 +7,11 @@ function getRelevantIdentificationLines(lines: string[], playerName: string, lan
   if (language === "en") {
     return lines.filter(
       (line) =>
-        line.includes(`${playerName} attached`) ||
-        line.includes(`${playerName} played `) ||
-        (line.includes(`${playerName} drew `) && line.includes("and played it to the Bench")) ||
-        line.includes(`${playerName} evolved `) ||
-        (line.includes(`${playerName}'s `) &&
+        line.startsWith(`${playerName} attached`) ||
+        line.startsWith(`${playerName} played `) ||
+        (line.startsWith(`${playerName} drew `) && line.includes("and played it to the Bench")) ||
+        line.startsWith(`${playerName} evolved `) ||
+        (line.startsWith(`${playerName}'s `) &&
           (line.includes("was Knocked Out") || (line.includes(" used") && !line.includes("damage"))))
     );
   }
@@ -71,10 +71,15 @@ export function extractPlayerPokemonMentions(args: {
   catalog: IdentificationCatalog;
 }): PlayerPokemonEvidence {
   const relevantLines = getRelevantIdentificationLines(args.lines, args.playerName, args.language);
+  // Player identities are not card evidence, even when a username is a Pokémon name.
+  const cardLines =
+    args.language === "en"
+      ? relevantLines.map((line) => line.slice(args.playerName.length))
+      : relevantLines;
   const mentionCounts = new Map<string, number>();
   const maxTokens = args.catalog.pokemon.maxNameTokens;
 
-  relevantLines.forEach((line) => {
+  cardLines.forEach((line) => {
     const tokens = tokenizeLine(line);
 
     for (let startIndex = 0; startIndex < tokens.length; startIndex += 1) {
@@ -98,7 +103,7 @@ export function extractPlayerPokemonMentions(args: {
 
   return {
     lines: relevantLines,
-    normalizedText: normalizeText(stripLogCardIdentifiers(relevantLines.join(" "))),
+    normalizedText: normalizeText(stripLogCardIdentifiers(cardLines.join(" "))),
     mentionCounts
   };
 }

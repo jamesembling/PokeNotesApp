@@ -119,3 +119,18 @@ export function canonicalizeSelfPlayerSections(
     )
   }));
 }
+
+/** Match the recorded actor, including names ending in punctuation. */
+export function getLeadingPlayerFromLine(line: string, playerNames: string[]) {
+  const normalized = String(line || "").replace(/^\s*(?:[-•]\s+)?/, "");
+  return (
+    playerNames
+      .toSorted((left, right) => right.length - left.length)
+      .find(
+        (player) =>
+          normalized.startsWith(`${player} `) ||
+          normalized.startsWith(`${player}'s `) ||
+          normalized.startsWith(`${player}’s `)
+      ) ?? ""
+  );
+}
