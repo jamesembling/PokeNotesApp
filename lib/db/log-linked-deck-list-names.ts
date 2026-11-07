@@ -37,13 +37,22 @@ function attachLinkedDeckListNames(
   });
 }
 
+/**
+ * Accepts the window or a pending window: the account Deck List read does not
+ * depend on it, so it starts immediately instead of after the window resolves.
+ */
 export async function hydrateLogWindowDeckListNames<TWindow extends LogWindowWithSummaries>(
   userId: string,
-  window: TWindow
+  windowOrPromise: TWindow | Promise<TWindow>
 ) {
+  const accountDeckListsPromise = getDeckListSelectionOptions(userId);
+  // Mark handled so a failed window read does not also surface as an
+  // unhandled rejection; the result is still awaited below.
+  accountDeckListsPromise.catch(() => undefined);
+  const window = await windowOrPromise;
   const [linkedDecks, accountDeckLists] = await Promise.all([
     getDeckSelectionOptionsByIds(userId, getLinkedDeckIds(window.logs)),
-    getDeckListSelectionOptions(userId)
+    accountDeckListsPromise
   ]);
 
   return {

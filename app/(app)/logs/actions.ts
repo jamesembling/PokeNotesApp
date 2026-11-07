@@ -657,11 +657,8 @@ export async function bulkAssignDeckListAction(input: {
 
 export async function loadMoreLogsAction(cursor?: string) {
   const user = await requireAuth();
-  const window = await getLogsWindow(user.id, {
-    cursor
-  });
 
-  return hydrateLogWindowDeckListNames(user.id, window);
+  return hydrateLogWindowDeckListNames(user.id, getLogsWindow(user.id, { cursor }));
 }
 
 export async function deleteLogsAction(logIdsInput: string[]): Promise<BulkLogMutationResult> {

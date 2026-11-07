@@ -23,7 +23,7 @@ import { TournamentSchemaNotice } from "@/components/ui/TournamentSchemaNotice";
 import { ItemTitle } from "@/components/ui/Typography";
 import { requireUser } from "@/lib/auth";
 import { getBattleLogSpriteDisplayName } from "@/lib/battle-log/display";
-import { getDeckListById, getDeckLists } from "@/lib/db/deck-lists";
+import { getDeckListById, getRelationalDeckListSourceOptions } from "@/lib/db/deck-lists";
 import {
   getTournamentById,
   getTournamentRounds,
@@ -171,36 +171,28 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
     user.email?.split("@")[0] ||
     "Trainer";
   const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
-  const currentSourceDeckList = !isJudge && tournament.deckListSnapshot?.sourceDeckListId
-    ? await getDeckListById(
-        user.id,
-        tournament.deckListSnapshot.sourceDeckListId,
-        null
-      )
-    : null;
-  const availableDeckLists = !isJudge
-    ? (await getDeckLists(user.id))
-        .filter((deckList) => deckList.storage === "relational")
-        .map((deckList) => ({
-          id: deckList.id,
-          name: deckList.name,
-          deckId: deckList.deckId ?? null,
-          updatedAt: deckList.updatedAt
-        }))
-    : [];
-  const resolvedTournamentDeckList = isJudge
-    ? null
-    : tournament.deckListSnapshot
-      ? {
-          name: tournament.deckListSnapshot.name,
-          rawList: tournament.deckListSnapshot.rawList,
-          sortedCards: tournament.deckListSnapshot.sortedCards
-        }
-      : await resolveTournamentDeckListForDisplay({
-          loadDeckList: getDeckListById,
-          tournament,
-          userId: user.id
-        });
+  // These reads depend only on the tournament, so they run together.
+  const [currentSourceDeckList, availableDeckLists, resolvedTournamentDeckList] = await Promise.all(
+    [
+      !isJudge && tournament.deckListSnapshot?.sourceDeckListId
+        ? getDeckListById(user.id, tournament.deckListSnapshot.sourceDeckListId, null)
+        : null,
+      !isJudge ? getRelationalDeckListSourceOptions(user.id) : [],
+      isJudge
+        ? null
+        : tournament.deckListSnapshot
+          ? {
+              name: tournament.deckListSnapshot.name,
+              rawList: tournament.deckListSnapshot.rawList,
+              sortedCards: tournament.deckListSnapshot.sortedCards
+            }
+          : resolveTournamentDeckListForDisplay({
+              loadDeckList: getDeckListById,
+              tournament,
+              userId: user.id
+            })
+    ]
+  );
 
   return (
     <PageWidth size="standard">

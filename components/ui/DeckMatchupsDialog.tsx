@@ -13,9 +13,14 @@ import { deckCardRolloverClassName } from "@/components/ui/rolloverStyles";
 import { SpriteStrip } from "@/components/ui/SpriteStrip";
 import type { DeckMatchup } from "@/types/index";
 
+export type DeckMatchupsDialogMatchup = Pick<
+  DeckMatchup,
+  "createdAt" | "deckName" | "deckPokemon" | "id" | "updatedAt"
+>;
+
 type DeckMatchupsDialogProps = {
   deckId: string;
-  matchups: DeckMatchup[];
+  matchups: DeckMatchupsDialogMatchup[];
 };
 
 const MATCHUP_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {

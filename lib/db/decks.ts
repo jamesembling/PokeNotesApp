@@ -3,7 +3,8 @@ import { getReadSortedDeckCards } from "@/lib/deck-lists/read-sort";
 import { createClient } from "@/lib/supabase/server";
 import { buildDeckArchetypeId } from "@/lib/decks/archetype";
 import {
-  resolveDeckAggregateCompatibilityRead
+  resolveDeckAggregateCompatibilityRead,
+  resolveDeckListsDuringCompatibility
 } from "@/lib/decks/aggregate-compatibility";
 import { identifyLikelyArchetype } from "@/lib/log-import/identifier/archetypes";
 import { loadIdentificationCatalog } from "@/lib/log-import/identifier/catalog";
@@ -317,7 +318,7 @@ function mapRelationalDeckList(row: DeckListRelationalRow): DeckList {
   };
 }
 
-function mapDeckListOptions(deckLists: DeckList[]): DeckListOption[] {
+function mapDeckListOptions(deckLists: readonly DeckListOption[]): DeckListOption[] {
   return deckLists.map((deckList) => ({
     id: deckList.id,
     name: deckList.name
@@ -604,12 +605,14 @@ async function mapDeckSummary(
 
 function mapDeckSelectionWithLists(
   row: DeckSelectionRow,
-  relationalDeckLists: Map<string, DeckList[]>
+  relationalDeckListOptions: Map<string, DeckListOption[]>
 ): DeckSelectionOption {
-  const deckLists = resolveDeckAggregateCompatibilityRead({
-    legacyDeckLists: parseDeckLists(row.deck_lists),
-    relationalDeckLists: relationalDeckLists.get(row.id)
-  }).deckLists;
+  // Same precedence and ordering as the aggregate read, applied to the
+  // `{ id, name }` projection so option reads skip card payloads and sorting.
+  const deckLists = resolveDeckListsDuringCompatibility(
+    mapDeckListOptions(parseDeckLists(row.deck_lists)),
+    relationalDeckListOptions.get(row.id)
+  );
 
   return {
     id: row.id,
@@ -747,6 +750,59 @@ async function getRelationalDeckListsByDeckId(
     const deckLists = byDeckId.get(row.deck_id) ?? [];
     deckLists.push(mapRelationalDeckList(row));
     byDeckId.set(row.deck_id, deckLists);
+  });
+
+  return byDeckId;
+}
+
+type DeckListOptionRow = {
+  id: string;
+  deck_id: string | null;
+  name: string;
+};
+
+/**
+ * Reads only the `{ id, name }` projection of relational Deck Lists, grouped
+ * by Deck Strategy, in the same order as `getRelationalDeckListsByDeckId`.
+ * `"all"` reads every strategy-linked list for the account, which lets callers
+ * that select all of the account's decks issue this query in parallel.
+ */
+async function getRelationalDeckListOptionsByDeckId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  deckIds: string[] | "all"
+): Promise<Map<string, DeckListOption[]>> {
+  const resolvedDeckIds = deckIds === "all" ? null : Array.from(new Set(deckIds.filter(Boolean)));
+  if (resolvedDeckIds?.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await measureServerCall(
+    "db.decks.relationalDeckListOptions",
+    async () => {
+      const query = supabase.from("deck_lists").select("id,deck_id,name").eq("user_id", userId);
+      const scopedQuery = resolvedDeckIds
+        ? query.in("deck_id", resolvedDeckIds)
+        : query.not("deck_id", "is", null);
+
+      return await scopedQuery
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: false });
+    }
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  const byDeckId = new Map<string, DeckListOption[]>();
+  ((data ?? []) as unknown as DeckListOptionRow[]).forEach((row) => {
+    if (!row.deck_id) {
+      return;
+    }
+    const options = byDeckId.get(row.deck_id) ?? [];
+    options.push({ id: row.id, name: row.name });
+    byDeckId.set(row.deck_id, options);
   });
 
   return byDeckId;
@@ -950,26 +1006,23 @@ export const getDeckSelectionOptions = cache(async function getDeckSelectionOpti
   userId: string
 ): Promise<DeckSelectionOption[]> {
   const supabase = await createClient();
-  const { data, error } = await measureServerCall("db.decks.selectionOptions", async () =>
-    await supabase
-      .from("decks")
-      .select(["id", "deck_name", "deck_lists"].join(","))
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-  );
+  const [{ data, error }, relationalDeckListOptions] = await Promise.all([
+    measureServerCall("db.decks.selectionOptions", async () =>
+      await supabase
+        .from("decks")
+        .select(["id", "deck_name", "deck_lists"].join(","))
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false })
+    ),
+    getRelationalDeckListOptionsByDeckId(supabase, userId, "all")
+  ]);
 
   if (error) {
     throw error;
   }
 
   const rows = ((data ?? []) as unknown) as DeckSelectionRow[];
-  const relationalDeckLists = await getRelationalDeckListsByDeckId(
-    supabase,
-    userId,
-    rows.map((row) => row.id)
-  );
-
-  return rows.map((row) => mapDeckSelectionWithLists(row, relationalDeckLists));
+  return rows.map((row) => mapDeckSelectionWithLists(row, relationalDeckListOptions));
 });
 
 export const getDeckSelectionOptionsByIds = cache(async function getDeckSelectionOptionsByIds(
@@ -987,26 +1040,23 @@ export const getDeckSelectionOptionsByIds = cache(async function getDeckSelectio
   }
 
   const supabase = await createClient();
-  const { data, error } = await measureServerCall("db.decks.selectionOptionsByIds", async () =>
-    await supabase
-      .from("decks")
-      .select(["id", "deck_name", "deck_lists"].join(","))
-      .eq("user_id", userId)
-      .in("id", resolvedDeckIds)
-  );
+  const [{ data, error }, relationalDeckListOptions] = await Promise.all([
+    measureServerCall("db.decks.selectionOptionsByIds", async () =>
+      await supabase
+        .from("decks")
+        .select(["id", "deck_name", "deck_lists"].join(","))
+        .eq("user_id", userId)
+        .in("id", resolvedDeckIds)
+    ),
+    getRelationalDeckListOptionsByDeckId(supabase, userId, resolvedDeckIds)
+  ]);
 
   if (error) {
     throw error;
   }
 
   const rows = ((data ?? []) as unknown) as DeckSelectionRow[];
-  const relationalDeckLists = await getRelationalDeckListsByDeckId(
-    supabase,
-    userId,
-    rows.map((row) => row.id)
-  );
-
-  return rows.map((row) => mapDeckSelectionWithLists(row, relationalDeckLists));
+  return rows.map((row) => mapDeckSelectionWithLists(row, relationalDeckListOptions));
 });
 
 export const getDeckById = cache(async function getDeckById(
@@ -1015,14 +1065,22 @@ export const getDeckById = cache(async function getDeckById(
 ): Promise<Deck | null> {
   const supabase = await createClient();
 
-  const { data, error } = await measureServerCall("db.decks.byId", async () =>
-    await supabase
-      .from("decks")
-      .select(DECK_DETAIL_SELECT)
-      .eq("user_id", userId)
-      .eq("id", deckId)
-      .maybeSingle()
-  );
+  // The child reads are keyed by the requested id and owner, so they run
+  // alongside the parent read instead of after it.
+  const [{ data, error }, mappingContext, relationalDeckLists, relationalDeckMatchups] =
+    await Promise.all([
+      measureServerCall("db.decks.byId", async () =>
+        await supabase
+          .from("decks")
+          .select(DECK_DETAIL_SELECT)
+          .eq("user_id", userId)
+          .eq("id", deckId)
+          .maybeSingle()
+      ),
+      loadDeckMappingContext(),
+      getRelationalDeckListsByDeckId(supabase, userId, [deckId]),
+      getRelationalDeckMatchupsByDeckId(supabase, userId, [deckId])
+    ]);
 
   if (error) {
     throw error;
@@ -1033,11 +1091,6 @@ export const getDeckById = cache(async function getDeckById(
   }
 
   const row = (data as unknown) as DeckRow;
-  const [mappingContext, relationalDeckLists, relationalDeckMatchups] = await Promise.all([
-    loadDeckMappingContext(),
-    getRelationalDeckListsByDeckId(supabase, userId, [deckId]),
-    getRelationalDeckMatchupsByDeckId(supabase, userId, [deckId])
-  ]);
 
   return await mapDeckWithRelations(
     row,
@@ -1126,34 +1179,35 @@ export async function getDeckWithMatchup(
   matchupId: string
 ): Promise<{ deckName: string; deckPokemon: string[]; matchup: DeckMatchup } | null> {
   const supabase = await createClient();
-  const { data, error } = await measureServerCall("db.decks.relationalMatchupById", async () =>
-    await supabase
-      .from("deck_matchups")
-      .select([
-        "id",
-        "deck_id",
-        "deck_name",
-        "deck_pokemon",
-        "format",
-        "go_preference",
-        "matchup_favor",
-        "ideal_bench",
-        "techs_needed",
-        "matchup_plan",
-        "created_at",
-        "updated_at"
-      ].join(","))
-      .eq("user_id", userId)
-      .eq("deck_id", deckId)
-      .eq("id", matchupId)
-      .maybeSingle()
-  );
+  const [{ data, error }, deck] = await Promise.all([
+    measureServerCall("db.decks.relationalMatchupById", async () =>
+      await supabase
+        .from("deck_matchups")
+        .select([
+          "id",
+          "deck_id",
+          "deck_name",
+          "deck_pokemon",
+          "format",
+          "go_preference",
+          "matchup_favor",
+          "ideal_bench",
+          "techs_needed",
+          "matchup_plan",
+          "created_at",
+          "updated_at"
+        ].join(","))
+        .eq("user_id", userId)
+        .eq("deck_id", deckId)
+        .eq("id", matchupId)
+        .maybeSingle()
+    ),
+    getDeckById(userId, deckId)
+  ]);
 
   if (error) {
     throw error;
   }
-
-  const deck = await getDeckById(userId, deckId);
 
   if (!deck) {
     return null;
