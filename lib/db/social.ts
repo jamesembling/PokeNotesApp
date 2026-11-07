@@ -43,7 +43,7 @@ export const getPlayerProfile = cache(async (id: string): Promise<SocialProfile 
   const { data, error } = await db.rpc("get_player_profile", { p_user_id: id });
   if (error) throw error;
   if (!data) return null;
-  return (await mapProfiles([data as unknown as ProfileProjection]))[0];
+  return (await mapProfiles([data as ProfileProjection]))[0];
 });
 
 export async function getCurrentShowcase(): Promise<SocialProfile> {
@@ -68,7 +68,7 @@ export async function searchPlayers(query: string): Promise<SocialProfile[]> {
   const db = await createClient();
   const { data, error } = await db.rpc("search_players", { p_query: normalized });
   if (error) throw error;
-  return mapProfiles((data ?? []) as unknown as ProfileProjection[]);
+  return mapProfiles((data ?? []) as ProfileProjection[]);
 }
 
 export async function getFriendConnections(): Promise<FriendConnections> {
@@ -76,7 +76,7 @@ export async function getFriendConnections(): Promise<FriendConnections> {
   const db = await createClient();
   const { data, error } = await db.rpc("get_friend_connections");
   if (error) throw error;
-  const connections = data as unknown as Record<keyof FriendConnections, ProfileProjection[]>;
+  const connections = data as Record<keyof FriendConnections, ProfileProjection[]>;
   const groups = ["friends", "incoming", "outgoing", "blocked"] as const;
   const rows = await mapProfiles(groups.flatMap((key) => connections[key]));
   let offset = 0;

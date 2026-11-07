@@ -276,7 +276,7 @@ export const getAdminAccessContext = cache(async () => {
     .select(profileAvatarColumns("role,display_name,email,avatar_color,avatar_path", includeAvatar))
     .eq("id", user.id)
     .single());
-  const data = row as unknown as { role: string; display_name: string; email: string; avatar_color: string; avatar_path?: string | null } | null;
+  const data = row as { role: string; display_name: string; email: string; avatar_color: string; avatar_path?: string | null } | null;
 
   if (error) {
     throw error;

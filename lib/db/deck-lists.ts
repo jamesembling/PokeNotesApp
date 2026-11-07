@@ -294,7 +294,7 @@ async function getLegacyReference(
     throw error;
   }
 
-  const candidates = ((data ?? []) as unknown as LegacyDeckRow[])
+  const candidates = ((data ?? []) as LegacyDeckRow[])
     .flatMap((row) => parseLegacyReferences(row, userId))
     .filter((row) => row.id === linkedDeckListId);
 
@@ -420,7 +420,7 @@ export async function getDeckListById(
       throw deckError;
     }
 
-    return ((decks ?? []) as unknown as LegacyDeckRow[]).flatMap((deck) =>
+    return ((decks ?? []) as LegacyDeckRow[]).flatMap((deck) =>
       (Array.isArray(deck.deck_lists) ? deck.deck_lists : [])
         .map((value) => parseLegacyDeckList(value, deck.id))
         .filter((value): value is DeckList => value !== null)
@@ -471,7 +471,7 @@ export async function getDeckLists(userId: string): Promise<DeckList[]> {
   }
 
   const relationalLists = ((listResult.data ?? []) as unknown as DeckListRow[]).map(mapDeckList);
-  const legacyLists = ((deckResult.data ?? []) as unknown as LegacyDeckRow[]).flatMap((deck) =>
+  const legacyLists = ((deckResult.data ?? []) as LegacyDeckRow[]).flatMap((deck) =>
     (Array.isArray(deck.deck_lists) ? deck.deck_lists : [])
       .map((value) => parseLegacyDeckList(value, deck.id))
       .filter((value): value is DeckList => value !== null)
@@ -572,10 +572,10 @@ export async function getDeckListSelectionOptions(
     throw deckResult.error;
   }
 
-  const deckRows = (deckResult.data ?? []) as unknown as LegacyDeckRow[];
+  const deckRows = (deckResult.data ?? []) as LegacyDeckRow[];
   const deckNames = new Map(deckRows.map((row) => [row.id, row.deck_name] as const));
   const relationalSources: DeckListSelectionSource[] = (
-    (listResult.data ?? []) as unknown as DeckListReferenceRow[]
+    (listResult.data ?? []) as DeckListReferenceRow[]
   ).map((row) => ({
     deckId: row.deck_id,
     deckName: row.deck_id ? deckNames.get(row.deck_id) ?? null : null,

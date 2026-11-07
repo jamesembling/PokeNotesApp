@@ -67,7 +67,7 @@ async function main() {
     });
     const { error: signInError } = await editor.auth.signInWithPassword({ email, password });
     if (signInError) throw signInError;
-    const supabase = editor as unknown as StrategyClient;
+    const supabase = editor as StrategyClient;
 
     const { error: deckError } = await admin.from("decks").insert({
       id: deckId,

@@ -40,7 +40,7 @@ export async function pinEvent(event: UpcomingLimitlessEvent) {
   const { error } = await supabase.from("user_event_pins").insert({
     user_id: user.id,
     event_id: event.id,
-    event_snapshot: event as unknown as Json
+    event_snapshot: event as Json
   });
   if (error && error.code !== "23505") throw error;
 }

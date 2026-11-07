@@ -214,7 +214,7 @@ async function fetchCandidateRows(args: {
 
       // A capped or incomplete response cannot establish agreement across printings.
       if (error || !Array.isArray(data) || !Number.isInteger(count) || count !== data.length) return [];
-      return data as unknown as CardEffectLookupRow[];
+      return data as CardEffectLookupRow[];
     }
     return [];
   }
@@ -229,7 +229,7 @@ async function fetchCandidateRows(args: {
 
       // A capped or incomplete response cannot establish agreement across printings.
       if (error || !Array.isArray(data) || !Number.isInteger(count) || count !== data.length) return [];
-      return data as unknown as CardEffectLookupRow[];
+      return data as CardEffectLookupRow[];
     }
     return [];
   }

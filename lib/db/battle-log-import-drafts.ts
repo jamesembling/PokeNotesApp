@@ -49,7 +49,7 @@ function mapRowToDraft(row: ImportDraftRow): BattleLogImportDraft {
     createdAt: row.created_at,
     expiresAt: row.expires_at,
     immutable: row.immutable_facts as unknown as BattleLogImportDraft["immutable"],
-    editable: row.initial_editable as unknown as BattleLogImportEditableFields,
+    editable: row.initial_editable as BattleLogImportEditableFields,
     consumed:
       row.consumed_idempotency_key &&
       row.consumed_fingerprint &&
@@ -163,7 +163,7 @@ export async function commitPersistedBattleLogImportDraft(args: {
     throw error;
   }
 
-  const result = data as unknown as Partial<CommitBattleLogImportDraftResult>;
+  const result = data as Partial<CommitBattleLogImportDraftResult>;
   if (
     !result ||
     typeof result.battleLogId !== "string" ||

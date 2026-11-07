@@ -156,7 +156,7 @@ export const getCurrentSidebarProfile = cache(async (): Promise<CurrentSidebarPr
     throw error;
   }
 
-  let profileRow = ((data ?? null) as unknown as SidebarProfileRow | null) ?? null;
+  let profileRow = ((data ?? null) as SidebarProfileRow | null) ?? null;
 
   if (!profileRow) {
     const { data: authData, error: authError } = await measureServerCall(
@@ -179,7 +179,7 @@ export const getCurrentSidebarProfile = cache(async (): Promise<CurrentSidebarPr
         throw refreshed.error;
       }
 
-      profileRow = ((refreshed.data ?? null) as unknown as SidebarProfileRow | null) ?? null;
+      profileRow = ((refreshed.data ?? null) as SidebarProfileRow | null) ?? null;
     }
   }
 
@@ -230,7 +230,7 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
     throw error;
   }
 
-  let profileRow = ((data ?? null) as unknown as ProfileRow | null) ?? null;
+  let profileRow = ((data ?? null) as ProfileRow | null) ?? null;
 
   if (!profileRow || !profileRow.last_login_at || !profileRow.auth_account_created_at) {
     const { data: authData, error: authError } = await measureServerCall(
@@ -278,7 +278,7 @@ export const getCurrentProfile = cache(async (): Promise<UserProfile> => {
         throw refreshed.error;
       }
 
-      profileRow = ((refreshed.data ?? null) as unknown as ProfileRow | null) ?? null;
+      profileRow = ((refreshed.data ?? null) as ProfileRow | null) ?? null;
     }
   }
 
@@ -351,7 +351,7 @@ export async function updateCurrentProfileAvatar(avatarColorInput: string): Prom
   const previous = await withProfileAvatarColumn(includeAvatar => supabase.from("profiles")
     .select(profileAvatarColumns("id,avatar_path", includeAvatar)).eq("id", user.id).single());
   if (previous.error) throw previous.error;
-  const previousPath = (previous.data as unknown as { avatar_path?: string | null })?.avatar_path;
+  const previousPath = (previous.data as { avatar_path?: string | null })?.avatar_path;
 
   const { error: authUpdateError } = await supabase.auth.updateUser({
     data: {

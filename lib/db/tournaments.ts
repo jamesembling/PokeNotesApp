@@ -449,7 +449,7 @@ export const getTournamentById = cache(
     const snapshotData = unwrapTournamentSnapshotQueryResult(snapshotResult);
     if (snapshotData) {
       tournament.deckListSnapshot = mapTournamentDeckListSnapshotRow(
-        snapshotData as unknown as TournamentDeckListSnapshotRow
+        snapshotData as TournamentDeckListSnapshotRow
       );
     }
 

@@ -266,7 +266,7 @@ export function buildSupabaseLogShareStore({ publicSupabase, supabase }: LogShar
   return {
     async getOrCreate(row) {
       const { data, error } = await supabase.rpc("create_log_share", {
-        p_payload: row.payload as unknown as Json,
+        p_payload: row.payload as Json,
         p_source_log_id: row.source_log_id,
         p_token: row.id
       });
