@@ -19,10 +19,11 @@ const EXPECTED_STAGE_COUNT = 1025;
 const logFactorialCache = [0];
 
 export type CalculatorCardCategory = "Pokemon" | "Trainer" | "Energy";
+type CalculatorPokemonStage = PokemonStage | "VMAX" | "VSTAR" | "V-UNION" | "MEGA";
 
-export type CalculatorCard = Omit<DeckCard, "category"> & {
+export type CalculatorCard = Omit<DeckCard, "category" | "stage"> & {
   category: CalculatorCardCategory;
-  stage?: PokemonStage;
+  stage?: CalculatorPokemonStage;
 };
 
 export type CalculatorTotals = {
@@ -37,8 +38,8 @@ export type CalculatorCardGroup = {
   name: string;
   count: number;
   basicCount: number;
-  stage?: PokemonStage;
-  stageCounts: Record<PokemonStage, number>;
+  stage?: CalculatorPokemonStage;
+  stageCounts: Record<CalculatorPokemonStage, number>;
 };
 
 export type MulliganRow = {
@@ -278,9 +279,19 @@ function deriveInitialStage(name: string): PokemonStage {
   return "Basic";
 }
 
-function preferredPokemonStage(stageCounts: Record<PokemonStage, number>): PokemonStage {
-  const order: PokemonStage[] = ["Stage 2", "Stage 1", "Basic"];
-  let bestStage: PokemonStage = "Basic";
+function preferredPokemonStage(
+  stageCounts: Record<CalculatorPokemonStage, number>
+): CalculatorPokemonStage {
+  const order: CalculatorPokemonStage[] = [
+    "Stage 2",
+    "Stage 1",
+    "VMAX",
+    "VSTAR",
+    "V-UNION",
+    "MEGA",
+    "Basic"
+  ];
+  let bestStage: CalculatorPokemonStage = "Basic";
   let bestCount = -1;
 
   order.forEach((stage) => {
@@ -299,6 +310,7 @@ function normalizePokemonNameKey(name: string) {
     .normalize("NFKC")
     .replace(/^Stage\s*[12]\s+/i, "")
     .replace(/^Basic\s+/i, "")
+    .replace(/^.+?[’']s\s+/i, "")
     .replace(/\b(ex|gx|vmax|vstar|v-union|v)\b/gi, " ")
     .replace(/[’']/g, "")
     .replace(/\./g, " ")
@@ -342,6 +354,9 @@ function normalizePokemonNameKey(name: string) {
 
   if (tokens[0] === "mega" && tokens.length > 1) {
     tokens = tokens.slice(1);
+    if (tokens.at(-1) === "x" || tokens.at(-1) === "y") {
+      tokens.pop();
+    }
   }
   if (tokens[0] === "radiant" && tokens.length > 1) {
     tokens = tokens.slice(1);
@@ -380,10 +395,23 @@ function pokemonNameCandidates(name: string) {
   return Array.from(new Set(candidates));
 }
 
-function resolvePokemonStage(name: string): PokemonStage {
+function resolvePokemonStage(name: string): CalculatorPokemonStage {
   const prefixedStage = deriveInitialStage(name);
   if (prefixedStage !== "Basic") {
     return prefixedStage;
+  }
+
+  const specialStage = name.match(/\b(VMAX|VSTAR|V-UNION)$/i)?.[1];
+  if (specialStage) {
+    return specialStage.toUpperCase() as "VMAX" | "VSTAR" | "V-UNION";
+  }
+  if (/^(?:M|Mega)\s+.+(?:-|\s)EX$/.test(name)) {
+    return "MEGA";
+  }
+  // These printed card families are Basic regardless of the species' evolution.
+  // Uppercase EX is the older Pokemon-EX family; lowercase ex retains its stage.
+  if (/^Radiant\s+/i.test(name) || /\sV$/i.test(name) || /(?:-|\s)EX$/.test(name)) {
+    return "Basic";
   }
 
   const keys = pokemonNameCandidates(name);
@@ -420,7 +448,11 @@ function aggregateCardsByName(cards: CalculatorCard[]) {
           stageCounts: {
             Basic: 0,
             "Stage 1": 0,
-            "Stage 2": 0
+            "Stage 2": 0,
+            VMAX: 0,
+            VSTAR: 0,
+            "V-UNION": 0,
+            MEGA: 0
           }
         };
 
