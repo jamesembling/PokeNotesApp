@@ -267,8 +267,9 @@ export function StatsMatchups({ matchups }: { matchups: ArchetypeMatchupStats[] 
           </table>
 
           <p className={styles.footnote} id={tableNoteId}>
-            Record is wins–losses. Win rate uses all games. Unidentified opponents are excluded.
-            {" "}Small samples are an early signal, not a reliable matchup estimate.
+            Record is wins–losses. Win rate uses recorded wins and losses; unknown results are
+            excluded. Unidentified opponents are excluded. Small samples are an early signal, not a
+            reliable matchup estimate.
           </p>
         </>
       ) : (

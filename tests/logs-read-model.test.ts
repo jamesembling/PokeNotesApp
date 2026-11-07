@@ -737,10 +737,16 @@ test("getArchetypeMatchupStats maps opponent matchup rows", async (t) => {
         opponent_deck_name: "Gardevoir ex",
         opponent_deck_sprites: "gardevoir",
         source_deck_slugs: "gardevoir-ex,gardevoir",
-        games_played: 4,
+        games_played: 6,
         games_won: 3,
         games_lost: 1,
         last_played_date: "2026-04-28"
+      },
+      {
+        matchup_key: "unknown-results",
+        games_played: 3,
+        games_won: 0,
+        games_lost: 0
       }
     ],
     error: null
@@ -759,11 +765,22 @@ test("getArchetypeMatchupStats maps opponent matchup rows", async (t) => {
       opponentDeckName: "Gardevoir ex",
       opponentDeckSprites: ["gardevoir"],
       sourceDeckSlugs: ["gardevoir-ex", "gardevoir"],
-      gamesPlayed: 4,
+      gamesPlayed: 6,
       gamesWon: 3,
       gamesLost: 1,
       lastPlayedDate: "2026-04-28",
       winRate: 75
+    },
+    {
+      matchupKey: "unknown-results",
+      opponentDeckName: "",
+      opponentDeckSprites: [],
+      sourceDeckSlugs: [],
+      gamesPlayed: 3,
+      gamesWon: 0,
+      gamesLost: 0,
+      lastPlayedDate: null,
+      winRate: null
     }
   ]);
 });

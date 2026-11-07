@@ -112,6 +112,8 @@ function mapLogStatsOverviewRow(row: LogStatsOverviewRpcRow | null): LogStatsOve
 function mapArchetypeMatchupStatsRow(row: ArchetypeMatchupStatsRow): ArchetypeMatchupStats {
   const gamesPlayed = Number(row.games_played ?? 0);
   const gamesWon = Number(row.games_won ?? 0);
+  const gamesLost = Number(row.games_lost ?? 0);
+  const knownResults = gamesWon + gamesLost;
 
   return {
     matchupKey: String(row.matchup_key ?? ""),
@@ -120,9 +122,9 @@ function mapArchetypeMatchupStatsRow(row: ArchetypeMatchupStatsRow): ArchetypeMa
     sourceDeckSlugs: splitSprites(String(row.source_deck_slugs ?? "")),
     gamesPlayed,
     gamesWon,
-    gamesLost: Number(row.games_lost ?? 0),
+    gamesLost,
     lastPlayedDate: row.last_played_date ? String(row.last_played_date) : null,
-    winRate: gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : null
+    winRate: knownResults > 0 ? Math.round((gamesWon / knownResults) * 100) : null
   };
 }
 

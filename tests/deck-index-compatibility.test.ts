@@ -11,6 +11,9 @@ test("new deck index RPC retains legacy deck-list sprite derivation fallback", a
   const originalGetDeckLogStatsForIndex = decksDbTestHooks.getDeckLogStatsForIndex;
   const rpcCalls: string[] = [];
   let compatibilityLoads = 0;
+  let storedSprites: string[] = [];
+  let wins = 2;
+  let losses = 1;
 
   decksDbTestHooks.createClient = async () =>
     ({
@@ -27,11 +30,11 @@ test("new deck index RPC retains legacy deck-list sprite derivation fallback", a
               archetype_id: "",
               format: "Standard",
               go_preference: "",
-              deck_pokemon: [],
+              deck_pokemon: storedSprites,
               deck_list_count: 1,
-              games_played: 3,
-              games_won: 2,
-              games_lost: 1,
+              games_played: 5,
+              games_won: wins,
+              games_lost: losses,
               created_at: "2026-07-01T10:00:00.000Z",
               updated_at: "2026-07-24T10:00:00.000Z"
             }
@@ -75,9 +78,9 @@ test("new deck index RPC retains legacy deck-list sprite derivation fallback", a
   decksDbTestHooks.getDeckLogStatsForIndex = async () => [
     {
       deck_id: "legacy-deck",
-      games_played: 3,
-      games_won: 2,
-      games_lost: 1
+      games_played: 5,
+      games_won: wins,
+      games_lost: losses
     }
   ];
 
@@ -103,10 +106,23 @@ test("new deck index RPC retains legacy deck-list sprite derivation fallback", a
       createdAt: "2026-07-01T10:00:00.000Z",
       updatedAt: "2026-07-24T10:00:00.000Z",
       deckListCount: 1,
-      gamesPlayed: 3,
+      gamesPlayed: 5,
       losses: 1,
       winRate: 67,
       wins: 2
     }
   ]);
+
+  // The primary RPC and the compatibility reader use the same W/L denominator.
+  storedSprites = ["charizard", "pidgeot"];
+  const primary = await getDeckIndexSummaries("compatibility-user");
+  assert.equal(primary[0].gamesPlayed, 5);
+  assert.equal(primary[0].winRate, 67);
+  assert.equal(compatibilityLoads, 1);
+
+  wins = 0;
+  losses = 0;
+  assert.equal((await getDeckIndexSummaries("compatibility-user"))[0].winRate, null);
+  storedSprites = [];
+  assert.equal((await getDeckIndexSummaries("compatibility-user"))[0].winRate, null);
 });
