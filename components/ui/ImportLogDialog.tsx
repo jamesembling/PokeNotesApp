@@ -129,6 +129,8 @@ export function ImportLogDialog({
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isParsing, startParseTransition] = useTransition();
   const autoParseRequestIdRef = useRef(0);
+  const importSessionIdRef = useRef(0);
+  const saveInFlightRef = useRef(false);
   const shouldAutoParseImmediatelyRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
@@ -222,6 +224,10 @@ export function ImportLogDialog({
   }, [review, selectedDeckId, userDecks]);
 
   function resetImportState() {
+    autoParseRequestIdRef.current += 1;
+    importSessionIdRef.current += 1;
+    saveInFlightRef.current = false;
+    shouldAutoParseImmediatelyRef.current = false;
     setStage("raw");
     setRawLog("");
     setParseError(null);
@@ -269,6 +275,8 @@ export function ImportLogDialog({
 
   useEffect(() => {
     return () => {
+      autoParseRequestIdRef.current += 1;
+      importSessionIdRef.current += 1;
       clearCloseTimer();
       clearNavigationTimer();
     };
@@ -339,16 +347,25 @@ export function ImportLogDialog({
       return;
     }
 
+    const sessionId = importSessionIdRef.current;
+    const requestId = ++autoParseRequestIdRef.current;
     try {
       setIsPasting(true);
       const clipboardText = await navigator.clipboard.readText();
+      if (autoParseRequestIdRef.current !== requestId) {
+        return;
+      }
       shouldAutoParseImmediatelyRef.current = true;
       setRawLog(clipboardText);
       setParseError(null);
     } catch {
-      setParseError("Unable to read from the clipboard right now.");
+      if (autoParseRequestIdRef.current === requestId) {
+        setParseError("Unable to read from the clipboard right now.");
+      }
     } finally {
-      setIsPasting(false);
+      if (importSessionIdRef.current === sessionId) {
+        setIsPasting(false);
+      }
     }
   }
 
@@ -418,6 +435,11 @@ export function ImportLogDialog({
   }
 
   async function handleSubmit(formData: FormData) {
+    if (saveInFlightRef.current || !review) {
+      return;
+    }
+    saveInFlightRef.current = true;
+    const sessionId = importSessionIdRef.current;
     setSaveError("");
     setSaveState("saving");
 
@@ -429,6 +451,9 @@ export function ImportLogDialog({
         method: "POST"
       });
       const result = (await response.json()) as SaveActionResult | { error?: string };
+      if (importSessionIdRef.current !== sessionId) {
+        return;
+      }
 
       if (!response.ok || !("ok" in result)) {
         const message = "error" in result ? result.error : undefined;
@@ -459,6 +484,10 @@ export function ImportLogDialog({
         }, 50);
       }, SUCCESS_CLOSE_DELAY_MS);
     } catch (error) {
+      if (importSessionIdRef.current !== sessionId) {
+        return;
+      }
+      saveInFlightRef.current = false;
       setSaveError(error instanceof Error ? error.message : "Could not save this battle log.");
       setSaveState("idle");
     }
@@ -494,6 +523,7 @@ export function ImportLogDialog({
 
     return () => {
       window.clearTimeout(timeoutId);
+      autoParseRequestIdRef.current += 1;
     };
   }, [isOpen, isTrainingCourtUrl, requestParseReview, stage, trimmedRawLog]);
 
@@ -832,6 +862,7 @@ export function ImportLogDialog({
                         shouldAutoParseImmediatelyRef.current = true;
                       }}
                       onChange={(event) => {
+                        autoParseRequestIdRef.current += 1;
                         const nextRawLog = event.target.value;
                         if (nextRawLog.length - rawLog.length >= BULK_PASTE_CHARACTER_THRESHOLD) {
                           shouldAutoParseImmediatelyRef.current = true;
