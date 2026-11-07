@@ -169,17 +169,21 @@ function mergeDeckListReadModels(
     byIdentity.set(key, list);
   });
 
-  return Array.from(byIdentity.values()).sort((left, right) => {
-    const updatedAt = right.updatedAt.localeCompare(left.updatedAt);
-    if (updatedAt !== 0) {
-      return updatedAt;
-    }
-    const id = left.id.localeCompare(right.id);
-    if (id !== 0) {
-      return id;
-    }
-    return (left.deckId ?? "").localeCompare(right.deckId ?? "");
-  });
+  return Array.from(byIdentity.values()).sort(compareDeckListsByRecency);
+}
+
+type DeckListRecencyKey = Pick<DeckList, "deckId" | "id" | "updatedAt">;
+
+function compareDeckListsByRecency(left: DeckListRecencyKey, right: DeckListRecencyKey) {
+  const updatedAt = right.updatedAt.localeCompare(left.updatedAt);
+  if (updatedAt !== 0) {
+    return updatedAt;
+  }
+  const id = left.id.localeCompare(right.id);
+  if (id !== 0) {
+    return id;
+  }
+  return (left.deckId ?? "").localeCompare(right.deckId ?? "");
 }
 
 function mapReference(row: DeckListReferenceRow): DeckListReferenceRecord {
@@ -394,20 +398,8 @@ export async function getDeckListById(
   deckId?: string | null
 ): Promise<DeckList | null> {
   const supabase = await createClient();
-  const listQuery = supabase
-    .from("deck_lists")
-    .select(DECK_LIST_SELECT)
-    .eq("user_id", userId)
-    .eq("id", deckListId);
-  const { data, error } = await listQuery.maybeSingle();
 
-  if (error) {
-    throw error;
-  }
-
-  const relationalList = data ? mapDeckList(data as unknown as DeckListRow) : null;
-
-  async function getLegacyCandidates(targetDeckId?: string | null) {
+  function readLegacyDecks(targetDeckId?: string | null) {
     let deckQuery = supabase
       .from("decks")
       .select("id,deck_name,deck_lists")
@@ -415,12 +407,32 @@ export async function getDeckListById(
     if (targetDeckId) {
       deckQuery = deckQuery.eq("id", targetDeckId);
     }
-    const { data: decks, error: deckError } = await deckQuery;
-    if (deckError) {
-      throw deckError;
-    }
+    return deckQuery;
+  }
 
-    return ((decks ?? []) as LegacyDeckRow[]).flatMap((deck) =>
+  // With a target strategy, its single row answers both "does the target
+  // exist" and "which legacy copies does it hold", so read it alongside the
+  // relational list instead of after it.
+  const [listResult, targetDeckResult] = await Promise.all([
+    supabase
+      .from("deck_lists")
+      .select(DECK_LIST_SELECT)
+      .eq("user_id", userId)
+      .eq("id", deckListId)
+      .maybeSingle(),
+    deckId ? readLegacyDecks(deckId) : null
+  ]);
+
+  if (listResult.error) {
+    throw listResult.error;
+  }
+
+  const relationalList = listResult.data
+    ? mapDeckList(listResult.data as unknown as DeckListRow)
+    : null;
+
+  function toLegacyCandidates(decks: LegacyDeckRow[]) {
+    return decks.flatMap((deck) =>
       (Array.isArray(deck.deck_lists) ? deck.deck_lists : [])
         .map((value) => parseLegacyDeckList(value, deck.id))
         .filter((value): value is DeckList => value !== null)
@@ -428,32 +440,35 @@ export async function getDeckListById(
     );
   }
 
-  if (relationalList) {
-    if (!deckId) {
-      return relationalList;
-    }
-
-    const { data: targetDeck, error: targetDeckError } = await supabase
-      .from("decks")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("id", deckId)
-      .maybeSingle();
-    if (targetDeckError) {
-      throw targetDeckError;
-    }
-
-    const legacyCandidates = targetDeck ? await getLegacyCandidates(deckId) : [];
-    return resolveDeckListByIdentity(
-      relationalList,
-      legacyCandidates,
-      deckId,
-      Boolean(targetDeck)
-    );
+  if (relationalList && !deckId) {
+    return relationalList;
   }
 
-  const candidates = await getLegacyCandidates(deckId);
-  return resolveDeckListByIdentity(null, candidates, deckId, Boolean(deckId));
+  if (targetDeckResult) {
+    if (targetDeckResult.error) {
+      throw targetDeckResult.error;
+    }
+
+    const targetDecks = (targetDeckResult.data ?? []) as LegacyDeckRow[];
+    const targetDeckExists = targetDecks.length > 0;
+    const legacyCandidates = toLegacyCandidates(targetDecks);
+
+    return relationalList
+      ? resolveDeckListByIdentity(relationalList, legacyCandidates, deckId, targetDeckExists)
+      : resolveDeckListByIdentity(null, legacyCandidates, deckId, true);
+  }
+
+  const { data: decks, error: deckError } = await readLegacyDecks(deckId);
+  if (deckError) {
+    throw deckError;
+  }
+
+  return resolveDeckListByIdentity(
+    null,
+    toLegacyCandidates((decks ?? []) as LegacyDeckRow[]),
+    deckId,
+    Boolean(deckId)
+  );
 }
 
 export async function getDeckLists(userId: string): Promise<DeckList[]> {
@@ -478,6 +493,43 @@ export async function getDeckLists(userId: string): Promise<DeckList[]> {
   );
 
   return mergeDeckListReadModels(relationalLists, legacyLists);
+}
+
+export type RelationalDeckListSourceOption = {
+  deckId: string | null;
+  id: string;
+  name: string;
+  updatedAt: string;
+};
+
+/**
+ * The relational subset of `getDeckLists`, projected to the fields a source
+ * picker renders and in the same order, without card payloads or the Legacy
+ * Deck Copy.
+ */
+export async function getRelationalDeckListSourceOptions(
+  userId: string
+): Promise<RelationalDeckListSourceOption[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("deck_lists")
+    .select("id,deck_id,name,updated_at")
+    .eq("user_id", userId);
+
+  if (error) {
+    throw error;
+  }
+
+  return (
+    (data ?? []) as unknown as Pick<DeckListRow, "deck_id" | "id" | "name" | "updated_at">[]
+  )
+    .map((row) => ({
+      deckId: row.deck_id ?? null,
+      id: row.id,
+      name: row.name,
+      updatedAt: row.updated_at
+    }))
+    .sort(compareDeckListsByRecency);
 }
 
 export async function getDeckListUsageCounts(
