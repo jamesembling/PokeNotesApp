@@ -4,17 +4,7 @@ import { logAuthDebug } from "@/lib/server/auth-debug";
 import { buildAppOriginFromHeaders } from "@/lib/server/app-url";
 import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
 import { syncCurrentProfileFromAuthUser } from "@/lib/db/profile";
-
-function getSupabaseEnv() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables.");
-  }
-
-  return { supabaseUrl, supabaseAnonKey };
-}
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
 // oxlint-disable-next-line react-doctor/nextjs-no-side-effect-in-get-handler -- OAuth providers return the one-time code to this GET callback.
 export async function GET(request: NextRequest) {

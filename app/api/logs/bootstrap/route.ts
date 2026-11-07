@@ -19,20 +19,10 @@ import {
 } from "@/lib/server/perf";
 import { getVerifiedClaims } from "@/lib/supabase/verified-claims";
 import type { Database } from "@/types/supabase";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-function getSupabaseEnv() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables.");
-  }
-
-  return { supabaseUrl, supabaseAnonKey };
-}
 
 function getUserId(claims: unknown) {
   if (!claims || typeof claims !== "object") {

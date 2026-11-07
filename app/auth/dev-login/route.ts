@@ -6,23 +6,13 @@ import {
   validateLocalLoginRequest
 } from "@/lib/server/local-test-login";
 import { PRIVATE_NO_STORE_HEADERS } from "@/lib/server/no-store";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
 function privateRedirect(url: URL) {
   return NextResponse.redirect(url, {
     headers: PRIVATE_NO_STORE_HEADERS,
     status: 303
   });
-}
-
-function getSupabaseEnv() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables.");
-  }
-
-  return { supabaseUrl, supabaseAnonKey };
 }
 
 export async function POST(request: NextRequest) {
@@ -58,9 +48,7 @@ export async function POST(request: NextRequest) {
 
   if (!validation.allowed) {
     if (validation.reason === "pairing-code") {
-      return privateRedirect(
-        new URL("/login?localError=pairing-code", validation.origin)
-      );
+      return privateRedirect(new URL("/login?localError=pairing-code", validation.origin));
     }
 
     return NextResponse.json(
