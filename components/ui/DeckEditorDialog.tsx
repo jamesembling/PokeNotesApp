@@ -25,6 +25,7 @@ import { Textarea } from "@/components/shadcn/textarea";
 import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import type { Deck, PokemonOption } from "@/types/index";
+import { normalizeRedirectPath } from "@/lib/client/redirect-path";
 
 export type DeckEditorDeck = Omit<Deck, "deckLists" | "matchups">;
 
@@ -77,10 +78,6 @@ function SaveButton({
 
 function parseSetupGoals(value: string[]) {
   return value.join("\n");
-}
-
-function normalizeRedirectPath(value: string) {
-  return value.split("?")[0] || value;
 }
 
 export function DeckEditorDialog({

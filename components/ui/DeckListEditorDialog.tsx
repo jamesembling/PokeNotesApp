@@ -18,6 +18,7 @@ import { FormatSelect } from "@/components/ui/FormatSelect";
 import { useSiteFormats } from "@/components/ui/SiteFormatsProvider";
 import { interpretDeckList } from "@/lib/decks/deck-list-parse";
 import type { DeckList } from "@/types/index";
+import { normalizeRedirectPath } from "@/lib/client/redirect-path";
 
 type DeckListSaveActionResult = {
   ok: true;
@@ -87,10 +88,6 @@ function SaveButton({
             : "Add Deck List"}
     </Button>
   );
-}
-
-function normalizeRedirectPath(value: string) {
-  return value.split("?")[0] || value;
 }
 
 export function DeckListEditorDialog({
