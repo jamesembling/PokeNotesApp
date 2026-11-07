@@ -2681,6 +2681,22 @@ create unique index if not exists tournament_rounds_user_creation_key_unique
   on public.tournament_rounds (user_id, creation_key)
   where creation_key is not null;
 
+-- Creation receipts survive edits and deliberate Round/Tournament deletion.
+-- Only account deletion removes the identity; replay never re-creates evidence.
+create table public.tournament_round_commands (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  creation_key text not null,
+  tournament_id text not null,
+  round_id text not null,
+  payload_hash text not null,
+  result jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, creation_key)
+);
+alter table public.tournament_round_commands enable row level security;
+revoke all on public.tournament_round_commands from public, anon, authenticated;
+grant all on public.tournament_round_commands to service_role;
+
 create or replace function public.create_tournament_round_idempotent(
   p_tournament_id text,
   p_round_id text,
@@ -2697,7 +2713,8 @@ set search_path = pg_catalog, public
 as $function$
 declare
   v_user_id uuid := auth.uid();
-  v_existing public.tournament_rounds%rowtype;
+  v_command public.tournament_round_commands%rowtype;
+  v_result jsonb;
   v_round_number integer;
   v_fingerprint text;
 begin
@@ -2718,12 +2735,10 @@ begin
     raise exception using errcode = '22023', message = 'Opponent Pokemon are invalid.';
   end if;
 
-  perform 1 from public.tournaments
-    where id = p_tournament_id and user_id = v_user_id
-    for update;
-  if not found then
-    raise exception using errcode = 'P0002', message = 'Tournament could not be found.';
-  end if;
+  -- Different tournaments can race on the same account-scoped request key.
+  perform pg_advisory_xact_lock(
+    hashtextextended(v_user_id::text || ':tournament-round-request:' || p_creation_key, 0)
+  );
 
   v_fingerprint := md5(jsonb_build_object(
     'tournamentId', p_tournament_id,
@@ -2732,22 +2747,21 @@ begin
     'result', p_result,
     'notes', coalesce(p_notes, '')
   )::text);
-  select * into v_existing
-  from public.tournament_rounds
-  where user_id = v_user_id and creation_key = p_creation_key
-  for update;
+  select * into v_command
+  from public.tournament_round_commands
+  where user_id = v_user_id and creation_key = p_creation_key;
   if found then
-    if md5(jsonb_build_object(
-        'tournamentId', v_existing.tournament_id,
-        'opponentDeckName', v_existing.opponent_deck_name,
-        'opponentDeckSprites', v_existing.opponent_deck_sprites,
-        'result', v_existing.result,
-        'notes', v_existing.notes
-      )::text) <> v_fingerprint
-    then
+    if v_command.payload_hash <> v_fingerprint then
       raise exception using errcode = '23505', message = 'That Tournament round request id was already used with different values.';
     end if;
-    return jsonb_build_object('status', 'idempotent', 'roundId', v_existing.id, 'roundNumber', v_existing.round_number);
+    return jsonb_set(v_command.result, '{status}', '"idempotent"'::jsonb);
+  end if;
+
+  perform 1 from public.tournaments
+    where id = p_tournament_id and user_id = v_user_id
+    for update;
+  if not found then
+    raise exception using errcode = 'P0002', message = 'Tournament could not be found.';
   end if;
 
   select coalesce(max(round_number), 0) + 1 into v_round_number
@@ -2760,7 +2774,13 @@ begin
     p_round_id, p_tournament_id, v_user_id, p_creation_key, v_round_number,
     coalesce(p_opponent_deck_name, ''), p_opponent_deck_sprites, p_result, coalesce(p_notes, '')
   );
-  return jsonb_build_object('status', 'committed', 'roundId', p_round_id, 'roundNumber', v_round_number);
+  v_result := jsonb_build_object('status', 'committed', 'roundId', p_round_id, 'roundNumber', v_round_number);
+  insert into public.tournament_round_commands (
+    user_id, creation_key, tournament_id, round_id, payload_hash, result
+  ) values (
+    v_user_id, p_creation_key, p_tournament_id, p_round_id, v_fingerprint, v_result
+  );
+  return v_result;
 end;
 $function$;
 

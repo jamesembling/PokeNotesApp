@@ -1,6 +1,7 @@
 "use server";
 
-import { completeBulkLogMutation, type BulkLogMutationResult } from "@/lib/battle-log/bulk-mutation";
+import type { BulkLogMutationResult } from "@/lib/battle-log/bulk-mutation";
+import { mutateOwnedLogs } from "@/lib/db/log-bulk-mutations";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -626,23 +627,15 @@ export async function bulkAssignDeckListAction(input: {
       userId: user.id
     });
 
-    const { data: updatedLogs, error } = await supabase
-      .from("logs")
-      .update({
-        linked_deck_id: validatedReference.deckId,
-        linked_deck_list_id: validatedReference.deckListId
-      })
-      .eq("user_id", user.id)
-      .in("id", logIds)
-      .select("id");
-
-    if (error) {
-      throw error;
-    }
-
-    return completeBulkLogMutation(logIds, updatedLogs, () => {
-      invalidateInitialLogsCache(user.id);
-      revalidateDeckAndLogWorkspace();
+    return await mutateOwnedLogs({
+      supabase,
+      userId: user.id,
+      logIds,
+      mutation: { kind: "assign", deckId: validatedReference.deckId, deckListId: linkedDeckListId },
+      invalidate: () => {
+        invalidateInitialLogsCache(user.id);
+        revalidateDeckAndLogWorkspace();
+      }
     });
   } catch (error) {
     throw resolveActionFailure(error, {
@@ -674,20 +667,15 @@ export async function deleteLogsAction(logIdsInput: string[]): Promise<BulkLogMu
       throw userFacingActionError("Select at least one battle log.");
     }
 
-    const { data: deletedLogs, error } = await supabase
-      .from("logs")
-      .delete()
-      .eq("user_id", user.id)
-      .in("id", logIds)
-      .select("id");
-
-    if (error) {
-      throw error;
-    }
-
-    return completeBulkLogMutation(logIds, deletedLogs, () => {
-      invalidateInitialLogsCache(user.id);
-      revalidateDeckAndLogWorkspace();
+    return await mutateOwnedLogs({
+      supabase,
+      userId: user.id,
+      logIds,
+      mutation: { kind: "delete" },
+      invalidate: () => {
+        invalidateInitialLogsCache(user.id);
+        revalidateDeckAndLogWorkspace();
+      }
     });
   } catch (error) {
     throw resolveActionFailure(error, {
