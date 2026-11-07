@@ -12,6 +12,9 @@ type HeaderUser = Pick<
 >;
 
 function getSigningSecret() {
+  if (process.env.NODE_ENV === "production") {
+    return process.env.POKENOTES_AUTH_CLAIMS_SECRET || "";
+  }
   return (
     process.env.POKENOTES_AUTH_CLAIMS_SECRET ||
     process.env.SUPABASE_SERVICE_ROLE_KEY ||

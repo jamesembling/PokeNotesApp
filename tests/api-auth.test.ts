@@ -42,6 +42,10 @@ test("API and forwarded authentication preserve their identity boundaries", asyn
   );
 
   const previousSecret = process.env.POKENOTES_AUTH_CLAIMS_SECRET;
+  const previousServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const previousNewServiceKey = process.env.NEW_SUPABASE_SERVICE_KEY;
+  const previousNodeEnv = process.env.NODE_ENV;
+  const env: Record<string, string | undefined> = process.env;
   const originalNow = Date.now;
   process.env.POKENOTES_AUTH_CLAIMS_SECRET = "dedicated-test-signing-secret";
 
@@ -83,9 +87,35 @@ test("API and forwarded authentication preserve their identity boundaries", asyn
       }),
       null
     );
+
+    delete process.env.POKENOTES_AUTH_CLAIMS_SECRET;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "local-service-key";
+    process.env.NEW_SUPABASE_SERVICE_KEY = "local-new-service-key";
+    env.NODE_ENV = "development";
+    const localHeader = await createAuthClaimsHeader(user);
+    assert.ok(localHeader, "Local development retains the compatibility signing key");
+    assert.deepEqual(await readAuthClaimsHeader(localHeader), user);
+
+    env.NODE_ENV = "production";
+    assert.equal(await createAuthClaimsHeader(user), null);
+    assert.equal(await readAuthClaimsHeader(localHeader), null);
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    assert.equal(await createAuthClaimsHeader(user), null);
+    process.env.POKENOTES_AUTH_CLAIMS_SECRET = "production-dedicated-secret";
+    const productionHeader = await createAuthClaimsHeader(user);
+    assert.ok(productionHeader);
+    assert.deepEqual(await readAuthClaimsHeader(productionHeader), user);
   } finally {
     Date.now = originalNow;
     if (previousSecret === undefined) delete process.env.POKENOTES_AUTH_CLAIMS_SECRET;
     else process.env.POKENOTES_AUTH_CLAIMS_SECRET = previousSecret;
+    for (const [key, previous] of [
+      ["SUPABASE_SERVICE_ROLE_KEY", previousServiceKey],
+      ["NEW_SUPABASE_SERVICE_KEY", previousNewServiceKey],
+      ["NODE_ENV", previousNodeEnv]
+    ]) {
+      if (previous === undefined) delete process.env[key!];
+      else process.env[key!] = previous;
+    }
   }
 });
