@@ -172,8 +172,8 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
     "Trainer";
   const tournamentDeckName = getTournamentDeckDisplayName(tournament.deckSprites);
   // These reads depend only on the tournament, so they run together.
-  const [currentSourceDeckList, availableDeckLists, resolvedTournamentDeckList] =
-    await Promise.all([
+  const [currentSourceDeckList, availableDeckLists, resolvedTournamentDeckList] = await Promise.all(
+    [
       !isJudge && tournament.deckListSnapshot?.sourceDeckListId
         ? getDeckListById(user.id, tournament.deckListSnapshot.sourceDeckListId, null)
         : null,
@@ -191,7 +191,8 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
               tournament,
               userId: user.id
             })
-    ]);
+    ]
+  );
 
   return (
     <PageWidth size="standard">

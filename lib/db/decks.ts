@@ -772,29 +772,31 @@ async function getRelationalDeckListOptionsByDeckId(
   userId: string,
   deckIds: string[] | "all"
 ): Promise<Map<string, DeckListOption[]>> {
-  const resolvedDeckIds =
-    deckIds === "all" ? null : Array.from(new Set(deckIds.filter(Boolean)));
+  const resolvedDeckIds = deckIds === "all" ? null : Array.from(new Set(deckIds.filter(Boolean)));
   if (resolvedDeckIds?.length === 0) {
     return new Map();
   }
 
-  const { data, error } = await measureServerCall("db.decks.relationalDeckListOptions", async () => {
-    const query = supabase.from("deck_lists").select("id,deck_id,name").eq("user_id", userId);
-    const scopedQuery = resolvedDeckIds
-      ? query.in("deck_id", resolvedDeckIds)
-      : query.not("deck_id", "is", null);
+  const { data, error } = await measureServerCall(
+    "db.decks.relationalDeckListOptions",
+    async () => {
+      const query = supabase.from("deck_lists").select("id,deck_id,name").eq("user_id", userId);
+      const scopedQuery = resolvedDeckIds
+        ? query.in("deck_id", resolvedDeckIds)
+        : query.not("deck_id", "is", null);
 
-    return await scopedQuery
-      .order("position", { ascending: true })
-      .order("created_at", { ascending: false });
-  });
+      return await scopedQuery
+        .order("position", { ascending: true })
+        .order("created_at", { ascending: false });
+    }
+  );
 
   if (error) {
     throw error;
   }
 
   const byDeckId = new Map<string, DeckListOption[]>();
-  (((data ?? []) as unknown) as DeckListOptionRow[]).forEach((row) => {
+  ((data ?? []) as unknown as DeckListOptionRow[]).forEach((row) => {
     if (!row.deck_id) {
       return;
     }

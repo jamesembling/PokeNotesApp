@@ -520,9 +520,7 @@ export async function getRelationalDeckListSourceOptions(
     throw error;
   }
 
-  return (
-    (data ?? []) as unknown as Pick<DeckListRow, "deck_id" | "id" | "name" | "updated_at">[]
-  )
+  return ((data ?? []) as unknown as Pick<DeckListRow, "deck_id" | "id" | "name" | "updated_at">[])
     .map((row) => ({
       deckId: row.deck_id ?? null,
       id: row.id,
