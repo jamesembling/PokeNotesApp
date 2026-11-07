@@ -1,16 +1,12 @@
 "use client";
 
-import { useId, useState, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { saveMatchNotesAction } from "@/app/(app)/logs/actions";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Button } from "@/components/shadcn/button";
 import { Dialog } from "@/components/shadcn/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldLabel
-} from "@/components/shadcn/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/shadcn/field";
 import { Textarea } from "@/components/shadcn/textarea";
 import {
   AppDialogContent,
@@ -27,7 +23,11 @@ export type MatchNotesDialogProps = {
   returnFocusRef: RefObject<HTMLButtonElement | null>;
 };
 
-export function MatchNotesDialog({
+export function MatchNotesDialog(props: MatchNotesDialogProps) {
+  return props.open ? <MatchNotesEditor key={props.logId} {...props} /> : null;
+}
+
+function MatchNotesEditor({
   logId,
   notes,
   onOpenChange,
@@ -40,24 +40,43 @@ export function MatchNotesDialog({
   const [draft, setDraft] = useState(notes ?? "");
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   async function handleSubmit(formData: FormData) {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaveError("");
     setIsSaving(true);
 
     try {
       await saveMatchNotesAction(formData);
-      onOpenChange(false);
+      if (mountedRef.current) onOpenChange(false);
       router.refresh();
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Could not save those match notes.");
+      if (mountedRef.current) {
+        setSaveError(error instanceof Error ? error.message : "Could not save those match notes.");
+      }
     } finally {
-      setIsSaving(false);
+      savingRef.current = false;
+      if (mountedRef.current) setIsSaving(false);
     }
   }
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog
+      onOpenChange={(nextOpen) => {
+        if (!savingRef.current) onOpenChange(nextOpen);
+      }}
+      open={open}
+    >
       <AppDialogContent
         onCloseAutoFocus={(event) => {
           event.preventDefault();
@@ -85,27 +104,28 @@ export function MatchNotesDialog({
         >
           <input name="logId" type="hidden" value={logId} />
           <div className="min-h-0 overflow-y-auto px-4 py-5 sm:px-5">
-              {saveError ? (
-                <Alert className="mb-4" variant="loss">
-                  <AlertDescription>{saveError}</AlertDescription>
-                </Alert>
-              ) : null}
-              <Field>
-                <FieldLabel htmlFor={fieldId}>Match notes</FieldLabel>
-                <Textarea
-                  aria-describedby={descriptionId}
-                  autoFocus
-                  className="min-h-36 resize-y"
-                  id={fieldId}
-                  name="matchNotes"
-                  onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Record key decisions, turning points, or follow-up ideas"
-                  value={draft}
-                />
-                <FieldDescription id={descriptionId}>
-                  Optional and private to you. Match notes are not included in shared links.
-                </FieldDescription>
-              </Field>
+            {saveError ? (
+              <Alert className="mb-4" variant="loss">
+                <AlertDescription>{saveError}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Field>
+              <FieldLabel htmlFor={fieldId}>Match notes</FieldLabel>
+              <Textarea
+                aria-describedby={descriptionId}
+                autoFocus
+                className="min-h-36 resize-y"
+                disabled={isSaving}
+                id={fieldId}
+                name="matchNotes"
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Record key decisions, turning points, or follow-up ideas"
+                value={draft}
+              />
+              <FieldDescription id={descriptionId}>
+                Optional and private to you. Match notes are not included in shared links.
+              </FieldDescription>
+            </Field>
           </div>
           <AppDialogFooter>
             <Button disabled={isSaving} type="submit">
