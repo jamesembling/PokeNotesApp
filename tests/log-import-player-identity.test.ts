@@ -1,11 +1,96 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { parseBattleLog } from "@/lib/log-import/parser";
+import type { IdentificationCatalog } from "@/lib/log-import/types";
 import {
   canonicalizeSelfPlayerSections,
   resolveSelfOpponent
 } from "@/lib/log-import/parser/players";
 
-test("an alternate PTCGL username identifies the importing player's side", () => {
+test("player identities preserve outcomes, stats and card evidence", () => {
+  // Change only player identities in the committed export, never action wording.
+  const source = readFileSync("tests/e2e/fixtures/battle-log-valid.txt", "utf8");
+  const catalog: IdentificationCatalog = {
+    pokemon: {
+      bySlug: new Map(),
+      normalizedNameToSlug: new Map([
+        ["dreepy", "dreepy"],
+        ["charmander", "charmander"],
+        ["charizard", "charizard"]
+      ]),
+      slugToAncestors: new Map(),
+      slugToFamilyRoot: new Map(),
+      maxNameTokens: 1
+    },
+    archetypes: {
+      byId: new Map(),
+      normalizedLabelToIds: new Map(),
+      spriteToCandidateArchetypes: new Map(),
+      familyRootToCandidateArchetypes: new Map()
+    }
+  };
+  for (const [self, opponent] of [
+    ["Trainer", "OtherTrainer"],
+    ["Trainer[+]", "Opponent"],
+    ["Trainer", "Other. Trainer"],
+    ["Dreepy", "Charizard"],
+    ["Other. Trainer", "Trainer"],
+    ["-Trainer", "Opponent"]
+  ]) {
+    const parsed = parseBattleLog({
+      rawLog: source.replaceAll("E2ETrainer", self).replaceAll("FixtureOpponent", opponent),
+      ptcglUsername: self,
+      catalog
+    });
+    assert.equal(parsed.stats.result, "Win", `${opponent}: winner attribution`);
+    assert.equal(parsed.stats.selfAttackDamage, 200, `${self}: damage attribution`);
+    assert.equal(parsed.sections[1].prizesAfterTurn[self], 5, `${self}: prize attribution`);
+    assert.equal(parsed.stats.coinTossWon, true);
+    const opposite = parseBattleLog({ rawLog: parsed.rawLog, ptcglUsername: opponent, catalog });
+    assert.equal(opposite.stats.result, "Loss");
+    assert.equal(opposite.stats.coinTossWon, false);
+
+    assert.deepEqual(
+      [...parsed.pokemonEvidence.self.mentionCounts],
+      [["dreepy", 1]],
+      `${self}: own card evidence only`
+    );
+    assert.deepEqual(
+      [...parsed.pokemonEvidence.opponent.mentionCounts],
+      [["charmander", 1]],
+      `${opponent}: own card evidence only`
+    );
+  }
+
+  // Effect-driven plays (e.g. Rare Candy) are recorded as indented detail lines.
+  const detailEvolution = parseBattleLog({
+    rawLog: source.replace(
+      "E2ETrainer played Dreepy to the Bench.\n",
+      "E2ETrainer played Dreepy to the Bench.\nE2ETrainer played Rare Candy.\n   - E2ETrainer evolved Dreepy to Charizard on the Bench.\n"
+    ),
+    ptcglUsername: "E2ETrainer",
+    catalog
+  });
+  assert.deepEqual(
+    [...detailEvolution.pokemonEvidence.self.mentionCounts],
+    [
+      ["dreepy", 2],
+      ["charizard", 1]
+    ],
+    "detail-line plays remain card evidence"
+  );
+
+  assert.throws(
+    () =>
+      parseBattleLog({
+        rawLog: source.replace("E2ETrainer wins.", "UnknownTrainer wins."),
+        ptcglUsername: "E2ETrainer",
+        catalog
+      }),
+    /exactly one winner/,
+    "an unrelated winner must not silently become a loss"
+  );
   assert.deepEqual(
     resolveSelfOpponent(["Opponent", "JJPokeMan2026"], "MainTrainer", ["  jjpokeman2026  "]),
     {

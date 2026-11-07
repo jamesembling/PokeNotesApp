@@ -3,17 +3,26 @@ import { normalizeText } from "@/lib/log-import/normalization";
 import type { IdentificationCatalog, PlayerPokemonEvidence } from "@/lib/log-import/types";
 import { stripLogCardIdentifiers } from "@/lib/battle-log/card-identifiers";
 
+// Effect-driven plays (e.g. Rare Candy) arrive as indented "- " / "• " detail
+// lines; the acting player still leads the recorded sentence.
+function stripDetailMarker(line: string) {
+  return line.replace(/^\s*(?:[-•]\s+)?/, "");
+}
+
 function getRelevantIdentificationLines(lines: string[], playerName: string, language: Language) {
   if (language === "en") {
-    return lines.filter(
-      (line) =>
-        line.includes(`${playerName} attached`) ||
-        line.includes(`${playerName} played `) ||
-        (line.includes(`${playerName} drew `) && line.includes("and played it to the Bench")) ||
-        line.includes(`${playerName} evolved `) ||
-        (line.includes(`${playerName}'s `) &&
-          (line.includes("was Knocked Out") || (line.includes(" used") && !line.includes("damage"))))
-    );
+    return lines
+      .map(stripDetailMarker)
+      .filter(
+        (line) =>
+          line.startsWith(`${playerName} attached`) ||
+          line.startsWith(`${playerName} played `) ||
+          (line.startsWith(`${playerName} drew `) && line.includes("and played it to the Bench")) ||
+          line.startsWith(`${playerName} evolved `) ||
+          (line.startsWith(`${playerName}'s `) &&
+            (line.includes("was Knocked Out") ||
+              (line.includes(" used") && !line.includes("damage"))))
+      );
   }
 
   if (language === "es") {
@@ -25,7 +34,9 @@ function getRelevantIdentificationLines(lines: string[], playerName: string, lan
   if (language === "de") {
     return lines.filter(
       (line) =>
-        (line.includes(playerName) && line.includes(" auf der Bank zu ") && line.includes("entwickelt")) ||
+        (line.includes(playerName) &&
+          line.includes(" auf der Bank zu ") &&
+          line.includes("entwickelt")) ||
         (line.includes(`${playerName} hat`) && line.includes(" auf die Bank gelegt."))
     );
   }
@@ -40,7 +51,8 @@ function getRelevantIdentificationLines(lines: string[], playerName: string, lan
 
   if (language === "it") {
     return lines.filter(
-      (line) => line.includes(`${playerName} ha pescato e giocato`) && line.includes(" in panchina.")
+      (line) =>
+        line.includes(`${playerName} ha pescato e giocato`) && line.includes(" in panchina.")
     );
   }
 
@@ -71,18 +83,19 @@ export function extractPlayerPokemonMentions(args: {
   catalog: IdentificationCatalog;
 }): PlayerPokemonEvidence {
   const relevantLines = getRelevantIdentificationLines(args.lines, args.playerName, args.language);
+  // Player identities are not card evidence, even when a username is a Pokémon name.
+  const cardLines =
+    args.language === "en"
+      ? relevantLines.map((line) => line.slice(args.playerName.length))
+      : relevantLines;
   const mentionCounts = new Map<string, number>();
   const maxTokens = args.catalog.pokemon.maxNameTokens;
 
-  relevantLines.forEach((line) => {
+  cardLines.forEach((line) => {
     const tokens = tokenizeLine(line);
 
     for (let startIndex = 0; startIndex < tokens.length; startIndex += 1) {
-      for (
-        let size = Math.min(maxTokens, tokens.length - startIndex);
-        size >= 1;
-        size -= 1
-      ) {
+      for (let size = Math.min(maxTokens, tokens.length - startIndex); size >= 1; size -= 1) {
         const phrase = tokens.slice(startIndex, startIndex + size).join(" ");
         const slug = args.catalog.pokemon.normalizedNameToSlug.get(phrase);
         if (!slug) {
@@ -98,7 +111,7 @@ export function extractPlayerPokemonMentions(args: {
 
   return {
     lines: relevantLines,
-    normalizedText: normalizeText(stripLogCardIdentifiers(relevantLines.join(" "))),
+    normalizedText: normalizeText(stripLogCardIdentifiers(cardLines.join(" "))),
     mentionCounts
   };
 }

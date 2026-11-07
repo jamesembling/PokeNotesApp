@@ -179,7 +179,7 @@ test("real PTCGL exports replay through the importer with tokenized or name-only
   const identified = importAndReplay(identifiedBattleLog);
   assert.equal(identified.parsed.rawLog, identifiedBattleLog);
   assert.ok(identified.parsed.sections.some((section) => section.actions.some((action) => action.title.includes("(sv5_84) Relicanth"))));
-  assert.deepEqual(identified.parsed.stats, { winner: "tyDspen", result: "Loss", totalTurns: 2, coinTossWon: false, goOrder: "Second", selfPrizesTaken: 0, opponentPrizesTaken: 0, selfAttackDamage: 0, opponentAttackDamage: 30, selfMulligans: 0, opponentMulligans: 0, reason: "Concede" });
+  assert.deepEqual(identified.parsed.stats, { winner: "tyDspen", result: "Loss", totalTurns: 4, coinTossWon: false, goOrder: "Second", selfPrizesTaken: 0, opponentPrizesTaken: 0, selfAttackDamage: 0, opponentAttackDamage: 30, selfMulligans: 0, opponentMulligans: 0, reason: "Concede" });
   assert.deepEqual(identified.program.diagnostics.unresolvedActions, []);
   const final = identified.program.frames.at(-1)!;
   assert.deepEqual([final.self.handCount, final.self.deckCount, final.self.discardCount, final.self.inPlayCount], [4, 44, 4, 2]);

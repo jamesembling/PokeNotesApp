@@ -1,5 +1,6 @@
 import type { Language, LogAction, LogSection } from "@/types/index";
 import { LANGUAGE_STRINGS } from "@/lib/log-import/parser/language";
+import { getLeadingPlayerFromLine } from "@/lib/log-import/parser/players";
 
 const SUBACTION_MARKERS = [
   "A card was added",
@@ -42,17 +43,6 @@ function getPlayerNameFromTurnLine(line: string, language: Language) {
 
 function isTurnBoundary(line: string, language: Language) {
   return getPlayerNameFromTurnLine(line, language) !== null;
-}
-
-function getLeadingPlayerFromLine(line: string, playerNames: string[]) {
-  const candidates = playerNames.toSorted((left, right) => right.length - left.length);
-
-  return (
-    candidates.find((player) => {
-      const escaped = player.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(`^${escaped}(?:'s|\\b)`).test(String(line || ""));
-    }) ?? ""
-  );
 }
 
 function inferSectionPlayer(
@@ -103,7 +93,7 @@ function getTurnActions(bodyLines: string[]): LogAction[] {
 
   bodyLines.forEach((line) => {
     const trimmed = line.trim();
-    const abilityActivationMatch = trimmed.match(/^[-•]?\s*(.+\s+was activated\.)$/i);
+    const abilityActivationMatch = trimmed.match(/^(?:[-•]\s+)?(.+\s+was activated\.)$/i);
     if (abilityActivationMatch?.[1]) {
       actions.push({
         title: abilityActivationMatch[1],
@@ -113,8 +103,7 @@ function getTurnActions(bodyLines: string[]): LogAction[] {
     }
 
     const isSubaction =
-      trimmed.startsWith("-") ||
-      trimmed.startsWith("•") ||
+      /^[-•]\s/.test(trimmed) ||
       /\btook \d+ damage\b/i.test(trimmed) ||
       SUBACTION_MARKERS.some((marker) => line.includes(marker));
 

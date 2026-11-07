@@ -3,6 +3,8 @@ import test from "node:test";
 import { buildStats } from "@/lib/log-import/parser/stats";
 import { divideIntoSections } from "@/lib/log-import/parser/turns";
 import { getPrizesTakenFromLine, isPrizeTakenLine } from "@/lib/log-import/parser/stats";
+import { parseBattleLog } from "@/lib/log-import/parser";
+import { identifiedBattleLog } from "./fixtures/battle-log-card-identifiers";
 import type { LogSection } from "@/types/index";
 
 function buildSections(actions: LogSection["actions"][]): LogSection[] {
@@ -28,7 +30,36 @@ function buildSections(actions: LogSection["actions"][]): LogSection[] {
   ];
 }
 
-test("buildStats counts Mirage Barrage damage listed in action details", () => {
+test("buildStats counts recorded attack damage and setup mulligans", () => {
+  // Repeat the real appendix's mulligan event, retaining its bonus-draw wording.
+  const mulligans = parseBattleLog({
+    rawLog: identifiedBattleLog.replace(
+      "Setup\n",
+      "Setup\nJammerUK1993 took a mulligan.\nJammerUK1993 took a mulligan.\ntyDspen drew 1 more card because JammerUK1993 took at least 1 mulligan.\n"
+    ),
+    ptcglUsername: "JammerUK1993",
+    catalog: {
+      pokemon: {
+        bySlug: new Map(),
+        normalizedNameToSlug: new Map(),
+        slugToAncestors: new Map(),
+        slugToFamilyRoot: new Map(),
+        maxNameTokens: 0
+      },
+      archetypes: {
+        byId: new Map(),
+        normalizedLabelToIds: new Map(),
+        spriteToCandidateArchetypes: new Map(),
+        familyRootToCandidateArchetypes: new Map()
+      }
+    }
+  });
+  assert.equal(mulligans.stats.selfMulligans, 2);
+  assert.equal(
+    mulligans.stats.opponentMulligans,
+    0,
+    "a bonus draw is not the drawing player's mulligan"
+  );
   const stats = buildStats({
     lines: [". Self wins."],
     language: "en",
@@ -95,10 +126,7 @@ test("buildStats counts Mirage Barrage damage listed in action details", () => {
     sections: buildSections([[{ title: "Self's Dipplin used Festival Lead.", details: [`- ${attack}`, `- ${attack}`] }], []])
   });
   assert.equal(repeated.selfAttackDamage, 200, "two recorded Festival Lead attacks remain two attacks");
-});
-
-test("buildStats adds Mirage Barrage title damage and benched damage details", () => {
-  const stats = buildStats({
+  const titleAndDetails = buildStats({
     lines: [". Self wins."],
     language: "en",
     selfPlayerName: "Self",
@@ -117,8 +145,8 @@ test("buildStats adds Mirage Barrage title damage and benched damage details", (
     ])
   });
 
-  assert.equal(stats.selfAttackDamage, 240);
-  assert.equal(stats.opponentAttackDamage, 0);
+  assert.equal(titleAndDetails.selfAttackDamage, 240);
+  assert.equal(titleAndDetails.opponentAttackDamage, 0);
 });
 
 test("divideIntoSections groups unprefixed took-damage lines with the prior action", () => {

@@ -1,15 +1,16 @@
 import type { Language, LogSection, Result } from "@/types/index";
 import { LANGUAGE_STRINGS } from "@/lib/log-import/parser/language";
+import { getLeadingPlayerFromLine } from "@/lib/log-import/parser/players";
 import { ImportLogValidationError } from "@/lib/log-import/types";
 import { compactMap } from "@/lib/array";
 
-const WINNER_PATTERNS: Record<Language, RegExp> = {
-  en: /\. (.*) wins\./g,
-  es: /\. (.*) ganó\./,
-  de: /\. (.*) hat gewonnen\./,
-  fr: /\. (.*) gagne\./,
-  it: /\. (.*) ha vinto\./,
-  "pt-br": /\. (.*) venceu\./
+const WINNER_SUFFIXES: Record<Language, string> = {
+  en: " wins.",
+  es: " ganó.",
+  de: " hat gewonnen.",
+  fr: " gagne.",
+  it: " ha vinto.",
+  "pt-br": " venceu."
 };
 
 const CONCEDE_PATTERNS: Record<Language, RegExp[]> = {
@@ -21,27 +22,12 @@ const CONCEDE_PATTERNS: Record<Language, RegExp[]> = {
   "pt-br": [/concedeu/i, /desistiu/i]
 };
 
-function getLeadingPlayerFromLine(line: string, playerNames: string[]) {
-  const candidates = playerNames.toSorted((left, right) => right.length - left.length);
-
-  return (
-    candidates.find((player) => {
-      const escaped = player.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(`^${escaped}(?:'s|\\b)`).test(String(line || ""));
-    }) ?? ""
-  );
-}
-
-function getPlayerFromLine(line: string, playerNames: string[]) {
-  return playerNames.find((player) => String(line || "").includes(player)) ?? "";
-}
-
 function getCoinTossWinnerFromLine(line: string, playerNames: string[]) {
   if (!String(line || "").includes(" won the coin toss")) {
     return "";
   }
 
-  return getLeadingPlayerFromLine(line, playerNames) || getPlayerFromLine(line, playerNames);
+  return getLeadingPlayerFromLine(line, playerNames);
 }
 
 function getMulligansTakenFromLine(line: string) {
@@ -101,7 +87,10 @@ function getAttackDamageFromAction(
   // Ability actions such as Festival Lead contain a recorded attack in their
   // details. Read attack records, not the explanatory damage breakdown.
   const title = String(action.title || "").trim();
-  const records = [title, ...action.details.map((detail) => detail.replace(/^\s*-\s*/, "").trim())];
+  const records = [
+    title,
+    ...action.details.map((detail) => detail.replace(/^\s*[-•]\s+/, "").trim())
+  ];
   const nestedAttacks = records.slice(1).filter((line) => getAttackDamageFromLine(line) > 0);
   // A title repeated in its details is one record. Repeated nested lines can
   // represent two real attacks (Festival Lead) and must each retain their damage.
@@ -129,23 +118,27 @@ function getAttackDamageFromAction(
   });
 }
 
-function determineWinner(lines: string[], language: Language) {
-  const winner = lines
-    .map((line) => {
-      const match = WINNER_PATTERNS[language].exec(line)?.[1] ?? null;
-      WINNER_PATTERNS[language].lastIndex = 0;
-      return match;
-    })
-    .find(Boolean);
+function determineWinner(lines: string[], language: Language, playerNames: string[]) {
+  const candidates = playerNames.toSorted((left, right) => right.length - left.length);
+  const winners = Array.from(
+    new Set(
+      compactMap(lines, (line) =>
+        candidates.find((player) => {
+          const ending = `${player}${WINNER_SUFFIXES[language]}`;
+          return line === ending || line.endsWith(`. ${ending}`);
+        })
+      )
+    )
+  );
 
-  if (!winner) {
+  if (winners.length !== 1) {
     throw new ImportLogValidationError(
       "UNKNOWN_LOG",
-      "Could not find a winner line in this PTCGL log."
+      "Could not resolve exactly one winner from the players in this PTCGL log."
     );
   }
 
-  return winner;
+  return winners[0];
 }
 
 export function getPrizesTakenFromLine(line: string, language: Language) {
@@ -198,7 +191,7 @@ function calculateTotalTurns(sections: LogSection[]) {
     })
     .filter((value) => Number.isFinite(value));
 
-  return numberedTurns.length > 0 ? Math.max(...numberedTurns) : Math.ceil(nonSetupSections.length / 2);
+  return numberedTurns.length > 0 ? Math.max(...numberedTurns) : nonSetupSections.length;
 }
 
 function determineGoOrder(
@@ -265,7 +258,7 @@ export function buildStats({
         return;
       }
 
-      const leadingPlayer = getLeadingPlayerFromLine(line, playerNames) || getPlayerFromLine(line, playerNames);
+      const leadingPlayer = getLeadingPlayerFromLine(line, playerNames);
       const playerStats = leadingPlayer ? statsByName[leadingPlayer] : null;
       const actionLines = compactMap([line, ...action.details], (entry) => String(entry || "").trim());
 
@@ -275,12 +268,14 @@ export function buildStats({
           coinTossWinner = coinTossPlayer;
         }
 
-        const mulliganPlayer =
-          getLeadingPlayerFromLine(actionLine, playerNames) || getPlayerFromLine(actionLine, playerNames);
+        const mulliganPlayer = getLeadingPlayerFromLine(actionLine, playerNames);
         const mulliganStats = mulliganPlayer ? statsByName[mulliganPlayer] : null;
         const mulligansTaken = getMulligansTakenFromLine(actionLine);
         if (mulliganStats && mulligansTaken > 0) {
-          mulliganStats.mulligans = Math.max(mulliganStats.mulligans, mulligansTaken);
+          // Each singular record is an event; numeric records summarize a count.
+          mulliganStats.mulligans = actionLine.includes("took a mulligan")
+            ? mulliganStats.mulligans + 1
+            : Math.max(mulliganStats.mulligans, mulligansTaken);
         }
       });
 
@@ -296,7 +291,7 @@ export function buildStats({
     });
   });
 
-  const winner = determineWinner(lines, language);
+  const winner = determineWinner(lines, language, playerNames);
   const result: Result = winner.toLowerCase() === selfPlayerName.toLowerCase() ? "Win" : "Loss";
   const selfStats = statsByName[selfPlayerName];
   const opponentStats = statsByName[opponentPlayerName];
