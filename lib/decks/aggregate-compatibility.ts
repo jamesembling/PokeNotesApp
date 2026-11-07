@@ -44,9 +44,14 @@ function resolveRecordsDuringCompatibility<T extends DeckAggregateRecord>(
   ];
 }
 
-export function resolveDeckListsDuringCompatibility(
-  legacyDeckLists: DeckList[],
-  relationalDeckLists?: DeckList[]
+/**
+ * Accepts full Deck Lists or narrower `{ id, ... }` projections (for example
+ * selection options) so option reads apply the same precedence and ordering
+ * without loading card payloads.
+ */
+export function resolveDeckListsDuringCompatibility<T extends DeckAggregateRecord = DeckList>(
+  legacyDeckLists: T[],
+  relationalDeckLists?: T[]
 ) {
   return resolveRecordsDuringCompatibility(legacyDeckLists, relationalDeckLists);
 }
