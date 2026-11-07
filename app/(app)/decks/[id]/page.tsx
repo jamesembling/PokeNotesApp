@@ -2,7 +2,10 @@ import Link from "next/link";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/shadcn/button";
 import { Card } from "@/components/shadcn/card";
-import { DeckMatchupsDialog } from "@/components/ui/DeckMatchupsDialog";
+import {
+  DeckMatchupsDialog,
+  type DeckMatchupsDialogMatchup
+} from "@/components/ui/DeckMatchupsDialog";
 import { DeckStrategyWorkspace } from "@/components/ui/DeckStrategyWorkspace";
 import { DeckStrategyMobileMenu } from "@/components/ui/DeckStrategyMobileMenu";
 import { DeckStrategyResourcesMenu } from "@/components/ui/DeckStrategyResourcesMenu";
@@ -45,6 +48,30 @@ function DeckMatchupTile({
 function getDeckEditorPayload(deck: Deck) {
   const { deckLists: _deckLists, matchups: _matchups, ...editorDeck } = deck;
   return editorDeck;
+}
+
+// Client components receive only the fields they render, so the page payload
+// does not carry every Deck List's cards or every Matchup's full plan.
+function getStrategyWorkspacePayload(deck: Deck) {
+  return {
+    coreStrategy: deck.coreStrategy,
+    generalNotes: deck.generalNotes,
+    goPreference: deck.goPreference,
+    id: deck.id,
+    resourcePlan: deck.resourcePlan,
+    setupGoals: deck.setupGoals,
+    updatedAt: deck.updatedAt
+  };
+}
+
+function getMatchupDialogPayload(matchup: DeckMatchup): DeckMatchupsDialogMatchup {
+  return {
+    createdAt: matchup.createdAt,
+    deckName: matchup.deckName,
+    deckPokemon: matchup.deckPokemon,
+    id: matchup.id,
+    updatedAt: matchup.updatedAt
+  };
 }
 
 function getDeckListRowPayload(deckList: DeckList) {
@@ -176,7 +203,7 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
         </div>
       </section>
 
-      <DeckStrategyWorkspace deck={deck} />
+      <DeckStrategyWorkspace deck={getStrategyWorkspacePayload(deck)} />
 
       <section
         aria-labelledby="deck-matchups-heading"
@@ -189,7 +216,10 @@ export default async function DeckDetailPage({ params }: DeckDetailPageProps) {
           titleSize="lg"
           actions={
             <PageActions>
-              <DeckMatchupsDialog deckId={deck.id} matchups={deck.matchups} />
+              <DeckMatchupsDialog
+                deckId={deck.id}
+                matchups={deck.matchups.map(getMatchupDialogPayload)}
+              />
               <LazyDeckMatchupEditorButton
                 deckId={deck.id}
                 triggerLabel="New Matchup"
