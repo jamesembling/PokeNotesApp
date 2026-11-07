@@ -1,4 +1,3 @@
-import { formatDayDate } from "@/lib/client/date-format";
 import { TOURNAMENT_ROUND_SPECIAL_RESULT_OPTIONS } from "@/lib/tournaments/options";
 import type {
   TournamentRound,
@@ -15,15 +14,23 @@ const TOURNAMENT_ROUND_SPECIAL_RESULT_TOKEN_MAP: Record<
   ID: ["T"],
   "NO SHOW": ["W"]
 };
-const TOURNAMENT_MONTH_FORMATTER = new Intl.DateTimeFormat("en-GB", { month: "short" });
+const TOURNAMENT_MONTH_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  timeZone: "UTC"
+});
+const TOURNAMENT_DAY_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC"
+});
 
 export function formatTournamentDateRange(dateFrom: string, dateTo: string) {
+  const from = new Date(`${dateFrom}T00:00:00Z`);
+  const to = new Date(`${dateTo}T00:00:00Z`);
   if (dateFrom === dateTo) {
-    return formatDayDate(dateFrom);
+    return TOURNAMENT_DAY_FORMATTER.format(from);
   }
-
-  const from = new Date(`${dateFrom}T00:00:00`);
-  const to = new Date(`${dateTo}T00:00:00`);
 
   const sameMonth =
     from.getUTCFullYear() === to.getUTCFullYear() && from.getUTCMonth() === to.getUTCMonth();
@@ -33,7 +40,7 @@ export function formatTournamentDateRange(dateFrom: string, dateTo: string) {
     return `${from.getUTCDate()}-${to.getUTCDate()} ${month} ${to.getUTCFullYear()}`;
   }
 
-  return `${formatDayDate(dateFrom)} - ${formatDayDate(dateTo)}`;
+  return `${TOURNAMENT_DAY_FORMATTER.format(from)} - ${TOURNAMENT_DAY_FORMATTER.format(to)}`;
 }
 
 export function getTournamentRecord(rounds: TournamentRound[]) {
