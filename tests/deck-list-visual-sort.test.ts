@@ -9,7 +9,7 @@ import {
   CANONICAL_DECK_LIST_SORT_VERSION,
   shouldRebuildDeckListVisualSort
 } from "@/lib/deck-lists/version";
-import { sortDeckListCards } from "@/lib/deck-lists/sort";
+import { DeckListSortUnavailableError, sortDeckListCards } from "@/lib/deck-lists/sort";
 import type { DeckCard } from "@/types/index";
 
 const cards: DeckCard[] = [
@@ -100,6 +100,36 @@ test("local visual sort restores grouped deck ordering for stale stored arrays",
       "trainer:Buddy-Buddy Poffin",
       "energy:Psychic Energy"
     ]
+  );
+});
+
+test("a Limitless outage fails canonical sorting instead of caching a fallback order", async (context) => {
+  const boss = { name: "Boss's Orders", count: 2, set: "PAL", number: "172", type: "supporter" };
+  let limitlessAvailable = false;
+  context.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    if (!limitlessAvailable) {
+      throw new TypeError("fetch failed");
+    }
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("/search")) {
+      return Response.json([{ ...boss, id: boss.name, card_type: "trainer" }]);
+    }
+    if (url.pathname.endsWith("/versions")) {
+      return Response.json([{ ...boss, data_id: boss.name, card_type: "trainer" }]);
+    }
+    return Response.json([]);
+  });
+  const bossCard: DeckCard[] = [
+    { count: boss.count, name: boss.name, set: boss.set, number: boss.number, category: "Trainer" }
+  ];
+
+  await assert.rejects(sortDeckListCards(bossCard), DeckListSortUnavailableError);
+
+  limitlessAvailable = true;
+  assert.deepEqual(
+    (await sortDeckListCards(bossCard)).map((card) => card.trainerType),
+    ["supporter"],
+    "the failed lookup is retried rather than served from cache"
   );
 });
 

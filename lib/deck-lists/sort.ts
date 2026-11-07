@@ -6,6 +6,8 @@ const LIMITLESS_API_ROOT = "https://limitlesstcg.com";
 const LIMITLESS_POKEDEX_API_URL = `${LIMITLESS_API_ROOT}/api/dm/pokedex`;
 const LIMITLESS_SEARCH_API_URL = `${LIMITLESS_API_ROOT}/api/dm/search`;
 const LIMITLESS_VERSIONS_API_URL = `${LIMITLESS_API_ROOT}/api/dm/versions`;
+const LIMITLESS_LOOKUP_TIMEOUT_MS = 8_000;
+const LIMITLESS_LOOKUP_CACHE_LIMIT = 500;
 const LIMITLESS_EVOLUTION_STAGES = new Set([
   "stage1",
   "stage2",
@@ -155,6 +157,77 @@ function findMatchingLimitlessVersion(versions: LimitlessVersionResult[], card: 
   );
 }
 
+/**
+ * Limitless could not answer, so canonical ordering cannot be resolved. Callers
+ * must not persist a fallback order as canonical; savers surface a retry.
+ */
+export class DeckListSortUnavailableError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "DeckListSortUnavailableError";
+  }
+}
+
+// A 4xx answer means "no match" and resolves to null. Network failures,
+// timeouts, rate limits, server errors and unreadable bodies throw instead,
+// so a transient outage is never mistaken for an empty result.
+async function fetchLimitlessJson(url: string): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      next: { revalidate: 86400 },
+      signal: AbortSignal.timeout(LIMITLESS_LOOKUP_TIMEOUT_MS)
+    });
+  } catch (error) {
+    throw new DeckListSortUnavailableError("Limitless card lookup failed.", { cause: error });
+  }
+
+  if (response.status === 429 || response.status >= 500) {
+    throw new DeckListSortUnavailableError(`Limitless card lookup returned ${response.status}.`);
+  }
+
+  if (!response.ok) {
+    return null;
+  }
+
+  try {
+    return (await response.json()) as unknown;
+  } catch (error) {
+    throw new DeckListSortUnavailableError("Limitless card lookup returned unreadable data.", {
+      cause: error
+    });
+  }
+}
+
+// Share in-flight and successful lookups across requests on a warm instance,
+// but evict failures so the next save retries, and bound the key space.
+function rememberLookup<T>(
+  cache: Map<string, Promise<T>>,
+  key: string,
+  load: () => Promise<T>
+): Promise<T> {
+  const cached = cache.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const request = load();
+  cache.set(key, request);
+  if (cache.size > LIMITLESS_LOOKUP_CACHE_LIMIT) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey !== undefined) {
+      cache.delete(oldestKey);
+    }
+  }
+  request.catch(() => {
+    if (cache.get(key) === request) {
+      cache.delete(key);
+    }
+  });
+
+  return request;
+}
+
 async function fetchLimitlessSearchResults(query: string) {
   const normalizedQuery = String(query ?? "").trim();
 
@@ -162,19 +235,12 @@ async function fetchLimitlessSearchResults(query: string) {
     return [];
   }
 
-  if (!searchCache.has(normalizedQuery)) {
-    const request = fetch(
-      `${LIMITLESS_SEARCH_API_URL}?${new URLSearchParams({ q: normalizedQuery, lang: "en" })}`,
-      { next: { revalidate: 86400 } }
-    )
-      .then(async (response) => (response.ok ? ((await response.json()) as unknown) : []))
-      .then((payload) => (Array.isArray(payload) ? (payload as LimitlessSearchResult[]) : []))
-      .catch(() => []);
-
-    searchCache.set(normalizedQuery, request);
-  }
-
-  return searchCache.get(normalizedQuery) ?? [];
+  return rememberLookup(searchCache, normalizedQuery, async () => {
+    const payload = await fetchLimitlessJson(
+      `${LIMITLESS_SEARCH_API_URL}?${new URLSearchParams({ q: normalizedQuery, lang: "en" })}`
+    );
+    return Array.isArray(payload) ? (payload as LimitlessSearchResult[]) : [];
+  });
 }
 
 async function fetchLimitlessVersions(id: string) {
@@ -184,39 +250,35 @@ async function fetchLimitlessVersions(id: string) {
     return [];
   }
 
-  if (!versionsCache.has(normalizedId)) {
-    const request = fetch(
-      `${LIMITLESS_VERSIONS_API_URL}?${new URLSearchParams({ id: normalizedId, lang: "en" })}`,
-      { next: { revalidate: 86400 } }
-    )
-      .then(async (response) => (response.ok ? ((await response.json()) as unknown) : []))
-      .then((payload) => (Array.isArray(payload) ? (payload as LimitlessVersionResult[]) : []))
-      .catch(() => []);
-
-    versionsCache.set(normalizedId, request);
-  }
-
-  return versionsCache.get(normalizedId) ?? [];
+  return rememberLookup(versionsCache, normalizedId, async () => {
+    const payload = await fetchLimitlessJson(
+      `${LIMITLESS_VERSIONS_API_URL}?${new URLSearchParams({ id: normalizedId, lang: "en" })}`
+    );
+    return Array.isArray(payload) ? (payload as LimitlessVersionResult[]) : [];
+  });
 }
 
 async function fetchLimitlessPokedexMap() {
   if (!pokedexPromise) {
-    pokedexPromise = fetch(LIMITLESS_POKEDEX_API_URL, { next: { revalidate: 86400 } })
-      .then(async (response) => (response.ok ? ((await response.json()) as unknown) : []))
-      .then((payload) => {
-        const entries = Array.isArray(payload) ? payload : [];
-        return new Map(
-          entries
-            .filter(
-              (entry): entry is LimitlessPokedexEntry =>
-                !!entry &&
-                typeof entry === "object" &&
-                Number.isInteger((entry as { id?: unknown }).id)
-            )
-            .map((entry) => [entry.id, entry])
-        );
-      })
-      .catch(() => new Map<number, LimitlessPokedexEntry>());
+    const request = fetchLimitlessJson(LIMITLESS_POKEDEX_API_URL).then((payload) => {
+      const entries = Array.isArray(payload) ? payload : [];
+      return new Map(
+        entries
+          .filter(
+            (entry): entry is LimitlessPokedexEntry =>
+              !!entry &&
+              typeof entry === "object" &&
+              Number.isInteger((entry as { id?: unknown }).id)
+          )
+          .map((entry) => [entry.id, entry])
+      );
+    });
+    pokedexPromise = request;
+    request.catch(() => {
+      if (pokedexPromise === request) {
+        pokedexPromise = null;
+      }
+    });
   }
 
   return pokedexPromise;
