@@ -2176,20 +2176,31 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
           }
           stage("attach", "Move Basic Energy", [zoneCard(id(), match[2])], actor); label = "Attach"; mutationCount++; return true;
         }
+        const attachment = zoneCard(id(), match[2]);
         if (origin === "hand") {
-          if (!(detailIndex >= 0 && next.playedCard?.actor === actor && next.playedCard.card.name === match[2])) removeHand(side, [match[2]], 1, "board");
-        } else if (origin === "deck") side.deckCount = changeCount(side.deckCount, -1, ["deck"]);
-        else {
-          takeDiscard(actor, [match[2]]);
+          if (
+            detailIndex >= 0 &&
+            next.playedCard?.actor === actor &&
+            next.playedCard.card.name === match[2]
+          ) {
+            Object.assign(attachment, next.playedCard.card);
+          } else {
+            Object.assign(attachment, removeHand(side, [match[2]], 1, "board")[0]);
+          }
+        } else if (origin === "deck") {
+          side.deckCount = changeCount(side.deckCount, -1, ["deck"]);
+        } else {
+          Object.assign(attachment, takeDiscard(actor, [match[2]])[0]);
         }
         if (!(origin === "hand" && detailIndex >= 0 && next.playedCard?.actor === actor && next.playedCard.card.name === match[2])) {
           transferCounts(actor, origin === "discard pile" ? "discard" : origin as CountZone, "board", 1);
         }
         const attachments = replayAttachmentCards(card);
         if (isTool) card.tool = match[2]; else card.energy.push(match[2].replace(/^Basic (.+) Energy$/i, "$1"));
-        card.attachmentCards = [...attachments, zoneCard(id(), match[2])];
+        card.attachmentCards = [...attachments, attachment];
         if (card.knownStackSize !== undefined) card.knownStackSize++;
-        stage("attach", "Attach", [zoneCard(id(), match[2])], actor); stage("move", `To ${card.name}`, [card], actor);
+        stage("attach", "Attach", [attachment], actor);
+        stage("move", `To ${card.name}`, [card], actor);
         label = "Attach"; mutationCount++; return true;
       }
       if ((match = line.match(/^(.+?) retreated (.+?) to (?:the )?Bench$/i))) {
@@ -2382,6 +2393,23 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
         const boundId = [...recordedKnockoutBindings].find(([index]) => index >= actionIndex && index <= actionIndex + 3)?.[1]; const targetName = match[3];
         const boundCard = allCards(side).find((card) => card.name === targetName && card.id === boundId);
         const card = retreating?.name === match[3] ? retreating : boundCard ?? findCard(side, match[3]);
+        const attachments = replayAttachmentCards(card);
+        const available = attachments.map((attachment) => attachment.name);
+        const attachedNames = names.filter((name) => {
+          const index = available.indexOf(name);
+          if (index < 0) return false;
+          available.splice(index, 1);
+          return true;
+        });
+        const attachmentEvidence = removeKnownZone(
+          attachments,
+          attachedNames,
+          true,
+          identitiesFor(attachedNames)
+        );
+        card.attachmentCards = attachments;
+        let attachmentIndex = 0;
+        const discardedAttachments: ReplayZoneCard[] = [];
         for (const name of names) {
           const energy = name.replace(/^Basic (.+) Energy$/i, "$1"); const index = card.energy.indexOf(energy);
           if (card.tool === name) delete card.tool;
@@ -2390,12 +2418,21 @@ for (const pending of [...pendingTopDepartures].filter((entry) => entry.actor ==
             const pooled = takePooledCards(actor, [card.id], [name]);
             if (!pooled.length) throw new Unresolved("A discarded attachment was not previously evidenced.");
             if (card.knownStackSize !== undefined) card.knownStackSize--;
-            addDiscard(actor, pooled, "board"); continue;
+            addDiscard(actor, pooled, "board");
+            discardedAttachments.push(...pooled);
+            continue;
           }
           if (card.knownStackSize !== undefined) card.knownStackSize--;
-          addDiscard(actor, [zoneCard(id(), name)], "board");
+          const attachment = {
+            ...zoneCard(id(), name),
+            ...attachmentEvidence[attachmentIndex++]
+          };
+          addDiscard(actor, [attachment], "board");
+          discardedAttachments.push(attachment);
         }
-        stage("discard", "Discard", names.map((name) => zoneCard(id(), name)), actor); mutationCount++; return true;
+        stage("discard", "Discard", discardedAttachments, actor);
+        mutationCount++;
+        return true;
       }
       if ((match = line.match(/^(.+?) put (a|\d+) damage counters? on (.+?)['’]s (.+)$/i))) {
         const controller = actorFor(match[1]); const context = effectContext();
