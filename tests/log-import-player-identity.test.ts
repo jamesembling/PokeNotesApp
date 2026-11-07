@@ -63,6 +63,24 @@ test("player identities preserve outcomes, stats and card evidence", () => {
     );
   }
 
+  // Effect-driven plays (e.g. Rare Candy) are recorded as indented detail lines.
+  const detailEvolution = parseBattleLog({
+    rawLog: source.replace(
+      "E2ETrainer played Dreepy to the Bench.\n",
+      "E2ETrainer played Dreepy to the Bench.\nE2ETrainer played Rare Candy.\n   - E2ETrainer evolved Dreepy to Charizard on the Bench.\n"
+    ),
+    ptcglUsername: "E2ETrainer",
+    catalog
+  });
+  assert.deepEqual(
+    [...detailEvolution.pokemonEvidence.self.mentionCounts],
+    [
+      ["dreepy", 2],
+      ["charizard", 1]
+    ],
+    "detail-line plays remain card evidence"
+  );
+
   assert.throws(
     () =>
       parseBattleLog({
