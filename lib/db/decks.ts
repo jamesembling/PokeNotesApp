@@ -670,11 +670,12 @@ function applyDeckLogStats(
       return deck;
     }
 
+    const knownResults = stats.wins + stats.losses;
     return {
       ...deck,
       gamesPlayed: stats.gamesPlayed,
       losses: stats.losses,
-      winRate: stats.gamesPlayed > 0 ? Math.round((stats.wins / stats.gamesPlayed) * 100) : null,
+      winRate: knownResults > 0 ? Math.round((stats.wins / knownResults) * 100) : null,
       wins: stats.wins
     };
   });
@@ -967,12 +968,14 @@ export const getDeckIndexSummaries = cache(async function getDeckIndexSummaries(
       const deck = mapDeckIndexRow(row);
       const gamesPlayed = Number(row.games_played ?? 0);
       const wins = Number(row.games_won ?? 0);
+      const losses = Number(row.games_lost ?? 0);
+      const knownResults = wins + losses;
 
       return {
         ...deck,
         gamesPlayed,
-        losses: Number(row.games_lost ?? 0),
-        winRate: gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : null,
+        losses,
+        winRate: knownResults > 0 ? Math.round((wins / knownResults) * 100) : null,
         wins
       };
     });

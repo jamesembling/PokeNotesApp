@@ -104,6 +104,53 @@ Trainer: 48
       raichu.inStartingSeven - probabilityCardInPlayableOpeningHand(4, 0, 8)
     ) < 1e-12
   );
+
+  const variants = analyzeDecklist(`Pokemon: 12
+1 Radiant Charizard PGO 11
+2 Charizard V BRS 17
+1 Mewtwo VSTAR PGO 31
+1 Eevee VMAX PR-SW 87
+1 N's Zoroark ex JTG 98
+1 Team Rocket’s Nidoking ex DRI 119
+1 Charizard-EX EVO 12
+1 M Pidgeot-EX EVO 65
+1 Mewtwo V-UNION PR-SW 159
+1 Mega Charizard X ex PFL 13
+1 Mega Charizard Y ex ASC 22
+
+Energy: 48
+48 Basic {R} Energy SVE 2`);
+  assert.deepEqual(
+    variants.cards
+      .filter((card) => card.category === "Pokemon")
+      .map((card) => [card.name, card.stage]),
+    [
+      ["Radiant Charizard", "Basic"],
+      ["Charizard V", "Basic"],
+      ["Mewtwo VSTAR", "VSTAR"],
+      ["Eevee VMAX", "VMAX"],
+      ["N's Zoroark ex", "Stage 1"],
+      ["Team Rocket’s Nidoking ex", "Stage 2"],
+      ["Charizard-EX", "Basic"],
+      ["M Pidgeot-EX", "MEGA"],
+      ["Mewtwo V-UNION", "V-UNION"],
+      ["Mega Charizard X ex", "Stage 2"],
+      ["Mega Charizard Y ex", "Stage 2"]
+    ]
+  );
+  assert.equal(variants.basicPokemonCount, 4);
+  assert.ok(Math.abs(variants.mulliganProbability - probabilityNone(4)) < 1e-12);
+  assert.equal(variants.setupRows.find((row) => row.card.name === "Mewtwo VSTAR")?.onlyStarter, 0);
+  assert.equal(
+    variants.setupRows.find((row) => row.card.name === "N's Zoroark ex")?.onlyStarter,
+    0
+  );
+  assert.ok(
+    Math.abs(
+      variants.setupRows[0].onlyStarter -
+        (choose(57, 7) - choose(56, 7)) / choose(60, 7) / probabilityAtLeastOne(4)
+    ) < 1e-12
+  );
 });
 
 test("deck analysis reports zero setup probability for evolution-only Pokemon", () => {

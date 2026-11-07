@@ -22,7 +22,7 @@ import {
 } from "@/lib/probability-calculator";
 import { findPokemonOptionBySlug, resolvePokemonSpriteSlug } from "@/lib/pokemon/sprites";
 import { usePokemonOptions } from "@/lib/pokemon/use-pokemon-options";
-import type { PokemonOption } from "@/types/index";
+import type { DeckCard, PokemonOption } from "@/types/index";
 import styles from "./calculator.module.css";
 
 type TabId = "setup" | "prizing";
@@ -63,10 +63,18 @@ Energy: 10
 2 Fighting Energy MEE 6
 2 Mist Energy TEF 161`;
 
+// Artwork uses the shared stage vocabulary; special calculator stages stay in analysis.
+function toDeckVisualCards(cards: CalculatorAnalysis["cards"]): DeckCard[] {
+  return cards.map(({ stage, ...card }) => ({
+    ...card,
+    stage: stage === "Basic" || stage === "Stage 1" || stage === "Stage 2" ? stage : undefined
+  }));
+}
+
 export function ProbabilityCalculator() {
   const [deckInput, setDeckInput] = useState("");
   const [analysis, setAnalysis] = useState<CalculatorAnalysis | null>(null);
-  const [deckVisualCards, setDeckVisualCards] = useState<CalculatorAnalysis["cards"]>([]);
+  const [deckVisualCards, setDeckVisualCards] = useState<DeckCard[]>([]);
   const pokemonOptions = usePokemonOptions(Boolean(analysis));
   const [activeTab, setActiveTab] = useState<TabId>("setup");
   const [editorOpen, setEditorOpen] = useState(true);
@@ -136,17 +144,19 @@ export function ProbabilityCalculator() {
         return;
       }
 
+      const visualCards = toDeckVisualCards(analysis.cards);
+
       try {
         const { sortDeckListCards } = await import("@/lib/deck-lists/sort");
-        const sortedCards = await sortDeckListCards(analysis.cards);
+        const sortedCards = await sortDeckListCards(visualCards);
         if (!cancelled) {
           startTransition(() => {
-            setDeckVisualCards(sortedCards as CalculatorAnalysis["cards"]);
+            setDeckVisualCards(sortedCards);
           });
         }
       } catch {
         if (!cancelled) {
-          setDeckVisualCards(analysis.cards);
+          setDeckVisualCards(visualCards);
         }
       }
     }
@@ -180,7 +190,7 @@ export function ProbabilityCalculator() {
 
     setAnalysis(result);
     setAnalyzedInput(input);
-    setDeckVisualCards(result.cards);
+    setDeckVisualCards(toDeckVisualCards(result.cards));
     setActiveTab("setup");
     setStatusMessage("");
     setEditorOpen(false);
