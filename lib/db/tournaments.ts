@@ -271,7 +271,7 @@ export function unwrapTournamentSnapshotQueryResult<T>(result: {
   return result.data;
 }
 
-export const getTournaments = cache(async (userId: string): Promise<Tournament[]> => {
+const getTournaments = cache(async (userId: string): Promise<Tournament[]> => {
   const supabase = await createClient();
   let { data, error } = await measureServerCall("db.tournaments.list", async () =>
     await supabase

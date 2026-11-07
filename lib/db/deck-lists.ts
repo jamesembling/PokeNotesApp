@@ -100,7 +100,7 @@ function mapDeckList(row: DeckListRow): DeckList {
   };
 }
 
-export function parseLegacyDeckList(value: unknown, deckId: string): DeckList | null {
+function parseLegacyDeckList(value: unknown, deckId: string): DeckList | null {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -141,7 +141,7 @@ export function parseLegacyDeckList(value: unknown, deckId: string): DeckList | 
   };
 }
 
-export function mergeDeckListReadModels(
+function mergeDeckListReadModels(
   relationalLists: DeckList[],
   legacyLists: DeckList[]
 ): DeckList[] {

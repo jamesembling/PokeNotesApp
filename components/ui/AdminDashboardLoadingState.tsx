@@ -21,7 +21,7 @@ export function AdminDashboardLoadingState() {
   );
 }
 
-export function AdminSummaryCardsFallback() {
+function AdminSummaryCardsFallback() {
   return (
     <div aria-hidden="true" className={styles.summary} data-route-loading>
       {["Users", "Pokémon Catalog", "Archetypes"].map((label) => (
@@ -35,7 +35,7 @@ export function AdminSummaryCardsFallback() {
   );
 }
 
-export function AdminUsersSectionFallback() {
+function AdminUsersSectionFallback() {
   return (
     <section className={styles.accounts} data-route-loading>
       <div className={styles.sectionIntro}>

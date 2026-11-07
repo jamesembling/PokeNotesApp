@@ -253,7 +253,7 @@ export async function resolveBattleLogEffectCatalogEvidence(titles: string[], si
 }
 
 /** Resolve all titles against one complete candidate set without more network work. */
-export function resolveBattleLogEffectEvidenceFromRows(titles: string[], rows: CardEffectLookupRow[]) {
+function resolveBattleLogEffectEvidenceFromRows(titles: string[], rows: CardEffectLookupRow[]) {
   const uniqueTitles = Array.from(new Set(titles.map((title) => title.trim()).filter(Boolean)));
   const resolvedByTitle = new Map<string, BattleLogActionTag>();
   const origins = new Map<string, EffectOrigin>();

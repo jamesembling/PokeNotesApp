@@ -44,7 +44,7 @@ export function getTournamentRecord(rounds: TournamentRound[]) {
     : `${totals.wins}-${totals.losses}`;
 }
 
-export function getTournamentRecordBreakdown(rounds: TournamentRound[]) {
+function getTournamentRecordBreakdown(rounds: TournamentRound[]) {
   const totals = rounds.reduce(
     (accumulator, round) => {
       const roundOutcome = getRoundResultVariant(round.result);

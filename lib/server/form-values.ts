@@ -1,7 +1,7 @@
 import type { GoPreference } from "@/types/index";
 import { compactMap } from "@/lib/array";
 
-export function normalizeSelectedSprites(values: FormDataEntryValue[], limit = 2) {
+function normalizeSelectedSprites(values: FormDataEntryValue[], limit = 2) {
   return Array.from(
     new Set(
       compactMap(values, (value) => String(value || "").trim())

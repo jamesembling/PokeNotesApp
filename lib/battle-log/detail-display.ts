@@ -12,7 +12,7 @@ export type DetailEvent = {
   outcome: string;
 };
 
-export type DamageBreakdownItem = {
+type DamageBreakdownItem = {
   damage: string;
   label: string;
   tone: "base" | "modifier" | "total";
@@ -23,21 +23,21 @@ export type DamageBreakdown = {
   label: string;
 };
 
-export function getDetailCardCountLabel(cardCount: number) {
+function getDetailCardCountLabel(cardCount: number) {
   return `${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
 }
 
-export function cleanDetailActorText(text: string) {
+function cleanDetailActorText(text: string) {
   return String(text || "")
     .replace(/\.$/, "")
     .trim();
 }
 
-export function cleanDetailOwnerText(text: string) {
+function cleanDetailOwnerText(text: string) {
   return cleanDetailActorText(text).replace(/^[\p{L}\p{N}_.-]+['’]s\s+/u, "");
 }
 
-export function getNamedDetailCards(text: string) {
+function getNamedDetailCards(text: string) {
   const value = cleanDetailActorText(text);
 
   if (
@@ -194,11 +194,11 @@ export function isCardListDetail(text: string) {
   );
 }
 
-export function hasDamageDetail(details: string[]) {
+function hasDamageDetail(details: string[]) {
   return details.some((detail) => /\b(?:for|took)\s+\d+\+?\s+damage\b/i.test(String(detail || "")));
 }
 
-export function hasPossessivePokemonUsedAction(actionTitle: string) {
+function hasPossessivePokemonUsedAction(actionTitle: string) {
   return /^[A-Za-z0-9_.-]+'s\s+.+\s+used\b/i.test(String(actionTitle || "").trim());
 }
 

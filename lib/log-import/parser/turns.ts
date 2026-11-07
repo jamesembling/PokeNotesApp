@@ -13,14 +13,14 @@ const SUBACTION_MARKERS = [
   " drew 7 cards for the opening hand"
 ];
 
-export function stripTurnPrefix(line: string) {
+function stripTurnPrefix(line: string) {
   return String(line || "")
     .replace(/^Turn #\s*\d+\s*-\s*/i, "")
     .replace(/^-\s*/, "")
     .trim();
 }
 
-export function getPlayerNameFromTurnLine(line: string, language: Language) {
+function getPlayerNameFromTurnLine(line: string, language: Language) {
   const normalized = stripTurnPrefix(line);
 
   const patterns: Record<Language, RegExp> = {
@@ -40,7 +40,7 @@ export function getPlayerNameFromTurnLine(line: string, language: Language) {
   return extracted;
 }
 
-export function isTurnBoundary(line: string, language: Language) {
+function isTurnBoundary(line: string, language: Language) {
   return getPlayerNameFromTurnLine(line, language) !== null;
 }
 

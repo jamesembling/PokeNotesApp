@@ -3,7 +3,7 @@ const TRAINING_COURT_LOG_PATH_PATTERN = /^\/ptcg\/logs\/[0-9a-f-]+\/?$/i;
 const TRAINING_COURT_LOG_URL_PATTERN =
   /^https?:\/\/(?:www\.)?trainingcourt\.app\/ptcg\/logs\/[0-9a-f-]+(?:\/)?(?:[?#].*)?$/i;
 
-export class TrainingCourtImportError extends Error {
+class TrainingCourtImportError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "TrainingCourtImportError";
@@ -18,7 +18,7 @@ function looksLikeUrl(value: string): boolean {
   return /^https?:\/\//i.test(String(value || "").trim());
 }
 
-export function normalizeTrainingCourtLogUrl(value: string): string {
+function normalizeTrainingCourtLogUrl(value: string): string {
   const trimmedValue = String(value || "").trim();
 
   if (!looksLikeUrl(trimmedValue)) {
@@ -75,7 +75,7 @@ function readEscapedString(
   return null;
 }
 
-export function extractTrainingCourtTextNodes(html: string): string[] {
+function extractTrainingCourtTextNodes(html: string): string[] {
   const marker = 'children\\":';
   const extracted: string[] = [];
   let searchIndex = 0;
@@ -125,7 +125,7 @@ function getTrainingCourtPlayerNames(textNodes: string[]): Set<string> {
   return playerNames;
 }
 
-export function buildTrainingCourtRawLog(textNodes: string[]): string {
+function buildTrainingCourtRawLog(textNodes: string[]): string {
   const rawLines: string[] = [];
   const playerNames = getTrainingCourtPlayerNames(textNodes);
   let sawSetup = false;
@@ -190,7 +190,7 @@ export function buildTrainingCourtRawLog(textNodes: string[]): string {
   return rawLines.join("\n");
 }
 
-export async function fetchTrainingCourtRawLog(urlValue: string): Promise<string> {
+async function fetchTrainingCourtRawLog(urlValue: string): Promise<string> {
   const normalizedUrl = normalizeTrainingCourtLogUrl(urlValue);
   const response = await fetch(normalizedUrl, {
     signal: AbortSignal.timeout(10000),

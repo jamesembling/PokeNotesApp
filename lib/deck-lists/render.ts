@@ -2,7 +2,7 @@ import { normalizeLimitlessSetCode } from "@/lib/deck-lists/limitless";
 
 export type DeckListCardImageSize = "XS" | "SM" | "MD" | "LG";
 
-export function formatDeckListCardNumber(number: string): string {
+function formatDeckListCardNumber(number: string): string {
   const match = number.match(/^([A-Za-z]*)(\d+)([A-Za-z]*)$/);
 
   if (match) {

@@ -149,7 +149,7 @@ function decodeBattleLogSharePayload(value: unknown): BattleLogSharePayload | nu
   };
 }
 
-export function toPublicBattleLog(log: BattleLog): PublicBattleLog {
+function toPublicBattleLog(log: BattleLog): PublicBattleLog {
   const { matchNotes: _matchNotes, ...publicLog } = log;
   return publicLog;
 }
@@ -218,7 +218,7 @@ function mapActiveLogShare(
   };
 }
 
-export function mapSharedLogSnapshot(
+function mapSharedLogSnapshot(
   row: PublicLogShareRow | null,
   now = Date.now()
 ): SharedBattleLogSnapshot | null {

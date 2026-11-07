@@ -11,7 +11,7 @@ export const AVATAR_COLORS: AvatarColor[] = [
   "white"
 ];
 
-export const DEFAULT_AVATAR_COLOR: AvatarColor = "red";
+const DEFAULT_AVATAR_COLOR: AvatarColor = "red";
 export const PROFILE_AVATAR_COOKIE = "pn_avatar_color";
 
 export function normalizeAvatarColor(value: string | null | undefined): AvatarColor {

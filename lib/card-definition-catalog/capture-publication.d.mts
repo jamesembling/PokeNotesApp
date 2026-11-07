@@ -15,5 +15,4 @@ export type ReviewedCapturePublicationReceipt = {
   retainedPrintings?: number; sourceCoverage?: CardDefinitionSourceCoverage; failurePhase?: string; errorClass?: string;
 };
 export function getReviewedCardDefinitionCapture(snapshotId: string): ReviewedCardDefinitionCapture;
-export function readReviewedCardDefinitionCapture(snapshotId: string, capturePath: string, options?: { now?: number }): Promise<{ capture: ReviewedCardDefinitionCapture; definitions: CardDefinition[] }>;
 export function publishReviewedCardDefinitionCapture(options: { snapshotId: string; capturePath: string; outputPath: string; dryRun?: boolean; createClient?: () => unknown | Promise<unknown> }): Promise<ReviewedCapturePublicationReceipt>;

@@ -439,7 +439,7 @@ export async function getLogSummaryStats(userId: string): Promise<LogSummaryStat
   };
 }
 
-export async function getInitialLogsPageDataWithClient(
+async function getInitialLogsPageDataWithClient(
   supabase: Awaited<ReturnType<typeof createSupabaseClient>>
 ) {
   return (await getInitialLogsPageDataWithClientDiagnostics(supabase)).value;

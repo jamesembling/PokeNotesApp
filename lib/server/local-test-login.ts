@@ -15,7 +15,7 @@ function normalizeHost(value: string | null | undefined) {
   return String(value || "").trim().toLowerCase();
 }
 
-export function getAllowedLocalLoginHosts(environment: LocalLoginEnvironment = process.env) {
+function getAllowedLocalLoginHosts(environment: LocalLoginEnvironment = process.env) {
   const configuredHosts = String(environment.POKE_NOTES_LOCAL_LOGIN_HOSTS || "")
     .split(",")
     .map(normalizeHost)
@@ -31,7 +31,7 @@ export function isAllowedLocalLoginHost(
   return getAllowedLocalLoginHosts(environment).has(normalizeHost(host));
 }
 
-export function getLocalLoginConfig(environment: LocalLoginEnvironment = process.env) {
+function getLocalLoginConfig(environment: LocalLoginEnvironment = process.env) {
   const enabled =
     environment.NODE_ENV === "development" &&
     environment.POKE_NOTES_ENABLE_TEST_LOGIN === "1";
@@ -124,7 +124,7 @@ export function validateLocalLoginAttempt(
   return validation;
 }
 
-export function verifyLocalPairingCode(provided: string, expected: string) {
+function verifyLocalPairingCode(provided: string, expected: string) {
   const providedDigest = createHash("sha256").update(provided).digest();
   const expectedDigest = createHash("sha256").update(expected).digest();
 

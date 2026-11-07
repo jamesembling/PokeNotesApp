@@ -339,7 +339,7 @@ export async function getAdminDashboardOverview(): Promise<AdminDashboardOvervie
   };
 }
 
-export async function getAdminUserSummary(): Promise<AdminUserSummary> {
+async function getAdminUserSummary(): Promise<AdminUserSummary> {
   await requireAdminAccess();
 
   return await measureServerCall("db.admin.userSummary", async () => {
@@ -524,7 +524,7 @@ export async function getAdminUsers(): Promise<AdminUsersResult> {
   });
 }
 
-export async function getCatalogHealth(): Promise<CatalogHealth> {
+async function getCatalogHealth(): Promise<CatalogHealth> {
   await requireAdminAccess();
 
   return await measureServerCall("db.admin.catalogHealth", async () => {

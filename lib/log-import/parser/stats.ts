@@ -129,7 +129,7 @@ function getAttackDamageFromAction(
   });
 }
 
-export function determineWinner(lines: string[], language: Language) {
+function determineWinner(lines: string[], language: Language) {
   const winner = lines
     .map((line) => {
       const match = WINNER_PATTERNS[language].exec(line)?.[1] ?? null;

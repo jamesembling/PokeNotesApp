@@ -12,7 +12,7 @@ const SUMMARY_LINE_PATTERN = /^total\s+cards?\s*:\s*\d+\s*$/i;
 
 type DeckListCategory = "Pokemon" | "Trainer" | "Energy" | "";
 
-export type DeckListInterpretationLine = {
+type DeckListInterpretationLine = {
   card: DeckCard | null;
   category: DeckListCategory;
   count: number | null;
@@ -36,7 +36,7 @@ export function parseLines(value: string) {
     .split(/\r?\n/), (line) => line.trim());
 }
 
-export function getDeckListCategoryFromLine(value: string): DeckListCategory {
+function getDeckListCategoryFromLine(value: string): DeckListCategory {
   const trimmed = String(value || "").trim();
 
   for (const entry of HEADER_PATTERNS) {
@@ -48,11 +48,11 @@ export function getDeckListCategoryFromLine(value: string): DeckListCategory {
   return "";
 }
 
-export function isDeckListSummaryLine(value: string) {
+function isDeckListSummaryLine(value: string) {
   return SUMMARY_LINE_PATTERN.test(String(value || "").trim());
 }
 
-export function parseDeckListCountLine(value: string) {
+function parseDeckListCountLine(value: string) {
   const trimmed = String(value || "").trim();
   if (!trimmed) {
     return null;
@@ -76,7 +76,7 @@ export function parseDeckListCountLine(value: string) {
   };
 }
 
-export function splitDeckListDescription(description: string) {
+function splitDeckListDescription(description: string) {
   const text = String(description || "").trim();
   const parts = text.split(/\s+/).filter(Boolean);
 
@@ -195,8 +195,4 @@ export function interpretDeckList(rawList: string): DeckListInterpretation {
       matchedLines
     }
   };
-}
-
-export function parseDeckList(rawList: string): DeckCard[] {
-  return interpretDeckList(rawList).cards;
 }
