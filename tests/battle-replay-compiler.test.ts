@@ -208,6 +208,34 @@ test("real PTCGL exports replay through the importer with tokenized or name-only
     .replace("(sve_6) Basic Fighting Energy was discarded", "(sve_16) Basic Fighting Energy was discarded"));
   assert.deepEqual(mixedEnergyPrintings.program.diagnostics.unresolvedActions, []);
   assert.deepEqual(mixedEnergyPrintings.program.frames.at(-1)!.self.discard.filter((card) => card.name === "Basic Fighting Energy").map((card) => card.localId).sort(), ["16", "6", "6"], "same-name cards keep their distinct printing multiset through removal and retreat");
+  const nameOnlyAttachment = importAndReplay(
+    identifiedBattleLog.replace(
+      "attached (sve_6) Basic Fighting Energy to (sv5_84)",
+      "attached Basic Fighting Energy to (sv5_84)"
+    )
+  );
+  const attachedRelicanth = nameOnlyAttachment.program.frames.find(
+    (frame) => frame.self.active?.name === "Relicanth" && frame.self.active.energy.length
+  )!.self.active!;
+  assert.deepEqual(
+    replayAttachmentCards(attachedRelicanth).map((card) => [card.name, card.setId, card.localId]),
+    [["Basic Fighting Energy", "sve", "6"]],
+    "a name-only attachment retains the printing established by the complete known hand"
+  );
+  const nameOnlyRetreatCost = importAndReplay(
+    identifiedBattleLog.replace(
+      "(sve_6) Basic Fighting Energy was discarded",
+      "Basic Fighting Energy was discarded"
+    )
+  );
+  assert.deepEqual(
+    nameOnlyRetreatCost.program.frames
+      .at(-1)!
+      .self.discard.filter((card) => card.name === "Basic Fighting Energy")
+      .map((card) => [card.setId, card.localId]),
+    Array.from({ length: 3 }, () => ["sve", "6"]),
+    "a name-only retreat cost retains the known attachment printing in Discard"
+  );
   assert.deepEqual(logCardIdentity("(sv4pt5_001) Pikachu", "Pikachu"), { setId: "sv04.5", localId: "1" });
   const namesakeAttack = "tyDspen's (sv5_39) Totodile used Scratch on JammerUK1993’s (sv3_38) Totodile for 10 damage.";
   assert.deepEqual(logCardIdentity(namesakeAttack, "Totodile", "tyDspen", ["tyDspen", "JammerUK1993"]), { setId: "sv05", localId: "39" });
