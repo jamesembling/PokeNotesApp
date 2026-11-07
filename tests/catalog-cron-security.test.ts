@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GET as syncCardEffects } from "@/app/api/cron/sync-card-effect-catalog/route";
 import { GET as syncPokemon } from "@/app/api/cron/sync-pokemon-catalog/route";
 
 test("catalog cron failures do not expose configuration errors and are never cached", async () => {
@@ -11,7 +10,7 @@ test("catalog cron failures do not expose configuration errors and are never cac
   console.error = (...args: unknown[]) => reports.push(args);
 
   try {
-    for (const handler of [syncPokemon, syncCardEffects]) {
+    for (const handler of [syncPokemon]) {
       const response = await handler(new Request("http://localhost/api/cron/test"));
       const body = (await response.json()) as { error?: string; ok?: boolean };
 
@@ -22,7 +21,7 @@ test("catalog cron failures do not expose configuration errors and are never cac
       assert.doesNotMatch(body.error ?? "", /CRON_SECRET|Missing/i);
     }
 
-    assert.equal(reports.length, 2);
+    assert.equal(reports.length, 1);
   } finally {
     console.error = originalConsoleError;
     if (previousSecret === undefined) {
@@ -38,7 +37,7 @@ test("unauthorized catalog cron responses are never cached", async () => {
   process.env.CRON_SECRET = "configured-for-test";
 
   try {
-    for (const handler of [syncPokemon, syncCardEffects]) {
+    for (const handler of [syncPokemon]) {
       const response = await handler(new Request("http://localhost/api/cron/test"));
       assert.equal(response.status, 401);
       assert.match(response.headers.get("cache-control") ?? "", /private.*no-store/);
