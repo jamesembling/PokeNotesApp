@@ -259,6 +259,7 @@ export function LogsManager({
   const nextWindowEndDateRef = useRef(initialNextWindowEndDate);
   const windowStartDateRef = useRef(initialWindowStartDate);
   const windowEndDateRef = useRef(initialWindowEndDate);
+  const paginationGenerationRef = useRef(0);
   const [loadMoreError, setLoadMoreError] = useState("");
   const [deckOptionsError, setDeckOptionsError] = useState("");
   const [isLoadingDeckOptions, setIsLoadingDeckOptions] = useState(false);
@@ -318,6 +319,7 @@ export function LogsManager({
   const deletePromptCount = deletePrompt?.ids.length ?? 0;
 
   useEffect(() => {
+    paginationGenerationRef.current += 1;
     setVisibleLogs(initialLogs);
     setCanLoadMore(initialCanLoadMore);
     nextWindowEndDateRef.current = initialNextWindowEndDate;
@@ -332,6 +334,12 @@ export function LogsManager({
     initialWindowEndDate,
     initialWindowStartDate
   ]);
+
+  useEffect(() => {
+    return () => {
+      paginationGenerationRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (initialUserDecks.length > 0) {
@@ -548,10 +556,12 @@ export function LogsManager({
       return;
     }
 
+    const generation = paginationGenerationRef.current;
     startLoadMoreTransition(async () => {
       try {
         setLoadMoreError("");
         const result = await loadMoreLogsAction(nextWindowEndDateRef.current);
+        if (generation !== paginationGenerationRef.current) return;
         const nextLogs = attachLinkedDeckListNames(result.logs, userDecks, userDeckLists);
 
         setVisibleLogs((current) => mergeLogs(current, nextLogs));
@@ -560,6 +570,7 @@ export function LogsManager({
         windowStartDateRef.current = result.windowStartDate;
         windowEndDateRef.current = windowEndDateRef.current || result.windowEndDate;
       } catch (error) {
+        if (generation !== paginationGenerationRef.current) return;
         console.error(error);
         setLoadMoreError("Couldn't load more logs right now. Please try again.");
       }
