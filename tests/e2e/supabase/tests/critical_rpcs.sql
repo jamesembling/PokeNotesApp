@@ -80,23 +80,66 @@ select throws_ok($$
   )
 $$, '23505', null, 'First-class Deck List rejects changed payload under the same key');
 
-select is(
-  public.create_tournament_round_idempotent(
-    'rpc-tournament-a', 'rpc-round-a', 'rpc-round-key-a', 'Opponent', '["mew-ex"]', 'Win', 'first'
-  ) ->> 'status', 'committed', 'Tournament round commits'
-);
-select is(
-  public.create_tournament_round_idempotent(
-    'rpc-tournament-a', 'rpc-round-replay', 'rpc-round-key-a', 'Opponent', '["mew-ex"]', 'Win', 'first'
-  ) ->> 'roundId', 'rpc-round-a', 'Tournament round replay returns the original row'
-);
+select lives_ok($test$
+  do $body$
+  begin
+    if has_table_privilege('authenticated', 'public.tournament_round_commands', 'SELECT,INSERT,UPDATE,DELETE')
+      or has_table_privilege('anon', 'public.tournament_round_commands', 'SELECT,INSERT,UPDATE,DELETE') then
+      raise exception 'Creation receipts must only be accessible through the owner-checked RPC';
+    end if;
+    begin
+      perform public.create_tournament_round_idempotent(
+        'rpc-tournament-a', 'rpc-invalid-round', 'rpc-round-key-a', 'Opponent', '["mew-ex"]', 'INVALID', 'first'
+      );
+      raise exception 'Invalid result must not commit';
+    exception when check_violation then null;
+    end;
+    if public.create_tournament_round_idempotent(
+      'rpc-tournament-a', 'rpc-round-a', 'rpc-round-key-a', 'Opponent', '["mew-ex"]', 'Win', 'first'
+    ) ->> 'status' <> 'committed' then
+      raise exception 'A failed creation must leave its identity available for a valid retry';
+    end if;
+  end;
+  $body$;
+$test$, 'Tournament round and private creation receipt commit together, with failed creates retryable');
+select lives_ok($test$
+  do $body$
+  declare v_result jsonb;
+  begin
+    update public.tournament_rounds set notes = 'edited after creation' where id = 'rpc-round-a';
+    v_result := public.create_tournament_round_idempotent(
+      'rpc-tournament-a', 'rpc-round-replay', 'rpc-round-key-a', 'Opponent', '["mew-ex"]', 'Win', 'first'
+    );
+    if v_result ->> 'roundId' <> 'rpc-round-a' or v_result ->> 'status' <> 'idempotent'
+      or (select notes from public.tournament_rounds where id = 'rpc-round-a') <> 'edited after creation' then
+      raise exception 'Creation replay must preserve the edited round and return its original identity';
+    end if;
+  end;
+  $body$;
+$test$, 'Tournament round replay returns the original identity after edits without overwriting them');
 select throws_ok($$
   select public.create_tournament_round_idempotent(
     'rpc-tournament-a', 'rpc-round-conflict', 'rpc-round-key-a', 'Opponent', '["mew-ex"]', 'Win', 'changed'
   )
 $$, '23505', null, 'Tournament round rejects conflicting retry');
-select is((select count(*) from public.tournament_rounds where tournament_id = 'rpc-tournament-a'),
-  1::bigint, 'Tournament round retries leave one row');
+select lives_ok($test$
+  do $body$
+  declare v_result jsonb;
+  begin
+    if (select count(*) from public.tournament_rounds where tournament_id = 'rpc-tournament-a') <> 1 then
+      raise exception 'Round retries must leave exactly one row';
+    end if;
+    delete from public.tournament_rounds where id = 'rpc-round-a';
+    v_result := public.create_tournament_round_idempotent(
+      'rpc-tournament-a', 'rpc-round-a', 'rpc-round-key-a', 'Opponent', '["mew-ex"]', 'Win', 'first'
+    );
+    if v_result ->> 'roundId' <> 'rpc-round-a' or v_result ->> 'status' <> 'idempotent'
+      or exists (select 1 from public.tournament_rounds where tournament_id = 'rpc-tournament-a') then
+      raise exception 'A delayed creation replay must not resurrect a deleted round';
+    end if;
+  end;
+  $body$;
+$test$, 'Tournament round creation replay does not resurrect a deliberately deleted round');
 
 select is(
   public.commit_tournament_deck_list(
@@ -145,7 +188,7 @@ select throws_ok($$
 $$, '42501', null, 'First-class Deck List RPC rejects another account strategy');
 select throws_ok($$
   select public.create_tournament_round_idempotent(
-    'rpc-tournament-a', 'rpc-cross-round', 'rpc-cross-round-key', 'Opponent', '["mew-ex"]', 'Win', ''
+    'rpc-tournament-a', 'rpc-cross-round', 'rpc-round-key-a', 'Opponent', '["mew-ex"]', 'Win', 'first'
   )
 $$, 'P0002', null, 'Tournament round RPC rejects another account tournament');
 select throws_ok($$
@@ -198,5 +241,5 @@ select throws_ok($$
   )
 $$, '42501', null, 'A non-admin actor cannot change another profile role');
 
-select * from finish();
+select * from finish(true);
 rollback;
