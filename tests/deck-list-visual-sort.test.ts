@@ -9,7 +9,7 @@ import {
   CANONICAL_DECK_LIST_SORT_VERSION,
   shouldRebuildDeckListVisualSort
 } from "@/lib/deck-lists/version";
-import { sortDeckListCards } from "@/lib/deck-lists/sort";
+import { DeckListSortUnavailableError, sortDeckListCards } from "@/lib/deck-lists/sort";
 import type { DeckCard } from "@/types/index";
 
 const cards: DeckCard[] = [
@@ -65,7 +65,11 @@ test("local visual sort restores grouped deck ordering for stale stored arrays",
     { name: "Air Balloon", count: 3, set: "SSH", number: "156", type: "tool" },
     { name: "Festival Grounds", count: 4, set: "TWM", number: "149", type: "stadium" }
   ];
+  let limitlessAvailable = false;
   context.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    if (!limitlessAvailable) {
+      throw new TypeError("fetch failed");
+    }
     const url = new URL(String(input));
     const selected = trainers.find(
       (card) =>
@@ -82,9 +86,14 @@ test("local visual sort restores grouped deck ordering for stale stored arrays",
       )
     );
   });
-  const providerSorted = await sortDeckListCards(
-    [...trainers].reverse().map(({ type, ...card }) => ({ ...card, category: "Trainer" }))
-  );
+  const providerInput = [...trainers]
+    .reverse()
+    .map(({ type, ...card }) => ({ ...card, category: "Trainer" }));
+  // An outage must fail canonical sorting rather than cache a fallback order;
+  // the same lookups then retry once Limitless answers.
+  await assert.rejects(sortDeckListCards(providerInput), DeckListSortUnavailableError);
+  limitlessAvailable = true;
+  const providerSorted = await sortDeckListCards(providerInput);
   assert.deepEqual(
     providerSorted.map((card) => [card.name, card.trainerType]),
     trainers.map((card) => [card.name, card.type]),

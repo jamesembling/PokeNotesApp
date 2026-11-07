@@ -204,7 +204,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Refresh app sessions and sanitize API ingress; public page shells and
-  // static asset requests do not need the user's Supabase session.
+  // static asset requests do not need the user's Supabase session. Every
+  // authenticated route must be listed: Server Components cannot persist a
+  // refreshed session, so an unmatched route strands a rotated refresh token.
+  // tests/proxy-auth.test.ts enforces this for app/(app) and app/(admin).
   matcher: [
     "/",
     "/login",
@@ -216,6 +219,9 @@ export const config = {
     "/profile/:path*",
     "/stats/:path*",
     "/calculator/:path*",
+    "/friends/:path*",
+    "/players/:path*",
+    "/replays/:path*",
     "/admin/:path*",
     "/api/:path((?!logs/bootstrap/?$).*)?"
   ]

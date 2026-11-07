@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import test from "node:test";
 import { spawn } from "node:child_process";
@@ -54,6 +55,27 @@ test("Proxy refreshes authenticated routes but skips public and cron work", asyn
   assert.equal(matches("/logs/log-id"), true);
   assert.equal(matches("/logs/log-id/nested"), true);
   assert.equal(matches("/logs-canary"), false);
+
+  // Every authenticated page must refresh its session in the proxy; a Server
+  // Component cannot persist a rotated refresh token. Bare /logs is the
+  // deliberately public shell, so only its children are required.
+  const authenticatedSegments = [
+    ...readdirSync("app/(app)", { withFileTypes: true }),
+    ...readdirSync("app/(admin)", { withFileTypes: true })
+  ]
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
+  assert.ok(authenticatedSegments.includes("friends"));
+  for (const segment of authenticatedSegments) {
+    if (segment !== "logs") {
+      assert.equal(matches(`/${segment}`), true, `/${segment} is outside the proxy`);
+    }
+    assert.equal(
+      matches(`/${segment}/child-id`),
+      true,
+      `/${segment}/child-id is outside the proxy`
+    );
+  }
 
   const internalHeaders = [
     AUTH_CLAIMS_HEADER,
