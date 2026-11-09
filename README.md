@@ -29,7 +29,7 @@ cp .env.example .env
 
 - For a new Supabase project, apply [`schema.sql`](./schema.sql). It is the complete schema snapshot; do not replay the historical incremental SQL over it.
 - For an existing environment, inspect migration history and the target schema before applying anything. [`supabase/migrations`](./supabase/migrations) is the release authority. [`sql`](./sql) is historical reference material, not a fresh-install sequence or a destination for new migrations.
-- Local Git hooks validate database changes without deploying them. Production migrations run only through the manually dispatched `Deploy production database` workflow after merge to `main`; see [`docs/migration-release.md`](./docs/migration-release.md).
+- Local Git hooks validate database changes without deploying them. Production migrations run only through the `Deploy production database` workflow, which the merging session dispatches after merge to `main`; see [`docs/migration-release.md`](./docs/migration-release.md).
 
 5. Configure Supabase Auth redirect URLs for each environment:
 
