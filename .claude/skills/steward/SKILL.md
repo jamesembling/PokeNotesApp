@@ -46,6 +46,16 @@ If you are awake when the PR goes green, merge it yourself rather than waiting f
 
 Merge with **squash**, keeping the PR title and number as the commit subject, and pin the merge to the head SHA you just checked (`expectedHeadSha`, or `gh pr merge --match-head-commit`) so a later push cannot slip in. Treat the merge call's result as a diagnostic: confirm with a separate read that the PR is merged at that SHA before telling James, in one line, and never retry a merge on the call's result alone. See `docs/verification-commands.md` **Pull request integration is a two-phase contract**.
 
+## Deploy database migrations
+
+If the merged PR added or changed files under `supabase/migrations/`, the change is not live until the production database workflow runs. Run it yourself right after confirming the merge, without asking James. The PR request already covers it (`docs/migration-release.md` **4. Deploy through GitHub Actions**).
+
+- Confirm `origin/main` is the merge commit or a descendant of it, then dispatch `deploy-production-database.yml` on `main` with `confirmation=DEPLOY`.
+- The run's completion does not wake you. Check it a few minutes later; it usually takes about two minutes.
+- On success, confirm the new migration version is applied (the run's **Verify migration history** step, or a read-only migration list), and tell James in one line together with the merge.
+- On failure, do not re-run. Read the failing step's log and tell James what failed.
+- Never apply migration SQL to production any other way.
+
 ## Update local main
 
 After confirming the merge (yours, or the workflow's when you next wake), bring James's local `main` up to date with `origin/main`. Fast-forward only, and never discard local work:

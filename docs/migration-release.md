@@ -2,7 +2,7 @@
 
 Use this path for every Supabase schema change. `supabase/migrations/` and Supabase's migration history are the release authority. `schema.sql` is the fresh-project snapshot; `sql/` is historical reference material.
 
-Local agents and Git hooks validate migrations. They have no production-deployment step. Production changes run only from the reviewed `main` commit through the manually dispatched **Deploy production database** GitHub workflow.
+Local agents and Git hooks validate migrations. They never apply SQL to production themselves. Production changes run only from the reviewed `main` commit through the **Deploy production database** GitHub workflow, which the session that merged the migration dispatches.
 
 ## 1. Author a native migration
 
@@ -72,11 +72,11 @@ the application cutover; it must not be included in this release.
 
 ## 4. Deploy through GitHub Actions
 
-Configure the GitHub `Production` environment with the `SUPABASE_PRODUCTION_DB_URL` secret. Restrict that environment to `main` and add a required reviewer when the repository plan supports it.
+Configure the GitHub `Production` environment with the `SUPABASE_PRODUCTION_DB_URL` secret and restrict it to `main`.
 
-From the merged `main` commit, manually run **Deploy production database** and enter `DEPLOY`. The workflow serializes production database runs, previews pending migrations with `supabase db push --dry-run`, applies them with `supabase db push`, then verifies migration history, repository schema contracts, and Supabase security advisors.
+**Standing decision — 9 November 2026:** James does not review or approve deployments. A migration is reviewed in its pull request (CI, `Database behavior` and review threads), and merging it authorizes deploying it. After a pull request that adds or changes files under `supabase/migrations/` merges, the session that drove it dispatches **Deploy production database** on `main` with the confirmation `DEPLOY` (`gh workflow run deploy-production-database.yml --ref main -f confirmation=DEPLOY`, or the GitHub Actions `run_workflow` tool), once `origin/main` is the merge commit or a descendant of it. Do not hand this step back to James. The workflow serializes production database runs, previews pending migrations with `supabase db push --dry-run`, applies them with `supabase db push`, then verifies migration history, repository schema contracts, and Supabase security advisors.
 
-The workflow is the only production migration path. A local `git push`, agent command, Vercel build, or preview deployment never applies production SQL.
+The workflow is the only production migration path. A local `git push`, direct SQL from an agent (Supabase connector, `psql`, or `supabase db push` against production), Vercel build, or preview deployment never applies production SQL.
 
 If the workflow reports history drift, stop. Inspect `supabase migration list` and the target schema before considering `migration repair`; repairing history requires a separate reviewed decision because it changes the ledger without applying SQL.
 
@@ -90,7 +90,7 @@ Database work is complete when all applicable evidence is green:
 4. the compatible production application path behaves as intended;
 5. monitoring and the rollback or forward-fix owner are recorded.
 
-If production deployment was not requested or could not run, report it as outstanding and keep the database work incomplete.
+If the deployment could not run or failed, report it as outstanding and keep the database work incomplete.
 
 ## Import Draft retention release
 
