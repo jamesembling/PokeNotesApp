@@ -1,4 +1,4 @@
--- Run against a disposable database after the 30C allowlist migration.
+-- Run against a disposable database after the latest Tournament format allowlist migration.
 -- Verify the new default, the previous format, and the rejection boundary.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
@@ -21,32 +21,32 @@ declare
   v_invalid_rejected boolean := false;
 begin
   v_result := public.commit_tournament_metadata(
-    'create', 'format-rehearsal-30c', 'format-rehearsal-30c',
+    'create', 'format-rehearsal-dlr', 'format-rehearsal-dlr',
     jsonb_build_object(
-      'name', '30th Celebration', 'date_from', current_date::text,
-      'date_to', current_date::text, 'format', 'TEF-30C'
+      'name', 'Delta Reign', 'date_from', current_date::text,
+      'date_to', current_date::text, 'format', 'TEF-DLR'
     )
   );
   if v_result ->> 'status' <> 'committed'
-    or (select format from public.tournaments where id = 'format-rehearsal-30c') <> 'TEF-30C'
+    or (select format from public.tournaments where id = 'format-rehearsal-dlr') <> 'TEF-DLR'
   then
-    raise exception 'TEF-30C Tournament create did not commit';
+    raise exception 'TEF-DLR Tournament create did not commit';
   end if;
 
   select updated_at into strict v_updated_at
-  from public.tournaments where id = 'format-rehearsal-30c';
+  from public.tournaments where id = 'format-rehearsal-dlr';
   v_result := public.commit_tournament_metadata(
-    'update', 'format-rehearsal-30c', 'format-rehearsal-pbl-update',
+    'update', 'format-rehearsal-dlr', 'format-rehearsal-30c-update',
     jsonb_build_object(
-      'name', 'Pitch Black', 'date_from', current_date::text,
-      'date_to', current_date::text, 'format', 'TEF-PBL'
+      'name', '30th Celebration', 'date_from', current_date::text,
+      'date_to', current_date::text, 'format', 'TEF-30C'
     ),
     v_updated_at
   );
   if v_result ->> 'status' <> 'committed'
-    or (select format from public.tournaments where id = 'format-rehearsal-30c') <> 'TEF-PBL'
+    or (select format from public.tournaments where id = 'format-rehearsal-dlr') <> 'TEF-30C'
   then
-    raise exception 'existing TEF-PBL Tournament update regressed';
+    raise exception 'existing TEF-30C Tournament update regressed';
   end if;
 
   begin
