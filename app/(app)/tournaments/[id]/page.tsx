@@ -257,23 +257,23 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
 
       <section className="flex flex-col gap-6 border-b border-border pb-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="flex min-w-0 flex-1 items-center gap-4">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-4 sm:flex-nowrap">
             {isJudge ? (
               <PlayPokemonJudgeMark className="size-14" />
             ) : (
               <SpriteStrip maxVisible={3} size="xl" sprites={tournament.deckSprites} />
             )}
-            <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-              <div className="min-w-0">
+            <div className="contents sm:flex sm:min-w-0 sm:flex-1 sm:items-center sm:justify-between sm:gap-3">
+              <div className="min-w-0 flex-1">
                 <ItemTitle as="p" size="lg">
                   {isJudge
                     ? getTournamentJudgeRoleLabel(tournament.judgeRole)
                     : stackDeckName(tournamentDeckName)}
                 </ItemTitle>
               </div>
-              <div className="flex shrink-0">
+              <div className="flex w-full sm:w-auto sm:shrink-0">
                 {isJudge ? null : resolvedTournamentDeckList ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     <DeckListViewDialog
                       deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
                       rawList={resolvedTournamentDeckList?.rawList}
@@ -329,7 +329,7 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
                     />
                   </div>
                 ) : (
-                  <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     <LazyDeckListEditorButton
                       deckId={tournament.linkedDeckId ?? ""}
                       defaultCreatedBy={defaultCreatedBy}
