@@ -9,7 +9,16 @@ import {
   SITE_FORMAT_OPTIONS
 } from "../lib/formats/options";
 
-test("site format fallback defaults to the newest Standard range and recognizes current special cases", () => {
+function readTournamentFormatAllowlist(sql: string) {
+  const definitions = sql
+    .split("create or replace function public.commit_tournament_metadata(")
+    .slice(1);
+  const list = definitions.at(-1)?.match(/v_format not in \(([^)]*)\)/)?.[1];
+  assert(list, "commit_tournament_metadata must declare a Tournament format allowlist");
+  return [...list.matchAll(/'([^']+)'/g)].map((match) => match[1]).sort();
+}
+
+test("site formats default to the newest Standard range, recognize special cases, and are all savable on a Tournament", () => {
   assert.equal(getDefaultSiteFormat(), "TEF-DLR");
   assert.equal(getDefaultSiteFormat(["TEF-30C"]), "TEF-DLR");
   assert.equal(getDefaultSiteFormat(["TEF-PBL"]), "TEF-DLR");
@@ -24,18 +33,8 @@ test("site format fallback defaults to the newest Standard range and recognizes 
     ),
     ["TEF-30C", "SVI-WHT/BLK"]
   );
-});
 
-function readTournamentFormatAllowlist(sql: string) {
-  const definitions = sql
-    .split("create or replace function public.commit_tournament_metadata(")
-    .slice(1);
-  const list = definitions.at(-1)?.match(/v_format not in \(([^)]*)\)/)?.[1];
-  assert(list, "commit_tournament_metadata must declare a Tournament format allowlist");
-  return [...list.matchAll(/'([^']+)'/g)].map((match) => match[1]).sort();
-}
-
-test("every site format can be saved on a Tournament by the database", () => {
+  // The database rejects any Tournament format missing from its allowlist, so every site format must be on it.
   const migrationsDir = new URL("../supabase/migrations/", import.meta.url);
   const latestMigration = readdirSync(migrationsDir)
     .filter((name) => name.endsWith(".sql"))
@@ -45,7 +44,6 @@ test("every site format can be saved on a Tournament by the database", () => {
     .at(-1);
   assert(latestMigration, "a migration must define commit_tournament_metadata");
   const siteFormats = [...SITE_FORMAT_OPTIONS].sort();
-
   assert.deepEqual(readTournamentFormatAllowlist(latestMigration), siteFormats);
   assert.deepEqual(
     readTournamentFormatAllowlist(readFileSync(new URL("../schema.sql", import.meta.url), "utf8")),
