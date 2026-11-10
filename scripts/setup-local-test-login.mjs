@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
-import { networkInterfaces } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { config as loadDotenv } from "dotenv";
+import localNetworkHosts from "./local-network-hosts.cjs";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const envPath = resolve(rootDir, ".env");
@@ -135,28 +134,8 @@ function discoverLocalLoginHosts() {
     `[::1]:${port}`
   ]);
 
-  for (const addresses of Object.values(networkInterfaces())) {
-    for (const address of addresses ?? []) {
-      if (address.family === "IPv4" && !address.internal) {
-        if (isPrivateIpv4(address.address)) {
-          hosts.add(`${address.address}:${port}`);
-        }
-      }
-    }
-  }
-
-  if (process.platform === "darwin") {
-    try {
-      const localHostName = execFileSync("scutil", ["--get", "LocalHostName"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"]
-      }).trim();
-      if (localHostName) {
-        hosts.add(`${localHostName}.local:${port}`);
-      }
-    } catch {
-      // The discovered private IP remains available when mDNS lookup is unavailable.
-    }
+  for (const hostname of localNetworkHosts.localNetworkHostnames()) {
+    hosts.add(`${hostname}:${port}`);
   }
 
   for (const configuredHost of String(process.env.POKE_NOTES_LOCAL_LOGIN_HOSTS || "").split(",")) {
@@ -167,20 +146,6 @@ function discoverLocalLoginHosts() {
   }
 
   return Array.from(hosts).join(",");
-}
-
-function isPrivateIpv4(address) {
-  const octets = address.split(".").map(Number);
-  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet))) {
-    return false;
-  }
-
-  return (
-    octets[0] === 10 ||
-    (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
-    (octets[0] === 192 && octets[1] === 168) ||
-    (octets[0] === 169 && octets[1] === 254)
-  );
 }
 
 async function listAllAuthUsers() {

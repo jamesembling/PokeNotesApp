@@ -15,6 +15,7 @@ import { delimiter, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadDotenv, parse as parseDotenv } from "dotenv";
 import { waitForLocalSchema } from "./local-e2e-readiness.mjs";
+import localNetworkHosts from "./local-network-hosts.cjs";
 
 const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const e2eDir = resolve(rootDir, "tests/e2e");
@@ -26,6 +27,8 @@ const tsxBin = resolve(rootDir, "node_modules/.bin/tsx");
 const nextBin = resolve(rootDir, "node_modules/.bin/next");
 const dockerBinDir = "/Applications/Docker.app/Contents/Resources/bin";
 const command = process.argv[2] || "status";
+const appPort = 3010;
+const claudeEmail = "claude@pokenotes.local";
 const localSupabaseArgs = ["--workdir", "tests/e2e"];
 const excludedServices = [
   "realtime",
@@ -73,11 +76,12 @@ const commands = {
   stop,
   status,
   dev,
-  "save-auth": saveAuth
+  "save-auth": saveAuth,
+  "copy-code": copyCode
 };
 
 if (!commands[command]) {
-  throw new Error(`Unknown command ${JSON.stringify(command)}. Use setup, reset, start, stop, status, dev, or save-auth.`);
+  throw new Error(`Unknown command ${JSON.stringify(command)}. Use setup, reset, start, stop, status, dev, save-auth, or copy-code.`);
 }
 
 await commands[command]();
@@ -277,6 +281,8 @@ async function reset() {
   const previousEnvironment = readExistingE2eEnvironment();
   const password = previousEnvironment.POKE_NOTES_TEST_LOGIN_PASSWORD
     || `Local-${randomBytes(18).toString("base64url")}!9`;
+  const claudePassword = previousEnvironment.POKE_NOTES_CLAUDE_LOGIN_PASSWORD
+    || `Local-${randomBytes(18).toString("base64url")}!9`;
   const pairingCode = previousEnvironment.POKE_NOTES_LOCAL_LOGIN_CODE
     || randomBytes(18).toString("base64url");
   const authClaimsSecret = previousEnvironment.POKENOTES_AUTH_CLAIMS_SECRET
@@ -286,7 +292,9 @@ async function reset() {
     NEXT_PUBLIC_SUPABASE_URL: apiUrl,
     SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
     POKE_NOTES_TEST_LOGIN_EMAIL: "e2e@pokenotes.local",
-    POKE_NOTES_TEST_LOGIN_PASSWORD: password
+    POKE_NOTES_TEST_LOGIN_PASSWORD: password,
+    POKE_NOTES_CLAUDE_LOGIN_EMAIL: claudeEmail,
+    POKE_NOTES_CLAUDE_LOGIN_PASSWORD: claudePassword
   });
 
   console.log("Waiting for the recreated local schema to become readable through PostgREST.");
@@ -309,6 +317,8 @@ async function reset() {
     "POKE_NOTES_LOCAL_LOGIN_HOSTS=localhost:3010,127.0.0.1:3010,[::1]:3010",
     "POKE_NOTES_TEST_LOGIN_EMAIL=e2e@pokenotes.local",
     `POKE_NOTES_TEST_LOGIN_PASSWORD=${password}`,
+    `POKE_NOTES_CLAUDE_LOGIN_EMAIL=${claudeEmail}`,
+    `POKE_NOTES_CLAUDE_LOGIN_PASSWORD=${claudePassword}`,
     ""
   ].join("\n");
 
@@ -351,19 +361,45 @@ async function dev() {
     throw new Error("Refusing to start: the E2E local-only marker is missing.");
   }
   assertLocalUrl(String(process.env.NEXT_PUBLIC_SUPABASE_URL || ""));
-  await spawnAndForward(nextBin, ["dev", "-H", "0.0.0.0", "--port", "3010"], localEnvironment());
+  // Discovered at start, not stored, because the Mac's Wi-Fi address changes between networks.
+  const lanHosts = localNetworkHosts.localNetworkHostnames();
+  const loginHosts = new Set([
+    ...String(process.env.POKE_NOTES_LOCAL_LOGIN_HOSTS || "").split(",").filter(Boolean),
+    ...lanHosts.map((hostname) => `${hostname}:${appPort}`)
+  ]);
+  if (lanHosts.length > 0) {
+    console.log(`On a phone on the same Wi-Fi, open ${lanHosts.map((hostname) => `http://${hostname}:${appPort}`).join(" or ")}.`);
+    console.log("Run npm run auth:e2e:copy-code on this Mac and paste the code on the phone (Universal Clipboard).");
+  }
+  await spawnAndForward(
+    nextBin,
+    ["dev", "-H", "0.0.0.0", "--port", String(appPort)],
+    localEnvironment({ POKE_NOTES_LOCAL_LOGIN_HOSTS: Array.from(loginHosts).join(",") })
+  );
+}
+
+async function copyCode() {
+  const pairingCode = readExistingE2eEnvironment().POKE_NOTES_LOCAL_LOGIN_CODE;
+  if (!pairingCode) {
+    throw new Error("Missing .env.e2e.local. Run npm run e2e:local:setup first.");
+  }
+  run("pbcopy", [], { capture: true, input: pairingCode });
+  console.log("Local E2E pairing code copied to the macOS clipboard; its value was not printed.");
 }
 
 async function saveAuth() {
   if (!existsSync(envFile)) {
     throw new Error("Missing .env.e2e.local. Run npm run e2e:local:setup first.");
   }
+  const claude = process.argv.slice(3).includes("--account=claude");
   await spawnAndForward(
     process.execPath,
     [
       "scripts/save-local-auth-state.mjs",
-      "--base-url=http://localhost:3010",
-      "--state=.agent-browser/pokenotes-e2e-auth.json"
+      `--base-url=http://localhost:${appPort}`,
+      ...(claude
+        ? ["--account=claude", "--state=.agent-browser/pokenotes-e2e-claude-auth.json"]
+        : ["--state=.agent-browser/pokenotes-e2e-auth.json"])
     ],
     localEnvironment({ POKENOTES_ENV_FILE: ".env.e2e.local" })
   );

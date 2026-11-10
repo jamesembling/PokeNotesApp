@@ -12,6 +12,13 @@ export default [
     }
   },
   {
+    // CommonJS files can only load their dependencies with require().
+    files: ["**/*.cjs", "next.config.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off"
+    }
+  },
+  {
     ignores: [
       "node_modules/**",
       ".claude/worktrees/**",

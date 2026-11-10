@@ -102,7 +102,7 @@ try {
   await page.locator('form[action="/auth/dev-login"] input[name="pairingCode"]').fill(environment.POKE_NOTES_LOCAL_LOGIN_CODE);
   await Promise.all([
     page.waitForURL(`${baseUrl}/dashboard`),
-    page.locator('form[action="/auth/dev-login"] button[type="submit"]').click()
+    page.locator('form[action="/auth/dev-login"] button[type="submit"]:not([name])').click()
   ]);
   await verifyLogsBootstrap();
   await page.getByRole("button", { name: "E2E Trainer e2e@pokenotes.local", exact: true }).waitFor();
@@ -830,7 +830,7 @@ async function verifyLogsBootstrap() {
   await page.locator('form[action="/auth/dev-login"] input[name="pairingCode"]').fill(environment.POKE_NOTES_LOCAL_LOGIN_CODE);
   await Promise.all([
     page.waitForURL(`${baseUrl}/dashboard`),
-    page.locator('form[action="/auth/dev-login"] button[type="submit"]').click()
+    page.locator('form[action="/auth/dev-login"] button[type="submit"]:not([name])').click()
   ]);
   await page.goto(`${baseUrl}/logs`);
   await page.locator('[data-route-client-timing="route-data-visible"]').waitFor({ state: "attached" });

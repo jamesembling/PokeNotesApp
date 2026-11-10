@@ -1,3 +1,5 @@
+const { localNetworkHostnames } = require("./scripts/local-network-hosts.cjs");
+
 const baselineSecurityHeaders = [
   {
     key: "Permissions-Policy",
@@ -20,7 +22,8 @@ const baselineSecurityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: process.env.POKENOTES_E2E_LOCAL === "1" ? ".next-e2e" : ".next",
-  allowedDevOrigins: ["192.168.1.195", "Jamess-MacBook-Pro-2.local"],
+  // Lets a phone on the same Wi-Fi load dev assets from whatever address this Mac has today.
+  allowedDevOrigins: process.env.NODE_ENV === "production" ? [] : localNetworkHostnames(),
   async headers() {
     return [
       {

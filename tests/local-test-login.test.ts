@@ -31,6 +31,7 @@ test("local login is disabled in production even when every variable is populate
 
   assert.deepEqual(getLocalLoginPageState("phone-mac.local:3000", environment), {
     requiresPairingCode: true,
+    showClaudeLogin: false,
     showLocalLogin: false
   });
   assert.deepEqual(
@@ -50,6 +51,7 @@ test("local login is disabled in production even when every variable is populate
 test("loopback login requires the pairing code without putting it in a URL", () => {
   assert.deepEqual(getLocalLoginPageState("localhost:3000", developmentEnvironment), {
     requiresPairingCode: true,
+    showClaudeLogin: false,
     showLocalLogin: true
   });
 
@@ -86,6 +88,7 @@ test("loopback login requires the pairing code without putting it in a URL", () 
 test("an explicitly allowed LAN host requires the local pairing code", () => {
   assert.deepEqual(getLocalLoginPageState("phone-mac.local:3000", developmentEnvironment), {
     requiresPairingCode: true,
+    showClaudeLogin: false,
     showLocalLogin: true
   });
 
@@ -156,7 +159,33 @@ test("LAN login stays hidden until a pairing code is configured", () => {
     }),
     {
       requiresPairingCode: true,
+      showClaudeLogin: false,
       showLocalLogin: false
     }
   );
+});
+
+test("the Claude account signs in with its own credentials only when configured", () => {
+  const attempt = {
+    account: "claude",
+    host: "localhost:3000",
+    origin: "http://localhost:3000",
+    pairingCode: "correct-local-pairing-code",
+    secFetchSite: "same-origin"
+  };
+  const claudeEnvironment = {
+    ...developmentEnvironment,
+    POKE_NOTES_CLAUDE_LOGIN_EMAIL: "claude@example.invalid",
+    POKE_NOTES_CLAUDE_LOGIN_PASSWORD: "claude-password"
+  };
+
+  assert.equal(getLocalLoginPageState("localhost:3000", claudeEnvironment).showClaudeLogin, true);
+  const claude = validateLocalLoginAttempt(attempt, claudeEnvironment);
+  assert.equal(claude.allowed && claude.config.email, "claude@example.invalid");
+  const fallback = validateLocalLoginAttempt({ ...attempt, account: "" }, claudeEnvironment);
+  assert.equal(fallback.allowed && fallback.config.email, "test@example.invalid");
+  assert.deepEqual(validateLocalLoginAttempt(attempt, developmentEnvironment), {
+    allowed: false,
+    reason: "request"
+  });
 });

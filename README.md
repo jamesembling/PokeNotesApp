@@ -53,7 +53,7 @@ npm run dev:e2e
 npm run auth:e2e:save
 ```
 
-Reset with `npm run e2e:local:reset` before a full run, then save auth again because reset replaces the local user. See [`docs/agents/local-e2e.md`](./docs/agents/local-e2e.md) for fixture IDs, safety rules, lifecycle commands, and verification.
+Reset with `npm run e2e:local:reset` before a full run, then save auth again because reset replaces the local user. To test on a phone, open the Wi-Fi address that `dev:e2e` prints and paste the code from `npm run auth:e2e:copy-code`. Claude has its own local account, which **Sign in as Claude** selects and `npm run auth:e2e:save:claude` saves. See [`docs/agents/local-e2e.md`](./docs/agents/local-e2e.md) for fixture IDs, safety rules, lifecycle commands, and verification.
 
 The existing-account flow below remains available for non-destructive local checks against a configured development project. Do not use it for the resettable browser suite.
 

@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
   }
   const pairingCode = String(formData.get("pairingCode") || "");
   const validation = validateLocalLoginAttempt({
+    account: String(formData.get("account") || "") || null,
     host: request.headers.get("host"),
     origin: request.headers.get("origin"),
     pairingCode,
