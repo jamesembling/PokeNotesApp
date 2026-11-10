@@ -77,18 +77,19 @@ export function LogsWorkspaceFrame({
         // Reserves the mobile actions' height so the list does not jump when they appear.
         <div aria-hidden="true" className="flex flex-col gap-2 sm:hidden">
           <Skeleton className="h-11 rounded-lg" />
-          <Skeleton className="h-[2.645rem] rounded-lg" />
+          <Skeleton className="h-11 rounded-lg" />
         </div>
       ) : (
         <PageActions className="sm:hidden" mobile="stack">
+          <LazyImportLogButton className="min-h-11 w-full justify-center" />
           <Button
             aria-pressed={isManagementMode}
             className="min-h-11 w-full justify-center"
             onClick={toggleManagementMode}
+            variant="outline"
           >
             {isManagementMode ? "Done" : "Edit logs"}
           </Button>
-          <LazyImportLogButton className="w-full justify-center" />
         </PageActions>
       )}
 

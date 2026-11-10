@@ -455,7 +455,7 @@ export function BattleLogSpritePicker({
           </p>
         </div>
         <Button
-          className="gap-1 text-[0.9rem] font-medium text-foreground md:gap-2 md:text-sm"
+          className="gap-1 text-[0.9rem] font-medium text-foreground max-sm:min-h-11 md:gap-2 md:text-sm"
           onClick={() => onChange(swapSpritePositions(sprites))}
           size="sm"
           type="button"

@@ -103,7 +103,7 @@ export function TournamentSummaryList({
                   )}
                   <p className={`${styles.metric} ${styles.points}`}>
                     <span className={styles.metricLabel}>
-                      {isJudge ? "Professor Points (PP)" : "Championship Points (CP)"}
+                      {isJudge ? "Points (PP)" : "Points (CP)"}
                     </span>
                     <span className={styles.metricValue}>
                       {(isJudge

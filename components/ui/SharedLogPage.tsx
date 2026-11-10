@@ -13,14 +13,12 @@ import { projectPublicBattleLogDetail } from "@/lib/battle-log/detail-projection
 import { getSharedLogSnapshot } from "@/lib/db/log-shares";
 import { requireSharedLogSnapshot } from "@/lib/shared-log-routing";
 import type { PublicBattleLog } from "@/lib/db/log-shares";
+import { createStableDateTimeFormatter } from "@/lib/date-time";
 
-const SHARED_LOG_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit"
-});
+const SHARED_LOG_DATE_TIME_FORMATTER = createStableDateTimeFormatter(
+  { day: "numeric", month: "short", year: "numeric" },
+  { hour: "2-digit", minute: "2-digit" }
+);
 
 const SHARED_LOG_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",

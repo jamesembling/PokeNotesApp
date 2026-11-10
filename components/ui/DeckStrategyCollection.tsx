@@ -150,7 +150,7 @@ export function DeckStrategyCollection({ decks }: DeckStrategyCollectionProps) {
           className="w-fit shrink-0 sm:hidden"
           mobile="stack"
         >
-          <LazyDeckEditorButton triggerLabel="+ New deck" />
+          <LazyDeckEditorButton triggerLabel="+ New Deck" />
         </PageActions>
       </div>
 

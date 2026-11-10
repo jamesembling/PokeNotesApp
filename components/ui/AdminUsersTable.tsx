@@ -2,11 +2,12 @@ import { AdminRoleControls } from "@/components/ui/AdminRoleControls";
 import { ItemTitle } from "@/components/ui/Typography";
 import type { AdminUser } from "@/types/index";
 import styles from "./admin/admin.module.css";
+import { createStableDateTimeFormatter } from "@/lib/date-time";
 
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  dateStyle: "medium",
-  timeStyle: "short"
-});
+const DATE_TIME_FORMATTER = createStableDateTimeFormatter(
+  { dateStyle: "medium" },
+  { timeStyle: "short" }
+);
 const COUNT_FORMATTER = new Intl.NumberFormat("en-GB");
 
 type AdminUsersTableProps = {

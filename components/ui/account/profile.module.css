@@ -89,3 +89,8 @@
 @media (prefers-reduced-motion: reduce) {
   .camera, .editor > summary svg { transition: none; }
 }
+
+/* Phones get a full-height, visibly linked target. */
+@media (max-width: 639px) {
+  .profileLink { display: flex; width: fit-content; align-items: center; min-height: 2.75rem; margin-block: -.5625rem -.8125rem; text-decoration: underline; }
+}
