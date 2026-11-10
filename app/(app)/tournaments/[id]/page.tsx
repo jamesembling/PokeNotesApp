@@ -273,7 +273,8 @@ export default async function TournamentDetailPage({ params }: TournamentDetailP
               </div>
               <div className="flex w-full sm:w-auto sm:shrink-0">
                 {isJudge ? null : resolvedTournamentDeckList ? (
-                  <div className="flex flex-wrap items-center gap-1">
+                  // On phones the source actions form an even two-column grid of full-size buttons.
+                  <div className="flex flex-wrap items-center gap-1 max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:gap-2 max-sm:[&>*]:w-full max-sm:[&_button]:min-h-11 max-sm:[&_button]:w-full max-sm:[&_button]:border max-sm:[&_button]:border-border">
                     <DeckListViewDialog
                       deckListName={resolvedTournamentDeckList?.name ?? "Tournament Deck List"}
                       rawList={resolvedTournamentDeckList?.rawList}

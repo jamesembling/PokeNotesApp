@@ -360,6 +360,22 @@
     gap: 1.6rem;
   }
 
+  /* A 44-px hit area without changing the row's height. */
+  .sectionLink {
+    min-height: 2.75rem;
+    margin-block: -0.8125rem;
+  }
+
+  /* Phones read the totals from the page's left edge like the rest of the stats. */
+  .pointTotals {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .pointTotal {
+    align-items: flex-start;
+  }
+
   .statsGrid {
     grid-template-columns: 1fr;
   }

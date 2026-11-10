@@ -147,7 +147,7 @@ export function SidebarMobileTopbar() {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <div className="sticky top-0 z-30 border-b border-sidebar-border bg-sidebar px-4 py-3 min-[860px]:hidden">
+    <div className="sticky top-0 z-30 border-b border-sidebar-border bg-sidebar px-4 py-2 min-[860px]:hidden">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Button
@@ -186,7 +186,7 @@ function SidebarNav({ userDecks }: { userDecks?: DeckSelectionOption[] }) {
             ))}
           </SidebarMenu>
           <div className="px-2 pt-4 group-data-[collapsible=icon]:hidden">
-            <LazyImportLogButton className="w-full justify-center" initialUserDecks={userDecks} />
+            <LazyImportLogButton className="w-full justify-center max-sm:min-h-11" initialUserDecks={userDecks} />
           </div>
         </SidebarGroupContent>
       </SidebarGroup>

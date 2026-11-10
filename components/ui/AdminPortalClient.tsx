@@ -12,11 +12,12 @@ import { SidebarAccount, SidebarAccountFallback } from "@/components/ui/Sidebar"
 import { SectionTitle } from "@/components/ui/Typography";
 import type { AdminUser, AvatarColor, CatalogHealth } from "@/types/index";
 import styles from "./admin/admin.module.css";
+import { createStableDateTimeFormatter } from "@/lib/date-time";
 
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  dateStyle: "medium",
-  timeStyle: "short"
-});
+const DATE_TIME_FORMATTER = createStableDateTimeFormatter(
+  { dateStyle: "medium" },
+  { timeStyle: "short" }
+);
 const COUNT_FORMATTER = new Intl.NumberFormat("en-GB");
 
 type AdminDashboardBootstrap = {

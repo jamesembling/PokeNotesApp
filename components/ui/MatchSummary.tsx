@@ -297,11 +297,10 @@ export function MatchSummary({
   return (
     <section aria-labelledby="match-summary-heading" className="border-b border-border pb-6">
       <div className="flex flex-col gap-5">
-        <div className="flex items-start justify-between gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div className="min-w-0 space-y-2">
             <SectionTitle id="match-summary-heading" size="lg">
-              <span className="block sm:inline">Match</span>{" "}
-              <span className="block sm:inline">Summary</span>
+              Match Summary
             </SectionTitle>
             <p className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <span className={resultStyles.className}>{resultStyles.label}</span>

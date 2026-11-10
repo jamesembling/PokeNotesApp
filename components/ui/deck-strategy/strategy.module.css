@@ -143,7 +143,7 @@
   .lanes { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
   .matchupLaneBody { min-height: 0; }
   .lane { padding-top: .5rem; }
-  .laneHeader { margin-bottom: .25rem; gap: .5rem; }
+  .laneHeader { align-items: flex-start; margin-bottom: .25rem; gap: .5rem; }
   .desktopCategoryLabel { display: none; }
   .categoryToggle { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 2.75rem; width: 100%; text-align: left; cursor: pointer; }
   .categoryToggle svg { flex-shrink: 0; transition: transform 150ms ease-out; }
@@ -161,7 +161,9 @@
   .captureDesktop, .desktopSearch { display: none; }
   .contextRow { gap: .5rem; padding-bottom: 1.25rem; margin-bottom: 1.5rem; }
   .turnPreference { gap: .5rem; font-size: .75rem; }
-  .turnPreference > span { max-width: 3rem; line-height: 1.4; }
+  .turnPreference > span { white-space: nowrap; }
+  .turnPreference [role="tablist"] { height: auto; padding: 0; }
+  .turnPreference [role="tab"] { min-height: 2.75rem; }
   .turnPreference [role="tab"] { min-width: 4rem; padding-inline: .75rem; }
   .saveStatus { font-size: .75rem; }
   .notesHeader { gap: .5rem; margin-bottom: 1rem; }

@@ -9,8 +9,9 @@ import type { SocialProfile } from "@/lib/social/types";
 import { FavouriteCardArt } from "./FavouriteCardArt";
 import { FriendActions } from "./FriendActions";
 import styles from "./social.module.css";
+import { createStableDateTimeFormatter } from "@/lib/date-time";
 
-const loginFormatter = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" });
+const loginFormatter = createStableDateTimeFormatter({ dateStyle: "medium", timeZone: "Europe/London" }, { timeStyle: "short", timeZone: "Europe/London" });
 const loginDateFormatter = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "Europe/London" });
 const loginTimeFormatter = new Intl.DateTimeFormat("en-GB", { timeStyle: "short", timeZone: "Europe/London" });
 

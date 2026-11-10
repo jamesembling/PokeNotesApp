@@ -10,7 +10,6 @@ import {
   loadMoreLogsAction
 } from "@/app/(app)/logs/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/shadcn/alert";
-import { Badge } from "@/components/shadcn/badge";
 import { Button } from "@/components/shadcn/button";
 import { ClientPerfPanel } from "@/components/ui/ClientPerfPanel";
 import { ChevronIcon, PencilIcon } from "@/components/ui/icons";
@@ -660,12 +659,7 @@ export function LogsManager({
         </Alert>
       ) : null}
 
-      <div className="flex flex-col gap-6 p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:hidden">
-          <div className="flex flex-wrap items-center gap-2">
-            {!canLoadMore ? <Badge>Current window complete</Badge> : null}
-          </div>
-        </div>
+      <div className="flex flex-col gap-6 py-4 sm:p-5">
 
         <ClientPerfPanel
           expandedGroupCount={openGroupDates.length}

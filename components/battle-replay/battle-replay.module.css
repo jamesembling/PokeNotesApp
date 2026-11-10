@@ -1,5 +1,5 @@
 .replayContainer { --replay-board-card-width: 6.3rem; container-type: inline-size; container-name: replay; min-width: 0; }
-.unavailableArtwork { display: flex; width: 100%; height: 100%; flex-direction: column; justify-content: center; gap: 0.25rem; padding: 0.3rem; background: var(--muted); color: var(--foreground); overflow-wrap: anywhere; text-align: center; font-size: 0.65rem; }
+.unavailableArtwork { display: flex; width: 100%; height: 100%; flex-direction: column; justify-content: center; gap: 0.25rem; padding: 0.3rem; background: var(--muted); color: var(--foreground); overflow-wrap: break-word; hyphens: auto; text-align: center; font-size: 0.65rem; }
 .unavailableArtwork span { font-size: 0.55rem; }
 .healthStatus[data-tone="unknown"] { color: var(--muted-foreground); }
 
@@ -43,8 +43,10 @@
 }
 
 @container replay (max-width: 44rem) {
+  /* The matchup takes a row; result, prizes and turns share the next one. */
   .matchMeta {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem 1rem;
   }
 
   .matchMeta > div:first-child {
@@ -2317,4 +2319,80 @@ button.pile:disabled {
 @container replay (max-width: 22rem) {
   .stadium { width: 2rem; }
   .boardSupporter { transform: translateX(3.85rem); width: 2rem; }
+}
+
+/* Phones: every Bench slot stays visible, edges follow the page gutter, and controls stay in reach. */
+.mobileControlDock { display: none; }
+@container replay (max-width: 40rem) {
+  .replayShell { overflow: clip; }
+  .replayStage { padding-inline: 1rem; }
+  .mobileControlDock {
+    position: sticky;
+    /* Sits directly below the sticky mobile app bar. */
+    top: calc(3.75rem + 1px);
+    /* Above the boards, below the app bar (z-30) and the drawer and sheets (z-50). */
+    z-index: 20;
+    display: block;
+    margin-inline: -1rem;
+    margin-bottom: 0.6rem;
+    padding: 0.4rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in oklab, var(--background) 92%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  .mobileControlDock .controls { margin-inline: auto; justify-content: space-between; }
+  .playerHeader > .controls { display: none; }
+  .zonePiles { grid-area: piles; }
+  .bench,
+  .bench[data-capacity="8"] {
+    --replay-board-card-width: min(5.5rem, calc((100cqi - 4.6rem) / 5));
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    justify-content: stretch;
+    overflow-x: visible;
+    gap: 0.4rem;
+    padding-inline: 0;
+  }
+  .bench[data-capacity="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); --replay-board-card-width: calc((100cqi - 5rem) / 6); }
+  .bench[data-capacity="7"] { grid-template-columns: repeat(7, minmax(0, 1fr)); --replay-board-card-width: calc((100cqi - 5.4rem) / 7); }
+  .bench[data-capacity="8"] { grid-template-columns: repeat(8, minmax(0, 1fr)); --replay-board-card-width: calc((100cqi - 5.8rem) / 8); }
+  .timelineHeader { padding-inline: 1rem; }
+  .timelineAction { padding-inline: 1.75rem 1rem; }
+  .timelineAction::before { left: 1rem; }
+}
+
+.discardEmpty { margin: 0; padding: 1rem 1.25rem 1.5rem; color: var(--muted-foreground); font-size: 0.875rem; }
+
+/* Empty board positions keep a visible outline on dark boards. */
+:global(.dark) .benchSlot:not([data-populated]),
+:global(.dark) .active:not([data-populated]) {
+  border-color: color-mix(in oklab, var(--replay-player-tint) 55%, var(--muted-foreground));
+}
+
+@container replay (max-width: 40rem) {
+  /* Narrow Bench slots keep a fallback card name whole. */
+  .bench .unavailableArtwork { padding: 0.2rem; font-size: 0.55rem; }
+}
+
+/* Fallback names size to the card width and break only between words. */
+.benchSlot .unavailableArtwork {
+  justify-content: center;
+  overflow: hidden;
+  padding: 0.1rem;
+  /* Bold sans needs up to about 0.72em per character, so the longest word stays inside the card. */
+  font-size: clamp(0.42rem, calc((var(--replay-board-card-width) - 0.4rem) / (var(--fallback-word-chars, 10) * 0.72)), 0.8rem);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  overflow-wrap: normal;
+  hyphens: manual;
+}
+.benchSlot .unavailableArtwork strong { font-weight: 700; }
+
+/* Enlarged previews show a fallback name at reading size. */
+.cardPreviewImage .unavailableArtwork { gap: 0.5rem; padding: 1rem; font-size: 1.35rem; }
+.cardPreviewImage .unavailableArtwork span { font-size: 0.9rem; }
+
+@container replay (max-width: 40rem) {
+  /* The range input keeps a 44-px touch band around its track. */
+  .scrubber input { height: 2.75rem; }
 }

@@ -6,11 +6,12 @@ import { pinEvent, saveEventFilters, unpinEvent } from "@/app/(app)/dashboard/ac
 import { isUpcomingLimitlessEvent, withinUpcomingWindow, type EventFilters, type UpcomingLimitlessEvent } from "@/lib/tournaments/limitless-events";
 import type { UserEventState } from "@/lib/db/upcoming-events";
 import styles from "./upcoming-events.module.css";
+import { createStableDateTimeFormatter } from "@/lib/date-time";
 
 const dateFormatter = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
 const timeFormatter = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 const numberFormatter = new Intl.NumberFormat("en-GB");
-const snapshotFormatter = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
+const snapshotFormatter = createStableDateTimeFormatter({ day: "numeric", month: "short", timeZone: "UTC" }, { hour: "2-digit", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
 const EVENT_REFRESH_MS = 15 * 60 * 1000;
 const timeChoices = [
   { label: "Any time", hours: "All hours", from: "", to: "" },

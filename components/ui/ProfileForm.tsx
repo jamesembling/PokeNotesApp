@@ -11,9 +11,10 @@ import { PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { ProfileAvatarChooser } from "./account/ProfileAvatarChooser";
 import styles from "./account/profile.module.css";
 import type { UserProfile } from "@/types/index";
+import { createStableDateTimeFormatter } from "@/lib/date-time";
 
 const initialProfileActionState: ProfileActionState = { error: null, success: null };
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" });
+const DATE_TIME_FORMATTER = createStableDateTimeFormatter({ dateStyle: "medium", timeZone: "Europe/London" }, { timeStyle: "short", timeZone: "Europe/London" });
 
 function formatDateTime(value: string | undefined) {
   if (!value) return "Not available yet";

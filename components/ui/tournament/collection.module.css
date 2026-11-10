@@ -28,7 +28,7 @@
 .locationIcon { display: inline-block; width: 0.875rem; height: 0.875rem; margin-right: 0.1875rem; vertical-align: -0.125rem; }
 .identifier { margin-top: 0.125rem; color: var(--muted-foreground); font-size: 0.75rem; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .metric { display: flex; min-width: 0; align-self: start; flex-direction: column; gap: 0.25rem; }
-.metricLabel { color: var(--muted-foreground); font-size: 0.75rem; line-height: 1.5; }
+.metricLabel { overflow: hidden; color: var(--muted-foreground); font-size: 0.75rem; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
 .metricValue { font-size: 1rem; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
 .record, .points { font-variant-numeric: tabular-nums; }
 .judgeRole { grid-column: 1 / 3; }

@@ -267,8 +267,12 @@ async function DashboardTournaments({
                   <div className={styles.tournamentRecord}>
                     <span>{isJudge ? getTournamentJudgeRoleLabel(tournament.judgeRole) : placement}</span>
                     <span>
-                      {isJudge ? null : `${getTournamentRecord(tournament.rounds)} · `}
-                      {points ?? "—"} {isJudge ? "PP" : "CP"}
+                      {[
+                        isJudge ? null : getTournamentRecord(tournament.rounds),
+                        points == null ? null : `${points} ${isJudge ? "PP" : "CP"}`
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </span>
                   </div>
                   <ArrowUpRight aria-hidden="true" className={styles.rowArrow} size={17} />

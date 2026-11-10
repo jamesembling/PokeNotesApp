@@ -56,7 +56,13 @@ import {
 import styles from "./battle-replay.module.css";
 
 function UnavailableArtwork({ name }: { name: string }) {
-  return <span className={styles.unavailableArtwork}><strong>{name}</strong></span>;
+  // Narrow cards size the name so its longest word fits on one line.
+  const longestWord = Math.max(1, ...name.split(/\s+/).map((word) => word.length));
+  return (
+    <span className={styles.unavailableArtwork} style={{ "--fallback-word-chars": longestWord } as React.CSSProperties}>
+      <strong>{name}</strong>
+    </span>
+  );
 }
 
 const ATTACK_IMPACT_MS = 1194;
@@ -1852,6 +1858,8 @@ export function BattleReplay({
       </div>
 
       <div className={styles.replayStage} ref={stageRef}>
+        {/* Phones keep the playback controls pinned above the boards while either board is inspected. */}
+        <div className={styles.mobileControlDock}>{playbackControls}</div>
         <div className={styles.boardFrame} data-replay-board-frame data-transaction={popupTransaction && !inlineTransaction || undefined}>
           <div className={styles.board} ref={boardRef}>
             <PlayerBoard openingRevealed={openingRevealed} instantReveal={!atOpeningReveal || !animateOpeningReveal} controls={playbackControls} coinPhase={coinPhase} actor="opponent" abilities={abilityActivations} attackDamagePending={pendingAttackIndex === actionIndex} playedSupporter={trainerAction?.actor === "opponent" && trainerAction.type === "Supporter" && completedTrainerIndex !== actionIndex ? trainerAction.card : undefined} playedItem={trainerAction?.actor === "opponent" && trainerAction.type === "Item" && completedTrainerIndex !== actionIndex ? trainerAction.card : undefined} currentEvent={currentEvent} onInspectDiscard={inspectDiscard} onPreview={previewCard} previousSide={previousState.opponent} side={boardState.opponent} stadium={state.stadium} />
@@ -1956,6 +1964,15 @@ export function BattleReplay({
                 {inspectedDiscardSide?.discardCount != null ? `${inspectedDiscardSide.discardCount} ${inspectedDiscardSide.discardCount === 1 ? "card" : "cards"} · ` : ""}Newest first
               </SheetDescription>
             </SheetHeader>
+            {inspectedDiscardSide && inspectedDiscardSide.discard.length === 0 ? (
+              <p className={styles.discardEmpty}>
+                {inspectedDiscardSide.discardCount === 0
+                  ? "No cards in this discard pile yet."
+                  : inspectedDiscardSide.discardCount == null
+                    ? "The saved Battle Log doesn't show how many cards are in this discard pile."
+                    : "The saved Battle Log doesn't name the discarded cards."}
+              </p>
+            ) : null}
             <ol className={styles.discardList}>
               {(inspectedDiscard
                 ? state[inspectedDiscard].discard

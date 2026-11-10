@@ -23,11 +23,12 @@ export default async function DeckListsPage() {
     <div className={styles.page}>
       <PageHeader
         action={
-          <PageActions>
+          <PageActions className="w-full sm:w-fit">
             <LazyDeckListEditorButton
               defaultCreatedBy={defaultCreatedBy}
+              triggerClassName="w-full justify-center sm:w-auto"
               triggerLabel="+ New Deck List"
-              triggerVariant="outline"
+              triggerVariant="default"
             />
           </PageActions>
         }

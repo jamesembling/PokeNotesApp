@@ -20,18 +20,19 @@ const buttonVariants = cva(
           "border-[var(--color-loss-border)] bg-[var(--color-loss-bg)] text-loss-strong hover:bg-[var(--color-loss-border)] focus-visible:border-[var(--color-loss)] focus-visible:ring-[var(--color-loss-border)]",
         link: "text-primary underline-offset-4 hover:underline",
       },
+      // Phones get 44-px touch targets; pointer layouts keep the compact sizes.
       size: {
         default:
-          "h-auto min-h-9 gap-1.5 px-4 py-2 text-[0.95rem] font-semibold",
+          "h-auto min-h-9 gap-1.5 px-4 py-2 text-[0.95rem] font-semibold max-sm:min-h-11",
         xs: "h-6 gap-1 rounded-[min(var(--radius),10px)] px-2 text-xs [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 gap-1 rounded-[min(var(--radius),12px)] px-2.5 text-[0.8rem] [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 gap-1.5 px-2.5",
-        icon: "size-8",
+        icon: "size-8 max-sm:size-11",
         "icon-xs":
           "size-6 rounded-[min(var(--radius),10px)] [&_svg:not([class*='size-'])]:size-3",
         "icon-sm":
           "size-7 rounded-[min(var(--radius),12px)]",
-        "icon-lg": "size-9",
+        "icon-lg": "size-9 max-sm:size-11",
       },
     },
     compoundVariants: [

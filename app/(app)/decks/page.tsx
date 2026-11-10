@@ -55,7 +55,7 @@ async function DecksContent({
     <PageHeader
       action={
         <PageActions className="hidden sm:flex">
-          <LazyDeckEditorButton triggerLabel="+ New deck" />
+          <LazyDeckEditorButton triggerLabel="+ New Deck" />
         </PageActions>
       }
       breadcrumb={[{ label: "Poke Notes", href: "/" }, { label: "Deck Strategy" }]}
@@ -76,7 +76,7 @@ async function DecksContent({
         <RouteTimingMarker durationMs={decksTiming.durationMs} phase="route-data" />
         {header}
         <PageActions className="sm:hidden" mobile="stack">
-          <LazyDeckEditorButton triggerLabel="+ New deck" />
+          <LazyDeckEditorButton triggerLabel="+ New Deck" />
         </PageActions>
         <div className={styles.empty}>
           <p>No decks saved yet.</p>

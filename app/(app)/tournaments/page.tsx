@@ -38,7 +38,7 @@ export default async function TournamentsPage() {
             <LazyTournamentEditorButton
               className="w-full justify-center sm:w-auto"
               triggerLabel="+ New Tournament"
-              triggerVariant="outline"
+              triggerVariant="default"
             />
           </PageActions>
         }
