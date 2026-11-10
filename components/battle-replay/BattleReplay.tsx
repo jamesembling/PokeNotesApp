@@ -1966,9 +1966,11 @@ export function BattleReplay({
             </SheetHeader>
             {inspectedDiscardSide && inspectedDiscardSide.discard.length === 0 ? (
               <p className={styles.discardEmpty}>
-                {inspectedDiscardSide.discardCount
-                  ? "The saved Battle Log doesn't name the discarded cards."
-                  : "No cards in this discard pile yet."}
+                {inspectedDiscardSide.discardCount === 0
+                  ? "No cards in this discard pile yet."
+                  : inspectedDiscardSide.discardCount == null
+                    ? "The saved Battle Log doesn't show how many cards are in this discard pile."
+                    : "The saved Battle Log doesn't name the discarded cards."}
               </p>
             ) : null}
             <ol className={styles.discardList}>
