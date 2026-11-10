@@ -12,6 +12,10 @@ const apiUrl = String(process.env.NEXT_PUBLIC_SUPABASE_URL || "");
 const serviceRoleKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "");
 const email = String(process.env.POKE_NOTES_TEST_LOGIN_EMAIL || "");
 const password = String(process.env.POKE_NOTES_TEST_LOGIN_PASSWORD || "");
+const claudeEmail = String(process.env.POKE_NOTES_CLAUDE_LOGIN_EMAIL || "");
+const claudePassword = String(
+  process.env.POKE_NOTES_CLAUDE_LOGIN_PASSWORD || "",
+);
 
 assertLocalOnly();
 
@@ -278,6 +282,47 @@ async function main() {
   console.log(
     "Seeded one synthetic account with 2 decks, 2 lists, 1 matchup, 1 tournament, 1 round, and 3 logs.",
   );
+
+  if (claudeEmail && claudePassword) {
+    await seedClaudeAccount();
+    console.log(
+      `Seeded Claude's own empty account, ${claudeEmail}, for agent checks.`,
+    );
+  }
+}
+
+// Claude's account starts empty so agent checks create their own state through the UI
+// without touching the fixture account the browser journeys assert on.
+async function seedClaudeAccount() {
+  const { data, error } = await client.auth.admin.createUser({
+    email: claudeEmail,
+    password: claudePassword,
+    email_confirm: true,
+    user_metadata: {
+      full_name: "Claude Tester",
+      given_name: "Claude",
+      family_name: "Tester",
+    },
+  });
+  if (error || !data.user) {
+    throw new Error(
+      `Could not create Claude's local account: ${error?.message || "missing user"}`,
+    );
+  }
+
+  await insert("profiles", {
+    id: data.user.id,
+    display_name: "Claude Tester",
+    first_name: "Claude",
+    last_name: "Tester",
+    email: claudeEmail,
+    ptcgl_username: "ClaudeTester",
+    role: "user",
+    avatar_color: "blue",
+    auth_account_created_at: now,
+    created_at: now,
+    updated_at: now,
+  });
 }
 
 main().catch((error) => {

@@ -34,6 +34,8 @@
     "auth:local:setup": "node scripts/setup-local-test-login.mjs",
     "auth:local:save": "node scripts/save-local-auth-state.mjs",
     "auth:e2e:save": "node scripts/local-e2e.mjs save-auth",
+    "auth:e2e:save:claude": "node scripts/local-e2e.mjs save-auth --account=claude",
+    "auth:e2e:copy-code": "node scripts/local-e2e.mjs copy-code",
     "e2e:local:setup": "node scripts/local-e2e.mjs setup",
     "e2e:local:reset": "node scripts/local-e2e.mjs reset",
     "e2e:local:start": "node scripts/local-e2e.mjs start",

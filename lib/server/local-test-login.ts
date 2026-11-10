@@ -7,7 +7,12 @@ type LocalLoginEnvironment = {
   POKE_NOTES_LOCAL_LOGIN_HOSTS?: string;
   POKE_NOTES_TEST_LOGIN_EMAIL?: string;
   POKE_NOTES_TEST_LOGIN_PASSWORD?: string;
+  POKE_NOTES_CLAUDE_LOGIN_EMAIL?: string;
+  POKE_NOTES_CLAUDE_LOGIN_PASSWORD?: string;
 };
+
+/** Form value that selects Claude's own local test account instead of the default one. */
+export const CLAUDE_LOCAL_LOGIN_ACCOUNT = "claude";
 
 const LOOPBACK_HOSTS = new Set(["localhost:3000", "127.0.0.1:3000", "[::1]:3000"]);
 
@@ -31,12 +36,23 @@ export function isAllowedLocalLoginHost(
   return getAllowedLocalLoginHosts(environment).has(normalizeHost(host));
 }
 
-function getLocalLoginConfig(environment: LocalLoginEnvironment = process.env) {
+function getLocalLoginConfig(
+  environment: LocalLoginEnvironment = process.env,
+  account?: string | null
+) {
   const enabled =
     environment.NODE_ENV === "development" &&
     environment.POKE_NOTES_ENABLE_TEST_LOGIN === "1";
-  const email = String(environment.POKE_NOTES_TEST_LOGIN_EMAIL || "");
-  const password = String(environment.POKE_NOTES_TEST_LOGIN_PASSWORD || "");
+  const claude = account === CLAUDE_LOCAL_LOGIN_ACCOUNT;
+  const email = String(
+    (claude ? environment.POKE_NOTES_CLAUDE_LOGIN_EMAIL : environment.POKE_NOTES_TEST_LOGIN_EMAIL) ||
+      ""
+  );
+  const password = String(
+    (claude
+      ? environment.POKE_NOTES_CLAUDE_LOGIN_PASSWORD
+      : environment.POKE_NOTES_TEST_LOGIN_PASSWORD) || ""
+  );
   const pairingCode = String(environment.POKE_NOTES_LOCAL_LOGIN_CODE || "");
 
   return {
@@ -55,21 +71,26 @@ export function getLocalLoginPageState(
   const allowedHost = isAllowedLocalLoginHost(host, environment);
   const requiresPairingCode = allowedHost;
 
+  const showLocalLogin = Boolean(config.configured && allowedHost);
+
   return {
-    showLocalLogin: Boolean(config.configured && allowedHost),
+    showLocalLogin,
+    showClaudeLogin:
+      showLocalLogin && getLocalLoginConfig(environment, CLAUDE_LOCAL_LOGIN_ACCOUNT).configured,
     requiresPairingCode
   };
 }
 
 export function validateLocalLoginRequest(
   input: {
+    account?: string | null | undefined;
     host: string | null | undefined;
     origin: string | null | undefined;
     secFetchSite?: string | null | undefined;
   },
   environment: LocalLoginEnvironment = process.env
 ) {
-  const config = getLocalLoginConfig(environment);
+  const config = getLocalLoginConfig(environment, input.account);
   const host = normalizeHost(input.host);
 
   if (!config.configured || !isAllowedLocalLoginHost(host, environment)) {
@@ -100,6 +121,7 @@ export function validateLocalLoginRequest(
 
 export function validateLocalLoginAttempt(
   input: {
+    account?: string | null | undefined;
     host: string | null | undefined;
     origin: string | null | undefined;
     pairingCode: string;

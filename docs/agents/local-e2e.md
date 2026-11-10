@@ -31,6 +31,21 @@ The isolated app runs at `http://localhost:3010`, alongside the normal watchdog-
 
 The setup command writes ignored, mode-`0600` credentials to `.env.e2e.local`. Do not print, copy into documentation, or commit that file.
 
+## Phone, iOS Simulator, and Claude's account
+
+`npm run dev:e2e` listens on every interface and prints the Wi-Fi addresses a phone can use, such as `http://<LocalHostName>.local:3010` or `http://192.168.x.y:3010`. It discovers those addresses each time it starts, adds them to the pairing-login host list and to Next.js `allowedDevOrigins`, and stores nothing, so a new network needs only a restart. The phone must be on the same Wi-Fi as the Mac. On the Mac, run `npm run auth:e2e:copy-code`, then paste into the phone's pairing-code field with Universal Clipboard.
+
+The iOS Simulator shares the Mac's network, so `http://localhost:3010` works in its Safari. Agents drive it with the T3 device tools (`device_list`, `device_open`, then the returned `agent-device` command) and should use the Wi-Fi address when the check is meant to stand in for a phone.
+
+The reset seeds two accounts:
+
+| Account | Use |
+| --- | --- |
+| `e2e@pokenotes.local` (E2E Trainer) | The fixture account below. Browser journeys assert on it; **Sign in locally** selects it. |
+| `claude@pokenotes.local` (Claude Tester) | Claude's own account. It starts empty, so agent checks create their own state through the UI. **Sign in as Claude** selects it. |
+
+Save Claude's agent-browser state with `npm run auth:e2e:save:claude`; it is written to `.agent-browser/pokenotes-e2e-claude-auth.json`. Both accounts share the pairing code, and a reset recreates both, so save both states again after every reset. Uploaded profile photos load from `127.0.0.1:54321` and do not appear on a physical phone; preset avatars do.
+
 ## Routine use
 
 For the complete Battle Log import check, run:
@@ -116,7 +131,7 @@ npm run e2e:local:stop
 
 ## Fixture contract
 
-Each reset creates one confirmed synthetic account, `e2e@pokenotes.local`, with stable application IDs:
+Each reset creates one confirmed synthetic fixture account, `e2e@pokenotes.local`, with stable application IDs, plus Claude's empty account described above:
 
 | Area | Stable fixtures |
 | --- | --- |

@@ -41,6 +41,14 @@ const baseUrlParts = new URL(baseUrl);
 const statePath = resolve(String(args.get("--state") || ".agent-browser/pokenotes-local-auth.json"));
 const session = String(args.get("--session") || `pokenotes-local-auth-${Date.now()}`);
 const pairingCode = String(process.env.POKE_NOTES_LOCAL_LOGIN_CODE || "");
+const account = String(args.get("--account") || "");
+
+if (account && account !== "claude") {
+  throw new Error(`Unknown local account "${account}". Use --account=claude or omit it.`);
+}
+if (account === "claude" && !process.env.POKE_NOTES_CLAUDE_LOGIN_EMAIL) {
+  throw new Error("Claude's local account is not configured. Run npm run e2e:local:reset first.");
+}
 
 if (!existsSync(agentBrowserBin)) {
   throw new Error("agent-browser is not installed. Run npm install first.");
@@ -67,7 +75,9 @@ if (currentUrl.pathname === "/login") {
   ]);
   runAgentBrowser([
     "click",
-    'form[action="/auth/dev-login"] button[type="submit"]'
+    account
+      ? `form[action="/auth/dev-login"] button[name="account"][value="${account}"]`
+      : 'form[action="/auth/dev-login"] button[type="submit"]:not([name])'
   ]);
 }
 runAgentBrowser([

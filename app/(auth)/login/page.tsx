@@ -9,7 +9,7 @@ import { ClearPrivateBrowserCache } from "@/components/ui/ClearPrivateBrowserCac
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getCurrentUser } from "@/lib/auth";
 import { getLoginAuthError } from "@/lib/server/login-error";
-import { getLocalLoginPageState } from "@/lib/server/local-test-login";
+import { CLAUDE_LOCAL_LOGIN_ACCOUNT, getLocalLoginPageState } from "@/lib/server/local-test-login";
 
 type LoginPageProps = {
   searchParams: Promise<{
@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const user = await getCurrentUser();
   const requestHeaders = await headers();
   const host = requestHeaders.get("host") || "";
-  const { requiresPairingCode, showLocalLogin } = getLocalLoginPageState(host);
+  const { requiresPairingCode, showClaudeLogin, showLocalLogin } = getLocalLoginPageState(host);
   const localError =
     params.localError === "pairing-code"
       ? "That local pairing code was not accepted. Copy the current code from your Mac and try again."
@@ -92,13 +92,27 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                       type="password"
                     />
                     <p className="text-sm text-muted-foreground">
-                      On your Mac, run npm run auth:local:copy-code, then paste the code here.
+                      On your Mac, run npm run{" "}
+                      {process.env.POKENOTES_E2E_LOCAL === "1"
+                        ? "auth:e2e:copy-code"
+                        : "auth:local:copy-code"}
+                      , then paste the code here.
                     </p>
                   </div>
                 ) : null}
                 <Button type="submit">
                   {showLocalLogin ? "Sign in locally" : "Sign in with Google"}
                 </Button>
+                {showClaudeLogin ? (
+                  <Button
+                    name="account"
+                    type="submit"
+                    value={CLAUDE_LOCAL_LOGIN_ACCOUNT}
+                    variant="outline"
+                  >
+                    Sign in as Claude
+                  </Button>
+                ) : null}
               </form>
             </div>
             {showLocalLogin ? (
