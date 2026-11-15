@@ -1,6 +1,6 @@
 <!-- BEGIN:nextjs-agent-rules -->
 
-# This is NOT the Next.js you know
+## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
@@ -13,6 +13,19 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Stack: Next.js 16, React 19, Supabase, Tailwind 3, TypeScript; Node 22+ with npm.
 - If `node_modules` is missing, run `npm ci` first. The Next.js guides referenced above live there.
 - Core checks: `npm run lint`, `npm run typecheck`, `npm test`, `npm run format:check`. See `docs/verification-commands.md` for targeted commands.
+
+## Sketch by default
+
+James tries ideas on a running localhost and ships only the ones he likes. Unless he says "ship it", "open a PR", "merge" or similar, a change request is a sketch:
+
+- Edit the main checkout (`/Users/jamesembling/Documents/Codex/workspaces/PokeNotesV2`), where his `npm run dev` server hot-reloads on `localhost:3000`. Do not create a worktree, branch, commit, push, or PR for a sketch.
+- If you were started in a worktree, say so before editing and ask whether to switch to the main checkout; a worktree's edits never reach his localhost.
+- Keep checks proportionate: run `npm run typecheck` and the tests for the files you touched. The full suite, review loops and the test-consolidation report wait until he ships.
+- End with what to look at on localhost (page and steps), not a PR summary. Don't confirm you're done until the dev server compiles the change.
+- `npm run dev` reads the real hosted Supabase project. A sketch must not write migrations to a hosted database or run bulk data changes; for ideas that change the schema or write data in bulk, use the local stack (`npm run dev:e2e`, see `docs/agents/local-e2e.md`).
+- When he says "ship it", follow **Merging** below with the sketch's working-tree changes, moved onto a branch with `git switch -c <branch>` as the `steward` skill describes.
+
+Parallel or long-running work (several agents at once, large refactors, automations) still uses worktrees and PRs.
 
 ## Merging
 
