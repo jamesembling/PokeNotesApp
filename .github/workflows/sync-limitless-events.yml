@@ -15,7 +15,9 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    environment: Production
+    environment:
+      name: Production
+      deployment: false
     env:
       LIMITLESS_SYNC_SECRET: ${{ secrets.LIMITLESS_SYNC_SECRET }}
     steps:

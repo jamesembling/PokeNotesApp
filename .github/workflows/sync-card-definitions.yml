@@ -21,7 +21,9 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: Production
+    environment:
+      name: Production
+      deployment: false
     steps:
       - name: Require production branch
         run: test "$GITHUB_REF" = "refs/heads/main"
